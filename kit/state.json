@@ -68,9 +68,10 @@
   "inFlight": [
     {
       "phase": "E6C",
-      "step": "Actual merge queue verification",
+      "step": "Fresh exact-merge checker startup and final merged candidate preparation",
       "pr": "2506",
-      "note": "Actualqueueentry16:33:50, reviewed569. Originalhelper43463837468SUCCESSstamped569/recoveredONLYReviewed; sourceCI43460781286attempt2SUCCESS,CodeQL/Codexclean/FULLA/checkPASS. Mergegroup43464013576/candidate705ba594INPROGRESS, NOTlanding. Builderterminal; rootsoleownerthroughactualmerge/freshcheck/postland. Nativec456source-specific; actualmergedcandidateprepdecisionpending. Allattempts preserved."
+      "session": "/root/editor_e6c_independent_check",
+      "note": "ACTUALmerge705landed16:49:02/queueCIgreen. Action12reservedonce, freshnative6af73ffcstartupfence: partialqualifications/no substantivework yet, await2fullpreflights+canonicalcomparison/rootACK. ExactmainCI43466517653/configured43466517736running; postland43466517715/q43466517597PASS. RootexplicitONE705nativecandidate sourceadmission aftermaterial7451drift; notoldc456relabel/budgetreset. No fourthautomaticattempt. LocalrealE5/E6/OW1gatesremain."
     }
   ],
   "owner": [
@@ -3212,7 +3213,7 @@
       "verdict": "pass",
       "legs": "review/simplify/verify inline0findings0fixed; requiredRiskyRulesandFULLAindependentlyread"
     },
-    "finalCurrentCandidateDecision": "No newmanualadmission. Nativec456 remainsvalidsource-specific; main7451materialwholeappdelta prevents relabelasactualmergedE5candidate. After actualmerge+integration evidence rootwillassessconcreteneed/source/bounds for finalcurrentcandidate using normalriskverification; neverautomaticthird/oldbudgetreset. No docs/codechangesnow.",
+    "finalCurrentCandidateDecision": "CONCRETE_ROOT_ASSESSED actual705 sourceadmission nowexplicitabove; earlier NO AUTOMATIC third retainedhistorical, not erased. Nativec456neverrelabeled; allpriorattempts remain.",
     "prRules": "WorkeractualPRBODYONLY addedconciseRules1\u20136; same569head/no push/review/testchange. RequiredobservableprecodeRules repeated.",
     "queueStampIntent": {
       "status": "OBSERVED_ORIGINAL_HELPER_SUCCESS_REVIEWED_ONLY_RECOVERED",
@@ -3250,6 +3251,48 @@
       "candidate": "705ba59425441fedbe171bee993e4b621c7bf68b",
       "candidateStatus": "IN_PROGRESS_NOT_LANDING",
       "branch": "gh-readonly-queue/main/pr-2506-7451fbbacf03a1c763b4e9939b7ed800c8faf5de"
+    },
+    "landed": {
+      "pr": 2506,
+      "mergeSha": "705ba59425441fedbe171bee993e4b621c7bf68b",
+      "mergedAt": "2026-11-13T16:49:02Z",
+      "parents": [
+        "7451fbbacf03a1c763b4e9939b7ed800c8faf5de",
+        "569aaceb523ccdfbbbe4cf3cad2238667aeeea73"
+      ],
+      "tree": "0d44c49914d7381948862d3cfdf53a3f59ceb4c8",
+      "queueCI": 43464013576,
+      "conclusion": "SUCCESS actualmerge observed; landedrecordaccepted16:49:47.274Z"
+    },
+    "checkerLaunch": {
+      "status": "RESERVED_ONCE_NATIVE_SPAWNED_STARTUP_FENCE_NOT_YET_OBSERVED",
+      "actor": "/root/editor_e6c_independent_check",
+      "nativeThreadUuid": "6af73ffc-becc-8191-aed7-201765c1407f",
+      "inheritedSession": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
+      "actionId": "plan-editor-r1-5-2026-11-08:12",
+      "requestSha256": "c55db96faeda6f88b7270f387320818371b103e4492d5705eb45dd860a07d173",
+      "requestFile": "briefs/e6c-check-native-request-20261113.json",
+      "transportSha256": "83c6d645e3630bda17dd9e4be132111e6308a0a4e793abca734f3b992f718a64",
+      "brief": "briefs/e6c-check-e6c-c-cloud-1113.txt",
+      "briefBytes": 19677,
+      "briefSha256": "c06d9af3f23b7e3efb8f741d857bdcc2882a381cd23309cf875ed47206d518a7",
+      "worktree": "/workspace/noacg-editor-r1-5-e6c-check",
+      "branch": "codex/plan-editor-r1-5-e6c-check",
+      "source": "705ba59425441fedbe171bee993e4b621c7bf68b",
+      "startupPartial": "Actualmessagesverifyrequesttransport/fullbriefbytes, nativeIDs/clean705parent7451/lock62dd/currentenforcedCloud. Read-onlySQLiteWALopenfailed; firstIOgrantabsentoutputparentEROFS preservedPRETEST/noassertions/noadmission. Workerqualifyingtwoownfullscopedpreflights+canonicalpendingcomparison beforeACK; do notreplace/reserveagain."
+    },
+    "actualMergeCandidateAdmission": {
+      "at": "2026-11-13T16:54:06.310017+00:00",
+      "status": "PROSPECTIVE_ONE_ACTUAL_MERGED_SOURCE_ADMISSION_BEFORE_PUSH_DISPATCH",
+      "source": "705ba59425441fedbe171bee993e4b621c7bf68b",
+      "branch": "codex/plan-editor-r1-5-e6c-merged-candidate",
+      "worktree": "/workspace/noacg-editor-r1-5-e6c-merged-candidate",
+      "scope": "FinalusableofflineAPPcandidate forlocalE5/currentmergedG07; no product/code/config/helperchange. Actualc456\u2192705 includes19runtimefrontend/backend/control/outputpaths1583+/96- frommainPR2488; oldc456producer remainsvalidhistoricalbutcannotqualifynewwholeapp. NormalCIdoesnotuploaditsdist asusableofflinecandidate.",
+      "admissionBasis": "Existingverify permitsone risk-triggeredbuild percommittedreviewedsource;705isactualqueue-reviewed/CIpassednewsource and hasNEVERhadnativecandidatebuild. This is sourcequalification, not retryofc456/de563 or a repairattempt reset. Rootexplicitlyassessedconcreteneed/source/bounds afterlanding, lifting earlier NO AUTOMATIC third-admission boundary onlyfor this oneactualmergepreparation. E6Ccount3total isvisible:de563FAIL,c456PASS,this705newsourcepending; E5C3/3 and everyE4spentcount untouched.",
+      "rootChecks": "Ownrootclean705worktreecreated, branchunused; actualbranchworkflow_dispatchtotal0. Rootbytecomparedunchangedendurance/helper/smoke/captureexport/lock to c456; exacthelperSHA912b6b316719596904078ebfedf823f6ebb1d956f7b9be6fc2aa7f7c733e067d; lock62dd. Actualmergeparents7451+569/tree0d44/sourceallreviewed; no unreviewedappedit.",
+      "route": "Pushownedstaticbranchat705; observationfirst; ONE endurance.yml workflow_dispatch scriptqualify:editor-native-kit minutes10 local-supabasefalse. FullNORMALbuild+unchanged12helperassertions+22historicalcaptures+currentversion/fullmanifest/ZIP+mandatorycleanup insideexisting10minuteenvelope. Sourceversionmust705.",
+      "limits": "No fourthautomaticadmission, no performance/model campaign/provider/funding/credentials/productiondata/licence/release/workflow/helper/CIcapchange. Workflow90/input1-75/normalCI15/offActions5remain. AnyFAIL/incompleteSTOP/readwholelogandassessbeforeanyfurtheredit/admission; confirmedE4effectSTOPownerreassessment. Unknownackreconcileoriginal,neverredispatch.",
+      "handoff": "Provideexactnewrun/producer/hashes to freshindependentcheckerbeforecriterion3verdict; publicrunissuehandoffpinsactualmergedcandidate while oldc456docs remain historical. Rawconsumerreadback mustbe truthful."
     }
   }
 }
