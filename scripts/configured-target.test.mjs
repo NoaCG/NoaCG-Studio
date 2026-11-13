@@ -1,4 +1,4 @@
-// guards: scripts/configured-target.mjs, e2e/_configured-guard.ts, e2e/configured/_helpers.ts, playwright.live.config.ts, .github/workflows/hosted-latency.yml
+// guards: scripts/configured-target.mjs, e2e/_configured-guard.ts, e2e/configured/_helpers.ts, playwright.live.config.ts, scripts/ograf-walk-common.mjs, .github/workflows/hosted-latency.yml
 //
 // THE REFUSAL THAT KEEPS A CONFIGURED RUN OFF PRODUCTION (issue #2495), pinned from both ends:
 // the rule itself, and the wiring that makes a run actually meet it. The wiring half is the half
@@ -212,17 +212,20 @@ test('the guard refuses the incident environment before it probes anything', asy
   // LEG 1, RUN. The guard's own call was pinned by matching its source text, so swallowing it and
   // carrying on left every test green - the third time in this change's review that a behaviour
   // shipped with nothing but a spelling behind it, and this one is the primary line of defence.
-  // No server is needed: leg 1 throws before the probe, which is also what this asserts.
+  // No server is needed: leg 1 throws before the probe, which the closed port below establishes.
   const before = { ...process.env };
   for (const name of [...URL_VARS, ...KEY_VARS]) delete process.env[name];
   Object.assign(process.env, CLOUD_WORKER);
+  // Restored by DIFFERENCE, not by overwrite: CLOUD_WORKER carries E2E_EMAIL and E2E_PASSWORD,
+  // which an assign cannot remove, and leaking credential-shaped values into the child processes
+  // the later tests spawn is the thing this file is about.
   t.after(() => {
-    for (const name of [...URL_VARS, ...KEY_VARS]) delete process.env[name];
+    for (const name of Object.keys(CLOUD_WORKER)) delete process.env[name];
     Object.assign(process.env, before);
   });
   const guard = (await import(path.join(ROOT, 'e2e/_configured-guard.ts'))).default;
-  // Port 1 is closed, so reaching the probe at all would return the skip rather than throw: a
-  // rejection here can only have come from the environment.
+  // Port 1 is closed, which is what makes a rejection here leg 1's: reaching the probe returns
+  // the skip rather than throwing.
   await assert.rejects(
     () => guard({ projects: [{ use: { baseURL: 'http://127.0.0.1:1' } }] }),
     /Refusing to start the configured suite\..*PRODUCTION project/s,
@@ -303,6 +306,20 @@ test('what the page serves is judged by the same rule, in THIS environment', () 
   // that is the whole question here. Stop blanking the other spelling and this goes red.
   const declared = { ...LOCAL_STACK, [DECLARATION]: HOSTED_STAGING, SUPABASE_URL: `https://${DEFAULT_STAGING_REF}.supabase.co` };
   assert.equal(servedTarget('http://127.0.0.1:54321', declared).kind, 'local');
+});
+
+test('the walks\' own dev server pins every backend variable the rule reads', async () => {
+  // THE THIRD SERVER. The two offline Playwright configs pin their server's backend empty; the
+  // ograf walks start one themselves and pinned only the browser's pair, so the api/ handlers it
+  // mounts kept whatever the shell held - the same defect, one directory over, and nothing would
+  // have failed if it had stayed. The pins are an exported object so this reads the values the
+  // spawn is given, not the file's text: delete one and this goes red.
+  const { OFFLINE_BACKEND_PINS } = await import('./ograf-walk-common.mjs');
+  for (const name of [...URL_VARS, ...KEY_VARS]) {
+    assert.equal(OFFLINE_BACKEND_PINS[name], '', `${name} is read by the rule and not pinned for the walks' server`);
+  }
+  // And the walk's server is given exactly those pins, not a list of its own beside them.
+  assert.match(file('scripts/ograf-walk-common.mjs'), /\.\.\.OFFLINE_BACKEND_PINS/);
 });
 
 test('a run that mints a local stack pins every variable the rule reads', () => {

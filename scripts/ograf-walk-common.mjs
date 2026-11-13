@@ -103,15 +103,34 @@ export async function waitFor(url, what, timeoutMs = 90_000) {
 }
 
 /**
- * The app's dev server, pinned OFFLINE exactly as playwright.config.ts pins it, so the walk never
- * touches a developer's real backend and the import road behaves as the suite's does. Both halves
- * are pinned (issue #2495): the browser's pair, and the server-side spellings the api/ handlers
- * this server mounts prefer - a child inherits this process's environment, so pinning only the
- * `VITE_` pair left those handlers on whatever backend the shell named.
+ * Every backend variable the rule in scripts/configured-target.mjs reads, pinned EMPTY for the
+ * app's dev server a walk starts (issue #2495). Both halves: the browser's pair, and the
+ * server-side spellings the api/ handlers this server mounts prefer - a child inherits this
+ * process's environment, so pinning only the `VITE_` pair left those handlers on whatever backend
+ * the shell named, which on a cloud worker is production and an admin key.
  *
- * A server already up is REUSED and not judged, as the offline suite reuses one. Its api half
- * cannot be read from outside, so it is accepted unjudged; that is #2511, and today's walks drive
- * the ograf server's own routes rather than the app's.
+ * This is the BACKEND half of what playwright.config.ts pins, not the whole of it: that config
+ * also pins the managed AI keys and the suite's own switches, which the walks do not need. Its
+ * own exported object, so a test can read the values the spawn is given rather than the text.
+ */
+export const OFFLINE_BACKEND_PINS = {
+  VITE_SUPABASE_URL: '',
+  VITE_SUPABASE_ANON_KEY: '',
+  SUPABASE_URL: '',
+  SUPABASE_ANON_KEY: '',
+  SUPABASE_SECRET_KEY: '',
+  SUPABASE_SERVICE_ROLE_KEY: '',
+};
+
+/**
+ * The app's dev server, with the pins above, so the walk never touches a developer's real backend
+ * and the import road behaves as the suite's does.
+ *
+ * A server already up is REUSED and judged by NOTHING here - not even the browser half, which
+ * `e2e/_offline-guard.ts` does judge for the offline suite's adopted server. The walks drive the
+ * app's page on it while their packages are built (`ografZip` runs in that page), and only the
+ * beats afterwards are the renderer's alone. What a reused server's api half serves cannot be
+ * read from outside at all; that remainder is #2511.
  *
  * Answers the child it started, or null when it reused one, so a walk can stop it (`stopChild`)
  * as soon as its packages are built: the renderer beats never touch the app, and 640 MB of Vite
@@ -126,16 +145,7 @@ export async function startDevServer() {
   const child = startChild('npm', ['run', 'dev'], {
     cwd: root,
     shell: true,
-    env: {
-      ...process.env,
-      VITE_SUPABASE_URL: '',
-      VITE_SUPABASE_ANON_KEY: '',
-      SUPABASE_URL: '',
-      SUPABASE_ANON_KEY: '',
-      SUPABASE_SECRET_KEY: '',
-      SUPABASE_SERVICE_ROLE_KEY: '',
-      VITE_PREVIEW_DEBOUNCE_MS: '50',
-    },
+    env: { ...process.env, ...OFFLINE_BACKEND_PINS, VITE_PREVIEW_DEBOUNCE_MS: '50' },
   });
   await waitFor(`${appOrigin}/app`, 'the app dev server');
   return child;
