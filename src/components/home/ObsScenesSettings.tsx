@@ -1,6 +1,7 @@
 import { obsScenesOf, sceneLink } from '../../model/obsScenes';
 import { MAX_EXPECTED_OUTPUTS } from '../../control/readiness';
 import type { Show } from '../../model/shows';
+import type { CopyKind } from './useProductionPublish';
 
 /** The OBS scenes guide (docs/OBS_SCENES.md): browser source settings, the walk-through, the fallback
  *  and what each failure needs. */
@@ -25,7 +26,7 @@ export default function ObsScenesSettings({ show, outputUrl, copied, onCopy }: {
   outputUrl: string | null;
   /** What was copied last: `scene:<id>`, or `scene:*` for every link. */
   copied: string | null;
-  onCopy: (kind: `scene:${string}`, text: string) => void;
+  onCopy: (kind: CopyKind, text: string) => void;
 }) {
   const scenes = obsScenesOf(show);
   return (

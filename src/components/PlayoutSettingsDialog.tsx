@@ -6,6 +6,7 @@ import { bridgePaired, loadPlayoutSettings, type PlayoutResult } from '../contro
 import { useModalGate } from './spaceKey';
 import AccountAuthoringGate from './AccountAuthoringGate';
 import ObsScenesSettings from './home/ObsScenesSettings';
+import type { CopyKind } from './home/useProductionPublish';
 
 /** The studio's CasparCG setup while CasparCG is switched on for this production, then the
  *  rundown's route colours (docs/work-specs/playout-workflow-simplification AC-3, D9). The browser
@@ -22,7 +23,7 @@ export default function PlayoutSettingsDialog({
   outputUrl: string | null;
   onOutputOnAir?: (result: PlayoutResult, target: string) => void;
   /** The OBS scenes section (obs-scenes OS3 M7), while the production's switch is on. */
-  obsScenes?: { outputUrl: string | null; copied: string | null; onCopy: (kind: `scene:${string}`, text: string) => void } | null;
+  obsScenes?: { outputUrl: string | null; copied: string | null; onCopy: (kind: CopyKind, text: string) => void } | null;
 }) {
   useModalGate();
   const pressedOnBackdrop = useRef(false);
