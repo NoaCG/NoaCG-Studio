@@ -184,18 +184,26 @@ function DeadlineSection({ paths, value, write, now }: { paths: readonly Deadlin
     );
   }
   const left = held === null ? null : Math.max(0, Math.ceil((held - now) / 1000));
+  /** Every write shows what it wrote: a skipped-time warning from an earlier Set goes. */
+  const put = (at: string) => {
+    write(path, at);
+    setSkipped(false);
+  };
   const set = () => {
     const at = deadlineAtLocal(typed, Date.now());
-    if (at) write(path, at);
     // A time the clocks skip that day (summer time) has no instant: nothing is written, and it says so.
-    setSkipped(!at);
+    if (at) put(at);
+    else setSkipped(true);
   };
   return (
     <section className="live-dock-section" data-testid="dock-deadline">
       <div className="live-dock-row">
         <span className="live-dock-label">Break</span>
         {paths.length > 1 ? (
-          <select value={path} onChange={(e) => setChosen(e.target.value)} aria-label="Deadline path" data-testid="dock-deadline-path">
+          <select value={path} onChange={(e) => {
+              setChosen(e.target.value);
+              setSkipped(false);
+            }} aria-label="Deadline path" data-testid="dock-deadline-path">
             {paths.map((p) => (
               <option key={p.path} value={p.path}>
                 {p.graphics.join(', ')}
@@ -213,10 +221,10 @@ function DeadlineSection({ paths, value, write, now }: { paths: readonly Deadlin
         ) : held === null ? 'No deadline set' : `Until ${hms(held)} · ${left === 0 ? 'reached' : `${clockText(left!)} left`}`}
       </div>
       <div className="live-dock-row">
-        <button type="button" onClick={() => write(path, deadlineIn(Date.now(), 2))} data-testid="dock-deadline-2">
+        <button type="button" onClick={() => put(deadlineIn(Date.now(), 2))} data-testid="dock-deadline-2">
           In 2 min
         </button>
-        <button type="button" onClick={() => write(path, deadlineIn(Date.now(), 5))} data-testid="dock-deadline-5">
+        <button type="button" onClick={() => put(deadlineIn(Date.now(), 5))} data-testid="dock-deadline-5">
           In 5 min
         </button>
         <input type="time" value={typed} onChange={(e) => {
