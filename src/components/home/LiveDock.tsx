@@ -208,7 +208,7 @@ function DeadlineSection({ paths, value, write }: { paths: readonly DeadlinePath
           In 5 min
         </button>
         <input type="time" value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Deadline time" data-testid="dock-deadline-time" />
-        <button type="button" onClick={set} disabled={!deadlineAtLocal(typed, Date.now())} data-testid="dock-deadline-set">
+        <button type="button" onClick={set} disabled={deadlineAtLocal(typed, 0) === null} data-testid="dock-deadline-set">
           Set
         </button>
       </div>
