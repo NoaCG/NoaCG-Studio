@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "owner-approved narrow correction / startup qualification",
+      "step": "owner-approved narrow correction / pre-code review and reproduction",
       "pr": 2438,
-      "note": "Owner approved one combined correction: canonical legacy-production comparison and unchanged documented Discard recovery. Ordinary3/3 and previous extra1/1 remain spent. Independent installed copies/no collaboration; new-production-only fallback requires reassessment if this attempt fails."
+      "note": "One serial worker acknowledged clean63d7 and prior stop. Fresh model review must reconcile the retained Discard contract and canonical production comparison before the one patch. Ordinary3/3 and prior extra1/1 remain spent; new attempt reserved, not charged yet. Independent copies/single-user scope, no automatic fallback; local work last."
     }
   ],
   "owner": [
