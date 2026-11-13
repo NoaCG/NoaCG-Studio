@@ -184,9 +184,11 @@ export function sceneRows(input: {
   return { rows, claimed };
 }
 
-/** How many scenes have a link loaded now (M8): null when this page cannot know. */
-export function loadedScenes(rows: readonly SceneRow[], presence: LivePresenceStatus): number | null {
+/** How many OBS scenes go empty if the switch goes off (M8): the distinct scene ids among the scene
+ *  links present now, whether or not the record still has a row for them (a folder unflagged since
+ *  the last publish still airs there). Null when this page cannot know. */
+export function loadedScenes(peers: readonly LiveEntry[], presence: LivePresenceStatus): number | null {
   if (presence === 'off') return 0;
   if (presence !== 'joined') return null;
-  return rows.filter((r) => r.loaded > 0).length;
+  return new Set(oneEntryPerOutput(peers).flatMap((p) => (p.scene ? [p.scene.id] : []))).size;
 }

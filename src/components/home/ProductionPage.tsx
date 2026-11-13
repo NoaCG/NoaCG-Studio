@@ -4174,7 +4174,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               onVmix={on => void setVmix(on)}
               onCaspar={on => void setCaspar(on)}
               obsScenesOn={!!show.obsScenes}
-              obsScenesLoaded={scenePanel ? loadedScenes(scenePanel.rows, scenePresence) : 0}
+              obsScenesLoaded={show.obsScenes ? loadedScenes(livePresence.peers, scenePresence) : 0}
               onObsScenes={on => void setObsScenes(on)}
               onSettings={() => {
                 setStatusOpen(false);

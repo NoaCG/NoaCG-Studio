@@ -127,10 +127,13 @@ test('M3, M6: a link that goes away reads not answering, grey and then red; it l
 
 test('M8: how many scenes have a link loaded, unknown when the page cannot see', () => {
   const peers = [link('o1', 'scA'), link('o2', 'scA'), link('o3', 'scC'), link('o4', 'other')];
-  assert.equal(loadedScenes(rowsOf({ peers }).rows, 'joined'), 2);
-  assert.equal(loadedScenes(rowsOf().rows, 'joined'), 0);
-  assert.equal(loadedScenes(rowsOf({ presence: 'down' }).rows, 'down'), null);
-  assert.equal(loadedScenes(rowsOf({ presence: 'off' }).rows, 'off'), 0);
+  // Distinct scene ids among the links present: two instances of one scene count once, and a link to
+  // a scene the record no longer has a row for (unflagged since the last publish) still counts.
+  assert.equal(loadedScenes(peers, 'joined'), 3);
+  assert.equal(loadedScenes([link('o9', 'unflagged')], 'joined'), 1);
+  assert.equal(loadedScenes([], 'joined'), 0);
+  assert.equal(loadedScenes(peers, 'down'), null);
+  assert.equal(loadedScenes(peers, 'off'), 0);
 });
 
 test('M5: the walk-through ticks the OBS scene a source goes on program in, a shared source in each', () => {
