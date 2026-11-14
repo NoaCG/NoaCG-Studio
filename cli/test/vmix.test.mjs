@@ -1870,6 +1870,7 @@ test('vMix V5 guarded Pause and Resume cannot confirm an occurrence that restart
     } });
     const playing = await take('clip A.mp4');
     assert.equal(playing.ok, true);
+    fake.inputs[0].duration = 6000;
     fake.inputs[0].position = 5000;
     rewind = true;
     const result = await adapter.act(target, readAction({ action: {
@@ -1909,6 +1910,53 @@ test('vMix treats wrong-player media as occupied but withholds a snapshot with m
   const completed = (await adapter.overlays(target)).value.players.find(row => row.player === 'clips');
   assert.equal(completed.instance, playing.instance, 'a malformed reading did not discard the prior selection');
   assert.equal(completed.position, completed.segment.length);
+});
+
+test('vMix V5 guards permanently retire an occurrence on an initial conclusive loss', async t => {
+  for (const loss of ['missing', 'wrong type']) await t.test(loss, async t => {
+    const { adapter, fake, target, player, take } = await playerFixture(t);
+    const playing = await take('clip A.mp4');
+    assert.equal(playing.ok, true);
+    const input = fake.inputs[0];
+    if (loss === 'missing') fake.inputs.splice(0, 1);
+    else input.type = 'Image';
+    const pause = readAction({ action: {
+      verb: 'pause-player-held', slot: player(), expectedPlayerInstance: playing.instance,
+    } });
+    const called = fake.functions.length;
+    assert.equal((await adapter.act(target, pause)).ok, false);
+    if (loss === 'missing') fake.inputs.push(input);
+    else input.type = 'VideoList';
+    const row = (await adapter.overlays(target)).value.players.find(row => row.player === 'clips');
+    assert.equal(row.instance, undefined);
+    assert.equal((await adapter.act(target, pause)).ok, false);
+    assert.equal(fake.functions.length, called, 'restore is not a new Take');
+  });
+});
+
+test('vMix rejects an impossible native position without corrupting continuity and normalizes empty loop settings', async t => {
+  const { adapter, fake, target, player, take } = await playerFixture(t);
+  const playing = await take('clip A.mp4', { loop: true });
+  assert.equal(playing.ok, true);
+  const input = fake.inputs[0];
+  input.loop = false;
+  input.position = 3900;
+  const playerRow = async () => (await adapter.overlays(target)).value.players?.find(row => row.player === 'clips');
+  assert.equal((await playerRow()).instance, playing.instance);
+  input.position = 18000;
+  assert.equal(await playerRow(), undefined);
+  input.position = 3990;
+  assert.equal((await playerRow()).instance, playing.instance, 'unavailable native position did not replace the saved anchor');
+  input.loop = true;
+  const cut = await adapter.act(target, readAction({ action: {
+    verb: 'out-player-held', slot: player(), expectedPlayerInstance: playing.instance,
+  } }));
+  assert.equal(cut.ok, true);
+  assert.equal(input.loop, true, 'native input retained its Loop setting after clearing');
+  assert.deepEqual(await playerRow(), {
+    player: 'clips', layer: 0, producer: 'empty', playerOccupied: false,
+    generation: cut.generation, paused: false, loop: false,
+  });
 });
 
 test('vMix guarded All out refuses a later Take of the same file before sending a mixer function', async t => {

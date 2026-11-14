@@ -57,8 +57,8 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
   const playerNames = ['clips', 'audio'] as const;
   type Player = VmixPlayerSlot['player'];
   const players: Record<Player, SlotState> = {
-    clips: { player: 'clips', layer: 0, producer: 'empty', generation: 0, paused: false, loop: false },
-    audio: { player: 'audio', layer: 0, producer: 'empty', generation: 0, paused: false, loop: false },
+    clips: { player: 'clips', layer: 0, producer: 'empty', playerOccupied: false, generation: 0, paused: false, loop: false },
+    audio: { player: 'audio', layer: 0, producer: 'empty', playerOccupied: false, generation: 0, paused: false, loop: false },
   };
   const playerClock: Partial<Record<Player, number>> = {};
   const info: VmixInfo = {
@@ -149,7 +149,7 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
           file, playerSource: file, position: 0, segment: { start: 0, length }, cueId: playerAction.cueId, instance: `test.media-${generation}`,
         };
       } else if (verb.startsWith('out')) {
-        players[player] = { player, layer: 0, producer: 'empty', generation, paused: false, loop: false };
+        players[player] = { player, layer: 0, producer: 'empty', playerOccupied: false, generation, paused: false, loop: false };
       } else {
         players[player] = { ...before, generation, paused: verb.startsWith('pause') };
       }

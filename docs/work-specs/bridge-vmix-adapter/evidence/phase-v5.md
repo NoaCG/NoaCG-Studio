@@ -31,6 +31,14 @@ The first Windows browser job `j-5252` passed 44 of 46 cases and found an unscop
 
 The independent review of `7571f1dea9f67d86d1fcc80138cda2c02ad42d62` found three product defects and one test gap. A matching path and list could mask a nonlooping rewind during guarded Pause or Resume. A malformed native playback state could look valid. An in-root still selected natively on Audio could invalidate an otherwise usable Clips reading. The exact Windows fake TCP reproductions confirmed all three. The Bridge now checks the prior occurrence on every guarded confirmation, withholds an ambiguous snapshot and reports known wrong-player content as foreign. The browser journey now holds the fresh reply while it asserts the cue survived the stale one.
 
+## Reassessment of player evidence
+
+The fresh full review of `462500539ab06b3d01068976b0302d9fe01de008` and a separate read-only reassessment found a repeated continuity rule. Before an initial or later guarded transport sends a function, conclusive missing, foreign or changed native input retires the saved occurrence. Restoring a previously missing native input therefore cannot claim the former Take. An unreadable XML state, impossible position or conflicting setup leaves the previous evidence alone. The native list may be empty with its own Loop setting or index zero or one. Its wire row has no playback flags. A completed clip or zero-duration still remains observable without inventing a timing sample.
+
+The same media-kind rules now govern player rows and file aliases on both ends. The Studio keeps safe presentation from the staged legacy format and normalizes leftover empty input settings. Current rows with contradictory position, source, producer, occupancy or identity are unavailable. Successful V5 guard replies need a positive generation, the expected instance for Pause or Resume and none for Out. They also name the expected Bridge session. A contradictory dispatched result follows the existing unknown-outcome rule.
+
+Windows regressions derive the expected cases from the observable state: removing and restoring an input, rewinding an unchanged nonlooping list during a guarded action, out-of-range XML followed by a valid read, a completed clip, zero-duration still, retained native empty Loop, and malformed current wire replies. The held-stale browser case remains in the same clock journey.
+
 ## Allocation and rollback
 
 Codebase-health #2285 is closed. Current editor #2552, live-publishing #2563 and draft CI #2423 were checked for shared paths. #1967 records the cf13 hold ending on November 9. The final release manifest still needs the actual changed-path check before queue admission.

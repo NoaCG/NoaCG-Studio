@@ -5,24 +5,14 @@ import type { FileHandle } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { VMIX_INPUT_KEY, type ListItem, type VmixPlayer } from './protocol.js';
+import { VMIX_INPUT_KEY, vmixMediaKind, type ListItem, type VmixPlayer } from './protocol.js';
+export { vmixMediaKind } from './protocol.js';
 
 const run = promisify(execFile);
 const WINDOWS = process.platform === 'win32';
 const VIDEOS = path.join(homedir(), 'Videos');
-const MEDIA_KINDS = {
-  movie: new Set(['.avi', '.m4v', '.mov', '.mp4', '.mpeg', '.mpg', '.mxf', '.qt', '.wmv']),
-  still: new Set(['.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff']),
-  audio: new Set(['.mp3', '.wav']),
-};
-type MediaKind = keyof typeof MEDIA_KINDS;
 export const VMIX_PLAYERS: readonly VmixPlayer[] = ['clips', 'audio'];
 export const VMIX_PLAYER_TITLE: Record<VmixPlayer, string> = { clips: 'NoaCG Clips', audio: 'NoaCG Audio' };
-
-export function vmixMediaKind(name: string): MediaKind | undefined {
-  const ext = path.extname(name).toLowerCase();
-  return (Object.keys(MEDIA_KINDS) as MediaKind[]).find(kind => MEDIA_KINDS[kind].has(ext));
-}
 
 const errorCode = (error: unknown) => (error as NodeJS.ErrnoException).code;
 const missing = (error: unknown) => errorCode(error) === 'ENOENT';

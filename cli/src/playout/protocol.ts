@@ -58,6 +58,23 @@ export interface OgrafSlot {
 /** Where in vMix: one of its overlay channels, from 1 to the `overlays` it reports. */
 export type VmixPlayer = 'clips' | 'audio';
 
+const VMIX_MEDIA_EXTENSIONS = {
+  movie: ['.avi', '.m4v', '.mov', '.mp4', '.mpeg', '.mpg', '.mxf', '.qt', '.wmv'],
+  still: ['.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff'],
+  audio: ['.mp3', '.wav'],
+};
+export type VmixMediaKind = keyof typeof VMIX_MEDIA_EXTENSIONS;
+
+/** The files the Bridge can play in a vMix Video List. */
+export function vmixMediaKind(name: string): VmixMediaKind | undefined {
+  const leaf = name.split(/[\\/]/).at(-1) ?? '';
+  const dot = leaf.lastIndexOf('.');
+  if (dot <= 0) return undefined;
+  const extension = leaf.slice(dot).toLowerCase();
+  return (Object.keys(VMIX_MEDIA_EXTENSIONS) as VmixMediaKind[])
+    .find(kind => VMIX_MEDIA_EXTENSIONS[kind].includes(extension));
+}
+
 export interface VmixOverlaySlot {
   adapter: 'vmix';
   overlay: number;
@@ -445,8 +462,8 @@ export interface SlotState {
   player?: VmixPlayer;
   /** The picked vMix name, confirmed to still resolve to the held file. */
   playerSource?: string;
-  /** A current Bridge distinguished a foreign occupant from an unavailable player reading. */
-  playerOccupied?: true;
+  /** A current Bridge confirmed a foreign occupant (true) or an empty player (false). */
+  playerOccupied?: boolean;
   /** The slot's layer; the channel is the request's. */
   layer: number;
   /** `empty` after a STOP, `colour` after `PLAY … EMPTY`; nothing is on air in either. */

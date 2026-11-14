@@ -38,6 +38,7 @@ import {
   VMIX_VERSION,
   isRememberedServerAddress,
   readStudio,
+  vmixMediaKind,
   vmixOverlayCount,
   type AdapterId,
   type AgentError,
@@ -1373,24 +1374,29 @@ function vmixRelativeFile(value: unknown): value is string {
   return typeof value === 'string' && value.split('/').every(part => !!part && !/[<>:"\\|?*\p{Cc}\p{Cs}]/u.test(part) && !/[. ]$/.test(part));
 }
 
+const vmixIdentityPart = /^[a-z0-9._-]{1,128}$/i;
+const vmixInstance = (value: unknown, session: string): value is string =>
+  typeof value === 'string' && vmixIdentityPart.test(value) && value.startsWith(session + '.') && value.length > session.length + 1;
+
 function validVmixPlayerReading(row: SlotState, session: string): boolean {
   if (!row || (row.player !== 'clips' && row.player !== 'audio') || row.layer !== 0 ||
     !whole(row.generation, 0) || typeof row.paused !== 'boolean' || typeof row.loop !== 'boolean' ||
     row.arriving !== undefined || row.queued !== undefined || row.transition !== undefined || row.sequence !== undefined) return false;
-  if (row.playerOccupied !== undefined && (row.playerOccupied !== true || row.producer !== 'other')) return false;
   if (row.producer === 'empty' || row.producer === 'other') {
-    return row.file === undefined && row.segment === undefined && row.position === undefined &&
+    return (row.playerOccupied === undefined || (row.playerOccupied === (row.producer === 'other') && !row.paused && !row.loop)) &&
+      row.file === undefined && row.segment === undefined && row.position === undefined &&
       row.instance === undefined && row.cueId === undefined && row.playerSource === undefined;
   }
-  if (row.producer !== 'video' && (row.producer !== 'still' || row.player === 'audio')) return false;
-  if (!vmixRelativeFile(row.file) || !row.segment || row.segment.start !== 0 ||
-    !Number.isFinite(row.segment.length) || row.segment.length < 0 ||
-    row.position === undefined || !Number.isFinite(row.position) || row.position < 0) return false;
+  if (row.playerOccupied !== undefined || !vmixRelativeFile(row.file)) return false;
+  const kind = vmixMediaKind(row.file);
+  if (!kind || row.producer !== (kind === 'still' ? 'still' : 'video') ||
+    row.player !== (kind === 'audio' ? 'audio' : 'clips') ||
+    !row.segment || row.segment.start !== 0 || !Number.isFinite(row.segment.length) || row.segment.length < 0 ||
+    row.position === undefined || !Number.isFinite(row.position) || row.position < 0 || row.position > row.segment.length) return false;
   if (row.instance === undefined) return row.cueId === undefined && row.playerSource === undefined;
-  return nonblank(row.instance) && /^[a-z0-9._-]{1,128}$/i.test(row.instance) &&
-    row.instance.startsWith(session + '.') && row.instance.length > session.length + 1 &&
+  return row.generation > 0 && vmixInstance(row.instance, session) &&
     (row.cueId === undefined || (nonblank(row.cueId) && row.cueId.length <= 200)) &&
-    (row.playerSource === undefined || vmixRelativeFile(row.playerSource));
+    (row.playerSource === undefined || (vmixRelativeFile(row.playerSource) && vmixMediaKind(row.playerSource) === kind));
 }
 
 export type VmixPlayerReading = Pick<VmixStateReply, 'session' | 'observedAt'> & { players: SlotState[] };
@@ -1404,13 +1410,16 @@ export async function readVmixPlayers(
   if (result.state !== 'ok' || !body) return { result };
   const { players, session, observedAt } = body;
   if (!Array.isArray(players) || players.length !== 2 || !session || observedAt === undefined ||
-    !/^[a-z0-9._-]{1,128}$/i.test(session) || body.loadProblem !== undefined ||
+    !vmixIdentityPart.test(session) || body.loadProblem !== undefined ||
     !players.every(row => validVmixPlayerReading(row, session)) || players[0].player === players[1].player ||
     (players[0].instance !== undefined && players[0].instance === players[1].instance)) {
     return { result: { state: 'bridge', detail: 'NoaCG Bridge did not return a valid vMix player reading. Try again.' } };
   }
-  // Older media development builds used "other" for both proven occupants and unreadable inputs.
-  return { result, reply: { session, observedAt, players: players.filter(row => row.producer !== 'other' || row.playerOccupied) } };
+  // Older media builds used "other" for unreadable inputs and could echo a leftover input
+  // setting on a conclusively empty list. Neither setting means anything about playback.
+  const readings = players.filter(row => row.producer !== 'other' || row.playerOccupied)
+    .map(row => row.producer === 'empty' && (row.paused || row.loop) ? { ...row, paused: false, loop: false } : row);
+  return { result, reply: { session, observedAt, players: readings } };
 }
 
 export async function actVmix(
@@ -1507,6 +1516,14 @@ export async function vmixMediaFolder(settings: PlayoutSettings, choose = false)
   return { result, folder: body?.mediaFolder, cancelled: body?.cancelled };
 }
 
+function validVmixTransportSuccess(result: PlayoutResult, action: PlayoutAction): boolean {
+  const { session, generation, instance } = result;
+  if (!session || !vmixIdentityPart.test(session) || !whole(generation, 1)) return false;
+  if (action.verb === 'take') return vmixInstance(instance, session);
+  const expected = 'expectedPlayerInstance' in action ? action.expectedPlayerInstance : undefined;
+  return vmixInstance(expected, session) && (action.verb === 'out' ? instance === undefined : instance === expected);
+}
+
 /** A player uses the paired token and rechecks dispatch after any capability probe. */
 export async function actVmixMedia(
   settings: PlayoutSettings, action: PlayoutAction, canSend: () => boolean, guardedTransport = false,
@@ -1531,7 +1548,8 @@ export async function actVmixMedia(
   const health = evidence?.latest?.health;
   if (health?.kind !== 'current' || !health.features.includes('vmix-media')) return vmixCapabilityProblem;
   const guarded = 'expectedPlayerInstance' in action && action.expectedPlayerInstance !== undefined;
-  const transport = guarded && guardedTransport;
+  const transport = guardedTransport && (action.verb === 'out' || action.verb === 'pause' || action.verb === 'resume');
+  if (transport && !guarded) return { state: 'config', detail: 'This cue has no confirmed vMix playback instance.' };
   const guardedOut = guarded && action.verb === 'out' && !transport;
   if ((transport && !health.features.includes('vmix-player-transport-guard')) ||
     (guardedOut && !health.features.includes('vmix-player-out-guard'))) {
@@ -1544,7 +1562,12 @@ export async function actVmixMedia(
   const call = await counted(() => callBridge(
     settings.agentUrl, '/act', { target: vmixTarget, action: request }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix',
   ));
-  const { result } = readVmixReply(settings, call, '/act', action.verb === 'take', true);
+  const { result: reply } = readVmixReply(settings, call, '/act', action.verb === 'take', true);
+  const inconsistent = (transport || (guardedTransport && action.verb === 'take'))
+    && reply.state === 'ok' && !validVmixTransportSuccess(reply, action);
+  const result: VmixActionResult = inconsistent
+    ? { state: 'bridge', detail: 'The vMix action result is unknown. Check the player before trying again.', unknownAction: true }
+    : reply;
   // vMix can refuse cleanup after the requested clip has started. A failed dispatched action
   // cannot authorize transport on the previous cue without a fresh accepted Take.
   const refusedBeforeDispatch = 'http' in call && (call.http === 401 || call.http === 403) && !result.unknownAction;
