@@ -100,8 +100,23 @@ test('vMix completion gives one stable Holding time without projecting the nativ
   assert.equal(completedAgain.timing['NoaCG Clips'].endedAt, 1300);
   const newInstance = applyVmixReading(held, { ...row, instance: 's1.replacement' }, 's1', { ...context, now: 1400 });
   assert.equal(newInstance.timing['NoaCG Clips'].endedAt, 1400);
-  const noDuration = applyVmixReading(held, { ...row, position: 0, segment: { start: 0, length: 0 } }, 's1', { ...context, now: 900 });
+  const zeroDuration = { ...row, position: 0, segment: { start: 0, length: 0 } };
+  const noDuration = applyVmixReading(held, zeroDuration, 's1', { ...context, now: 900 });
+  assert.equal(noDuration.ownership, held.ownership);
   assert.equal(clipClock(noDuration.ownership, noDuration.timing, [movie], [opening], 900).remaining, null, 'no previous duration is carried into a completed zero-duration read');
+  const durationRestored = applyVmixReading(noDuration, row, 's1', { ...context, now: 1100 });
+  assert.equal(durationRestored.ownership, held.ownership);
+  assert.equal(durationRestored.timing['NoaCG Clips'].endedAt, 100);
+
+  const firstWithoutDuration = applyVmixReading(base, zeroDuration, 's1', { ...context, now: 1500 });
+  assert.equal(clipClock(firstWithoutDuration.ownership, firstWithoutDuration.timing, [movie], [opening], 1500).remaining, null);
+  const firstKnownDuration = applyVmixReading(firstWithoutDuration, row, 's1', { ...context, now: 1750 });
+  assert.equal(firstKnownDuration.ownership, firstWithoutDuration.ownership);
+  assert.equal(firstKnownDuration.timing['NoaCG Clips'].endedAt, 1500);
+  const knownClock = clipClock(firstKnownDuration.ownership, firstKnownDuration.timing, [movie], [opening], 2500);
+  assert.equal(knownClock.phase, 'holding');
+  assert.equal(knownClock.remaining, 0);
+  assert.equal(knownClock.over, 1);
 });
 
 test('vMix command and reading admission follows player fences and retires the shared Bridge session', async () => {

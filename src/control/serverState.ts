@@ -165,7 +165,7 @@ function timingOf(s: SlotState, prev: SlotTiming | undefined, now: number, compl
     progressedAt,
   };
   if (completed) {
-    if (valid) t.endedAt = prev?.completed ? prev.endedAt ?? now : now;
+    t.endedAt = prev?.completed ? prev.endedAt ?? now : now;
   } else if (valid && s.segment && !s.loop && s.position! >= s.segment.length - 0.001) {
     const sameClip = !!prev && !prev.completed && prev.file === t.file && same(prev.segment, t.segment);
     t.endedAt =

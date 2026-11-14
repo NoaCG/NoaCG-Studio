@@ -51,7 +51,7 @@ A separate Windows and GitHub typecheck found that the shared extension helper u
 
 The full review of `6ac9fafdf68b8555f280b2401edfaba675be686c` reproduced a finished native clip showing a moving loop while Loop was still enabled. At 3.8 seconds of a 4-second file, a completed clip without Loop also showed a moving final countdown. The grouped reassessment confirmed that native completion is independent of the reported position and Loop setting.
 
-Bridge now reports completion on the selected media row and keeps both values. A known duration gives zero time remaining on the rundown row. Holding starts at the first explicit completed observation and keeps that start while the same instance remains completed. A still or an unavailable duration supplies no new countdown. A genuine Pause or running Loop keeps its existing meaning. A changed state, instance or accepted transport clears the completed clock. After a Resume, the clock waits for the next player position before showing a remaining time.
+Bridge now reports completion on the selected media row and keeps both values. A known duration gives zero time remaining on the rundown row. Holding starts at the first explicit completed observation, even if duration is missing then, and keeps that start while the same instance remains completed. A still or an unavailable duration supplies no new countdown. The review of `f40d9e9560c62f5ff6b998c15a758b023860428c` checked both a duration supplied after completion and a temporary duration gap. A genuine Pause or running Loop keeps its existing meaning. A changed state, instance or accepted transport clears the completed clock. After a Resume, the clock waits for the next player position before showing a remaining time.
 
 ## Allocation and rollback
 
