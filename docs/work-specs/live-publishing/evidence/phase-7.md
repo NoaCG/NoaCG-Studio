@@ -198,3 +198,54 @@ within about a day), and the account-wide `control_may_publish` search in the im
 #2532 (boxes across a reload), #2533 (stop writing the inline output), #2534 (pull only changed
 units), #2535 (a local order dependence of the AC-2 test, on `main` too); #2502 covers the team
 production's automatic publish, which did not run in the AC-5 team step.
+
+## Repair 1: boxes kept across a reload (check 7-c-c035 on f1556db9)
+
+**The failure.** The first cue edit after a reload counted 20.3 to 23.7 kB on the large fixture
+because the publish resent every cue whose measured `adjust.box` went missing after the reload
+(#2532).
+
+**The cause.** The page kept measured boxes in memory only. After a reload the publish's measure
+wait (8 s for the whole production, one document at a time) ran out before every box was measured
+again, so the cues without one were published without it, and the next publish put them back.
+
+**The fix.** `src/control/keptGeometry.ts`: each cue's last measurement is kept in this browser
+(`spx-gfx-measured`, the newest 8 productions), with a hash of its measure identity (`measureId`) and
+the build that measured it. A reopened page takes a kept box only for a cue it has not measured
+since it opened, whose identity hashes the same, from the same build, in the order the boxes were
+measured (so a graphic's newest box, which its unmeasured cues read, is the same). A cue so taken
+is not measured again. What a Take airs and what a publish stores for the same input are unchanged:
+the box is the one the page measured for exactly that cue. No migration; the publish code is
+untouched, so R23 holds as before.
+
+**Method.** Local stack (127.0.0.1:54421, every migration applied), `partial_writes` and
+`auto_publish` on, large fixture (60 graphics, 21 MB stored), production bundles built with
+`VITE_MEASURE_HOOKS=1` from `main` (f1556db9) and from this branch, test `parts` in
+`baseline.measure.ts` in a scratch copy (not committed) that switches to the bundle after the
+fixture is built, as the checker's did. `MEASURE_KINDS=cue-edit,reopened`, 2 rounds per job,
+`MEASURE_URLS=1`. Each round 0 `cue-edit` is the production's first publish in parts (every graphic
+as a part, 27.9 MB) and is left out on both sides.
+
+| Job | Build | Cue edit (round 1) | First edit after a reload | Cues whose `adjust` changed |
+|---|---|---|---|---|
+| j-0003 | `main` | not run | 19,064 B | 11 (box dropped) |
+| j-0004 | `main` | 22,294 B (15 cues: boxes back) | 16,659 / 21,255 B | 6 / 15 (box dropped) |
+| j-0007 | `main` | 23,547 B (17 cues: boxes back) | 16,904 / 23,289 B | 6 / 19 (box dropped) |
+| j-0006 | fix | 13,874 B (1 cue) | 13,827 / 14,397 B | 0 / 0 |
+| j-0008 | fix | 13,875 B (1 cue) | 20,036 / 14,434 B | 12 (box gained) / 0 |
+
+On `main` every reload drops boxes the last publish carried (sample: `box` present before, absent
+after) and the next edit adds them back. With the fix, three of four reload edits and both cue
+edits send the one edited cue. The fourth (j-0008 round 0, 20.0 kB) is the first reload after the
+production's first publish in parts, whose 8 s measure wait had not reached 12 cues: those cues
+gain a box they never had (absent before, present after), a one-time catch-up that lands on
+whichever edit comes next, reload or not; round 1 of the same job sends one cue. It is the case the
+"first publish after the fixture's own press" row above already describes, reported here rather
+than left out.
+
+**Regression test.** `scripts/kept-geometry.test.mjs` (5 tests): a reload over the same storage
+publishes every box the last publish did and measures nothing again; a moved identity or another
+build is measured again; a measurement the reopened page makes itself wins; a removed cue is
+forgotten and refused storage changes nothing; a graphic's unmeasured cue reads the same newest box.
+Mutations: `adopt` made a no-op fails 2 tests; the measured-order tracking removed fails the
+newest-box test.
