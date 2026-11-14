@@ -555,11 +555,12 @@ Filled in by each phase's pull request.
     for a cue the page has not measured, read once when the production opens
     (`publishParts.ts` `prefetchPublishedBoxes`). A box changes in the publication only when the page
     has measured one, so a measurement result never rides on an edit unless it is new.
-  What a Take airs is unchanged: the published box is not what a Take places by. Both publish paths
+  What the page's own Take airs is unchanged; the hosted page's Adjust block resolves presets against
+  the published box, which a carry keeps equal to the stored one. Both publish paths
   take their payload from the one `publishedOf` call, so they write the same record (R23). No
   migration. Rules (a Risky row: reload state). K1 to K7 were written after the first code, K8 after
-  the first full `/so` and K9 after the second, so none was challenged before coding; each is pinned
-  by a test:
+  the first full `/so`, K9 after the second and K10 after the third and its reassessment, so none
+  was challenged before coding; each is pinned by a test:
   - K1 With `partial_writes` off, nothing is kept, taken, read or carried: Takes and publishes are as
     on `main`. Only the background measurer differs: it starts once the switch is read.
   - K2 With it on, a reopened page takes a kept box for a cue only when it has not measured that cue
@@ -575,14 +576,21 @@ Filled in by each phase's pull request.
     storage that refuses a read or write changes nothing but the saving.
   - K7 The background measurer starts once the switch is read, so a box measured anew never races
     a kept one.
-  - K8 A cue with no measurement since the page opened (none of its own, none of its graphic's)
-    publishes the box the stored publication carries for it; otherwise none, as before.
-  - K9 A stored box is carried only onto the cue it was published on, as that cue is now: the same
-    values, the same adjust records, look, frame and stage, and the same design (its graphic's
-    digest in the stored stamp). A cue this page edited, or a teammate published since the read, or
-    whose design changed, carries none. Found by the second full review. Whole and parts
-    publishes carry the same box (`publish-guard.spec.ts`, AC-5 check, cold reload on both paths).
-    The stored boxes are read afresh each time the production opens; a publish waits for that read
-    within its measure cap (or reads itself when there is none), and a failed read is not kept, so
-    the next publish reads again (found in review of 07a7279).
+  - K8 The rule: a publish never writes a box into the publication other than the box the stored
+    publication it builds on holds for that exact cue, unless the page measured it itself. A cue
+    with no measurement since the page opened (none of its own, none of its graphic's) carries the
+    stored box only then; otherwise none, exactly as on `main`.
+  - K9 "That exact cue": the stored cue is the cue as it is now (the same values, adjust records,
+    look, frame and stage, and its graphic's design digest in the stored stamp).
+  - K10 "The publication it builds on": the page keeps a snapshot of the stored stamp (its number
+    and time, since an unpublish restarts the number) and its cue boxes, read in one request at each
+    opening and replaced by what this page's own publish wrote when it lands, the press included. An
+    automatic publish passes the stamp it builds on and carries only from a snapshot of that stamp; a
+    publish that carried and then finds the stamp moved builds again from the stamp as it is now
+    (carrying nothing). A press measures before it reads the stamp, so it carries nothing. A failed
+    read is not kept. Every write of the cues moves the stamp, so a teammate's or another tab's
+    publish always ends the carry. Found by the reassessment after the third full review, which
+    graded the model sound with these changes.
+  A box kept in this browser and taken after a reload (K2, K3) counts as this page's own
+  measurement: like a fresh measurement on `main`, it may replace a teammate's box.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.

@@ -1180,9 +1180,9 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       // theirs (the edit behaves as without a carry, as `main` does).
       await coldReload();
       const [target, oldBox] = boxesBefore.find(([, b]) => b !== null) as [string, { info: { x: number } | null; paint: { x: number } | null }];
-      const teammate = await page.context().newPage();
-      await teammate.goto('/');
-      const teammateOutcome = await teammate.evaluate(async ({ id, cueId }) => {
+      const teammatePage = await page.context().newPage();
+      await teammatePage.goto('/');
+      const teammateOutcome = await teammatePage.evaluate(async ({ id, cueId }) => {
         const { publishRevision } = await __noacgImport('/src/control/publishRevision.ts');
         const { loadShows } = await __noacgImport('/src/model/shows.ts');
         const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
@@ -1201,9 +1201,9 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
         return (await publishRevision(show, row.published_rev, async () => of as never, true)).kind;
       }, { id: showId, cueId: target });
       expect(teammateOutcome, 'the teammate republished').toBe('published');
-      await teammate.close();
-      const theirs = (await storedBoxes()).find(([c]) => c === target)?.[1];
-      expect(theirs, 'the teammate moved the box').not.toEqual(oldBox);
+      await teammatePage.close();
+      const theirBox = (await storedBoxes()).find(([c]) => c === target)?.[1];
+      expect(theirBox, 'the teammate moved the box').not.toEqual(oldBox);
       await edit(page, showId, 'label', 'After a teammate');
       await settled('the edit after a teammate republished');
       expect((await storedBoxes()).find(([c]) => c === target)?.[1], 'the old box is not written back over the teammate\'s').not.toEqual(oldBox);
