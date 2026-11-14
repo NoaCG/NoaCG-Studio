@@ -127,13 +127,17 @@ export default defineConfig(({ command, mode }) => {
       if (!(key in process.env)) process.env[key] = value;
     }
   }
-  // THE E2E BUILD (`npm run build:e2e`, served to the browser suite): the app as users get it,
-  // plus the source-module registry specs reach through (src/app/e2eModules.ts).
+  // THE E2E BUILD (`npm run build:e2e`, served to the browser suite): the app's bundle with
+  // function and class names kept (below), the source-module registry specs reach through
+  // (src/app/e2eModules.ts), and the app's test seams on. It is NOT the minified app users get.
+  // `__NOACG_E2E__` is the one switch, and only the build MODE sets it: a `VITE_` variable from
+  // the environment or a .env file can never turn the registry or the seams on in a production
+  // build (scripts/check-no-e2e-in-dist.mjs proves the built dist carries neither).
   const e2e = mode === 'e2e';
   return {
     define: {
       __NOACG_BUILD__: JSON.stringify(buildStamp()),
-      ...(e2e ? { 'import.meta.env.VITE_E2E_MODULES': JSON.stringify('1') } : {}),
+      __NOACG_E2E__: JSON.stringify(e2e),
     },
     // renderApiPlugin mounts the real api/render handlers on the dev server, so the cloud
     // render loop runs fully offline (local Remotion executor) during development.
@@ -184,6 +188,12 @@ export default defineConfig(({ command, mode }) => {
       // in 2026-08 - and `scripts/check-preview-serialization.mjs` cannot see it, because the
       // source would still be correct.
       outDir: e2e ? 'dist-e2e' : 'dist',
+      // Source maps on the e2e build only: the traced spec map reads which source file each bundled
+      // function came from (scripts/e2e-build-sources.mjs, e2e/_trace.ts).
+      ...(e2e ? { sourcemap: true } : {}),
+      // The e2e build's manifest tells e2e/_door.ts where the registry chunk landed, for documents
+      // the app does not boot.
+      ...(e2e ? { manifest: true } : {}),
       // The e2e build keeps function and class names UNMANGLED, which is not the `keepNames`
       // above: the identifiers themselves keep their source spelling, so call sites and `.name`
       // agree. The suite's fault injectors pick a write out by the function names on its stack
@@ -191,7 +201,22 @@ export default defineConfig(({ command, mode }) => {
       // File names do not survive: a match on one (`saveActions.ts` in e2e/_saveMatrix.ts) must
       // move to a function name before the suite runs on this build.
       rollupOptions: {
-        ...(e2e ? { output: { minify: { mangle: { keepNames: KEEP_NAMES }, compress: { keepNames: KEEP_NAMES } } } } : {}),
+        // The e2e build adds the spec registry (src/e2eRegistry.ts) as its own entry at a fixed URL,
+        // which every page's door loads (E2E_REGISTRY_URL, src/app/e2eModules.ts). Strict entry
+        // signatures keep every shared module out of the page entry chunks, so loading the registry
+        // never runs a page's boot (app.html's, say, on /output) as a side effect; e2e/_door.ts
+        // refuses a build where it would.
+        ...(e2e
+          ? {
+              output: {
+                // No compress pass: it inlines small functions into their callers, and the traced spec map
+                // (e2e/_trace.ts) would then credit the caller's file with code from another.
+                minify: { mangle: { keepNames: KEEP_NAMES }, compress: false },
+                entryFileNames: (chunk: { name: string }) => (chunk.name === 'e2eRegistry' ? 'assets/e2eRegistry.js' : 'assets/[name]-[hash].js'),
+              },
+              preserveEntrySignatures: 'strict' as const,
+            }
+          : {}),
         input: {
           landing: 'index.html',
           docs: 'docs.html',
@@ -205,6 +230,7 @@ export default defineConfig(({ command, mode }) => {
           downloads: 'downloads.html',
           whatsNew: 'whats-new.html',
           roadmap: 'roadmap.html',
+          ...(e2e ? { e2eRegistry: 'src/e2eRegistry.ts' } : {}),
         },
       },
     },

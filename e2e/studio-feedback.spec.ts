@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // covers: src/components/{AccountSaveNotice,SyncStatus,PlayoutSettingsDialog}.tsx
 // covers: src/components/playoutKeys.ts, src/components/home/{ProductionPage,CueRundown,RundownColors,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx
 // covers: src/components/home/CueEditor.tsx

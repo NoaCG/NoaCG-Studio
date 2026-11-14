@@ -1,3 +1,4 @@
+// runs on: dev server - blocks /src/main.tsx to make the app bundle fail, a URL only the dev server has
 // THE CLOSED DOORS TO THE OLD CODE EDITOR (owner, 2026-09-24). Every file that used to hold one
 // selects the spec that pins them all shut: Settings (the Advanced mode switch), the wizard's Entry
 // and Finish steps, Home, a graphic row, the control page, the new editor's header and the video

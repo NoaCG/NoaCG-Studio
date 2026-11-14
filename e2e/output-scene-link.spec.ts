@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // AN OBS SCENE'S OWN LINK (docs/work-specs/obs-scenes/spec.md OS1a, AC-1; rules R5 to R8): the real
 // /output shell, stage and graphic documents over a stood-in backend, as in output-prepare.spec.ts.
 // `&scene=<id>` builds only that scene's graphics, at boot, at a publish it takes and after a reload;

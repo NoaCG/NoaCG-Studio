@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts to stand in a backend, and rewrites the /output boot script
 // AN OUTPUT TAKES A PUBLISH ONE GRAPHIC AT A TIME (docs/work-specs/per-graphic-replacement/spec.md
 // AC-1, AC-2, AC-4, AC-5, D2, D4; before it, playout-ready R3 and AC-9): the real /output shell,
 // stage and graphic documents over a stood-in backend, as in output-ready.spec.ts. The request that

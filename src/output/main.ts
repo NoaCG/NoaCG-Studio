@@ -94,7 +94,7 @@ import { bootGap, heldActions, heldSteps, ografRestore, readPastGate, UNKNOWN_AC
 import { installE2eModules } from '../app/e2eModules';
 
 // Browser specs reach this page's modules through window.__noacgImport (src/app/e2eModules.ts).
-installE2eModules(null);
+installE2eModules();
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -479,10 +479,10 @@ async function boot(): Promise<void> {
   });
   /** A development build only: `&oldbuild=1` makes this output behave as one built before automatic
    *  updates (no `au`, no own version check), so a spec can walk E2's transition. */
-  const OLD_BUILD_FOR_SPECS = import.meta.env.DEV && new URLSearchParams(window.location.search).get('oldbuild') === '1';
-  /** A development or measure build only: `&wholeread=1` makes this output read every version whole,
-   *  as an output built before live-publishing phase 7 does, so its downloads can be reported. */
-  const PARTS_OFF_FOR_SPECS = (import.meta.env.DEV || import.meta.env.VITE_MEASURE_HOOKS === '1') && new URLSearchParams(window.location.search).get('wholeread') === '1';
+  const OLD_BUILD_FOR_SPECS = (import.meta.env.DEV || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) && new URLSearchParams(window.location.search).get('oldbuild') === '1';
+  /** A development, e2e or measure build only: `&wholeread=1` makes this output read every version
+   *  whole, as an output built before live-publishing phase 7 does, so its downloads can be reported. */
+  const PARTS_OFF_FOR_SPECS = (import.meta.env.DEV || import.meta.env.VITE_MEASURE_HOOKS === '1' || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) && new URLSearchParams(window.location.search).get('wholeread') === '1';
   const entry = (): LiveEntry =>
     liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), {
       name: outputName ?? sceneName,
@@ -559,7 +559,7 @@ async function boot(): Promise<void> {
     prepare: (prep: { id: string; n: number; h: string }) => preparer.request(prep),
     // …and, in a development build only, the one a command comes through on the fast road, for
     // offline specs with no topic. A playout box's console must not write state the log never saw.
-    command: import.meta.env.DEV ? (graphic: string, msg: ControlEventRow['msg']) => applyCommand(graphic, msg, undefined) : undefined,
+    command: import.meta.env.DEV || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__) ? (graphic: string, msg: ControlEventRow['msg']) => applyCommand(graphic, msg, undefined) : undefined,
     ack: () => ack,
     // The values each graphic's document was last handed, for specs (live-publishing G2 R4).
     handed: (graphic: string) => stage.handed.get(graphic) ?? null,

@@ -1,3 +1,4 @@
+// runs on: dev server - imports the pilot brief bank from /benchmarks, which the build does not serve
 // covers: src/ai/**
 //
 // The pilot brief bank is read by the anchor re-verification (the decay rule) - a bank edit

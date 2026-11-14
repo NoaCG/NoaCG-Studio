@@ -1,3 +1,4 @@
+// runs on: dev server - imports fresh module copies (a cache-busting suffix), which only the dev server serves
 // covers: src/templates/**
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 // focus

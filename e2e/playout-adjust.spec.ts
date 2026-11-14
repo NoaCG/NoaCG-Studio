@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // PLACE AND SIZE IN THE BROWSER (docs/work-specs/playout-adjustments/spec.md, phase 1): the halves
 // Node cannot prove. The measurement a settled document answers (AC-2's two rectangles for a band,
 // AC-3's smallest text against the receipt's numbers), the output stage's frame transform composing

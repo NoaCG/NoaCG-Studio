@@ -24,7 +24,7 @@
 // Cost: one headless page load per suite run, ~1s against a ~5min suite.
 
 import { chromium } from '@playwright/test';
-import { devPort } from '../scripts/dev-port.mjs';
+import { devPort, livePort } from '../scripts/dev-port.mjs';
 import { activeRuns, blockingRuns, describeRuns, selfAndAncestors, selfRun } from '../scripts/e2e-runs.mjs';
 import { resolve } from 'node:path';
 import * as rules from '../scripts/rules.mjs';
@@ -118,7 +118,15 @@ async function waitForOtherRuns(): Promise<void> {
 
 export default async function offlineGuard(): Promise<void> {
   await waitForOtherRuns();
-  const base = `http://127.0.0.1:${devPort()}`;
+  await guardServer(`http://127.0.0.1:${devPort()}`);
+  // On the build, the "dev" project's dev server listens on the second port when this run holds
+  // a spec that needs it (playwright.config.ts sets NOACG_E2E_DEV_SERVER then). It gets the same check, and the page load is also
+  // what settles its dependency pre-bundling before a test opens the app: a cold dev server
+  // re-bundles on the first load and answers that page's stale dependency with a 504.
+  if (process.env.NOACG_E2E_DEV_SERVER === '1') await guardServer(`http://127.0.0.1:${livePort()}`);
+}
+
+async function guardServer(base: string): Promise<void> {
 
   const alreadyRunning = await fetch(base, { method: 'GET', signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
     .then((r) => r.ok)
@@ -137,7 +145,9 @@ export default async function offlineGuard(): Promise<void> {
     const page = await browser.newPage();
     await page.goto(`${base}/app`, { waitUntil: 'domcontentloaded' });
     env = await page.evaluate(async () => {
-      const probe = (await import('/e2e/_env-probe.ts')) as Record<string, unknown>;
+      // The door when the page has one (the e2e build answers it from its registry), else the module's URL.
+      const door = (window as unknown as { __noacgImport?: (p: string) => Promise<unknown> }).__noacgImport;
+      const probe = (await (door ? door('/e2e/_env-probe.ts') : import('/e2e/_env-probe.ts'))) as Record<string, unknown>;
       return { ...probe };
     });
     const aiSignal = AbortSignal.timeout(PROBE_TIMEOUT_MS);

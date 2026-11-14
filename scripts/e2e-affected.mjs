@@ -35,6 +35,7 @@ import { fileURLToPath } from 'node:url';
 import { CONFIGURED_BACKEND, CONFIGURED_COVERAGE, CONFIGURED_FULL, CONFIGURED_SPECS, COVERAGE, CRITICAL, FOCUS } from './e2e-lists.mjs';
 import { COPY_PATH_FILE, copyEdit, scanScript, specsNaming } from './e2e-affected-copy.mjs';
 import { measured } from './measured.mjs';
+import { EXTRA as REGISTRY_EXTRA } from './e2e-module-registry.mjs';
 import {
   budgetMinutes,
   predictShardMinutes,
@@ -285,7 +286,7 @@ const APP_SHELL = /^app\.html$/;
 // What the DEV SERVER loads is not listed here: it is read off vite.config.ts's imports
 // (`devServerModules`, #957) and passes IGNORE the same way.
 const SUITE_CRITICAL_SCRIPTS =
-  'build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|execution-profile|e2e-affected|e2e-lists|e2e-trace|build-news-pack|build-production-pack|packs/';
+  'build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|execution-profile|e2e-affected|e2e-lists|e2e-trace|e2e-dev-server-specs|e2e-build-sources|build-news-pack|build-production-pack|packs/';
 // `.env.example` is a template a human copies; nothing loads it. Vite and the dev-server middleware
 // read `.env`, and a spec drives a dev server that has never opened the example - so escalating on
 // it ran 53 specs to prove nothing. It already has a real gate in `npm run build`:
@@ -948,6 +949,9 @@ export function checkoutSourceGraph() {
       if (/\.(m?[jt]sx?|css)$/.test(file)) sources.set(file, readCheckout(file) ?? '');
     }
   }
+  // The files outside src/ and api/ a source module imports: the e2e registry's EXTRA modules
+  // (scripts/e2e-module-registry.mjs), the env probe. Each is a leaf, so knowing it exists is enough.
+  for (const path of REGISTRY_EXTRA) files.add(path.slice(1));
   sourceGraphCache = sourceGraph(sources, files);
   return sourceGraphCache;
 }

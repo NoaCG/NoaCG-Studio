@@ -35,6 +35,11 @@ on:
         required: false
         type: boolean
         default: false
+      dev_server:
+        description: 'Run the suite on the dev server instead of the e2e build (the d2 selection guard, docs/work-specs/cicd-followup/evidence/d2-selection-guard.mjs).'
+        required: false
+        type: boolean
+        default: false
 
 # One nightly at a time. A manual run while the scheduled one is in flight should queue behind
 # it, not race it for the dev-server ports.
@@ -69,7 +74,8 @@ jobs:
     steps:
       - name: Find a green full push run on this commit
         id: find
-        if: ${{ (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && !inputs.full_e2e }}
+        # A dev_server run (the d2 selection guard) always runs its own suite: main's push run is on the build.
+        if: ${{ (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && !inputs.full_e2e && !inputs.dev_server }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -204,6 +210,9 @@ jobs:
           TMPDIR: ${{ runner.temp }}
           SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
           SHARD_INDEX: ${{ matrix.shardIndex }}
+          # The suite runs on the e2e build (playwright.config.ts); the specs that need the dev
+          # server say so in their header and run there (scripts/e2e-dev-server-specs.mjs).
+          NOACG_E2E_ON_BUILD: ${{ inputs.dev_server && '0' || '1' }}
           # One blob name per shard, so the report job can tell which shard sent none.
           NOACG_BLOB_NAME: report-${{ matrix.shardIndex }}.zip
           # Record which source each spec EXECUTED, for the traced spec map the report job builds
@@ -549,7 +558,8 @@ jobs:
       # continue-on-error: a refresh that stops landing makes every plan escalate within
       # MAX_AGE_DAYS, so it has to turn the night red rather than fail quietly.
       - name: Queue the traced spec map
-        if: ${{ !cancelled() && steps.traced.outcome == 'success' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
+        # Never a dev_server run's map: the guard compares it, and main's map stays the build's.
+        if: ${{ !cancelled() && steps.traced.outcome == 'success' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && !inputs.dev_server }}
         env:
           GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
           NOACG_BOT_TOKEN: ${{ steps.bot.outputs.token != '' && 'app' || 'workflow' }}

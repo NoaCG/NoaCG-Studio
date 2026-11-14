@@ -1,3 +1,4 @@
+// runs on: dev server - races the Prepare step's asynchronous baked-text scan (its `if (await ask.count()) await ask.click()`), which the build's speed exposes; kept here until #2536 fixes it
 // covers: src/templates/importedDesign/designTypes.ts, src/components/wizard/import/**
 // covers: src/blocks/designLayout.ts, src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 // covers: src/assets/**
