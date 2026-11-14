@@ -3430,7 +3430,7 @@
     "contractClarification": "Coordinator extraction bug produced four first-line rubric labels in E5F admission. Do not shorten the actual contract: ALL four full Acceptance paragraphs at the pinned phase.spec24d7 are binding through the spec, including guard/credential/stale/undo/source/export/keyboard/access/limit requirements. Preserve admitted labels/history without resetting allowance. Builder notified before any code; independent evidence must address every clause of those full paragraphs."
   },
   "e5fCheckpoint": {
-    "status": "PR2552_OPEN_UNQUEUED_EXACT9F70_FULL_SO_A_CI_CODEX_PENDING",
+    "status": "PR2552_CI_RED_CONSOLIDATED_DIAGNOSIS_NO_STAMP_NO_QUEUE",
     "actor": "/root/editor_e5f_cloud_builder",
     "thread": "6af8403d-0d00-8191-804b-4923b3338071",
     "source": "4751981d1202c8127739e21e95c979f4af01711b",
@@ -3525,24 +3525,56 @@
         "mode": "Exactlyone activeCloudcoordinator owner throughqueue/baseconflicts/merge and terminalpostland/deploy; no qualifieddurablewake/no unattendedclaim",
         "repairAttempts": 0
       },
-      "check": "Builderreports normalcheckreviewinline1/1fixed/simplifyinline/targetedengineeringverifyinlinePASS. Concrete localgeneratedstampreceipt requested; no rootGitHubstatusyet.",
+      "check": "Rootreadentiregenerated/checkstampPASS exact9f70/base5c118/41files, inline1/1/simplifyinline/verifyinline; optionalmodelmetadata notexposed/notinvented. Canonicalfile .git/noacg-jobs/checks/codex-plan-editor-r1-5-e5f-build.json",
       "ci": {
         "run": 43603124871,
         "head": "9f70b9835777e3815b4336654fe06bb80198ef7c",
-        "status": "in_progress",
+        "status": "ACTUAL_TEST_FAILURES; otherspending; no rerun",
         "planJob": 132471944499,
         "selection": "Actualmode subset215offline/15shards, includesall4editededitorfiles. Configuredmodeall62active/4isolatedlocalstacks; 3existingquarantinednonblocking(command-sequence/operator-outage-not-unpublished/publish-guard) explicitlyobserved. Criticalalreadyselected/noadds; cataloggate running.",
-        "rootRead": "ConnectoractualcompleteE2Eplanlog/JSON; distinguish215PRselection versus fullmain later; no countfalsefullclaim."
+        "rootRead": "ConnectoractualcompleteE2Eplanlog/JSON; distinguish215PRselection versus fullmain later; no countfalsefullclaim.",
+        "failures": [
+          {
+            "job": 132472076948,
+            "tests": "folders-bins330canvas63>150; production-sounds165soundloadrequests3vs2"
+          },
+          {
+            "job": 132472077066,
+            "tests": "arrangement221canvas97>100"
+          },
+          {
+            "job": 132472077107,
+            "tests": "usability42Hairline1093marqueeselected1>1"
+          },
+          {
+            "job": 132472077121,
+            "tests": "canvas-transforms757nestedSVGoppositecornerdrift0.796>.6"
+          },
+          {
+            "job": 132472077131,
+            "tests": "wizard-entry-fit367oldTabexpectsOpeneditorfirst"
+          }
+        ],
+        "approvalOnlyFailure": "Reviewed132471944447: rootENTIRElogread, noacg/reviewedmissingafter147s/29polls; standardlate-status recovery onlyafterallothergates/Codex. Noproducttestjobrerun.",
+        "repairPlan": "SamebuilderreadALLwholefailedlogs/consolidatefamiliesbeforeedit. Freshreadonlylayoutapproachreview coversactualcanvas/toolbars/panels,minheight,marquee/precision paths; no constant-atatime or weakenedbound. Qualify oldwizardTabexpectation againstnewownerBlankdoor. SoundHARNESSuseschangedcreateBlankTemplate, so exactmain5c118control/trace required beforeunrelatedclaim. NoE4defect established; no code/status/queue action yet."
       },
       "codex": {
         "comment": 6878474028,
         "head": "9f70b9835777e3815b4336654fe06bb80198ef7c",
-        "status": "running",
+        "status": "COMPLETED_NO_FINDINGS",
         "requestedAt": "2026-11-14T14:06:39.577564Z",
-        "trigger": "PRopened; originalsingleautomaticrequest, no duplicate"
+        "trigger": "PRopened; originalsingleautomaticrequest, no duplicate",
+        "completedAt": "2026-11-14T14:10:27.074353Z"
       },
       "sideEnds": "Rootfinalcanonical41paths at9f70/base5c118: ends{}why[]; no packageversion/build/lockfile changed.",
-      "hosted": "AutomaticPRdeploymentIGNORED/mainonly expected, notsuccessorproviderproof. Repo productiontestsanonymous/nowrite and no productiontestcredentials; no callableconnectedbrowser/desktop. Owner signed-inwebsiteHelp/EditUndo mayberequiredLAST afterallconcreteengineering/landing; none asked yet."
+      "hosted": "AutomaticPRdeploymentIGNORED/mainonly expected, notsuccessorproviderproof. Repo productiontestsanonymous/nowrite and no productiontestcredentials; no callableconnectedbrowser/desktop. Owner signed-inwebsiteHelp/EditUndo mayberequiredLAST afterallconcreteengineering/landing; none asked yet.",
+      "codeql": {
+        "run": 43603121853,
+        "analysis": "Allthreejavascript-typescript/python/actionsanalysisjobsSUCCESS. Visiblealert117DOMtext→HTMLatcompositionSource27; fullalertREST403,noothercredential/transportscopeattempt.",
+        "triage": "Rootinlinecodex-security statictriage/not_actionableforDOM-XSSatdetachedsink, mediumconfidence. EntireSECURITY/no scopedpolicyread. OnlycallercompositionEdits8discardsdoc; noappend/adopt/render, editkeepsHTMLbytes+CSSonly. Two sharedskillrefs unavailable/manualpolicyresolverfallback; no runtimeprobe/suppression/dismissal/testchange.",
+        "reply": 4573888509,
+        "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2552#discussion_r4573888509"
+      }
     }
   }
 }
