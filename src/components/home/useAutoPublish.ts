@@ -12,10 +12,16 @@ import { onSyncState } from '../../backend/syncController';
 import { subscribeTeamState, getTeamState } from '../../backend/teamProductions';
 import { addGraphicToShow, loadShows, removeShowGraphic, updateShowCue, type Show } from '../../model/shows';
 import { createAutoPublisher, CHECK_EVERY_MS, type AutoPublishView } from '../../control/autoPublish';
-import { publishRevision, publishStepMs } from '../../control/publishRevision';
+import { prefetchPublication, publishRevision, publishStepMs } from '../../control/publishRevision';
+import { loadGraphics } from '../../model/library';
 import type { CuePublished } from '../../control/hostedControl';
 import type { PayloadVersion } from '../../control/payloadVersion';
 import type { ObsScene } from '../../model/obsScenes';
+import { laterTask, partialWritesOn, setUnitPace } from '../../backend/partialWrites';
+import { prefetchRecordBase } from '../../backend/supabaseProvider';
+import { prefetchTeamBase } from '../../backend/teamProductions';
+import { prefetchPublishedBase } from '../../control/publishParts';
+import { sendsIdle } from '../../control/sendsInFlight';
 
 /** Whether the server has the guard installed and the switch on; null while unknown. */
 async function readSwitch(): Promise<boolean> {
@@ -31,8 +37,15 @@ async function readSwitch(): Promise<boolean> {
 async function readRevisions(show: Pick<Show, 'id' | 'teamId'>): Promise<{ rev: number; published: number | null } | null> {
   const sb = await getSupabase();
   if (!sb) return null;
+  // The publisher's 30 s check (a fixed-period read, live-publishing G4 section 11): a personal
+  // record's revision alone, in a shape of its own; a team record's as `storedRevision` reads it.
+  const revisionOnly = async () => {
+    const { data, error } = await sb.from('documents').select('rev').eq('id', show.id).eq('kind', 'show').maybeSingle();
+    const rev = (data as { rev?: unknown } | null)?.rev;
+    return error || typeof rev !== 'number' ? null : { rev };
+  };
   const [record, row] = await Promise.all([
-    storedRevision(show),
+    show.teamId ? storedRevision(show) : revisionOnly(),
     sb.from('control_shows').select('published_rev').eq('id', show.id).maybeSingle(),
   ]);
   if (!record || row.error) return null;
@@ -91,10 +104,32 @@ export function useAutoPublish(o: {
 }): AutoPublishState {
   const [switchOn, setSwitchOn] = useState(false);
   const [view, setView] = useState<AutoPublishView | null>(null);
+  // A save's unit digests wait for this page's sends, as the publish's own steps do (G4 R18).
+  useEffect(() => {
+    setUnitPace(async () => {
+      await sendsIdle();
+      await laterTask();
+      await sendsIdle();
+    });
+  }, []);
   const showId = o.show?.id ?? null;
   const teamId = o.show?.teamId ?? null;
   const published = !!o.show?.hostedSlug;
   const enabled = !!showId && published && o.mayPublish;
+  // The stored maps are read when the production opens (G4 section 1), so a first edit's save and
+  // publish read nothing more inside the edit.
+  useEffect(() => {
+    if (!showId || !o.mayPublish) return;
+    void (async () => {
+      if (!(await partialWritesOn())) return;
+      if (teamId) await prefetchTeamBase(showId);
+      else await prefetchRecordBase(showId);
+      const sb = published ? await getSupabase() : null;
+      if (sb) await prefetchPublishedBase(sb, showId);
+      const show = loadShows().find((x) => x.id === showId);
+      if (sb && show) await prefetchPublication(sb, show, loadGraphics());
+    })().catch(() => undefined);
+  }, [showId, teamId, published, o.mayPublish]);
   const latest = useRef(o);
   latest.current = o;
 
@@ -131,7 +166,8 @@ export function useAutoPublish(o: {
   // harness sets makes this page edit the production at a set pace (`noacg-measure-edit-ms`, default
   // 5 s), with automatic updates on or off. A publish follows a pass that ends synced, so AC-4 is
   // judged at a pace where each pass ends before the next edit (5 s, owner 2026-11-13).
-  // `cues`: the last cue's text, then its field values. `add`: a graphic added, then removed.
+  // `cues`: the last cue's text, then its field values. `labels`: a graphic cue's label every time
+  // (every edit changes content). `add`: a graphic added, then removed.
   // `design`: the last graphic's stylesheet changed (a design update).
   useEffect(() => {
     if (!MEASURE_HOOKS || !enabled || !showId) return;
@@ -143,7 +179,7 @@ export function useAutoPublish(o: {
     } catch {
       mode = null;
     }
-    if (mode !== 'cues' && mode !== 'add' && mode !== 'design') return;
+    if (mode !== 'cues' && mode !== 'labels' && mode !== 'add' && mode !== 'design') return;
     let tick = 0;
     const timer = setInterval(() => {
       const show = loadShows().find((s) => s.id === showId);
@@ -151,6 +187,12 @@ export function useAutoPublish(o: {
       tick += 1;
       const w = window as unknown as { __noacgEdits?: number };
       w.__noacgEdits = (w.__noacgEdits ?? 0) + 1;
+      if (mode === 'labels') {
+        // Every edit changes what the outputs show: a graphic cue's label, each time a new one.
+        const cue = [...(show.cues ?? [])].reverse().find((c) => c.source !== 'playout');
+        if (cue) updateShowCue(showId, cue.id, { label: `Edited ${tick}` });
+        return;
+      }
       if (mode === 'cues') {
         const cue = (show.cues ?? [])[(show.cues ?? []).length - 1];
         if (!cue) return;

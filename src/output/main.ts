@@ -72,7 +72,7 @@ import { airWhenSettled } from './catchUp';
 import { answersPing, pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
 import { createVersionCheck, type VersionCheck } from './versionCheck';
-import { readPublishedOffThread } from './payloadReader';
+import { readPublishedInParts, readPublishedOffThread } from './payloadReader';
 import { loadBackendConfig } from '../backend/config';
 import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
@@ -480,6 +480,9 @@ async function boot(): Promise<void> {
   /** A development build only: `&oldbuild=1` makes this output behave as one built before automatic
    *  updates (no `au`, no own version check), so a spec can walk E2's transition. */
   const OLD_BUILD_FOR_SPECS = (import.meta.env.DEV || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) && new URLSearchParams(window.location.search).get('oldbuild') === '1';
+  /** A development, e2e or measure build only: `&wholeread=1` makes this output read every version
+   *  whole, as an output built before live-publishing phase 7 does, so its downloads can be reported. */
+  const PARTS_OFF_FOR_SPECS = (import.meta.env.DEV || import.meta.env.VITE_MEASURE_HOOKS === '1' || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) && new URLSearchParams(window.location.search).get('wholeread') === '1';
   const entry = (): LiveEntry =>
     liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), {
       name: outputName ?? sceneName,
@@ -703,7 +706,10 @@ async function boot(): Promise<void> {
       // Parsed off the main thread where it can be (./payloadReader.ts, G3 section 5): the published
       // copy is megabytes, and commands keep running meanwhile. Otherwise read here, as before.
       const cfg = loadBackendConfig();
-      const off = cfg.url && cfg.anonKey ? await readPublishedOffThread(cfg.url, cfg.anonKey, outputSlug) : undefined;
+      // In parts first (live-publishing G4 section 5): the head, then only what this page lacks. No
+      // current head, or parts missing twice, reads the whole copy as before.
+      const inParts = cfg.url && cfg.anonKey && !OLD_BUILD_FOR_SPECS && !PARTS_OFF_FOR_SPECS ? await readPublishedInParts(cfg.url, cfg.anonKey, outputSlug) : 'whole';
+      const off = inParts !== 'whole' && inParts !== undefined ? inParts : cfg.url && cfg.anonKey ? await readPublishedOffThread(cfg.url, cfg.anonKey, outputSlug) : undefined;
       let whole: OutputPayload | null;
       if (off !== undefined) whole = readOutputPayload(off);
       else {

@@ -34,6 +34,9 @@
 // covers: supabase/migrations/0117_production_revision.sql, supabase/migrations/0118_publication_guard.sql
 // covers: src/control/autoPublish.ts, src/control/publishRevision.ts, src/control/sendsInFlight.ts, src/backend/savedRevision.ts, src/components/home/useAutoPublish.ts
 // covers: src/output/versionCheck.ts, src/output/payloadReader.ts, src/output/prepare.ts, src/output/main.ts, src/control/playoutStatus.ts
+// ONLY WHAT CHANGED (live-publishing designs/G4.md, AC-5): the last test of that describe.
+// covers: supabase/migrations/0119_record_patches.sql, supabase/migrations/0120_publication_parts.sql
+// covers: src/backend/unitPatch.ts, src/backend/partialWrites.ts, src/backend/supabaseProvider.ts, src/backend/assets.ts, src/backend/productionAudio.ts, src/control/publishParts.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
@@ -948,5 +951,331 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     expect(end.published).toBe(newer.rev);
     await page.unrouteAll({ behavior: 'ignoreErrors' });
     await second.close();
+  });
+  test('only what changed is sent, each image once, on both publish paths (live-publishing W5, AC-5)', async ({ page, browser }) => {
+    test.setTimeout(300_000);
+    // Seeded with parts on, so the production's images are stored under strong keys from the start.
+    await setSwitch('partial_writes', true);
+    try {
+      const { showId, outputSlug, graphicId } = await published(page, `Parts ${Date.now()}`);
+      // A graphic with an image of its own, unique to this run.
+      const image = `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><!-- ${Date.now()} ${'x'.repeat(4000)} --><rect width="8" height="8"/></svg>`).toString('base64')}`;
+      const addPictured = (name: string) =>
+        page.evaluate(async ({ id, name, image }) => {
+          const shows = await __noacgImport('/src/model/shows.ts');
+          const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+          const s = shows.loadShows().find((x) => x.id === id)!;
+          const t = s.graphics[0].template;
+          const added = shows.addGraphicToShow(id, { ...t, name, assets: [...t.assets, { path: 'img/mark.svg', data: image }] });
+          if (added.error) throw new Error(added.error);
+          const failure = await commitDurableWrites();
+          if (failure) throw new Error(failure);
+        }, { id: showId, name, image });
+      /** The revision before a change: `settled` waits for a newer one, saved and published. */
+      let before = (await server(showId)).rev ?? 0;
+      const settled = async (what: string) => {
+        await expect.poll(async () => { const now = await server(showId); return now.rev !== null && now.rev > before && now.published === now.rev; }, { timeout: 60_000, message: `${what} saved and published` }).toBe(true);
+        before = (await server(showId)).rev ?? 0;
+      };
+      await addPictured('Pictured');
+      await settled('the pictured graphic');
+
+      // Every request of a page from a moment on, with its bytes both ways.
+      type Seen = { url: string; method: string; body: string; bytes: Promise<number> };
+      const watch = (ctx: { on: (e: 'request', f: (r: import('@playwright/test').Request) => void) => void; off: (e: 'request', f: (r: import('@playwright/test').Request) => void) => void }) => {
+        const seen: Seen[] = [];
+        const on = (r: import('@playwright/test').Request) => {
+          seen.push({ url: r.url(), method: r.method(), body: r.postData() ?? '', bytes: r.response().then(() => r.sizes()).then((z) => z.requestBodySize + z.requestHeadersSize + z.responseBodySize + z.responseHeadersSize).catch(() => 0) });
+        };
+        ctx.on('request', on);
+        return { seen, stop: () => ctx.off('request', on) };
+      };
+      const rpcs = (seen: Seen[], name: string) => seen.filter((x) => x.url.includes(`/rpc/${name}`));
+
+      /** R23: the row a publish in parts left is what the whole path writes for the same record:
+       *  `output` (less its stamp), `panel` and the columns, compared as JSON with sorted keys. */
+      const sameAsWhole = async (what: string) => {
+        const rows = await (await service(`control_shows?id=eq.${showId}&select=output,panel,title,bindings,sources,collections,profile`)).json();
+        const diff = await page.evaluate(async ({ id, row }) => {
+          const { buildOutputPayload, buildPanelSpec, readPanel } = await __noacgImport('/src/control/hostedControl.ts');
+          const { loadShows } = await __noacgImport('/src/model/shows.ts');
+          const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+          const { profileForPublish } = await __noacgImport('/src/model/profile.ts');
+          const { canonicalJson } = await __noacgImport('/src/backend/unitPatch.ts');
+          const show = loadShows().find((x) => x.id === id)!;
+          const library = loadGraphics();
+          // Each cue's `appearance` and `adjust` are the page's box measurement at publish, which both
+          // paths take from the same call and this check cannot repeat: compared without them.
+          const unmeasured = (o: Record<string, unknown>) => ({ ...o, cues: ((o.cues ?? []) as Record<string, unknown>[]).map(({ appearance: _a, adjust: _j, ...c }) => c) });
+          const { ver: _ver, ...storedWhole } = row.output as Record<string, unknown>;
+          const stored = unmeasured(storedWhole);
+          const whole = {
+            output: unmeasured(JSON.parse(JSON.stringify(await buildOutputPayload(show, library)))),
+            panel: JSON.parse(JSON.stringify(buildPanelSpec(show, library, readPanel(row.panel)))),
+            title: show.name,
+            bindings: show.bindings ?? {},
+            sources: show.sources ?? [],
+            collections: show.collections ?? [],
+            profile: profileForPublish(show.profile),
+          };
+          const got = { output: stored, panel: row.panel, title: row.title, bindings: row.bindings, sources: row.sources, collections: row.collections, profile: row.profile };
+          // The stamp too, but for its time: the per-graphic digests and the identity the whole path
+          // computes for this build, and `t` always written.
+          const { stampPayload } = await __noacgImport('/src/control/payloadVersion.ts');
+          const wholeVer = await stampPayload(await buildOutputPayload(show, library), null);
+          const ver = (row.output as { ver?: { g?: unknown; h?: unknown; t?: unknown } }).ver ?? {};
+          const stampDiffers = [canonicalJson(ver.g) !== canonicalJson(wholeVer.g) ? 'ver.g' : '', ver.h !== wholeVer.h ? 'ver.h' : '', typeof ver.t !== 'object' || ver.t === null ? 'ver.t' : ''].filter(Boolean);
+          const differs = (a: unknown, b: unknown) => canonicalJson(a) !== canonicalJson(b);
+          return stampDiffers.concat(Object.keys(whole).flatMap((k) => {
+            const w = (whole as Record<string, unknown>)[k], g = (got as Record<string, unknown>)[k];
+            if (!differs(w, g)) return [];
+            if (k !== 'output') return [k];
+            const wo = w as Record<string, unknown>, go = g as Record<string, unknown>;
+            return [...new Set([...Object.keys(wo), ...Object.keys(go)])].filter((m) => differs(wo[m], go[m])).map((m) => `output.${m}: ${canonicalJson(wo[m]).slice(0, 300)} | ${canonicalJson(go[m]).slice(0, 300)}`);
+          }));
+        }, { id: showId, row: rows[0] });
+        expect(diff, `${what}: the row equals the whole path's`).toEqual([]);
+      };
+
+      /** R23, the record: once this page's saves have landed, the stored body read back with its files
+       *  equals the page's record. */
+      const recordSame = async (what: string, team: string | null) => {
+        await expect.poll(() => recordDiffers(team), { timeout: 30_000, message: `${what}: the stored record equals the page's` }).toEqual([]);
+      };
+      const recordDiffers = async (team: string | null) => {
+        return page.evaluate(async ({ id, team }) => {
+          const { loadShows } = await __noacgImport('/src/model/shows.ts');
+          const { canonicalJson } = await __noacgImport('/src/backend/unitPatch.ts');
+          const { rehydrateAssets, rehydrateSharedAssets, blobToDataUrl } = await __noacgImport('/src/backend/assets.ts');
+          const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+          const { teamDoc } = await __noacgImport('/src/backend/teamProductions.ts');
+          const sb = (await getSupabase())!;
+          const download = async (key: string) => {
+            const { data } = await sb.storage.from('user-assets').download(key);
+            return data ? blobToDataUrl(data) : null;
+          };
+          const local = loadShows().find((x) => x.id === id)!;
+          let stored: unknown;
+          if (team) {
+            const { data } = await sb.from('team_productions').select('doc').eq('id', id).single();
+            stored = await rehydrateSharedAssets((data as { doc: unknown }).doc, download);
+            return canonicalJson(stored) === canonicalJson(JSON.parse(JSON.stringify(teamDoc(local)))) ? [] : Object.keys(local).filter((k) => canonicalJson((stored as Record<string, unknown>)[k]) !== canonicalJson((JSON.parse(JSON.stringify(teamDoc(local))) as Record<string, unknown>)[k]));
+          }
+          const { data } = await sb.from('documents').select('body').eq('id', id).single();
+          stored = await rehydrateAssets((data as { body: unknown }).body, download);
+          const mine = JSON.parse(JSON.stringify(local)) as Record<string, unknown>;
+          return Object.keys({ ...mine, ...(stored as Record<string, unknown>) }).filter((k) => canonicalJson((stored as Record<string, unknown>)[k]) !== canonicalJson(mine[k]));
+        }, { id: showId, team });
+      };
+
+      /** R23, a new output: the payload composed from the head, the parts and the images, as the
+       *  reader composes it, equals the whole resolve's for the same n. */
+      const outputSame = async (what: string) => {
+        // As an output reads: anonymous, with the public key.
+        const anon = process.env.VITE_SUPABASE_ANON_KEY ?? '';
+        const rpc = async (fn: string, args: unknown) =>
+          (await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: anon, authorization: `Bearer ${anon}`, 'content-type': 'application/json' }, body: JSON.stringify(args) })).json();
+        const whole = (await rpc('control_output_resolve', { p_output_slug: outputSlug })).output as Record<string, unknown>;
+        const head = (await rpc('control_output_head', { p_output_slug: outputSlug })).head as Record<string, unknown> & { graphics: { p: string }[] };
+        expect(head, `${what}: a current head`).toBeTruthy();
+        const parts = await rpc('control_output_parts', { p_output_slug: outputSlug, p_digests: head.graphics.map((r) => r.p) });
+        const hashes = [...new Set(Object.values(parts as Record<string, { assets: { h?: string }[] }>).flatMap((p) => p.assets.flatMap((a) => (a.h ? [a.h] : []))))];
+        const images: Record<string, string> = {};
+        for (let ask = hashes; ask.length; ) {
+          const got = await rpc('control_output_assets', { p_output_slug: outputSlug, p_hashes: ask });
+          Object.assign(images, got.assets);
+          ask = got.more;
+        }
+        const composed = { ...head, graphics: head.graphics.map((r) => {
+          const body = (parts as Record<string, { assets: { h?: string }[] }>)[r.p];
+          return { ...body, assets: body.assets.map(({ h, ...a }) => (h ? { ...a, data: images[h] } : a)) };
+        }) };
+        const sorted = (v: unknown): unknown => (Array.isArray(v) ? v.map(sorted) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v as object).sort().map((k) => [k, sorted((v as Record<string, unknown>)[k])])) : v);
+        expect(JSON.stringify(sorted(composed)), `${what}: a new output's payload equals the whole resolve`).toBe(JSON.stringify(sorted(whole)));
+      };
+
+      const viewers = await browser.newContext();
+      const air = await viewers.newPage();
+      await air.goto(outputUrl(outputSlug, 'Desk P'));
+      const holds = async () => ((await readyOf(air)) as { v?: { n: number } } | null)?.v?.n ?? 0;
+      await expect.poll(holds, { timeout: 60_000 }).toBe((await server(showId)).n);
+      const caught = async () => expect.poll(holds, { timeout: 60_000, message: 'the output holds the newest version' }).toBe((await server(showId)).n);
+
+      // A first edit gives this page its own publish as the base.
+      await edit(page, showId, 'label', 'Warm');
+      await settled('the warm edit');
+      await caught();
+
+      // AC-5: one cue's text of 2 kB, save and publish together, under 20 kB; the output reads the
+      // head and no graphic.
+      const pageSeen = watch(page.context());
+      const outSeen = watch(viewers);
+      await edit(page, showId, 'label', 'L'.repeat(2048));
+      await settled('the 2 kB cue edit');
+      await caught();
+      pageSeen.stop();
+      outSeen.stop();
+      const each = await Promise.all(pageSeen.seen.map(async (x) => ({ what: `${x.method} ${x.url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]}`, url: x.url, bytes: await x.bytes })));
+      // The page's fixed-period polls run whether or not anyone edits (G4 section 11): reported, not
+      // counted. This is a personal production, so the team refresh is one of them; so are the
+      // renderer heartbeat and the publisher's revision check, each by its own shape.
+      const polls = /\/rest\/v1\/(teams|team_members|team_productions)$|\/rpc\/audience_list$/;
+      const shaped = /\/rest\/v1\/control_shows\?select=(output_seen_at|published_rev)&|\/rest\/v1\/documents\?select=rev&/;
+      const bytes = each.filter((x) => !polls.test(x.what) && !shaped.test(x.url)).reduce((a, b) => a + b.bytes, 0);
+      test.info().annotations.push({ type: 'cue-edit-bytes', description: `${bytes} over ${each.length} requests: ${each.sort((a, b) => b.bytes - a.bytes).slice(0, 12).map((x) => `${x.what} ${x.bytes}`).join('; ')}` });
+      console.log('cue-edit-bytes', bytes, JSON.stringify(each.slice(0, 20)));
+      expect(rpcs(pageSeen.seen, 'documents_show_patch').length, 'the save went as a patch').toBeGreaterThan(0);
+      expect(rpcs(pageSeen.seen, 'control_publish_parts').length, 'the publish went in parts').toBeGreaterThan(0);
+      expect(bytes, 'a 2 kB cue edit, save and publish together').toBeLessThan(20_000);
+      expect(rpcs(outSeen.seen, 'control_output_head').length).toBeGreaterThan(0);
+      await sameAsWhole('the cue edit');
+      await recordSame('the cue edit', null);
+      await outputSame('the cue edit');
+      expect(rpcs(outSeen.seen, 'control_output_parts').length + rpcs(outSeen.seen, 'control_output_resolve').length, 'no graphic read for a cue edit').toBe(0);
+
+      // The same image again: nothing uploaded; the output reads the one new part and no image.
+      const again = watch(page.context());
+      const againOut = watch(viewers);
+      await addPictured('Pictured again');
+      await settled('the second pictured graphic');
+      await caught();
+      again.stop();
+      againOut.stop();
+      expect(rpcs(again.seen, 'control_asset_put').length, 'an image already published is not put').toBe(0);
+      expect(again.seen.filter((x) => x.url.includes('/storage/v1/object/') && x.method !== 'HEAD').length, 'nothing goes to Storage').toBe(0);
+      expect(rpcs(againOut.seen, 'control_output_assets').length, 'the output reads an image once').toBe(0);
+      const asked = rpcs(againOut.seen, 'control_output_parts').map((x) => (JSON.parse(x.body) as { p_digests: string[] }).p_digests.length);
+      expect(asked, 'the output reads the one new graphic').toEqual([1]);
+      await sameAsWhole('a graphic added');
+      await recordSame('a graphic added', null);
+      await outputSame('a graphic added');
+
+      // Updating one graphic sends that graphic and no stored image.
+      const update = watch(page.context());
+      await page.evaluate(async ({ id, gid }) => {
+        const shows = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+        const g = shows.loadShows().find((x) => x.id === id)!.graphics.find((x) => x.id === gid)!;
+        const changed = shows.setGraphicCopyScript(id, gid, g.template.js, `${g.template.js}\n// AC-5 design update`);
+        if (changed.error) throw new Error(changed.error);
+        await commitDurableWrites();
+      }, { id: showId, gid: graphicId });
+      await settled('the design update');
+      update.stop();
+      const sentParts = rpcs(update.seen, 'control_publish_parts').map((x) => (JSON.parse(x.body) as { p_parts: unknown[] }).p_parts.length);
+      expect(sentParts, 'one graphic sent').toEqual([1]);
+      expect(rpcs(update.seen, 'control_asset_put').length, 'no stored image sent').toBe(0);
+      const patches = rpcs(update.seen, 'documents_show_patch').map((x) => JSON.parse(x.body) as { p_ops: { m: string; put?: unknown[] }[] });
+      expect(patches.length).toBeGreaterThan(0);
+      expect(patches.every((p) => p.p_ops.every((op) => op.m !== 'graphics' || (op.put ?? []).length === 1)), 'the save carries that graphic only').toBe(true);
+      await sameAsWhole('the design update');
+      await recordSame('the design update', null);
+      await caught();
+      await outputSame('the design update');
+
+      // Issue #779 with parts on: a graphic whose record is not in this page's library keeps the saved
+      // entries as published. A teammate publishes new ones; this page's next automatic publish,
+      // whose own last publish is now stale, must publish over theirs, not its old copy.
+      const foreign = await page.evaluate(async (id) => {
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        const { loadGraphics, resolveSavedGraphicDoc } = await __noacgImport('/src/model/library.ts');
+        const lib = loadGraphics();
+        return loadShows().find((x) => x.id === id)!.graphics.filter((g) => !resolveSavedGraphicDoc(g, lib)).map((g) => g.name);
+      }, showId);
+      expect(foreign.length, 'a graphic whose record this library does not hold').toBeGreaterThan(0);
+      const teammate = (await (await service(`control_shows?id=eq.${showId}&select=output,panel`)).json())[0] as { output: { ver: { n: number; r?: number } }; panel: { name: string; entries: unknown[] }[] };
+      teammate.output.ver = { ...teammate.output.ver, n: teammate.output.ver.n + 1 };
+      const theirs = { id: 'from-a-teammate', label: 'From a teammate', values: {} };
+      teammate.panel = teammate.panel.map((g) => (g.name === foreign[0] ? { ...g, entries: [theirs] } : g));
+      const theirWrite = await service(`control_shows?id=eq.${showId}`, { method: 'PATCH', body: { output: teammate.output, panel: teammate.panel } });
+      expect(theirWrite.status, await theirWrite.text()).toBeLessThan(300);
+      await edit(page, showId, 'label', 'After a teammate');
+      await settled('the publish after a teammate');
+      const panelNow = (await (await service(`control_shows?id=eq.${showId}&select=panel`)).json())[0].panel as { name: string; entries: { id: string }[] }[];
+      expect(panelNow.find((g) => g.name === foreign[0])!.entries.map((e) => e.id), 'the teammate\'s saved entries survive this page\'s publish').toEqual(['from-a-teammate']);
+
+      // An old page's whole publish leaves the head stale (R14); the next publish in parts names the
+      // same graphics, and output is recomposed from them, not kept (R11).
+      await setAuto(false);
+      const rows = await (await service(`control_shows?id=eq.${showId}&select=output`)).json();
+      const stale = rows[0].output as { ver: { n: number }; graphics: { css: string }[] };
+      stale.graphics[0].css += '/* an old page wrote this */';
+      stale.ver = { ...stale.ver, n: stale.ver.n + 1 };
+      delete (stale.ver as { r?: number }).r;
+      const wrote = await service(`control_shows?id=eq.${showId}`, { method: 'PATCH', body: { output: stale } });
+      expect(wrote.status, await wrote.text()).toBeLessThan(300);
+      // The Publish press, automatic updates off, goes in parts too (R21).
+      await page.reload();
+      await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+      const press = watch(page.context());
+      await edit(page, showId, 'label', 'Pressed');
+      await pressPublishChanges(page);
+      await expect.poll(async () => (await server(showId)).labels.includes('Pressed'), { timeout: 60_000 }).toBe(true);
+      press.stop();
+      expect(rpcs(press.seen, 'control_publish_parts').length, 'the press went in parts').toBeGreaterThan(0);
+      // The press path's bytes, reported beside AC-5 (coordinator, #2361): this press follows a reload
+      // and a stale head, so it reads the stored stamp.
+      const pressEach = await Promise.all(press.seen.map(async (x) => ({ what: `${x.method} ${x.url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]}`, bytes: await x.bytes })));
+      console.log('press-bytes', pressEach.filter((x) => !/\/rest\/v1\/(teams|team_members|team_productions)$|\/rpc\/audience_list$/.test(x.what)).reduce((a, b) => a + b.bytes, 0), JSON.stringify([...pressEach].sort((a, b) => b.bytes - a.bytes).slice(0, 8)));
+      const after = await (await service(`control_shows?id=eq.${showId}&select=output`)).json();
+      expect(JSON.stringify(after[0].output.graphics), 'output recomposed from the parts').not.toContain('an old page wrote this');
+      await sameAsWhole('the press after a stale head');
+      await recordSame('the press after a stale head', null);
+      await caught();
+      await outputSame('the press after a stale head');
+
+      // A team production: its saves go as patches too, and the stored document equals the page's.
+      const teamId = await page.evaluate(async (id) => {
+        const { createTeam } = await __noacgImport('/src/backend/teams.ts');
+        const { moveProductionToTeam } = await __noacgImport('/src/backend/teamProductions.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        // `E2E team ` prefix, so teams.spec.ts's sweep deletes it if this run dies mid-way.
+        const { team: made, error } = await createTeam(`E2E team parts ${Date.now()}`, 'Parts Owner');
+        if (!made || error) throw new Error(error ?? 'no team');
+        for (let i = 0; ; i += 1) {
+          const moved = await moveProductionToTeam(loadShows().find((s) => s.id === id)!, made.id);
+          if (!moved.error) break;
+          if (i > 40 || !/signed-in account/.test(moved.error)) throw new Error(moved.error);
+          await new Promise((r) => setTimeout(r, 500));
+        }
+        return made.id;
+      }, showId);
+      await page.reload();
+      await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+      // The team's copy reaches the page's store with the team read.
+      await expect.poll(() => page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().some((x) => x.id === id && !!x.teamId), showId), { timeout: 30_000 }).toBe(true);
+      const teamSaves = watch(page.context());
+      for (const label of ['Team one', 'Team two']) {
+        await edit(page, showId, 'label', label);
+        await page.evaluate(async (id) => {
+          const failure = await (await __noacgImport('/src/backend/teamProductions.ts')).flushTeamProduction(id);
+          if (failure) throw new Error(failure);
+        }, showId);
+      }
+      // The team's publish, in parts (G4 section 11), as a press sends it: its bytes reported, every
+      // team read counted.
+      await page.evaluate(async (id) => {
+        const { publishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        await publishControlShow(loadShows().find((x) => x.id === id)!);
+      }, showId);
+      await expect.poll(async () => (await server(showId)).labels.includes('Team two'), { timeout: 30_000, message: 'the team edit published' }).toBe(true);
+      teamSaves.stop();
+      expect(rpcs(teamSaves.seen, 'team_production_patch').length, 'a team save went as a patch').toBeGreaterThan(0);
+      expect(rpcs(teamSaves.seen, 'control_publish_parts').length, 'a team publish went in parts').toBeGreaterThan(0);
+      const teamEach = await Promise.all(teamSaves.seen.map(async (x) => ({ what: `${x.method} ${x.url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]}`, bytes: await x.bytes })));
+      const teamBytes = teamEach.filter((x) => !/\/rpc\/audience_list$/.test(x.what)).reduce((a, b) => a + b.bytes, 0);
+      test.info().annotations.push({ type: 'team-edits-bytes', description: `${teamBytes} over ${teamEach.length} requests for two team edits, every team read counted (reported, not judged)` });
+      console.log('team-edits-bytes', teamBytes, teamEach.length, JSON.stringify([...teamEach].sort((a, b) => b.bytes - a.bytes).slice(0, 6)));
+      await recordSame('a team save', teamId);
+      await page.evaluate(async ([id, team]) => {
+        const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
+        await unpublishControlShow(id).catch(() => undefined);
+        await (await __noacgImport('/src/backend/teams.ts')).deleteTeam(team);
+      }, [showId, teamId] as [string, string]).catch(() => undefined);
+      await viewers.close();
+    } finally {
+      await setSwitch('partial_writes', false).catch(() => undefined);
+    }
   });
 });

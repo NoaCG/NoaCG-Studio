@@ -508,3 +508,39 @@ Filled in by each phase's pull request.
   of each run's publishes were new versions and the rest revision-only updates. Slow Takes 43
   against 21 and the longer tail are recorded and carried to phase 7 with D1. The only code change is that harness
   pace setting, which normal builds leave out. The evidence's +2 is replaced by both tables.
+
+### Phase 7: Only what changed, each image once
+
+- Design: `designs/G4.md`, graded by independent `/so` reviews (see the design's pull request for the
+  rounds and the final grade), landed as its own pull request before this one.
+- Previous verified `main`: 88c94f959920db642c9b3c79cb82f74b72010c95 (the design's landing, merged
+  into the build branch).
+- Revert: `git revert -m 1 <this pull request's merge commit>` brings back whole saves, whole
+  publishes and whole output reads. Turn the `partial_writes` switch off first (delete the
+  `system_settings` row or set `"on"` to false): with it off every page saves and publishes whole and
+  every output reads whole at once, so the revert changes nothing anyone sees. Migrations 0119 and
+  0120 stay applied and are inert for older code: `body_units`, `doc_units`, `published_head` and
+  `published_units` are columns nothing older reads, the new tables are reached only through the new
+  functions, and `output` is always written whole.
+- Rules: G4 section 8, R1 to R24 (R23, the parts path leaves everything as the whole path would, was
+  added by the round-cap reassessment of the design).
+- Migrations: `0119_record_patches.sql` (ordinary), `0120_publication_parts.sql` (live-path; applies in
+  a quiet window). Turning `partial_writes` on is a separate step, after the app is live and
+  `partial_writes_state()` reports `installed: true` on production (G4 section 7). `auto_publish`
+  stays off.
+- Departures from G4's wording, each for its intent:
+  - The sync listing is incremental with parts on: after a full listing, a pass reads only the rows
+    the server changed since (`updated_at`, with a minute's overlap), and reads in full again every
+    ten minutes and after a purge or removal. G4 said no result is kept after the listing answers;
+    on the large fixture the full listing alone was 12.7 kB of a 23.7 kB cue edit. The coordinator
+    was told before it was built.
+  - A press that names no saved revision reads the stored stamp instead of using this page's own
+    last publish: its older-design check (G3) is judged against what is stored.
+  - The publisher's 30 s revision check reads a personal record's `rev` in a query of its own, so
+    the count can tell that poll from a save's own read (G4 section 11 reports fixed-period reads).
+- Traps: a large-fixture measure on the development server crashed the browser while building the
+  fixture (int3, typical fixture fine); on the production build, where AC-5 is measured, it runs.
+  A job chained with `--after` fails when the job before it fails. The AC-2 test of
+  `publish-guard.spec.ts` fails locally when run after the tests before it in that file, on this
+  branch and on `main` alike; alone it passes, and CI runs it green.
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.

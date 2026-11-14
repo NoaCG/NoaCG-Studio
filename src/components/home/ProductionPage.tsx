@@ -229,6 +229,7 @@ import { type ProgramStageHandle } from './ProgramStage';
 import PlayoutMonitors from './PlayoutMonitors';
 import { composeDocument } from '../../preview/composeDocument';
 import { isBackendConfigured } from '../../backend/config';
+import { partialWritesOn } from '../../backend/partialWrites';
 import { useAuthState } from '../auth/useAuthState';
 import SignInPrompt from '../auth/SignInPrompt';
 import { productionWhenSynced } from '../../backend/graphicWhenSynced';
@@ -2594,12 +2595,22 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, styleId), input }];
     });
   };
+  // With saves and publishes in parts (live-publishing G4), every graphic as Publish asks, measured
+  // in the background from the moment the page opens, so the first publish after a reload has each
+  // box and does not drop one it published before (a cue resent for nothing). Otherwise only the
+  // adjusted cues, as before.
+  const [boxesAhead, setBoxesAhead] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void partialWritesOn().then((on) => { if (live) setBoxesAhead(on); });
+    return () => { live = false; };
+  }, []);
   // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
   // the identity a cue's box was measured for.
   useEffect(() => {
-    if (show) measurer.want(measureJobs(show));
+    if (show) measurer.want(measureJobs(show, library, boxesAhead));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [show, library, stage, measurer, resolved]);
+  }, [show, library, stage, measurer, resolved, boxesAhead]);
 
   /**
    * EVERY POOL GRAPHIC'S MACHINE, not just the selected one.
