@@ -1213,7 +1213,7 @@
       "em-dash": 41
     },
     "src/templates/shared/base.ts": {
-      "em-dash": 10
+      "em-dash": 5
     },
     "src/templates/shared/clock.ts": {
       "em-dash": 9
