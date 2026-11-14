@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Independent Rules review and compatibility correction checked. Local V5 implementation authorized on the same draft. Required Windows verification, final independent review, and exact release still pending.",
+      "head": "7571f1dea9f67d86d1fcc80138cda2c02ad42d62",
       "step": "build",
-      "pr": 2564,
       "session": "/root/v5_builder",
-      "head": "cbde8a3740adf0f01b79693ceef628bdf62f6c11",
-      "phase": "v5"
+      "phase": "v5",
+      "note": "Windows j-5255 Playwright recorded 46 passed on the exact V5 commit. Fresh full independent Risky review, GitHub Codex review and normal CI 43646317287 pending. Bridge 0.12.0 requires the normal release and exact verification after landing. sideEnds checked 26 files; no active measurement hold observed.",
+      "pr": 2564
     }
   ],
   "owner": [],
