@@ -233,10 +233,12 @@ as a part, 27.9 MB) and is left out on both sides.
 | j-0007 | `main` | 23,547 B (17 cues: boxes back) | 16,904 / 23,289 B | 6 / 19 (box dropped) |
 | j-0006 | fix | 13,874 B (1 cue) | 13,827 / 14,397 B | 0 / 0 |
 | j-0008 | fix | 13,875 B (1 cue) | 20,036 / 14,434 B | 12 (box gained) / 0 |
+| j-0009 | fix, final code (915f549) | 13,839 B (1 cue) | 14,397 / 14,433 B | 0 / 0 |
 
 On `main` every reload drops boxes the last publish carried (sample: `box` present before, absent
-after) and the next edit adds them back. With the fix, three of four reload edits and both cue
-edits send the one edited cue. The fourth (j-0008 round 0, 20.0 kB) is the first reload after the
+after) and the next edit adds them back. With the fix, five of six reload edits and every cue
+edit send the one edited cue (j-0006 and j-0008 ran on 3e59c3c, before the switch gate; j-0009 on the
+final code). The sixth (j-0008 round 0, 20.0 kB) is the first reload after the
 production's first publish in parts, whose 8 s measure wait had not reached 12 cues: those cues
 gain a box they never had (absent before, present after), a one-time catch-up that lands on
 whichever edit comes next, reload or not; round 1 of the same job sends one cue. It is the case the
@@ -249,3 +251,7 @@ build is measured again; a measurement the reopened page makes itself wins; a re
 forgotten and refused storage changes nothing; a graphic's unmeasured cue reads the same newest box.
 Mutations: `adopt` made a no-op fails 2 tests; the measured-order tracking removed fails the
 newest-box test.
+
+**Other checks.** `npm run gates -- run --changed origin/main` passes; `tsc` and `eslint` on the
+changed files pass; `e2e/playout-adjust.spec.ts` (the measurement and the stage's frame, offline,
+so `partial_writes` off) 17 passed (j-0010).
