@@ -285,9 +285,16 @@ test('vMix reads a playing cue, restores the exact production after reload, and 
   const staleRead = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   const staleSettled = Promise.withResolvers<void>();
+  const freshRequested = Promise.withResolvers<void>();
+  const releaseFresh = Promise.withResolvers<void>();
   let holding = false;
   const hold = async (route: Route) => {
-    if (route.request().method() !== 'POST' || route.request().postDataJSON()?.outputUrl || holding) return route.fallback();
+    if (route.request().method() !== 'POST' || route.request().postDataJSON()?.outputUrl) return route.fallback();
+    if (holding) {
+      freshRequested.resolve();
+      await releaseFresh.promise;
+      return route.fallback();
+    }
     holding = true;
     const snapshot = vmix.reply('/state', { target: { adapter: 'vmix' } });
     staleRead.resolve();
@@ -305,6 +312,12 @@ test('vMix reads a playing cue, restores the exact production after reload, and 
     await expect(clip).toContainText('ON AIR');
     release.resolve();
     await staleSettled.promise;
+    // The serial poll must have processed the old reply before it can ask again. Hold the
+    // new reply until the row proves it survived the stale one.
+    await freshRequested.promise;
+    await expect(clip).toContainText('ON AIR');
+    await expect(clip.getByTestId('cue-replaced')).toHaveCount(0);
+    releaseFresh.resolve();
     await expect(clockTime(page)).toHaveText(/^-0:5[0-9]$/);
     const before = await clockTime(page).textContent();
     await expect(clockTime(page)).not.toHaveText(before!);
@@ -314,6 +327,7 @@ test('vMix reads a playing cue, restores the exact production after reload, and 
     } }]);
   } finally {
     release.resolve();
+    releaseFresh.resolve();
     await page.unroute(BRIDGE + '/state', hold);
   }
 

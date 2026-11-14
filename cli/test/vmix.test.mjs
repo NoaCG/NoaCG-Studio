@@ -1862,6 +1862,55 @@ test('vMix V5 Pause and Resume require and check the exact selected instance', a
   }
 });
 
+test('vMix V5 guarded Pause and Resume cannot confirm an occurrence that restarted during the function', async t => {
+  for (const verb of ['pause', 'resume']) await t.test(verb, async t => {
+    let rewind = false;
+    const { adapter, fake, target, player, take } = await playerFixture(t, { afterFunction(name) {
+      if (rewind && name === (verb === 'pause' ? 'Pause' : 'Play')) fake.inputs[0].position = 1000;
+    } });
+    const playing = await take('clip A.mp4');
+    assert.equal(playing.ok, true);
+    fake.inputs[0].position = 5000;
+    rewind = true;
+    const result = await adapter.act(target, readAction({ action: {
+      verb: verb + '-player-held', slot: player(), expectedPlayerInstance: playing.instance,
+    } }));
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, 'uncertain');
+    const row = (await adapter.overlays(target)).value.players.find(row => row.player === 'clips');
+    assert.equal(row.instance, undefined, 'a fresh read cannot revive the discontinuous instance');
+    assert.equal(row.position, 1);
+  });
+});
+
+test('vMix treats wrong-player media as occupied but withholds a snapshot with malformed list state', async t => {
+  const { adapter, fake, target, player, take, root } = await playerFixture(t);
+  const playing = await take('clip A.mp4');
+  assert.equal(playing.ok, true);
+  const audio = fake.add('VideoList', 'NoaCG Audio');
+  audio.list = [join(root, 'still.png')];
+  const first = (await adapter.overlays(target)).value.players;
+  assert.equal(first.find(row => row.player === 'clips').instance, playing.instance);
+  assert.deepEqual(first.find(row => row.player === 'audio'), {
+    player: 'audio', layer: 0, generation: 0, producer: 'other', playerOccupied: true, paused: false, loop: false,
+  });
+  const clips = fake.inputs.find(input => input.title === 'NoaCG Clips');
+  clips.state = 'unrecognized';
+  const unavailable = (await adapter.overlays(target)).value;
+  assert.equal(unavailable.players, undefined);
+  const called = fake.functions.length;
+  const mayNotPause = await adapter.act(target, readAction({ action: {
+    verb: 'pause-player-held', slot: player(), expectedPlayerInstance: playing.instance,
+  } }));
+  assert.equal(mayNotPause.ok, false);
+  assert.equal(fake.functions.length, called);
+  clips.state = 'Completed';
+  clips.position = clips.duration;
+  const completed = (await adapter.overlays(target)).value.players.find(row => row.player === 'clips');
+  assert.equal(completed.instance, playing.instance, 'a malformed reading did not discard the prior selection');
+  assert.equal(completed.position, completed.segment.length);
+});
+
 test('vMix guarded All out refuses a later Take of the same file before sending a mixer function', async t => {
   const { adapter, fake, target, player, take } = await playerFixture(t);
   const first = await take('clip A.mp4');

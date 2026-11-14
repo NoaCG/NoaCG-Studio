@@ -27,6 +27,10 @@ The maintained clock and cue journeys exercise vMix and CasparCG together. The f
 
 The first Windows browser job `j-5252` passed 44 of 46 cases and found an unscoped overlay validation error and a stale expected wire form in the test. Job `j-5253` verified the clock journey and showed that the pre-existing pairing regression needed to isolate the late reply from the new fresh-read recovery. After those fixes `j-5254` passed all 46 cases on the working candidate. The final committed candidate is checked separately.
 
+## First implementation review
+
+The independent review of `7571f1dea9f67d86d1fcc80138cda2c02ad42d62` found three product defects and one test gap. A matching path and list could mask a nonlooping rewind during guarded Pause or Resume. A malformed native playback state could look valid. An in-root still selected natively on Audio could invalidate an otherwise usable Clips reading. The exact Windows fake TCP reproductions confirmed all three. The Bridge now checks the prior occurrence on every guarded confirmation, withholds an ambiguous snapshot and reports known wrong-player content as foreign. The browser journey now holds the fresh reply while it asserts the cue survived the stale one.
+
 ## Allocation and rollback
 
 Codebase-health #2285 is closed. Current editor #2552, live-publishing #2563 and draft CI #2423 were checked for shared paths. #1967 records the cf13 hold ending on November 9. The final release manifest still needs the actual changed-path check before queue admission.
