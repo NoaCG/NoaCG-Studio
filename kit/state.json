@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "session": "windows:j-5251",
       "pr": 2378,
       "step": "build",
-      "note": "Current exact head passed 24 Windows Chromium, affected checks and 932 Node, Bridge build and 36 fake-vMix, independent A and Codex clean. Normal PR CI 43638046576 still pending.",
-      "phase": "v4",
-      "head": "5b7300b6bfd452da0504e1199fc69351d18c1021"
+      "note": "Local Chromium 24 passed, independent A and Codex clean, exact CI gate and configured verdict green. Exact stamp posted, auto-merge enabled, normal merge group pending.",
+      "session": "github:2378",
+      "head": "5b7300b6bfd452da0504e1199fc69351d18c1021",
+      "phase": "v4"
     }
   ],
   "owner": [],
