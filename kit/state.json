@@ -49,7 +49,8 @@
       "session": "/root/v5_builder",
       "head": "643d6ab8e33c1c5d8348a614b5d625c9c0e895dc",
       "step": "build",
-      "phase": "v5"
+      "phase": "v5",
+      "repairComment": 6884473922
     }
   ],
   "owner": [],
