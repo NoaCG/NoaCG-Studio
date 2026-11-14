@@ -445,6 +445,7 @@ interface BridgeReply {
   vmix?: VmixInfo;
   linked?: VmixStateReply['linked'];
   overlays?: VmixOverlayState[];
+  players?: SlotState[];
   loadProblem?: string;
   mediaFolder?: string;
   cancelled?: true;
@@ -1140,7 +1141,7 @@ async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
         hasOnlyPayloadFields(body, ['agent', 'version', 'adapters', 'features']) &&
         Array.isArray(adapters) && adapters.every(adapter => typeof adapter === 'string') &&
         (features === undefined || (Array.isArray(features) && features.every(feature => typeof feature === 'string'))) &&
-        (adapters.includes('vmix') || !features?.some(feature => feature === 'vmix-output-key' || feature === 'vmix-media' || feature === 'vmix-player-out-guard'))) {
+        (adapters.includes('vmix') || !features?.some(feature => feature === 'vmix-output-key' || feature === 'vmix-media' || feature === 'vmix-player-out-guard' || feature === 'vmix-player-transport-guard'))) {
         return { kind: 'current', adapters, features: features ?? [] };
       }
     }
@@ -1224,7 +1225,7 @@ function validVmixError(route: VmixRoute, http: number, error: AgentError | unde
       (player && route === '/act' && (error.code === 'uncertain' || error.code === 'unreachable')));
 }
 
-function vmixOverlayRows(overlays: VmixOverlayState[] | undefined, info: VmixInfo, loadProblem?: string) {
+function vmixOverlayRows(overlays: VmixOverlayState[] | undefined, info: VmixInfo, loadProblem?: string, playerState = false) {
   const count = info.overlays;
   if (!Array.isArray(overlays) || overlays.length !== count) return;
   const diagnostic = overlays.every(row => row?.ownsOutput === undefined) && nonblank(loadProblem);
@@ -1235,7 +1236,7 @@ function vmixOverlayRows(overlays: VmixOverlayState[] | undefined, info: VmixInf
   const rows: VmixOverlayState[] = [];
   for (const row of overlays) {
     if (!row || !whole(row.overlay, 1) || row.overlay > count || channels.has(row.overlay) ||
-      (!diagnostic && typeof row.ownsOutput !== 'boolean')) return;
+      (playerState ? row.ownsOutput !== undefined : !diagnostic && typeof row.ownsOutput !== 'boolean')) return;
     channels.add(row.overlay);
     const input = row.input;
     if (input === undefined) {
@@ -1320,7 +1321,7 @@ function readVmixReply(
     } else if (route === '/state') {
       if (validVmixInfo(body.vmix) && nonblank(body.session) && whole(body.observedAt, 0) &&
         validVmixLinks(body.linked, body.vmix.overlays) && (body.loadProblem === undefined || nonblank(body.loadProblem))) {
-        const rows = vmixOverlayRows(body.overlays, body.vmix, body.loadProblem);
+        const rows = vmixOverlayRows(body.overlays, body.vmix, body.loadProblem, player);
         if (rows) return readReply(settings, { ...call, body: { ...body, ...rows } }, 'vMix');
       }
     } else if (validVmixInfo(body.vmix) && body.version === body.vmix.version && nonblank(body.raw) &&
@@ -1366,6 +1367,50 @@ export async function readVmixOverlays(settings: PlayoutSettings, outputUrl: str
   const { result, body } = readVmixReply(settings, call, '/state');
   if (result.state !== 'ok') return { result };
   return { result, info: body?.vmix, overlays: body?.overlays, loadProblem: body?.loadProblem };
+}
+
+function vmixRelativeFile(value: unknown): value is string {
+  return typeof value === 'string' && value.split('/').every(part => !!part && !/[<>:"\\|?*\p{Cc}\p{Cs}]/u.test(part) && !/[. ]$/.test(part));
+}
+
+function validVmixPlayerReading(row: SlotState, session: string): boolean {
+  if (!row || (row.player !== 'clips' && row.player !== 'audio') || row.layer !== 0 ||
+    !whole(row.generation, 0) || typeof row.paused !== 'boolean' || typeof row.loop !== 'boolean' ||
+    row.arriving !== undefined || row.queued !== undefined || row.transition !== undefined || row.sequence !== undefined) return false;
+  if (row.playerOccupied !== undefined && (row.playerOccupied !== true || row.producer !== 'other')) return false;
+  if (row.producer === 'empty' || row.producer === 'other') {
+    return row.file === undefined && row.segment === undefined && row.position === undefined &&
+      row.instance === undefined && row.cueId === undefined && row.playerSource === undefined;
+  }
+  if (row.producer !== 'video' && (row.producer !== 'still' || row.player === 'audio')) return false;
+  if (!vmixRelativeFile(row.file) || !row.segment || row.segment.start !== 0 ||
+    !Number.isFinite(row.segment.length) || row.segment.length < 0 ||
+    row.position === undefined || !Number.isFinite(row.position) || row.position < 0) return false;
+  if (row.instance === undefined) return row.cueId === undefined && row.playerSource === undefined;
+  return nonblank(row.instance) && /^[a-z0-9._-]{1,128}$/i.test(row.instance) &&
+    row.instance.startsWith(session + '.') && row.instance.length > session.length + 1 &&
+    (row.cueId === undefined || (nonblank(row.cueId) && row.cueId.length <= 200)) &&
+    (row.playerSource === undefined || vmixRelativeFile(row.playerSource));
+}
+
+export type VmixPlayerReading = Pick<VmixStateReply, 'session' | 'observedAt'> & { players: SlotState[] };
+
+/** The paired player's /state has no output URL or overlay ownership. */
+export async function readVmixPlayers(
+  settings: PlayoutSettings,
+): Promise<{ result: PlayoutResult; reply?: VmixPlayerReading }> {
+  const call = await callBridge(settings.agentUrl, '/state', { target: vmixTarget }, STATE_TIMEOUT_MS, settings.agentToken, 'vmix');
+  const { result, body } = readVmixReply(settings, call, '/state', false, true);
+  if (result.state !== 'ok' || !body) return { result };
+  const { players, session, observedAt } = body;
+  if (!Array.isArray(players) || players.length !== 2 || !session || observedAt === undefined ||
+    !/^[a-z0-9._-]{1,128}$/i.test(session) || body.loadProblem !== undefined ||
+    !players.every(row => validVmixPlayerReading(row, session)) || players[0].player === players[1].player ||
+    (players[0].instance !== undefined && players[0].instance === players[1].instance)) {
+    return { result: { state: 'bridge', detail: 'NoaCG Bridge did not return a valid vMix player reading. Try again.' } };
+  }
+  // Older media development builds used "other" for both proven occupants and unreadable inputs.
+  return { result, reply: { session, observedAt, players: players.filter(row => row.producer !== 'other' || row.playerOccupied) } };
 }
 
 export async function actVmix(
@@ -1464,7 +1509,7 @@ export async function vmixMediaFolder(settings: PlayoutSettings, choose = false)
 
 /** A player uses the paired token and rechecks dispatch after any capability probe. */
 export async function actVmixMedia(
-  settings: PlayoutSettings, action: PlayoutAction, canSend: () => boolean,
+  settings: PlayoutSettings, action: PlayoutAction, canSend: () => boolean, guardedTransport = false,
 ): Promise<PlayoutResult | null> {
   if (!canSend()) return null;
   const pairing = vmixPairing(settings);
@@ -1485,12 +1530,17 @@ export async function actVmixMedia(
   const evidence = currentVmixMediaPairings.get(pairing);
   const health = evidence?.latest?.health;
   if (health?.kind !== 'current' || !health.features.includes('vmix-media')) return vmixCapabilityProblem;
-  const guardedOut = action.verb === 'out' && action.expectedPlayerInstance !== undefined;
-  if (guardedOut && !health.features.includes('vmix-player-out-guard')) {
-    return { state: 'outdated', detail: 'Update NoaCG Bridge to safely finish All out.' };
+  const guarded = 'expectedPlayerInstance' in action && action.expectedPlayerInstance !== undefined;
+  const transport = guarded && guardedTransport;
+  const guardedOut = guarded && action.verb === 'out' && !transport;
+  if ((transport && !health.features.includes('vmix-player-transport-guard')) ||
+    (guardedOut && !health.features.includes('vmix-player-out-guard'))) {
+    return { state: 'outdated', detail: 'Update NoaCG Bridge to safely control the vMix player.' };
   }
-  // A Bridge that lost this capability since health must reject the new verb outright.
-  const request = guardedOut ? { ...action, verb: 'out-player-instance' } : action;
+  if (!canSend()) return null;
+  // A Bridge that lost this capability since health rejects the distinct wire verb outright.
+  const request = transport ? { ...action, verb: action.verb + '-player-held' }
+    : guardedOut ? { ...action, verb: 'out-player-instance' } : action;
   const call = await counted(() => callBridge(
     settings.agentUrl, '/act', { target: vmixTarget, action: request }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix',
   ));

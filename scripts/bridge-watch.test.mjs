@@ -53,8 +53,48 @@ afterEach(() => {
   for (const watch of started.splice(0)) watch.stop();
 });
 
+test('vMix watch drops readings held across a folder publication, pairing switch-back or saved show change', async t => {
+  for (const change of ['folder', 'pairing', 'show']) await t.test(change, async () => {
+    let pairingChanged;
+    let revision = 0;
+    let current = true;
+    const item = vt('clip', { adapter: 'vmix', kind: 'media', mediaKind: 'movie', name: 'clip.mp4', layer: 0, fps: 25, frames: 250 });
+    const r = rig({
+      items: [item],
+      vmixMediaRevision: () => revision,
+      watchPlayoutPairing: notify => { pairingChanged = notify; return () => {}; },
+      currentVmixRundown: () => current,
+    });
+    const pending = Promise.withResolvers();
+    const reply = { session: 'mix', observedAt: 2, players: [{ player: 'clips', layer: 0, generation: 1,
+      producer: 'video', file: 'clip.mp4', cueId: 'vmix:["show-1","c1","clip"]', instance: 'mix.current',
+      position: 1, segment: { start: 0, length: 10 }, paused: false, loop: false }] };
+    const status = { ...OK, features: ['vmix-media'] };
+    let reads = 0;
+    r.io.readVmixPlayers = () => ++reads === 1 ? pending.promise : Promise.resolve({ result: status, reply });
+    const pairing = vmixPairing(SETTINGS);
+    r.update({ target: pairing, casparOn: false, vmixOn: true, vmixPairing: pairing, mediaRev: revision, serverFiles: null });
+    r.answer(status);
+    await settle();
+    assert.equal(reads, 1);
+    if (change === 'folder') revision += 1;
+    if (change === 'pairing') { pairingChanged(); pairingChanged(); }
+    if (change === 'show') current = false;
+    pending.resolve({ result: status, reply });
+    await settle();
+    assert.deepEqual(r.serverPlayout.ownership.get().onAir, {});
+    assert.deepEqual(r.serverPlayout.timing.get(), {});
+    current = true;
+    r.update({ mediaRev: revision });
+    if (change === 'pairing') r.answer(status);
+    r.watch.wake();
+    await settle();
+    assert.equal(r.serverPlayout.ownership.get().onAir.clip.instance, 'mix.current');
+  });
+});
+
 /** A watch on a fresh session, with every request recorded in order. */
-function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, mediaKind: 'movie' })], library, browser = newBrowser(), server = { layer: ourPage }, asyncLocks = false, watchPlayoutPairing, vmixMediaRevision } = {}) {
+function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, mediaKind: 'movie' })], library, browser = newBrowser(), server = { layer: ourPage }, asyncLocks = false, watchPlayoutPairing, vmixMediaRevision, currentVmixRundown = () => true } = {}) {
   const calls = [];
   const subs = [];
   const everys = [];
@@ -161,8 +201,10 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
   let watch;
   watch = startBridgeWatch(session, io, {
     rundown: () => rundown,
+    vmixRundown: () => currentVmixRundown() ? rundown : null,
     slots: {
-      itemSlot: (s, item) => ({ adapter: 'casparcg', channel: item.channel ?? s.channel, layer: item.layer }),
+      itemSlot: (s, item) => item.adapter === 'vmix' ? { adapter: 'vmix', player: item.mediaKind === 'audio' ? 'audio' : 'clips' }
+        : { adapter: 'casparcg', channel: item.channel ?? s.channel, layer: item.layer },
       folderSlot: (s) => ({ adapter: 'casparcg', channel: s.channel, layer: 10 }),
     },
     serverPlayout,

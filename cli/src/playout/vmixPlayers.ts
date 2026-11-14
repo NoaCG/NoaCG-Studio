@@ -5,6 +5,7 @@ import { sameVmixPath, VMIX_PLAYERS, VMIX_PLAYER_TITLE, vmixMediaKind, vmixMedia
 import type { VmixVideoList, VmixXml } from './vmixTcp.js';
 
 type Failure = { ok: false; error: AgentError };
+type PlayerMatch = PlayerInput | (Failure & { foreign?: true }) | undefined;
 export type VmixActResult = ActResult & { generation?: number; instance?: string };
 type Setup = Awaited<ReturnType<VmixMedia['setup']>>;
 
@@ -23,6 +24,8 @@ interface PlayerInput {
 interface TakeIdentity {
   id: string;
   cueId?: string;
+  sourceName: string;
+  file: string;
   key: string;
   list: VmixVideoList;
 }
@@ -72,7 +75,7 @@ export function unsupportedPlayerAction(action: PlayoutAction, player: VmixPlaye
   }
 }
 
-function matchPlayer(xml: VmixXml, setup: Setup, player: VmixPlayer): PlayerInput | Failure | undefined {
+function matchPlayer(xml: VmixXml, setup: Setup, player: VmixPlayer): PlayerMatch {
   const label = VMIX_PLAYER_TITLE[player];
   const saved = setup.players[player]?.key.toLowerCase();
   const other = setup.players[otherPlayer(player)]?.key.toLowerCase();
@@ -85,9 +88,12 @@ function matchPlayer(xml: VmixXml, setup: Setup, player: VmixPlayer): PlayerInpu
     [input] = names;
   }
   if (!input) return;
-  if (input.key === other || input.type !== 'VideoList') return refused(label + ' does not identify its own vMix Video List.');
+  if (input.key === other) return refused(label + ' does not identify its own vMix Video List.');
+  if (input.type !== 'VideoList') return { ...refused(label + ' does not identify its own vMix Video List.'), foreign: true };
   const list = xml.lists.get(input.key);
-  if (!list) return refused('vMix did not report the list state for ' + label + '. Check the input in vMix.');
+  if (!list || (list.items.length && list.selected < 1)) {
+    return refused('vMix did not report the list state for ' + label + '. Check the input in vMix.');
+  }
   return { input, list };
 }
 
@@ -217,23 +223,35 @@ export function createVmixPlayers(media: VmixMedia) {
 
   async function states(port: number, xml: VmixXml, until: number): Promise<SlotState[]> {
     const setup = await withinVmixDeadline(until, () => media.setup(port));
-    return Promise.all(VMIX_PLAYERS.map(async player => {
-      const match = matchPlayer(xml, setup, player);
+    const matches = VMIX_PLAYERS.map(player => ({ player, match: matchPlayer(xml, setup, player) }));
+    if (matches.some(({ match }) => match && 'error' in match && !match.foreign)) {
+      throw new Error('vMix did not identify both player selections.');
+    }
+    const readings = await Promise.all(matches.map(async ({ player, match }) => {
       const current = match && !('error' in match) ? match : undefined;
-      const saved = reconcile(port, player, current);
       const list = current?.list;
       const selected = list && selectedFile(list);
-      const file = selected ? await withinVmixDeadline(until, () => media.relativeFile(port, selected)) : undefined;
+      const file = selected ? await withinVmixDeadline(until, () => media.relativeFile(port, selected, true)) : undefined;
+      const take = memory(port, player).take;
+      const source = take && file && selected && sameVmixPath(take.file, selected)
+        ? await withinVmixDeadline(until, () => media.playerSourceFile(port, take.sourceName))
+        : undefined;
+      const playerSource = source && selected && sameVmixPath(source, selected) ? take?.sourceName : undefined;
+      return { player, match, current, list, selected, file, playerSource };
+    }));
+    return readings.map(({ player, match, current, list, selected, file, playerSource }) => {
+      const saved = reconcile(port, player, current);
       const producer: SlotState['producer'] = selected ? (file ? (vmixMediaKind(file) === 'still' ? 'still' : 'video') : 'other') : match ? (current ? 'empty' : 'other') : 'empty';
       return {
         player, layer: 0, producer, generation: saved.generation,
+        ...(producer === 'other' ? { playerOccupied: true as const } : {}),
         paused: list?.state === 'Paused', loop: list?.loop ?? false,
         ...(file && list ? {
           file, position: list.positionMs / 1000, segment: { start: 0, length: list.durationMs / 1000 },
-          ...(saved.take ? { instance: saved.take.id, ...(saved.take.cueId ? { cueId: saved.take.cueId } : {}) } : {}),
+          ...(saved.take && playerSource ? { playerSource, instance: saved.take.id, ...(saved.take.cueId ? { cueId: saved.take.cueId } : {}) } : {}),
         } : {}),
       };
-    }));
+    });
   }
 
   async function readyPlayer(
@@ -351,7 +369,7 @@ export function createVmixPlayers(media: VmixMedia) {
     if (playing && 'error' in playing) return playing;
     if (!playing || !readyForPlayback(player, playing)) return uncertain('playing the file');
     const instance = (mixer.session ? mixer.session + '.' : '') + randomUUID();
-    const started: TakeIdentity = { id: instance, cueId: action.cueId, key, list: playing };
+    const started: TakeIdentity = { id: instance, cueId: action.cueId, sourceName: action.item.name, file, key, list: playing };
     saved.take = started;
 
     // Remove only confirmed prefix entries. Retained entries from a partial Take stay in vMix.
@@ -380,29 +398,50 @@ export function createVmixPlayers(media: VmixMedia) {
     const empty = action.verb === 'out' || action.verb === 'clear';
     const recovery = empty || action.verb === 'pause';
     const [setup, alternate] = await withinVmixDeadline(mixer.until, () => media.playerSetups(port, player, recovery));
-    let current = matchPlayer(mixer.before, setup, player);
-    if (current && 'error' in current) return current;
-    if (alternate) {
-      const other = matchPlayer(mixer.before, alternate, player);
-      if ((other && 'error' in other) || current?.input.key !== other?.input.key) {
-        throw new VmixPublicationUncertain('Bridge could not confirm the same vMix player while saving setup. Wait for the save to finish before trying again.');
+    const expectedInstance = 'expectedPlayerInstance' in action ? action.expectedPlayerInstance : undefined;
+    const match = (xml: VmixXml) => {
+      const current = matchPlayer(xml, setup, player);
+      if (current && 'error' in current) return current;
+      if (alternate) {
+        const other = matchPlayer(xml, alternate, player);
+        if ((other && 'error' in other) || current?.input.key !== other?.input.key) {
+          throw new VmixPublicationUncertain('Bridge could not confirm the same vMix player while saving setup. Wait for the save to finish before trying again.');
+        }
       }
-    }
+      return current;
+    };
+    const changed = () => refused(VMIX_PLAYER_TITLE[player] + ' no longer holds the playback instance this action expected.');
+    const stillOwns = (candidate: PlayerInput | undefined) => !!candidate && reconcile(port, player, candidate).take?.id === expectedInstance;
+    const rereadOwned = async () => {
+      const latest = await mixer.read();
+      if (!latest.ok) return;
+      const candidate = match(latest.value);
+      if (candidate && 'error' in candidate) return;
+      if (stillOwns(candidate)) return candidate;
+    };
+    let current = match(mixer.before);
+    if (current && 'error' in current) return current;
     const created = memory(port, player).created;
     if (!current && !alternate && action.verb === 'take' && created && setup.adding[player] === created.attempt) {
       const input = mixer.before.inputs.find(candidate => candidate.key === created.key);
       const list = mixer.before.lists.get(created.key);
       if (input && list && input.key !== setup.players[otherPlayer(player)]?.key.toLowerCase()) current = { input, list };
     }
-    const saved = reconcile(port, player, current);
-    if (action.verb === 'out' && action.expectedPlayerInstance !== undefined && saved.take?.id !== action.expectedPlayerInstance) {
-      return refused(VMIX_PLAYER_TITLE[player] + ' no longer holds the playback instance this All out accepted.');
+    if (expectedInstance !== undefined) {
+      if (!stillOwns(current)) return changed();
+      current = await rereadOwned();
+      if (!current) return changed();
     }
+    const saved = reconcile(port, player, current);
     if (!current && action.verb !== 'take' && !empty) return refused(VMIX_PLAYER_TITLE[player] + ' has no selected file.');
     const selected = current && selectedFile(current.list);
     if (current && (action.verb === 'take' || action.verb === 'resume' || action.verb === 'ending')) {
       const problem = await playbackProblem(port, player, current.list, mixer.until);
       if (problem) return problem;
+      if (expectedInstance !== undefined) {
+        current = await rereadOwned();
+        if (!current) return changed();
+      }
     }
     if (action.verb === 'ending') {
       const expected = await withinVmixDeadline(mixer.until, () => media.file(port, action.item.name));
@@ -417,18 +456,28 @@ export function createVmixPlayers(media: VmixMedia) {
     if (action.verb === 'take') return take(port, player, current, setup, mixer, action, saved);
     if (!current) return { ...unchanged(VMIX_PLAYER_TITLE[player] + ' is empty.'), generation: saved.generation };
 
-    const key = current.input.key;
+    const { key } = current.input;
+    const expectedList = current.list;
     const loop = action.verb === 'ending' && action.playback?.end === 'loop';
     const verb = action.verb === 'ending' ? (loop ? 'LoopOn' : 'LoopOff') : action.verb === 'resume' ? 'Play' : 'Pause';
     const result = await mixer.send(verb, { Input: key });
     if (!result.ok) return result;
     if (empty) {
+      if (expectedInstance !== undefined) {
+        let confirmed: PlayerInput | undefined;
+        try {
+          confirmed = await rereadOwned();
+        } catch {
+          // Pause may already have succeeded. Leave the list alone without a fresh observation.
+        }
+        if (!confirmed) return uncertain('pausing the player before clearing it');
+      }
       const removed = await mixer.send('ListRemoveAll', { Input: key });
       if (!removed.ok) return removed;
     }
     const after = await observe(port, player, mixer, key, list => {
       if (empty) return list.items.length === 0;
-      if (!sameSelection(list, current.list)) return false;
+      if (!sameSelection(list, expectedList)) return false;
       if (action.verb === 'ending') return list.loop === loop;
       return list.state === (action.verb === 'resume' ? 'Running' : 'Paused');
     }, !recovery);

@@ -367,10 +367,11 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
     throw new UsageError('A vMix take or out can name the current input by key. Only take can expect an empty overlay.');
   }
   const expectedPlayer = a.expectedPlayerInstance;
-  const guardedOut = a.verb === 'out-player-instance';
-  if ((guardedOut || expectedPlayer !== undefined) && (!guardedOut || slot.adapter !== 'vmix' || !('player' in slot) ||
+  const guardedPlayer = a.verb === 'out-player-instance' || a.verb === 'out-player-held' ||
+    a.verb === 'pause-player-held' || a.verb === 'resume-player-held';
+  if ((guardedPlayer || expectedPlayer !== undefined) && (!guardedPlayer || slot.adapter !== 'vmix' || !('player' in slot) ||
     typeof expectedPlayer !== 'string' || !/^[a-z0-9._-]{1,128}$/i.test(expectedPlayer))) {
-    throw new UsageError('A guarded vMix player Out requires its expected playback instance.');
+    throw new UsageError('A guarded vMix player action requires its expected playback instance.');
   }
   if (a.imageFit !== undefined && (a.verb !== 'take' || (a.imageFit !== 'fit' && a.imageFit !== 'stretch') || slot.adapter !== 'casparcg')) throw new UsageError('imageFit is Fit or Stretch on a CasparCG media Take.');
   // A field on the wrong verb is refused rather than dropped: a level on an update would otherwise
@@ -405,6 +406,7 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
       return { verb: 'update', slot, data };
     }
     case 'out-player-instance':
+    case 'out-player-held':
     case 'out': {
       const item = isRecord(a.item) ? readItem(a.item) : undefined;
       return {
@@ -413,6 +415,9 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
         ...(typeof expectedPlayer === 'string' ? { expectedPlayerInstance: expectedPlayer } : {}),
       };
     }
+    case 'pause-player-held':
+    case 'resume-player-held':
+      return { verb: a.verb === 'pause-player-held' ? 'pause' : 'resume', slot, expectedPlayerInstance: expectedPlayer as string };
     case 'next':
     case 'pause':
     case 'resume':
@@ -523,7 +528,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
     if (url === '/health' && req.method === 'GET') {
       send(
         200,
-        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const, 'vmix-player-out-guard' as const] : [])] } satisfies BridgeWireReply<'/health'>,
+        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const, 'vmix-player-out-guard' as const, 'vmix-player-transport-guard' as const] : [])] } satisfies BridgeWireReply<'/health'>,
         true,
       );
       return;

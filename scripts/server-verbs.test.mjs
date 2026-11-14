@@ -280,6 +280,45 @@ function vmixRig() {
   return { h, a, b, sound, clips, audio, rundown, press, accept, selected, sent };
 }
 
+test('vMix keeps the old player for explicit guarded Out when the configured route moved', async () => {
+  const r = vmixRig();
+  await r.press(r.a, 'take');
+  const old = r.h.store.ownership.get().onAir[r.clips.id];
+  r.clips.mediaKind = 'audio';
+  assert.match((await r.press(r.a, 'take')).note, /previous vMix player/);
+  assert.equal(r.sent.length, 1);
+  let out;
+  r.h.io.act = async (_, action) => { out = action; return r.accept(action); };
+  assert.equal((await r.press(r.a, 'out')).ok, true);
+  assert.deepEqual(out.slot, vmixSlot('clips'));
+  assert.equal(out.expectedPlayerInstance, old.instance);
+});
+
+test('a vMix reply cannot keep earlier authority when its cue is rebound in flight', async () => {
+  for (const resultKind of ['accepted', 'uncertain']) {
+    const r = vmixRig();
+    await r.press(r.a, 'take');
+    let current = true;
+    const entered = Promise.withResolvers();
+    const pending = Promise.withResolvers();
+    r.h.io.act = async (_, action, canSend) => {
+      assert.equal(canSend(), true);
+      entered.resolve();
+      await pending.promise;
+      const accepted = r.accept(action);
+      return resultKind === 'accepted' ? accepted : { state: 'server', detail: 'reply lost', playerUncertain: true };
+    };
+    const scope = () => current;
+    const take = runVmixAndRecord(r.h.store, r.h.io, intentOf(r.rundown, r.b, 'take'), scope, 'show');
+    await entered.promise;
+    current = false;
+    pending.resolve();
+    assert.equal((await take).ok, false);
+    assert.deepEqual(r.h.store.ownership.get().onAir, {});
+    assert.equal((await r.press(r.a, 'out')).ok, false);
+  }
+});
+
 test('vMix transport for an old cue sends nothing after a pending Take replaces its player', async () => {
   for (const verb of ['out', 'pause', 'resume']) {
     const r = vmixRig();

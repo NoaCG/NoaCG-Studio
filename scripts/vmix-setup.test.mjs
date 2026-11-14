@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { act, actVmix, actVmixMedia, finishCasparAllOut, forgetBridges, listVmixMedia, PLAYOUT_DEFAULTS, readVmixOverlays, testVmix, vmixMediaFolder } = await import('../src/control/playoutLink.ts');
+const { act, actVmix, actVmixMedia, finishCasparAllOut, forgetBridges, listVmixMedia, PLAYOUT_DEFAULTS, readVmixOverlays, readVmixPlayers, testVmix, vmixMediaFolder } = await import('../src/control/playoutLink.ts');
 const { gatherBridgeFacts } = await import('../src/control/prepareBridge.ts');
 const { bridgeChecks, finishedBridgeChecks, stampOf } = await import('../src/control/prepareLive.ts');
 const { changeVmixOutput, readVmixOutput, vmixOverlay } = await import('../src/control/vmixSetup.ts');
@@ -27,6 +27,64 @@ const observedOn3 = { settings: { agentUrl: settings.agentUrl, agentToken: setti
 const manualLoad = { ...load, observed: observedOn3 };
 const outOn3 = { verb: 'out', observed: observedOn3, inputKey: browser.key };
 const unload = { verb: 'out', slot: { adapter: 'vmix', overlay: 3 }, item: { kind: 'url', name: choice.url, label: choice.title } };
+
+test('vMix player state is complete, paired and strict before any row can be admitted', async t => {
+  const placement = { ...scoped(), overlays: scoped().overlays.map(({ overlay }) => ({ overlay })) };
+  const audio = { layer: 0, player: 'audio', generation: 0, producer: 'empty', paused: false, loop: false };
+  const clips = { layer: 0, player: 'clips', generation: 2, producer: 'video', paused: true, loop: false,
+    file: 'Replays/Opening.mp4', playerSource: 'Chosen/Opening.mp4', segment: { start: 0, length: 15 }, position: 15,
+    instance: 'fixture.held', cueId: 'vmix:["show","cue"]' };
+  let reply = { ...placement, players: [clips, audio] };
+  t.mock.method(globalThis, 'fetch', async (url, request) => {
+    assert.equal(new URL(url).pathname, '/state');
+    assert.deepEqual(JSON.parse(request.body), { target: { adapter: 'vmix' } });
+    assert.equal(new Headers(request.headers).get('authorization'), 'Bearer ' + settings.agentToken);
+    return Response.json(reply);
+  });
+  assert.deepEqual((await readVmixPlayers(settings)).reply?.players, [clips, audio]);
+  for (const players of [
+    undefined, [clips], [clips, { ...audio, player: 'clips' }], [clips, null],
+    [{ ...clips, instance: 'previous.held' }, audio], [{ ...clips, generation: -1 }, audio],
+    [{ ...clips, cueId: clips.cueId, instance: undefined }, audio], [{ ...clips, playerSource: 'C:/clip.mp4' }, audio],
+    [{ ...clips, segment: { start: 0, length: -1 } }, audio], [{ ...clips, position: '3' }, audio],
+    [{ ...clips, producer: 'other' }, audio], [clips, { ...audio, playerOccupied: true }],
+  ]) {
+    reply = { ...placement, players };
+    assert.equal((await readVmixPlayers(settings)).reply, undefined, JSON.stringify(players));
+  }
+  const other = { ...audio, player: 'clips', producer: 'other' };
+  reply = { ...placement, players: [other, audio] };
+  assert.deepEqual((await readVmixPlayers(settings)).reply?.players, [audio], 'older ambiguous state is neutral');
+  reply = { ...placement, players: [{ ...other, playerOccupied: true }, audio] };
+  assert.deepEqual((await readVmixPlayers(settings)).reply?.players, [reply.players[0], audio]);
+  reply = { ...placement, players: [{ ...clips, producer: 'still', file: 'hold.png', segment: { start: 0, length: 0 }, position: 0 }, audio] };
+  assert.equal((await readVmixPlayers(settings)).reply?.players[0].producer, 'still');
+});
+
+test('V5 transport has a distinct capability and does not send an older fallback', async t => {
+  const sent = [];
+  let features = ['vmix-media', 'vmix-player-out-guard'];
+  let refuses = false;
+  forgetBridges();
+  t.mock.method(globalThis, 'fetch', async (url, request) => {
+    if (new URL(url).pathname === '/health') return Response.json({ ...health, features });
+    sent.push(JSON.parse(request.body).action.verb);
+    return refuses
+      ? Response.json({ ...ok, ok: false, error: { hop: 'agent', code: 'usage', detail: 'Unknown verb' } }, { status: 400 })
+      : Response.json(acted);
+  });
+  const action = { verb: 'out', slot: { adapter: 'vmix', player: 'clips' }, expectedPlayerInstance: 'fixture.held' };
+  assert.equal((await actVmixMedia(settings, action, () => true, true)).state, 'outdated');
+  assert.deepEqual(sent, []);
+  assert.equal((await actVmixMedia(settings, action, () => true)).state, 'ok', 'existing guarded Out caller');
+  assert.deepEqual(sent, ['out-player-instance']);
+  features = [...features, 'vmix-player-transport-guard'];
+  forgetBridges();
+  for (const verb of ['pause', 'resume', 'out']) assert.equal((await actVmixMedia(settings, { ...action, verb }, () => true, true)).state, 'ok');
+  refuses = true;
+  assert.notEqual((await actVmixMedia(settings, action, () => true, true)).state, 'ok');
+  assert.deepEqual(sent, ['out-player-instance', 'pause-player-held', 'resume-player-held', 'out-player-held', 'out-player-held']);
+});
 
 test('the output uses the highest overlay only when no valid choice fits this vMix', () => {
   assert.equal(vmixOverlay(PLAYOUT_DEFAULTS, 8), 8);

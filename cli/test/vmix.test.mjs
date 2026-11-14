@@ -1790,6 +1790,78 @@ test('AC-8: Take configures one keyed player and its full list, then replaces wi
   assert.equal(fake.connections, 1);
 });
 
+test('vMix player state attests an in-root alias and does not attest it after a retarget', async t => {
+  const { adapter, fake, target, take, media, root } = await playerFixture(t);
+  for (const dir of ['Original', 'Other']) {
+    await mkdir(join(root, dir));
+    await writeFile(join(root, dir, 'Reel.mp4'), 'fixture');
+  }
+  const alias = join(root, 'Alias');
+  const link = dir => fs.symlink(join(root, dir), alias, process.platform === 'win32' ? 'junction' : 'dir');
+  await link('Original');
+  assert.ok((await media.list(fake.port, 'Alias')).some(item => item.name === 'Alias/Reel.mp4'));
+  const playing = await take('Alias/Reel.mp4', { cueId: 'vmix:["show","cue"]' });
+  assert.equal(playing.ok, true);
+  const state = async () => (await adapter.overlays(target)).value.players?.find(row => row.player === 'clips');
+  assert.deepEqual((({ file, playerSource, instance, cueId }) => ({ file, playerSource, instance, cueId }))(await state()), {
+    file: 'Original/Reel.mp4', playerSource: 'Alias/Reel.mp4', instance: playing.instance, cueId: 'vmix:["show","cue"]',
+  });
+  const input = fake.inputs[0];
+  const list = input.list;
+  input.list = undefined;
+  assert.equal(await state(), undefined, 'malformed selected list is unavailable');
+  input.list = list;
+  assert.equal((await state()).instance, playing.instance, 'an ambiguous reading did not erase the saved occurrence');
+  await fs.unlink(alias);
+  await link('Other');
+  const foreign = await state();
+  assert.equal(foreign.file, 'Original/Reel.mp4');
+  assert.equal(foreign.playerSource, undefined);
+  assert.equal(foreign.instance, undefined);
+  assert.equal(foreign.cueId, undefined);
+});
+
+test('vMix V5 transport rechecks the occurrence between Pause and clearing the list', async t => {
+  let replace;
+  const { adapter, fake, target, player, take, root } = await playerFixture(t, { afterFunction(name) {
+    if (name === 'Pause') replace?.();
+  } });
+  const playing = await take('clip A.mp4');
+  assert.equal(playing.ok, true);
+  replace = () => {
+    fake.inputs[0].list = [join(root, 'clip B.mp4')];
+    fake.inputs[0].selectedIndex = 1;
+  };
+  const result = await adapter.act(target, readAction({ action: {
+    verb: 'out-player-held', slot: player(), expectedPlayerInstance: playing.instance,
+  } }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'uncertain');
+  assert.equal(fake.functions.at(-1).name, 'Pause');
+  assert.deepEqual(fake.inputs[0].list, [join(root, 'clip B.mp4')]);
+});
+
+test('vMix V5 Pause and Resume require and check the exact selected instance', async t => {
+  const { adapter, fake, target, player, take } = await playerFixture(t);
+  const first = await take('clip A.mp4');
+  const second = await take('clip A.mp4');
+  assert.ok(first.ok && second.ok && first.instance !== second.instance);
+  for (const verb of ['pause', 'resume']) {
+    assert.throws(() => readAction({ action: { verb, slot: player(), expectedPlayerInstance: second.instance } }), /expected playback instance/);
+    const called = fake.functions.length;
+    const stale = await adapter.act(target, readAction({ action: {
+      verb: verb + '-player-held', slot: player(), expectedPlayerInstance: first.instance,
+    } }));
+    assert.equal(stale.ok, false);
+    assert.equal(fake.functions.length, called);
+    const current = await adapter.act(target, readAction({ action: {
+      verb: verb + '-player-held', slot: player(), expectedPlayerInstance: second.instance,
+    } }));
+    assert.equal(current.ok, true);
+    assert.equal(fake.functions.at(-1).name, verb === 'pause' ? 'Pause' : 'Play');
+  }
+});
+
 test('vMix guarded All out refuses a later Take of the same file before sending a mixer function', async t => {
   const { adapter, fake, target, player, take } = await playerFixture(t);
   const first = await take('clip A.mp4');

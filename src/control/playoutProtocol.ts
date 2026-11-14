@@ -148,7 +148,7 @@ export type PlayoutAction =
    *  only; a Bridge that does not list the `playback` feature must never be sent one. */
   | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean; cueId?: string; playback?: MediaPlayback; imageFit?: 'fit' | 'stretch'; expectedOverlayInput?: string | null }
   | { verb: 'update'; slot: Slot; data: Record<string, string> }
-  | { verb: 'next' | 'pause' | 'resume'; slot: Slot; item?: ItemRef }
+  | { verb: 'next' | 'pause' | 'resume'; slot: Slot; item?: ItemRef; expectedPlayerInstance?: string }
   /** `fadeOut` fades a clip to nothing. A vMix panel Out carries the displayed input key. */
   | { verb: 'out'; slot: Slot; item?: ItemRef; fadeOut?: number; expectedOverlayInput?: string; expectedPlayerInstance?: string }
   /** Remove whatever is in the slot at once, with no exit: the All out an OGraf server offers. On
@@ -224,7 +224,7 @@ export interface AgentError {
  *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
  *  `ending` is the `ending` verb: a clip's ending changed while it plays. `channels` is `/channels`:
  *  the channels a server reports it has. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard';
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard' | 'vmix-player-transport-guard';
 
 /** Prefix the paired token for keyed vMix verbs so a legacy Bridge refuses the request even if it
  * replaced the new Bridge after the browser's capability probe. The token itself is unchanged. */
@@ -443,6 +443,10 @@ export interface PairLinkReply {
  */
 export interface SlotState {
   player?: VmixPlayer;
+  /** The picked vMix name, confirmed to still resolve to the held file. */
+  playerSource?: string;
+  /** A current Bridge distinguished a foreign occupant from an unavailable player reading. */
+  playerOccupied?: true;
   /** The slot's layer; the channel is the request's. */
   layer: number;
   /** `empty` after a STOP, `colour` after `PLAY … EMPTY`; nothing is on air in either. */

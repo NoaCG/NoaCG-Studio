@@ -15,6 +15,21 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.12.0 - 2026-11-14
+
+You can now take clips, stills and audio from the NoaCG rundown into vMix. In **Settings >
+Playout**, use **Choose folder** to point Bridge to the media on your vMix computer. Open the
+production in NoaCG, switch on **vMix via Bridge**, and add a cue with **From vMix**. On the first
+Take, Bridge creates the **NoaCG Clips** or **NoaCG Audio** Video List input for your vMix setup.
+
+While a clip or audio cue is playing, NoaCG shows the time left. Reloading the production can
+find a clip that this running Bridge started for that cue. If something else takes its place in
+the player, the cue row shows **replaced on the server**. Pause, Resume and Out apply to the
+playback instance that was on the cue.
+
+Download and start Bridge 0.12.0 between broadcasts. Let the vMix operator route the two inputs
+as needed. NoaCG leaves Program and Preview under their control.
+
 ## 0.11.0 - 2026-11-08
 
 You can now load a production's graphics into vMix from NoaCG. Start vMix and NoaCG Bridge

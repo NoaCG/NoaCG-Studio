@@ -15,8 +15,81 @@ const { runServerVerb, serverAction, serverCueLive, serverLayers, withTaken, wit
   '../src/control/serverPlayout.ts'
 );
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
-const { NO_OWNERSHIP, applyAccepted, applyClearedSlot, applyReading, clipClock, clockText, followedClip, isEstimated, namesItem, remainingAt, STALE_MS } =
+const { NO_OWNERSHIP, applyAccepted, applyClearedSlot, applyReading, applyVmixReading, vmixCueIdentity, clipClock, clockText, followedClip, isEstimated, namesItem, remainingAt, STALE_MS } =
   await import('../src/control/serverState.ts');
+
+test('vMix observations recover an exact production, cue and full selected file', () => {
+  const showId = 'show-A';
+  const movie = { ...clip, id: 'media', name: 'Alias/Reel.mp4', adapter: 'vmix', mediaKind: 'movie' };
+  const opening = cue('opening', movie.id);
+  const duplicate = cue('standby', movie.id);
+  const clips = { adapter: 'vmix', player: 'clips' };
+  const base = { ownership: NO_OWNERSHIP, timing: {} };
+  const expectedCue = 'vmix:["show-A","opening","media"]';
+  assert.equal(vmixCueIdentity(showId, opening.id, movie.id), expectedCue);
+  assert.equal(vmixCueIdentity('x'.repeat(199), opening.id, movie.id), undefined);
+  const row = { player: 'clips', layer: 0, producer: 'video', generation: 1, file: 'Canonical/Reel.mp4',
+    playerSource: movie.name, instance: 'b1.first', cueId: expectedCue, position: 3, segment: { start: 0, length: 15 },
+    paused: false, loop: false };
+  const context = { showId, cues: [opening, duplicate], items: [movie], slotOf: () => clips, now: 10 };
+  const read = (parts, reading, changes = {}) => applyVmixReading(parts, reading, 'b1', { ...context, ...changes });
+  assert.equal(read(base, row, { showId: 'show-copy' }).ownership, NO_OWNERSHIP);
+  assert.equal(read(base, { ...row, cueId: opening.id }).ownership, NO_OWNERSHIP);
+  assert.equal(read(base, { ...row, playerSource: 'Alias/Reel.MOV' }).ownership, NO_OWNERSHIP);
+  assert.equal(read(base, row, { cues: [duplicate] }).ownership, NO_OWNERSHIP);
+  const otherItem = { ...movie, id: 'other-source' };
+  const rebound = { cues: [{ ...opening, sourceId: otherItem.id }], items: [movie, otherItem] };
+  assert.equal(read(base, row, rebound).ownership, NO_OWNERSHIP, 'same-path replacement item cannot acquire the cue');
+  const recovered = read(base, row);
+  assert.deepEqual(recovered.ownership.onAir.media, { cueId: opening.id, instance: 'b1.first', slot: clips, takenAt: 10 });
+  assert.equal(clipClock(recovered.ownership, recovered.timing, [movie], [opening], 1010).remaining, 11);
+  const next = read(recovered, { ...row, position: 4 }, { now: 1010 });
+  assert.equal(next.ownership, recovered.ownership, 'position alone preserves the owner object');
+  const foreign = read(next, { ...row, playerSource: undefined, instance: undefined, cueId: undefined });
+  assert.equal(foreign.ownership.onAir.media, undefined);
+  assert.equal(foreign.ownership.replaced.media.cueId, opening.id);
+  assert.deepEqual(read(foreign, { player: 'clips', producer: 'empty' }).ownership, NO_OWNERSHIP);
+});
+
+test('vMix command and reading admission follows player fences and retires the shared Bridge session', async () => {
+  const store = createServerPlayoutStore();
+  store.bindVmix('paired');
+  const clips = { player: 'clips', generation: 5 };
+  const audio = { player: 'audio', generation: 0 };
+  const first = store.observeVmix();
+  assert.deepEqual(first('S1', 20, [clips, audio]), [clips, audio]);
+  assert.deepEqual(store.observeVmix()('S1', 19, [clips]), []);
+  assert.deepEqual(store.observeVmix()('S1', 22, [{ ...clips, generation: 4 }]), []);
+
+  const old = store.observeVmix();
+  const entered = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const action = store.runVmix('clips', async accept => {
+    entered.resolve();
+    await release.promise;
+    return accept('S1', 6);
+  });
+  await entered.promise;
+  const during = store.observeVmix();
+  assert.deepEqual(old('S1', 23, [clips]), []);
+  assert.deepEqual(during('S2', 1, [{ ...clips, generation: 0 }, audio]), [audio]);
+  release.resolve();
+  assert.equal(await action, false, 'late S1 action cannot restore clips against S2');
+  assert.deepEqual(store.observeVmix()('S1', 30, [clips, audio]), []);
+  assert.deepEqual(store.observeVmix()('S2', 2, [{ ...clips, generation: 0 }]), [{ ...clips, generation: 0 }]);
+
+  const pending = store.observeVmix();
+  await store.runVmix('clips', async () => {});
+  assert.deepEqual(pending('S2', 3, [clips]), [], 'pre-dispatch read cannot revive ownership after uncertainty');
+  assert.deepEqual(store.observeVmix()('S2', 4, [clips]), [clips], 'fresh evidence can win after the action');
+  const opposite = store.observeVmix();
+  assert.equal(await store.runVmix('audio', async accept => accept('S3', 0)), true);
+  assert.deepEqual(opposite('S2', 40, [clips]), [], 'a late pre-restart read cannot undo a newer action');
+  const previousPairing = store.observeVmix();
+  store.bindVmix('another');
+  store.bindVmix('paired');
+  assert.deepEqual(previousPairing('S3', 1, [clips]), []);
+});
 
 const slot = (channel, layer) => ({ adapter: 'casparcg', channel, layer });
 const clip = { id: 'clip', adapter: 'casparcg', kind: 'media', name: 'GIORNO', layer: 10, channel: 2, frames: 1500, fps: 25 };

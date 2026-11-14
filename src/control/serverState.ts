@@ -19,6 +19,7 @@
 
 import type { PlayoutItem, ShowCue } from '../model/shows';
 import { playedSeconds, type CasparSlot, type SequenceEntry, type Slot, type SlotState, type StateReply } from './playoutProtocol.ts';
+import type { VmixPlayerSlot } from './playoutProtocol';
 import type { AcceptedVerb, ServerLive, ServerOnAir } from './serverPlayout';
 import { withoutItem, withTaken } from './serverPlayout.ts';
 import { slotAddress } from './playoutSlots.ts';
@@ -327,6 +328,70 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     ownership: settle(ownership, { onAir, generations: ownership.generations, replaced, unidentified, queued, sequences }),
     timing: nextTiming,
   };
+}
+
+/** The vMix wire cue field is opaque to Bridge, and its reader caps it at 200 characters. */
+export function vmixCueIdentity(showId: string, cueId: string, itemId: string): string | undefined {
+  const identity = 'vmix:' + JSON.stringify([showId, cueId, itemId]);
+  return showId && cueId && itemId && identity.length <= 200 ? identity : undefined;
+}
+
+export function vmixCueItem(cue: ShowCue | undefined, items: readonly PlayoutItem[]): PlayoutItem | undefined {
+  return cue?.source === 'playout' ? items.find(item => item.id === cue.sourceId && item.adapter === 'vmix' && item.kind === 'media') : undefined;
+}
+
+/** One admitted player observation. The fold never sends, and keeps the live object when only its
+ * clock moves so a queued cut still recognizes the instance captured at the press. */
+export function applyVmixReading(
+  parts: ServerParts, reading: SlotState, session: string,
+  ctx: Pick<ReadingContext, 'cues' | 'items' | 'slotOf' | 'now'> & { showId: string },
+): ServerParts {
+  if (!reading.player) return parts;
+  const slot: VmixPlayerSlot = { adapter: 'vmix', player: reading.player };
+  const address = slotAddress(slot);
+  const { ownership, timing } = parts;
+  const mine = Object.entries(ownership.onAir).find(([, live]) => slotAddress(live.slot) === address);
+  if (!holdsSomething(reading)) return applyClearedSlot(parts, { slot });
+
+  const cue = reading.instance && reading.cueId
+    ? ctx.cues.find(c => vmixCueIdentity(ctx.showId, c.id, c.sourceId) === reading.cueId)
+    : undefined;
+  const item = vmixCueItem(cue, ctx.items);
+  const held = item && (reading.playerSource ?? reading.file) === item.name;
+  const isMine = mine && reading.instance === mine[1].instance && cue?.id === mine[1].cueId
+    && held && item.id === mine[0];
+  const nextTiming = (sameInstance: boolean) => ({
+    ...timing,
+    [address]: timingOf(reading, sameInstance ? timing[address] : undefined, ctx.now),
+  });
+  if (isMine) return { ownership, timing: nextTiming(true) };
+
+  const cleared = applyClearedSlot(parts, { slot });
+  if (cue && held && slotAddress(ctx.slotOf(item)) === address) {
+    const onAir = withTaken(cleared.ownership.onAir, item.id, cue.id, slot, {
+      instance: reading.instance,
+      takenAt: ctx.now,
+      ...(reading.loop ? { end: 'loop' as const } : {}),
+    });
+    return { ownership: settle(ownership, { ...cleared.ownership, onAir }), timing: nextTiming(false) };
+  }
+
+  const replaced = mine && mine[1].instance?.startsWith(session + '.')
+    ? { ...cleared.ownership.replaced, [mine[0]]: { cueId: mine[1].cueId, slot, ...(reading.file ? { file: reading.file } : {}) } }
+    : { ...cleared.ownership.replaced, ...Object.fromEntries(Object.entries(ownership.replaced).filter(([, old]) => slotAddress(old.slot) === address)) };
+  return { ownership: settle(ownership, { ...cleared.ownership, replaced }), timing: cleared.timing };
+}
+
+/** Discard both players' observations and action counters when their shared Bridge changes. */
+export function clearVmixState(parts: ServerParts): ServerParts {
+  let next = parts;
+  const generations = { ...parts.ownership.generations };
+  for (const player of ['clips', 'audio'] as const) {
+    const slot = { adapter: 'vmix', player } as const;
+    next = applyClearedSlot(next, { slot });
+    delete generations[slotAddress(slot)];
+  }
+  return { ...next, ownership: settle(parts.ownership, { ...next.ownership, generations }) };
 }
 
 /**

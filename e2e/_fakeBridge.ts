@@ -1,5 +1,5 @@
 import { type Page, type Route } from '@playwright/test';
-import { PLAYOUT_V, VMIX_BROWSER_LOAD_PROBLEM, VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type ListItem, type VmixInfo, type VmixInput, type VmixPlayerSlot } from '../src/control/playoutProtocol';
+import { PLAYOUT_V, VMIX_BROWSER_LOAD_PROBLEM, VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type ListItem, type SlotState, type VmixInfo, type VmixInput, type VmixPlayerSlot } from '../src/control/playoutProtocol';
 
 // A FAKE NOACG BRIDGE AT THE NETWORK LAYER, for the playout specs that drive server clips
 // (docs/CLIP_PLAYBACK_PLAN.md §10): `/health`, `/status`, `/list`, `/act` and `/state`, answered from
@@ -30,10 +30,11 @@ export interface FakeVmixRequest {
 }
 
 interface FakeVmixMediaAction {
-  verb: 'take' | 'out' | 'out-player-instance' | 'pause' | 'resume';
+  verb: 'take' | 'out' | 'out-player-instance' | 'pause' | 'resume' | 'out-player-held' | 'pause-player-held' | 'resume-player-held';
   slot: VmixPlayerSlot;
   item: ItemRef;
   cueId?: string;
+  loop?: boolean;
   expectedPlayerInstance?: string;
 }
 
@@ -53,7 +54,13 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
     ...library, choice: null as string | null, paths: [] as string[], actions: [] as FakeVmixMediaRequest[],
     choices: 0, chooseError: undefined as AgentError | undefined,
   };
-  const players: Partial<Record<VmixPlayerSlot['player'], string>> = {};
+  const playerNames = ['clips', 'audio'] as const;
+  type Player = VmixPlayerSlot['player'];
+  const players: Record<Player, SlotState> = {
+    clips: { player: 'clips', layer: 0, producer: 'empty', generation: 0, paused: false, loop: false },
+    audio: { player: 'audio', layer: 0, producer: 'empty', generation: 0, paused: false, loop: false },
+  };
+  const playerClock: Partial<Record<Player, number>> = {};
   const info: VmixInfo = {
     version: overlays === 4 ? '28.0.0.42' : '29.0.0.49',
     edition: overlays === 1 ? 'Basic HD' : 'Trial', overlays, inputs: 0,
@@ -65,6 +72,15 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
   const state: { setup?: AgentError; refuseAction?: AgentError; actionReply?: unknown; stateReply?: unknown } = {};
   let generation = 0;
   let nextInput = 2;
+  const observed = performance.now();
+  const playerReading = (player: Player) => {
+    const row = players[player];
+    const at = playerClock[player];
+    if (row.paused || row.position === undefined || !row.segment || at === undefined) return row;
+    const elapsed = row.position + (performance.now() - at) / 1000;
+    const { length } = row.segment;
+    return { ...row, position: row.loop && length > 0 ? elapsed % length : Math.min(length, elapsed) };
+  };
   const outputId = (value: string) => {
     const url = new URL(value);
     url.searchParams.delete('name');
@@ -106,24 +122,40 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
     };
     const remembered = body.outputUrl === undefined ? undefined : kept.get(outputId(body.outputUrl));
     if (path === '/state') return state.stateReply === undefined ? {
-      ok: true, v: PLAYOUT_V, session: 'test', observedAt: 0, vmix, linked: [],
+      ok: true, v: PLAYOUT_V, session: 'test', observedAt: Math.round(performance.now() - observed), vmix, linked: [],
+      ...(media && body.outputUrl === undefined ? { players: playerNames.map(playerReading) } : {}),
       ...(remembered ? { loadProblem: VMIX_BROWSER_LOAD_PROBLEM } : {}),
       overlays: Array.from({ length: info.overlays }, (_, index) => {
         const overlay = index + 1;
-        return { overlay, input: held[overlay]?.input, ownsOutput: !!remembered && held[overlay]?.input.key === remembered.key };
+        return { overlay, input: held[overlay]?.input, ...(body.outputUrl === undefined ? {} : { ownsOutput: !!remembered && held[overlay]?.input.key === remembered.key }) };
       }),
     } : state.stateReply;
     if (path === '/act' && media && playerAction) {
       const player = playerAction.slot.player;
-      if (playerAction.verb === 'out-player-instance' &&
-        (!playerAction.expectedPlayerInstance || playerAction.expectedPlayerInstance !== players[player])) {
+      const before = playerReading(player);
+      const { verb } = playerAction;
+      if ((verb === 'out-player-instance' || verb.endsWith('-player-held')) &&
+        (!playerAction.expectedPlayerInstance || playerAction.expectedPlayerInstance !== before.instance)) {
         return { ok: false, v: PLAYOUT_V, error: { hop: 'target', code: 'refused', detail: 'The playback instance changed.' } };
       }
       generation += 1;
-      if (playerAction.verb === 'take') players[player] = `test.media-${generation}`;
-      if (playerAction.verb === 'out' || playerAction.verb === 'out-player-instance') delete players[player];
+      if (verb === 'take') {
+        const file = playerAction.item.name;
+        const slash = file.lastIndexOf('/');
+        const entry = media.files[media.folder]?.[slash < 0 ? '' : file.slice(0, slash)]?.find(item => item.name === file);
+        const length = entry?.frames && entry.fps ? entry.frames / entry.fps : 0;
+        players[player] = {
+          player, layer: 0, producer: entry?.kind === 'still' ? 'still' : 'video', generation, paused: false, loop: !!playerAction.loop,
+          file, playerSource: file, position: 0, segment: { start: 0, length }, cueId: playerAction.cueId, instance: `test.media-${generation}`,
+        };
+      } else if (verb.startsWith('out')) {
+        players[player] = { player, layer: 0, producer: 'empty', generation, paused: false, loop: false };
+      } else {
+        players[player] = { ...before, generation, paused: verb.startsWith('pause') };
+      }
+      playerClock[player] = performance.now();
       return state.actionReply === undefined
-        ? { ok: true, v: PLAYOUT_V, raw: 'FUNCTION OK', session: 'test', generation, ...(players[player] ? { instance: players[player] } : {}) }
+        ? { ok: true, v: PLAYOUT_V, raw: 'FUNCTION OK', session: 'test', generation, ...(players[player].instance ? { instance: players[player].instance } : {}) }
         : state.actionReply;
     }
     if (path === '/act' && body.action && 'overlay' in body.action.slot) {
@@ -152,7 +184,7 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
     }
     return { ok: false, v: PLAYOUT_V, error: { hop: 'agent', code: 'unsupported', detail: 'Unsupported vMix test route.' } };
   };
-  return { info, held, actions, routes, state, reply, removeInput, media };
+  return { info, held, players, actions, routes, state, reply, removeInput, media };
 }
 
 /** Settings for a paired Bridge and a studio with two channels, clips on channel 2. */
@@ -311,7 +343,7 @@ export async function fakeBridge(page: Pick<Page, 'route'>, init: Partial<Omit<F
       return json(route, {
         ok: true, agent: 'noacg-bridge', v: 2, version: fake.version,
         adapters: fake.vmix ? ['casparcg', 'vmix'] : ['casparcg'],
-        features: fake.vmix ? [...fake.features, 'vmix-output-key', ...(fake.vmix.media ? ['vmix-media', 'vmix-player-out-guard'] : [])] : fake.features,
+        features: fake.vmix ? [...fake.features, 'vmix-output-key', ...(fake.vmix.media ? ['vmix-media', 'vmix-player-out-guard', 'vmix-player-transport-guard'] : [])] : fake.features,
       });
     }
     const body = JSON.parse(req.postData() || '{}') as { channel?: number; kind?: string; action?: FakeAction; target?: { adapter: string } };
