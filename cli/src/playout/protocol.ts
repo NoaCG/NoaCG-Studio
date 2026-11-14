@@ -67,7 +67,8 @@ export type VmixMediaKind = keyof typeof VMIX_MEDIA_EXTENSIONS;
 
 /** The files the Bridge can play in a vMix Video List. */
 export function vmixMediaKind(name: string): VmixMediaKind | undefined {
-  const leaf = name.split(/[\\/]/).at(-1) ?? '';
+  const parts = name.split(/[\\/]/);
+  const leaf = parts[parts.length - 1];
   const dot = leaf.lastIndexOf('.');
   if (dot <= 0) return undefined;
   const extension = leaf.slice(dot).toLowerCase();

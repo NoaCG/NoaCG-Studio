@@ -1791,7 +1791,8 @@ test('AC-8: Take configures one keyed player and its full list, then replaces wi
 });
 
 test('vMix player state attests an in-root alias and does not attest it after a retarget', async t => {
-  const { adapter, fake, target, take, media, root } = await playerFixture(t);
+  let selectedFolder;
+  const { adapter, fake, target, take, media, root } = await playerFixture(t, {}, {}, { picker: async () => selectedFolder });
   for (const dir of ['Original', 'Other']) {
     await mkdir(join(root, dir));
     await writeFile(join(root, dir, 'Reel.mp4'), 'fixture');
@@ -1812,6 +1813,12 @@ test('vMix player state attests an in-root alias and does not attest it after a 
   assert.equal(await state(), undefined, 'malformed selected list is unavailable');
   input.list = list;
   assert.equal((await state()).instance, playing.instance, 'an ambiguous reading did not erase the saved occurrence');
+  selectedFolder = join(root, 'Other');
+  await adapter.chooseFolder(target);
+  assert.equal((await state()).instance, undefined);
+  selectedFolder = root;
+  await adapter.chooseFolder(target);
+  assert.equal((await state()).instance, playing.instance, 'restoring the root reattests the unchanged native occurrence');
   await fs.unlink(alias);
   await link('Other');
   const foreign = await state();
@@ -1947,6 +1954,13 @@ test('vMix rejects an impossible native position without corrupting continuity a
   assert.equal(await playerRow(), undefined);
   input.position = 3990;
   assert.equal((await playerRow()).instance, playing.instance, 'unavailable native position did not replace the saved anchor');
+  const held = input.list;
+  input.list = [];
+  input.selectedIndex = 0;
+  assert.equal(await playerRow(), undefined, 'a transient empty list with playback time is unavailable');
+  input.list = held;
+  input.selectedIndex = 1;
+  assert.equal((await playerRow()).instance, playing.instance, 'unreadable empty XML does not retire ownership');
   input.loop = true;
   const cut = await adapter.act(target, readAction({ action: {
     verb: 'out-player-held', slot: player(), expectedPlayerInstance: playing.instance,
@@ -1957,6 +1971,19 @@ test('vMix rejects an impossible native position without corrupting continuity a
     player: 'clips', layer: 0, producer: 'empty', playerOccupied: false,
     generation: cut.generation, paused: false, loop: false,
   });
+});
+
+test('vMix conclusively empty native XML retires the previous occurrence', async t => {
+  const { adapter, fake, target, take } = await playerFixture(t);
+  const playing = await take('clip A.mp4');
+  assert.equal(playing.ok, true);
+  const input = fake.inputs[0];
+  const held = { list: input.list, position: input.position, duration: input.duration, selectedIndex: input.selectedIndex };
+  Object.assign(input, { list: [], position: 0, duration: 0, selectedIndex: 1 });
+  const state = async () => (await adapter.overlays(target)).value.players.find(row => row.player === 'clips');
+  assert.equal((await state()).playerOccupied, false);
+  Object.assign(input, held);
+  assert.equal((await state()).instance, undefined, 'native restore cannot mint a Bridge instance');
 });
 
 test('vMix guarded All out refuses a later Take of the same file before sending a mixer function', async t => {

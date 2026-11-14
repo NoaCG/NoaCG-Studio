@@ -76,8 +76,10 @@ export function unsupportedPlayerAction(action: PlayoutAction, player: VmixPlaye
 }
 
 function readablePlayback(list: VmixVideoList): boolean {
-  return ['Running', 'Paused', 'Completed'].includes(list.state) && list.positionMs <= list.durationMs &&
-    (list.items.length ? list.selected >= 1 && list.selected <= list.items.length : list.selected <= 1);
+  if (!['Running', 'Paused', 'Completed'].includes(list.state)) return false;
+  return list.items.length
+    ? list.selected >= 1 && list.selected <= list.items.length && list.positionMs <= list.durationMs
+    : list.selected <= 1 && list.positionMs === 0 && list.durationMs === 0;
 }
 
 function playbackList(xml: VmixXml, key: string): VmixVideoList | undefined {

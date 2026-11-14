@@ -35,13 +35,19 @@ test('vMix player state is complete, paired and strict before any row can be adm
     file: 'Replays/Opening.mp4', playerSource: 'Chosen/Opening.mp4', segment: { start: 0, length: 15 }, position: 15,
     instance: 'fixture.held', cueId: 'vmix:["show","cue"]' };
   let reply = { ...placement, players: [clips, audio] };
+  let features = ['vmix-media'];
+  forgetBridges();
   t.mock.method(globalThis, 'fetch', async (url, request) => {
-    assert.equal(new URL(url).pathname, '/state');
+    const route = new URL(url).pathname;
+    if (route === '/health') return Response.json({ ...health, features });
+    if (route === '/status') return Response.json(status);
+    assert.equal(route, '/state');
     assert.deepEqual(JSON.parse(request.body), { target: { adapter: 'vmix' } });
     assert.equal(new Headers(request.headers).get('authorization'), 'Bearer ' + settings.agentToken);
     return Response.json(reply);
   });
-  assert.deepEqual((await readVmixPlayers(settings)).reply?.players, [clips, audio]);
+  await testVmix(settings);
+  assert.deepEqual((await readVmixPlayers(settings, 'staged')).reply?.players, [clips, audio]);
   for (const players of [
     undefined, [clips], [clips, { ...audio, player: 'clips' }], [clips, null],
     [{ ...clips, instance: 'previous.held' }, audio], [{ ...clips, generation: -1 }, audio], [{ ...clips, generation: 0 }, audio],
@@ -53,18 +59,63 @@ test('vMix player state is complete, paired and strict before any row can be adm
     [{ ...clips, producer: 'other' }, audio], [clips, { ...audio, playerOccupied: true }],
   ]) {
     reply = { ...placement, players };
-    assert.equal((await readVmixPlayers(settings)).reply, undefined, JSON.stringify(players));
+    assert.equal((await readVmixPlayers(settings, 'staged')).reply, undefined, JSON.stringify(players));
   }
   const other = { ...audio, player: 'clips', producer: 'other' };
   reply = { ...placement, players: [other, audio] };
-  assert.deepEqual((await readVmixPlayers(settings)).reply?.players, [audio], 'older ambiguous state is neutral');
+  assert.deepEqual((await readVmixPlayers(settings, 'staged')).reply?.players, [audio], 'older ambiguous state is neutral');
   reply = { ...placement, players: [{ ...other, playerOccupied: true }, audio] };
-  assert.deepEqual((await readVmixPlayers(settings)).reply?.players, [reply.players[0], audio]);
+  assert.deepEqual((await readVmixPlayers(settings, 'staged')).reply?.players, [reply.players[0], audio]);
   reply = { ...placement, players: [{ ...clips, producer: 'still', file: 'hold.png', playerSource: 'Alias/hold.png', segment: { start: 0, length: 0 }, position: 0 },
     { ...audio, paused: true, loop: true }] };
-  const compatible = (await readVmixPlayers(settings)).reply?.players;
+  const compatible = (await readVmixPlayers(settings, 'staged')).reply?.players;
   assert.equal(compatible[0].producer, 'still');
   assert.deepEqual(compatible[1], audio, 'legacy empty input settings are neutral');
+
+  features = ['vmix-media', 'vmix-player-transport-guard'];
+  await testVmix(settings);
+  const confirmedEmpty = { ...audio, playerOccupied: false };
+  for (const players of [[clips, audio], [{ ...clips, playerSource: undefined }, confirmedEmpty], [other, confirmedEmpty]]) {
+    reply = { ...placement, players };
+    assert.equal((await readVmixPlayers(settings, 'current')).reply, undefined, JSON.stringify(players));
+  }
+  reply = { ...placement, players: [clips, confirmedEmpty] };
+  assert.deepEqual((await readVmixPlayers(settings, 'current')).reply?.players, [clips, confirmedEmpty]);
+});
+
+test('vMix held player replies use the same ordered capability witness through fold', async t => {
+  const empty = player => ({ player, layer: 0, generation: 0, producer: 'empty', playerOccupied: false, paused: false, loop: false });
+  const initial = { ...scoped(), players: [empty('clips'), empty('audio')],
+    overlays: scoped().overlays.map(({ overlay }) => ({ overlay })) };
+  let features = ['vmix-media', 'vmix-player-transport-guard'];
+  let held;
+  forgetBridges();
+  t.mock.method(globalThis, 'fetch', async url => {
+    switch (new URL(url).pathname) {
+      case '/health': return Response.json({ ...health, features });
+      case '/status': return Response.json(status);
+      case '/state': return held ? held.promise : Response.json(initial);
+      default: throw new Error('Unexpected test route.');
+    }
+  });
+  await testVmix(settings);
+  held = Promise.withResolvers();
+  const stable = readVmixPlayers(settings, 'current');
+  await testVmix(settings);
+  held.resolve(Response.json(initial));
+  const accepted = (await stable).reply;
+  assert.equal(accepted?.current(), true, 'identical status refresh keeps the original witness');
+  held = Promise.withResolvers();
+  const pending = readVmixPlayers(settings, 'current');
+  features = ['vmix-media'];
+  await testVmix(settings);
+  assert.equal(accepted.current(), false, 'an already parsed reply cannot be folded after capability loss');
+  features = ['vmix-media', 'vmix-player-transport-guard'];
+  await testVmix(settings);
+  held.resolve(Response.json(initial));
+  assert.equal((await pending).reply, undefined, 'returning capability does not resurrect a pending reply');
+  held = undefined;
+  assert.equal((await readVmixPlayers(settings, 'current')).reply?.current(), true);
 });
 
 test('V5 transport has a distinct capability and does not send an older fallback', async t => {

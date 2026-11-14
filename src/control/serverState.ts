@@ -357,17 +357,21 @@ export function applyVmixReading(
     ? ctx.cues.find(c => vmixCueIdentity(ctx.showId, c.id, c.sourceId) === reading.cueId)
     : undefined;
   const item = vmixCueItem(cue, ctx.items);
-  const held = item && (reading.playerSource ?? reading.file) === item.name;
-  const isMine = mine && reading.instance === mine[1].instance && cue?.id === mine[1].cueId
-    && held && item.id === mine[0];
+  const sameOwner = mine && reading.instance === mine[1].instance && cue?.id === mine[1].cueId && item?.id === mine[0];
+  const attested = item && item.name === reading.playerSource;
   const nextTiming = (sameInstance: boolean) => ({
     ...timing,
     [address]: timingOf(reading, sameInstance ? timing[address] : undefined, ctx.now),
   });
-  if (isMine) return { ownership, timing: nextTiming(true) };
+  if (sameOwner && (attested || (reading.playerSource === undefined && item?.name === reading.file))) {
+    return { ownership, timing: nextTiming(true) };
+  }
+  // A staged Bridge's existing instance can update this page's clock on an exact path.
+  // Without lexical attestation it cannot recover a cue or disprove that its alias still plays.
+  if (sameOwner && reading.playerSource === undefined) return parts;
 
   const cleared = applyClearedSlot(parts, { slot });
-  if (cue && held && slotAddress(ctx.slotOf(item)) === address) {
+  if (cue && item && attested && slotAddress(ctx.slotOf(item)) === address) {
     const onAir = withTaken(cleared.ownership.onAir, item.id, cue.id, slot, {
       instance: reading.instance,
       takenAt: ctx.now,

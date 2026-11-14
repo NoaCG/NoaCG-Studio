@@ -574,9 +574,12 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
  *  current Bridge's (in memory, this page load only). A server action to an address here does not
  *  ask `/health` first (live-publishing W1); its failure asks again (`through`). */
 const currentBridges = new Map<string, BridgeFeature[]>();
+export type VmixPlayerReadContract = 'current' | 'staged';
+
 interface VmixMediaEvidence {
   requested: number;
   latest?: { request: number; health: VmixHealth };
+  playerReading?: { contract: VmixPlayerReadContract };
 }
 const currentVmixMediaPairings = new Map<string, VmixMediaEvidence>();
 
@@ -1165,6 +1168,10 @@ async function probeVmixMediaPairing(settings: PlayoutSettings): Promise<VmixHea
   const health = await probeVmix(settings.agentUrl);
   if (currentVmixMediaPairings.get(pairing) === evidence && request > (evidence.latest?.request ?? 0)) {
     evidence.latest = { request, health };
+    const contract = health.kind === 'current' && health.adapters.includes('vmix') && health.features.includes('vmix-media')
+      ? (health.features.includes('vmix-player-transport-guard') ? 'current' : 'staged')
+      : undefined;
+    if (evidence.playerReading?.contract !== contract) evidence.playerReading = contract ? { contract } : undefined;
   }
   return { pairing, evidence, request };
 }
@@ -1378,12 +1385,14 @@ const vmixIdentityPart = /^[a-z0-9._-]{1,128}$/i;
 const vmixInstance = (value: unknown, session: string): value is string =>
   typeof value === 'string' && vmixIdentityPart.test(value) && value.startsWith(session + '.') && value.length > session.length + 1;
 
-function validVmixPlayerReading(row: SlotState, session: string): boolean {
+function validVmixPlayerReading(row: SlotState, session: string, contract: VmixPlayerReadContract): boolean {
   if (!row || (row.player !== 'clips' && row.player !== 'audio') || row.layer !== 0 ||
     !whole(row.generation, 0) || typeof row.paused !== 'boolean' || typeof row.loop !== 'boolean' ||
     row.arriving !== undefined || row.queued !== undefined || row.transition !== undefined || row.sequence !== undefined) return false;
   if (row.producer === 'empty' || row.producer === 'other') {
-    return (row.playerOccupied === undefined || (row.playerOccupied === (row.producer === 'other') && !row.paused && !row.loop)) &&
+    const occupied = row.producer === 'other';
+    const confirmed = row.playerOccupied === occupied && !row.paused && !row.loop;
+    return (confirmed || (contract === 'staged' && row.playerOccupied === undefined)) &&
       row.file === undefined && row.segment === undefined && row.position === undefined &&
       row.instance === undefined && row.cueId === undefined && row.playerSource === undefined;
   }
@@ -1396,22 +1405,32 @@ function validVmixPlayerReading(row: SlotState, session: string): boolean {
   if (row.instance === undefined) return row.cueId === undefined && row.playerSource === undefined;
   return row.generation > 0 && vmixInstance(row.instance, session) &&
     (row.cueId === undefined || (nonblank(row.cueId) && row.cueId.length <= 200)) &&
-    (row.playerSource === undefined || (vmixRelativeFile(row.playerSource) && vmixMediaKind(row.playerSource) === kind));
+    (row.playerSource === undefined ? contract === 'staged' : vmixRelativeFile(row.playerSource) && vmixMediaKind(row.playerSource) === kind);
 }
 
-export type VmixPlayerReading = Pick<VmixStateReply, 'session' | 'observedAt'> & { players: SlotState[] };
+export type VmixPlayerReading = Pick<VmixStateReply, 'session' | 'observedAt'> & {
+  players: SlotState[];
+  current: () => boolean;
+};
 
 /** The paired player's /state has no output URL or overlay ownership. */
 export async function readVmixPlayers(
-  settings: PlayoutSettings,
+  settings: PlayoutSettings, contract: VmixPlayerReadContract,
 ): Promise<{ result: PlayoutResult; reply?: VmixPlayerReading }> {
+  const pairing = vmixPairing(settings);
+  const evidence = currentVmixMediaPairings.get(pairing);
+  const lease = evidence?.playerReading;
+  const current = () => lease?.contract === contract && currentVmixMediaPairings.get(pairing) === evidence
+    && evidence?.playerReading === lease;
+  if (!current()) return { result: vmixCapabilityProblem };
   const call = await callBridge(settings.agentUrl, '/state', { target: vmixTarget }, STATE_TIMEOUT_MS, settings.agentToken, 'vmix');
+  if (!current()) return { result: vmixCapabilityProblem };
   const { result, body } = readVmixReply(settings, call, '/state', false, true);
   if (result.state !== 'ok' || !body) return { result };
   const { players, session, observedAt } = body;
   if (!Array.isArray(players) || players.length !== 2 || !session || observedAt === undefined ||
     !vmixIdentityPart.test(session) || body.loadProblem !== undefined ||
-    !players.every(row => validVmixPlayerReading(row, session)) || players[0].player === players[1].player ||
+    !players.every(row => validVmixPlayerReading(row, session, contract)) || players[0].player === players[1].player ||
     (players[0].instance !== undefined && players[0].instance === players[1].instance)) {
     return { result: { state: 'bridge', detail: 'NoaCG Bridge did not return a valid vMix player reading. Try again.' } };
   }
@@ -1419,7 +1438,7 @@ export async function readVmixPlayers(
   // setting on a conclusively empty list. Neither setting means anything about playback.
   const readings = players.filter(row => row.producer !== 'other' || row.playerOccupied)
     .map(row => row.producer === 'empty' && (row.paused || row.loop) ? { ...row, paused: false, loop: false } : row);
-  return { result, reply: { session, observedAt, players: readings } };
+  return { result, reply: { session, observedAt, players: readings, current } };
 }
 
 export async function actVmix(

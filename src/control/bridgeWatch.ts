@@ -61,7 +61,7 @@
 // Node resolves them (scripts/bridge-watch.test.mjs); everything else is a type.
 
 import type { PlayoutItem, PlayoutMediaKind, ShowCue, ShowFolder } from '../model/shows';
-import type { PlayoutResult, PlayoutSettings, StudioSync, VmixPlayerReading } from './playoutLink';
+import type { PlayoutResult, PlayoutSettings, StudioSync, VmixPlayerReadContract, VmixPlayerReading } from './playoutLink';
 import type { CasparSlot, ItemKind, ListItem, SlotState, StateReply, VmixPlayer, VmixPlayerSlot } from './playoutProtocol';
 import type { BridgePart, PlayoutSession } from './playoutSession';
 import type { SlotReading, StatusCheck } from './playoutStatus';
@@ -99,7 +99,7 @@ export interface BridgeWatchIo {
   /** The Bridge's word on the server, every few seconds; answers the unsubscribe. */
   subscribeTargetStatus: (settings: PlayoutSettings, onStatus: (result: PlayoutResult) => void, intervalMs?: number, adapter?: 'casparcg' | 'vmix') => () => void;
   readState: (settings: PlayoutSettings, channel: number) => Promise<{ result: PlayoutResult; reply?: StateReply }>;
-  readVmixPlayers: (settings: PlayoutSettings) => Promise<{ result: PlayoutResult; reply?: VmixPlayerReading }>;
+  readVmixPlayers: (settings: PlayoutSettings, contract: VmixPlayerReadContract) => Promise<{ result: PlayoutResult; reply?: VmixPlayerReading }>;
   listLibrary: (settings: PlayoutSettings, kind: ItemKind) => Promise<{ result: PlayoutResult; items?: ListItem[] }>;
   listVmixMedia: (settings: PlayoutSettings, path: string) => Promise<{ result: PlayoutResult; items?: ListItem[] }>;
   vmixMediaRevision?: () => number;
@@ -836,7 +836,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     return followState(poll);
   };
 
-  const startVmixState = (i: BridgeInputs, production: string) => {
+  const startVmixState = (i: BridgeInputs, production: string, contract: VmixPlayerReadContract) => {
     const store = adapters.serverPlayout;
     const settings = io.loadSettings();
     const current = () => alive && inputs?.showId === production && inputs.vmixOn
@@ -864,16 +864,16 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       busy: () => Object.values(store.ownership.get().onAir).some(live => live.slot.adapter === 'vmix'),
       read: async () => {
         const admit = store.observeVmix();
-        const { result, reply } = await io.readVmixPlayers(settings);
+        const { result, reply } = await io.readVmixPlayers(settings, contract);
         return { result, reply: reply && { admit, ...reply } };
       },
       onReading: (_, reply, now) => {
-        const rundown = current() && adapters.vmixRundown(production);
+        const rundown = current() && reply.current() && adapters.vmixRundown(production);
         if (!rundown) return;
         const used = playersUsed(rundown);
         const rows = reply.admit(reply.session, reply.observedAt, reply.players.filter(row => row.player && used.has(row.player)));
-        if (!rows.length) return;
-        const context = { showId: production, now, ...rundown, items: rundown.playoutItems, slotOf: (item: PlayoutItem) => adapters.slots.itemSlot(settings, item) };
+        if (!rows.length || !current() || !reply.current()) return;
+        const context = { showId: production, now, cues: rundown.cues, items: rundown.playoutItems, slotOf: (item: PlayoutItem) => adapters.slots.itemSlot(settings, item) };
         store.apply(parts => rows.reduce((next, row) => applyVmixReading(next, row, reply.session, context), parts));
       },
     }));
@@ -909,7 +909,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (filesAvailable) learnFacts(i);
     if (i.vmixOn && i.vmixPairing && i.showId && answers && now?.features?.includes('vmix-media')) {
       const production = i.showId;
-      state.run(JSON.stringify(['vmix', production, i.vmixPairing, i.mediaRev]), () => startVmixState(i, production));
+      const contract = now.features.includes('vmix-player-transport-guard') ? 'current' : 'staged';
+      state.run(JSON.stringify(['vmix', production, i.vmixPairing, i.mediaRev, contract]), () => startVmixState(i, production, contract));
     } else {
       const reads = readable && i.playoutItems.some(item => item.adapter !== 'vmix');
       state.run(JSON.stringify([reads, i.settingsRev]), () => (reads ? startState() : undefined));

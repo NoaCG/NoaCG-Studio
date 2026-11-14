@@ -39,8 +39,18 @@ The same media-kind rules now govern player rows and file aliases on both ends. 
 
 Windows regressions derive the expected cases from the observable state: removing and restoring an input, rewinding an unchanged nonlooping list during a guarded action, out-of-range XML followed by a valid read, a completed clip, zero-duration still, retained native empty Loop, and malformed current wire replies. The held-stale browser case remains in the same clock journey.
 
+## Current and staged player readings
+
+The full review of `23a18e6a8df72fd825187e94ca3819ace36b5e16` and the round-cap reassessment confirmed two remaining product defects. A Bridge advertising the guarded transport could still receive the older envelope's optional fields. An empty native list with positive time could also look conclusive and retire the prior occurrence.
+
+The watch now binds player reads to the existing ordered health evidence. The current and staged contracts have separate poll lifetimes and a capability switch away and back retires an earlier reply even with no visible render in between. Identical health refreshes retain the pending read. A current reply proves each empty or foreign row with its occupancy field, and an instance with the lexical media name. An older canonical filename can update a known instance's timing without recovering a cue. Native empty XML requires position and duration both zero. An unavailable reading changes no player authority. A conclusively empty player retires the instance. Temporarily changing the media root cannot attest to a file outside it, while restoring the root can attest to the same native occurrence if the Bridge still observes it.
+
+A separate Windows and GitHub typecheck found that the shared extension helper used a method outside Studio's configured TypeScript library. Indexed access now selects the same filename in both mirrored protocol sources.
+
 ## Allocation and rollback
 
 Codebase-health #2285 is closed. Current editor #2552, live-publishing #2563 and draft CI #2423 were checked for shared paths. #1967 records the cf13 hold ending on November 9. The final release manifest still needs the actual changed-path check before queue admission.
+
+The final candidate includes main `4f11d145fc09cb438cd8da478f73ebaee9e22263` (#2567). Its team refresh retains newer local records and compatible heads. The V5 fold still reads the current production record through the existing shared lookup, including that retained local state.
 
 After landing, revert with `git revert -m 1 <V5 merge SHA>` through the merge queue. No database migration is needed.

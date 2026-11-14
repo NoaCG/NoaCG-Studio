@@ -37,6 +37,8 @@ test('vMix observations recover an exact production, cue and full selected file'
   assert.equal(read(base, { ...row, cueId: opening.id }).ownership, NO_OWNERSHIP);
   assert.equal(read(base, { ...row, playerSource: 'Alias/Reel.MOV' }).ownership, NO_OWNERSHIP);
   assert.equal(read(base, row, { cues: [duplicate] }).ownership, NO_OWNERSHIP);
+  const staged = { ...row, file: movie.name, playerSource: undefined, position: 5 };
+  assert.equal(read(base, staged).ownership, NO_OWNERSHIP, 'the older canonical path cannot authorize reload recovery');
   const otherItem = { ...movie, id: 'other-source' };
   const rebound = { cues: [{ ...opening, sourceId: otherItem.id }], items: [movie, otherItem] };
   assert.equal(read(base, row, rebound).ownership, NO_OWNERSHIP, 'same-path replacement item cannot acquire the cue');
@@ -45,6 +47,9 @@ test('vMix observations recover an exact production, cue and full selected file'
   assert.equal(clipClock(recovered.ownership, recovered.timing, [movie], [opening], 1010).remaining, 11);
   const next = read(recovered, { ...row, position: 4 }, { now: 1010 });
   assert.equal(next.ownership, recovered.ownership, 'position alone preserves the owner object');
+  const stagedTiming = read(next, staged);
+  assert.equal(stagedTiming.ownership, next.ownership, 'staged timing can still update an accepted instance');
+  assert.equal(stagedTiming.timing['NoaCG Clips'].position, 5);
   const foreign = read(next, { ...row, playerSource: undefined, instance: undefined, cueId: undefined });
   assert.equal(foreign.ownership.onAir.media, undefined);
   assert.equal(foreign.ownership.replaced.media.cueId, opening.id);

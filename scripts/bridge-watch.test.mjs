@@ -66,8 +66,8 @@ test('vMix watch drops readings held across a folder publication, pairing switch
       currentVmixRundown: () => current,
     });
     const pending = Promise.withResolvers();
-    const reply = { session: 'mix', observedAt: 2, players: [{ player: 'clips', layer: 0, generation: 1,
-      producer: 'video', file: 'clip.mp4', cueId: 'vmix:["show-1","c1","clip"]', instance: 'mix.current',
+    const reply = { session: 'mix', observedAt: 2, current: () => true, players: [{ player: 'clips', layer: 0, generation: 1,
+      producer: 'video', file: 'clip.mp4', playerSource: 'clip.mp4', cueId: 'vmix:["show-1","c1","clip"]', instance: 'mix.current',
       position: 1, segment: { start: 0, length: 10 }, paused: false, loop: false }] };
     const status = { ...OK, features: ['vmix-media'] };
     let reads = 0;
@@ -91,6 +91,41 @@ test('vMix watch drops readings held across a folder publication, pairing switch
     await settle();
     assert.equal(r.serverPlayout.ownership.get().onAir.clip.instance, 'mix.current');
   });
+});
+
+test('vMix watch retires its poll when the Bridge changes player contract', async () => {
+  const item = vt('clip', { adapter: 'vmix', mediaKind: 'movie', name: 'clip.mp4', layer: 0, fps: 25, frames: 250 });
+  const fixture = rig({ items: [item] });
+  const staged = { ...OK, features: ['vmix-media'] };
+  const current = { ...OK, features: ['vmix-media', 'vmix-player-transport-guard'] };
+  const pending = [];
+  fixture.io.readVmixPlayers = (_, contract) => {
+    const reading = Promise.withResolvers();
+    pending.push({ ...reading, contract });
+    return reading.promise;
+  };
+  const pairing = vmixPairing(SETTINGS);
+  fixture.update({ target: pairing, casparOn: false, vmixOn: true, vmixPairing: pairing, mediaRev: 0, serverFiles: null });
+  fixture.answer(current);
+  fixture.answer(current);
+  assert.deepEqual(pending.map(request => request.contract), ['current'], 'identical status keeps the pending poll');
+  fixture.answer(staged);
+  fixture.answer(current);
+  assert.deepEqual(pending.map(request => request.contract), ['current', 'staged', 'current']);
+  const answer = (request, generation) => request.resolve({ result: current, reply: {
+    session: 'mix', observedAt: generation, current: () => true, players: [{
+      player: 'clips', layer: 0, producer: 'video', generation, file: 'clip.mp4', playerSource: 'clip.mp4',
+      cueId: 'vmix:["show-1","c1","clip"]', instance: 'mix.' + generation, paused: false, loop: false,
+      position: 2, segment: { start: 0, length: 10 },
+    }],
+  } });
+  answer(pending[0], 1);
+  answer(pending[1], 2);
+  await settle();
+  assert.deepEqual(fixture.serverPlayout.ownership.get().onAir, {});
+  answer(pending[2], 3);
+  await settle();
+  assert.equal(fixture.serverPlayout.ownership.get().onAir.clip.instance, 'mix.3');
 });
 
 /** A watch on a fresh session, with every request recorded in order. */
