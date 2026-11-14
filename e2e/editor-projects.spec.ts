@@ -1,3 +1,4 @@
+// covers: src/blocks/compositionEdits.ts
 // covers: src/components/editorFoundation/{ProjectPanel,ProjectStarter,documentAdapter,session,operations}.{ts,tsx}
 // covers: src/components/editorFoundation/projects.css, src/components/home/sections/ProjectsSection.tsx
 // covers: src/model/{project,authoringDocument,brandApplication,projectInstallation}.ts
@@ -1637,6 +1638,8 @@ test('blank creation opens usable authoring directly', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Blank graphic', exact: true }).click();
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Graphic scale %', exact: true })).toHaveValue('100');
+  expect(await page.evaluate(async () => (await __noacgImport('/src/blocks/compositionEdits.ts')).compositionValues((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template))).toEqual({ x: 0, y: 0, scale: 1 });
   const blank = await page.evaluate(async () => {
     const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     return { id: s.documentId, template: s.template, history: s.history, saved: s.saved };
@@ -1680,6 +1683,8 @@ test('new project defaults to a durable blank graphic', async ({ page }) => {
   await starter.getByLabel('Project name', { exact: true }).fill('Empty show');
   await starter.getByRole('button', { name: 'Create blank project', exact: true }).click();
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Graphic scale %', exact: true })).toHaveValue('100');
+  expect(await page.evaluate(async () => (await __noacgImport('/src/blocks/compositionEdits.ts')).compositionValues((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template))).toEqual({ x: 0, y: 0, scale: 1 });
   const state = await page.evaluate(async () => {
     const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     const w = (await __noacgImport('/src/store/authoringProjects.ts')).workspace();

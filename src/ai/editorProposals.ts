@@ -25,6 +25,7 @@ export function requestEditorProposal(context: unknown, prompt: string, schema: 
 /** Maintained instructions for the shipped editor controls; also available without a model. */
 export const editorHelpGuide = [
   'Select artwork on the canvas or in the timeline layer list. Outline inspects nested artwork. Properties edits the current selection; unknown or unsupported source is preserved.',
+  'Select Whole graphic in Layers & Timeline, then use Graphic position X, Graphic position Y and Graphic scale % in Properties to move or scale all artwork while preserving motion. Reset graphic placement restores its placement. Unsupported source keeps its original code and explains why the control is unavailable; Use these manual controls for whole-graphic placement.',
   'Change wording and appearance in Properties. A public text default is saved for operators; a rehearsal sample is only a preview value. Static excluded text must remain excluded.',
   'Enable animation per property, move the playhead, then edit that property to add a key. Unarmed edits change the base value. Keys use the displayed cue and time; scrubbing does not operate the show.',
   'To add an exit, move the playhead and use Set Out at playhead in Layers & Timeline. With no exit keys, choose Yes, reverse or No, author manually. To preview the entrance, use Go to beginning then Play. At the end of a segment, Play replays that segment. Out previews the exit from the current pose; Edit Out inspects its start.',
@@ -36,6 +37,7 @@ export const editorHelpControls = {
   transport: ['Go to beginning', 'Previous frame', 'Play', 'Pause', 'Next frame'],
   exit: ['Out', 'Set Out at playhead', 'Edit Out'],
   reverseChoices: ['Yes, reverse', 'No, author manually'],
+  composition: ['Whole graphic', 'Graphic position X', 'Graphic position Y', 'Graphic scale %', 'Reset graphic placement'],
 };
 
 export function requestEditorHelp(context: unknown, question: string, schema: Record<string, unknown>) {

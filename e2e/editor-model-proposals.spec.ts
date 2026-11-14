@@ -221,6 +221,8 @@ test('help is grounded in current controls and selection, read-only and rendered
     await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
   }
   expect(grounding.editorControls.reverseChoices).toEqual(['Yes, reverse', 'No, author manually']);
+  expect(grounding.editorControls.composition).toEqual(['Whole graphic', 'Graphic position X', 'Graphic position Y', 'Graphic scale %', 'Reset graphic placement']);
+  for (const label of grounding.editorControls.composition) expect(grounding.guide.join('\n')).toContain(label);
   expect(grounding.inspection.inspection.view.selectedIds).toEqual(['f0']);
   expect(grounding.inspection.inspection.expected.documentId).toBeTruthy();
   expect(grounding.inspection.catalog.commands).toHaveLength(6);

@@ -5,6 +5,7 @@ import type { SpxTemplate } from '../../model/types';
 import { baseValues, type BasePatch } from '../../blocks/baseEdits';
 import type { EditorSession } from './session';
 import type { EditorOperation } from './operations';
+import WholeGraphicControls from './WholeGraphicControls';
 import ArtworkAppearance from './ArtworkAppearance';
 import AnimationProperties from './AnimationProperties';
 import AnchorPoint from './AnchorPoint';
@@ -92,6 +93,7 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
         {view.data && <ul className="ef-segment-targets" data-testid="segment-targets" aria-label="Where edits land">
           {selection.map(selector => <li key={selector}>{view.parts.find(p => p.selector === selector)?.label ?? selector} · {editTarget(template, selector, time, cue)}</li>)}
         </ul>}</>}
+      {selection.length <= 1 && (!part || part.kind === 'root') && <WholeGraphicControls key={session.instanceId} template={template} session={session} />}
       {part ? <>
         {selection.length === 1 && node?.matches('[data-gfx][id^="gfx-"]') && view.data && <label className="ef-appearance-field">Appears
           <select aria-label="Appears" value={layerPress(view.data, part.selector)} onChange={event => execute({ kind: 'graphic.activation', selector: part.selector, press: Number(event.target.value) })}>
