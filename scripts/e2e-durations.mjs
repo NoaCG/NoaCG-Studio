@@ -7,7 +7,7 @@
 //
 //   node scripts/e2e-durations.mjs --check                 # report drift, change nothing
 //   npm run record:e2e-durations                           # re-record from the newest green full run
-//   npm run record:e2e-durations -- <run-id>               # ...or from one you name
+//   npm run record:e2e-durations -- <run-id> [<run-id>...] # ...or from the runs you name
 //   node scripts/e2e-durations.mjs --refresh [run-id]      # re-record, then keep it only if it MATTERS
 //   node scripts/e2e-durations.mjs <merged-report.json>    # rewrite the table from a report you merged
 //
@@ -658,16 +658,21 @@ function measureRun(runId, work) {
 }
 
 /** Download recent runs' shard reports and rewrite the table from what they measured. */
-function record(runId) {
+function record(runIds) {
   let targets;
-  if (runId) {
-    const view = JSON.parse(run('gh', ['run', 'view', String(runId), '--json', 'jobs,headSha']));
-    const refusal = fullRunRefusal(view.jobs);
-    if (refusal) {
-      console.error(`e2e-durations: run ${runId} is not a whole full suite - ${refusal}. Refusing to record it.`);
-      return 1;
+  if (runIds.length) {
+    // Named runs, each checked whole. Several are named when only some recent runs measure what
+    // the table should (the suite moved to the e2e build in #2530: older runs timed the dev server).
+    targets = [];
+    for (const runId of runIds) {
+      const view = JSON.parse(run('gh', ['run', 'view', String(runId), '--json', 'jobs,headSha']));
+      const refusal = fullRunRefusal(view.jobs);
+      if (refusal) {
+        console.error(`e2e-durations: run ${runId} is not a whole full suite - ${refusal}. Refusing to record it.`);
+        return 1;
+      }
+      targets.push({ id: String(runId), sha: view.headSha });
     }
-    targets = [{ id: String(runId), sha: view.headSha }];
   } else {
     targets = newestFullRuns(RECORD_RUNS);
     if (targets.length < MIN_RECORD_RUNS) {
@@ -759,7 +764,7 @@ async function refresh(runId, bodyPath) {
   // in whatever state it reached: the contract above is that this leaves one of two files on disk,
   // and a failure that leaves a third is the one nobody would think to look for.
   try {
-    const recorded = record(runId);
+    const recorded = record(runId ? [runId] : []);
     if (recorded !== 0) {
       writeFileSync(TABLE, held);
       return recorded;
@@ -867,11 +872,11 @@ async function main() {
 
   if (args.includes('--refresh')) return refresh(positional, bodyPath);
 
-  if (args.includes('--record')) return record(positional);
+  if (args.includes('--record')) return record(args.filter((a) => !a.startsWith('--')));
 
   if (!positional) {
     console.error(
-      'usage: node scripts/e2e-durations.mjs [--check | --record [run-id] | --refresh [run-id] [--body <path>] | <merged-report.json>]',
+      'usage: node scripts/e2e-durations.mjs [--check | --record [run-id...] | --refresh [run-id] [--body <path>] | <merged-report.json>]',
     );
     return 1;
   }

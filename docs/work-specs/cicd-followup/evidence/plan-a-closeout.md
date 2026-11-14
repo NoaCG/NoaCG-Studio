@@ -79,8 +79,11 @@ conversion is a later option.
   nightlies on main after the switch (scheduled for 2026-11-14 and 2026-11-15, 09:00Z). Each run
   compares a build nightly against a dev-server nightly of the same commit. If a file selects fewer
   specs, that is an alarm to the owner and a revert candidate for #2530.
-- **Duration weights** are re-recorded from main's first runs on the build (the PR that carries
-  this file).
+- **Duration weights.** The PR that carries this file re-records them from main's first three green
+  full runs on the build (43552605380, 43560650900, 43569321859; 18c0c25f and later), and no
+  dev-server run is mixed in. \`--record\` now takes several run ids for that. The table goes from
+  197.3 to 131.2 table-min. Two quarantined specs (editor-projects, output-debate-clock) ran in none
+  of those runs, so the planner counts them at the median until they return.
 
 ## Candidate for cf18: the narrower traced map
 
