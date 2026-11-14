@@ -859,7 +859,7 @@ export function validateGatewayBody(value: unknown): AiGatewayRequestBody {
   // rather than dropped, so a client that means to name a gated surface can never have its
   // label silently discarded into "the general harness, which nothing gates".
   if (body.surface !== undefined && body.surface !== 'video' && body.surface !== 'pro'
-    && body.surface !== 'spike') {
+    && body.surface !== 'spike' && body.surface !== 'editor') {
     throw new GatewayError('invalid_request', 'The AI request surface is invalid.', 400, false);
   }
   // A hosted Pro reservation id. Shape-checked here and MEANING-checked by the ledger, which

@@ -2,6 +2,7 @@ import { bearerToken, ipHash, json, methodGuard, readJson } from '../_lib/http.j
 import { serverAuthConfigured, verifyUser, type AuthedUser } from '../_lib/auth.js';
 import { hasUserAiKeysCookie, managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
 import { executeGatewayRequest, GatewayError, validateGatewayBody, type GatewayExecutionPolicy } from '../_lib/aiGateway.js';
+import { studioEditorBody } from '../_lib/aiEditorPolicy.js';
 import { surfaceExecutionPolicy, surfaceRoutePolicy } from '../_lib/aiSurfacePolicy.js';
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
 import { admitManagedProCall, proAllowanceEnforceable, settleManagedProCall } from '../_lib/pro/managedCall.js';
@@ -44,7 +45,7 @@ export default {
 
     let body: AiGatewayRequestBody;
     try {
-      body = validateGatewayBody(await readJson<unknown>(req, MAX_BODY_BYTES));
+      body = validateGatewayBody(studioEditorBody(await readJson<unknown>(req, MAX_BODY_BYTES)));
     } catch (error) {
       if (error instanceof GatewayError) return errorResponse(error);
       return errorResponse(new GatewayError('invalid_request', 'The AI request is invalid.', 400, false));
@@ -81,7 +82,7 @@ export default {
     // no cookie costs nothing here, and a signed-out one needs no verification: its owner is null.
     // A session that fails to verify matches no owner at all.
     let userKeys: ReturnType<typeof readUserAiKeys> = {};
-    if (hasUserAiKeysCookie(req)) {
+    if (body.surface !== 'editor' && hasUserAiKeysCookie(req)) {
       userKeys = readUserAiKeys(req, bearerToken(req) ? (await verifyCaller())?.userId : null);
     }
 
@@ -145,7 +146,8 @@ export default {
         if (!auth.user) {
           throw new GatewayError(
             'authentication_required',
-            'Sign in to use the NoaCG-managed AI service, or add your own provider key.',
+            body.surface === 'editor' ? 'Sign in to use the editor assistant.'
+              : 'Sign in to use the NoaCG-managed AI service, or add your own provider key.',
             401,
             false,
           );
@@ -217,6 +219,10 @@ export default {
       failure = error instanceof GatewayError
         ? error
         : new GatewayError('invalid_request', 'The AI request is invalid.', 400, false);
+    }
+
+    if (body.surface === 'editor' && failure?.code === 'missing_key') {
+      failure = new GatewayError('missing_key', 'The Studio editor assistant is unavailable. Manual editing is available.', 412, false);
     }
 
     // Settle what a managed Pro call cost into its own reservation, BEFORE the gateway ledger

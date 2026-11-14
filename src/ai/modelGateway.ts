@@ -29,7 +29,7 @@ export interface GatewayModelRequest extends Omit<ModelRequest, 'structuredOutpu
   tool?: ModelTool;
   /** The product surface this call belongs to, when the server gates that surface. Callers
    *  never set it by hand: `src/ai/video/videoGateway.ts` and `src/ai/pro/proGateway.ts`
-   *  are the only places it is filled in, so a new gated call cannot forget it. */
+   *  and the Studio editor helper below fill it in, so a new gated call cannot forget it. */
   surface?: AiGatewaySurface;
   /** The hosted NoaCG Pro reservation paying for this call (src/ai/pro/session.ts). Absent on
    *  a bring-your-own-key run, which spends the caller's own money and needs no allowance. */
@@ -87,6 +87,21 @@ export async function callModelDetailed(request: GatewayModelRequest): Promise<M
     ...(surface ? { surface } : {}),
     ...(proGenerationId ? { proGenerationId } : {}),
   };
+  return sendModelRequest(body);
+}
+
+/** Studio supplies the editor assistant. This path never loads personal AI preferences. */
+export function callStudioEditorModelDetailed(request: GatewayModelRequest): Promise<ModelResult> {
+  return sendModelRequest({
+    surface: 'editor',
+    request: {
+      system: request.system, messages: request.messages, maxTokens: request.maxTokens,
+      ...(request.tool ? { structuredOutput: { name: request.tool.name, description: request.tool.description, schema: request.tool.input_schema } } : {}),
+    },
+  });
+}
+
+async function sendModelRequest(body: unknown): Promise<ModelResult> {
   const token = await getAccessToken();
   const response = await fetch('/api/ai/generate', {
     method: 'POST',

@@ -293,7 +293,10 @@ export async function resolvePaidAiAccess(userId: string): Promise<PaidAiAccess>
 /** Which feature key a gateway surface is gated on; null for the general harness, which no
  *  feature key gates. One map, so adding a gated surface is one line and cannot disagree with
  *  the enforcement table in docs/ADMIN.md. */
-const SURFACE_FEATURES: Record<AiGatewaySurface, FeatureKey> = {
+const SURFACE_FEATURES: Record<AiGatewaySurface, FeatureKey | null> = {
+  // The editor previously used the general harness. Keep its managed authentication and
+  // route switches; it has no separate paid-tier feature or Pro reservation.
+  editor: null,
   video: 'ai.video',
   pro: 'ai.pro',
   // The Phase 0 spike gates on `ai.pro` rather than minting a key of its own. It IS Pro work
