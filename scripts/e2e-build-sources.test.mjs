@@ -46,6 +46,8 @@ test('offsets in a built chunk answer repo-relative source files, dependencies l
   const root = mkdtempSync(path.join(tmpdir(), 'build-sources-'));
   mkdirSync(path.join(root, 'dist-e2e/assets'), { recursive: true });
   const code = 'function a(){}function b(){}\nfunction c(){}';
+  mkdirSync(path.join(root, 'dist-e2e/.vite'), { recursive: true });
+  writeFileSync(path.join(root, 'dist-e2e/.vite/manifest.json'), JSON.stringify({ 'app.html': { file: 'assets/x.js' } }));
   writeFileSync(path.join(root, 'dist-e2e/assets/x.js'), code);
   writeFileSync(path.join(root, 'dist-e2e/assets/x.js.map'), JSON.stringify({
     version: 3,
@@ -53,7 +55,15 @@ test('offsets in a built chunk answer repo-relative source files, dependencies l
     mappings: mappings([[[0, 0], [14, 1]], [[0, 2]]]),
   }));
   assert.deepEqual(sourcesOf(root, 'dist-e2e', 'assets/x.js', [0, 14, 29]).sort(), ['src/one.ts', 'src/two.ts']);
-  assert.throws(() => sourcesOf(root, 'dist-e2e', 'assets/missing.js', [0]), /has no source map/, 'a missing map fails loudly');
+  writeFileSync(path.join(root, 'dist-e2e/assets/preload-helper-Ab1.js'), 'x');
+  assert.deepEqual(sourcesOf(root, 'dist-e2e', 'assets/preload-helper-Ab1.js', [0]), [], 'a generated chunk with no map has no source to credit');
+  // A build that wrote no maps at all fails loudly instead of tracing nearly nothing.
+  const bare = mkdtempSync(path.join(tmpdir(), 'build-sources-bare-'));
+  mkdirSync(path.join(bare, 'dist-e2e/.vite'), { recursive: true });
+  mkdirSync(path.join(bare, 'dist-e2e/assets'), { recursive: true });
+  writeFileSync(path.join(bare, 'dist-e2e/.vite/manifest.json'), JSON.stringify({ 'app.html': { file: 'assets/app.js' } }));
+  writeFileSync(path.join(bare, 'dist-e2e/assets/app.js'), 'x');
+  assert.throws(() => sourcesOf(bare, 'dist-e2e', 'assets/app.js', [0]), /no source map for the app entry/);
   writeFileSync(path.join(root, 'dist-e2e/assets/y.js'), 'x');
   writeFileSync(path.join(root, 'dist-e2e/assets/y.js.map'), JSON.stringify({ version: 3, sources: ['../../src/A.tsx', '../../src/b.ts', '../../node_modules/r/C.jsx'], mappings: '' }));
   assert.deepEqual(componentsOf(root, 'dist-e2e', 'assets/y.js'), ['src/A.tsx'], 'components on load, not dependencies');

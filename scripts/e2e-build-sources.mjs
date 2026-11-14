@@ -68,21 +68,38 @@ function lineStarts(text) {
 
 const chunks = new Map();
 
+const checkedBuilds = new Set();
+
+/** Fails unless the build wrote source maps at all, read off the app entry's chunk. A single chunk
+ *  without a map is generated code (Vite's preload helper, a Babel helper) with no source to
+ *  credit; a build without maps would leave every trace nearly empty, and the planner would count
+ *  those specs as freshly traced (scripts/e2e-traced.mjs), so that fails loudly instead. */
+function requireMaps(root, dist) {
+  const key = path.join(root, dist);
+  if (checkedBuilds.has(key)) return;
+  const manifest = JSON.parse(readFileSync(path.join(key, '.vite/manifest.json'), 'utf8'));
+  const entry = manifest['app.html']?.file;
+  if (!entry || !existsSync(path.join(key, `${entry}.map`))) {
+    throw new Error(`${dist} has no source map for the app entry (${entry ?? 'not in the manifest'}), so the trace cannot tell source files (vite.config.ts writes maps for the e2e build)`);
+  }
+  checkedBuilds.add(key);
+}
+
 /** Repo-relative path of a map source, or null for one outside the repo or in node_modules. */
 function repoPath(root, parsed, source) {
   const rel = path.relative(root, path.resolve(parsed.dir, parsed.sourceRoot, source)).replaceAll('\\', '/');
   return rel.startsWith('..') || rel.startsWith('node_modules/') || path.isAbsolute(rel) ? null : rel;
 }
 
-/** A built chunk with its source map, parsed once per process. A chunk with no map throws: a
- *  trace that quietly answered nothing for it would record a spec as complete and narrow the
- *  planner's selection without a word (scripts/e2e-traced.mjs counts such a spec as fresh). */
+/** A built chunk with its source map, parsed once per process; a generated chunk with no map has
+ *  no sources (requireMaps fails a build that wrote none). */
 function parsedChunk(root, dist, chunk) {
   const file = path.join(root, dist, chunk);
+  requireMaps(root, dist);
   if (!chunks.has(file)) {
     const mapFile = `${file}.map`;
     if (!existsSync(file) || !existsSync(mapFile)) {
-      throw new Error(`${path.join(dist, chunk)} has no source map, so the trace cannot tell its source files (vite.config.ts writes maps for the e2e build)`);
+      chunks.set(file, { map: { sources: [] }, lookup: () => null, starts: [0], dir: path.dirname(file), sourceRoot: '' });
     } else {
       const map = JSON.parse(readFileSync(mapFile, 'utf8'));
       chunks.set(file, { map, lookup: sourceLookup(map), starts: lineStarts(readFileSync(file, 'utf8')), dir: path.dirname(file), sourceRoot: map.sourceRoot ?? '' });
