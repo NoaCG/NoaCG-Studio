@@ -244,13 +244,12 @@ export class SupabaseProvider implements StorageProvider {
       body,
       deleted: Boolean(record.deleted),
     };
-    // The answer confirms the stored version by its `updatedAt` copy (0107), never by the body sent
-    // back (G4 R6); with parts on (0117 and 0119 are there) it also says the revision stored.
+    // With parts on (0107, 0117 and 0119 are there), the answer confirms the stored version by its
+    // `updatedAt` copy and says the revision stored, never sending the body back (G4 R6). Off, it is
+    // read back as before this phase.
     const write = (columns: string) => sb.from(TABLE).upsert(row, { onConflict: 'id' }).select(columns).single();
-    const first = await write(inParts ? 'body_updated_at, rev' : 'body_updated_at');
-    // An instance that has not run 0107 has no copy column (PostgREST refuses the request, nothing
-    // written): confirm from the body as before.
-    const { data: confirmed, error } = first.error?.code === '42703' ? await write('body_updated_at:body->updatedAt') : first;
+    const { data: answered, error } = await write(inParts ? 'body_updated_at, rev' : 'body');
+    const confirmed = !answered ? null : inParts ? (answered as { body_updated_at?: unknown; rev?: unknown }) : { body_updated_at: toStoredRecord(record.kind, record.id, (answered as { body?: unknown }).body).updatedAt };
     if (error) {
       const err = new Error(`Cloud put(${record.kind}) failed: ${error.message}`);
       // 42501 = insufficient_privilege: RLS rejected the write — the row id is owned by another
@@ -259,7 +258,7 @@ export class SupabaseProvider implements StorageProvider {
       throw err;
     }
     const stored = confirmed as { body_updated_at?: unknown; rev?: unknown } | null;
-    if (!stored || bodyUpdatedAt({ updatedAt: stored.body_updated_at }) !== record.updatedAt) {
+    if (!stored || (inParts ? bodyUpdatedAt({ updatedAt: stored.body_updated_at }) : stored.body_updated_at) !== record.updatedAt) {
       throw new Error(`Cloud put(${record.kind}) did not confirm this revision. It remains pending on this device.`);
     }
     // The map of what was just stored, for this page's next patch and for other pages (a few kB,
