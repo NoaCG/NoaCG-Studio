@@ -42,8 +42,8 @@
  ],
  "inFlight": {
   "phase": 7,
-  "step": "check 7-c-c035 on f1556db9",
-  "asOf": "2026-11-14T05:17Z"
+  "step": "repair 7-r-c2c5",
+  "asOf": "2026-11-14T05:47Z"
  },
  "owner": [
   {
@@ -321,7 +321,10 @@
   "interim": "large AC-4 +125 ms pooled p95 over 10 pairs at 5 s (phase 6 +334); AC-5 large: cue edit 14.3 kB, first after reload 15.5 kB, graphic removal 9.5 kB",
   "landed": "f1556db90a294a6809d05aa92ae6d70bb8d24ac2 (PR 2531)",
   "checker": "session_017SdbwMWzRRqirTF7wp4KKr nonce 7-c-c035",
-  "reported": "large AC-4 +125 ms (10 pairs), D1 7.6 s throttled parts output, press path 20.4 kB, team edit 302 kB, content loop +48 ms"
+  "reported": "large AC-4 +125 ms (10 pairs), D1 7.6 s throttled parts output, press path 20.4 kB, team edit 302 kB, content loop +48 ms",
+  "check1": "FAIL product 2026-11-14T05:45Z: first cue edit after reload 20.3-23.7 kB (#2532)",
+  "repairer": "session_017SdbwN7Nss4i2KtcyngQtY nonce 7-r-c2c5",
+  "migrations": "0119, 0120 applied in production (quiet window)"
  },
  "morningItems": [
   "Third time a worker reached production through the cloud environment's own production URL and service key (10:43Z settings write, 18:05Z read-only build, 23:58Z two admin user creates answered 422/400). Ask owner: rename or remove VITE_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in env_017nuiDZBW9smUNLdWVQK8cf so workers cannot reach production by default (coordinator keeps a separately named key for the switch), and whether he wants to check production auth for e2e-s1@noacg.local / e2e-s2@noacg.local (coordinator's read-only check was denied).",
