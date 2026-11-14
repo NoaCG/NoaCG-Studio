@@ -190,7 +190,7 @@ within about a day), and the account-wide `control_may_publish` search in the im
   against what is stored.
 - **The publisher's 30 s revision check reads `rev` in a query of its own**, so the count tells it
   from a save's read.
-- **The production page measures every graphic's box from the moment it opens**, not only inside a
+- **With parts on, the production page measures every graphic's box from the moment it opens**, not only inside a
   publish, so a reload does not drop boxes it published before (#2532 keeps them across reloads).
 
 ## Follow-ups
