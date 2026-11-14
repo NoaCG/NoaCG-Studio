@@ -48,16 +48,16 @@ test('a Take answered after a switch to another production stands there and leav
   if (await links.isVisible()) await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const slug = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.id === id)?.hostedSlug ?? null;
   }, first);
   expect(slug, 'publishing mints a control slug').toBeTruthy();
 
   // The second production, with the same graphic: its layer name collides with the first's.
   const second = await page.evaluate(async (name) => {
-    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const { show, error } = createShowNamedChecked(name);
     if (error) throw new Error(error);
     const { template, saved } = useTemplateStore.getState();
@@ -92,7 +92,7 @@ test('a Take answered after a switch to another production stands there and leav
   await expect.poll(() => takesSeen, { message: 'the Take went to the server' }).toBe(1);
   // Switch while the answer is held.
   await page.evaluate(async (id) => {
-    const { useRouter } = await import('/src/app/router.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     useRouter.getState().navigate({ view: 'production', id });
     await new Promise((resolve) => setTimeout(resolve));
   }, second);
@@ -105,7 +105,7 @@ test('a Take answered after a switch to another production stands there and leav
   await expect(page.getByTestId('program-stage')).toHaveAttribute('data-plays', '0');
   // The first production: the Take stood on its log.
   const plays = await page.evaluate(async (slug) => {
-    const { hostedControlTail } = await import('/src/control/hostedControl.ts');
+    const { hostedControlTail } = await __noacgImport('/src/control/hostedControl.ts');
     const rows = await hostedControlTail(slug, 0);
     return rows.filter((row) => (row.msg as { t?: string }).t === 'play').length;
   }, slug as string);

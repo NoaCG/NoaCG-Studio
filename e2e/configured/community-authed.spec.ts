@@ -25,8 +25,8 @@ test.describe('community gallery closed to publishing (configured / signed-in)',
 
   test('a saved graphic offers no publish entry to a signed-in account', async ({ page }) => {
     const seeded = await page.evaluate(async () => {
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const { createGraphic } = await import('/src/model/library.ts');
+      const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+      const { createGraphic } = await __noacgImport('/src/model/library.ts');
       const template = variantsFor('lower-third')[0].create({});
       return createGraphic({ ...template, name: 'Closed gallery E2E' }, { name: 'Closed gallery E2E' }).error;
     });
@@ -43,7 +43,7 @@ test.describe('community gallery closed to publishing (configured / signed-in)',
 
   test('the server refuses a direct publish and a community-assets upload', async ({ page }) => {
     const answer = await page.evaluate(async () => {
-      const sb = (await (await import('/src/backend/supabase.ts')).getSupabase())!;
+      const sb = (await (await __noacgImport('/src/backend/supabase.ts')).getSupabase())!;
       const { data: who } = await sb.auth.getUser();
       const uid = who.user!.id;
       // Refused either way: by 0078's policy while the table exists, as an unknown table after 0085.

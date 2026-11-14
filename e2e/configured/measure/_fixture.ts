@@ -53,12 +53,12 @@ export async function buildFixture(page: Page, which: FixtureName): Promise<Buil
   const spec = FIXTURES[which];
   const made = await page.evaluate(
     async ({ name, graphics, imageBytes }) => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-      const { formatTemplate } = await import('/src/format/formatCode.ts');
-      const m = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const { createPictureTemplate, addPictureToTemplate } = await import('/src/templates/picture.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+      const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+      const { createPictureTemplate, addPictureToTemplate } = await __noacgImport('/src/templates/picture.ts');
 
       // Seeded noise, so every run builds the same bytes.
       let seed = 0x2468ace;
@@ -171,7 +171,7 @@ export async function buildFixture(page: Page, which: FixtureName): Promise<Buil
   const builtMs = Date.now() - startedAt;
   step('built');
   await page.evaluate(async (id) => {
-    const { useRouter } = await import('/src/app/router.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     useRouter.getState().navigate({ view: 'production', id });
     await new Promise((resolve) => setTimeout(resolve));
   }, made.id);
@@ -187,8 +187,8 @@ export async function buildFixture(page: Page, which: FixtureName): Promise<Buil
     await expect(panel).toBeHidden();
   }
   const storedOutputBytes = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
     const s = loadShows().find((x) => x.id === id)!;
     const sb = await getSupabase();
     if (!sb || !s.hostedSlug) return -1;
@@ -214,7 +214,7 @@ export async function cleanUp(page: Page): Promise<void> {
 /** The open production's output slug. */
 export async function outputSlugOf(page: Page, showId: string): Promise<string> {
   const slug = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.id === id)?.outputSlug ?? null;
   }, showId);
   expect(slug, 'publishing mints an output slug').toBeTruthy();

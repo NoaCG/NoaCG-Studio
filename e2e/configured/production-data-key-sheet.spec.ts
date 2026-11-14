@@ -34,7 +34,7 @@ const LINK = 'https://docs.google.com/spreadsheets/d/1NoaCGStubSheet0000000000/e
 
 async function updates(page: Page, slug: string) {
   return page.evaluate(async (slug) => {
-    const { hostedControlTail } = await import('/src/control/hostedControl.ts');
+    const { hostedControlTail } = await __noacgImport('/src/control/hostedControl.ts');
     const rows = await hostedControlTail(slug, 0);
     return rows
       .filter((row) => (row.msg as { t?: string }).t === 'update')
@@ -68,7 +68,7 @@ test('a connected Sheet list on a published production follows the tab through t
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.keyboard.press('Escape');
   const slug = await page.evaluate(async (showId) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.id === showId)?.hostedSlug ?? null;
   }, showId);
   expect(slug, 'publishing mints a control slug').toBeTruthy();

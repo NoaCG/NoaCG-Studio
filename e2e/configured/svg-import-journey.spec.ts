@@ -27,6 +27,10 @@ import { fileURLToPath } from 'node:url';
 import { publishProduction } from '../_publish';
 import { dropSvg, intoProduction } from '../_svg-import';
 import { clearPublishedShows, haveCreds, readyOf, signIn, unpublishForCleanup, wipeMyGraphics } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
@@ -78,7 +82,7 @@ test('unfamiliar imported artwork airs on an isolated output, which is cut off a
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const slug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
   }, showName);
   expect(slug).toBeTruthy();
@@ -86,6 +90,7 @@ test('unfamiliar imported artwork airs on an isolated output, which is cut off a
   // THE ISOLATED OUTPUT: its own context, so its network can be cut without touching the operator.
   const origin = new URL(page.url()).origin;
   const box = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  await installDoor(box);
   outputContext = box;
   let output = await box.newPage();
   let graphic = await openOutput(output, origin, slug!);

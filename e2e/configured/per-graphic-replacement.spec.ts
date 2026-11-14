@@ -14,6 +14,10 @@ import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic } from '../_create';
 import { clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, unpublishForCleanup, type ReadyWindow } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -25,9 +29,9 @@ async function libraryGraphic(page: Page, name: string): Promise<void> {
   await bootstrapGraphic(page, { name });
   expect(
     await page.evaluate(async () => {
-      const { createGraphic } = await import('/src/model/library.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { createGraphic } = await __noacgImport('/src/model/library.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const { template } = useTemplateStore.getState();
       const { error } = createGraphic(template, { name: template.name });
       return error ?? (await commitDurableWrites());
@@ -40,9 +44,9 @@ async function libraryGraphic(page: Page, name: string): Promise<void> {
 async function editInLibrary(page: Page, showId: string, graphic: string, note: string): Promise<void> {
   const edited = await page.evaluate(
     async ([id, name, comment]) => {
-      const { loadShows, updateCopyFromLibrary } = await import('/src/model/shows.ts');
-      const { loadGraphics, newerLibraryDesign, resolveSavedGraphicDoc, updateGraphic } = await import('/src/model/library.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { loadShows, updateCopyFromLibrary } = await __noacgImport('/src/model/shows.ts');
+      const { loadGraphics, newerLibraryDesign, resolveSavedGraphicDoc, updateGraphic } = await __noacgImport('/src/model/library.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const pooled = loadShows().find((s) => s.id === id)?.graphics.find((g) => g.name === name);
       const doc = pooled ? resolveSavedGraphicDoc(pooled, loadGraphics()) : undefined;
       if (!pooled || !doc) return false;
@@ -73,10 +77,10 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
   await libraryGraphic(page, STRAP);
   const showId = await page.evaluate(
     async ([showName, names]) => {
-      const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
-      const { loadGraphics } = await import('/src/model/library.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const { useRouter } = await import('/src/app/router.ts');
+      const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+      const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+      const { useRouter } = await __noacgImport('/src/app/router.ts');
       const { show, error: notCreated } = createShowNamedChecked(showName);
       if (notCreated) throw new Error(notCreated);
       for (const name of names) {
@@ -98,13 +102,14 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
   await publishProduction(page);
   await page.getByTestId('production-status').click();
   const outputSlug = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((x) => x.id === id)?.outputSlug ?? '';
   }, showId);
   expect(outputSlug).toBeTruthy();
 
   // Two outputs, signed out as in a studio.
   const anon = await browser.newContext();
+  await installDoor(anon);
   const outputs: { page: Page; reloads: number }[] = [];
   for (const name of ['Desk A', 'Desk B']) {
     const air = await anon.newPage();
@@ -199,10 +204,10 @@ test('a Take of a graphic still loading plays once loaded, a cancelled one never
   await wipeMyGraphics(page);
   for (const name of [SCOREBUG, STRAP, LOWER]) await libraryGraphic(page, name);
   const showId = await page.evaluate(async (showName) => {
-    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { useRouter } = await import('/src/app/router.ts');
+    const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     const { show, error: notCreated } = createShowNamedChecked(showName);
     if (notCreated) throw new Error(notCreated);
     const doc = loadGraphics().find((g) => g.name === 'House Scorebug');
@@ -218,10 +223,11 @@ test('a Take of a graphic still loading plays once loaded, a cancelled one never
   await expect(page.getByTestId('production-page')).toBeVisible();
   await publishProduction(page);
   const outputSlug = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((x) => x.id === id)?.outputSlug ?? '';
   }, showId);
   const anon = await browser.newContext();
+  await installDoor(anon);
   const outputs: { page: Page; name: string; delay: number }[] = [];
   for (const [name, delay] of [['Desk A', 2_000], ['Desk B', 8_000]] as const) {
     const air = await anon.newPage();
@@ -248,9 +254,9 @@ test('a Take of a graphic still loading plays once loaded, a cancelled one never
 
   // Both new graphics join the production and are published.
   await page.evaluate(async ([id, names]) => {
-    const { addGraphicToShow } = await import('/src/model/shows.ts');
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     for (const name of names) {
       const doc = loadGraphics().find((g) => g.name === name);
       if (!doc) throw new Error(`no ${name}`);

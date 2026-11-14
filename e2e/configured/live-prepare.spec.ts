@@ -31,6 +31,10 @@ import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic } from '../_create';
 import { clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, unpublishForCleanup, type ReadyWindow } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -57,11 +61,11 @@ test('the readiness run publishes what changed, checks every output and ends in 
   // production's copy links to it, so the AC-5 step's library edit is offered as Update
   // (live-publishing W2: the copy is the only truth).
   const showId = await page.evaluate(async (name) => {
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { useRouter } = await import('/src/app/router.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     const { template } = useTemplateStore.getState();
     const { doc, error: notSaved } = createGraphic(template, { name: template.name });
     if (notSaved || !doc) throw new Error(notSaved ?? 'not saved');
@@ -79,12 +83,14 @@ test('the readiness run publishes what changed, checks every output and ends in 
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.getByTestId('production-status').click();
   const { outputSlug } = (await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id);
     return { outputSlug: s?.outputSlug ?? '' };
   }, showId)) as { outputSlug: string };
 
   const anon = await browser.newContext();
+
+  await installDoor(anon);
   const air = await anon.newPage();
   await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&destination=browser&name=${encodeURIComponent('Desk A')}&debug=1`);
   await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
@@ -111,7 +117,7 @@ test('the readiness run publishes what changed, checks every output and ends in 
   //    the output's own row. ──
   await expect(deskRow.getByTestId('ready-path')).toHaveText(/^(\d+ ms|Commands reach it)$/, { timeout: 30_000 });
   const stampOf = () =>
-    page.evaluate(async (id) => (await import('/src/model/readyMemory.ts')).loadReadyMemory(id).stamp, showId);
+    page.evaluate(async (id) => (await __noacgImport('/src/model/readyMemory.ts')).loadReadyMemory(id).stamp, showId);
   const first = await stampOf();
   expect(first?.v.n).toBe(1);
   test.info().annotations.push({ type: 'stamp', description: JSON.stringify(first) });
@@ -148,12 +154,12 @@ test('the readiness run publishes what changed, checks every output and ends in 
   //    the copy, which is a change the outputs draw, so Publish changes moves the output onto it
   //    (docs/work-specs/studio-day-playout AC-5). ──
   const readUpdatedAt = () =>
-    page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.updatedAt ?? '', showId);
+    page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.updatedAt ?? '', showId);
   const recordBefore = await readUpdatedAt();
   const edited = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { loadGraphics, resolveSavedGraphicDoc, updateGraphic } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { loadGraphics, resolveSavedGraphicDoc, updateGraphic } = await __noacgImport('/src/model/library.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const pooled = loadShows().find((s) => s.id === id)?.graphics[0];
     const doc = pooled ? resolveSavedGraphicDoc(pooled, loadGraphics()) : undefined;
     if (!doc) return false;
@@ -227,10 +233,10 @@ test('OBS scenes (#2489): making a scene takes its graphics on air in its link, 
   // Two folders, Gameplay holding Hairline and Desk holding Bug, and a Hand cue in neither; the
   // OBS scenes switch on, no folder a scene yet.
   const { showId, gameplay } = await page.evaluate(async (title) => {
-    const m = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { useTemplateStore, flushPendingProject } = await import('/src/store/templateStore.ts');
-    const { useRouter } = await import('/src/app/router.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { useTemplateStore, flushPendingProject } = await __noacgImport('/src/store/templateStore.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     const { show, error: notCreated } = m.createShowNamedChecked(title);
     if (notCreated) throw new Error(notCreated);
     const id = show.id;
@@ -253,13 +259,14 @@ test('OBS scenes (#2489): making a scene takes its graphics on air in its link, 
   await expect(page.getByTestId('production-page')).toBeVisible();
   await publishProduction(page);
   const outputSlug = await page.evaluate(
-    async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? '',
+    async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? '',
     showId,
   );
   expect(outputSlug).not.toBe('');
 
   // Gameplay's link is open in OBS before its folder is a scene: it builds nothing yet.
   const anon = await browser.newContext();
+  await installDoor(anon);
   const air = await anon.newPage();
   await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&scene=${encodeURIComponent(gameplay)}`);
   await expect.poll(async () => (await readyOf(air)) !== null, { timeout: 60_000 }).toBe(true);

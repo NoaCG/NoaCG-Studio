@@ -19,6 +19,10 @@ import { test, expect, type Browser, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, type ReadyWindow, unpublishForCleanup } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -38,7 +42,7 @@ test('READY: every output says whether it is ready, the production page reads on
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.getByTestId('production-status').click();
   const { outputSlug, hostedSlug } = (await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id);
     return { outputSlug: s?.outputSlug ?? '', hostedSlug: s?.hostedSlug ?? '' };
   }, showId)) as { outputSlug: string; hostedSlug: string };
@@ -56,6 +60,7 @@ test('READY: every output says whether it is ready, the production page reads on
 
   // ── AC-1: an output, signed out as in a studio, named on its URL, reports READY. ──
   const anon = await browser.newContext();
+  await installDoor(anon);
   const air = await anon.newPage();
   air.on('pageerror', (e) => console.log('[output pageerror]', e.message));
   await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&destination=browser&name=${encodeURIComponent('Desk A')}&debug=1`);
@@ -106,7 +111,7 @@ test('READY: every output says whether it is ready, the production page reads on
   // ── AC-3: the warm pass is off air and never reported, and never runs over what is on air. ──
   const reportOf = () =>
     page.evaluate(async (slug) => {
-      const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+      const { controlShowBySlug } = await __noacgImport('/src/control/hostedControl.ts');
       const answer = await controlShowBySlug(slug);
       return answer.ok ? (answer.value?.live['House Scorebug']?.data ?? null) : 'unanswered';
     }, hostedSlug);
@@ -210,21 +215,21 @@ test('OBS scene rows: loaded, connected, unknown, preview, program, seen, loaded
   await addCatalogGraphic(page, showId, 'Hairline');
   // Two scenes, one graphic each, the switch on: the record's own writers, then a fresh page.
   const scenes = await page.evaluate(async (id) => {
-    const m = await import('/src/model/shows.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
     const cues = m.loadShows().find((s) => s.id === id)!.cues!;
     const a = m.addFolderFromSelection(id, [cues[0].id], 'Gameplay').folderId!;
     const b = m.addFolderFromSelection(id, [cues[1].id], 'Desk').folderId!;
     m.setFolderObsScene(id, a, true);
     m.setFolderObsScene(id, b, true);
     m.setShowObsScenes(id, true);
-    const failure = await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    const failure = await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
     if (failure) throw new Error(failure);
     return { a, b };
   }, showId);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await publishProduction(page);
-  const outputSlug = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? '', showId);
+  const outputSlug = await page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? '', showId);
   expect(outputSlug).toBeTruthy();
   const link = (scene: string) => `/output?production=${encodeURIComponent(outputSlug)}&scene=${encodeURIComponent(scene)}`;
 

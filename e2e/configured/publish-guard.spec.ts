@@ -54,6 +54,10 @@ import {
   unpublishForCleanup,
   wipeMyGraphics,
 } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
@@ -69,9 +73,9 @@ async function libraryGraphic(page: Page, name: string): Promise<void> {
   await bootstrapGraphic(page, { name });
   expect(
     await page.evaluate(async () => {
-      const { createGraphic } = await import('/src/model/library.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { createGraphic } = await __noacgImport('/src/model/library.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const { template } = useTemplateStore.getState();
       const { error } = createGraphic(template, { name: template.name });
       return error ?? (await commitDurableWrites());
@@ -83,9 +87,9 @@ async function libraryGraphic(page: Page, name: string): Promise<void> {
 async function productionWith(page: Page, name: string, graphic: string): Promise<string> {
   const showId = await page.evaluate(
     async ([showName, wanted]) => {
-      const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
-      const { loadGraphics } = await import('/src/model/library.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+      const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const { show, error: notCreated } = createShowNamedChecked(showName);
       if (notCreated) throw new Error(notCreated);
       const doc = loadGraphics().find((g) => g.name === wanted);
@@ -108,9 +112,9 @@ async function productionWith(page: Page, name: string, graphic: string): Promis
 async function editInLibrary(page: Page, showId: string, graphic: string, note: string): Promise<void> {
   const edited = await page.evaluate(
     async ([id, name, comment]) => {
-      const { loadShows, updateCopyFromLibrary } = await import('/src/model/shows.ts');
-      const { loadGraphics, newerLibraryDesign, resolveSavedGraphicDoc, updateGraphic } = await import('/src/model/library.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { loadShows, updateCopyFromLibrary } = await __noacgImport('/src/model/shows.ts');
+      const { loadGraphics, newerLibraryDesign, resolveSavedGraphicDoc, updateGraphic } = await __noacgImport('/src/model/library.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const pooled = loadShows().find((s) => s.id === id)?.graphics.find((g) => g.name === name);
       const doc = pooled ? resolveSavedGraphicDoc(pooled, loadGraphics()) : undefined;
       if (!pooled || !doc) return false;
@@ -139,7 +143,7 @@ interface Published {
 async function published(page: Page, showId: string, graphic: string): Promise<Published | null> {
   return page.evaluate(
     async ([id, name]) => {
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const sb = await getSupabase();
       const { data } = await sb!.from('control_shows').select('output').eq('id', id).maybeSingle();
       type Out = { ver?: { n: number; g: Record<string, string>; t?: Record<string, string> }; graphics: { key: string; css: string; layer?: number }[]; cues: { graphic: string; values: Record<string, string> }[] };
@@ -182,8 +186,8 @@ async function publishChanges(page: Page, showId: string, after: number): Promis
 async function typeCue(page: Page, showId: string, text: string): Promise<void> {
   const failure = await page.evaluate(
     async ([id, name, value]) => {
-      const { loadShows, updateShowCueChecked } = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { loadShows, updateShowCueChecked } = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const show = loadShows().find((s) => s.id === id)!;
       const graphic = show.graphics.find((g) => g.name === name)!;
       const cue = (show.cues ?? []).find((c) => c.sourceId === graphic.id)!;
@@ -203,7 +207,9 @@ test.describe('two members', () => {
   test("a teammate's older copy never replaces the newer design, and their cue and layer still publish", async ({ browser }) => {
     test.setTimeout(360_000);
     const annaContext = await browser.newContext();
+    await installDoor(annaContext);
     const benContext = await browser.newContext();
+    await installDoor(benContext);
     const anna = await annaContext.newPage();
     const ben = await benContext.newPage();
     let teamId = '';
@@ -217,9 +223,9 @@ test.describe('two members', () => {
       showId = await productionWith(anna, `Publish guard ${Date.now()}`, STRAP);
       // `E2E team ` prefix, so teams.spec.ts's sweep deletes it if this run dies mid-way.
       const team = await anna.evaluate(async (id) => {
-        const { createTeam } = await import('/src/backend/teams.ts');
-        const { moveProductionToTeam } = await import('/src/backend/teamProductions.ts');
-        const { loadShows } = await import('/src/model/shows.ts');
+        const { createTeam } = await __noacgImport('/src/backend/teams.ts');
+        const { moveProductionToTeam } = await __noacgImport('/src/backend/teamProductions.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
         const { team: made, error } = await createTeam(`E2E team guard ${Date.now()}`, 'Anna Owner');
         if (!made || error) throw new Error(error ?? 'no team');
         const show = loadShows().find((s) => s.id === id)!;
@@ -242,8 +248,8 @@ test.describe('two members', () => {
       await signInAs(ben, E2E_TEAMMATE_EMAIL, E2E_TEAMMATE_PASSWORD);
       await ben.keyboard.press('Escape');
       await ben.evaluate(async (joinCode) => {
-        const { joinTeamByCode } = await import('/src/backend/teams.ts');
-        const { refreshTeams } = await import('/src/backend/teamProductions.ts');
+        const { joinTeamByCode } = await __noacgImport('/src/backend/teams.ts');
+        const { refreshTeams } = await __noacgImport('/src/backend/teamProductions.ts');
         const { error } = await joinTeamByCode(joinCode, 'Ben Teammate');
         if (error) throw new Error(error);
         await refreshTeams();
@@ -269,7 +275,7 @@ test.describe('two members', () => {
       const layer = (bens.layer ?? 20) + 7;
       await ben.evaluate(
         async ([id, name, to]) => {
-          const { loadShows, setShowGraphicLayer } = await import('/src/model/shows.ts');
+          const { loadShows, setShowGraphicLayer } = await __noacgImport('/src/model/shows.ts');
           const g = loadShows().find((s) => s.id === id)!.graphics.find((x) => x.name === name)!;
           setShowGraphicLayer(id, g.id, to);
           await new Promise((r) => setTimeout(r));
@@ -283,10 +289,10 @@ test.describe('two members', () => {
       await anna
         .evaluate(
           async ([id, show]) => {
-            const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+            const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
             if (show) await unpublishControlShow(show).catch(() => undefined);
             if (!id) return;
-            const { deleteTeam } = await import('/src/backend/teams.ts');
+            const { deleteTeam } = await __noacgImport('/src/backend/teams.ts');
             await deleteTeam(id);
           },
           [teamId, showId] as [string, string],
@@ -315,7 +321,7 @@ test('a newer design on air stops the publish, and a publish landing in between 
   const forge = (change: { later?: boolean; bump?: number; strip?: boolean }) =>
     page.evaluate(
       async ([id, name, later, bump, strip]) => {
-        const { getSupabase } = await import('/src/backend/supabase.ts');
+        const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
         const sb = (await getSupabase())!;
         const { data } = await sb.from('control_shows').select('output').eq('id', id).single();
         const output = (data as { output: { ver?: { n: number; g: Record<string, string>; t: Record<string, string> } } }).output;
@@ -406,8 +412,8 @@ test.describe('production copies (live-publishing W2)', () => {
   /** The signed-in page's session: its token, its account id, and the anon key the app sends. */
   async function sessionOf(page: Page): Promise<{ token: string; user: string; anon: string }> {
     return page.evaluate(async () => {
-      const { getSupabase } = await import('/src/backend/supabase.ts');
-      const { loadBackendConfig } = await import('/src/backend/config.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+      const { loadBackendConfig } = await __noacgImport('/src/backend/config.ts');
       const sb = (await getSupabase())!;
       const { data } = await sb.auth.getSession();
       return { token: data.session!.access_token, user: data.session!.user.id, anon: loadBackendConfig().anonKey };
@@ -498,10 +504,10 @@ test.describe('production copies (live-publishing W2)', () => {
     await wipeMyGraphics(page);
     await bootstrapGraphic(page, { name: STRAP });
     const showId = await page.evaluate(async (name) => {
-      const { createGraphic } = await import('/src/model/library.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { createGraphic } = await __noacgImport('/src/model/library.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const { template } = useTemplateStore.getState();
       const { doc } = createGraphic(template, { name });
       const { show } = createShowNamedChecked(`Copies ${Date.now()}`);
@@ -534,8 +540,8 @@ test.describe('production copies (live-publishing W2)', () => {
     await expect.poll(markFrames, { timeout: 30_000 }).toBeGreaterThan(0);
     const framesBefore = await markFrames();
     await page.evaluate(async (name) => {
-      const { loadGraphics, updateGraphic } = await import('/src/model/library.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { loadGraphics, updateGraphic } = await __noacgImport('/src/model/library.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const doc = loadGraphics().find((g) => g.name === name)!;
       updateGraphic(doc.id, { template: { ...doc.template, css: `${doc.template.css}\n/* library v2 */` } });
       await commitDurableWrites();
@@ -546,18 +552,18 @@ test.describe('production copies (live-publishing W2)', () => {
     expect(await keptFrames(), 'a library edit reloads no program monitor frame').toBe(framesBefore);
 
     // Update takes it in, keeping the cue, its values, the layer and the link.
-    const before = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!, showId);
+    const before = await page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!, showId);
     await page.getByTestId('design-update').click();
     await expect(page.getByTestId('newer-design')).toHaveCount(0, { timeout: 15_000 });
-    const after = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!, showId);
+    const after = await page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!, showId);
     expect(after.graphics[0].template.css).toContain('library v2');
     expect(after.graphics[0].id).toBe(before.graphics[0].id);
     expect(after.graphics[0].layer).toBe(before.graphics[0].layer);
     expect(after.graphics[0].graphicId).toBe(before.graphics[0].graphicId);
     expect(after.cues).toEqual(before.cues);
     await page.evaluate(async (name) => {
-      const { loadGraphics, updateGraphic } = await import('/src/model/library.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { loadGraphics, updateGraphic } = await __noacgImport('/src/model/library.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const doc = loadGraphics().find((g) => g.name === name)!;
       updateGraphic(doc.id, { template: { ...doc.template, js: 'this is not javascript (' } });
       await commitDurableWrites();
@@ -579,7 +585,7 @@ test.describe('production copies (live-publishing W2)', () => {
     await page.reload();
     await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
     await expect.poll(async () => page.evaluate(async (id) => {
-      const g = (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.graphics[0];
+      const g = (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.graphics[0];
       return g.designAt !== undefined && g.designAt === g.savedAt;
     }, showId), { timeout: 60_000 }).toBe(true);
     await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
@@ -591,8 +597,8 @@ test.describe('production copies (live-publishing W2)', () => {
     await asOldBuild(old);
     const storedBefore = await stored(showId);
     await old.evaluate(async (id) => {
-      const S = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const S = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const show = S.loadShows().find((s) => s.id === id)!;
       const cue = show.cues![0];
       S.updateShowCueChecked(id, cue.id, { label: 'kept by the old page' });
@@ -600,14 +606,14 @@ test.describe('production copies (live-publishing W2)', () => {
       const g = show.graphics[0];
       S.upsertShows([{ ...S.loadShows().find((s) => s.id === id)!, graphics: [{ ...g, template: { ...g.template, css: `${g.template.css}\n/* pulled by an old page */` }, savedAt: new Date(Date.parse(g.savedAt) + 60_000).toISOString(), designAt: undefined }] }]);
       await commitDurableWrites();
-      const { syncNow } = await import('/src/backend/syncController.ts');
+      const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
       await syncNow();
     }, showId);
-    await expect.poll(async () => old.evaluate(async () => (await import('/src/backend/syncController.ts')).getSyncState().detail ?? ''), { timeout: 30_000 }).toContain(REFUSED);
+    await expect.poll(async () => old.evaluate(async () => (await __noacgImport('/src/backend/syncController.ts')).getSyncState().detail ?? ''), { timeout: 30_000 }).toContain(REFUSED);
     expect((await stored(showId)).body, 'an old page\'s sync stores nothing').toEqual(storedBefore.body);
     const publishNote = await old.evaluate(async (id) => {
-      const { publishControlShow } = await import('/src/control/hostedControl.ts');
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { publishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       try {
         await publishControlShow(loadShows().find((s) => s.id === id)!);
         return 'published';
@@ -629,7 +635,7 @@ test.describe('production copies (live-publishing W2)', () => {
     const returned = (await stored(showId)).body!;
     expect(returned.graphics[0].template.css).not.toContain('pulled by an old page');
     expect(returned.graphics[0].template.css).toContain('library v2');
-    const local = await old.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.graphics[0].template.css, showId);
+    const local = await old.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.graphics[0].template.css, showId);
     expect(local, 'the old device holds what went up').not.toContain('pulled by an old page');
     await old.close();
 
@@ -686,10 +692,10 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     await wipeMyGraphics(page);
     await bootstrapGraphic(page, { name: STRAP });
     const showId = await page.evaluate(async (label) => {
-      const { createGraphic } = await import('/src/model/library.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { createShowNamedChecked, addGraphicToShow, loadShows, setShowCues } = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { createGraphic } = await __noacgImport('/src/model/library.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const { createShowNamedChecked, addGraphicToShow, loadShows, setShowCues } = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const { template } = useTemplateStore.getState();
       const { doc } = createGraphic(template, { name: template.name });
       const { show } = createShowNamedChecked(label);
@@ -710,7 +716,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     await page.reload();
     await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
     return page.evaluate(async (id) => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       const s = loadShows().find((x) => x.id === id)!;
       return { showId: id, outputSlug: s.outputSlug ?? '', graphicId: s.graphics[0].id, cues: (s.cues ?? []).map((c) => c.id) };
     }, showId);
@@ -719,8 +725,8 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
   /** Change the production as an edit on this page does: a model write, landed on disk. */
   const edit = (page: Page, showId: string, change: string, arg: string) =>
     page.evaluate(async ({ id, change, arg }) => {
-      const shows = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const shows = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const s = shows.loadShows().find((x) => x.id === id)!;
       const cues = s.cues ?? [];
       if (change === 'label') shows.updateShowCue(id, cues[0].id, { label: arg });
@@ -740,6 +746,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     test.setTimeout(300_000);
     const { showId, outputSlug } = await published(page, `Auto ${Date.now()}`);
     const viewers = await browser.newContext();
+    await installDoor(viewers);
     const air = await viewers.newPage();
     await air.goto(outputUrl(outputSlug, 'Desk A'));
     const old = await viewers.newPage();
@@ -832,8 +839,8 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     await expect.poll(async () => { const s = await server(showId); return s.published !== null && s.published === s.rev; }, { timeout: 60_000 }).toBe(true);
     const before = await server(showId);
     const bound = await page.evaluate(async (id) => {
-      const shows = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const shows = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const g = shows.loadShows().find((x) => x.id === id)!.graphics[0];
       const fieldId = g.template.fields[0].field;
       shows.setFieldBinding(id, g.name, fieldId, 'loop.title');
@@ -856,7 +863,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     await expect.poll(async () => { const s = await server(showId); return s.published !== null && s.published === s.rev; }, { timeout: 60_000 }).toBe(true);
     // This page may no longer publish (account editing paused), and a save arrives from elsewhere.
     await page.evaluate(async () => {
-      const { setAccountAuthoringEnabled } = await import('/src/model/durableStore.ts');
+      const { setAccountAuthoringEnabled } = await __noacgImport('/src/model/durableStore.ts');
       setAccountAuthoringEnabled(false);
     });
     const [doc] = await (await service(`documents?id=eq.${showId}&select=body`)).json();
@@ -864,7 +871,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     expect(patched.ok).toBe(true);
     await expect(page.getByTestId('production-status')).toContainText('Saved, not on the outputs', { timeout: 60_000 });
     await page.evaluate(async () => {
-      const { setAccountAuthoringEnabled } = await import('/src/model/durableStore.ts');
+      const { setAccountAuthoringEnabled } = await __noacgImport('/src/model/durableStore.ts');
       setAccountAuthoringEnabled(true);
     });
   });
@@ -874,8 +881,8 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     const { showId, outputSlug } = await published(page, `Auto scene ${Date.now()}`);
     // A folder holding the first cue, and the OBS scenes switch on; no folder a scene yet.
     const { folderId, graphic } = await page.evaluate(async (id) => {
-      const m = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const s = m.loadShows().find((x) => x.id === id)!;
       const made = m.addFolderFromSelection(id, [s.cues![0].id], 'Gameplay');
       if (!made.folderId) throw new Error(`folder not made: ${made.error}`);
@@ -887,6 +894,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     await expect.poll(async () => { const s = await server(showId); return s.published !== null && s.published === s.rev; }, { timeout: 60_000 }).toBe(true);
     // Gameplay's link is open in OBS before its folder is a scene.
     const viewers = await browser.newContext();
+    await installDoor(viewers);
     const air = await viewers.newPage();
     await air.goto(`${outputUrl(outputSlug, 'Gameplay link')}&scene=${encodeURIComponent(folderId)}`);
     await expect.poll(async () => (await readyOf(air)) !== null, { timeout: 60_000 }).toBe(true);
@@ -925,8 +933,8 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     await held;
     const older = await server(showId);
     // The second page takes that save in, then saves over it.
-    await second.evaluate(async () => { await (await import('/src/backend/syncController.ts')).syncNow(); });
-    await expect.poll(() => second.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((x) => x.id === id)?.cues?.[0]?.label, showId), { timeout: 30_000 }).toBe('Older save');
+    await second.evaluate(async () => { await (await __noacgImport('/src/backend/syncController.ts')).syncNow(); });
+    await expect.poll(() => second.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((x) => x.id === id)?.cues?.[0]?.label, showId), { timeout: 30_000 }).toBe('Older save');
     await edit(second, showId, 'label', 'Newer save');
     await expect.poll(async () => (await server(showId)).labels.includes('Newer save'), { timeout: 60_000 }).toBe(true);
     const newer = await server(showId);

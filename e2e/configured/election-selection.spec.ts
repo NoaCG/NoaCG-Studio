@@ -56,6 +56,10 @@ import { settleDurableWrites } from '../_durable';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, SERVICE_ROLE_KEY, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
 import { makeTestCertificate, makeToken, startReplayServer } from '../../scripts/election-replay-server.mjs';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds || !SERVICE_ROLE_KEY, 'E2E_EMAIL / E2E_PASSWORD / SUPABASE_SERVICE_ROLE_KEY unset - configured-mode spec');
 
@@ -127,8 +131,8 @@ const collection = (rev: number, items: unknown[]) => ({ schemaRevision: 1, revi
 async function withSelections(page: Page, showId: string, picks: Record<string, unknown>, collections: unknown[] = [RECIPE]) {
   const error = await page.evaluate(
     async ({ id, picks, collections }) => {
-      const S = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const S = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const show = S.loadShows().find((s) => s.id === id)!;
       const next = { ...show, collections, cues: (show.cues ?? []).map((c) => (picks[c.label] ? { ...c, selection: picks[c.label] } : c)), updatedAt: new Date().toISOString() };
       return S.upsertShows([next as never]) ?? (await commitDurableWrites());
@@ -151,8 +155,8 @@ async function production(page: Page, context: BrowserContext, cues: string[]): 
   await addCatalogGraphic(page, showId, 'Underline');
   const error = await page.evaluate(
     async ({ id, cues }) => {
-      const S = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const S = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const show = S.loadShows().find((s) => s.id === id)!;
       const card = show.graphics.find((g) => g.name === 'Hairline')!;
       const bug = show.graphics.find((g) => g.name === 'Underline')!;
@@ -169,7 +173,7 @@ async function production(page: Page, context: BrowserContext, cues: string[]): 
   await page.keyboard.press('Escape');
   await expect.poll(async () => (await tree(showId)).bindings?.Underline?.f0, WIRE).toBe('external.e1.status');
   const { slug, data_key: dataKey } = await tree(showId);
-  const outputSlug = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? null, showId);
+  const outputSlug = await page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? null, showId);
   expect(outputSlug).toBeTruthy();
   const output = await context.newPage();
   await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}`);
@@ -204,7 +208,7 @@ async function installElection(page: Page): Promise<string> {
   await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles(repoFile('public/packs/election-rehearsal.noacgpack.json'));
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(6);
-  const showId = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().find((s) => s.name === 'Election night rehearsal')!.id);
+  const showId = await page.evaluate(async () => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.name === 'Election night rehearsal')!.id);
   await publishProduction(page);
   await page.keyboard.press('Escape');
   return showId;
@@ -332,7 +336,7 @@ test.describe('live candidates', () => {
     expect((await updates(w.showId)).length).toBe(corrected.length);
 
     // Pause holds what arrives; Resume sends the final values, and the hold ends.
-    const pause = (paused: boolean) => page.evaluate(async ({ s, paused }) => (await import('/src/control/productionDataApi.ts')).setAnotherSystemPaused(s, paused), { s: w.slug, paused });
+    const pause = (paused: boolean) => page.evaluate(async ({ s, paused }) => (await __noacgImport('/src/control/productionDataApi.ts')).setAnotherSystemPaused(s, paused), { s: w.slug, paused });
     await pause(true);
     await revision(request, w, 7, collection(7, people(1340)));
     await revision(request, w, 8, collection(8, people(1350)));
@@ -385,8 +389,8 @@ test.describe('live candidates', () => {
     await update(page, '1380');
 
     // ANOTHER PRODUCTION and back, then an app restart (a new page): each holds, then follows.
-    await page.evaluate(async () => (await import('/src/app/router.ts')).useRouter.getState().navigate({ view: 'home' }));
-    await page.evaluate(async (id) => (await import('/src/app/router.ts')).useRouter.getState().navigate({ view: 'production', id }), w.showId);
+    await page.evaluate(async () => (await __noacgImport('/src/app/router.ts')).useRouter.getState().navigate({ view: 'home' }));
+    await page.evaluate(async (id) => (await __noacgImport('/src/app/router.ts')).useRouter.getState().navigate({ view: 'production', id }), w.showId);
     await expect(page.getByTestId('production-page')).toBeVisible();
     await reopened(page, 12, 1390, '1380');
     await update(page, '1390');
@@ -420,7 +424,7 @@ test.describe('live candidates', () => {
     await revision(request, w, 1, collection(1, people(1200)));
     await take(page, 'Card A');
     await expect(onAirLine(w)).toHaveText('1200', WIRE);
-    expect(await page.evaluate(async (slug) => (await import('/src/control/hostedControl.ts')).sendsInOrder(slug), w.slug), 'the page is on protocol 1').toBe(false);
+    expect(await page.evaluate(async (slug) => (await __noacgImport('/src/control/hostedControl.ts')).sendsInOrder(slug), w.slug), 'the page is on protocol 1').toBe(false);
     await expect(page.getByTestId('unordered-sends'), 'and says so').toBeVisible();
     const before = (await updates(w.showId)).length;
 
@@ -450,16 +454,16 @@ test.describe('live candidates', () => {
     await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
     const showId = await openProductionWithCurrent(page, `Election later ${Date.now()}`);
     await page.evaluate(async (id) => {
-      const S = await import('/src/model/shows.ts');
+      const S = await __noacgImport('/src/model/shows.ts');
       const card = S.loadShows().find((s) => s.id === id)!.graphics[0];
       for (const label of ['Later card', 'Card A', 'Plain']) S.addShowCue(id, card.id, { label });
-      await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+      await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
     }, showId);
     const later = { v: 2, recipe: 'cands', pick: { rank: 1, district: 'D1' } };
     await withSelections(page, showId, { 'Later card': later, 'Card A': pick('D1', 7) });
     const stored = () =>
       page.evaluate(async (id) => {
-        const { durable } = await import('/src/model/durableStore.ts');
+        const { durable } = await __noacgImport('/src/model/durableStore.ts');
         const show = (JSON.parse(durable.getItem('spx-gfx-shows') ?? '[]') as { id: string; cues?: { label: string }[]; collections?: unknown }[]).find((s) => s.id === id)!;
         return { later: JSON.stringify(show.cues!.find((c) => c.label === 'Later card')), a: JSON.stringify(show.cues!.find((c) => c.label === 'Card A')), collections: JSON.stringify(show.collections) };
       }, showId);
@@ -476,7 +480,7 @@ test.describe('live candidates', () => {
     // typed value on a mapped field, a binding onto a mapped field. Each refuses, and the record
     // keeps its bytes; another cue still edits.
     const refusals = await page.evaluate(async (id) => {
-      const S = await import('/src/model/shows.ts');
+      const S = await __noacgImport('/src/model/shows.ts');
       const show = S.loadShows().find((s) => s.id === id)!;
       const cue = (label: string) => show.cues!.find((c) => c.label === label)!;
       return {
@@ -487,10 +491,10 @@ test.describe('live candidates', () => {
         boundBefore: JSON.stringify(S.loadShows().find((s) => s.id === id)!.bindings ?? {}),
         bound: JSON.stringify(S.setFieldBinding(id, 'Hairline', 'f0', 'results.name').find((s) => s.id === id)!.bindings ?? {}),
         plain: S.updateShowCueChecked(id, cue('Plain').id, { label: 'Plain renamed' }).error,
-        published: (await (await import('/src/control/hostedControl.ts')).buildOutputPayload(S.loadShows().find((s) => s.id === id)!)).cues.map((c) => c.label),
+        published: (await (await __noacgImport('/src/control/hostedControl.ts')).buildOutputPayload(S.loadShows().find((s) => s.id === id)!)).cues.map((c) => c.label),
         // The exported controller and the SPX rundown send a cue's prepared values the same way.
         ...(await (async () => {
-          const E = await import('/src/export/showExport.ts');
+          const E = await __noacgImport('/src/export/showExport.ts');
           const now = S.loadShows().find((s) => s.id === id)!;
           const text = async (zip: Awaited<ReturnType<typeof E.buildShowZip>>, file: RegExp) => (await Promise.all(zip.file(file).map((f) => f.async('string')))).join('\n');
           return { controller: await text(await E.buildShowZipFor(now, 'html-overlay'), /controller\.html$/), spx: await text(await E.buildShowZip(now), /\.json$/) };
@@ -511,7 +515,7 @@ test.describe('live candidates', () => {
       expect(exported, 'and leaves the candidate cues out').not.toContain('Later card');
       expect(exported).not.toContain('Card A');
     }
-    await page.evaluate(async () => (await import('/src/model/durableStore.ts')).commitDurableWrites());
+    await page.evaluate(async () => (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites());
     expect(await stored()).toEqual(kept);
     await page.reload();
     await expect(page.getByTestId('production-page')).toBeVisible();
@@ -526,7 +530,7 @@ test.describe('live candidates', () => {
     const starter = JSON.parse(readFileSync(fileURLToPath(new URL('../../packs/election-rehearsal/starter/revision-1.json', import.meta.url)), 'utf8'));
     const answer = await request.patch('/api/data/patch', { headers: { authorization: `Bearer ${dataKey}` }, data: starter });
     expect(answer.ok(), await answer.text()).toBe(true);
-    const outputSlug = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? null, showId);
+    const outputSlug = await page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? null, showId);
     const output = await context.newPage();
     await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}`);
     const on = (title: string, sel: string) => output.frameLocator(`iframe[title="${title}"]`).locator(sel);
@@ -568,7 +572,7 @@ test.describe('live candidates', () => {
     const published = await row();
     expect([Object.keys(published.bindings).sort(), published.sources, published.collections]).toEqual([['Count bug', 'Party totals'], [], null]);
     const source = readJson(REPLAY_SOURCE);
-    expect(await page.evaluate(async ({ id, source }) => (await import('/src/model/shows.ts')).connectConnectorSource(id, source, [], null).error, { id: showId, source })).toBeNull();
+    expect(await page.evaluate(async ({ id, source }) => (await __noacgImport('/src/model/shows.ts')).connectConnectorSource(id, source, [], null).error, { id: showId, source })).toBeNull();
     await expect.poll(async () => ((await row()).sources ?? []).map((s: { id: string }) => s.id), WIRE).toEqual(['election']);
     expect((await row()).collections).toBeNull();
     await expect(page.getByTestId('production-note')).toHaveCount(0);
@@ -597,7 +601,7 @@ test.describe('live candidates', () => {
       // bindings already follow `external.election.*`, so no field is connected by hand.
       const registration = readJson(REPLAY_SOURCE);
       const source = { ...registration, config: { ...registration.config, endpoint: replay.url } };
-      const refused = await page.evaluate(async ({ id, source }) => (await import('/src/model/shows.ts')).connectConnectorSource(id, source as never, [], null).error, { id: showId, source });
+      const refused = await page.evaluate(async ({ id, source }) => (await __noacgImport('/src/model/shows.ts')).connectConnectorSource(id, source as never, [], null).error, { id: showId, source });
       expect(refused).toBeNull();
       // The row carries the source and the collection recipe at once (no new publish).
       await expect.poll(async () => {
@@ -625,7 +629,7 @@ test.describe('live candidates', () => {
       expect(JSON.parse(first.external.election.candidates as string)).toMatchObject({ schemaRevision: 1, revision: 1 });
       expect(first.external.election.summary.updated).toBe('20:14');
 
-      const outputSlug = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? null, showId);
+      const outputSlug = await page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? null, showId);
       const output = await context.newPage();
       await output.setViewportSize({ width: 1280, height: 720 });
       await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}`);

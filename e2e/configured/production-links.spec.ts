@@ -31,13 +31,13 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   // Shows SYNC, so a failed earlier run can leave a published production behind whose slugs
   // would shadow this one's. Start from an empty set.
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     for (const s of loadShows()) {
       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
       deleteShow(s.id);
     }
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
   // bootstrapGraphic's `name` is the CATALOG DESIGN to build from, not the project's own name -
@@ -58,7 +58,7 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   /** The four addresses as the app itself knows them, read back off the synced show record. */
   const capabilities = () =>
     page.evaluate(async (name) => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       const s = loadShows().find((x) => x.name === name);
       return {
         control: s?.hostedSlug ?? null,
@@ -119,13 +119,13 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   // Teardown: this account is shared by the live suite, and a reserved join name is reserved for
   // good — leaving published productions behind would collide with the next run.
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     for (const s of loadShows()) {
       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
       deleteShow(s.id);
     }
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
 });
