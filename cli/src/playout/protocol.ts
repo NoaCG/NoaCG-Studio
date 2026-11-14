@@ -465,6 +465,8 @@ export interface SlotState {
   playerSource?: string;
   /** A current Bridge confirmed a foreign occupant (true) or an empty player (false). */
   playerOccupied?: boolean;
+  /** vMix reported the selected file as Completed. The position and Loop setting remain native. */
+  playerCompleted?: true;
   /** The slot's layer; the channel is the request's. */
   layer: number;
   /** `empty` after a STOP, `colour` after `PLAY … EMPTY`; nothing is on air in either. */

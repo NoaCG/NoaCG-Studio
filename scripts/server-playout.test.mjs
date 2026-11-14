@@ -56,6 +56,54 @@ test('vMix observations recover an exact production, cue and full selected file'
   assert.deepEqual(read(foreign, { player: 'clips', producer: 'empty' }).ownership, NO_OWNERSHIP);
 });
 
+test('vMix completion gives one stable Holding time without projecting the native position or Loop', () => {
+  const slot = { adapter: 'vmix', player: 'clips' };
+  const movie = { ...clip, id: 'media', name: 'Roll.mp4', adapter: 'vmix', mediaKind: 'movie' };
+  const opening = cue('opening', movie.id);
+  const context = { showId: 'story', cues: [opening], items: [movie], slotOf: () => slot };
+  const base = { ownership: NO_OWNERSHIP, timing: {} };
+  const row = { player: 'clips', layer: 0, producer: 'video', generation: 1, file: movie.name,
+    playerSource: movie.name, instance: 's1.playing', cueId: 'vmix:["story","opening","media"]',
+    position: 8, segment: { start: 0, length: 10 }, paused: false, loop: true, playerCompleted: true };
+  const inferred = applyVmixReading(base, { ...row, playerCompleted: undefined, position: 10, loop: false }, 's1', { ...context, now: 20 });
+  assert.equal(inferred.timing['NoaCG Clips'].endedAt, 20);
+  const complete = applyVmixReading(inferred, row, 's1', { ...context, now: 100 });
+  const held = applyVmixReading(complete, row, 's1', { ...context, now: 850 });
+  assert.equal(held.ownership, complete.ownership);
+  const timing = held.timing['NoaCG Clips'];
+  assert.equal(timing.position, 8);
+  assert.equal(timing.loop, true);
+  assert.equal(timing.endedAt, 100);
+  const presented = clipClock(held.ownership, held.timing, [movie], [opening], 1100);
+  assert.equal(presented.phase, 'holding');
+  assert.equal(presented.remaining, 0);
+  assert.equal(presented.over, 1);
+
+  const target = { slot, itemId: movie.id, cueId: opening.id, now: 1100, readable: true };
+  const paused = applyAccepted(held, { ...target, verb: 'pause' });
+  assert.equal(paused.timing['NoaCG Clips'].position, 8);
+  assert.equal(paused.timing['NoaCG Clips'].completed, undefined);
+  assert.equal(paused.timing['NoaCG Clips'].endedAt, undefined);
+  assert.equal(clipClock(paused.ownership, paused.timing, [movie], [opening], 1100).phase, 'paused');
+
+  const resumed = applyAccepted(held, { ...target, verb: 'resume' });
+  assert.equal(resumed.timing['NoaCG Clips'].position, undefined);
+  assert.equal(resumed.timing['NoaCG Clips'].completed, undefined);
+  assert.equal(resumed.timing['NoaCG Clips'].endedAt, undefined);
+  const pending = clipClock(resumed.ownership, resumed.timing, [movie], [opening], 1100);
+  assert.equal(pending.remaining, null);
+  assert.equal(pending.estimated, true);
+  const running = applyVmixReading(resumed, { ...row, playerCompleted: undefined, position: 9 }, 's1', { ...context, now: 1200 });
+  assert.equal(clipClock(running.ownership, running.timing, [movie], [opening], 1200).phase, 'looping');
+  assert.equal(running.timing['NoaCG Clips'].position, 9);
+  const completedAgain = applyVmixReading(running, row, 's1', { ...context, now: 1300 });
+  assert.equal(completedAgain.timing['NoaCG Clips'].endedAt, 1300);
+  const newInstance = applyVmixReading(held, { ...row, instance: 's1.replacement' }, 's1', { ...context, now: 1400 });
+  assert.equal(newInstance.timing['NoaCG Clips'].endedAt, 1400);
+  const noDuration = applyVmixReading(held, { ...row, position: 0, segment: { start: 0, length: 0 } }, 's1', { ...context, now: 900 });
+  assert.equal(clipClock(noDuration.ownership, noDuration.timing, [movie], [opening], 900).remaining, null, 'no previous duration is carried into a completed zero-duration read');
+});
+
 test('vMix command and reading admission follows player fences and retires the shared Bridge session', async () => {
   const store = createServerPlayoutStore();
   store.bindVmix('paired');

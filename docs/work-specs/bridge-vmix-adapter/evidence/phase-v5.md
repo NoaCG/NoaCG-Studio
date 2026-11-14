@@ -47,10 +47,16 @@ The watch now binds player reads to the existing ordered health evidence. The cu
 
 A separate Windows and GitHub typecheck found that the shared extension helper used a method outside Studio's configured TypeScript library. Indexed access now selects the same filename in both mirrored protocol sources.
 
+## Completed playback and the clip clock
+
+The full review of `6ac9fafdf68b8555f280b2401edfaba675be686c` reproduced a finished native clip showing a moving loop while Loop was still enabled. At 3.8 seconds of a 4-second file, a completed clip without Loop also showed a moving final countdown. The grouped reassessment confirmed that native completion is independent of the reported position and Loop setting.
+
+Bridge now reports completion on the selected media row and keeps both values. A known duration gives zero time remaining on the rundown row. Holding starts at the first explicit completed observation and keeps that start while the same instance remains completed. A still or an unavailable duration supplies no new countdown. A genuine Pause or running Loop keeps its existing meaning. A changed state, instance or accepted transport clears the completed clock. After a Resume, the clock waits for the next player position before showing a remaining time.
+
 ## Allocation and rollback
 
 Codebase-health #2285 is closed. Current editor #2552, live-publishing #2563 and draft CI #2423 were checked for shared paths. #1967 records the cf13 hold ending on November 9. The final release manifest still needs the actual changed-path check before queue admission.
 
-The final candidate includes main `4f11d145fc09cb438cd8da478f73ebaee9e22263` (#2567). Its team refresh retains newer local records and compatible heads. The V5 fold still reads the current production record through the existing shared lookup, including that retained local state.
+The final candidate includes main `4f11d145fc09cb438cd8da478f73ebaee9e22263` (#2567). Its team refresh retains newer local records and compatible heads. The V5 fold still reads the current production record through the existing shared lookup, including that retained local state. The candidate also includes main `7be4b007272148295c8e6dffcbd32344c772f39b` (#2563), with the current configured-target and offline verification guard.
 
 After landing, revert with `git revert -m 1 <V5 merge SHA>` through the merge queue. No database migration is needed.

@@ -76,7 +76,7 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
   const playerReading = (player: Player) => {
     const row = players[player];
     const at = playerClock[player];
-    if (row.paused || row.position === undefined || !row.segment || at === undefined) return row;
+    if (row.paused || row.playerCompleted || row.position === undefined || !row.segment || at === undefined) return row;
     const elapsed = row.position + (performance.now() - at) / 1000;
     const { length } = row.segment;
     return { ...row, position: row.loop && length > 0 ? elapsed % length : Math.min(length, elapsed) };

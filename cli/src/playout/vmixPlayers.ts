@@ -271,6 +271,7 @@ export function createVmixPlayers(media: VmixMedia) {
         loop: !!file && (list?.loop ?? false),
         ...(file && list ? {
           file, position: list.positionMs / 1000, segment: { start: 0, length: list.durationMs / 1000 },
+          ...(list.state === 'Completed' ? { playerCompleted: true as const } : {}),
           ...(saved.take && playerSource ? { playerSource, instance: saved.take.id, ...(saved.take.cueId ? { cueId: saved.take.cueId } : {}) } : {}),
         } : {}),
       };

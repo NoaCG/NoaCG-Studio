@@ -57,6 +57,7 @@ test('vMix player state is complete, paired and strict before any row can be adm
     [{ ...clips, cueId: clips.cueId, instance: undefined }, audio], [{ ...clips, playerSource: 'C:/clip.mp4' }, audio],
     [{ ...clips, segment: { start: 0, length: -1 } }, audio], [{ ...clips, position: '3' }, audio],
     [{ ...clips, producer: 'other' }, audio], [clips, { ...audio, playerOccupied: true }],
+    [{ ...clips, playerCompleted: true }, audio], [clips, { ...audio, playerCompleted: true }],
   ]) {
     reply = { ...placement, players };
     assert.equal((await readVmixPlayers(settings, 'staged')).reply, undefined, JSON.stringify(players));
@@ -79,8 +80,9 @@ test('vMix player state is complete, paired and strict before any row can be adm
     reply = { ...placement, players };
     assert.equal((await readVmixPlayers(settings, 'current')).reply, undefined, JSON.stringify(players));
   }
-  reply = { ...placement, players: [clips, confirmedEmpty] };
-  assert.deepEqual((await readVmixPlayers(settings, 'current')).reply?.players, [clips, confirmedEmpty]);
+  const completed = { ...clips, paused: false, loop: true, playerCompleted: true, position: 14.8 };
+  reply = { ...placement, players: [completed, confirmedEmpty] };
+  assert.deepEqual((await readVmixPlayers(settings, 'current')).reply?.players, [completed, confirmedEmpty]);
 });
 
 test('vMix held player replies use the same ordered capability witness through fold', async t => {

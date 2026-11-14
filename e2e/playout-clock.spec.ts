@@ -335,6 +335,11 @@ test('vMix reads a playing cue, restores the exact production after reload, and 
   await expect(clip).toContainText('ON AIR');
   await expect(clockTime(page)).toHaveText(/^-/);
   await page.screenshot({ path: info.outputPath('vmix-clock-after-reload.png') });
+  vmix.players.clips = { ...vmix.players.clips, position: 59.8, loop: true, playerCompleted: true };
+  await expect(clock(page)).toContainText('HOLDING');
+  await expect(clockTime(page).locator('.pd-clipclock-num')).toHaveText(/^\+\d+:\d\d$/);
+  await expect(clip.getByTestId('cue-length')).toHaveText('0:00');
+  await expect(clip).toContainText('ON AIR');
   await page.goto('/app#/production/' + copyId);
   await expect(clip).toBeVisible();
   const beforeCopyRead = vmix.routes.filter(route => route === '/state').length;

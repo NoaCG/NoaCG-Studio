@@ -1389,12 +1389,13 @@ function validVmixPlayerReading(row: SlotState, session: string, contract: VmixP
   if (!row || (row.player !== 'clips' && row.player !== 'audio') || row.layer !== 0 ||
     !whole(row.generation, 0) || typeof row.paused !== 'boolean' || typeof row.loop !== 'boolean' ||
     row.arriving !== undefined || row.queued !== undefined || row.transition !== undefined || row.sequence !== undefined) return false;
+  if (row.playerCompleted !== undefined && (row.playerCompleted !== true || row.paused)) return false;
   if (row.producer === 'empty' || row.producer === 'other') {
     const occupied = row.producer === 'other';
     const confirmed = row.playerOccupied === occupied && !row.paused && !row.loop;
     return (confirmed || (contract === 'staged' && row.playerOccupied === undefined)) &&
       row.file === undefined && row.segment === undefined && row.position === undefined &&
-      row.instance === undefined && row.cueId === undefined && row.playerSource === undefined;
+      row.instance === undefined && row.cueId === undefined && row.playerSource === undefined && row.playerCompleted === undefined;
   }
   if (row.playerOccupied !== undefined || !vmixRelativeFile(row.file)) return false;
   const kind = vmixMediaKind(row.file);

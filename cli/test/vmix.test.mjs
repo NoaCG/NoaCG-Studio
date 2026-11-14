@@ -1913,10 +1913,14 @@ test('vMix treats wrong-player media as occupied but withholds a snapshot with m
   assert.equal(mayNotPause.ok, false);
   assert.equal(fake.functions.length, called);
   clips.state = 'Completed';
-  clips.position = clips.duration;
+  clips.loop = true;
+  clips.position = clips.duration - 200;
   const completed = (await adapter.overlays(target)).value.players.find(row => row.player === 'clips');
   assert.equal(completed.instance, playing.instance, 'a malformed reading did not discard the prior selection');
-  assert.equal(completed.position, completed.segment.length);
+  assert.equal(completed.playerCompleted, true);
+  assert.equal(completed.position, (clips.duration - 200) / 1000);
+  assert.equal(completed.loop, true, 'Bridge reports native Loop separately from completion');
+  assert.equal(completed.paused, false);
 });
 
 test('vMix V5 guards permanently retire an occurrence on an initial conclusive loss', async t => {
