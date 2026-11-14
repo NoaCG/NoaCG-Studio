@@ -283,13 +283,25 @@ function scriptsRun(words, dir) {
   const at = runnerAt(words);
   // After an interpreter, any file it is given may be the program, extension or not; a file run
   // directly is judged by its extension, since every word of every command would otherwise be read.
-  const candidates = at >= 0 ? words.slice(at + 1).filter((w) => !w.startsWith('-')) : commandWords(words).slice(0, 1).filter((w) => SCRIPT.test(w));
+  // The argument of an inline-code flag is code, not a file name.
+  const candidates = at >= 0
+    ? words.slice(at + 1).filter((w, i, rest) => !w.startsWith('-') && !(i > 0 && RUNS_OTHER_CODE.test(rest[i - 1])))
+    : commandWords(words).slice(0, 1).filter((w) => SCRIPT.test(w));
   const files = [];
   for (const word of candidates) {
     const file = isAbsolute(word) ? word : resolve(dir, word);
-    if (statSync(file, { throwIfNoEntry: false })?.isFile()) files.push(file);
+    if (isFile(file)) files.push(file);
   }
   return files;
+}
+
+/** Is this a regular file? Any lookup error (a name too long, no access) is a no, never a throw. */
+function isFile(file) {
+  try {
+    return statSync(file, { throwIfNoEntry: false })?.isFile() ?? false;
+  } catch {
+    return false;
+  }
 }
 
 /** The repository-relative path of a tracked file, or null for a one-off (untracked, or outside any repository). One git call. */
