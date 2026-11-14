@@ -147,7 +147,7 @@ import { describeProductionGate, productionGateFailures } from '../../validation
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { keepGeometry, publishBox } from '../../control/keptGeometry';
-import { storedBoxes } from '../../control/publishParts';
+import { stampKey, storedBoxes } from '../../control/publishParts';
 import { LIVE_BUILD } from '../../control/livePath';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
@@ -1132,7 +1132,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   // AUTOMATIC UPDATES (live-publishing designs/G3.md): once the server's guard is installed and its
   // switch is on, every save of this published production is published with no press, and each
   // publish asks every output to prepare at once, old ones included.
-  const appearanceForRef = useRef<((s: Show) => Promise<CuePublished | undefined>) | undefined>(undefined);
+  const appearanceForRef = useRef<((s: Show, base?: PayloadVersion | null) => Promise<CuePublished | undefined>) | undefined>(undefined);
   /** The scene-join step after any publish, a press's or an automatic one (set below, once the
    *  verbs it takes with exist). */
   const sceneJoinRef = useRef<((published: { version: PayloadVersion; scenes: { before: ObsScene[]; after: ObsScene[] } }) => void) | null>(null);
@@ -3001,18 +3001,22 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       // Every graphic cue carries its records (none, for a graphic nobody adjusted) and the box this
       // page measured (one cue of an unadjusted graphic is measured here for it), so the hosted page's Adjust block can start from any of them; only an
       // adjusted cue carries an appearance.
-      appearanceFor: appearanceForRef.current = async (latest) => {
+      appearanceFor: appearanceForRef.current = async (latest: Show, base?: PayloadVersion | null) => {
         const lib = loadGraphics();
         adoptKeptBoxes(latest, lib);
         // The stored boxes (a cue not measured yet keeps its published one, #2532) are waited for
         // beside the measurements, within the same cap.
         const capped = <T,>(p: Promise<T>) => Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), PUBLISH_MEASURE_CAP_MS))]);
-        const [stored] = await Promise.all([
-          boxesAhead === true ? capped(storedBoxes(latest.id)) : null,
+        const [snapshot] = await Promise.all([
+          // Only a publish that names the stored stamp it builds on carries from it (a press does not).
+          boxesAhead === true && base !== undefined ? capped(storedBoxes(latest.id)) : null,
           Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS))),
         ]);
         const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
         const ctx = styleCtxOf(latest, templates);
+        // A stored box is the box the publication holds only while that publication is the one this
+        // publish builds on (#2532): the snapshot's stamp is the base's.
+        const stored = snapshot && snapshot.ver === stampKey(base) ? snapshot.boxes : null;
         // The design digest a stored box is checked against, for each graphic one of whose cues has
         // a stored box (the stamp's `ver.g`, memoized: the publish computes the same right after).
         const digests = new Map<string, string>();
@@ -3021,7 +3025,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
             if ((latest.cues ?? []).some((c) => c.sourceId === g.id && stored.has(c.id))) digests.set(g.id, await copyDigest(latest, i, g.template));
           }
         }
-        return (cue) => {
+        // Marked with the stamp it carried from once it carries a box, so a publish that then finds
+        // the stamp moved builds again (control/publishParts.ts `carriedFrom`).
+        const of: CuePublished & { carriedFrom?: string } = (cue) => {
           const g = latest.graphics.find((x) => x.id === cue.sourceId);
           const state = adjustStateOf(cue, latest, lib, ctx);
           if (!g || !state) return undefined;
@@ -3030,9 +3036,11 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           const look = ctx.lookFor?.(g.id);
           const rest = publishedAdjustOf(g, cue, look, null, frame, stage);
           const box = stored ? publishBox(state.m, stored.get(cue.id), { values: cue.values, rest, digest: digests.get(g.id) ?? null }) : state.m;
+          if (box && box !== state.m && snapshot) of.carriedFrom = snapshot.ver;
           const adjust = publishedAdjustOf(g, cue, look, box, frame, stage);
           return { ...(state.send ? { appearance: state.send } : {}), adjust };
         };
+        return of;
       },
       // REHEARSAL ENDS AT THE FIRST PUBLISH: the live map and PROGRAM stay this page's.
       onFirstPublish: (rehearsed) => {

@@ -31,7 +31,7 @@ import type { ObsScene } from '../model/obsScenes';
 import { sendsIdle } from './sendsInFlight';
 import type { AudienceBrand } from '../audience/audienceBrand';
 import { partialWritesOn } from '../backend/partialWrites';
-import { forgetOwnPublish, noteOwnPublish, ownPublish, pruneDue, publishInParts } from './publishParts';
+import { carriedFrom, forgetOwnPublish, noteOwnPublish, notePublishedBoxes, ownPublish, pruneDue, publishInParts, stampKey } from './publishParts';
 
 /** Resolves on a later task: a click queued meanwhile runs first. */
 function yieldToInput(): Promise<void> {
@@ -200,8 +200,9 @@ async function patchRow(id: string, filter: string, body: Blob | string): Promis
 export async function publishRevision(
   show: Show,
   rev: number,
-  /** Each cue's appearance and adjust records, measured for this record: run as a step of its own. */
-  measure?: () => Promise<CuePublished | undefined>,
+  /** Each cue's appearance and adjust records, measured for this record: run as a step of its own,
+   *  told the stored stamp the publish builds on (a stored box is carried only from it). */
+  measure?: (base: PayloadVersion | null) => Promise<CuePublished | undefined>,
   /** The measure harness only (G3 section 13): write the whole payload again even when nothing changed. */
   force = false,
   /** Read the stored stamp and panel even when this page's own last publish could stand in. */
@@ -220,7 +221,7 @@ export async function publishRevision(
     if (!stored.exists) return { kind: 'gone' };
     if (!force && stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
     for (const g of show.graphics) await timed(() => assertProductionGate([g], library, 'publish'));
-    const publishedOf = measure ? await timed(measure) : undefined;
+    const publishedOf = measure ? await timed(() => measure(stored.ver ?? null)) : undefined;
     const raw = await timed(() => buildOutputPayload(show, library, publishedOf));
     const g: Record<string, string> = {};
     for (const [i, graphic] of show.graphics.entries()) g[graphic.name] = await timed(() => copyDigest(show, i, graphic.template));
@@ -272,6 +273,10 @@ export async function publishRevision(
     /** The join page's brand as stored, from a publish in parts' answer (undefined: read it). */
     let brand: unknown = undefined;
     for (let tries = 0; ; tries++) {
+      // A box carried from one stored publication never lands on another (#2532): the stamp moved
+      // since the measure step, so the publish builds again from the stamp as it is now.
+      const carried = carriedFrom(publishedOf);
+      if (carried !== undefined && carried !== stampKey(stored.ver)) return publishRevision(show, rev, measure, force, true);
       const named = stored.ver ? stored.ver.n : null;
       const filter = named !== null ? `published_ver->>n=eq.${named}` : 'published_ver=is.null';
       const ver: PayloadVersion = { ...(await stampFromDigests(g, built.resolution, stored.ver, new Date(), edited)), r: rev, c };
@@ -290,6 +295,7 @@ export async function publishRevision(
         landed = await patchRow(show.id, filter, await body(ver));
       }
       if (landed > 0) {
+        notePublishedBoxes(show.id, ver, built.cues);
         if (inParts) noteOwnPublish(show.id, { ver, rev, scenes: built.scenes ?? [], panel });
         else forgetOwnPublish(show.id);
         afterFullPublish(sb, show, brand);

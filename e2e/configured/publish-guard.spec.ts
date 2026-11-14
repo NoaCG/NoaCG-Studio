@@ -1174,6 +1174,39 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       await settled('the first edit after a cold reload, whole');
       await page.unroute('**/rest/v1/rpc/control_publish_parts');
       expect(await storedBoxes(), 'whole: every stored box kept').toEqual(boxesBefore);
+
+      // A teammate's box-only republish between this page's opening and its next edit: the box this
+      // page read when it opened is not the stored one any more, so it is never written back over
+      // theirs (the edit behaves as without a carry, as `main` does).
+      await coldReload();
+      const [target, oldBox] = boxesBefore.find(([, b]) => b !== null) as [string, { info: { x: number } | null; paint: { x: number } | null }];
+      const teammate = await page.context().newPage();
+      await teammate.goto('/');
+      const teammateOutcome = await teammate.evaluate(async ({ id, cueId }) => {
+        const { publishRevision } = await __noacgImport('/src/control/publishRevision.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+        const sb = (await getSupabase())!;
+        const { data } = await sb.from('control_shows').select('published_rev, output').eq('id', id).single();
+        const row = data as { published_rev: number; output: { cues: { id: string; appearance?: unknown; adjust?: { box?: { info: { x: number } | null; paint: { x: number } | null } } }[] } };
+        const shift = (r: { x: number } | null) => (r ? { ...r, x: r.x + 7 } : r);
+        // The same cues as stored, one box measured a few pixels apart.
+        const of = (cue: { id: string }) => {
+          const c = row.output.cues.find((x) => x.id === cue.id);
+          if (!c?.adjust) return undefined;
+          const box = c.adjust.box && cue.id === cueId ? { ...c.adjust.box, info: shift(c.adjust.box.info), paint: shift(c.adjust.box.paint) } : c.adjust.box;
+          return { ...(c.appearance ? { appearance: c.appearance } : {}), adjust: { ...c.adjust, box } };
+        };
+        const show = loadShows().find((x) => x.id === id)!;
+        return (await publishRevision(show, row.published_rev, async () => of as never, true)).kind;
+      }, { id: showId, cueId: target });
+      expect(teammateOutcome, 'the teammate republished').toBe('published');
+      await teammate.close();
+      const theirs = (await storedBoxes()).find(([c]) => c === target)?.[1];
+      expect(theirs, 'the teammate moved the box').not.toEqual(oldBox);
+      await edit(page, showId, 'label', 'After a teammate');
+      await settled('the edit after a teammate republished');
+      expect((await storedBoxes()).find(([c]) => c === target)?.[1], 'the old box is not written back over the teammate\'s').not.toEqual(oldBox);
       await page.evaluate(() => sessionStorage.removeItem('e2e-hold-measure'));
       await page.reload();
       await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });

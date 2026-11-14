@@ -43,7 +43,7 @@ import { noteSend, withSender } from './livePath';
 import { counted } from './sendsInFlight';
 import { obsScenesOf, SCENE_ID, type ObsScene } from '../model/obsScenes';
 import { partialWritesOn } from '../backend/partialWrites';
-import { forgetOwnPublish, noteOwnPublish, ownPublish, pruneDue, publishInParts } from './publishParts';
+import { forgetOwnPublish, noteOwnPublish, notePublishedBoxes, ownPublish, pruneDue, publishInParts } from './publishParts';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
 import { uuid } from '../model/id';
@@ -759,6 +759,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
     }
     if (got.kind === 'landed') {
       noteOwnPublish(show.id, { ver: version, rev: rev ?? null, scenes: scenes.after, panel: published.panel });
+      notePublishedBoxes(show.id, version, output.cues);
       return afterPublishWrite(sb, show, version, scenes, got.answer);
     }
     forgetOwnPublish(show.id);
@@ -787,6 +788,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
     // is the one that describes what is actually wrong.
     if (retry) throw new Error(error.message);
   }
+  notePublishedBoxes(show.id, version, output.cues);
   return afterPublishWrite(sb, show, version, scenes);
 }
 
