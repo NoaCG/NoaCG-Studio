@@ -274,6 +274,23 @@ the stored cues, 31.5 to 38.8 kB per open on the large fixture (42 cues, one car
 both ways with headers, six opens in j-0013 and j-0014; with the stamp's design digests added for
 K9, 33.5 to 40.7 kB (three opens in j-0017).
 
+**Tied to the publication a publish builds on (rule K10).** The third full review (B at 5d37c550)
+found that a teammate's box-only republish could still be overwritten by the page-open snapshot.
+After three confirmed rounds of one family, a read-only reassessment of the rule model graded it
+sound with three changes, all made: the snapshot carries the stored stamp's number and time (an
+unpublish restarts the number), read in the same request as the boxes; this page's own landings
+(automatic and press) replace it with what they wrote; an automatic publish passes the stamp it
+builds on and carries only from a snapshot of that stamp, and one that carried and then finds the
+stamp moved builds again once (a second move answers as a retry later). A press carries nothing.
+
+`e2e/configured/publish-guard.spec.ts` now also has the teammate case: after a cold reload, a
+Publish press moves one stored box by 7 px (made from the writer page, whose records of the store
+are then put back, since a second writer page of one browser is refused), then this page edits; the
+stored box is not the page-open one. Passes (j-0024). With the stamp tie removed it fails (j-0025:
+the publish carries, finds the stamp moved, and builds again without end, so the edit never
+publishes; the restart is now bounded to once, j-0026). `scripts/publish-parts.test.mjs` adds the
+stamp identity, a landing replacing a read in flight, and a stamp-less read not kept.
+
 **The stored boxes' read.** Read afresh at every opening of the production; a publish waits for it
 beside its measurements within the same 8 s cap, or reads itself when the opening did not; a failed
 read is not kept (`scripts/publish-parts.test.mjs`, 3 tests; mutations: keeping the first read fails
