@@ -4015,7 +4015,18 @@
         "source": "d2d35f4a7cfd44d61f0807bfe35d7323aacfd3bf",
         "scope": "Canonical publictextdefaults/internalatomicop; escapedcapturedlabels; initialEdit; allunchangedguards and sourcepreservation proofs",
         "limits": "2workers/cap5smallcommands, no newbuild/fullsuite/broaderallowance/provider/productionwrite",
-        "rootSoleQueueOwner": true
+        "rootSoleQueueOwner": true,
+        "progress": "Initial4maintained task GREEN after expectedRED; adversarial,durable/export and existingHelp/guards next; no PRyet"
+      },
+      "restart": {
+        "at": "2026-11-14T21:22Z",
+        "environment": "f8bb unchanged",
+        "native": "6af8403d-0d00-8191-804b-4923b3338071 samebuilder",
+        "observed": "read_thread originalturn interrupted/idle; canonical followup resumed originalnative; no replacement",
+        "source": "0dce5fffc3b8a92b728077e57dcca64b92304c22 plus preserved5modified+newhelperd810b0eb",
+        "verification": "j2164expectedRED; j2174PASS18.6s;lintandcorrectedTS PASS; no commandinflight atrestart; adversarial/durability/exportnotstarted",
+        "coordinator": "cloudnetworkPASS; first preflight CLIargshapeFAIL beforeprobe retained; correctedseparatewavepreflightsPASS21:21:21+21:21:31",
+        "worker": "ACK tocontinue onlyafterpostrestart network+workerwavepreflightPASS; no scope/attempt/budgetreset"
       }
     }
   },
