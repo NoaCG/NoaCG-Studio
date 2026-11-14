@@ -42,7 +42,15 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [],
+  "inFlight": [
+    {
+      "step": "build",
+      "head": "1b7e067c537d567e119c5f886b22f521b2a80503",
+      "session": "/root/v5_builder",
+      "phase": "v5",
+      "note": "V4 accepted. Fresh local builder working from latest main on vMix clip timing, reload, and the next Bridge release. Rules-first review before product edits."
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": []
