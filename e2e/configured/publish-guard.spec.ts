@@ -1185,6 +1185,10 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       await expect.poll(async () => (await server(showId)).labels.includes('Pressed'), { timeout: 60_000 }).toBe(true);
       press.stop();
       expect(rpcs(press.seen, 'control_publish_parts').length, 'the press went in parts').toBeGreaterThan(0);
+      // The press path's bytes, reported beside AC-5 (coordinator, #2361): this press follows a reload
+      // and a stale head, so it reads the stored stamp.
+      const pressEach = await Promise.all(press.seen.map(async (x) => ({ what: `${x.method} ${x.url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]}`, bytes: await x.bytes })));
+      console.log('press-bytes', pressEach.filter((x) => !/\/rest\/v1\/(teams|team_members|team_productions)$|\/rpc\/audience_list$/.test(x.what)).reduce((a, b) => a + b.bytes, 0), JSON.stringify([...pressEach].sort((a, b) => b.bytes - a.bytes).slice(0, 8)));
       const after = await (await service(`control_shows?id=eq.${showId}&select=output`)).json();
       expect(JSON.stringify(after[0].output.graphics), 'output recomposed from the parts').not.toContain('an old page wrote this');
       await sameAsWhole('the press after a stale head');
@@ -1233,6 +1237,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       const teamEach = await Promise.all(teamSaves.seen.map(async (x) => ({ what: `${x.method} ${x.url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]}`, bytes: await x.bytes })));
       const teamBytes = teamEach.filter((x) => !/\/rpc\/audience_list$/.test(x.what)).reduce((a, b) => a + b.bytes, 0);
       test.info().annotations.push({ type: 'team-edits-bytes', description: `${teamBytes} over ${teamEach.length} requests for two team edits, every team read counted (reported, not judged)` });
+      console.log('team-edits-bytes', teamBytes, teamEach.length, JSON.stringify([...teamEach].sort((a, b) => b.bytes - a.bytes).slice(0, 6)));
       await recordSame('a team save', teamId);
       await page.evaluate(async ([id, team]) => {
         const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
