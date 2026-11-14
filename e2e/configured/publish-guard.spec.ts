@@ -41,7 +41,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic } from '../_create';
-import { settleDurableWrites } from '../_durable';
+import { awaitDurableReady, settleDurableWrites } from '../_durable';
 import {
   clearPublishedShows,
   readyOf,
@@ -1182,6 +1182,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       const [target, oldBox] = boxesBefore.find(([, b]) => b !== null) as [string, { info: { x: number } | null; paint: { x: number } | null }];
       const teammatePage = await page.context().newPage();
       await teammatePage.goto('/');
+      await awaitDurableReady(teammatePage);
       const teammateOutcome = await teammatePage.evaluate(async ({ id, cueId }) => {
         const { publishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
         const { loadShows } = await __noacgImport('/src/model/shows.ts');
