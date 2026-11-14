@@ -61,6 +61,7 @@ export const PRODUCTION_TOOLS = [
   'scripts/owner-preflight.mjs',
   'scripts/production-load.mjs',
   'scripts/production-page-keys.mjs',
+  'scripts/production-switch.mjs',
   'scripts/supabase-advisors.mjs',
 ];
 

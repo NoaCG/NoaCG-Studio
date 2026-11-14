@@ -78,6 +78,9 @@ const ALLOWED = [
   `env -u ${KEY} -u SUPABASE_SECRET_KEY -u ${TOKEN} node -e "fetch(u, { headers: { apikey: process.env.${KEY} } })"`,
   `${KEY}=local-key node -e "console.log(process.env.${KEY}.length)"`,
   `${TOKEN}=$${TOKEN} node scripts/supabase-advisors.mjs`,
+  // The incident switch tool, read and write.
+  'node scripts/production-switch.mjs',
+  'node scripts/production-switch.mjs --set production_copies off',
   // Naming a variable is not using it: a search, a quoted message, text written to a file.
   `grep -rn "process.env.${KEY}" scripts`,
   `git commit -m 'read process.env.${KEY} only in the tools'`,
