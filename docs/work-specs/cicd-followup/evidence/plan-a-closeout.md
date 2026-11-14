@@ -81,7 +81,7 @@ conversion is a later option.
   specs, that is an alarm to the owner and a revert candidate for #2530.
 - **Duration weights.** The PR that carries this file re-records them from main's first three green
   full runs on the build (43552605380, 43560650900, 43569321859; 18c0c25f and later), and no
-  dev-server run is mixed in. \`--record\` now takes several run ids for that. The table goes from
+  dev-server run is mixed in. `--record` now takes several run ids for that. The table goes from
   197.3 to 131.2 table-min. Two quarantined specs (editor-projects, output-debate-clock) ran in none
   of those runs, so the planner counts them at the median until they return.
 
