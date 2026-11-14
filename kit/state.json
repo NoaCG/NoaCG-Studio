@@ -80,7 +80,8 @@
   ],
   "owner": [
     "No recruitment or downloaded build is requested. Owner will review fixes through hosted Studio after engineering verification.",
-    "Actual receiving-system, rights and candidate-specific release decisions retain their existing gates; do not infer completion from usability feedback."
+    "Actual receiving-system, rights and candidate-specific release decisions retain their existing gates; do not infer completion from usability feedback.",
+    "Hosted assistant smoke: fix is deployed; fresh Studio tab, one Help reply and one small reviewed Edit/Undo. Report outcome/error; no personal AI setup. Pending actual signed-in receipt."
   ],
   "fixes": [
     {
@@ -3833,14 +3834,57 @@
           "configured": 43618491183,
           "postLand": 43618491173,
           "codeql": 43618490585,
-          "status": "inprogress; rootmuststaythroughterminalanddeployment"
+          "status": "inprogress; rootmuststaythroughterminalanddeployment",
+          "postLandConclusion": "success",
+          "quarantineConclusion": "success",
+          "deploymentVerification": {
+            "run": 43618694191,
+            "conclusion": "success"
+          }
         },
         "deploymentBookkeepingSkips": [
           43618503164,
           43618502046,
           43618500565,
           43618498072
-        ]
+        ],
+        "treeEquivalence": {
+          "merge": "82c4a59d245572c743ecee22a592e128642d735e",
+          "featureHead": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84",
+          "tree": "a3cbe34c7a627327c865d02fe8cc7d7a26748730",
+          "completeTreeEqual": true,
+          "firstParent": "5c118f5b02c3b6266d8286cc24f797438774eedb",
+          "secondParent": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84",
+          "assistantBranchCleanAtFeature": true
+        }
+      },
+      "hosted": {
+        "status": "PUBLIC exactmerge deployed; liveauthenticatedHelp/EditUndo pendingownerreceipt",
+        "versionReadAt": "2026-11-14T17:01:16Z",
+        "url": "https://noacg.studio/app?editor=foundation#/editor-foundation",
+        "version": {
+          "commit": "82c4a59d245572c743ecee22a592e128642d735e",
+          "ref": "main",
+          "builtAt": "2026-11-14T16:58:38.723Z",
+          "lastDeployAffectingCommit": "82c4a59d245572c743ecee22a592e128642d735e",
+          "deployedCommitIsCurrent": true
+        },
+        "deployment": {
+          "id": "dpl_5tuiTNJjgZj51VUfLSCEBErykbXb",
+          "target": "production",
+          "source": "82c4a59d245572c743ecee22a592e128642d735e",
+          "route": "NormalGitmain deployment; no adhocdeployment/settings changes",
+          "verificationRun": 43618694191,
+          "verificationConclusion": "success"
+        },
+        "limits": "Publicversion and deployverify do not proveprovidercredentials/payer/realEditUndo. No callableauthenticatedbrowser/session; ownerusesexistingStudioaccount, no personalkeys/recruits/localbuild.",
+        "ownerQuestion": {
+          "tool": "request_user_input_async",
+          "accepted": true,
+          "requestedAt": "2026-11-14T17:01Z",
+          "task": "FreshStudio tab/disposablegraphic: Help HowdoIaddanOut; smalltextEdit review/Apply/Undo; reportoutcome/exacterror. No secret/upload requested.",
+          "status": "pending"
+        }
       }
     }
   }
