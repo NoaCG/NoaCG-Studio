@@ -1,9 +1,11 @@
-// guards: src/control/vmixSetup.ts, src/control/playoutLink.ts
+// guards: src/control/vmixSetup.ts, src/control/playoutLink.ts, src/control/prepareBridge.ts, src/control/prepareLive.ts
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { act, actVmix, finishCasparAllOut, forgetBridges, PLAYOUT_DEFAULTS, readVmixOverlays, testVmix } = await import('../src/control/playoutLink.ts');
+const { act, actVmix, actVmixMedia, finishCasparAllOut, forgetBridges, listVmixMedia, PLAYOUT_DEFAULTS, readVmixOverlays, testVmix, vmixMediaFolder } = await import('../src/control/playoutLink.ts');
+const { gatherBridgeFacts } = await import('../src/control/prepareBridge.ts');
+const { bridgeChecks, finishedBridgeChecks, stampOf } = await import('../src/control/prepareLive.ts');
 const { changeVmixOutput, readVmixOutput, vmixOverlay } = await import('../src/control/vmixSetup.ts');
 
 const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token', vmix: { overlay: 3 } };
@@ -897,6 +899,171 @@ test('accepted All out after navigation reads the original CasparCG slot before 
   }
 });
 
+test('vMix media routes use the paired token and a Take requires the current capability and session', async (t) => {
+  const priorStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: () => JSON.stringify(settings) } });
+  t.after(() => priorStorage ? Object.defineProperty(globalThis, 'localStorage', priorStorage) : delete globalThis.localStorage);
+  const calls = [];
+  const target = { adapter: 'vmix' };
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'Replay/clip.mov' } };
+  let media = false;
+  let allowed = true;
+  let switched = false;
+  let instance = 'fixture.play-1';
+  let malformed = false;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/health') {
+      if (switched) allowed = false;
+      return Response.json({ ...health, features: media ? ['vmix-media'] : [] });
+    }
+    assert.equal(options.headers.authorization, 'Bearer fixture-token');
+    calls.push([path, JSON.parse(options.body)]);
+    if (path === '/list') return Response.json({ ...ok, items: [{ name: malformed ? '../clip.mov' : action.item.name, kind: 'movie' }, { name: 'Replay/empty.wav', kind: 'audio', frames: 0, fps: 48000 }] });
+    if (path === '/studio' || path === '/vmix/choose-folder') {
+      return Response.json({ ...ok, mediaFolder: 'C:\\Videos', ...(path === '/vmix/choose-folder' ? { cancelled: true } : {}) });
+    }
+    assert.equal(path, '/act');
+    return Response.json({ ...acted, instance });
+  });
+  const send = () => actVmixMedia(settings, action, () => allowed);
+  assert.equal((await send()).state, 'outdated');
+  media = true;
+  switched = true;
+  assert.equal(await send(), null);
+  assert.deepEqual(calls, []);
+  switched = false;
+  allowed = true;
+  assert.equal((await send()).instance, instance);
+  instance = 'different.play-1';
+  assert.equal((await send()).playerUncertain, true);
+  assert.deepEqual((await listVmixMedia(settings, 'Replay')).items, [{ name: action.item.name, kind: 'movie' }, { name: 'Replay/empty.wav', kind: 'audio', frames: 0, fps: 48000 }]);
+  malformed = true;
+  assert.equal((await listVmixMedia(settings, 'Replay')).result.state, 'bridge');
+  assert.equal((await vmixMediaFolder(settings)).folder, 'C:\\Videos');
+  assert.equal((await vmixMediaFolder(settings, true)).cancelled, true);
+  assert.deepEqual(calls, [
+    ['/act', { target, action }],
+    ['/act', { target, action }],
+    ['/list', { target, kind: 'media', path: 'Replay' }],
+    ['/list', { target, kind: 'media', path: 'Replay' }],
+    ['/studio', { target }],
+    ['/vmix/choose-folder', { target }],
+  ]);
+});
+
+test('Check Readiness verifies only the active adapter and the exact vMix ancestor and leaf names', async (t) => {
+  const calls = [];
+  let available = true;
+  let mixerRunning = true;
+  const delay = Promise.withResolvers();
+  const requested = Promise.withResolvers();
+  let hold = false;
+  const studio = { ...settings, host: '127.0.0.1' };
+  const items = [
+    { id: 'caspar', kind: 'media', name: 'OPENING', layer: 10 },
+    ...['Replay/Opening.mp4', 'Replay/opening.mp4', 'replay/Opening.mp4']
+      .map((name, index) => ({ id: 'vmix' + index, adapter: 'vmix', kind: 'media', name, layer: 0 })),
+  ];
+  const show = {
+    playoutItems: items,
+    cues: items.map(item => ({ id: 'cue-' + item.id, source: 'playout', sourceId: item.id, label: item.name, values: {} })),
+  };
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return Response.json({ ...health, features: ['vmix-media'] });
+    const body = JSON.parse(options.body);
+    calls.push([body.target.adapter, path, body.path]);
+    if (path === '/status') {
+      if (body.target.adapter !== 'vmix') return Response.json({ ...ok, version: '2.5.0', raw: 'VERSION OK' });
+      return Response.json(mixerRunning ? status : {
+        ok: false, v: 2, error: { hop: 'target', code: 'unreachable', setup: 'not-running', detail: 'Start vMix.' },
+      });
+    }
+    assert.equal(path, '/list');
+    if (body.target.adapter !== 'vmix') return Response.json({ ...ok, items: [{ name: 'opening', kind: 'movie' }] });
+    if (body.path === undefined) return Response.json({ ...ok, items: [{ name: 'Replay', kind: 'folder' }] });
+    assert.equal(body.path, 'Replay', 'an exact parent listing is required before descent');
+    if (hold) {
+      requested.resolve();
+      await delay.promise;
+    }
+    if (!available) return Response.json({ ok: false, v: 2, error: { hop: 'target', code: 'refused', detail: 'Folder unavailable.' } });
+    return Response.json({ ...ok, items: [{ name: 'Replay/Opening.mp4', kind: 'movie' }] });
+  });
+  const caspar = await gatherBridgeFacts(studio, show, { bridge: true, slot: false });
+  assert.deepEqual(calls.splice(0), [['casparcg', '/status', undefined], ['casparcg', '/list', undefined]]);
+  assert.equal(bridgeChecks(caspar).find(line => line.key === 'bridge-media').tone, 'ok');
+  assert.deepEqual(caspar.items.map(item => item.name), ['OPENING']);
+  let current = true;
+  const mix = () => gatherBridgeFacts(studio, show, { bridge: false, slot: false, vmixCurrent: () => current });
+  const complete = await mix();
+  const observed = bridgeChecks(complete);
+  const files = observed.find(line => line.key === 'bridge-media');
+  assert.equal(files.tone, 'bad');
+  assert.match(files.label, /Replay\/opening\.mp4, replay\/Opening\.mp4/);
+  assert.match(files.advice, /vMix media folder/);
+  assert.deepEqual(calls.splice(0), [['vmix', '/status', undefined], ['vmix', '/list', undefined], ['vmix', '/list', 'Replay']]);
+  assert.equal(stampOf(observed, { n: 1, h: 'prepared' }, 0).problems, 1);
+  current = false;
+  assert.match(bridgeChecks(complete)[0].advice, /connection, media folder or rundown files changed/, 'the final stamp rechecks a completed reading');
+  current = true;
+  mixerRunning = false;
+  const stopped = bridgeChecks(await mix());
+  assert.equal(stopped.find(line => line.key === 'bridge').tone, 'bad');
+  assert.equal(stopped.find(line => line.key === 'bridge-media').tone, 'bad', 'Bridge can still verify files with vMix stopped');
+  mixerRunning = true;
+  available = false;
+  assert.equal(bridgeChecks(await mix()).find(line => line.key === 'bridge-media').tone, 'warn');
+  available = true;
+  hold = true;
+  const older = mix();
+  await requested.promise;
+  current = false;
+  delay.resolve();
+  const superseded = bridgeChecks(await older);
+  assert.equal(stampOf(superseded, { n: 1, h: 'prepared' }, 0).problems, 1);
+  assert.equal(superseded.some(line => line.key === 'bridge-media'), false);
+  assert.match(superseded[0].advice, /connection, media folder or rundown files changed/);
+});
+
+test('required vMix media evidence contributes an incomplete readiness line when it is still pending or refused', () => {
+  const target = { n: 1, h: 'output-ready' };
+  const output = { key: 'output', tone: 'ok', label: 'Output ready' };
+  for (const facts of [null, undefined]) {
+    assert.equal(stampOf([output, ...finishedBridgeChecks(facts, true)], target, 60_000).problems, 1);
+    assert.deepEqual(finishedBridgeChecks(facts, false), []);
+  }
+  let current = true;
+  const facts = { adapter: 'vmix', configured: false, required: false, items: [], current: () => current, status: null, outputSlug: null, channel: 1, layer: 20 };
+  assert.deepEqual(finishedBridgeChecks(facts, false), [], 'no active vMix cues at the press');
+  current = false;
+  const changed = finishedBridgeChecks(facts, false);
+  assert.equal(stampOf([output, ...changed], target, 60_000).problems, 1, 'new references after a publish invalidate the no-file result');
+});
+
+test('vMix lists preserve nonempty exact names and report the Bridge’s unsettled folder choice', async (t) => {
+  const folder = String.fromCodePoint(0xa0);
+  const calls = [];
+  let uncertain = false;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(new URL(url).pathname, '/list');
+    const { path } = JSON.parse(options.body);
+    calls.push(path);
+    if (uncertain) return Response.json({ ok: false, v: 2, error: { hop: 'agent', code: 'uncertain', detail: 'The folder save is still settling.' } });
+    return Response.json({ ...ok, items: path === folder
+      ? [{ name: folder + '/inside.mov', kind: 'movie' }]
+      : [{ name: folder, kind: 'folder' }, { name: 'opening.mov', kind: 'movie' }] });
+  });
+  assert.deepEqual((await listVmixMedia(settings)).items.map(item => item.name), [folder, 'opening.mov']);
+  assert.deepEqual((await listVmixMedia(settings, folder)).items.map(item => item.name), [folder + '/inside.mov']);
+  uncertain = true;
+  const unavailable = await listVmixMedia(settings, folder);
+  assert.equal(unavailable.items, undefined);
+  assert.match(unavailable.result.detail, /folder save is still settling/);
+  assert.deepEqual(calls, [undefined, folder, folder]);
+});
+
 test('W1: a server action to a Bridge already heard as current sends /act with no /health first; a failure to reach it asks /health why', { timeout: 3000 }, async (t) => {
   forgetBridges();
   const paths = [];
@@ -928,4 +1095,477 @@ test('W1: a server action to a Bridge already heard as current sends /act with n
   down = false;
   await act(settings, take);
   assert.deepEqual(paths, ['/health', '/act'], 'an address that failed is asked first again');
+});
+
+test('only a definitive vMix media authorization refusal leaves the player owned', async (t) => {
+  const before = globalThis.window;
+  globalThis.window = { location: { origin: 'http://127.0.0.1:5173' } };
+  t.after(() => { globalThis.window = before; });
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };
+  let reply;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (new URL(url).pathname === '/health') return Response.json({ ...health, features: ['vmix-media'] });
+    return reply();
+  });
+  for (const status of [401, 403]) {
+    reply = () => new Response('{', { status });
+    assert.equal((await actVmixMedia(settings, action, () => true)).playerUncertain, true, 'malformed ' + status);
+    reply = () => new Response(null, { status });
+    assert.equal((await actVmixMedia(settings, action, () => true)).playerUncertain, undefined, 'empty ' + status);
+    reply = () => Response.json({ v: 2, ok: false, error: { hop: 'agent', code: 'refused', detail: 'Pair again.' } }, { status });
+    assert.equal((await actVmixMedia(settings, action, () => true)).playerUncertain, undefined, 'valid refusal ' + status);
+  }
+  reply = () => new Response('{', { status: 502 });
+  assert.equal((await actVmixMedia(settings, action, () => true)).playerUncertain, true);
+  reply = () => { throw new TypeError('Response lost'); };
+  assert.equal((await actVmixMedia(settings, action, () => true)).playerUncertain, true);
+});
+
+test('an uncertain vMix folder choice invalidates outstanding reads in both paired tabs', async (t) => {
+  const first = await import('../src/control/playoutLink.ts');
+  const second = await import('../src/control/playoutLink.ts?vmix-folder-other-tab');
+  const globals = {
+    window: { location: { origin: 'http://127.0.0.1:5173' } },
+    localStorage: { getItem: () => JSON.stringify(settings) },
+  };
+  const channels = new Set();
+  globals.BroadcastChannel = class {
+    constructor() { channels.add(this); }
+    postMessage(data) {
+      for (const other of channels) {
+        if (other !== this) queueMicrotask(() => other.onmessage?.({ data }));
+      }
+    }
+    close() { channels.delete(this); }
+  };
+  for (const [name, value] of Object.entries(globals)) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => previous ? Object.defineProperty(globalThis, name, previous) : delete globalThis[name]);
+  }
+  const notified = [0, 0];
+  const tabs = [first, second];
+  const stop = tabs.map((tab, index) => tab.watchVmixMediaFolder(() => { notified[index] += 1; }));
+  t.after(() => stop.forEach(unsubscribe => unsubscribe()));
+  const hold = Promise.withResolvers();
+  const listed = Promise.withResolvers();
+  let requests = 0;
+  let committed = false;
+  let chooseReply = () => Response.json({ ...ok, mediaFolder: 'C:\\Old', cancelled: true });
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/vmix/choose-folder') return chooseReply();
+    if (path === '/studio') return Response.json({ ...ok, mediaFolder: 'C:\\New' });
+    assert.equal(path, '/list');
+    if (committed) return Response.json({ ...ok, items: [{ name: 'New.mp4', kind: 'movie' }] });
+    if (++requests === 2) listed.resolve();
+    await hold.promise;
+    return Response.json({ ...ok, items: [{ name: 'Old.mp4', kind: 'movie' }] });
+  });
+  const initial = tabs.map(tab => tab.vmixMediaFolderRevision());
+  assert.equal((await first.vmixMediaFolder(settings, true)).cancelled, true);
+  chooseReply = () => Response.json({ v: 2, ok: false, error: { hop: 'agent', code: 'refused', detail: 'No picker opened.' } });
+  assert.equal((await first.vmixMediaFolder(settings, true)).result.state, 'bridge');
+  assert.deepEqual(notified, [0, 0], 'cancel and definite refusal retain the prior reading');
+  const old = tabs.map(async (tab, index) => {
+    const reply = await tab.listVmixMedia(settings);
+    return tab.vmixMediaFolderRevision() === initial[index] ? reply.items : undefined;
+  });
+  await listed.promise;
+  chooseReply = () => Response.json({ v: 2, ok: false, error: { hop: 'agent', code: 'uncertain', detail: 'The folder save is still settling.' } });
+  const result = await first.vmixMediaFolder(settings, true);
+  assert.match(result.result.detail, /folder save is still settling/);
+  assert.equal(result.folder, undefined);
+  committed = true;
+  hold.resolve();
+  assert.deepEqual(await Promise.all(old), [undefined, undefined]);
+  assert.deepEqual(notified, [1, 1]);
+  for (const tab of tabs) {
+    assert.equal((await tab.vmixMediaFolder(settings)).folder, 'C:\\New');
+    assert.deepEqual((await tab.listVmixMedia(settings)).items, [{ name: 'New.mp4', kind: 'movie' }]);
+  }
+  const unexpectedFolderErrors = [200, 502].map(status => () => Response.json({
+    v: 2, ok: false, error: { hop: 'target', code: 'unreachable', detail: 'Unrecognized chooser outcome.' },
+  }, { status }));
+  for (const reply of [...unexpectedFolderErrors, () => new Response('{'), () => { throw new TypeError('Response lost'); }]) {
+    chooseReply = reply;
+    const revisions = tabs.map(tab => tab.vmixMediaFolderRevision());
+    assert.equal((await first.vmixMediaFolder(settings, true)).folder, undefined);
+    assert.deepEqual(tabs.map(tab => tab.vmixMediaFolderRevision()), revisions.map(revision => revision + 1));
+  }
+});
+
+test('Settings pairing observers see local changes and cross-tab switch-back', async (t) => {
+  const { savePlayoutSettings, watchPlayoutPairing, playoutPairingRevision, vmixMediaFolderRevision } = await import('../src/control/playoutLink.ts');
+  const events = new EventTarget();
+  let stop = () => {};
+  let stopSecond = () => {};
+  t.after(() => { stop(); stopSecond(); });
+  const saved = new Map();
+  const storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) };
+  for (const [name, value] of Object.entries({ window: events, localStorage: storage })) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => previous ? Object.defineProperty(globalThis, name, previous) : delete globalThis[name]);
+  }
+  savePlayoutSettings(settings);
+  let observed = 0;
+  let second = 0;
+  const start = [playoutPairingRevision(), vmixMediaFolderRevision()];
+  stop = watchPlayoutPairing(() => { observed += 1; });
+  stopSecond = watchPlayoutPairing(() => { second += 1; });
+  savePlayoutSettings({ layer: 31 });
+  assert.equal(observed, 0);
+  savePlayoutSettings({ agentToken: 'new-token' });
+  assert.equal(observed, 1);
+  savePlayoutSettings({ agentToken: settings.agentToken });
+  assert.equal(observed, 2);
+
+  const [key, current] = [...saved.entries()][0];
+  const other = JSON.stringify({ ...JSON.parse(current), agentUrl: 'http://127.0.0.1:59993' });
+  const changed = (oldValue, newValue) => events.dispatchEvent(Object.assign(new Event('storage'), { storageArea: storage, key, oldValue, newValue }));
+  changed(current, other);
+  changed(other, current);
+  assert.equal(observed, 4, 'both transitions are observed even though storage already reads the original pairing');
+  assert.equal(second, 4);
+  assert.deepEqual([playoutPairingRevision(), vmixMediaFolderRevision()], start.map(revision => revision + 4),
+    'each transition retires the previous evidence once, independent of subscriber count');
+  stop();
+  changed(current, other);
+  assert.equal(observed, 4);
+  assert.equal(second, 5);
+});
+
+test('a stale vMix folder chooser sends no request and an in-flight result still notifies its originating Bridge', async (t) => {
+  const first = await import('../src/control/playoutLink.ts');
+  const next = { ...settings, agentUrl: 'http://127.0.0.1:59993', agentToken: 'replacement-token' };
+  let stored = next;
+  const notifications = [];
+  const globals = {
+    window: { location: { origin: 'http://127.0.0.1:5173' } },
+    localStorage: { getItem: () => JSON.stringify(stored) },
+    BroadcastChannel: class {
+      postMessage(data) { notifications.push(data); }
+      close() {}
+    },
+  };
+  for (const [name, value] of Object.entries(globals)) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => previous ? Object.defineProperty(globalThis, name, previous) : delete globalThis[name]);
+  }
+
+  const requests = [];
+  let reply = Promise.resolve(Response.json({ ...ok, mediaFolder: 'C:/Selected' }));
+  t.mock.method(globalThis, 'fetch', (url, options) => {
+    requests.push([url, options.headers.authorization]);
+    return reply;
+  });
+  assert.equal((await first.vmixMediaFolder(settings, true)).folder, undefined);
+  assert.deepEqual(requests, [], 'a stale press chooses on neither the displayed Bridge nor the new one');
+  assert.deepEqual(notifications, []);
+
+  const before = first.vmixMediaFolderRevision();
+  for (const body of [
+    { ...ok, mediaFolder: 'C:/Selected' },
+    { v: 2, ok: false, error: { hop: 'agent', code: 'uncertain', detail: 'The save is still settling.' } },
+  ]) {
+    const hold = Promise.withResolvers();
+    reply = hold.promise;
+    stored = settings;
+    const choosing = first.vmixMediaFolder(settings, true);
+    stored = next;
+    hold.resolve(Response.json(body));
+    await choosing;
+    assert.equal(first.vmixMediaFolderRevision(), before, 'the sender is now reading a different Bridge');
+  }
+  assert.deepEqual(requests, Array.from({ length: 2 }, () => [
+    settings.agentUrl + '/vmix/choose-folder', 'Bearer fixture-token',
+  ]));
+  assert.deepEqual(notifications, [settings.agentUrl, settings.agentUrl], 'only the originating address is published');
+
+  const sameAddress = Promise.withResolvers();
+  reply = sameAddress.promise;
+  stored = settings;
+  const choosing = first.vmixMediaFolder(settings, true);
+  stored = { ...settings, agentToken: next.agentToken };
+  sameAddress.resolve(Response.json({ ...ok, mediaFolder: 'C:/Selected' }));
+  await choosing;
+  assert.equal(first.vmixMediaFolderRevision(), before + 1, 'new credentials still read the same Bridge folder');
+  assert.deepEqual(notifications, [settings.agentUrl, settings.agentUrl, settings.agentUrl]);
+});
+
+test('a previous pairing lifetime cannot restore or clear the new vMix capability', async (t) => {
+  const { savePlayoutSettings, watchPlayoutPairing, playoutPairingRevision } = await import('../src/control/playoutLink.ts');
+  const events = new EventTarget();
+  const saved = new Map();
+  let stop = () => {};
+  t.after(() => stop());
+  for (const [name, value] of Object.entries({
+    window: events, localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) },
+  })) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => previous ? Object.defineProperty(globalThis, name, previous) : delete globalThis[name]);
+  }
+  savePlayoutSettings(settings);
+  stop = watchPlayoutPairing(() => {});
+  forgetBridges();
+  const capability = { ...health, features: ['vmix-media'] };
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };
+  const actionReply = { ...acted, instance: 'fixture.play-1' };
+  let pendingAction;
+  let pendingHealth;
+  const paths = [];
+  t.mock.method(globalThis, 'fetch', async url => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/act') return pendingAction?.promise ?? Response.json(actionReply);
+    if (path === '/health') return pendingHealth?.promise ?? Response.json(capability);
+    assert.equal(path, '/status');
+    return Response.json(status);
+  });
+  assert.equal((await testVmix(settings)).media, true);
+  const before = playoutPairingRevision();
+  const oldAction = Promise.withResolvers();
+  const oldHealth = Promise.withResolvers();
+  pendingAction = oldAction;
+  const acting = actVmixMedia(settings, action, () => playoutPairingRevision() === before);
+  pendingAction = undefined;
+  pendingHealth = oldHealth;
+  const checking = testVmix(settings);
+  pendingHealth = undefined;
+
+  savePlayoutSettings({ agentToken: 'another-pairing' });
+  savePlayoutSettings({ agentToken: settings.agentToken });
+  assert.equal((await testVmix(settings)).media, true);
+  oldHealth.resolve(Response.json(capability));
+  oldAction.resolve(new Response('{', { status: 502 }));
+  assert.equal((await checking).media, undefined);
+  assert.equal((await acting).playerUncertain, true);
+  paths.length = 0;
+  assert.equal((await actVmixMedia(settings, action, () => true)).state, 'ok');
+  assert.deepEqual(paths, ['/act'], 'a failed old action cannot delete capability established by the new pairing');
+});
+
+test('guarded vMix Out requires the Bridge feature and preserves typed player failure details', async (t) => {
+  forgetBridges();
+  const out = { verb: 'out', slot: { adapter: 'vmix', player: 'clips' }, expectedPlayerInstance: 'fixture.play-1' };
+  const sent = [];
+  let features = ['vmix-media'];
+  let response = acted;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return Response.json({ ...health, features });
+    if (path === '/status') return Response.json(status);
+    assert.equal(path, '/act');
+    sent.push(JSON.parse(options.body).action);
+    return Response.json(response);
+  });
+  assert.equal((await actVmixMedia(settings, out, () => true)).state, 'outdated');
+  assert.deepEqual(sent, []);
+  features = [...features, 'vmix-player-out-guard'];
+  assert.equal((await testVmix(settings)).media, true);
+  assert.equal((await actVmixMedia(settings, out, () => true)).state, 'ok');
+  assert.deepEqual(sent, [{ ...out, verb: 'out-player-instance' }]);
+  for (const code of ['uncertain', 'unreachable']) {
+    const detail = code === 'uncertain' ? 'Bridge could not confirm the player setup.' : 'The player command reached its deadline.';
+    response = { ok: false, v: 2, error: { hop: 'agent', code, detail } };
+    const result = await actVmixMedia(settings, out, () => true);
+    assert.ok(result.detail.includes(detail));
+    assert.equal(result.playerUncertain, true);
+  }
+});
+
+test('a known vMix media pairing sends directly and rechecks capability after a lost action reply', async (t) => {
+  const settingsForPlayer = { ...settings, agentUrl: 'http://127.0.0.1:59992' };
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };
+  const paths = [];
+  let media = true;
+  let lost = false;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/health') return Response.json({ ...health, features: media ? ['vmix-media'] : [] });
+    if (path === '/status') return Response.json(status);
+    assert.equal(path, '/act');
+    if (lost) throw new TypeError('Response lost');
+    return Response.json({ ...acted, instance: 'fixture.play-1' });
+  });
+  assert.equal((await testVmix(settingsForPlayer)).media, true);
+  assert.deepEqual(paths.splice(0), ['/health', '/status']);
+  assert.equal((await actVmixMedia(settingsForPlayer, action, () => true)).state, 'ok');
+  assert.deepEqual(paths.splice(0), ['/act']);
+  lost = true;
+  media = false;
+  assert.equal((await actVmixMedia(settingsForPlayer, action, () => true)).playerUncertain, true);
+  assert.deepEqual(paths.splice(0), ['/act', '/health'], 'diagnose without repeating the action');
+  lost = false;
+  assert.equal((await actVmixMedia(settingsForPlayer, action, () => true)).state, 'outdated');
+  assert.deepEqual(paths.splice(0), ['/health']);
+  media = true;
+  assert.equal((await actVmixMedia(settingsForPlayer, action, () => true)).state, 'ok');
+  assert.deepEqual(paths.splice(0), ['/health', '/act']);
+});
+
+test('a health reply started before an uncertain vMix action cannot restore capability', async (t) => {
+  const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59993' };
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };
+  const oldHealth = Promise.withResolvers();
+  const oldStarted = Promise.withResolvers();
+  const paths = [];
+  let healthReads = 0;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/status') return Response.json(status);
+    if (path === '/act') throw new TypeError('Response lost');
+    assert.equal(path, '/health');
+    healthReads += 1;
+    if (healthReads === 2) {
+      oldStarted.resolve();
+      await oldHealth.promise;
+      return Response.json({ ...health, features: ['vmix-media'] });
+    }
+    return Response.json({ ...health, features: healthReads === 1 ? ['vmix-media'] : [] });
+  });
+  assert.equal((await testVmix(pairing)).media, true);
+  const stale = testVmix(pairing);
+  await oldStarted.promise;
+  assert.equal((await actVmixMedia(pairing, action, () => true)).playerUncertain, true);
+  oldHealth.resolve();
+  assert.equal((await stale).media, undefined);
+  assert.deepEqual(paths.splice(0), ['/health', '/status', '/health', '/act', '/health']);
+  assert.equal((await actVmixMedia(pairing, action, () => true)).state, 'outdated');
+  assert.deepEqual(paths, ['/health']);
+});
+
+test('a slower vMix Settings status read uses the newest validated capability for its pairing', async t => {
+  const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59995' };
+  const firstHealth = Promise.withResolvers();
+  const firstStarted = Promise.withResolvers();
+  const payload = { ...health, features: ['vmix-media'] };
+  let reads = 0;
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (new URL(url).pathname === '/status') return Response.json(status);
+    if (++reads === 1) {
+      firstStarted.resolve();
+      await firstHealth.promise;
+      return Response.json({ ...health, features: ['vmix-output-key'] });
+    }
+    return Response.json(payload);
+  });
+  const opening = testVmix(pairing);
+  await firstStarted.promise;
+  assert.equal((await testVmix(pairing)).media, true);
+  firstHealth.resolve();
+  const opened = await opening;
+  assert.equal(opened.media, true);
+  assert.equal(opened.keyed, false);
+  assert.equal(opened.result.state, 'ok');
+});
+
+test('held vMix status uses newer capability and discards retired pairing evidence', async t => {
+  for (const change of ['newer health', 'uncertain action during status', 'uncertain action during reconnect']) await t.test(change, async t => {
+    forgetBridges();
+    const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59996' };
+    const reconnect = change === 'uncertain action during reconnect';
+    const statusStarted = Promise.withResolvers();
+    const releaseStatus = Promise.withResolvers();
+    let features = ['vmix-media'];
+    let statusCalls = 0;
+    t.mock.method(globalThis, 'fetch', async url => {
+      const path = new URL(url).pathname;
+      if (path === '/health') return Response.json({ ...health, features });
+      if (path === '/act') return new Response('{', { status: 502 });
+      assert.ok(path === '/status' || path === '/connect');
+      if (++statusCalls === 1) {
+        statusStarted.resolve();
+        await releaseStatus.promise;
+      }
+      return Response.json(path === '/connect' ? connected : status);
+    });
+
+    const opening = testVmix(pairing, reconnect);
+    await statusStarted.promise;
+    if (change === 'newer health') {
+      features = ['vmix-output-key'];
+      assert.equal((await testVmix(pairing)).media, false);
+    } else {
+      const out = { verb: 'out', slot: { adapter: 'vmix', player: 'clips' } };
+      assert.equal((await actVmixMedia(pairing, out, () => true)).playerUncertain, true);
+      assert.equal((await testVmix(pairing)).media, true, 'the same pairing has a new positive observation');
+    }
+    releaseStatus.resolve();
+    const result = await opening;
+    if (change === 'newer health') {
+      assert.equal(result.media, false);
+      assert.equal(result.keyed, true);
+      assert.deepEqual(result.result.features, features);
+      assert.deepEqual(result.info, vmix);
+    } else {
+      assert.equal(result.supported, undefined);
+      assert.equal(result.media, undefined);
+      assert.equal(result.result.state, 'bridge');
+      assert.equal(result.result.features, undefined);
+      assert.equal(result.info, undefined);
+    }
+  });
+});
+
+test('an older positive vMix health reply cannot authorize a Take after a newer negative one', async (t) => {
+  const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59994' };
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };
+  const oldHealth = Promise.withResolvers();
+  const oldStarted = Promise.withResolvers();
+  const paths = [];
+  let healthReads = 0;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/status') return Response.json(status);
+    if (path === '/act') return Response.json({ ...acted, instance: 'fixture.play-1' });
+    assert.equal(path, '/health');
+    healthReads += 1;
+    if (healthReads === 1) {
+      oldStarted.resolve();
+      await oldHealth.promise;
+      return Response.json({ ...health, features: ['vmix-media'] });
+    }
+    return Response.json({ ...health, features: [] });
+  });
+  const waiting = actVmixMedia(pairing, action, () => true);
+  await oldStarted.promise;
+  assert.equal((await testVmix(pairing)).media, false);
+  oldHealth.resolve();
+  assert.equal((await waiting).state, 'bridge');
+  assert.deepEqual(paths, ['/health', '/health', '/status']);
+});
+
+
+test('a vMix media action keeps automatic publishing waiting until its wire reply', async t => {
+  const { sendsIdle } = await import('../src/control/sendsInFlight.ts');
+  const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59997' };
+  const held = Promise.withResolvers();
+  const sent = Promise.withResolvers();
+  t.mock.method(globalThis, 'fetch', async url => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return Response.json({ ...health, features: ['vmix-media'] });
+    assert.equal(path, '/act');
+    sent.resolve();
+    await held.promise;
+    return Response.json(acted);
+  });
+  const pending = actVmixMedia(pairing, { verb: 'out', slot: { adapter: 'vmix', player: 'clips' } }, () => true);
+  try {
+    await sent.promise;
+    let idle = false;
+    void sendsIdle().then(() => { idle = true; });
+    await Promise.resolve();
+    assert.equal(idle, false);
+  } finally {
+    held.resolve();
+  }
+  assert.equal((await pending).state, 'ok');
+  await sendsIdle();
 });

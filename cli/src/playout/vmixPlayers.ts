@@ -395,6 +395,9 @@ export function createVmixPlayers(media: VmixMedia) {
       if (input && list && input.key !== setup.players[otherPlayer(player)]?.key.toLowerCase()) current = { input, list };
     }
     const saved = reconcile(port, player, current);
+    if (action.verb === 'out' && action.expectedPlayerInstance !== undefined && saved.take?.id !== action.expectedPlayerInstance) {
+      return refused(VMIX_PLAYER_TITLE[player] + ' no longer holds the playback instance this All out accepted.');
+    }
     if (!current && action.verb !== 'take' && !empty) return refused(VMIX_PLAYER_TITLE[player] + ' has no selected file.');
     const selected = current && selectedFile(current.list);
     if (current && (action.verb === 'take' || action.verb === 'resume' || action.verb === 'ending')) {

@@ -243,8 +243,11 @@ export function stampWords(stamp: ReadyStamp, published: HeldVersion | null, unp
   return `Ready for Live, checked ${at}`;
 }
 
-/** What Prepare for Live found about NoaCG Bridge and CasparCG, gathered by the page (read-only). */
+/** What Prepare for Live found about the Bridge and the selected playout system (read-only). */
 export interface BridgeFacts {
+  adapter?: 'vmix';
+  /** A vMix result only applies to the pairing and media folder this read began with. */
+  current?: () => boolean;
   /** The studio has a Bridge and a server set up (playoutLink.ts `playoutConfigured`). */
   configured: boolean;
   /** Server cues require Bridge even if it has not been configured yet. */
@@ -289,8 +292,9 @@ export function slotHolds(slot: SlotState | null, outputSlug: string | null): 'o
 
 /** "NoaCG Bridge and CasparCG answer (CasparCG 2.5.0)": the Bridge line, in Prepare for Live's
  *  checklist and the production page's status alike. */
-export function bridgeAnswersLabel(version?: string): string {
-  return `NoaCG Bridge and CasparCG answer${version ? ` (CasparCG ${version.split(' ')[0]})` : ''}`;
+export function bridgeAnswersLabel(version?: string, adapter?: 'vmix'): string {
+  const name = adapter === 'vmix' ? 'vMix' : 'CasparCG';
+  return `NoaCG Bridge and ${name} answer${version ? ` (${name} ${version.split(' ')[0]})` : ''}`;
 }
 
 /** A fresh prepare request id: twelve lowercase alphanumerics. */
@@ -314,21 +318,37 @@ export function answersPing(id: string): boolean {
   return !id.startsWith(HANDOVER_PING);
 }
 
-/**
- * THE BRIDGE AND CASPARCG LINES (AC-10). Nothing configured, nothing said: a production played
- * through a browser source alone has nothing to check here. The output layer holding another
- * production's output is a problem; an empty one is only a note, because the output may run in
- * OBS or vMix instead.
- */
+function unverifiedVmixFiles(advice: string): CheckLine {
+  return { key: 'bridge-vmix-files', tone: 'bad', label: 'vMix media check incomplete', advice };
+}
+
+/** Output preparation may finish while the media request is still pending or refused. */
+export function finishedBridgeChecks(facts: BridgeFacts | null | undefined, vmixFilesRequired: boolean): CheckLine[] {
+  if (vmixFilesRequired && facts?.adapter !== 'vmix') {
+    return [unverifiedVmixFiles('No vMix media reading was available. Check Readiness again.')];
+  }
+  return facts ? bridgeChecks(facts) : [];
+}
+
+/** Checklist for the active playout system. Only managed CasparCG outputs check a layer. */
 export function bridgeChecks(f: BridgeFacts): CheckLine[] {
+  if (f.current && !f.current()) {
+    return [unverifiedVmixFiles('The vMix connection, media folder or rundown files changed. Check Readiness again.')];
+  }
   if (!f.configured && !f.required) return [];
   const where = `${f.channel}-${f.layer}`;
-  if (!f.status || f.status.state !== 'ok') {
-    return [{ key: 'bridge', tone: 'bad', label: 'NoaCG Bridge or CasparCG is not answering', advice: f.status?.detail ?? 'Start NoaCG Bridge on this computer.' }];
-  }
-  const lines: CheckLine[] = [
-    { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(f.status.version) },
-  ];
+  const vmix = f.adapter === 'vmix';
+  const status = f.status;
+  const connected = status?.state === 'ok';
+  const lines: CheckLine[] = [connected
+    ? { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(status?.version, f.adapter) }
+    : {
+        key: 'bridge',
+        tone: 'bad',
+        label: vmix && status?.state === 'outdated' ? 'vMix media is unavailable' : `NoaCG Bridge or ${vmix ? 'vMix' : 'CasparCG'} is not answering`,
+        advice: status?.detail ?? 'Start NoaCG Bridge on this computer.',
+      }];
+  if (!connected && !(vmix && status?.features?.includes('vmix-media') && status.state === 'server')) return lines;
   if (f.missingItems) lines.push({ key: 'bridge-files', tone: 'bad', label: 'A server cue has no file definition', advice: 'Repair or remove that cue before using the rundown.' });
   if (f.outputExpected !== false && f.slot !== undefined) {
     const holds = slotHolds(f.slot, f.outputSlug);
@@ -360,16 +380,17 @@ export function bridgeChecks(f: BridgeFacts): CheckLine[] {
       lines.push({ key: `bridge-${kind}`, tone: 'warn', label: `Could not list the server's ${words}s`, advice: f.listProblem ?? 'Check the server in Playout settings.' });
       continue;
     }
-    const have = new Set(listed.map((n) => n.toLowerCase()));
+    const fileKey = (name: string) => vmix ? name : name.toLowerCase();
+    const have = new Set(listed.map(fileKey));
     const names = cued.map((i) => i.name).filter((n, at, all) => all.indexOf(n) === at);
-    const missing = names.filter((n) => !have.has(n.toLowerCase()));
+    const missing = names.filter((n) => !have.has(fileKey(n)));
     lines.push(
       missing.length > 0
         ? {
             key: `bridge-${kind}`,
             tone: 'bad',
             label: `${plural(missing.length, words)} the rundown cues ${missing.length === 1 ? 'is' : 'are'} not on the server: ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? ` and ${missing.length - 4} more` : ''}`,
-            advice: kind === 'media' ? "Copy them into CasparCG's media folder, or change the cues." : "Copy them into CasparCG's template folder, or change the cues.",
+            advice: vmix ? "Put them in the vMix media folder, or change the cues." : kind === 'media' ? "Copy them into CasparCG's media folder, or change the cues." : "Copy them into CasparCG's template folder, or change the cues.",
           }
         : { key: `bridge-${kind}`, tone: 'ok', label: `Every ${words} the rundown cues is on the server (${names.length})` },
     );
