@@ -607,22 +607,22 @@ async function refreshOnce(): Promise<void> {
   // base is how a teammate's cue quietly disappears.
   const busy = new Set([...dirty, ...inflight]);
   const stale = heads.filter((h) => !busy.has(h.id) && server.get(h.id)?.token !== h.updatedAt).map((h) => h.id);
-  // Each production's base entry as the read leaves. Every base move makes a new entry.
-  const before = new Map(heads.map((h) => [h.id, server.get(h.id)]));
+  // Each production's base as the read leaves: the entry and its token.
+  const before = new Map(heads.map((h) => [h.id, { entry: server.get(h.id), token: server.get(h.id)?.token }]));
   const docs = await fetchTeamProductionDocs(stale);
   if (running !== owner) return;
-  // An edit or a save made while the read was out is newer than what it fetched (#2565): such a
-  // production keeps its base and its record exactly as one with an edit on its way up does. An
-  // edit made meanwhile is still dirty or in flight (F1), or its save, accepted or refused, has
-  // moved the base to a new entry (F7).
-  const keep = new Set([...busy, ...dirty, ...inflight]);
-  for (const [id, base] of before) if (server.get(id) !== base) keep.add(id);
   if (docs.error) {
     noteRead(true);
     setState({ loadError: docs.error });
     return;
   }
   noteRead(false);
+  // An edit or a save made while the read was out is newer than what it fetched (#2565): such a
+  // production keeps its base, its record and its head exactly as one with an edit on its way up
+  // does. An edit made meanwhile is still dirty or in flight (F1), or its save, accepted or refused,
+  // has moved the base (F7).
+  const moved = new Set([...before].filter(([id, was]) => server.get(id) !== was.entry || server.get(id)?.token !== was.token).map(([id]) => id));
+  const keep = new Set([...busy, ...dirty, ...inflight, ...moved]);
   for (const row of docs.rows) {
     if (keep.has(row.id)) continue;
     server.set(row.id, {
@@ -647,7 +647,8 @@ async function refreshOnce(): Promise<void> {
     loadError: null,
     teams: teamsAnswer.teams,
     members: membersAnswer.members,
-    heads: Object.fromEntries(heads.map((h) => [h.id, h])),
+    // A head this tab's own save moved during the read is newer than the one the read listed.
+    heads: Object.fromEntries(heads.map((h) => [h.id, moved.has(h.id) && state.heads[h.id] ? state.heads[h.id] : h])),
   });
   // A save that failed on a dropped connection is retried on the next good read.
   for (const id of dirty) if (!timers.has(id) && !inflight.has(id)) scheduleSave(id);

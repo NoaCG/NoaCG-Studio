@@ -308,16 +308,19 @@ test('a settle whose outbox write throws fails the save and never leaves it in f
 /**
  * The team READ with its backend stubbed (#2565): heads answer at once, the documents of every
  * production whose token moved wait on `docs`, saves answer from `answers`, and the page's store is
- * a map the read writes through `applyServerTeamShows`. That call's own rule (a production in the
- * set it is handed keeps the record the page has) is model/teamShows.ts's; the tests assert the set
- * the read hands it as well as the record afterwards.
+ * a map the read writes through `applyServerTeamShows`, which here does what model/teamShows.ts's
+ * does: the list replaces the store, and a production in the set it is handed keeps the record the
+ * page has. The tests assert that set as well as the records afterwards.
  */
 function readHarness() {
   const docs = deferred();
   const answers = [];
   const saves = [];
   const kept = [];
+  const fetched = [];
   const store = new Map([
+    // `gone` is no longer listed: the read drops it (F6).
+    ['gone', { id: 'gone', teamId: 'team', version: 2, name: 'Gone', graphics: [] }],
     ['show', { id: 'show', teamId: 'team', version: 2, name: 'Original', graphics: [] }],
     ['other', { id: 'other', teamId: 'team', version: 2, name: 'Other original', graphics: [] }],
     ['quiet', { id: 'quiet', teamId: 'team', version: 2, name: 'Quiet original', graphics: [] }],
@@ -328,7 +331,7 @@ function readHarness() {
     { id: 'other', team_id: 'team', updated_at: 'teammate-other', updated_by: 'mate' },
     { id: 'quiet', team_id: 'team', updated_at: 'base', updated_by: 'owner' },
   ];
-  const query = (cols) => (cols.includes('doc') ? { in: () => docs.promise } : { order: async () => ({ data: heads, error: null }) });
+  const query = (cols) => (cols.includes('doc') ? { in: (_col, ids) => { fetched.push([...ids].sort()); return docs.promise; } } : { order: async () => ({ data: heads, error: null }) });
   const stubs = {
     './supabase': { getSupabase: async () => ({ from: () => ({ select: query }), rpc: async (_name, args) => { saves.push(args); return answers.shift(); } }) },
     './teams': { listMyTeams: async () => ({ teams: [], error: null }), listMyTeamMembers: async () => ({ members: [], error: null }) },
@@ -342,7 +345,9 @@ function readHarness() {
       applyServerTeamShow: (doc) => store.set(doc.id, doc),
       applyServerTeamShows: (list, keep) => {
         kept.push([...keep].sort());
-        for (const doc of list) if (!(keep.has(doc.id) && store.has(doc.id))) store.set(doc.id, doc);
+        const next = new Map(list.map((doc) => [doc.id, keep.has(doc.id) && store.has(doc.id) ? store.get(doc.id) : doc]));
+        store.clear();
+        for (const [id, doc] of next) store.set(id, doc);
       },
       setTeamShowsStatus: () => {},
     },
@@ -361,6 +366,7 @@ function readHarness() {
     }
     export function editForTest(id: string) { scheduleSave(id); }
     export function serverForTest(id: string) { const k = server.get(id); return k ? JSON.stringify({ token: k.token, name: k.doc.name }) : null; }
+    export function headForTest(id: string) { const h = state.heads[id]; return h ? JSON.stringify({ updatedAt: h.updatedAt, updatedBy: h.updatedBy }) : null; }
   `;
   const compiled = ts.transpileModule(source + setup, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
@@ -376,14 +382,20 @@ function readHarness() {
     saves,
     answers,
     kept,
+    fetched,
     base,
     /** A local edit, as model/teamShows.ts's writeTeamShow makes it: the record, then the save pump. */
     edit(id, name) { store.set(id, { ...store.get(id), name }); exports.editForTest(id); },
-    /** Let the read reach the documents' await. */
-    async reachTheFetch() { for (let i = 0; i < 20; i++) await new Promise((resolve) => setImmediate(resolve)); },
+    /** Let the read reach the documents' await, and prove it did: an edit before it is not this case. */
+    async reachTheFetch(ids = ['other', 'show']) {
+      for (let i = 0; i < 50 && fetched.length === 0; i++) await new Promise((resolve) => setImmediate(resolve));
+      assert.deepEqual(fetched.at(-1), ids, 'the read is waiting on these productions\' documents');
+    },
     answerRead() {
-      const names = { show: 'Teammate', other: 'Other teammate', quiet: 'never fetched' };
-      docs.resolve({ data: heads.filter((h) => h.id !== 'quiet').map((h) => ({ ...h, doc: { id: h.id, version: 2, graphics: [], name: names[h.id] } })), error: null });
+      const names = { show: 'Teammate', other: 'Other teammate' };
+      // Only the rows the read asked for, as `.in('id', ids)` answers.
+      const asked = fetched.at(-1) ?? [];
+      docs.resolve({ data: heads.filter((h) => asked.includes(h.id)).map((h) => ({ ...h, doc: { id: h.id, version: 2, graphics: [], name: names[h.id] } })), error: null });
     },
   };
 }
@@ -403,6 +415,20 @@ test('an edit made while the team read is out stays on the page and keeps its ba
   assert.equal(h.controller.getTeamState().saving.show, 'pending', 'F5: the edit is still owed a save');
   assert.equal(h.store.get('other').name, 'Other teammate', 'F3: a production nobody edited takes the read');
   assert.equal(h.controller.serverForTest('other'), h.base('teammate-other', 'Other teammate'), 'F3: with its token');
+  assert.equal(h.store.has('gone'), false, 'F6: a production the read no longer lists leaves the page');
+  assert.equal(h.controller.serverForTest('gone'), null, 'F6: with its base');
+});
+
+test('a production already edited when the team read starts is not read and stays as the page has it (#2565, F4)', async () => {
+  const h = readHarness();
+  h.edit('show', 'Edited before');
+  const reading = h.controller.refreshTeams();
+  await h.reachTheFetch(['other']);
+  h.answerRead();
+  await reading;
+  assert.equal(h.store.get('show').name, 'Edited before');
+  assert.equal(h.controller.serverForTest('show'), h.base('base', 'Original'));
+  assert.ok(h.kept.at(-1).includes('show'));
 });
 
 test('a save refused and then accepted while the team read is out keeps its newer base and record (#2565, F7)', async () => {
@@ -424,5 +450,6 @@ test('a save refused and then accepted while the team read is out keeps its newe
   assert.equal(h.controller.serverForTest('show'), h.base('mine', 'My edit'), 'F7: the read never moves the base to an older token');
   assert.equal(h.store.get('show').name, 'My edit', 'F7: and the page keeps the record the save confirmed');
   assert.ok(h.kept.at(-1).includes('show'));
+  assert.equal(h.controller.headForTest('show'), JSON.stringify({ updatedAt: 'mine', updatedBy: 'owner' }), 'F7: and the head this tab\'s save moved');
   assert.equal(h.saves.length, 2, 'nothing is saved again');
 });
