@@ -31,9 +31,12 @@ export function useRundownHistory(
   const changed = () => redraw(n => n + 1);
   const fresh = () => loadShows().find(s => s.id === show?.id && s.teamId === show?.teamId);
   /** The cue being typed and its text as this page last knew it (#2572): taken when typing starts
-   *  on a cue, moved by this page's own save of it, and kept through every change made elsewhere
-   *  that leaves that text alone. Cleared when the typing is discarded or its group closes. */
+   *  on a cue, moved by every write of this page (gone with the cue), and kept through every change
+   *  made elsewhere that leaves that text alone. Cleared when the typing is discarded. */
   const typing = useRef<{ cueId: string; text: string | null } | null>(null);
+  /** A change made elsewhere kept the typing, and no write of this page has landed since: the
+   *  history expects nothing, so the typed cue's own text is what is checked (D3). */
+  const keptSince = useRef(false);
   /** Whether a change made elsewhere, now in `now`, left the typed cue's text as this page last
    *  knew it, so the typing stays (D1); a change to that text or the cue's removal does not (D3). */
   const keepsTyping = (now: RundownSlice | null) => {
@@ -50,7 +53,7 @@ export function useRundownHistory(
    *  left the typed cue's text alone, D1, D2). */
   const invalidate = (message = RUNDOWN_CHANGED, keepTyping = false) => {
     history.current.clear(); if (group.current) group.current.valid = false; group.current = null; pendingTeam.current = null;
-    epoch.current.value++; if (!keepTyping) discardDraft(); callbacks.current.note(message); changed();
+    epoch.current.value++; keptSince.current = keepTyping; if (!keepTyping) discardDraft(); callbacks.current.note(message); changed();
   };
   const reconcile = () => {
     if (owner.current !== identity || queue.current.count) return;
@@ -82,7 +85,7 @@ export function useRundownHistory(
     const expected = group.current?.after ?? history.current.peek('undo')?.after ?? history.current.peek('redo')?.before;
     if (expected && (!now || !sameRundown(now, expected))) { invalidate(RUNDOWN_CHANGED, keepsTyping(now)); return; }
     // After a kept change the history expects nothing, but the typed cue's own text still counts (D3).
-    if (typedChangedElsewhere(now)) invalidate();
+    if (keptSince.current && typedChangedElsewhere(now)) invalidate();
   };
   useEffect(() => {
     const retained = history.current, generation = epoch.current;
@@ -147,14 +150,19 @@ export function useRundownHistory(
     callbacks.current.update(result.shows);
     const intendedShow = result.shows.find(s => s.id === current.id && s.teamId === current.teamId);
     const intended = intendedShow ? rundownSlice(intendedShow) : null;
-    // This page's own save of the typed cue moves what it knows of that cue's text.
-    if (cueId && intended && typing.current?.cueId === cueId) typing.current = { cueId, text: cueTextKey(intended, cueId) };
     let error = result.refused ?? result.error;
     for (const receipt of captured.receipts) {
       const failed = await commitDurableReceipt(receipt);
       error ??= failed;
     }
     if (!error && !team && intended && !sameRundown(before, intended) && !captured.receipts.length) error = 'This rundown save has not been confirmed.';
+    // Every write of this page that storage accepted moves what it knows of the typed cue's text: a
+    // Delete of that cue ends the typing, and its own edits are never mistaken for a change made
+    // elsewhere (D6). A refused write leaves it, so the rollback is not taken for one either.
+    if (!error && intended && typing.current) {
+      const text = cueTextKey(intended, typing.current.cueId);
+      typing.current = text === null ? null : { cueId: typing.current.cueId, text };
+    }
     if (!error && team && intended && (pending || !sameRundown(before, intended))) error = await commitTeamRundownEdit(team, intended);
     if (owner.current !== scope) return false;
     /** The typed text this save stored is still the typed cue's text (D5). */
@@ -182,7 +190,7 @@ export function useRundownHistory(
       const kept = typedLanded(acceptedSlice);
       invalidate(RUNDOWN_CHANGED, kept); return kept;
     }
-    pendingTeam.current = null;
+    pendingTeam.current = null; keptSince.current = false;
     if (!keptNote) callbacks.current.note(null);
     if (held) { if (held.valid) { if (pending) held.before = pending.before; held.after = intended; } }
     else record(pending?.before ?? before, intended, label);

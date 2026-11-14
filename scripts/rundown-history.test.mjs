@@ -1,7 +1,7 @@
 // guards: src/model/rundownHistory.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rundownSlice, replaceRundown, sameRundown, RundownHistory, liveRundownRefusal, typedCueUnchanged } from '../src/model/rundownHistory.ts';
+import { rundownSlice, replaceRundown, sameRundown, RundownHistory, liveRundownRefusal, typedCueUnchanged, cueTextKey } from '../src/model/rundownHistory.ts';
 const show = { id: 'p', version: 2, name: 'Keep this name', data: { score: 7 }, graphics: [{ id: 'g', name: 'Graphic', template: {} }], cues: [{ id: 'c', sourceId: 'g', label: 'First', values: { name: 'Ada' }, folderId: 'f' }], folders: [{ id: 'f', name: 'Guests', mode: 'manual', collapsed: true }] };
 test('inverse preserves metadata/collapse and restores exact source, cue, folder and value ids', () => {
   const before = rundownSlice(show), deleted = { ...show, cues: [], graphics: [], folders: [] };
@@ -78,4 +78,8 @@ test('the typed cue is as it was unless its own text changed or it went (#2572, 
   ];
   for (const [what, now] of itself) assert.equal(typedCueUnchanged('c', now, expected), false, what);
   assert.equal(typedCueUnchanged('missing', expected, expected), false, 'a cue the history never held');
+  // The key itself, which the hook compares: null once the cue is gone, equal across a move.
+  assert.equal(cueTextKey(rundownSlice({ ...two, cues: two.cues.filter((c) => c.id !== 'c') }), 'c'), null);
+  assert.equal(cueTextKey(rundownSlice({ ...two, cues: [...two.cues].reverse() }), 'c'), cueTextKey(expected, 'c'));
+  assert.notEqual(cueTextKey(change((c) => ({ ...c, note: 'A note' })), 'c'), cueTextKey(expected, 'c'));
 });
