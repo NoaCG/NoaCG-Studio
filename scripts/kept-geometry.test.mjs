@@ -168,3 +168,38 @@ describe('a reload keeps the boxes a publish carries', () => {
     assert.deepEqual(part.get().byCue.c1.m, box(872));
   });
 });
+
+describe('a publish keeps the stored box of a cue the page has not measured (#2532, route (b))', () => {
+  /** The stored publication's cues as `buildOutputPayload` wrote them. */
+  const storedCues = (part, cues) =>
+    Object.entries(cues).map(([id, [g, mid]]) => ({ id, graphic: g, values: {}, adjust: H.publishedAdjustOf({ id: g }, {}, undefined, G.geometryOf(part, id, g, mid).m, HD, HD) }));
+  /** What a publish carries for each cue: `publishBox` over the session and the stored boxes. */
+  const publishes = (part, cues, stored) =>
+    Object.fromEntries(Object.entries(cues).map(([c, [g, id]]) => [c, K.publishBox(G.geometryOf(part, c, g, id).m, stored.get(c), g, HD, HD)]));
+
+  test('a cold page (nothing kept, nothing measured yet) publishes every box the stored publication has', () => {
+    const before = storePart(G.NO_GEOMETRY);
+    before.set((p) => G.measured(p, 'c1', 'g1', 'id-c1', box(872)));
+    before.set((p) => G.measured(p, 'c3', 'g2', 'id-c3', box(700)));
+    const stored = K.publishedBoxesOf(JSON.parse(JSON.stringify(storedCues(before.get(), CUES))));
+    const cold = storePart(G.NO_GEOMETRY);
+    assert.deepEqual(publishes(cold.get(), CUES, stored), published(before.get(), CUES));
+    // Once the page measures a graphic, its measurement is what goes, as before.
+    cold.set((p) => G.measured(p, 'c1', 'g1', 'id-c1', box(880)));
+    assert.deepEqual(publishes(cold.get(), CUES, stored), { c1: box(880), c2: box(880), c3: box(700) });
+  });
+
+  test('a stored box of another graphic, frame or stage is not carried', () => {
+    const last = { g: 'g1', box: box(872), frame: HD, stage: HD };
+    assert.equal(K.publishBox(null, last, 'g2', HD, HD), null);
+    assert.equal(K.publishBox(null, last, 'g1', HD, { width: 1280, height: 720 }), null);
+    assert.equal(K.publishBox(null, last, 'g1', { width: 1280, height: 720 }, HD), null);
+    assert.equal(K.publishBox(null, undefined, 'g1', HD, HD), null);
+    assert.deepEqual(K.publishBox(null, last, 'g1', HD, HD), box(872));
+  });
+
+  test('a stored publication that is not one reads as no boxes', () => {
+    assert.equal(K.publishedBoxesOf(null).size, 0);
+    assert.equal(K.publishedBoxesOf([{ id: 'c1' }, { id: 'c2', adjust: { graphicId: 'g1', frame: HD, stage: HD } }, { id: 'c3', adjust: { graphicId: 'g1', box: { info: 1 }, frame: HD, stage: HD } }]).size, 0);
+  });
+});

@@ -20,7 +20,7 @@ import type { ObsScene } from '../../model/obsScenes';
 import { laterTask, partialWritesOn, setUnitPace } from '../../backend/partialWrites';
 import { prefetchRecordBase } from '../../backend/supabaseProvider';
 import { prefetchTeamBase } from '../../backend/teamProductions';
-import { prefetchPublishedBase } from '../../control/publishParts';
+import { prefetchPublishedBase, prefetchPublishedBoxes } from '../../control/publishParts';
 import { sendsIdle } from '../../control/sendsInFlight';
 
 /** Whether the server has the guard installed and the switch on; null while unknown. */
@@ -126,6 +126,7 @@ export function useAutoPublish(o: {
       else await prefetchRecordBase(showId);
       const sb = published ? await getSupabase() : null;
       if (sb) await prefetchPublishedBase(sb, showId);
+      if (sb) await prefetchPublishedBoxes(sb, showId);
       const show = loadShows().find((x) => x.id === showId);
       if (sb && show) await prefetchPublication(sb, show, loadGraphics());
     })().catch(() => undefined);

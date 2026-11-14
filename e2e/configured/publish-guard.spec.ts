@@ -1133,6 +1133,56 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       await outputSame('the cue edit');
       expect(rpcs(outSeen.seen, 'control_output_parts').length + rpcs(outSeen.seen, 'control_output_resolve').length, 'no graphic read for a cue edit').toBe(0);
 
+      // #2532, phase 7 repair: the first edit after a reload, on a browser that kept nothing and
+      // whose measurer has not answered yet, publishes every box the stored publication carries,
+      // in parts and on the whole path alike (R23), and the parts publish sends the edited cue alone.
+      const storedBoxes = async () =>
+        (((await (await service(`control_shows?id=eq.${showId}&select=cues:output->cues`)).json()) as { cues: { id: string; adjust?: { box?: unknown } }[] }[])[0].cues).map((c) => [c.id, c.adjust?.box ?? null]);
+      const boxesBefore = await storedBoxes();
+      expect(boxesBefore.some(([, b]) => b !== null), 'the production publishes a measured box').toBe(true);
+      // The background measurer's frames answer nothing while this is set (their boxes are dropped
+      // before the page hears them), so the edit's publish runs before any measurement.
+      await page.context().addInitScript(() => {
+        if (sessionStorage.getItem('e2e-hold-measure') !== '1') return;
+        window.addEventListener('message', (ev) => {
+          if ((ev.data as { type?: string } | null)?.type !== 'spx-preview-box') return;
+          const frame = [...document.querySelectorAll('iframe')].find((f) => f.contentWindow === ev.source);
+          if (frame?.style.transform.includes('scale(0.001)')) ev.stopImmediatePropagation();
+        }, true);
+      });
+      const coldReload = async () => {
+        await page.evaluate(() => {
+          localStorage.removeItem('spx-gfx-measured');
+          sessionStorage.setItem('e2e-hold-measure', '1');
+        });
+        await page.reload();
+        await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+        // The stored boxes are read as the production opens.
+        await expect.poll(() => page.evaluate(async ({ id, cues }) => {
+          const { publishedBoxOf } = await __noacgImport('/src/control/publishParts.ts');
+          return cues.some((c) => !!publishedBoxOf(id, c));
+        }, { id: showId, cues: boxesBefore.map(([c]) => c as string) }), { timeout: 30_000 }).toBe(true);
+      };
+      await coldReload();
+      const coldSeen = watch(page.context());
+      await edit(page, showId, 'label', 'Cold, in parts');
+      await settled('the first edit after a cold reload');
+      coldSeen.stop();
+      expect(await storedBoxes(), 'in parts: every stored box kept').toEqual(boxesBefore);
+      const cuesSent = rpcs(coldSeen.seen, 'control_publish_parts').flatMap((x) => ((JSON.parse(x.body) as { p_head?: { ops?: { m: string; put?: unknown[] }[] } }).p_head?.ops ?? []).filter((o) => o.m === 'cues').map((o) => o.put?.length ?? -1));
+      expect(cuesSent, 'the edited cue alone').toEqual([1]);
+      // The whole path: the parts function refused, so the publish falls back and writes whole.
+      await coldReload();
+      await page.route('**/rest/v1/rpc/control_publish_parts', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"held by the test"}' }));
+      await edit(page, showId, 'label', 'Cold, whole');
+      await settled('the first edit after a cold reload, whole');
+      await page.unroute('**/rest/v1/rpc/control_publish_parts');
+      expect(await storedBoxes(), 'whole: every stored box kept').toEqual(boxesBefore);
+      await page.evaluate(() => sessionStorage.removeItem('e2e-hold-measure'));
+      await page.reload();
+      await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+      await sameAsWhole('the edits after a cold reload');
+
       // The same image again: nothing uploaded; the output reads the one new part and no image.
       const again = watch(page.context());
       const againOut = watch(viewers);

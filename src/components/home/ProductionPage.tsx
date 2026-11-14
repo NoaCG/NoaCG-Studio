@@ -146,7 +146,8 @@ import { designEditedAt, libraryStoreText, loadGraphics, newerLibraryDesign, tem
 import { describeProductionGate, productionGateFailures } from '../../validation/productionGate';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
-import { keepGeometry } from '../../control/keptGeometry';
+import { keepGeometry, publishBox } from '../../control/keptGeometry';
+import { publishedBoxOf } from '../../control/publishParts';
 import { LIVE_BUILD } from '../../control/livePath';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
@@ -3009,7 +3010,10 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           const g = latest.graphics.find((x) => x.id === cue.sourceId);
           const state = adjustStateOf(cue, latest, lib, ctx);
           if (!g || !state) return undefined;
-          const adjust = publishedAdjustOf(g, cue, ctx.lookFor?.(g.id), state.m, frameOf(g, lib), stage);
+          // A cue the page has not measured keeps the box the stored publication carries (#2532).
+          const frame = frameOf(g, lib);
+          const box = boxesAhead === true ? publishBox(state.m, publishedBoxOf(latest.id, cue.id), g.id, frame, stage) : state.m;
+          const adjust = publishedAdjustOf(g, cue, ctx.lookFor?.(g.id), box, frame, stage);
           return { ...(state.send ? { appearance: state.send } : {}), adjust };
         };
       },

@@ -17,7 +17,7 @@
 
 import type { StorePart } from './storePart';
 import { measured, type GeometryPart } from './adjustGeometry.ts';
-import type { Measurement } from './cueAdjust.ts';
+import type { Measurement, Size } from './cueAdjust.ts';
 
 export const KEPT_GEOMETRY_KEY = 'spx-gfx-measured';
 /** Productions kept, newest first; an older one is measured again when it opens. */
@@ -71,7 +71,7 @@ export function identityHash(id: string): string {
 
 const isRect = (r: unknown) =>
   r === null || (!!r && typeof r === 'object' && ['x', 'y', 'w', 'h'].every((k) => typeof (r as Record<string, unknown>)[k] === 'number'));
-const isMeasurement = (m: unknown): m is Measurement =>
+export const isMeasurement = (m: unknown): m is Measurement =>
   !!m && typeof m === 'object' && isRect((m as Measurement).info) && isRect((m as Measurement).paint) && ((m as Measurement).minText === null || typeof (m as Measurement).minText === 'number');
 
 function readStore(io: KeptGeometryIo): KeptStore {
@@ -201,4 +201,41 @@ export function keepGeometry(part: StorePart<GeometryPart>, productionId: string
       };
     },
   };
+}
+
+/** A cue's box as the stored publication carries it, with what it was measured against. */
+export interface PublishedBox {
+  g: string;
+  box: Measurement;
+  frame: Size;
+  stage: Size;
+}
+
+const isSize = (s: unknown): s is Size => !!s && typeof s === 'object' && typeof (s as Size).width === 'number' && typeof (s as Size).height === 'number';
+
+/** Each cue's box in a stored publication's cues (`output.cues`, each `adjust.box`), by cue id. */
+export function publishedBoxesOf(cues: unknown): Map<string, PublishedBox> {
+  const out = new Map<string, PublishedBox>();
+  if (!Array.isArray(cues)) return out;
+  for (const c of cues as { id?: unknown; adjust?: { graphicId?: unknown; box?: unknown; frame?: unknown; stage?: unknown } }[]) {
+    const a = c?.adjust;
+    if (typeof c?.id !== 'string' || !a || typeof a.graphicId !== 'string' || !isMeasurement(a.box) || !isSize(a.frame) || !isSize(a.stage)) continue;
+    out.set(c.id, { g: a.graphicId, box: a.box, frame: a.frame, stage: a.stage });
+  }
+  return out;
+}
+
+const sameSize = (a: Size, b: Size) => a.width === b.width && a.height === b.height;
+
+/**
+ * THE BOX A PUBLISH CARRIES for a cue (#2532, coordinator's route (b) on #2361): what the page
+ * measured (`measured`, its own or its graphic's newest, `geometryOf`), else the box the stored
+ * publication carries for the same cue of the same graphic measured against the same frame and
+ * stage. A measurement that has not come yet so never takes a published box away, and a box changes
+ * in the publication only when the page has measured one. Every path a publish takes builds its
+ * payload from this one answer (R23).
+ */
+export function publishBox(measured: Measurement | null, last: PublishedBox | undefined, graphicId: string, frame: Size, stage: Size): Measurement | null {
+  if (measured) return measured;
+  return last && last.g === graphicId && sameSize(last.frame, frame) && sameSize(last.stage, stage) ? last.box : null;
 }

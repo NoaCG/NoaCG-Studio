@@ -15,6 +15,7 @@ import { contentName } from '../backend/assets';
 import { canonicalJson, diff, digest128, storedMap, type PatchOp, type UnitMap } from '../backend/unitPatch';
 import type { OutputGraphicSpec, OutputPayload, PanelGraphicSpec } from './hostedControl';
 import type { PayloadVersion } from './payloadVersion';
+import { publishedBoxesOf, type PublishedBox } from './keptGeometry.ts';
 
 type Sb = NonNullable<Awaited<ReturnType<typeof getSupabase>>>;
 
@@ -239,6 +240,21 @@ export async function prefetchPublishedBase(sb: Sb, showId: string): Promise<voi
   held.set(showId, { n, head: stored.head, panel: stored.panel, refs: stored.refs, title: '', profile: '' });
 }
 
+/** Each production's stored cue boxes, read when it opens (`prefetchPublishedBoxes`). */
+const publishedBoxes = new Map<string, Map<string, PublishedBox>>();
+
+/** With parts on, when the production opens: the box the stored publication carries for each cue,
+ *  so a publish before the page has measured a cue keeps it (keptGeometry.ts `publishBox`). */
+export async function prefetchPublishedBoxes(sb: Sb, showId: string): Promise<void> {
+  if (publishedBoxes.has(showId)) return;
+  const { data, error } = await sb.from('control_shows').select('cues:output->cues').eq('id', showId).maybeSingle();
+  if (error || publishedBoxes.has(showId)) return;
+  publishedBoxes.set(showId, publishedBoxesOf((data as { cues?: unknown } | null)?.cues));
+}
+
+/** The stored box of one cue, as read when the production opened. */
+export const publishedBoxOf = (showId: string, cueId: string): PublishedBox | undefined => publishedBoxes.get(showId)?.get(cueId);
+
 /** What this page's own last publish of each production wrote: the stamp, the revision, the OBS
  *  scenes and the panel (until this page publishes, the publication as read when the production
  *  opened, `prefetchPublication`). While the stored stamp is that one, a publish uses it instead of
@@ -268,4 +284,5 @@ export function forgetPublishedParts(): void {
   ownPublishes.clear();
   held.clear();
   partMemo.clear();
+  publishedBoxes.clear();
 }
