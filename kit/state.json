@@ -395,6 +395,11 @@
       "at": "2026-11-13",
       "by": "owner",
       "what": "Suite trim: C (bundled dev mode trial, ~1h) then A (serve built app to e2e suite, 3-5 PRs); B rejected; a-d coverage-dropping waits held"
+    },
+    {
+      "at": "2026-11-13T19:55Z",
+      "by": "owner",
+      "what": "Standing: coordinator decides operational questions (stale reverts, stuck bot PRs, sequencing) itself per its recommendation and reports after; coverage drops and other binding-constraint items still go to the owner"
     }
   ],
   "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
