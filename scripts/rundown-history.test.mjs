@@ -1,7 +1,7 @@
 // guards: src/model/rundownHistory.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rundownSlice, replaceRundown, sameRundown, RundownHistory, liveRundownRefusal } from '../src/model/rundownHistory.ts';
+import { rundownSlice, replaceRundown, sameRundown, RundownHistory, liveRundownRefusal, typedCueUnchanged } from '../src/model/rundownHistory.ts';
 const show = { id: 'p', version: 2, name: 'Keep this name', data: { score: 7 }, graphics: [{ id: 'g', name: 'Graphic', template: {} }], cues: [{ id: 'c', sourceId: 'g', label: 'First', values: { name: 'Ada' }, folderId: 'f' }], folders: [{ id: 'f', name: 'Guests', mode: 'manual', collapsed: true }] };
 test('inverse preserves metadata/collapse and restores exact source, cue, folder and value ids', () => {
   const before = rundownSlice(show), deleted = { ...show, cues: [], graphics: [], folders: [] };
@@ -55,4 +55,27 @@ test('unidentified server output refuses source changes without blocking unrelat
   const live = { cues: new Set(), sources: new Set(), folders: new Set(), unidentifiedServer: true };
   assert.ok(liveRundownRefusal(before, after, live));
   assert.equal(liveRundownRefusal(before, before, live), null);
+});
+
+test('the typed cue is as it was unless its own text changed or it went (#2572, D1, D3)', () => {
+  const two = { ...show, cues: [...show.cues, { id: 'd', sourceId: 'g', label: 'Second', values: { name: 'Bo' } }] };
+  const expected = rundownSlice(two);
+  const change = (cue) => rundownSlice({ ...two, cues: two.cues.map((c) => (c.id === 'c' ? cue(c) : c)) });
+  const elsewhere = [
+    ['another cue renamed', rundownSlice({ ...two, cues: two.cues.map((c) => (c.id === 'd' ? { ...c, label: 'Teammate' } : c)) })],
+    ['a move', rundownSlice({ ...two, cues: [...two.cues].reverse() })],
+    ['a folder change', change((c) => ({ ...c, folderId: undefined }))],
+    ['a graphic renamed', rundownSlice({ ...two, graphics: [{ ...two.graphics[0], name: 'Renamed graphic' }] })],
+    ['a note cleared that was never there', change((c) => ({ ...c, note: '' }))],
+  ];
+  for (const [what, now] of elsewhere) assert.equal(typedCueUnchanged('c', now, expected), true, what);
+  const itself = [
+    ['its label', change((c) => ({ ...c, label: 'Changed' }))],
+    ['its note', change((c) => ({ ...c, note: 'A note' }))],
+    ['a value nobody typed into', change((c) => ({ ...c, values: { ...c.values, extra: 'x' } }))],
+    ['its typed value', change((c) => ({ ...c, values: { name: 'Eve' } }))],
+    ['its removal', rundownSlice({ ...two, cues: two.cues.filter((c) => c.id !== 'c') })],
+  ];
+  for (const [what, now] of itself) assert.equal(typedCueUnchanged('c', now, expected), false, what);
+  assert.equal(typedCueUnchanged('missing', expected, expected), false, 'a cue the history never held');
 });
