@@ -1,0 +1,65 @@
+{
+  "run": "plan-editor-r1-5-2026-11-08",
+  "phase": "E5F",
+  "milestone": "assistant-only serial delivery, fullphase incomplete",
+  "pr": 2555,
+  "featureHead": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84",
+  "mergeSha": "82c4a59d245572c743ecee22a592e128642d735e",
+  "firstParent": "5c118f5b02c3b6266d8286cc24f797438774eedb",
+  "mergedAt": "2026-11-14T16:58:12Z",
+  "tree": "a3cbe34c7a627327c865d02fe8cc7d7a26748730",
+  "reviewedTreeEqualsMergedTree": true,
+  "results": {
+    "ci": {
+      "id": 43618491194,
+      "conclusion": "success",
+      "scope": "Main full15shard browser suite+Build/Factory/gate"
+    },
+    "configured": {
+      "id": 43618491183,
+      "conclusion": "success",
+      "scope": "All4shards+authenticatedverdict+configuredquarantine SUCCESS"
+    },
+    "quarantine": {
+      "id": 43618491184,
+      "conclusion": "success"
+    },
+    "postLanding": {
+      "id": 43618491173,
+      "conclusion": "success"
+    },
+    "codeql": {
+      "id": 43618490585,
+      "conclusion": "success",
+      "scope": "All3 javascript-typescript/python/actions analyses SUCCESS"
+    },
+    "deployment": {
+      "id": 43618694191,
+      "conclusion": "success",
+      "scope": "Normalproductiondeployment/exactpublicversion82c4"
+    }
+  },
+  "skippedBookkeepingRuns": [
+    43618503164,
+    43618502046,
+    43618500565,
+    43618498072
+  ],
+  "skippedBookkeepingScope": "Five SKIPPED deployment-event bookkeeping runs observed; only four individual IDs were captured. No skipped run is counted asPASS.",
+  "hostedVersion": {
+    "commit": "82c4a59d245572c743ecee22a592e128642d735e",
+    "ref": "main",
+    "builtAt": "2026-11-14T16:58:38.723Z",
+    "lastDeployAffectingCommit": "82c4a59d245572c743ecee22a592e128642d735e",
+    "deployedCommitIsCurrent": true
+  },
+  "liveProviderAcceptance": "NOT VERIFIED; ownerasyncwebsiteHelp/EditUndo report pending, no signed-in browsertool",
+  "retained": {
+    "draftPr": 2552,
+    "localSha": "6bcce0057951aa7f721e6292e71c431a94400f4e",
+    "remoteBackup": "codex/plan-editor-r1-5-e5f-retained-6bcce005",
+    "scope": "No originalwork/attempt/failure reset; no SVGintervention or new policy"
+  },
+  "recordedAt": "2026-11-14T17:24:40.589Z",
+  "skippedBookkeepingCount": 5
+}
