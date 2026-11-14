@@ -36,6 +36,18 @@ const REFUSED = [
   'npx supabase projects list',
   'supabase db push',
   'cd supabase && supabase functions deploy notify --project-ref abc',
+  // Setting the variable to itself, or in code, is not setting it.
+  `node -e "const ${KEY}=process.env.${KEY}; fetch(u, { headers: { apikey: ${KEY} } })"`,
+  `${KEY}=$${KEY} curl -H "apikey: $${KEY}" https://fake.example.test`,
+  // An unset or a production tool in one part of the line does not cover another part.
+  `env -u ${KEY} true; curl -H "apikey: $${KEY}" https://fake.example.test`,
+  `node scripts/admin.mjs --help; curl -H "apikey: $${KEY}" https://fake.example.test`,
+  // Code fed to an interpreter on stdin, and the CLI however it is spelled.
+  `node <<'EOF'\nfetch(u, { headers: { apikey: process.env.${KEY} } })\nEOF`,
+  'npx supabase@latest db push',
+  'supabase --workdir supabase db push',
+  'supabase migration repair --status applied 0001',
+  'supabase config push',
 ];
 const ALLOWED = [
   `grep -rn ${KEY} scripts`,
@@ -46,6 +58,13 @@ const ALLOWED = [
   `env -u ${KEY} -u SUPABASE_SECRET_KEY -u ${TOKEN} node -e "fetch(u, { headers: { apikey: process.env.${KEY} } })"`,
   `${KEY}=local-key node -e "console.log(process.env.${KEY}.length)"`,
   `${TOKEN}=$${TOKEN} node scripts/supabase-advisors.mjs`,
+  // Naming a variable is not using it: a search, a quoted message, text written to a file.
+  `grep -rn "process.env.${KEY}" scripts`,
+  `git commit -m 'read process.env.${KEY} only in the tools'`,
+  `printf '%s' 'fetch(u, { headers: { apikey: process.env.${KEY} } })' > fixture.txt`,
+  `git commit -F - <<'EOF'\nDo not expand $${KEY} here\nEOF`,
+  'supabase --version',
+  'supabase gen types typescript --local',
 ];
 
 test('a one-off command that uses the production admin key or token is refused, saying why and what to do', () => {
@@ -67,8 +86,13 @@ test('ordinary commands, local work and the deliberate production tools still ru
 
 test('an env file can load the key behind any unset, so it arms the check even in a clean session', () => {
   const clean = Object.fromEntries(Object.keys(HOSTED).map((name) => [name, '']));
-  const command = `env -u ${KEY} node --env-file=.env -e "fetch(u, { headers: { apikey: process.env.${KEY} } })"`;
-  assert.equal(runHook(GUARD, bash(command), clean).status, 2);
+  for (const command of [
+    `env -u ${KEY} node --env-file=.env -e "fetch(u, { headers: { apikey: process.env.${KEY} } })"`,
+    `node -r dotenv/config -e "fetch(u, { headers: { apikey: process.env.${KEY} } })"`,
+    `source .env && node -e "fetch(u, { headers: { apikey: process.env.${KEY} } })"`,
+  ]) {
+    assert.equal(runHook(GUARD, bash(command), clean).status, 2, command);
+  }
   assert.equal(runHook(GUARD, bash('node --env-file=.env scripts/admin.mjs --help'), clean).status, 0, 'the production tool still runs');
 });
 
@@ -86,9 +110,17 @@ test('a one-off script file that reads the key is refused; the same script witho
   writeFileSync(join(dir, 'plain.mjs'), 'console.log(process.env.HOME);\n');
   const refused = runHook(GUARD, bash('node oneoff.mjs https://fake.example.test', dir), HOSTED);
   assert.equal(refused.status, 2, refused.message);
-  assert.match(refused.message, /oneoff\.mjs, a script not in the repository/);
+  assert.match(refused.message, /oneoff\.mjs is a script not in the repository/);
   assert.equal(runHook(GUARD, bash('node plain.mjs', dir), HOSTED).status, 0);
-  assert.equal(runHook(GUARD, bash(`timeout 60 npx tsx ${join(dir, 'oneoff.mjs')}`), HOSTED).status, 2, 'an absolute path behind wrappers');
+  const oneoff = join(dir, 'oneoff.mjs');
+  for (const [command, cwd] of [
+    [`timeout -s KILL 60 npx tsx ${oneoff}`, process.cwd()],
+    [`node --import tsx ${oneoff}`, process.cwd()],
+    [`cd ${dir} && node oneoff.mjs`, process.cwd()],
+    [`node oneoff.mjs; node ${join(process.cwd(), 'scripts/db-push.mjs')} --help`, dir],
+  ]) {
+    assert.equal(runHook(GUARD, bash(command, cwd), HOSTED).status, 2, command);
+  }
 });
 
 test('the Codex guard refuses the same command', () => {

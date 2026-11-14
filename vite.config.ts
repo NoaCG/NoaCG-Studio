@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { claimDevPorts, reservesPorts, writeLaunchConfig } from './scripts/dev-port.mjs';
-import { assertConfiguredTarget } from './scripts/configured-target.mjs';
+import { assertConfiguredTarget, MEASURE_BACKEND_FILE } from './scripts/configured-target.mjs';
 import { panelBackendPlugin } from './scripts/panelBackendPlugin.mjs';
 import { catalogIndexPlugin } from './scripts/catalogIndexPlugin.mjs';
 import { skewProtectionPlugin } from './scripts/skewProtectionPlugin.mjs';
@@ -51,6 +51,16 @@ const GENERATED: Record<string, () => string> = {
   // The coding-agent prompt, on Downloads and in the docs (scripts/agent-prompt.mjs).
   [AGENT_PROMPT_MARKER]: () => renderAgentPrompt(),
 };
+
+function measureBackendStamp(url: string): Plugin {
+  return {
+    name: 'noacg-measure-backend',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: MEASURE_BACKEND_FILE, source: JSON.stringify({ VITE_SUPABASE_URL: url }) });
+    },
+  };
+}
 
 function generatedPages(): Plugin {
   return {
@@ -133,11 +143,14 @@ export default defineConfig(({ command, mode }) => {
   // VITE_MEASURE_HOOKS=1 and the browser suite's build is `--mode e2e`; each is judged by the rule
   // every configured run uses, on what this build will actually see (the shell over the .env
   // files, as Vite merges them). The site's own builds set none of the three and are untouched.
+  const measureBuild = process.env.VITE_MEASURE_HOOKS === '1' && command === 'build';
+  let builtBackend = '';
   if (process.env.NOACG_E2E_SERVER || process.env.VITE_MEASURE_HOOKS === '1' || mode === 'e2e') {
     const seen: Record<string, string | undefined> = { ...loadEnv(mode, process.cwd(), ''), ...process.env };
     // A bundle inlines only the browser's half; the api/ handlers run only under a server.
     if (command === 'build') seen.SUPABASE_URL = '';
     assertConfiguredTarget(seen, `this ${command === 'build' ? 'build' : 'server'} for a test or a measurement`);
+    builtBackend = seen.VITE_SUPABASE_URL ?? '';
   }
   // THE E2E BUILD (`npm run build:e2e`, served to the browser suite): the app's bundle with
   // function and class names kept (below), the source-module registry specs reach through
@@ -170,6 +183,9 @@ export default defineConfig(({ command, mode }) => {
       // ?dpl=<deployment id> on every built file reference, on a Vercel build with Skew Protection
       // on, so an open page keeps loading its own deploy (scripts/skewProtectionPlugin.mjs).
       skewProtectionPlugin(),
+      // A measurement build records the backend it was given, which the harness judges before it
+      // serves the build (MEASURE_BACKEND_FILE in scripts/configured-target.mjs, #2508).
+      ...(measureBuild ? [measureBackendStamp(builtBackend)] : []),
     ],
     // strictPort: the port is this checkout's identity (playwright + the dev scripts derive
     // the same number), so failing loudly beats silently drifting onto a neighbour's port. The

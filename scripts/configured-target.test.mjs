@@ -21,7 +21,7 @@ import { existsSync, globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wri
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget, distBackendRefusal, HOSTED_STAGING, isLocalStackUrl, KEY_VARS, localStackEnv, requireLocalStack, servedTarget, URL_VARS } from './configured-target.mjs';
+import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget, distBackendRefusal, MEASURE_BACKEND_FILE, HOSTED_STAGING, isLocalStackUrl, KEY_VARS, localStackEnv, requireLocalStack, servedTarget, URL_VARS } from './configured-target.mjs';
 import { DEFAULT_STAGING_REF } from './supabase-projects.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -551,11 +551,12 @@ test('the configured suite itself refuses the incident environment, collecting a
 
 // #2508: a measurement build carries the backend it was BUILT against, which no probe of a running
 // server reads. Stub dists stand in for real builds: only their scripts' text is read.
-function stubDist(t, backend) {
+function stubDist(t, backend, recorded = backend) {
   const dir = mkdtempSync(path.join(tmpdir(), 'noacg-measure-dist-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(path.join(dir, 'assets'));
   writeFileSync(path.join(dir, 'assets', 'index-abc123.js'), `const c={url:"${backend}",anonKey:"fake-anon"};const l="noacg-measure-edit-loop";const r='https://'+ref+'.supabase.co';\n`);
+  if (recorded !== null) writeFileSync(path.join(dir, MEASURE_BACKEND_FILE), JSON.stringify({ VITE_SUPABASE_URL: recorded }));
   return dir;
 }
 const OTHER_PROJECT = 'https://abcdefghijklmnopqrst.supabase.co';
@@ -568,6 +569,11 @@ test('a measurement build is judged by the backend inlined in it, by the same ru
   const staging = `https://${DEFAULT_STAGING_REF}.supabase.co`;
   assert.equal(distBackendRefusal(stubDist(t, staging), { ...LOCAL_STACK, [DECLARATION]: HOSTED_STAGING }), null, 'declared staging runs');
   assert.match(distBackendRefusal(stubDist(t, staging), LOCAL_STACK) ?? '', /hosted-staging/, 'undeclared staging does not');
+  // The record makes a backend on any domain visible, and a build without one is not trusted.
+  const custom = 'https://db.example.test';
+  assert.match(distBackendRefusal(stubDist(t, custom), LOCAL_STACK) ?? '', /made against db\.example\.test.*not a local Supabase stack/s);
+  assert.match(distBackendRefusal(stubDist(t, LOCAL_STACK.VITE_SUPABASE_URL, null), LOCAL_STACK) ?? '', /no readable noacg-backend\.json/);
+  assert.match(distBackendRefusal(stubDist(t, CLOUD_WORKER.VITE_SUPABASE_URL, LOCAL_STACK.VITE_SUPABASE_URL), LOCAL_STACK) ?? '', /PRODUCTION project/, 'the scripts are read as well as the record');
 });
 
 test('the measurement harness refuses a production-built dist before any server starts', (t) => {
@@ -593,7 +599,7 @@ test('the measurement harness refuses a production-built dist before any server 
 test('a build or server a test or measurement starts refuses a backend it may not destroy', () => {
   // vite.config.ts itself, loaded the way `vite build` loads it; it throws before any build.
   const load = (env, mode = 'production') => {
-    const run = spawnSync(process.execPath, ['--input-type=module', '-e', `import('vite').then((v) => v.loadConfigFromFile({ command: 'build', mode: '${mode}' }, 'vite.config.ts', undefined, 'silent')).then(() => console.log('LOADED'))`], {
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', `import('vite').then((v) => v.loadConfigFromFile({ command: 'build', mode: '${mode}' }, 'vite.config.ts', undefined, 'silent')).then((r) => console.log('LOADED', r.config.plugins.flat().map((p) => p && p.name).join(',')))`], {
       cwd: ROOT,
       encoding: 'utf8',
       env: { ...process.env, SUPABASE_URL: '', NOACG_E2E_SERVER: '', VITE_MEASURE_HOOKS: '', ...env },
@@ -604,6 +610,8 @@ test('a build or server a test or measurement starts refuses a backend it may no
   assert.match(load({ ...CLOUD_WORKER, VITE_MEASURE_HOOKS: '1' }), /Refusing to start this build for a test or a measurement.*PRODUCTION project/s);
   assert.match(load({ ...CLOUD_WORKER }, 'e2e'), /Refusing to start this build/);
   assert.match(load({ ...CLOUD_WORKER, VITE_SUPABASE_URL: OTHER_PROJECT, NOACG_E2E_SERVER: '1' }), /Refusing to start this build/);
-  assert.match(load({ ...LOCAL_STACK, VITE_MEASURE_HOOKS: '1' }), /LOADED/, 'a measurement build against the local stack is made');
-  assert.match(load({ ...CLOUD_WORKER }), /LOADED/, "the site's own build is not this rule's business");
+  assert.match(load({ ...LOCAL_STACK, VITE_MEASURE_HOOKS: '1' }), /LOADED.*noacg-measure-backend/, 'a measurement build against the local stack is made, and records its backend');
+  const site = load({ ...CLOUD_WORKER });
+  assert.match(site, /LOADED/, "the site's own build is not this rule's business");
+  assert.doesNotMatch(site, /noacg-measure-backend/, 'and carries no measurement record');
 });
