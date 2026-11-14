@@ -315,26 +315,37 @@ function refreshHarness() {
   const shows = new Map(['show', 'other'].map(id => [id, { id, teamId: 'team', version: 2, name: 'First', graphics: [] }]));
   const head = (id, token) => ({ id, team_id: 'team', updated_at: token, updated_by: 'mate' });
   let heads = [head('show', 'base'), head('other', 'base')];
+  // Once the pass under test is reading, a pass started meanwhile (a move asks for one) waits.
+  const reads = { held: false };
   const sb = {
     from: () => ({
       select: (cols) => cols.includes('doc')
         ? { in: (_col, ids) => { fetched.push(ids); const d = deferred(); docs.push(d); return d.promise; } }
         : { order: async () => ({ data: heads, error: null }) },
+      insert: (row) => ({ select: () => ({ single: async () => ({ data: { id: row.id, team_id: row.team_id, updated_at: 'moved', updated_by: 'owner' }, error: null }) }) }),
+      delete: () => ({ eq: (_col, id) => ({ select: async () => ({ data: [{ id }], error: null }) }) }),
     }),
     rpc: async () => answers.shift(),
   };
+  const teams = () => reads.held ? new Promise(() => {}) : Promise.resolve({ teams: [], members: [], error: null });
   const stubs = {
     './supabase': { getSupabase: async () => sb },
-    './teams': { listMyTeams: async () => ({ teams: [], error: null }), listMyTeamMembers: async () => ({ members: [], error: null }) },
+    './teams': { listMyTeams: teams, listMyTeamMembers: teams },
     './assets': assets,
     './pacing': pacing,
     './partialWrites': { partialWritesOn: async () => false, unitPace: async () => {}, noteWritten: () => {} },
     './unitPatch': {},
-    '../model/shows': {},
+    '../model/shows': { deleteShow: () => {} },
     '../model/teamShows': {
       loadTeamShows: () => [...shows.values()],
       applyServerTeamShow: doc => { shows.set(doc.id, doc); },
-      applyServerTeamShows: (list, keep) => { for (const s of list) if (!keep.has(s.id)) shows.set(s.id, s); },
+      // As model/teamShows.ts: the list replaces every record; a kept one stays as this tab has it.
+      applyServerTeamShows: (list, keep) => {
+        const next = new Map(list.map(s => [s.id, keep.has(s.id) && shows.has(s.id) ? shows.get(s.id) : s]));
+        shows.clear();
+        for (const [id, s] of next) shows.set(id, s);
+      },
+      removeTeamShow: id => { shows.delete(id); },
       setTeamShowsStatus: () => {},
     },
     '../model/rundownHistory': history,
@@ -360,9 +371,9 @@ function refreshHarness() {
   }, setTimeout: () => 1, clearTimeout: () => {} });
   for (const show of shows.values()) exports.seedForTest(show);
   return {
-    controller: exports, docs, fetched, answers,
+    controller: exports, docs, fetched, answers, reads,
     settle: () => new Promise(resolve => setImmediate(resolve)),
-    name: id => shows.get(id).name,
+    name: id => shows.get(id)?.name,
     edit(id, name) { shows.set(id, { ...shows.get(id), name }); exports.editForTest(id); },
     /** A teammate saved `show`: its head moves, and this is the row the read answers with. */
     teammateSaved(token, name) {
@@ -384,6 +395,7 @@ test('an edit made while teammates\' documents are read keeps its text and base,
   await pass;
   assert.equal(h.name('show'), 'Mine', 'the typed text stays on the page');
   assert.equal(h.name('other'), 'Mine too', 'an edit to a production not being read stays too');
+  assert.equal(h.controller.knownForTest('other').token, 'base');
   assert.equal(h.controller.knownForTest('show').token, 'base', 'the save still carries the token its edit started from');
   assert.equal(h.controller.knownForTest('show').doc.name, 'First');
 
@@ -413,6 +425,26 @@ test('a save confirmed while teammates\' documents are read is not undone by the
   await pass;
   assert.equal(h.name('show'), 'Mine');
   assert.equal(h.controller.knownForTest('show').token, 't3');
+  assert.equal(h.controller.getTeamState().heads.show.updatedAt, 't3', 'the shown head is the confirmed one (#2566)');
+});
+
+test('a production moved in or deleted while teammates\' documents are read stays as this tab left it (#2566)', async () => {
+  const h = refreshHarness();
+  const row = h.teammateSaved('t2', 'Theirs');
+  const pass = h.controller.refreshForTest();
+  while (h.docs.length === 0) await h.settle();
+  h.reads.held = true;
+  const moved = await h.controller.moveProductionToTeam({ id: 'moved', version: 2, name: 'Moved', graphics: [] }, 'team');
+  assert.equal(moved.error, null);
+  assert.equal((await h.controller.deleteTeamProduction({ id: 'show' })).error, null);
+  h.docs[0].resolve({ data: [row], error: null });
+  await pass;
+  assert.equal(h.name('moved'), 'Moved', 'the moved production stays on the page');
+  assert.equal(h.controller.knownForTest('moved').token, 'moved', 'and keeps its revision, so its next edit can save');
+  assert.equal(h.controller.getTeamState().heads.moved.updatedAt, 'moved');
+  assert.equal(h.name('show'), undefined, 'the deleted production does not come back');
+  assert.equal(h.controller.knownForTest('show'), undefined);
+  assert.equal(h.controller.getTeamState().heads.show, undefined);
 });
 
 test('a rundown undo saved while teammates\' documents are read is not undone by the older read (#2565)', async () => {

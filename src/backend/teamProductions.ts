@@ -617,10 +617,11 @@ async function refreshOnce(): Promise<void> {
   }
   noteRead(false);
   // #2565: the operator may type, or this tab may save, restore, move or delete, while that read is
-  // out, on a fetched production or any other. Such a production keeps its base, token and local
-  // record; the next pass reads it again.
-  for (const id of [...dirty, ...inflight]) keep.add(id);
-  for (const id of new Set([...before.keys(), ...server.keys()])) if (server.get(id) !== before.get(id)) keep.add(id);
+  // out, on a fetched production or any other. Such a production keeps its base, token, local
+  // record and shown head (#2566), whatever the heads read before the fetch said; the next pass
+  // reads it again.
+  const changed = new Set([...before.keys(), ...server.keys()].filter((id) => server.get(id) !== before.get(id)));
+  for (const id of [...dirty, ...inflight, ...changed]) keep.add(id);
   for (const row of docs.rows) {
     if (keep.has(row.id)) continue;
     server.set(row.id, {
@@ -631,21 +632,27 @@ async function refreshOnce(): Promise<void> {
     });
   }
   const listed = new Set(heads.map((h) => h.id));
-  for (const id of [...server.keys()]) if (!listed.has(id)) server.delete(id);
+  for (const id of [...server.keys()]) if (!listed.has(id) && !changed.has(id)) server.delete(id);
 
   // A record with an edit on its way up stays as this tab has it; its save reconciles it.
   const records: Show[] = [];
-  for (const head of heads) {
-    const known = server.get(head.id);
+  for (const id of new Set([...listed, ...changed])) {
+    const known = server.get(id);
     if (known) records.push({ ...known.doc, teamId: known.teamId });
   }
   applyServerTeamShows(records, keep);
+  const shown: Record<string, TeamProductionHead> = Object.fromEntries(heads.map((h) => [h.id, h]));
+  for (const id of changed) {
+    const known = server.get(id), held = state.heads[id];
+    if (!known) delete shown[id];
+    else if (held?.updatedAt === known.token) shown[id] = held;
+  }
   setState({
     loaded: true,
     loadError: null,
     teams: teamsAnswer.teams,
     members: membersAnswer.members,
-    heads: Object.fromEntries(heads.map((h) => [h.id, h])),
+    heads: shown,
   });
   // A save that failed on a dropped connection is retried on the next good read.
   for (const id of dirty) if (!timers.has(id) && !inflight.has(id)) scheduleSave(id);
