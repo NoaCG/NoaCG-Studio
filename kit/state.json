@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Exact Windows j-5260 passed 46/46 and targeted app checks passed. Independent review reproduced a same-instance missing-duration corner at the native Bridge boundary despite the corrected Studio anchor. Fresh reassessment before grouped correction. CI 43652153503 and Codex review remain under ordinary observation; draft unqueued.",
-      "pr": 2564,
-      "head": "4afc1294a5efe86e12a6c8e4492cb50b65219164",
+      "step": "build",
       "session": "/root/v5_builder",
-      "phase": "v5",
-      "step": "build"
+      "note": "Native timing gap and guarded optional item repaired together. Local Windows j-5261 46/46, 195 focused App Node and 182 Bridge suites, app/API types and lint passed. Exact CI 43653464697, Codex and fresh independent full review pending. Latest main e3bd018e only adds an unrelated quarantine entry; V5 changes none.",
+      "pr": 2564,
+      "head": "94bf48096c99656adfe664d4e02ddb5c627f04db",
+      "phase": "v5"
     }
   ],
   "owner": [],
