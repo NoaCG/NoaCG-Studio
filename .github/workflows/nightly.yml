@@ -193,7 +193,7 @@ jobs:
           if [ -n "$DEV_SERVER" ]; then
             gh api "repos/${GH_REPO}/contents/scripts/e2e-durations.json?ref=da87aaaa88a569c463c152e6d32e93b5e753afe7" \
               --jq '.content' | base64 -d > "$RUNNER_TEMP/dev-server-durations.json" || exit 1
-            node scripts/nightly-shards.mjs --github-output --table "$RUNNER_TEMP/dev-server-durations.json" $REPORTS
+            node scripts/nightly-shards.mjs --github-output --dev-table "$RUNNER_TEMP/dev-server-durations.json" $REPORTS
             exit $?
           fi
           # With a quarantine list, just those specs, packed by the same weights.

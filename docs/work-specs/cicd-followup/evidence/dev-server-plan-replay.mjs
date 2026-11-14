@@ -7,20 +7,19 @@
 import fs from 'node:fs';
 import { devServerWeights, planNightly } from '../../../../scripts/nightly-shards.mjs';
 import { minutesByFile, predictShardMinutes, readTable, specFilesOnDisk } from '../../../../scripts/e2e-durations.mjs';
-import { unfinishedByFile } from '../../../../scripts/nightly-triage.mjs';
 const [dir, tablePath] = process.argv.slice(2);
 const read = (id) => JSON.parse(fs.readFileSync(`${dir}/${id}/nightly-report.json`));
 const window = ['43587029966', '43578476041', '43578470126', '43566704154', '43548883139'].map(read); // newest first
 const table = readTable(tablePath);
 const suite = specFilesOnDisk();
-// Actual dev-server minutes: the slower of the two dev_server runs, and a file 43587039825 left
-// unfinished takes the other run's finished minutes when larger.
+// Actual dev-server minutes: per file, the larger of the two dev_server runs' minutes (a file one run
+// left unfinished counts its partial minutes there, so the other run's usually wins).
 const a = minutesByFile(read('43587039825')), b = minutesByFile(read('43578476041'));
 const actual = Object.fromEntries(suite.map((f) => [f, Math.max(a[f] ?? 0, b[f] ?? 0)]));
 const unseen = suite.filter((f) => !(f in a) && !(f in b));
 for (const [name, plan] of [
   ['pinned table only (#2544)', planNightly({ suite, table })],
-  ['devServerWeights (this PR)', planNightly({ suite, table: { ...table, minutes: devServerWeights(table.minutes, window) } })],
+  ['devServerWeights (this PR)', planNightly({ suite, table: { ...table, minutes: devServerWeights(table.minutes, window, suite) } })],
 ]) {
   const real = plan.shardSpecs.map((bin) => predictShardMinutes(bin.reduce((s, f) => s + (actual[f] ?? 0), 0), table));
   console.log(`${name}: ${plan.shardSpecs.length} shards, planned ${Math.min(...plan.predicted)}-${Math.max(...plan.predicted)} min,`,
