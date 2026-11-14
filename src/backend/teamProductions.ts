@@ -605,10 +605,18 @@ async function refreshOnce(): Promise<void> {
   // two correctly. Adopting their document as the base here instead would make the old token look
   // current to this tab's merge while the server holds the new one - and a merge against the wrong
   // base is how a teammate's cue quietly disappears.
-  const keep = new Set([...dirty, ...inflight]);
-  const stale = heads.filter((h) => !keep.has(h.id) && server.get(h.id)?.token !== h.updatedAt).map((h) => h.id);
+  const busy = new Set([...dirty, ...inflight]);
+  const stale = heads.filter((h) => !busy.has(h.id) && server.get(h.id)?.token !== h.updatedAt).map((h) => h.id);
+  // Each production's base entry as the read leaves. Every base move makes a new entry.
+  const before = new Map(heads.map((h) => [h.id, server.get(h.id)]));
   const docs = await fetchTeamProductionDocs(stale);
   if (running !== owner) return;
+  // An edit or a save made while the read was out is newer than what it fetched (#2565): such a
+  // production keeps its base and its record exactly as one with an edit on its way up does. An
+  // edit made meanwhile is still dirty or in flight (F1), or its save, accepted or refused, has
+  // moved the base to a new entry (F7).
+  const keep = new Set([...busy, ...dirty, ...inflight]);
+  for (const [id, base] of before) if (server.get(id) !== base) keep.add(id);
   if (docs.error) {
     noteRead(true);
     setState({ loadError: docs.error });
@@ -616,6 +624,7 @@ async function refreshOnce(): Promise<void> {
   }
   noteRead(false);
   for (const row of docs.rows) {
+    if (keep.has(row.id)) continue;
     server.set(row.id, {
       token: row.updated_at,
       doc: teamDoc(teamRecord(row.doc, row)),
