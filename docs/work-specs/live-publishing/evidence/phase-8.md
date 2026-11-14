@@ -47,8 +47,9 @@ From the coordinator's brief (#2361), before any timing was read:
 - Automatic updates (`auto_publish`) and partial writes (`partial_writes`) are switched on in the
   local stack for every run, as the spec says ("with automatic updates on"), and off after it.
   Production keeps both off; this phase never reached it.
-- The three extra accounts are minted on the local stack only (the scene refuses any other
-  backend), the way `teams.spec.ts` mints its third account, and deleted after the run.
+- Every person but the first (the suite's own account, the team owner) is an account minted on the
+  local stack only (four for five people; the scene refuses any other backend), the way
+  `teams.spec.ts` mints its third account, and deleted after the run.
 
 "Press": the Take button's `click` event. "Ran": the output's graphic calls `play()` for that Take
 (the W3 "ran"), on the same time origin (one Playwright run, one machine).
@@ -66,7 +67,8 @@ served by `vite preview`), as phases 6 and 7 judged timing on a bundled build. U
 
 Five accounts for 600 s, automatic updates and partial writes on; ticks every 4 s (editors type
 together on each, the Goal on every 3 s), a message every 15 s. The first editor's page reloaded at
-240 s; the second editor's browser was offline from 360 s to 380 s and kept typing.
+240 s; the second editor's browser went offline at 360 s and kept typing, and came back on the
+first tick at least 20 s later (20 to 24 s; a later commit brings it back on its own 20 s clock).
 
 | Check | Result |
 |---|---|

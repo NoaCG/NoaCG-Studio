@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
-import { SUPABASE_URL } from '../_helpers';
-import { log, pageCues, run, serverState, setSwitch, setUp, tearDown, type RunReport, type Scene } from '../_five';
+import { test } from '@playwright/test';
+import { SERVICE_ROLE_KEY } from '../_helpers';
+import { isLocalStack, log, openProduction, pageCues, run, serverState, setSwitch, setUp, tearDown, type RunReport, type Scene } from '../_five';
 import { BUILD, NET, pct, summary, writeResult } from './_measure';
 
 // FIVE PEOPLE AT ONCE, MEASURED (docs/work-specs/live-publishing/spec.md, AC-6). The scene is
@@ -18,14 +18,14 @@ import { BUILD, NET, pct, summary, writeResult } from './_measure';
 // overwritten, and the pooled p95 of press to ran with five pages within 50 ms of a single page,
 // with a bootstrap range over rounds. summarize-five.mjs pools the result files.
 
-test.skip(!process.env.E2E_EMAIL, 'configured measurement: needs the local stack and its account');
+test.skip(!process.env.E2E_EMAIL || !SERVICE_ROLE_KEY, 'configured measurement: needs the local stack, its account and its service key');
 
 const PAGES = Number(process.env.MEASURE_PAGES ?? 5);
 const PART = process.env.MEASURE_PART ?? '1';
 const TAG = `${PAGES}-${NET}${BUILD === 'prod' ? '-prod' : ''}`;
 
 test.beforeAll(() => {
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('five people writes switches and accounts: run it only against a local stack');
+  if (!isLocalStack()) throw new Error('five people writes switches and accounts: run it only against a local stack');
 });
 
 // MEASURE_BUILD=prod: the whole scene, set-up included, runs on the bundled build. MEASURE_DIST must be
@@ -101,8 +101,7 @@ test('pair', async ({ page, browser }) => {
     for (const mode of order) {
       // Alone: the other people's pages are closed (navigated off the app), as if only one page were open.
       if (mode === 'alone') for (const p of scene.people.slice(1)) await p.page.goto('about:blank');
-      else for (const p of scene.people.slice(1)) if (p.page.url() === 'about:blank') await p.page.goto(`/app#/production/${scene.showId}`);
-      if (mode === 'all') for (const p of scene.people.slice(1)) await expect(p.page.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
+      else for (const p of scene.people.slice(1)) if (p.page.url() === 'about:blank') await openProduction(p.page, scene.showId);
       const report = await run(scene, { ms: roundMs, everyone: mode === 'all', reloadAt: null, offlineAt: null });
       const samples = ran(report);
       out.push({ round: r, mode, samples, lost: report.takes.length - samples.length, errors: report.errors });

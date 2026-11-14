@@ -55,7 +55,7 @@ const domain = () => E2E_EMAIL.slice(E2E_EMAIL.indexOf('@'));
 export const memberEmail = (i: number) => `e2e-five-${i}${domain()}`;
 
 async function admin(path: string, init: RequestInit): Promise<Response> {
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('the five-person scene mints accounts: only against a local stack');
+  if (!isLocalStack()) throw new Error('the five-person scene mints accounts: only against a local stack');
   return fetch(`${SUPABASE_URL}/auth/v1/admin/${path}`, {
     ...init,
     headers: { apikey: SERVICE_ROLE_KEY, Authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' },
@@ -78,6 +78,9 @@ export async function dropMinted(emails: string[]): Promise<void> {
   const users = ((await res?.json().catch(() => null)) as { users?: { id: string; email: string }[] } | null)?.users ?? [];
   for (const u of users) if (emails.includes(u.email)) await admin(`users/${u.id}`, { method: 'DELETE' }).catch(() => undefined);
 }
+
+/** True when the backend is a local stack: the only place this scene may mint accounts or write switches. */
+export const isLocalStack = () => /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL);
 
 const t0 = Date.now();
 export const log = (...a: unknown[]) => console.log(`[five ${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
@@ -206,7 +209,7 @@ export async function openProduction(page: Page, showId: string): Promise<void> 
 
 /** The service-role switch writes (`system_settings`), local stack only. */
 export async function setSwitch(key: 'auto_publish' | 'partial_writes', on: boolean): Promise<void> {
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('switches are written only on a local stack');
+  if (!isLocalStack()) throw new Error('switches are written only on a local stack');
   const res = await fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
     method: 'POST',
     headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
@@ -217,9 +220,9 @@ export async function setSwitch(key: 'auto_publish' | 'partial_writes', on: bool
 
 /**
  * Set the scene up: `pages` people (at least five: taker, messages, quick and two or more editors),
- * the first on the suite's own account (the team owner, who builds and publishes, then takes), the
- * second on the suite's teammate account, the rest minted. Opens one output and waits for it to hold
- * every graphic.
+ * the first on the suite's own account (the team owner, who builds and publishes, then takes), every
+ * other one minted on the local stack. Opens one output, waits for it to hold every graphic, and puts
+ * the score on air, so that during a run the taker's Takes are the only ones the output plays.
  */
 export async function setUp(browser: Browser, owner: Page, pages: number): Promise<Scene> {
   if (pages < 5) throw new Error('the scene needs five people');
@@ -283,6 +286,11 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
     .poll(async () => { const r = await readyOf(output); return r ? r.n === r.of && r.of >= graphics : false; }, { timeout: 180_000, intervals: [100] })
     .toBe(true);
   log('output holds every graphic');
+  const quick = people.find((p) => p.role === 'quick')!;
+  await selectCue(quick.page, quick.cue!);
+  await quick.page.getByTestId('verb-take').click();
+  await expect(quick.page.getByTestId('cue-action-goalA')).toBeEnabled({ timeout: 20_000 });
+  await expect.poll(async () => (await framePlays(output)).some((f) => f.plays.length > 0), { timeout: 20_000, message: 'the score is on air' }).toBe(true);
   // MEASURE_NET=slow (the measurement only): every page and the output at 20 Mbit/s and 50 ms from
   // here on. Set-up is not timed. A page taken offline and back loses its throttle (one CDP setting).
   if (NET === 'slow') for (const p of [...people.map((x) => x.page), output]) await throttle(p, 'slow');
@@ -362,8 +370,8 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
     const page = p.page;
     await selectCue(page, p.cue!);
     // The score goes on air once; from then on its Goal button is the quick button pressed.
+    // The score went on air in set-up; its Goal button is the quick button.
     const goal = page.getByTestId('cue-action-goalA');
-    if (!(await goal.isEnabled().catch(() => false))) await page.getByTestId('verb-take').click();
     await expect(goal).toBeEnabled({ timeout: 20_000 });
     for (let k = 1; live(); k++) {
       await sleepUntil(page, start + k * tick * 0.75);
@@ -409,7 +417,8 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
     await selectCue(page, p.cue!);
     const reloadAt = opts.reloadAt != null && n === 0 ? start + opts.ms * opts.reloadAt : null;
     const offlineAt = opts.offlineAt != null && n === 1 ? start + opts.ms * opts.offlineAt : null;
-    let reloaded = false, wentOffline = false, backOnline: number | null = null;
+    let reloaded = false, wentOffline = false;
+    let back: Promise<void> | null = null;
     for (let k = 1; live(); k++) {
       await sleepUntil(page, start + k * tick);
       if (!live()) break;
@@ -423,18 +432,19 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
       if (offlineAt !== null && !wentOffline && Date.now() >= offlineAt) {
         wentOffline = true;
         await p.context.setOffline(true);
-        backOnline = Date.now() + (opts.offlineMs ?? 20_000);
-        report.offline = { from: Date.now() - start, to: Date.now() - start + (opts.offlineMs ?? 20_000) };
-      }
-      if (backOnline !== null && Date.now() >= backOnline) {
-        await p.context.setOffline(false);
-        backOnline = null;
+        const window = { from: Date.now() - start, to: -1 };
+        report.offline = window;
+        // Back online on its own clock, not the next tick's, so the window is what it says.
+        back = page.waitForTimeout(opts.offlineMs ?? 20_000).then(async () => {
+          await p.context.setOffline(false);
+          window.to = Date.now() - start;
+        });
       }
       const text = `${p.cue} by ${n} #${k}`;
       await textBox(page).fill(text);
       record.typed.push(text);
     }
-    if (backOnline !== null) await p.context.setOffline(false);
+    if (back) await back;
   };
 
   const loops: Promise<void>[] = [takerLoop().catch(fail('taker'))];

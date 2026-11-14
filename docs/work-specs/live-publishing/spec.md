@@ -602,8 +602,8 @@ Filled in by each phase's pull request.
   spec, its measurement, the evidence, the checklist and the tested numbers in
   `docs/CLOUD_PLAYOUT.md`; no product file and nothing persisted changed, so no data step goes with it.
 - Decisions: five people are five accounts on a team production (one production, five accounts
-  needs a team): the suite's own account, its teammate and three minted on the local stack only,
-  deleted after each run, the way `teams.spec.ts` mints its third. Set-up reaches the app through the
+  needs a team): the suite's own account and four minted on the local stack only, deleted after
+  each run, the way `teams.spec.ts` mints its third. Set-up reaches the app through the
   test door; every role acts through the page as a person would. The configured spec runs the scene
   for 30 s to fit the suite's 120 s per-test ceiling and judges correctness only; the ten-minute run
   and the timing use the same scene from `e2e/configured/measure/five.measure.ts` on the bundled e2e

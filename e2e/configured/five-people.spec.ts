@@ -17,11 +17,10 @@
 // covers: src/backend/teamProductions.ts, src/backend/savedRevision.ts, src/control/autoPublish.ts, src/components/home/useAutoPublish.ts
 // covers: src/control/publishParts.ts, src/control/publishRevision.ts, src/control/messageStaging.ts
 import { test, expect } from '@playwright/test';
-import { haveCreds, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
-import { pageCues, run, serverState, setSwitch, setUp, tearDown, type Scene } from './_five';
+import { haveCreds, SERVICE_ROLE_KEY } from './_helpers';
+import { isLocalStack, pageCues, run, serverState, setSwitch, setUp, tearDown, type Scene } from './_five';
 
-const LOCAL = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL);
-test.skip(!haveCreds || !SERVICE_ROLE_KEY || !LOCAL, 'five people: needs the local stack, its accounts and its service key (it mints accounts and writes the switches)');
+test.skip(!haveCreds || !SERVICE_ROLE_KEY || !isLocalStack(), 'five people: needs the local stack, its accounts and its service key (it mints accounts and writes the switches)');
 
 let scene: Scene | null = null;
 test.afterEach(async ({ page }) => {
