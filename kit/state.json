@@ -72,7 +72,7 @@
       "actor": "/root/editor_e5f_cloud_builder",
       "thread": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
-      "status": "Assistant52ae allproductgatesgreen; queueintentprepared, rootsoleowner; Reviewedlatestamprecoveryowed.",
+      "status": "AssistantPR2555actualqueueadmitted; group43617774692inprogress/rootactive. FullWIP2552draft andphaseacceptancepending.",
       "source": "4751981d1202c8127739e21e95c979f4af01711b",
       "deliveryBranch": "codex/plan-editor-r1-5-e5f-assistant",
       "deliverySource": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84"
@@ -3734,7 +3734,7 @@
         "createdAt": "2026-11-14T16:31:54Z",
         "draft": false,
         "autoMerge": false,
-        "queued": false,
+        "queued": true,
         "repairOwnerComment": 6880720471,
         "repairOwner": "root6af455f4-b1c8-8191-86b2-8bfdfc619075 active/no qualifieddurablewake",
         "repairAttempts": 0,
@@ -3756,11 +3756,15 @@
             "job": 132511403035,
             "conclusion": "failure",
             "reason": "missingnoacg/reviewed149s/29polls; rootwhole13391charlogread",
-            "recovery": "notyetrequested; onlyReviewedjobonce afterstamp"
+            "recovery": "Mainfallback helper reran ONLYfailedReviewed once; newjob132516358738SUCCESS16:49:56",
+            "newJob": 132516358738
           },
           "build": 132511402909,
           "factory": 132511402951,
-          "retries": "skipped; no testjobretry executed"
+          "retries": "skipped; no testjobretry executed",
+          "latestAttempt": 2,
+          "latestConclusion": "success",
+          "originalConclusion": "attempt1FAILonlyReviewed preserved; originalproductgatesPASS"
         },
         "codex": {
           "summaryComment": 6880714411,
@@ -3785,7 +3789,31 @@
           "head": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84",
           "sourceVerified": "Freshfetchmain5c118 ancestor52ae; actualgeneratedstamp52ae/base5c118PASS; clean12paths; SOA+Codexclean+exactCIgate/configuredSUCCESS rootread",
           "sequence": "postexactnoacg/reviewed+land; confirmhead; enableautoimmediately; confirmhead; recoveronlyReviewedjobonce; observeactualqueueevent/group/merge/postland/deploy",
-          "status": "prepared; noexternalstamp/label/auto/recoveryyet"
+          "status": "Executedviaqualifiedmainworkflowfallback; actualqueueadmissionobserved"
+        },
+        "queue": {
+          "directStatus": "403 Resource notaccessiblebyintegration; no mutation fromdeniedrequest",
+          "fallback": {
+            "workflow": "cloud-queue-merge.yml",
+            "run": 43617697481,
+            "head": "5c118f5b02c3b6266d8286cc24f797438774eedb",
+            "conclusion": "success",
+            "job": 132516270121,
+            "dispatch": "One original via verification-dispatch; observercustomschemaUNRESOLVED advisory retained, actualsource/inputs read and dispatchaccepted16:49:25Z",
+            "statusId": 58926101972,
+            "statusContext": "noacg/reviewed",
+            "statusState": "success"
+          },
+          "auto": "Session connector enabled afteractualstamp, immediateheadbefore/after52ae unchanged; rootactive",
+          "landLabel": true,
+          "admittedAt": "2026-11-14T16:49:58Z",
+          "proof": "GitHubactualadded_to_merge_queue timeline event; auto_merge:null aftertransfer notabsence",
+          "mergeGroup": {
+            "run": 43617774692,
+            "head": "82c4a59d245572c743ecee22a592e128642d735e",
+            "branch": "gh-readonly-queue/main/pr-2555-5c118f5b02c3b6266d8286cc24f797438774eedb",
+            "status": "in_progress"
+          }
         }
       }
     }
