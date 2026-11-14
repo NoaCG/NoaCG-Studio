@@ -962,8 +962,8 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       const image = `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><!-- ${Date.now()} ${'x'.repeat(4000)} --><rect width="8" height="8"/></svg>`).toString('base64')}`;
       const addPictured = (name: string) =>
         page.evaluate(async ({ id, name, image }) => {
-          const shows = await import('/src/model/shows.ts');
-          const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+          const shows = await __noacgImport('/src/model/shows.ts');
+          const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
           const s = shows.loadShows().find((x) => x.id === id)!;
           const t = s.graphics[0].template;
           const added = shows.addGraphicToShow(id, { ...t, name, assets: [...t.assets, { path: 'img/mark.svg', data: image }] });
@@ -997,11 +997,11 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       const sameAsWhole = async (what: string) => {
         const rows = await (await service(`control_shows?id=eq.${showId}&select=output,panel,title,bindings,sources,collections,profile`)).json();
         const diff = await page.evaluate(async ({ id, row }) => {
-          const { buildOutputPayload, buildPanelSpec, readPanel } = await import('/src/control/hostedControl.ts');
-          const { loadShows } = await import('/src/model/shows.ts');
-          const { loadGraphics } = await import('/src/model/library.ts');
-          const { profileForPublish } = await import('/src/model/profile.ts');
-          const { canonicalJson } = await import('/src/backend/unitPatch.ts');
+          const { buildOutputPayload, buildPanelSpec, readPanel } = await __noacgImport('/src/control/hostedControl.ts');
+          const { loadShows } = await __noacgImport('/src/model/shows.ts');
+          const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+          const { profileForPublish } = await __noacgImport('/src/model/profile.ts');
+          const { canonicalJson } = await __noacgImport('/src/backend/unitPatch.ts');
           const show = loadShows().find((x) => x.id === id)!;
           const library = loadGraphics();
           // Each cue's `appearance` and `adjust` are the page's box measurement at publish, which both
@@ -1021,7 +1021,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
           const got = { output: stored, panel: row.panel, title: row.title, bindings: row.bindings, sources: row.sources, collections: row.collections, profile: row.profile };
           // The stamp too, but for its time: the per-graphic digests and the identity the whole path
           // computes for this build, and `t` always written.
-          const { stampPayload } = await import('/src/control/payloadVersion.ts');
+          const { stampPayload } = await __noacgImport('/src/control/payloadVersion.ts');
           const wholeVer = await stampPayload(await buildOutputPayload(show, library), null);
           const ver = (row.output as { ver?: { g?: unknown; h?: unknown; t?: unknown } }).ver ?? {};
           const stampDiffers = [canonicalJson(ver.g) !== canonicalJson(wholeVer.g) ? 'ver.g' : '', ver.h !== wholeVer.h ? 'ver.h' : '', typeof ver.t !== 'object' || ver.t === null ? 'ver.t' : ''].filter(Boolean);
@@ -1040,11 +1040,11 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       /** R23, the record: the stored body read back with its files equals the page's record. */
       const recordSame = async (what: string, team: string | null) => {
         const differs = await page.evaluate(async ({ id, team }) => {
-          const { loadShows } = await import('/src/model/shows.ts');
-          const { canonicalJson } = await import('/src/backend/unitPatch.ts');
-          const { rehydrateAssets, rehydrateSharedAssets, blobToDataUrl } = await import('/src/backend/assets.ts');
-          const { getSupabase } = await import('/src/backend/supabase.ts');
-          const { teamDoc } = await import('/src/backend/teamProductions.ts');
+          const { loadShows } = await __noacgImport('/src/model/shows.ts');
+          const { canonicalJson } = await __noacgImport('/src/backend/unitPatch.ts');
+          const { rehydrateAssets, rehydrateSharedAssets, blobToDataUrl } = await __noacgImport('/src/backend/assets.ts');
+          const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+          const { teamDoc } = await __noacgImport('/src/backend/teamProductions.ts');
           const sb = (await getSupabase())!;
           const download = async (key: string) => {
             const { data } = await sb.storage.from('user-assets').download(key);
@@ -1148,8 +1148,8 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       // Updating one graphic sends that graphic and no stored image.
       const update = watch(page.context());
       await page.evaluate(async ({ id, gid }) => {
-        const shows = await import('/src/model/shows.ts');
-        const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+        const shows = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
         const g = shows.loadShows().find((x) => x.id === id)!.graphics.find((x) => x.id === gid)!;
         const changed = shows.setGraphicCopyScript(id, gid, g.template.js, `${g.template.js}\n// AC-5 design update`);
         if (changed.error) throw new Error(changed.error);
@@ -1191,9 +1191,9 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
 
       // A team production: its saves go as patches too, and the stored document equals the page's.
       const teamId = await page.evaluate(async (id) => {
-        const { createTeam } = await import('/src/backend/teams.ts');
-        const { moveProductionToTeam } = await import('/src/backend/teamProductions.ts');
-        const { loadShows } = await import('/src/model/shows.ts');
+        const { createTeam } = await __noacgImport('/src/backend/teams.ts');
+        const { moveProductionToTeam } = await __noacgImport('/src/backend/teamProductions.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
         // `E2E team ` prefix, so teams.spec.ts's sweep deletes it if this run dies mid-way.
         const { team: made, error } = await createTeam(`E2E team parts ${Date.now()}`, 'Parts Owner');
         if (!made || error) throw new Error(error ?? 'no team');
@@ -1208,12 +1208,12 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       await page.reload();
       await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
       // The team's copy reaches the page's store with the team read.
-      await expect.poll(() => page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().some((x) => x.id === id && !!x.teamId), showId), { timeout: 30_000 }).toBe(true);
+      await expect.poll(() => page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().some((x) => x.id === id && !!x.teamId), showId), { timeout: 30_000 }).toBe(true);
       const teamSaves = watch(page.context());
       for (const label of ['Team one', 'Team two']) {
         await edit(page, showId, 'label', label);
         await page.evaluate(async (id) => {
-          const failure = await (await import('/src/backend/teamProductions.ts')).flushTeamProduction(id);
+          const failure = await (await __noacgImport('/src/backend/teamProductions.ts')).flushTeamProduction(id);
           if (failure) throw new Error(failure);
         }, showId);
       }
@@ -1227,9 +1227,9 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       test.info().annotations.push({ type: 'team-edits-bytes', description: `${teamBytes} over ${teamEach.length} requests for two team edits, every team read counted (reported, not judged)` });
       await recordSame('a team save', teamId);
       await page.evaluate(async ([id, team]) => {
-        const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+        const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
         await unpublishControlShow(id).catch(() => undefined);
-        await (await import('/src/backend/teams.ts')).deleteTeam(team);
+        await (await __noacgImport('/src/backend/teams.ts')).deleteTeam(team);
       }, [showId, teamId] as [string, string]).catch(() => undefined);
       await viewers.close();
     } finally {

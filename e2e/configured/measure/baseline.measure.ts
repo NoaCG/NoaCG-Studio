@@ -1074,8 +1074,8 @@ test('parts', async ({ page, browser }) => {
           await field.blur();
         } else {
           await page.evaluate(async ({ id, kind, round, pic }) => {
-            const m = await import('/src/model/shows.ts');
-            const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+            const m = await __noacgImport('/src/model/shows.ts');
+            const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
             const s = m.loadShows().find((x) => x.id === id)!;
             let error: string | null = null;
             if (kind === 'design-update') {
