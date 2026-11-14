@@ -1192,8 +1192,8 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
         // The snapshot read when the page opened, and the publication it stands for.
         await parts.storedBoxes(id);
         const own = parts.ownPublish(id);
-        const { data } = await sb.from('control_shows').select('output').eq('id', id).single();
-        const row = data as { output: { ver: Parameters<typeof parts.notePublishedBoxes>[1]; cues: { id: string; appearance?: unknown; adjust?: { box?: { info: { x: number } | null; paint: { x: number } | null } } }[] } };
+        const { data } = await sb.from('control_shows').select('output, published_rev').eq('id', id).single();
+        const row = data as { published_rev: number; output: { ver: Parameters<typeof parts.notePublishedBoxes>[1]; cues: { id: string; appearance?: unknown; adjust?: { box?: { info: { x: number } | null; paint: { x: number } | null } } }[] } };
         const shift = (r: { x: number } | null) => (r ? { ...r, x: r.x + 7 } : r);
         // The same cues as stored, one box measured a few pixels apart.
         const of = (cue: { id: string }) => {
@@ -1204,7 +1204,9 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
         };
         const show = loadShows().find((x) => x.id === id)!;
         try {
-          await publishControlShow(show, of as never);
+          // Naming the stored revision, as a press from a page that saved it does (an unnamed one is
+          // refused while automatic updates are on).
+          await publishControlShow(show, of as never, row.published_rev);
         } catch (e) {
           return String(e);
         }
