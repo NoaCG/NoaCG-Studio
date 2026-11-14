@@ -1856,6 +1856,13 @@ test('vMix V5 Pause and Resume require and check the exact selected instance', a
   for (const verb of ['pause', 'resume']) {
     assert.throws(() => readAction({ action: { verb, slot: player(), expectedPlayerInstance: second.instance } }), /expected playback instance/);
     const called = fake.functions.length;
+    for (const kind of ['template', 'url']) {
+      const unsupported = await adapter.act(target, readAction({ action: {
+        verb: verb + '-player-held', slot: player(), expectedPlayerInstance: second.instance, item: { kind, name: 'not media' },
+      } }));
+      assert.equal(unsupported.error.code, 'unsupported');
+      assert.equal(fake.functions.length, called);
+    }
     const stale = await adapter.act(target, readAction({ action: {
       verb: verb + '-player-held', slot: player(), expectedPlayerInstance: first.instance,
     } }));
@@ -1889,6 +1896,131 @@ test('vMix V5 guarded Pause and Resume cannot confirm an occurrence that restart
     assert.equal(row.instance, undefined, 'a fresh read cannot revive the discontinuous instance');
     assert.equal(row.position, 1);
   });
+});
+
+test('native vMix duration gaps preserve the Studio cue and its first completed observation', async t => {
+  await import('../../scripts/lib/tsResolve.mjs');
+  const { PLAYOUT_DEFAULTS, readVmixPlayers, testVmix } = await import('../../src/control/playoutLink.ts');
+  const { NO_OWNERSHIP, applyVmixReading, clipClock, vmixCueIdentity } = await import('../../src/control/serverState.ts');
+  const { adapter, fake, target, player } = await playerFixture(t);
+  const slot = player();
+  const item = { id: 'media', kind: 'media', adapter: 'vmix', mediaKind: 'movie', name: 'clip A.mp4' };
+  const cue = { id: 'opening', source: 'playout', sourceId: item.id, label: 'Opening' };
+  const ctx = { showId: 'show-A', cues: [cue], items: [item], slotOf: () => slot };
+  let parts = { ownership: NO_OWNERSHIP, timing: {} };
+  await withBridge(adapter, async (post, base) => {
+    const settings = { ...PLAYOUT_DEFAULTS, agentUrl: base, agentToken: 't' };
+    assert.equal((await testVmix(settings)).result?.state, 'ok');
+    const take = await act(post, { verb: 'take', slot, item, cueId: vmixCueIdentity(ctx.showId, cue.id, item.id) }, target.port);
+    assert.equal(take.ok, true, JSON.stringify(take));
+    const input = fake.inputs[0];
+    async function apply(now) {
+      const { reply, result } = await readVmixPlayers(settings, 'current');
+      assert.ok(reply, JSON.stringify(result));
+      const row = reply.players.find(reading => reading.player === 'clips');
+      parts = applyVmixReading(parts, row, reply.session, { ...ctx, now });
+      return row;
+    }
+    input.position = 2500;
+    assert.equal((await apply(10)).instance, take.instance);
+    assert.equal(parts.ownership.onAir[item.id].instance, take.instance);
+    const ownership = parts.ownership;
+    Object.assign(input, { state: 'Completed', duration: 0, position: 0 });
+    const first = await apply(100);
+    assert.equal(first.instance, take.instance);
+    assert.equal(first.playerCompleted, true);
+    assert.equal(parts.ownership, ownership);
+    assert.equal(clipClock(parts.ownership, parts.timing, [item], [cue], 100).remaining, null);
+    Object.assign(input, { duration: 4000, position: 3900 });
+    assert.equal((await apply(450)).instance, take.instance);
+    const holding = clipClock(parts.ownership, parts.timing, [item], [cue], 1100);
+    assert.deepEqual([holding.phase, holding.remaining, holding.over], ['holding', 0, 1]);
+    Object.assign(input, { duration: 0, position: 0 });
+    assert.equal((await apply(1250)).instance, take.instance);
+    Object.assign(input, { duration: 4000, position: 3900 });
+    assert.equal((await apply(1350)).instance, take.instance);
+    assert.equal(parts.timing['NoaCG Clips'].endedAt, 100);
+    assert.equal(parts.ownership, ownership);
+    Object.assign(input, { duration: 0, position: 0 });
+    assert.equal((await apply(1400)).instance, take.instance);
+    Object.assign(input, { state: 'Running', duration: 4000, position: 0 });
+    assert.equal((await apply(1450)).instance, undefined, 'a measured rewind still retires the take');
+    assert.equal(parts.ownership.onAir[item.id], undefined);
+    assert.equal(parts.ownership.replaced[item.id].cueId, cue.id);
+  });
+});
+
+test('vMix V5 guarded transport refuses missing timed evidence before send or after dispatch', async t => {
+  for (const verb of ['out', 'pause', 'resume']) await t.test(verb, async t => {
+    let afterSend;
+    const { adapter, fake, target, player, take } = await playerFixture(t, { afterFunction(name) {
+      if (name === (verb === 'resume' ? 'Play' : 'Pause')) afterSend?.();
+    } });
+    const playing = await take('clip A.mp4');
+    assert.equal(playing.ok, true);
+    const input = fake.inputs[0];
+    const pauseAt = 3100;
+    const state = async () => (await adapter.overlays(target)).value.players.find(row => row.player === 'clips');
+    input.position = pauseAt;
+    assert.equal((await state()).instance, playing.instance);
+    const guard = readAction({ action: {
+      verb: verb + '-player-held', slot: player(), expectedPlayerInstance: playing.instance,
+    } });
+    const called = fake.functions.length;
+    const gap = () => Object.assign(input, { duration: 0, position: 0 });
+    gap();
+    const refused = await adapter.act(target, guard);
+    assert.equal(refused.error.code, 'refused');
+    assert.match(refused.error.detail, /did not confirm playback timing/);
+    assert.equal(fake.functions.length, called);
+    assert.equal((await state()).instance, playing.instance);
+    Object.assign(input, { duration: 4000, position: pauseAt });
+    afterSend = gap;
+    const uncertain = await adapter.act(target, guard);
+    assert.equal(uncertain.error.code, 'uncertain');
+    assert.deepEqual(fake.functions.slice(called).map(fn => fn.name), [verb === 'resume' ? 'Play' : 'Pause']);
+    assert.equal((await state()).instance, playing.instance);
+    Object.assign(input, { duration: 4000, position: 0 });
+    assert.equal((await state()).instance, undefined, 'the unknown confirmation did not overwrite the measured checkpoint');
+  });
+});
+
+test('vMix guarded Pause can resolve an initial duration gap on its fresh pre-command read', async t => {
+  let onXml;
+  const { adapter, fake, target, player, take } = await playerFixture(t, { hook(line) {
+    if (line === 'XML') onXml?.();
+    return false;
+  } });
+  const playing = await take('clip A.mp4');
+  assert.equal(playing.ok, true);
+  const input = fake.inputs[0];
+  input.position = 3100;
+  assert.equal((await adapter.overlays(target)).value.players[0].instance, playing.instance);
+  Object.assign(input, { duration: 0, position: 0 });
+  let reads = 0;
+  onXml = () => {
+    if (++reads === 2) Object.assign(input, { duration: 4000, position: 3100 });
+  };
+  const result = await adapter.act(target, readAction({ action: {
+    verb: 'pause-player-held', slot: player(), expectedPlayerInstance: playing.instance,
+  } }));
+  assert.equal(result.instance, playing.instance);
+  assert.equal(fake.functions.at(-1).name, 'Pause');
+  assert.ok(reads >= 3, 'the command refreshed initial evidence and confirmed its result');
+});
+
+test('vMix guarded Out keeps the prior wire and allows an actual still without a duration', async t => {
+  const { adapter, fake, target, player, take } = await playerFixture(t);
+  for (const [name, verb] of [['clip A.mp4', 'out-player-instance'], ['still.png', 'out-player-held']]) {
+    const playing = await take(name);
+    assert.equal(playing.ok, true);
+    Object.assign(fake.inputs[0], { duration: 0, position: 0 });
+    const result = await adapter.act(target, readAction({ action: {
+      verb, slot: player(), expectedPlayerInstance: playing.instance,
+    } }));
+    assert.equal(result.ok, true, JSON.stringify(result));
+    assert.deepEqual(fake.functions.slice(-2).map(fn => fn.name), ['Pause', 'ListRemoveAll']);
+  }
 });
 
 test('vMix treats wrong-player media as occupied but withholds a snapshot with malformed list state', async t => {

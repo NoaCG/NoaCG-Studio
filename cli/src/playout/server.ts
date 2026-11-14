@@ -28,6 +28,7 @@ import type { ActResult, PlayoutAdapter } from './adapters/casparcg.js';
 import { ografApiBase } from './adapters/ograf.js';
 import type { VmixAdapter } from './adapters/vmix.js';
 import { VmixDeadline, VmixPublicationUncertain } from './vmixMedia.js';
+import type { VmixAction } from './vmixPlayers.js';
 import {
   MAX_SEQUENCE_ENTRIES,
   MAX_VMIX_OVERLAYS,
@@ -41,7 +42,6 @@ import {
   VMIX_OUTPUT_TOKEN_PREFIX,
   type ItemRef,
   type MediaPlayback,
-  type PlayoutAction,
   type RememberedServer,
   type RenderTargetId,
   type SequenceEntry,
@@ -356,7 +356,7 @@ function readEntry(v: unknown, index: number, count: number, loop: boolean): Seq
 
 /** An action from a body, validated field by field: what goes to a live channel is never
  *  forwarded on trust. */
-export function readAction(body: Record<string, unknown>): PlayoutAction {
+export function readAction(body: Record<string, unknown>): VmixAction {
   const a = body.action;
   if (!isRecord(a)) throw new UsageError('The request has no action.');
   const slot = readSlot(a.slot);
@@ -413,11 +413,16 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
         verb: 'out', slot, item, ...(a.fadeOut !== undefined ? { fadeOut: readFade(a.fadeOut, 'fadeOut') } : {}),
         ...(typeof expected === 'string' ? { expectedOverlayInput: expected } : {}),
         ...(typeof expectedPlayer === 'string' ? { expectedPlayerInstance: expectedPlayer } : {}),
+        ...(a.verb === 'out-player-held' ? { requireMeasuredPlayer: true } : {}),
       };
     }
     case 'pause-player-held':
     case 'resume-player-held':
-      return { verb: a.verb === 'pause-player-held' ? 'pause' : 'resume', slot, expectedPlayerInstance: expectedPlayer as string };
+      return {
+        verb: a.verb === 'pause-player-held' ? 'pause' : 'resume', slot,
+        item: isRecord(a.item) ? readItem(a.item) : undefined,
+        expectedPlayerInstance: expectedPlayer as string, requireMeasuredPlayer: true,
+      };
     case 'next':
     case 'pause':
     case 'resume':

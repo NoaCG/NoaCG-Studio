@@ -7,6 +7,8 @@ import type { VmixVideoList, VmixXml } from './vmixTcp.js';
 type Failure = { ok: false; error: AgentError };
 type PlayerMatch = PlayerInput | (Failure & { foreign?: true }) | undefined;
 export type VmixActResult = ActResult & { generation?: number; instance?: string };
+/** The HTTP parser sets this only for the current guarded player verbs. */
+export type VmixAction = PlayoutAction & { requireMeasuredPlayer?: true };
 type Setup = Awaited<ReturnType<VmixMedia['setup']>>;
 
 interface Mixer {
@@ -28,6 +30,7 @@ interface TakeIdentity {
   file: string;
   key: string;
   list: VmixVideoList;
+  lastMeasuredPositionMs?: number;
 }
 interface PlayerMemory {
   generation: number;
@@ -117,6 +120,11 @@ function sameSelection(a: VmixVideoList, b: VmixVideoList): boolean {
   return a.selected === b.selected && sameItems(a.items, b.items);
 }
 
+function rememberSelection(take: TakeIdentity, list: VmixVideoList): void {
+  take.list = list;
+  if (list.durationMs > 0) take.lastMeasuredPositionMs = list.positionMs;
+}
+
 function addedInput(known: ReadonlyMap<string, VmixInput>, xml: VmixXml): VmixInput | null | undefined {
   const added = xml.inputs.filter(input => !known.has(input.key));
   const old = xml.inputs.filter(input => known.has(input.key));
@@ -189,11 +197,13 @@ export function createVmixPlayers(media: VmixMedia) {
   function reconcile(port: number, player: VmixPlayer, current: PlayerInput | undefined): PlayerMemory {
     const saved = memory(port, player);
     const take = saved.take;
-    if (take && (!current || current.input.key !== take.key || !sameSelection(current.list, take.list) ||
-        (!current.list.loop && current.list.positionMs + 750 < take.list.positionMs))) {
+    if (!take) return saved;
+    if (!current || current.input.key !== take.key || !sameSelection(current.list, take.list) ||
+        (!current.list.loop && current.list.durationMs > 0 && take.lastMeasuredPositionMs !== undefined &&
+          current.list.positionMs + 750 < take.lastMeasuredPositionMs)) {
       delete saved.take;
-    } else if (take && current) {
-      take.list = current.list;
+    } else {
+      rememberSelection(take, current.list);
     }
     return saved;
   }
@@ -394,6 +404,7 @@ export function createVmixPlayers(media: VmixMedia) {
     if (!playing || !readyForPlayback(player, playing)) return uncertain('playing the file');
     const instance = (mixer.session ? mixer.session + '.' : '') + randomUUID();
     const started: TakeIdentity = { id: instance, cueId: action.cueId, sourceName: action.item.name, file, key, list: playing };
+    rememberSelection(started, playing);
     saved.take = started;
 
     // Remove only confirmed prefix entries. Retained entries from a partial Take stay in vMix.
@@ -411,13 +422,13 @@ export function createVmixPlayers(media: VmixMedia) {
       if (after && 'error' in after) return partial(after);
       if (!after) return uncertain('removing earlier items after the requested file was seen playing');
       // Prefix removal can be observed even if the same selected input lost audio readiness.
-      started.list = after;
+      rememberSelection(started, after);
       if (!readyForPlayback(player, after)) return uncertain('removing earlier items after the requested file was seen playing');
     }
     return { ...unchanged('vMix confirmed the selected file playing.'), generation: saved.generation, instance };
   }
 
-  async function act(port: number, player: VmixPlayer, action: PlayoutAction, mixer: Mixer): Promise<VmixActResult> {
+  async function act(port: number, player: VmixPlayer, action: VmixAction, mixer: Mixer): Promise<VmixActResult> {
     if (/^basic(?:\s*hd)?$/i.test(mixer.before.edition)) return refused('vMix ' + mixer.before.edition + ' does not offer Video List.');
     const empty = action.verb === 'out' || action.verb === 'clear';
     const recovery = empty || action.verb === 'pause';
@@ -439,13 +450,21 @@ export function createVmixPlayers(media: VmixMedia) {
       const saved = reconcileObserved(port, player, candidate);
       if (candidate && !('error' in candidate) && saved?.take?.id === expectedInstance) return candidate;
     };
+    const canConfirmTiming = (list: VmixVideoList) => {
+      const file = selectedFile(list);
+      return !action.requireMeasuredPlayer || list.durationMs > 0 || (!!file && vmixMediaKind(file) === 'still');
+    };
     const rereadOwned = async () => {
       const latest = await mixer.read();
-      return latest.ok ? ownedIn(latest.value) : undefined;
+      const candidate = latest.ok && ownedIn(latest.value);
+      if (!candidate) return changed();
+      return canConfirmTiming(candidate.list) ? candidate
+        : refused('vMix did not confirm playback timing on ' + VMIX_PLAYER_TITLE[player] + '. Wait for the player to report it.');
     };
     const confirmOwned = (xml: VmixXml) => {
       try {
-        return !!ownedIn(xml);
+        const candidate = ownedIn(xml);
+        return !!candidate && canConfirmTiming(candidate.list);
       } catch {
         // A function was already sent. An unreadable handover cannot confirm it.
         return false;
@@ -465,8 +484,9 @@ export function createVmixPlayers(media: VmixMedia) {
     const saved = reconcile(port, player, current);
     if (expectedInstance !== undefined) {
       if (saved.take?.id !== expectedInstance) return changed();
-      current = await rereadOwned();
-      if (!current) return changed();
+      const confirmed = await rereadOwned();
+      if ('error' in confirmed) return confirmed;
+      current = confirmed;
     }
     if (!current && action.verb !== 'take' && !empty) return refused(VMIX_PLAYER_TITLE[player] + ' has no selected file.');
     const selected = current && selectedFile(current.list);
@@ -474,8 +494,9 @@ export function createVmixPlayers(media: VmixMedia) {
       const problem = await playbackProblem(port, player, current.list, mixer.until);
       if (problem) return problem;
       if (expectedInstance !== undefined) {
-        current = await rereadOwned();
-        if (!current) return changed();
+        const confirmed = await rereadOwned();
+        if ('error' in confirmed) return confirmed;
+        current = confirmed;
       }
     }
     if (action.verb === 'ending') {
@@ -499,9 +520,9 @@ export function createVmixPlayers(media: VmixMedia) {
     if (!result.ok) return result;
     if (empty) {
       if (expectedInstance !== undefined) {
-        let confirmed: PlayerInput | undefined;
+        let confirmed = false;
         try {
-          confirmed = await rereadOwned();
+          confirmed = !('error' in await rereadOwned());
         } catch {
           // Pause may already have succeeded. Leave the list alone without a fresh observation.
         }
@@ -521,7 +542,7 @@ export function createVmixPlayers(media: VmixMedia) {
       return uncertain(empty ? 'emptying the player' : verb);
     }
     if (empty) delete saved.take;
-    else if (saved.take) saved.take.list = after;
+    else if (saved.take) rememberSelection(saved.take, after);
     return { ...unchanged(empty ? 'vMix confirmed the player is empty.' : result.raw), generation: saved.generation, instance: saved.take?.id };
   }
 
