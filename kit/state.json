@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "head": "7571f1dea9f67d86d1fcc80138cda2c02ad42d62",
       "step": "build",
+      "pr": 2564,
+      "head": "7571f1dea9f67d86d1fcc80138cda2c02ad42d62",
       "session": "/root/v5_builder",
-      "phase": "v5",
-      "note": "Windows j-5255 Playwright recorded 46 passed on the exact V5 commit. Fresh full independent Risky review, GitHub Codex review and normal CI 43646317287 pending. Bridge 0.12.0 requires the normal release and exact verification after landing. sideEnds checked 26 files; no active measurement hold observed.",
-      "pr": 2564
+      "note": "First exact-head CI source checks passed; Reviewed withheld. Local 46250053 grouped repair passed 46 Windows browser cases and 335 selected Node tests. A second fresh review reproduced a related ownership and contradictory-state defect. Independent state-rule reassessment is in progress before the next repair. No new push or release.",
+      "phase": "v5"
     }
   ],
   "owner": [],
