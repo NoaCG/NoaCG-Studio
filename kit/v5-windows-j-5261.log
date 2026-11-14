@@ -1,0 +1,64 @@
+=== j-5261 npm run test:e2e -- e2e/playout-clock.spec.ts e2e/playout-cues.spec.ts --workers=2
+=== cwd C:\claude\Temp\vmix-v5-build-1108
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/playout-clock.spec.ts e2e/playout-cues.spec.ts --workers=2
+
+[e2e] 3 workers - 4373 MB free
+[WebServer] (node:78072) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 46 tests using 2 workers
+
+(node:13232) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78444) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium] › e2e\playout-clock.spec.ts:362:1 › the clock counts the segment the server reports, warns at 10 and 5, then holds and counts up (10.3s)
+  ok  2 [chromium] › e2e\playout-clock.spec.ts:260:1 › vMix reads a playing cue, restores the exact production after reload, and marks a foreign replacement (15.5s)
+  ok  3 [chromium] › e2e\playout-clock.spec.ts:393:1 › a clip the server has not put on the layer yet stays ON AIR, counting from the Take (7.8s)
+  ok  5 [chromium] › e2e\playout-clock.spec.ts:449:1 › a Bridge from before phase 2: the clock counts from the Take, and says it is estimated (4.5s)
+  ok  4 [chromium] › e2e\playout-clock.spec.ts:422:1 › PAUSED stops the count and Resume moves it on; a looping clip never warns (8.6s)
+  ok  6 [chromium] › e2e\playout-clock.spec.ts:461:1 › the Bridge gone mid-clip: the count carries on, and says estimated after three seconds (7.8s)
+  ok  7 [chromium] › e2e\playout-clock.spec.ts:473:1 › a reading from before a Take that lands after it is ignored (7.9s)
+  ok  9 [chromium] › e2e\playout-clock.spec.ts:536:1 › a clip ended on the server takes the row, Out and All out with it (6.0s)
+  ok  8 [chromium] › e2e\playout-clock.spec.ts:494:1 › the clock and the rows move with the server; the page does not re-render with them (8.6s)
+  ok 11 [chromium] › e2e\playout-clock.spec.ts:591:1 › NEXT ON SERVER: a clip waiting behind another on its slot says so (6.0s)
+  ok 10 [chromium] › e2e\playout-clock.spec.ts:553:1 › a reload finds its own clip by instance; another client's take is "replaced", a restarted Bridge's unidentified (9.5s)
+  ok 12 [chromium] › e2e\playout-clock.spec.ts:602:1 › a server clip shows as a STILL: its picture and length on PREVIEW, its picture under PROGRAM (5.1s)
+  ok 13 [chromium] › e2e\playout-clock.spec.ts:616:1 › with no picture to show, PROGRAM names the server clip instead of standing blank (5.7s)
+  ok 14 [chromium] › e2e\playout-clock.spec.ts:629:1 › the tab coming back into view reads the server at once (6.0s)
+  ok 15 [chromium] › e2e\playout-clock.spec.ts:642:1 › on a phone the clock sits in the stacked column, and the verbs stay pinned (5.7s)
+  ok 16 [chromium] › e2e\playout-clock.spec.ts:660:1 › P pauses the clip on air and P again resumes it; held, typed into a box, or off the Playout screen it does nothing more (7.0s)
+  ok 17 [chromium] › e2e\playout-clock.spec.ts:752:1 › an imported count-up waits for Start; Pause holds it and Reset returns to the drawn time (7.5s)
+  ok 19 [chromium] › e2e\playout-clock.spec.ts:798:1 › an imported target time shows hours, offers no Start, Pause or Reset, and no live mode choice (2.6s)
+  ok 18 [chromium] › e2e\playout-clock.spec.ts:775:1 › an imported duration starts on the Take and counts down from its drawn time (8.4s)
+  ok 20 [chromium] › e2e\playout-clock.spec.ts:816:1 › editing a target time: a time the clocks skip asks for another and says what it still counts to (2.6s)
+  ok 21 [chromium] › e2e\playout-clock.spec.ts:832:1 › an undated target that passes into a DST fold before Finish is asked there, and no door builds until it is answered (#1898) (4.1s)
+  ok 22 [chromium] › e2e\playout-clock.spec.ts:871:3 › an undated target that passes into a DST gap while Finish is open is corrected before building (#2118) (4.3s)
+  ok 24 [chromium] › e2e\playout-cues.spec.ts:266:1 › the CasparCG file action explains unavailable setup in both add surfaces (2.7s)
+  ok 23 [chromium] › e2e\playout-clock.spec.ts:871:3 › an undated target that passes into a DST gap at a door press is corrected before building (#2118) (4.4s)
+  ok 25 [chromium] › e2e\playout-cues.spec.ts:279:1 › a clip from the server becomes a cue on the clip layer, and Take, Pause, Resume and Out are one command each (3.9s)
+  ok 26 [chromium] › e2e\playout-cues.spec.ts:344:1 › a deep media library is browsed folder by folder, a long name gives way, and Add never leaves the popover (3.7s)
+  ok 27 [chromium] › e2e\playout-cues.spec.ts:399:1 › a clip set to Loop is taken with LOOP, the row says so, and the choice survives a reload (4.8s)
+  ok 28 [chromium] › e2e\playout-cues.spec.ts:445:1 › each setting goes out with its Take: Clear with a fade, a fade in, a level and a trim; Out fades (4.5s)
+  ok 29 [chromium] › e2e\playout-cues.spec.ts:523:1 › a trim outside the file or ending before it starts is refused in the panel and never saved (2.8s)
+  ok 30 [chromium] › e2e\playout-cues.spec.ts:554:1 › an audio file plays on its own layer, 5, below the clips, and a still offers Hold only (3.6s)
+  ok 31 [chromium] › e2e\playout-cues.spec.ts:577:1 › a cue with a setting an old Bridge cannot play is not taken, and says why; a legacy cue still goes as it did (5.5s)
+  ok 32 [chromium] › e2e\playout-cues.spec.ts:612:1 › a cue on air that the Bridge can no longer take still comes OFF by SPACE, and is never re-taken the old way (5.9s)
+  ok 33 [chromium] › e2e\playout-cues.spec.ts:637:1 › a server that cannot do a setting has it off, named by its version (2.6s)
+  ok 35 [chromium] › e2e\playout-cues.spec.ts:719:1 › a server template takes the next free layer, carries its typed fields as JSON data, and Update, Next and Out follow (3.9s)
+  ok 36 [chromium] › e2e\playout-cues.spec.ts:772:1 › a template NoaCG exported brings its own fields, matched by the export slug (4.3s)
+  ok 34 [chromium] › e2e\playout-cues.spec.ts:648:1 › THE LOOP RULE: an older build's Loop box still reaches cues nobody chose an ending for here, and never overrules one (10.3s)
+  ok 37 [chromium] › e2e\playout-cues.spec.ts:787:1 › the server that cannot list says so, and a typed name still makes a cue (2.7s)
+  ok 39 [chromium] › e2e\playout-cues.spec.ts:823:1 › a server cue and its item are removed together, and survive a reload as part of the record (4.1s)
+  ok 38 [chromium] › e2e\playout-cues.spec.ts:804:1 › with no Bridge running a server cue cannot be taken, and the editor names the hop (5.6s)
+  ok 40 [chromium] › e2e\playout-cues.spec.ts:848:1 › one rundown cues a template on the graphics channel and a clip on the insert channel, any cue can move, and All out clears both (4.8s)
+  ok 41 [chromium] › e2e\playout-cues.spec.ts:955:1 › nothing replaces the NoaCG output: a server item on its slot is refused with the reason, and a new template never defaults there (5.0s)
+  ok 42 [chromium] › e2e\playout-cues.spec.ts:989:1 › a take on a slot another cue holds replaces it, and a channel the studio does not name stays listed as itself (6.1s)
+  ok 43 [chromium] › e2e\playout-cues.spec.ts:1042:1 › every verb sends the same action after a drag reorder and after a reload, and a reload forgets what is up (7.8s)
+  ok 44 [chromium] › e2e\playout-cues.spec.ts:1134:1 › a re-take onto a channel the server refuses leaves nothing marked ON AIR, since the old copy already came off (3.5s)
+  ok 46 [chromium] › e2e\playout-cues.spec.ts:1501:1 › an accepted vMix All out finishes both original players after leaving the production (3.3s)
+  ok 45 [chromium] › e2e\playout-cues.spec.ts:1159:1 › vMix media browses the selected folder and plays on separate clip and audio players (12.1s)
+
+  46 passed (2.5m)
