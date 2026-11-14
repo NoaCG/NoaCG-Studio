@@ -99,6 +99,17 @@ describe('a reload keeps the boxes a publish carries', () => {
     assert.deepEqual(published(second.part.get(), cues), before);
   });
 
+  test('a page that leaves within a second of a measurement still keeps it', () => {
+    const b = browser();
+    const first = openPage(b);
+    first.part.set((p) => G.measured(p, 'c1', 'g1', 'id-c1', box(872)));
+    // The reload: no timer runs and no cleanup either, only the page's leaving (`pagehide`).
+    first.kept.flush();
+    const second = openPage(b);
+    second.kept.adopt(identities(CUES));
+    assert.deepEqual(second.part.get().byCue.c1, { id: 'id-c1', m: box(872) });
+  });
+
   test('a cue whose identity moved, or another build, is measured again rather than taken', () => {
     const b = browser();
     const first = openPage(b);

@@ -2630,7 +2630,16 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [session],
   );
-  useEffect(() => (boxesAhead ? keptBoxes.watch() : undefined), [keptBoxes, boxesAhead]);
+  useEffect(() => {
+    if (!boxesAhead) return;
+    const stop = keptBoxes.watch();
+    // A reload or a closed tab runs no cleanup: the write a measurement owes goes as the page leaves.
+    window.addEventListener('pagehide', keptBoxes.flush);
+    return () => {
+      window.removeEventListener('pagehide', keptBoxes.flush);
+      stop();
+    };
+  }, [keptBoxes, boxesAhead]);
   /** Takes the kept boxes of `record`'s graphic cues this session has not measured yet, with saves
    *  and publishes in parts on (`boxesAhead`): with them off nothing is kept or taken, as before. */
   const adoptKeptBoxes = (record: Show, lib = library) =>

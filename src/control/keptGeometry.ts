@@ -146,7 +146,7 @@ export function keptOf(part: GeometryPart, kept: Kept, cues: ReadonlyMap<string,
  * measured (every graphic cue, not only those the measurer is asked for: a cue PREVIEW measured
  * publishes its own box). `watch` writes every change of the session's geometry back (debounced)
  * for the graphic cues `cues` names at the time (cue id to pool graphic id), and its answer stops
- * watching and writes what is owed.
+ * watching and writes what is owed; `flush` writes it at once.
  */
 export function keepGeometry(part: StorePart<GeometryPart>, productionId: string, cues: () => ReadonlyMap<string, string>, io: KeptGeometryIo) {
   let kept = readKept(io, productionId);
@@ -173,6 +173,12 @@ export function keepGeometry(part: StorePart<GeometryPart>, productionId: string
     adopt: (identities: (cueIds: ReadonlySet<string>) => readonly CueIdentity[]) => {
       const owed = new Set([...kept.keys()].filter((cueId) => !part.get().byCue[cueId]));
       if (owed.size) part.set((p) => adoptKept(p, kept, identities(owed)));
+    },
+    /** Writes what is owed now: the page calls it as it leaves (`pagehide`), which runs no cleanup. */
+    flush: () => {
+      if (timer === null) return;
+      io.clearTimeout(timer);
+      write();
     },
     watch: () => {
       let seen = part.get();
