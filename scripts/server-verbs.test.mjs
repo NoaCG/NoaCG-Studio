@@ -10,8 +10,9 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import './lib/tsResolve.mjs';
 
-const { runAndRecord } = await import('../src/control/serverVerbs.ts');
+const { finishVmixAllOut, runAndRecord, runVmixAndRecord } = await import('../src/control/serverVerbs.ts');
 const { throughPlaces } = await import('../src/control/serverPlayout.ts');
 const { rundownView } = await import('../src/model/rundownRows.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
@@ -246,4 +247,223 @@ test('a folder whose run cannot be played is not sent, and says why', async () =
   assert.match(outcome.note, /^Take of Opening was not sent: .+/);
   assert.deepEqual(h.sent, []);
   assert.deepEqual(h.log, ['settings', 'flush']);
+});
+
+const vmixSlot = player => ({ adapter: 'vmix', player });
+
+function vmixRig() {
+  const clips = vt('clip', { adapter: 'vmix', name: 'clip.mov' });
+  const audio = vt('audio', { adapter: 'vmix', name: 'audio.wav', mediaKind: 'audio' });
+  const a = cue('a', clips.id);
+  const b = cue('b', clips.id);
+  const sound = cue('sound', audio.id);
+  const rundown = rundownOf([a, b, sound], [clips, audio]);
+  rundown.slots = { ...SLOTS, itemSlot: (_, item) => vmixSlot(item.mediaKind === 'audio' ? 'audio' : 'clips') };
+  const h = harness();
+  h.store.bindVmix('paired');
+  const press = (c, verb) => {
+    const binding = h.store.vmixBinding();
+    return runVmixAndRecord(h.store, h.io, intentOf(rundown, c, verb), () => h.store.vmixBinding() === binding);
+  };
+  // Independent reference state. The mixer verbs affect its current selection by player.
+  // The expected call list and accepted page ownership are checked separately.
+  const selected = new Map();
+  const sent = [];
+  let count = 0;
+  const accept = action => {
+    sent.push([action.slot.player, action.verb, action.cueId]);
+    if (action.verb === 'take') selected.set(action.slot.player, action.cueId);
+    if (action.verb === 'out') selected.delete(action.slot.player);
+    return { state: 'ok', detail: 'accepted', generation: ++count, session: 'mix', instance: 'mix.' + count };
+  };
+  h.io.act = async (_, action) => accept(action);
+  return { h, a, b, sound, clips, audio, rundown, press, accept, selected, sent };
+}
+
+test('vMix transport for an old cue sends nothing after a pending Take replaces its player', async () => {
+  for (const verb of ['out', 'pause', 'resume']) {
+    const r = vmixRig();
+    assert.equal((await r.press(r.a, 'take')).ok, true);
+    const started = Promise.withResolvers();
+    const reply = Promise.withResolvers();
+    r.h.io.act = async (_, action) => {
+      if (action.cueId === 'b') {
+        started.resolve();
+        await reply.promise;
+      }
+      return r.accept(action);
+    };
+    const replacing = r.press(r.b, 'take');
+    await started.promise;
+    const stale = r.press(r.a, verb);
+    assert.equal((await r.press(r.sound, 'take')).ok, true, 'the audio player has a separate turn');
+    reply.resolve();
+    assert.equal((await replacing).ok, true);
+    assert.equal((await stale).ok, false, verb);
+    assert.deepEqual(r.sent, [['clips', 'take', 'a'], ['audio', 'take', 'sound'], ['clips', 'take', 'b']]);
+    assert.deepEqual([...r.selected].sort(), [['audio', 'sound'], ['clips', 'b']]);
+    assert.equal(r.h.store.ownership.get().onAir[r.clips.id].cueId, 'b');
+    assert.equal(r.h.store.ownership.get().onAir[r.audio.id].cueId, 'sound');
+  }
+});
+
+test('vMix discards old playback ownership after a partial failure or pairing change', async () => {
+  const r = vmixRig();
+  await r.press(r.a, 'take');
+  await r.press(r.sound, 'take');
+  r.h.io.act = async (_, action) => {
+    r.accept(action);
+    return { state: 'server', detail: 'cleanup was refused after the new clip started', playerUncertain: true };
+  };
+  assert.equal((await r.press(r.b, 'take')).ok, false);
+  assert.equal(r.selected.get('clips'), 'b', 'the failed request changed the fake mixer');
+  assert.deepEqual(Object.keys(r.h.store.ownership.get().onAir), [r.audio.id]);
+  assert.equal((await r.press(r.a, 'out')).ok, false);
+  assert.equal(r.sent.length, 3);
+  const started = Promise.withResolvers();
+  const reply = Promise.withResolvers();
+  r.h.io.act = async (_, action) => {
+    const result = r.accept(action);
+    started.resolve();
+    await reply.promise;
+    return result;
+  };
+  const old = r.press(r.b, 'take');
+  await started.promise;
+  r.h.store.bindVmix('another pairing');
+  r.h.store.bindVmix('paired');
+  reply.resolve();
+  assert.equal((await old).ok, false);
+  assert.deepEqual(r.h.store.ownership.get().onAir, {});
+});
+
+test('a vMix pairing change after the reply guard and before the ownership fold drops acceptance', async () => {
+  const r = vmixRig();
+  const started = Promise.withResolvers();
+  const response = Promise.withResolvers();
+  r.h.io.act = (_, action) => {
+    r.accept(action);
+    started.resolve();
+    return response.promise;
+  };
+  const pending = r.press(r.a, 'take');
+  await started.promise;
+  response.resolve({ state: 'ok', detail: 'played', generation: 1, session: 'mix', instance: 'mix.1' });
+  queueMicrotask(() => r.h.store.bindVmix('new pairing'));
+  const result = await pending;
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.accepted, []);
+  assert.deepEqual(r.h.store.ownership.get().onAir, {});
+});
+
+test('queued vMix transport cannot reach a replacement after a malformed authorization reply', async (t) => {
+  const { actVmixMedia, PLAYOUT_DEFAULTS } = await import('../src/control/playoutLink.ts');
+  for (const status of [401, 403]) {
+    await t.test('HTTP ' + status, async (t) => {
+      const rig = vmixRig();
+      const entered = Promise.withResolvers();
+      const reply = Promise.withResolvers();
+      const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token' };
+      let loseReply = true;
+      t.mock.method(globalThis, 'fetch', async (url, options) => {
+        if (new URL(url).pathname === '/health') {
+          return Response.json({ ok: true, agent: 'noacg-bridge', v: 2, version: '0.11.0', adapters: ['vmix'], features: ['vmix-media'] });
+        }
+        const { action } = JSON.parse(options.body);
+        const result = rig.accept(action);
+        if (loseReply && action.cueId === rig.b.id && action.verb === 'take') {
+          entered.resolve();
+          await reply.promise;
+          return new Response('{', { status });
+        }
+        return Response.json({ v: 2, ok: true, raw: 'FUNCTION OK', generation: result.generation, session: result.session, instance: result.instance });
+      });
+      rig.h.io.act = (_, action) => actVmixMedia(settings, action, () => true);
+      assert.equal((await rig.press(rig.a, 'take')).ok, true);
+      assert.equal((await rig.press(rig.sound, 'take')).ok, true);
+      const replacement = rig.press(rig.b, 'take');
+      await entered.promise;
+      const stale = ['pause', 'resume', 'out'].map(verb => rig.press(rig.a, verb));
+      reply.resolve();
+      assert.equal((await replacement).ok, false);
+      assert.deepEqual((await Promise.all(stale)).map(result => result.ok), [false, false, false]);
+      assert.deepEqual(rig.sent, [['clips', 'take', 'a'], ['audio', 'take', 'sound'], ['clips', 'take', 'b']]);
+      assert.equal(rig.selected.get('clips'), 'b');
+      assert.equal(rig.h.store.ownership.get().onAir[rig.clips.id], undefined);
+      assert.equal(rig.h.store.ownership.get().onAir[rig.audio.id].cueId, rig.sound.id);
+      loseReply = false;
+      assert.equal((await rig.press(rig.b, 'take')).ok, true);
+      assert.equal((await rig.press(rig.b, 'pause')).ok, true);
+      assert.equal(rig.h.store.ownership.get().onAir[rig.clips.id].cueId, rig.b.id);
+    });
+  }
+});
+
+test('accepted vMix All out keeps its player instances until the final cut and refuses revoked ownership', async t => {
+  for (const change of ['none', 'pairing', 'replacement']) await t.test(change, async () => {
+    const store = createServerPlayoutStore();
+    store.bindVmix('pairing');
+    const clip = cue('clip', 'clip-item');
+    const audio = cue('audio', 'audio-item');
+    const owner = (selected, player, instance) => ({
+      cueId: selected.id, slot: { adapter: 'vmix', player }, instance,
+    });
+    const clips = owner(clip, 'clips', 'session.clip');
+    const sound = owner(audio, 'audio', 'session.audio');
+    store.apply(parts => ({ ...parts, ownership: { ...parts.ownership, onAir: { [clip.sourceId]: clips, [audio.sourceId]: sound } } }));
+    const release = Promise.withResolvers();
+    let changed;
+    const observed = [];
+    const run = finishVmixAllOut(store, SETTINGS,
+      listener => { changed = listener; return () => { changed = undefined; }; },
+      async cut => { await cut(audio); await cut(clip); },
+      async (selected, scope) => {
+        if (!scope.current() || !scope.owns()) return null;
+        observed.push([selected.id, scope.instance]);
+        if (selected === audio) await release.promise;
+        return { ok: scope.current(), note: 'All out', accepted: [] };
+      });
+    assert.equal(typeof changed, 'function');
+    assert.deepEqual(observed, [['audio', 'session.audio']]);
+    if (change === 'pairing') changed();
+    if (change === 'replacement') store.apply(parts => ({ ...parts, ownership: { ...parts.ownership,
+      onAir: { ...parts.ownership.onAir, [clip.sourceId]: owner(clip, 'clips', 'session.replacement') },
+    } }));
+    release.resolve();
+    await run;
+    assert.deepEqual(observed, change === 'none'
+      ? [['audio', 'session.audio'], ['clip', 'session.clip']]
+      : [['audio', 'session.audio']]);
+    assert.equal(changed, undefined);
+  });
+});
+
+test('a guarded All out reports the Bridge deadline after retiring local ownership', async t => {
+  const { actVmixMedia, forgetBridges, PLAYOUT_DEFAULTS } = await import('../src/control/playoutLink.ts');
+  const r = vmixRig();
+  await r.press(r.a, 'take');
+  const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token' };
+  const detail = 'The player command reached its deadline.';
+  forgetBridges();
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (new URL(url).pathname === '/health') return Response.json({
+      ok: true, v: 2, agent: 'noacg-bridge', version: '0.11.0', adapters: ['vmix'], features: ['vmix-media', 'vmix-player-out-guard'],
+    });
+    assert.equal(JSON.parse(options.body).action.verb, 'out-player-instance');
+    return Response.json({ ok: false, v: 2, error: { hop: 'agent', code: 'unreachable', detail } });
+  });
+  let outcome;
+  await finishVmixAllOut(r.h.store, settings, () => () => {},
+    async cut => { await cut(r.a); },
+    async (selected, scope) => {
+      const io = { ...r.h.io, loadSettings: () => settings,
+        act: (config, action) => actVmixMedia(config, { ...action, expectedPlayerInstance: scope.instance },
+          () => scope.current() && scope.owns()),
+      };
+      outcome = await runVmixAndRecord(r.h.store, io, intentOf(r.rundown, selected, 'out', { label: 'All out', options: { cut: true } }), scope.current);
+      return outcome;
+    });
+  assert.equal(outcome.ok, false);
+  assert.ok(outcome.note.includes(detail), outcome.note);
+  assert.equal(r.h.store.ownership.get().onAir[r.clips.id], undefined);
 });

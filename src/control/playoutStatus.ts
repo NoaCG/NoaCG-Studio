@@ -25,6 +25,10 @@ import { bridgeAnswersLabel } from './prepareLive.ts';
 import { plural, type ReadySummary, type ReadyTone } from './readiness.ts';
 import type { ConfirmLine } from './runConfirm.ts';
 
+export function vmixPairing(settings: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>): string {
+  return JSON.stringify([settings.agentUrl, settings.agentToken]);
+}
+
 /** READY's four, in the same colours. */
 export type StatusTone = ReadyTone;
 
@@ -308,11 +312,12 @@ export function takeTargets(f: {
   casparLoaded: boolean;
   /** A server cue's slot, when the selection is one. */
   server: string | null;
+  serverAdapter?: 'casparcg' | 'vmix';
   /** A held folder with server cues as well as graphics. */
   serverToo?: boolean;
 }): string {
   // One line beside the verbs: the server badge on PROGRAM already says it goes through the Bridge.
-  if (f.server) return `To: CasparCG ${f.server}`;
+  if (f.server) return `To: ${f.serverAdapter === 'vmix' ? f.server : 'CasparCG ' + f.server}`;
   const parts: string[] = [];
   if (!f.published) parts.push('this page only');
   else {

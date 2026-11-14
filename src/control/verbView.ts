@@ -14,7 +14,7 @@ import type { PanelClip, PanelRow, PanelSnapshot } from './panelFeedback';
 import type { VerbSelection } from './graphicVerbs';
 import { SPACE_FACES, spaceAction, type SpaceAction, type SpaceMode } from './spaceMode.ts';
 import { stepFace, type FolderStep } from './folderStep.ts';
-import { casparOffRefusal } from './takeBlockers.ts';
+import { serverCueOffRefusal } from './takeBlockers.ts';
 
 /** A held folder row, as the render sees it. */
 interface HeldFolder {
@@ -50,6 +50,9 @@ export interface VerbInputs {
   /** The cue on PREVIEW. */
   previewCueId: string | null;
   casparOn: boolean;
+  /** Whether the selected server cue belongs to this production's current system. */
+  serverCueOn?: boolean;
+  selectedVmix?: boolean;
   /** The Bridge has answered, and not with ok. */
   bridgeDown: boolean;
   /** Why the selected cue's Take would not go, or null. */
@@ -118,7 +121,8 @@ export function verbView(input: VerbInputs): VerbView {
   const selectedCueStaged = !!selectedCue && input.previewCueId === selectedCue.id;
   const spaceNext = spaceAction(input.spaceMode, { live: selectedCueIsLive, previewed: selectedCueStaged });
   /** A server cue cannot be taken while the server is off or the Bridge says it is not there. */
-  const canTake = !!selectedCue && !(casparOffRefusal(selectedCue, input.casparOn) || (selectedCue.source === 'playout' && input.bridgeDown));
+  const serverCueOn = input.serverCueOn ?? (selectedCue ? !serverCueOffRefusal(selectedCue, input.casparOn) : true);
+  const canTake = !!selectedCue && serverCueOn && !(selectedCue.source === 'playout' && input.bridgeDown);
   const nextMoves = input.advances || (selectedPlayoutLive && input.selectedItemKind === 'template');
 
   const folderUp = !!folder && folder.up;
@@ -163,7 +167,7 @@ export function verbView(input: VerbInputs): VerbView {
 
   const allowed = {
     retake: selectedCueIsLive,
-    update: editingIsLive,
+    update: editingIsLive && !input.selectedVmix,
     next: selectedLayerLive && nextMoves,
     out: folder ? folderUp || heldStarted : selectedLayerLive,
     pause: selectedClipUp,

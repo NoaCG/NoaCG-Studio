@@ -150,7 +150,7 @@ export type PlayoutAction =
   | { verb: 'update'; slot: Slot; data: Record<string, string> }
   | { verb: 'next' | 'pause' | 'resume'; slot: Slot; item?: ItemRef }
   /** `fadeOut` fades a clip to nothing. A vMix panel Out carries the displayed input key. */
-  | { verb: 'out'; slot: Slot; item?: ItemRef; fadeOut?: number; expectedOverlayInput?: string }
+  | { verb: 'out'; slot: Slot; item?: ItemRef; fadeOut?: number; expectedOverlayInput?: string; expectedPlayerInstance?: string }
   /** Remove whatever is in the slot at once, with no exit: the All out an OGraf server offers. On
    *  vMix it names the output (`item`) and removes only that from its channel. */
   | { verb: 'clear'; slot: Slot; item?: ItemRef }
@@ -224,7 +224,7 @@ export interface AgentError {
  *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
  *  `ending` is the `ending` verb: a clip's ending changed while it plays. `channels` is `/channels`:
  *  the channels a server reports it has. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media';
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard';
 
 /** Prefix the paired token for keyed vMix verbs so a legacy Bridge refuses the request even if it
  * replaced the new Bridge after the browser's capability probe. The token itself is unchanged. */

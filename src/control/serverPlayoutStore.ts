@@ -23,7 +23,8 @@
 // Kept plain so a Node test can import it, and one store is made per page, so it lives exactly as
 // long as the state it replaced.
 
-import { NO_OWNERSHIP, type ServerOwnership, type ServerParts, type ServerTiming } from './serverState.ts';
+import { applyClearedSlot, NO_OWNERSHIP, type ServerOwnership, type ServerParts, type ServerTiming } from './serverState.ts';
+import type { VmixPlayer } from './playoutProtocol';
 import { storePart, type StorePart } from './storePart.ts';
 
 export type { ServerOwnership, ServerTiming };
@@ -37,18 +38,44 @@ export interface ServerPlayoutStore {
   /** Move both parts at once with one of ./serverState's folds. Each part's listeners hear only
    *  its own change, so a reading that moved only the clock reaches only the clock. */
   apply: (fold: (parts: ServerParts) => ServerParts) => void;
+  bindVmix: (binding: string | null) => void;
+  vmixBinding: () => { key: string } | null;
+  runVmix: <T>(player: VmixPlayer, work: () => Promise<T>) => Promise<T>;
 }
 
 export function createServerPlayoutStore(): ServerPlayoutStore {
   const ownership = storePart<ServerOwnership>(NO_OWNERSHIP);
   const timing = storePart<ServerTiming>({});
+  let binding: { key: string } | null = null;
+  const turns = new Map<VmixPlayer, Promise<void>>();
+  const apply: ServerPlayoutStore['apply'] = (fold) => {
+    const next = fold({ ownership: ownership.get(), timing: timing.get() });
+    timing.set(next.timing);
+    ownership.set(next.ownership);
+  };
   return {
     ownership,
     timing,
-    apply: (fold) => {
-      const next = fold({ ownership: ownership.get(), timing: timing.get() });
-      timing.set(next.timing);
-      ownership.set(next.ownership);
+    apply,
+    bindVmix: (next) => {
+      if (next === (binding?.key ?? null)) return;
+      const wasBound = binding !== null;
+      binding = next === null ? null : { key: next };
+      if (!wasBound) return;
+      apply(parts => applyClearedSlot(
+        applyClearedSlot(parts, { slot: { adapter: 'vmix', player: 'clips' } }),
+        { slot: { adapter: 'vmix', player: 'audio' } },
+      ));
+    },
+    vmixBinding: () => binding,
+    runVmix: (player, work) => {
+      // Player verbs act on the current mixer selection. Read ownership and send in the
+      // same turn, even when a prior request is still finishing on the old pairing.
+      const turn = (turns.get(player) ?? Promise.resolve()).then(work);
+      const done = turn.then(() => undefined, () => undefined);
+      turns.set(player, done);
+      void done.then(() => { if (turns.get(player) === done) turns.delete(player); });
+      return turn;
     },
   };
 }

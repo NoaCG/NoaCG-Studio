@@ -49,6 +49,14 @@ import {
   folderSlot,
   itemSlot,
   listLibrary,
+  listVmixMedia,
+  actVmixMedia,
+  bridgePaired,
+  channelOf,
+  vmixPairing,
+  vmixMediaFolderRevision,
+  watchPlayoutPairing,
+  watchVmixMediaFolder,
   currentProductionPlayout,
   loadPlayoutSettings,
   playoutConfigured,
@@ -59,6 +67,7 @@ import {
   subscribeTargetStatus,
   syncStudio,
   type PlayoutResult,
+  type PlayoutSettings,
 } from '../../control/playoutLink';
 import type { Slot } from '../../control/playoutProtocol';
 import {
@@ -92,9 +101,9 @@ import { segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, type FolderStep, type StepMember } from '../../control/folderStep';
 import { webLockLead } from '../../control/webLockLead';
-import { startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
-import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
-import { runAndRecord } from '../../control/serverVerbs';
+import { serverFilesCheck, serverFilesKey, startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
+import { serverCueOffRefusal as serverOff, serverCueAdapterMismatch, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
+import { runAndRecord, finishVmixAllOut, runVmixAndRecord, type ServerVerbIo, type VmixAllOutCut } from '../../control/serverVerbs';
 import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
 import { createPressMarks } from '../../control/pressFeedback';
 import { decideVerb } from '../../control/verbDispatch';
@@ -373,6 +382,9 @@ const BRIDGE_IO: BridgeWatchIo = {
   subscribeTargetStatus,
   readState,
   listLibrary,
+  listVmixMedia,
+  vmixMediaRevision: vmixMediaFolderRevision,
+  watchPlayoutPairing,
   syncStudio,
   rememberOutput: (showId, target) => saveReadyMemory(showId, { ...loadReadyMemory(showId), casparOutput: target }),
   loadedOutput: (showId) => loadReadyMemory(showId).casparLoaded ?? null,
@@ -728,6 +740,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
    *  `playoutSettingsRev`, which re-reads the settings for the connection poll below. */
   const [playoutSettingsOpen, setPlayoutSettingsOpen] = useState(false);
   const [playoutSettingsRev, setPlayoutSettingsRev] = useState(0);
+  const [vmixMediaRev, setVmixMediaRev] = useState(vmixMediaFolderRevision);
   /** Whether a Bridge is paired and a server named - what the header's Playout control shows
    *  before any answer comes back. Re-read with the rev, on the dialog's close. */
   const [playoutIsConfigured, setPlayoutIsConfigured] = useState(() => playoutConfigured(loadPlayoutSettings()));
@@ -1177,6 +1190,21 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const playoutSystem = show && productionPlayoutSystem(show, legacyCasparActivity, accountCaspar ?? null);
   const casparOn = playoutSystem === 'casparcg';
   const vmixOn = playoutSystem === 'vmix';
+  useEffect(() => {
+    if (!vmixOn) return;
+    const refresh = () => setVmixMediaRev(vmixMediaFolderRevision());
+    refresh();
+    return watchVmixMediaFolder(refresh);
+  }, [vmixOn]);
+  const currentVmixShow = (settings: PlayoutSettings, pairing: ReturnType<ServerPlayoutStore['vmixBinding']>, acceptedCut = false) => {
+    const key = vmixPairing(settings);
+    if (!show || (!acceptedCut && !pageCanDispatch()) || serverPlayout.vmixBinding() !== pairing
+      || (pairing?.key ?? null) !== (bridgePaired(settings) ? key : null)
+      || vmixPairing(loadPlayoutSettings()) !== key) return null;
+    return currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
+  };
+  const vmixReadinessKey = (record: Show | null | undefined) =>
+    record ? serverFilesKey(record.id, null, record.cues ?? [], record.playoutItems ?? [], true, 0) : null;
   const playoutRelevance = relevantPlayout({ configured: playoutConfigured(relevanceSettings), casparOn });
   /** Prepare for Live's own publish, set once `publishNow` exists below. */
   const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
@@ -1194,9 +1222,19 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       setReadyStamp(stamp);
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), stamp });
     },
+    vmix: vmixOn,
+    requiresVmixFiles: () => vmixOn && vmixReadinessKey(show) !== null,
     bridge: () => {
-      if (playoutRelevance.bridge) setCheckAgainRev((n) => n + 1);
-      return gatherBridgeFacts(loadPlayoutSettings(), show ?? {}, playoutRelevance);
+      if (playoutRelevance.bridge || vmixOn) setCheckAgainRev((n) => n + 1);
+      const settings = loadPlayoutSettings();
+      const pairing = serverPlayout.vmixBinding();
+      const revision = vmixMediaFolderRevision();
+      const files = vmixOn ? vmixReadinessKey(show) : null;
+      const vmixCurrent = () => {
+        const saved = currentVmixShow(settings, pairing);
+        return !!saved && vmixMediaFolderRevision() === revision && vmixReadinessKey(saved) === files;
+      };
+      return gatherBridgeFacts(settings, show ?? {}, { ...playoutRelevance, ...(vmixOn ? { vmixCurrent } : {}) });
     },
     ping: (id) => (hostedSlug ? controlPingSeq(hostedSlug, id) : Promise.resolve({ ok: false, unavailable: true, detail: 'not published' })),
   });
@@ -1516,14 +1554,14 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   // no local-network prompt (playout-workflow-simplification AC-4). It restarts only when WHERE it
   // asks changes - the Bridge, its token, the server - or on Check again.
   const linkSettings = loadPlayoutSettings();
+  const vmixBinding = vmixOn && bridgePaired(linkSettings) ? vmixPairing(linkSettings) : null;
   const statusTarget = casparOn && playoutConfigured(linkSettings)
     ? [linkSettings.agentUrl, linkSettings.agentToken, linkSettings.host.trim(), linkSettings.amcpPort].join(' ')
-    : null;
-  const slotReadable = stateReadable(bridgeStatus);
+    : vmixBinding;
+  const slotReadable = casparOn && stateReadable(bridgeStatus);
   const bridgeOk = bridgeStatus?.state === 'ok';
-  const serverFileItems = playoutItems.filter(i => cues.some(c => c.source === 'playout' && c.sourceId === i.id));
-  const serverFileKey = JSON.stringify({ show: show?.id, target: statusTarget, items: serverFileItems.map(i => ({ id: i.id, kind: i.kind, name: i.name })), refs: cues.filter(c => c.source === 'playout').map(c => c.sourceId) });
-  const needsServerFiles = cues.some(c => c.source === 'playout');
+  const vmixMediaReady = !!vmixBinding && !!bridgeStatus?.features?.includes('vmix-media');
+  const serverFileKey = serverFilesKey(showId, statusTarget, cues, playoutItems, vmixOn, vmixMediaRev);
   /** Load the lost output again (useProductionPublish.ts `reloadOnSlot`), set once it exists below. */
   const reloadRef = useRef<() => Promise<PlayoutResult | null>>(async () => null);
   const rundownRef = useRef({ cues, playoutItems, folders });
@@ -1533,7 +1571,10 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       rundown: () => rundownRef.current,
       slots: { itemSlot, folderSlot },
       serverPlayout,
-      settingsChanged: () => setPlayoutSettingsRev((n) => n + 1),
+      settingsChanged: () => {
+        setPlayoutSettingsRev((n) => n + 1);
+        setVmixMediaRev(vmixMediaFolderRevision());
+      },
       learnt: (showId, facts) => setShows(fillPlayoutItemFacts(showId, facts)),
       reload: () => reloadRef.current(),
     });
@@ -1548,10 +1589,13 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       target: statusTarget,
       hostedSlug,
       casparOn,
+      vmixOn,
+      vmixPairing: vmixBinding,
+      mediaRev: vmixMediaRev,
       outputSlug: show?.outputSlug ?? null,
       showId,
       casparTarget,
-      serverFiles: needsServerFiles ? serverFileKey : null,
+      serverFiles: serverFileKey,
       playoutItems,
       checkAgain: checkAgainRev,
       settingsRev: playoutSettingsRev,
@@ -3111,10 +3155,14 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** A cue over the playout server's library, and whether THIS cue is what this page last put
    *  up on its item (docs/BRIDGE.md §5). */
   const selectedPlayoutItem = selectedCue ? playoutItemFor(selectedCue) : null;
-  const selectedPlayoutLive = !vmixOn && serverCueLive(serverOnAir, selectedPlayoutItem, selectedCue);
+  const selectedVmix = selectedPlayoutItem?.adapter === 'vmix';
+  const selectedServerOn = selectedVmix ? !!vmixBinding && serverPlayout.vmixBinding()?.key === vmixBinding : !vmixOn;
+  const selectedPlayoutLive = selectedServerOn && serverCueLive(serverOnAir, selectedPlayoutItem, selectedCue);
   /** What the Bridge and its server can do, for a cue's settings: null while it is still being
    *  asked, and a studio with no Bridge set up says so rather than being asked forever. */
-  const playbackAbility = bridgeStatus ?? (playoutIsConfigured ? null : { state: 'config' as const });
+  const playbackAbility = vmixOn
+    ? bridgeStatus ? { ...bridgeStatus, adapter: 'vmix' as const } : vmixBinding ? null : { state: 'config' as const, adapter: 'vmix' as const }
+    : bridgeStatus ?? (playoutIsConfigured ? null : { state: 'config' as const });
   /** Where a server item plays on its own, `2-10`. */
   const addressOfItem = (i: PlayoutItem) => slotAddress(itemSlot(playoutSettings, i));
   /** A graphic cue's pool graphic, for an All-together folder's refusals. */
@@ -3147,7 +3195,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       return typed?.status === 'refused' ? typed.reason : null;
     },
   };
-  const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn, vmixOn);
+  const cueServerOff = (cue: ShowCue): string | null => serverOff(cue, casparOn, vmixOn, playoutItemFor(cue));
+  const enabledHeldMembers = heldMembers.filter(cue => !serverCueAdapterMismatch(cue, takeContext));
   const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => takeBlockerOf(target, takeContext);
   const selectedTakeBlocked = takeBlockerFor(selectedCue);
   const directBlocker = (cue: ShowCue): string | null => directBlockerOf(cue, takeContext, loadPlayoutSettings());
@@ -3188,6 +3237,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     liveCue,
     selectedPlayoutLive,
     selectedItemKind: selectedPlayoutItem?.kind ?? null,
+    selectedVmix,
+    serverCueOn: selectedCue ? !cueServerOff(selectedCue) : true,
     editTarget,
     previewCueId: previewCue?.id ?? null,
     casparOn,
@@ -3202,7 +3253,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           step: heldStep,
           stepBlocked: heldStepCue ? stepBlocker(heldStepCue) : null,
           takeBlocked: heldStep ? null : takeBlockerFor(selectedFolder),
-          serverMembers: heldMembers.some((c) => c.source === 'playout'),
+          serverMembers: enabledHeldMembers.some((c) => c.source === 'playout'),
           labelOf: (id) => cues.find((c) => c.id === id)?.label ?? 'a cue',
         }
       : null,
@@ -3302,39 +3353,48 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     cue: ShowCue,
     verb: ServerVerb,
     label: string,
-    options: { cut?: boolean; takenAt?: number; direct?: boolean } = {},
+    options: { cut?: boolean; takenAt?: number; direct?: boolean; vmixCut?: VmixAllOutCut } = {},
     acceptedAllOut = false,
   ): Promise<ServerVerbOutcome | null> => {
     const item = playoutItemFor(cue);
-    if (!item || !(acceptedAllOut ? casparAllowed() : canSendCaspar())) return null;
+    if (!item) return null;
+    const mismatch = serverCueAdapterMismatch(cue, takeContext);
+    if (mismatch) return { ok: false, note: `${label} was not sent: ${mismatch}`, accepted: [] };
+    const vmix = item.adapter === 'vmix';
+    const { vmixCut } = options;
+    const vmixSettings = vmix ? vmixCut?.settings ?? loadPlayoutSettings() : null;
+    const pairing = vmixCut?.pairing ?? serverPlayout.vmixBinding();
+    const currentVmix = () => !!(vmixSettings && pairing && (!vmixCut || vmixCut.current()) &&
+      currentVmixShow(vmixSettings, pairing, !!vmixCut));
+    const canSendVmix = () => currentVmix() && (!vmixCut || vmixCut.owns());
+    if (vmix ? !canSendVmix() : !(acceptedAllOut ? casparAllowed() : canSendCaspar())) return null;
     const live = acceptedAllOut ? serverPlayout.ownership.get().onAir[item.id] : undefined;
-    return runAndRecord(
-      serverPlayout,
-      {
-        act: async (settings, action) => {
-          const result = acceptedAllOut
-            ? await finishCasparAllOut(settings, action, casparAllowed, pageCanDispatch, current =>
-                current.cueId === cue.id && (!live?.instance || live.instance === current.instance))
-            : await act(settings, action, canSendCaspar);
-          return result ?? { state: 'config', detail: 'The CasparCG action was cancelled.' };
-        },
-        loadSettings: acceptedAllOut ? () => relevanceSettings : loadPlayoutSettings,
-        now: () => performance.now(),
-        wake: () => { if (pageCanDispatch()) bridgeWatch.current?.wake(); },
-        flush: async () => { if (pageCanDispatch()) { await flushDraft(); await history.closeGroup(); } },
-        cueView,
+    const io: ServerVerbIo = {
+      act: async (settings, action) => {
+        if (vmix) {
+          const guarded = vmixCut && action.verb === 'out' ? { ...action, expectedPlayerInstance: vmixCut.instance } : action;
+          return await actVmixMedia(settings, guarded, canSendVmix)
+            ?? { state: 'config', detail: 'The vMix action was cancelled.' };
+        }
+        const result = acceptedAllOut
+          ? await finishCasparAllOut(settings, action, casparAllowed, pageCanDispatch, current =>
+              current.cueId === cue.id && (!live?.instance || live.instance === current.instance))
+          : await act(settings, action, canSendCaspar);
+        return result ?? { state: 'config', detail: 'The CasparCG action was cancelled.' };
       },
-      {
-        cue,
-        item,
-        verb,
-        label,
-        options,
-        blocked: verb === 'take' ? (options.direct ? directBlocker(cue) : takeBlockerFor(cue)) : null,
-        readable: stateReadable(bridgeStatus),
-        rundown: takeContext,
-      },
-    );
+      loadSettings: vmixSettings ? () => vmixSettings : acceptedAllOut ? () => relevanceSettings : loadPlayoutSettings,
+      now: () => performance.now(),
+      wake: () => { if (pageCanDispatch()) bridgeWatch.current?.wake(); },
+      flush: async () => { if (pageCanDispatch()) { await flushDraft(); await history.closeGroup(); } },
+      cueView,
+    };
+    const intent = {
+      cue, item, verb, label, options,
+      blocked: verb === 'take' ? (options.direct ? directBlocker(cue) : takeBlockerFor(cue)) : null,
+      readable: stateReadable(bridgeStatus),
+      rundown: takeContext,
+    };
+    return vmix ? runVmixAndRecord(serverPlayout, io, intent, currentVmix) : runAndRecord(serverPlayout, io, intent);
   };
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
   const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
@@ -3449,7 +3509,11 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** Clear the screen — the one an operator reaches for under pressure, which is why it sits apart
    *  from the others, in the header, and a named verb a hardware panel can press (`all-out`). A layer
    *  this rundown does not use is never touched (control/graphicVerbs.ts `allOut`). */
-  const outAll = verbs.allOut;
+  const outAll = () => vmixOn && pageCanDispatch()
+    ? finishVmixAllOut(serverPlayout, loadPlayoutSettings(), watchPlayoutPairing,
+      cut => verbs.allOut({ cut, report: note => { if (pageCanDispatch()) setNote(note); } }),
+      (cue, vmixCut) => serverVerb(cue, 'out', 'All out', { cut: true, vmixCut }, true))
+    : verbs.allOut();
   /**
    * All out's second half (docs/CLIP_PLAYBACK_PLAN.md §20.1): what plays on a slot this rundown uses
    * with no cue of this page to take it off - an unidentified item, or what replaced a cue's clip.
@@ -3664,7 +3728,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const rehearsing =
     !hostedSlug &&
     (selectedFolder
-      ? (rundown.members.get(selectedFolder.id) ?? []).every((c) => c.source !== 'playout')
+      ? enabledHeldMembers.every((c) => c.source !== 'playout')
       : !selectedPlayoutItem);
   const takeButton = {
     ...view.take,
@@ -3674,13 +3738,14 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** WHERE TAKE SENDS THE SELECTION (C6): a server cue to its slot, a graphic to the outputs and
    *  the CasparCG slot this production's output is set to, or this page only before Publish. */
   const takeTarget = (() => {
-    const held = selectedFolder ? (rundown.members.get(selectedFolder.id) ?? []) : [];
+    const held = enabledHeldMembers;
     const serverOnly = selectedFolder ? held.length > 0 && held.every((c) => c.source === 'playout') : !!selectedPlayoutItem;
     return takeTargets({
       published: !!hostedSlug,
       outputs: readiness.outputs.filter((line) => line.present).length,
       caspar: casparOn ? `${playoutSettings.channel}-${playoutSettings.layer}` : null,
       casparLoaded: outputSlot?.holds === 'ours',
+      serverAdapter: selectedFolder ? (vmixOn ? 'vmix' : 'casparcg') : selectedPlayoutItem?.adapter,
       server: serverOnly
         ? selectedFolder && folderMode(selectedFolder) === 'through'
           ? folderSlotOf(selectedFolder)
@@ -3703,7 +3768,11 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     folderName,
     takeBlocker: takeBlockerFor,
     stepBlocker,
-    together: { items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility, blockerOf: (c) => (casparOffRefusal(c) ? null : takeBlockerFor(c)) },
+    together: {
+      items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility,
+      blockerOf: c => cueServerOff(c) ? null : takeBlockerFor(c),
+      serverOff: c => serverCueAdapterMismatch(c, takeContext),
+    },
     ownership: serverPlayout.ownership.get,
     liveCueOf: () => liveCueRef.current,
     setLiveCue,
@@ -4158,7 +4227,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const airingLayers = started ? [...liveLayers, ...livePlayoutLayers] : livePlayoutLayers;
   const upHereLayers = started ? [] : liveLayers;
   const readySummary = readiness.summary.show ? readiness.summary : null;
-  const unsupportedCue = bridgeOk ? cues.filter(c => c.source === 'playout').map(c => ({ cue: c, reason: takeBlocker(c, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue) })).find(c => c.reason) : null;
+  const unsupportedCue = bridgeOk ? cues.filter(c => c.source === 'playout' && !cueServerOff(c)).map(c => ({ cue: c, reason: takeBlocker(c, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue) })).find(c => c.reason) : null;
   const bridgeFact: StatusFacts['bridge'] = playoutRelevance.bridge
     ? playoutIsConfigured
       ? (bridgeStatus ?? { state: 'pending', detail: '' })
@@ -4205,7 +4274,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     slotReload,
     ready: readySummary,
     noOutputTake,
-    fileCheck: needsServerFiles && bridgeOk ? serverFiles?.key === serverFileKey ? serverFiles.check : { key: 'files', tone: 'warn', short: 'Checking server files…', label: 'Checking referenced CasparCG files…' } : null,
+    fileCheck: serverFilesCheck(serverFileKey, serverFiles, bridgeStatus, vmixOn),
     autoPublish: autoPublish.view && autoPublish.view.tone !== 'idle' ? { tone: autoPublish.view.tone, line: autoPublish.view.line } : null,
     oldOutputs: autoPublish.active ? oldOutputNames(livePresence.peers, expectedOutputs) : null,
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
@@ -4219,9 +4288,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** The panel's own lines for what went wrong where no row of its own says it. */
   const problemChecks = [
     ...playoutStatus.checks.filter((c) => (c.key === 'take' || c.key === 'files' || c.key === 'playback') && (c.tone === 'bad' || c.tone === 'warn')),
-    // Of the readiness run's own lines only a failed publish has no row of its own; the Bridge,
-    // the slot and the outputs say their state in their rows.
-    ...(prepareFlow.phase === 'done' ? (prepareFlow.shown ?? []).filter((l) => l.tone === 'bad' && l.key === 'publish').map((l) => ({ key: l.key, tone: 'bad' as const, label: l.label, advice: l.advice })) : []),
+    // A failed publish or an incomplete vMix media check has no dedicated status row.
+    ...(prepareFlow.phase === 'done' ? (prepareFlow.shown ?? []).filter((l) => l.tone === 'bad' && (l.key === 'publish' || l.key === 'bridge-vmix-files')).map((l) => ({ key: l.key, tone: 'bad' as const, label: l.label, advice: l.advice })) : []),
   ];
   const productionNote = note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>;
   /** The CasparCG switch (AC-4): display metadata only, nothing airs or stops. */
@@ -4702,7 +4770,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
                 selected LAYER, which is not always the selected cue's. */}
             ■ Out <kbd>0</kbd>
           </button>
-          {selectedPlayoutItem && <button className="pd-verb pd-verb-secondary" data-testid="verb-clear-slot" disabled={vmixOn} onClick={() => void clearSlot(serverOnAir[selectedPlayoutItem.id]?.slot ?? itemSlot(playoutSettings, selectedPlayoutItem))} title={vmixOn ? 'This production uses vMix.' : 'Immediately clear this CasparCG slot, including queued media. Other slots keep playing.'}>Stop/Clear slot</button>}
+          {selectedPlayoutItem && !selectedVmix && <button className="pd-verb pd-verb-secondary" data-testid="verb-clear-slot" disabled={vmixOn} onClick={() => void clearSlot(serverOnAir[selectedPlayoutItem.id]?.slot ?? itemSlot(playoutSettings, selectedPlayoutItem))} title={vmixOn ? 'This production uses vMix.' : 'Immediately clear this CasparCG slot, including queued media. Other slots keep playing.'}>Stop/Clear slot</button>}
           {/* The bar's small print, as ONE block: the on-air chip and, under it, THE OPERATOR'S
               CHOICE of what SPACE does (owner, 2026-09-10: "a checkbox for this so the operator
               can choose for themselves") - here beside the key, not on a settings screen. One
@@ -5025,7 +5093,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
             live={editingIsLive}
             cueNo={editingCueNo}
             bridgeStatus={bridgeStatus}
-            ability={playbackAbility}
+            adapterActive={!cueServerOff(editingCue)}
+            ability={cueServerOff(editingCue) ? null : playbackAbility}
             playoutSettings={playoutSettings}
             takeBlocked={editingCue.id === selectedCue?.id ? selectedTakeBlocked : takeBlockerFor(editingCue)}
             playNext={playNextFor(editingCue)}
@@ -5040,7 +5109,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           )}</DraftView>
         )}
 
-        {editingCue && <CueAccentControl key={`${show.id}:${editingCue.id}`} show={show} cue={editingCue} setShows={setShows} onPreview={color => setAccentPreview(color ? { productionId: show.id, cueId: editingCue.id, color } : null)} fallback={routeColor(show.rundownColors, selectedPlayoutItem ? throughRoleOf(editingCue) ? folderSlot(playoutSettings, throughRoleOf(editingCue)!.folder).channel : itemSlot(playoutSettings, selectedPlayoutItem).channel : undefined)} />}
+        {editingCue && <CueAccentControl key={`${show.id}:${editingCue.id}`} show={show} cue={editingCue} setShows={setShows} onPreview={color => setAccentPreview(color ? { productionId: show.id, cueId: editingCue.id, color } : null)} fallback={routeColor(show.rundownColors, selectedPlayoutItem && !selectedVmix ? throughRoleOf(editingCue) ? folderSlot(playoutSettings, throughRoleOf(editingCue)!.folder).channel : channelOf(playoutSettings, selectedPlayoutItem) : undefined)} />}
         {!liveFirst && liveBlock}
 
         <ActionLog entries={wireLog} published={!!hostedSlug && backendConfigured} />
@@ -5066,6 +5135,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         started={started}
         casparOn={casparOn}
         vmixOn={vmixOn}
+        vmixMediaReady={vmixMediaReady}
+        vmixMediaRev={vmixMediaRev}
         unsentOnAir={unsentOnAir}
         serverOwnership={serverOwnership}
         serverTiming={serverPlayout.timing}

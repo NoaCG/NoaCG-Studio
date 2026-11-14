@@ -6,7 +6,7 @@ import type { GraphicDoc } from '../../model/library';
 import type { PlayoutField, PlayoutMediaKind } from '../../model/shows';
 import { mediaKindOf } from '../../control/cuePlayback';
 import type { ListItem } from '../../control/playoutProtocol';
-import { listLibrary, loadPlayoutSettings, type PlayoutResult } from '../../control/playoutLink';
+import { listLibrary, listVmixMedia, loadPlayoutSettings, vmixMediaFolderRevision, vmixPairing, type PlayoutResult } from '../../control/playoutLink';
 import { serverThumbnail } from './serverThumbnail';
 
 export interface PickerItem {
@@ -45,6 +45,7 @@ export default function PlayoutItemPicker({
   library,
   onAdd,
   mediaFilter,
+  vmix = false,
   triggerRef,
 }: {
   open: boolean;
@@ -54,12 +55,16 @@ export default function PlayoutItemPicker({
   library: GraphicDoc[];
   /** An Add-menu shortcut into the same server library, restricted to video or audio. */
   mediaFilter?: 'movie' | 'audio';
+  vmix?: boolean;
   triggerRef?: RefObject<HTMLElement | null>;
   /** `mediaKind` is the server's own word for a media file (`movie`, `still`, `audio`), which is
    *  what puts an audio file on its own layer and keeps a still out of a sequence. */
   onAdd: (items: PickerItem[]) => Promise<boolean>;
 }) {
-  const [kind, setKind] = useState<'template' | 'media'>(mediaFilter ? 'media' : 'template');
+  const [mediaScope] = useState(() => vmix ? { pairing: vmixPairing(loadPlayoutSettings()), revision: vmixMediaFolderRevision() } : null);
+  const mediaCurrent = (settings = loadPlayoutSettings()) => !mediaScope ||
+    (mediaScope.revision === vmixMediaFolderRevision() && mediaScope.pairing === vmixPairing(settings));
+  const [kind, setKind] = useState<'template' | 'media'>(vmix || mediaFilter ? 'media' : 'template');
   const [items, setItems] = useState<ListItem[] | null>(null);
   const [result, setResult] = useState<PlayoutResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -72,6 +77,7 @@ export default function PlayoutItemPicker({
   const [added, setAdded] = useState<string | null>(null);
   const anchor = useRef<string | null>(null);
   const request = useRef(0);
+  const path = vmix ? folder.join('/') : '';
 
   const refresh = async (which = kind) => {
     const revision = ++request.current;
@@ -79,8 +85,9 @@ export default function PlayoutItemPicker({
     setResult(null);
     try {
       const settings = loadPlayoutSettings();
-      const r = await listLibrary(settings, which);
-      if (request.current !== revision) return;
+      if (!mediaCurrent(settings)) return;
+      const r = vmix ? await listVmixMedia(settings, path) : await listLibrary(settings, which);
+      if (request.current !== revision || !mediaCurrent()) return;
       setResult(r.result);
       setItems(r.items ?? null);
     } finally {
@@ -91,14 +98,24 @@ export default function PlayoutItemPicker({
   useEffect(() => {
     if (!open) return;
     setItems(null);
-    setFolder([]);
+    if (!vmix) setFolder([]);
     setSelected(new Set());
     setAdded(null);
     anchor.current = null;
     void refresh(kind);
-    // The list is the server's answer for THIS kind; a re-fetch belongs to Refresh or a tab change.
+    return () => { request.current += 1; };
+    // A vMix list answers for one folder. CasparCG lists the full library for the tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, kind]);
+  }, [open, kind, path, vmix]);
+
+  const browse = (next: string[]) => {
+    if (vmix && next.join('/') !== path) {
+      request.current += 1;
+      setItems(null);
+      setLoading(true);
+    }
+    setFolder(next);
+  };
 
   /** NoaCG-made templates by their export slug: `HOUSE_STRAP/HOUSE_STRAP` on the server was
    *  exported from a graphic whose slug is `house_strap`, and its fields are that graphic's. */
@@ -123,7 +140,7 @@ export default function PlayoutItemPicker({
       .map((id) => ({ field: id, title: id.toUpperCase(), value: '' }));
 
   const add = async (batch: ListItem[]) => {
-    if (adding || !batch.length) return;
+    if (adding || !batch.length || !mediaCurrent()) return;
     setAdding(true);
     try {
       const picked = batch.map(item => kind === 'media'
@@ -147,8 +164,11 @@ export default function PlayoutItemPicker({
   };
 
   const cannotList = result && result.state !== 'ok';
-  const filtered = (items ?? []).filter(item => kind !== 'media' || !mediaFilter || item.kind?.toLowerCase() === mediaFilter);
+  const filtered = (items ?? []).filter(item => item.kind !== 'folder' && (kind !== 'media' || !mediaFilter || item.kind?.toLowerCase() === mediaFilter));
   const view = items ? folderView(filtered, folder) : null;
+  const folders = vmix
+    ? (items ?? []).filter(item => item.kind === 'folder').map(item => ({ name: item.name.slice(path ? path.length + 1 : 0), count: null }))
+    : (view?.folders ?? []);
   const batchOrder = (batch: ListItem[]) => [...new Map(batch.map(item => [item.name, item])).values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
   const folderItems = batchOrder(filtered.filter(item => folder.every((part, i) => item.name.split('/')[i]?.toLowerCase() === part.toLowerCase())));
   const selectedItems = batchOrder(filtered.filter(item => selected.has(item.name)));
@@ -169,14 +189,14 @@ export default function PlayoutItemPicker({
   return (
     <LibMenu open={open} onClose={onClose} triggerRef={triggerRef} surface="pd-picker" role="none" testid="playout-picker">
       <div className="pd-picker-head">
-        <div className="pd-picker-tabs" role="tablist">
+        {vmix ? <strong>vMix media</strong> : <div className="pd-picker-tabs" role="tablist">
           <button role="tab" aria-selected={kind === 'template'} onClick={() => setKind('template')} data-testid="picker-templates">
             Templates
           </button>
           <button role="tab" aria-selected={kind === 'media'} onClick={() => setKind('media')} data-testid="picker-media">
             {mediaFilter === 'movie' ? 'Video' : mediaFilter === 'audio' ? 'Audio' : 'Media'}
           </button>
-        </div>
+        </div>}
         <div className="spacer" />
         <button className="pd-icon" onClick={() => void refresh()} disabled={loading} title="Ask the server again" data-testid="picker-refresh">
           ⟳
@@ -197,19 +217,21 @@ export default function PlayoutItemPicker({
 
       {items && items.length === 0 && (
         <p className="hint" data-testid="picker-empty">
-          The server lists no {kind === 'template' ? 'templates' : 'media'}. Files go in its own
-          {kind === 'template' ? ' template' : ' media'} folder, on the server machine.
+          {vmix ? 'No media in this folder.' : <>
+            The server lists no {kind === 'template' ? 'templates' : 'media'}. Files go in its own
+            {kind === 'template' ? ' template' : ' media'} folder, on the server machine.
+          </>}
         </p>
       )}
 
-      {items && items.length > 0 && view && (
+      {(vmix || !!items?.length) && (
         <>
           {/* Where in the library this is, and the way back out. Each crumb is a button, so a
               deep folder is one click from any level above it. */}
           <nav className="pd-picker-path" aria-label="Folder" data-testid="picker-path">
             <button
               className="pd-icon"
-              onClick={() => setFolder(folder.slice(0, -1))}
+              onClick={() => browse(folder.slice(0, -1))}
               disabled={folder.length === 0}
               title="Up one folder"
               aria-label="Up one folder"
@@ -217,7 +239,7 @@ export default function PlayoutItemPicker({
             >
               ←
             </button>
-            <button className="pd-picker-crumb" onClick={() => setFolder([])} aria-current={folder.length === 0 ? 'location' : undefined}>
+            <button className="pd-picker-crumb" onClick={() => browse([])} aria-current={folder.length === 0 ? 'location' : undefined}>
               {kind === 'template' ? 'All templates' : 'All media'}
             </button>
             {folder.map((part, i) => (
@@ -225,7 +247,7 @@ export default function PlayoutItemPicker({
                 <span aria-hidden="true">/</span>
                 <button
                   className="pd-picker-crumb"
-                  onClick={() => setFolder(folder.slice(0, i + 1))}
+                  onClick={() => browse(folder.slice(0, i + 1))}
                   aria-current={i === folder.length - 1 ? 'location' : undefined}
                   title={folder.slice(0, i + 1).join('/')}
                 >
@@ -234,12 +256,12 @@ export default function PlayoutItemPicker({
               </span>
             ))}
           </nav>
-          <ul className="pd-picker-list" data-testid="picker-list">
-            {view.folders.map((f) => (
+          {view && <ul className="pd-picker-list" data-testid="picker-list">
+            {folders.map((f) => (
               <li key={`dir:${f.name}`} className="pd-picker-row">
                 <button
                   className="pd-picker-folder"
-                  onClick={() => setFolder([...folder, f.name])}
+                  onClick={() => browse([...folder, f.name])}
                   title={[...folder, f.name].join('/')}
                   data-testid="picker-folder"
                   data-name={f.name}
@@ -250,7 +272,7 @@ export default function PlayoutItemPicker({
                   <span className="pd-picker-name">
                     <strong>{f.name}</strong>
                     <span className="muted">
-                      folder · {f.count} {f.count === 1 ? 'file' : 'files'}
+                      {f.count === null ? 'folder' : `folder · ${f.count} ${f.count === 1 ? 'file' : 'files'}`}
                     </span>
                   </span>
                 </button>
@@ -262,27 +284,28 @@ export default function PlayoutItemPicker({
                 item={item}
                 leaf={leaf}
                 kind={kind}
+                thumbnail={!vmix}
                 known={kind === 'template' && !!fieldsFor(item.name)}
                 selected={selected.has(item.name)}
-                disabled={adding}
+                disabled={adding || (vmix && loading)}
                 onSelect={shift => select(item.name, shift)}
                 onAdd={() => void add([item])}
               />
             ))}
-          </ul>
+          </ul>}
         </>
       )}
 
       <div className="pd-picker-bulk" data-testid="picker-bulk">
         <button disabled={adding || loading || !selectedItems.length} onClick={() => void add(selectedItems)} data-testid="picker-add-selected">Add selected ({selectedItems.length})</button>
-        {kind === 'media' && <button disabled={adding || loading || !folderItems.length} title="Add this folder and its subfolders as ordinary cues" onClick={() => void add(folderItems)} data-testid="picker-add-folder">Add folder ({folderItems.length})</button>}
+        {!vmix && kind === 'media' && <button disabled={adding || loading || !folderItems.length} title="Add this folder and its subfolders as ordinary cues" onClick={() => void add(folderItems)} data-testid="picker-add-folder">Add folder ({folderItems.length})</button>}
         <button onClick={onClose} disabled={adding} data-testid="picker-done">Done</button>
       </div>
       {added && <p className="hint" role="status" data-testid="picker-added">{added}</p>}
 
       {/* The name box: the route that needs no list at all - for a server whose scanner is not
           running, and for an operator who knows the name. */}
-      <div className="pd-picker-typed">
+      {!vmix && <div className="pd-picker-typed">
         <input
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
@@ -306,7 +329,7 @@ export default function PlayoutItemPicker({
         <button onClick={() => void addTyped()} disabled={!typed.trim() || adding} data-testid="picker-add-typed">
           ＋ Add
         </button>
-      </div>
+      </div>}
     </LibMenu>
   );
 }
@@ -350,6 +373,7 @@ function PickerRow({
   item,
   leaf,
   kind,
+  thumbnail,
   known,
   onAdd,
   selected,
@@ -360,6 +384,7 @@ function PickerRow({
   /** The file's own name inside the folder being browsed; the full server name is the hover. */
   leaf: string;
   kind: 'template' | 'media';
+  thumbnail: boolean;
   known: boolean;
   onAdd: () => void;
   selected: boolean;
@@ -372,7 +397,7 @@ function PickerRow({
   // A thumbnail is asked for only once the row is on screen: a media folder can hold hundreds
   // of clips, and THUMBNAIL RETRIEVE is about 160 KB each.
   useEffect(() => {
-    if (kind !== 'media' || !ref.current) return;
+    if (!thumbnail || kind !== 'media' || !ref.current) return;
     const el = ref.current;
     const io = new IntersectionObserver((entries) => {
       if (!entries.some((e) => e.isIntersecting)) return;
@@ -382,14 +407,14 @@ function PickerRow({
     });
     io.observe(el);
     return () => io.disconnect();
-  }, [item.name, item.changed, kind]);
+  }, [item.name, item.changed, kind, thumbnail]);
 
   const duration = clipLength(item);
 
   return (
     <li ref={ref} className="pd-picker-row" data-testid="picker-row" data-name={item.name}>
       <button className="pd-picker-select" aria-pressed={selected} disabled={disabled} onClick={e => onSelect(e.shiftKey)} title={`Select ${item.name}`} data-testid="picker-select">
-      {kind === 'media' && (
+      {thumbnail && kind === 'media' && (
         <span className="pd-picker-thumb" aria-hidden="true">
           {thumb ? <img src={thumb} alt="" /> : null}
         </span>

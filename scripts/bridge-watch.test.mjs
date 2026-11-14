@@ -9,10 +9,11 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS, RECOVERY_WINDOW_MS } = await import('../src/control/bridgeWatch.ts');
+const { serverFilesKey, startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS, RECOVERY_WINDOW_MS } = await import('../src/control/bridgeWatch.ts');
 const { createPlayoutSession, NO_BRIDGE } = await import('../src/control/playoutSession.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
 const { loadReadyMemory, saveReadyMemory } = await import('../src/model/readyMemory.ts');
+const { vmixPairing } = await import('../src/control/playoutStatus.ts');
 
 /** A kept Load as the page reads it back: through the real record (model/readyMemory.ts), so a field
  *  the record would drop is dropped here too. */
@@ -53,7 +54,7 @@ afterEach(() => {
 });
 
 /** A watch on a fresh session, with every request recorded in order. */
-function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, mediaKind: 'movie' })], library, browser = newBrowser(), server = { layer: ourPage }, asyncLocks = false } = {}) {
+function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, mediaKind: 'movie' })], library, browser = newBrowser(), server = { layer: ourPage }, asyncLocks = false, watchPlayoutPairing, vmixMediaRevision } = {}) {
   const calls = [];
   const subs = [];
   const everys = [];
@@ -68,6 +69,8 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
   const lists = library ?? { media: [{ name: 'CLIP', kind: 'movie', frames: 250, fps: 25 }, { name: 'OLD', kind: 'movie', frames: 100, fps: 25 }] };
   const io = {
     loadSettings: () => state.settings,
+    watchPlayoutPairing,
+    vmixMediaRevision,
     configured: (s) => Boolean(s.agentUrl && s.agentToken && s.host),
     readable: (s) => s?.state === 'ok' && !!s.features?.includes('state') && !!s.capabilities?.includes('state'),
     subscribeTargetStatus: (s, onStatus) => {
@@ -199,7 +202,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     slotRev: 0,
   };
   return {
-    watch, session, io, calls, subs, everys, visibles, held, learnt, inputs, state, rundown, reloading,
+    watch, session, serverPlayout, io, calls, subs, everys, visibles, held, learnt, inputs, state, rundown, reloading,
     /** The slot poll's 10 s tick, on the poll running now. */
     readSlot: async () => {
       everys.filter((e) => e.live && e.ms === SLOT_READ_MS).at(-1).run();
@@ -1810,4 +1813,103 @@ test('a recovery read in the same millisecond as the outage note still ends the 
   server.layer = EMPTY;
   await t.readSlot();
   assert.ok(!t.calls.includes('reload'), 'the CLEAR is never undone');
+});
+
+test('vMix file checks use relative parent folders and never learn from a CasparCG name match', async () => {
+  const name = 'Replays/Opening.mp4';
+  const caspar = vt('caspar', { name });
+  const vmix = vt('vmix', { name, adapter: 'vmix', layer: 0 });
+  const nested = vt('nested', { name: 'Alternate/Opening.mp4', adapter: 'vmix', layer: 0 });
+  const wrongCase = vt('wrong-case', { name: 'Replays/OPENING.mp4', adapter: 'vmix', layer: 0 });
+  const wrongParent = vt('wrong-parent', { name: 'replays/Opening.mp4', adapter: 'vmix', layer: 0 });
+  const items = [caspar, vmix, nested, wrongCase, wrongParent];
+  const cues = items.map(item => cue('cue-' + item.id, item.id));
+  const r = rig({ items });
+  const oldRoot = Promise.withResolvers();
+  const paths = [];
+  let old = true;
+  r.io.listVmixMedia = async (_, path) => {
+    paths.push(path);
+    if (old) await oldRoot.promise;
+    const items = path === '' ? [{ name: 'Replays', kind: 'folder' }, { name: 'Alternate', kind: 'folder' }]
+      : path.toLowerCase() === 'replays' ? [{ name: path + '/Opening.mp4', kind: 'movie', frames: 100, fps: 25 }]
+      : [];
+    return { result: OK, items };
+  };
+  const pairing = vmixPairing(SETTINGS);
+  const update = mediaRev => r.update({
+    target: pairing, casparOn: false, vmixOn: true, vmixPairing: pairing, mediaRev,
+    serverFiles: serverFilesKey('show-1', pairing, cues, items, true, mediaRev),
+  });
+  update(0);
+  r.answer({ ...OK, features: ['state', 'vmix-media'] });
+  await tick();
+  old = false;
+  update(1);
+  await settle();
+  oldRoot.resolve();
+  await settle();
+  assert.deepEqual(new Set(paths), new Set(['', 'Replays', 'Alternate']));
+  assert.deepEqual(r.take(), ['status'], 'no CasparCG file, status follow-up, or state route is used');
+  assert.equal(r.learnt.length, 1);
+  assert.deepEqual([...r.learnt[0][1]], [['vmix', { mediaKind: 'movie', frames: 100, fps: 25 }]]);
+  const current = r.session.bridge.get().serverFiles;
+  assert.equal(current.key, serverFilesKey('show-1', pairing, cues, items, true, 1));
+  assert.equal(current.check.label, 'Unavailable vMix files: Alternate/Opening.mp4, Replays/OPENING.mp4, replays/Opening.mp4');
+});
+
+test('a vMix pairing transition retires the current status, player binding, and nested file reads before a render', async () => {
+  const items = [vt('clip', { name: 'Replays/Opening.mp4', adapter: 'vmix', layer: 0 })];
+  const cues = [cue('c1', items[0].id)];
+  let mediaRev = 0;
+  let changed;
+  const r = rig({
+    items, vmixMediaRevision: () => mediaRev,
+    watchPlayoutPairing: listener => { changed = listener; return () => { changed = undefined; }; },
+  });
+  const pending = Promise.withResolvers();
+  const paths = [];
+  const movie = { name: items[0].name, kind: 'movie', frames: 100, fps: 25 };
+  const vmixStatus = { ...OK, features: ['vmix-media'] };
+  r.io.listVmixMedia = async (settings, path) => {
+    paths.push([settings.agentUrl, path]);
+    if (mediaRev === 0) return pending.promise;
+    return { result: vmixStatus, items: path ? [movie] : [{ kind: 'folder', name: 'Replays' }] };
+  };
+  const pairing = vmixPairing(SETTINGS);
+  const update = () => r.update({
+    target: pairing, casparOn: false, vmixOn: true, vmixPairing: pairing, mediaRev,
+    serverFiles: serverFilesKey('show-1', pairing, cues, items, true, mediaRev),
+  });
+  update();
+  const oldBinding = r.serverPlayout.vmixBinding();
+  const oldStatus = r.subs[0];
+  r.answer(vmixStatus);
+  await tick();
+  const initialReads = paths.length;
+  assert.ok(initialReads > 0);
+  assert.ok(paths.every(([, path]) => path === ''));
+
+  // The final saved pairing is identical, but both changes arrived before the next update.
+  mediaRev += 1;
+  changed();
+  mediaRev += 1;
+  changed();
+  assert.equal(r.serverPlayout.vmixBinding(), null);
+  assert.equal(r.session.bridge.get().status, null);
+  oldStatus.onStatus(vmixStatus);
+  pending.resolve({ result: vmixStatus, items: [{ kind: 'folder', name: 'Replays' }] });
+  await settle();
+  assert.equal(r.session.bridge.get().status, null);
+  assert.equal(r.session.bridge.get().serverFiles, null);
+  assert.equal(paths.length, initialReads, 'the old root cannot authorize a child request');
+  assert.deepEqual(r.learnt, []);
+
+  update();
+  assert.notEqual(r.serverPlayout.vmixBinding(), oldBinding);
+  r.answer(vmixStatus);
+  await settle();
+  assert.ok(paths.slice(initialReads).some(([, path]) => path === 'Replays'));
+  assert.equal(r.session.bridge.get().serverFiles.check, null);
+  assert.equal(r.learnt.length, 1);
 });

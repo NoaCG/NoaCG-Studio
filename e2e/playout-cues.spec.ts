@@ -34,12 +34,14 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/components/PlayoutSettingsPanel.tsx, src/control/playoutStatus.ts
 
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { test, expect, type Page, type Request, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
 import { parkFocusOffControls } from './_keys';
+import { fakeBridge as slotBridge, fakeVmix } from './_fakeBridge';
 
 // Cues over the PLAYOUT SERVER'S OWN LIBRARY (docs/BRIDGE.md §5): a template or a clip that
 // already lives on the CasparCG box, listed through NoaCG Bridge, added to the rundown beside
@@ -1152,4 +1154,392 @@ test('a re-take onto a channel the server refuses leaves nothing marked ON AIR, 
   ]);
   await expect(strap).not.toContainText('ON AIR');
   await expect(page.getByTestId('playout-on-air')).toHaveCount(0);
+});
+
+test('vMix media browses the selected folder and plays on separate clip and audio players', async ({ page }, info) => {
+  const folder = 'C:\\Videos';
+  const chosen = 'D:\\Show media';
+  const movie = 'Replays/Opening.mp4';
+  const sound = 'Sting.wav';
+  const vmix = fakeVmix(8, {
+    folder,
+    files: {
+      [folder]: {
+        '': [{ name: 'Replays', kind: 'folder' }, { name: 'Removed', kind: 'folder' }, { name: sound, kind: 'audio', frames: 240000, fps: 48000 }],
+        Replays: [{ name: movie, kind: 'movie', frames: 250, fps: 25 }],
+      },
+      [chosen]: { '': [{ name: 'New clip.mov', kind: 'movie' }] },
+    },
+  });
+  const media = vmix.media!;
+  const bridge = await slotBridge(page.context(), { vmix });
+  await seedSettings(page);
+  await productionPage(page);
+  const casparCueId = await evaluateInPage(page, async (name: string) => {
+    const { addPlayoutItem, loadShows } = await __noacgImport('/src/model/shows.ts');
+    const show = loadShows().find(s => s.name === 'Evening News')!;
+    const { cueId } = addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name, layer: 10, channel: 2 });
+    await new Promise(resolve => setTimeout(resolve));
+    return cueId;
+  }, movie);
+  await settleDurableWrites(page);
+  await page.getByTestId('production-status').click();
+  const panel = page.getByTestId('production-status-panel');
+  await panel.getByTestId('vmix-switch').click();
+  await expect(panel.getByTestId('vmix-switch')).toBeChecked();
+  await page.keyboard.press('Escape');
+
+  const oldCue = page.getByTestId('cue-' + casparCueId);
+  await oldCue.getByTestId('select-cue').click();
+  await expect(oldCue.getByTestId('cue-caspar-off')).toHaveAttribute('title', 'This cue plays on CasparCG. This production uses vMix.');
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('playout-take-blocked')).toContainText('This production uses vMix.');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('Space');
+  await page.keyboard.press('0');
+  expect(bridge.actions).toEqual([]);
+  expect(media.actions).toEqual([]);
+
+  const openPicker = async (tab = page) => {
+    await tab.getByTestId('rundown-add').click();
+    await tab.getByTestId('menu-add-from-vmix').click();
+  };
+  await openPicker();
+  await expect(page.getByTestId('picker-templates')).toHaveCount(0);
+  await expect(page.getByTestId('picker-add-typed')).toHaveCount(0);
+  const root = page.getByTestId('picker-path').getByRole('button', { name: 'All media' });
+  await page.getByTestId('picker-folder').filter({ hasText: 'Removed' }).click();
+  await expect(page.getByTestId('picker-error')).toContainText('could not be listed');
+  await page.getByTestId('picker-up').click();
+  await page.getByTestId('picker-folder').filter({ hasText: 'Replays' }).click();
+  const clip = page.getByTestId('picker-row').filter({ hasText: 'Opening.mp4' });
+  await expect(clip).toHaveAttribute('data-name', movie);
+  await page.screenshot({ path: info.outputPath('vmix-media-picker.png') });
+  await clip.getByTestId('picker-add').click();
+  await expect(page.getByTestId('picker-added')).toHaveText('Added 1 cue');
+  await root.click();
+  await page.getByTestId('picker-row').filter({ hasText: sound }).getByTestId('picker-add').click();
+  await expect(page.getByTestId('picker-added')).toHaveText('Added 1 cue');
+  await page.getByTestId('picker-done').click();
+
+  const saved = await page.evaluate(async () => {
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const show = loadShows().find(s => s.name === 'Evening News')!;
+    return (show.playoutItems ?? []).map(item => ({ item, cueId: show.cues?.find(c => c.sourceId === item.id)?.id }));
+  });
+  const clips = saved.find(({ item }) => item.adapter === 'vmix' && item.name === movie)!;
+  const audio = saved.find(({ item }) => item.adapter === 'vmix' && item.name === sound)!;
+  expect(saved.filter(({ item }) => item.name === movie)).toHaveLength(2);
+  expect(clips.item).toMatchObject({ adapter: 'vmix', kind: 'media', layer: 0, mediaKind: 'movie', frames: 250, fps: 25 });
+  expect(audio.item).toMatchObject({ adapter: 'vmix', kind: 'media', layer: 0, mediaKind: 'audio' });
+  expect(clips.item).not.toHaveProperty('channel');
+  expect(audio.item).not.toHaveProperty('channel');
+  expect(media.paths).toContain('Replays');
+
+  const clipRow = page.getByTestId('cue-' + clips.cueId);
+  const audioRow = page.getByTestId('cue-' + audio.cueId);
+  await clipRow.getByTestId('select-cue').click();
+  await expect(page.getByTestId('playout-cue-where')).toContainText('NoaCG Clips');
+  await expect(page.getByTestId('verb-target')).toHaveText('To: NoaCG Clips');
+  await expect(page.getByTestId('playout-channel')).toHaveCount(0);
+  await expect(page.getByTestId('playout-layer')).toHaveCount(0);
+  await expect(page.getByTestId('clip-end-hold')).toBeEnabled();
+  await expect(page.getByTestId('clip-end-loop')).toBeEnabled();
+  await expect(page.getByTestId('clip-end-clear')).toBeDisabled();
+  await expect(page.getByTestId('clip-end-next')).toBeDisabled();
+  await page.screenshot({ path: info.outputPath('vmix-cue-editor.png') });
+  await page.getByTestId('verb-take').click();
+  await expect(clipRow).toContainText('ON AIR');
+  await page.getByTestId('playout-pause').click();
+  await expect.poll(() => media.actions.length).toBe(2);
+  await page.getByTestId('playout-resume').click();
+  await expect.poll(() => media.actions.length).toBe(3);
+
+  await audioRow.getByTestId('select-cue').click();
+  await expect(page.getByTestId('playout-cue-where')).toContainText('NoaCG Audio');
+  await expect(page.getByTestId('verb-target')).toHaveText('To: NoaCG Audio');
+  await page.getByTestId('verb-take').click();
+  await expect(audioRow).toContainText('ON AIR');
+  await expect(clipRow).toContainText('ON AIR');
+  await page.getByTestId('verb-out').click();
+  await expect(audioRow).not.toContainText('ON AIR');
+  await expect(clipRow).toContainText('ON AIR');
+  await clipRow.getByTestId('select-cue').click();
+  await page.getByTestId('verb-out').click();
+  await expect(clipRow).not.toContainText('ON AIR');
+  const player = (verb: string, slot: 'clips' | 'audio', name: string, cueId?: string) => ({
+    target: { adapter: 'vmix' },
+    action: { verb, slot: { adapter: 'vmix', player: slot }, item: { kind: 'media', name }, ...(cueId ? { cueId } : {}) },
+  });
+  expect(media.actions).toEqual([
+    player('take', 'clips', movie, clips.cueId),
+    player('pause', 'clips', movie),
+    player('resume', 'clips', movie),
+    player('take', 'audio', sound, audio.cueId),
+    player('out', 'audio', sound),
+    player('out', 'clips', movie),
+  ]);
+  expect(bridge.actions).toEqual([]);
+  expect(vmix.actions).toEqual([]);
+
+  // Both pairing transitions can arrive before React commits another render. The original
+  // Bridge really accepted this Take, but its reply cannot establish ownership in the new scope.
+  const takeSent = Promise.withResolvers<void>();
+  const releaseTake = Promise.withResolvers<void>();
+  const holdTake = async (route: Route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    takeSent.resolve();
+    await releaseTake.promise;
+    await route.fallback();
+  };
+  await page.route(BRIDGE + '/act', holdTake);
+  try {
+    await page.getByTestId('verb-take').click();
+    await takeSent.promise;
+    await page.evaluate(() => {
+      const key = 'spx-gfx-caspar';
+      const current = localStorage.getItem(key)!;
+      const other = JSON.stringify({ ...JSON.parse(current), agentUrl: 'http://127.0.0.1:8900' });
+      const changed = (oldValue: string, newValue: string) => {
+        window.dispatchEvent(new StorageEvent('storage', { key, storageArea: localStorage, oldValue, newValue }));
+      };
+      changed(current, other);
+      changed(other, current);
+    });
+    releaseTake.resolve();
+    await expect(page.getByTestId('production-note')).toContainText('The vMix connection changed.');
+    await expect(clipRow).not.toContainText('ON AIR');
+  } finally {
+    releaseTake.resolve();
+    await page.unroute(BRIDGE + '/act', holdTake);
+  }
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
+  await page.getByTestId('verb-take').click();
+  await expect(clipRow).toContainText('ON AIR');
+  await page.getByTestId('verb-out').click();
+  await expect(clipRow).not.toContainText('ON AIR');
+
+  await page.getByTestId('production-status').click();
+  await panel.getByTestId('panel-playout-settings').click();
+  const settings = page.getByTestId('playout-settings');
+  const mediaFolder = settings.getByTestId('vmix-media-folder');
+  const choose = settings.getByTestId('vmix-choose-folder');
+  await expect(choose).toHaveAccessibleName('Choose folder…');
+  await expect(mediaFolder).toHaveText(folder);
+  await settleDurableWrites(page);
+  const other = await page.context().newPage();
+  await other.goto(page.url());
+  await openPicker(other);
+  const otherPicker = other.getByTestId('playout-picker');
+  await expect(otherPicker.getByTestId('picker-folder').filter({ hasText: 'Replays' })).toBeVisible();
+
+  await choose.click();
+  await expect(choose).toBeEnabled();
+  await expect(mediaFolder).toHaveText(folder);
+  await expect(otherPicker.getByTestId('picker-folder').filter({ hasText: 'Replays' })).toBeVisible();
+
+  // Hold an old root response across a successful choice in the other tab. A late list
+  // must not replace the newly read root or make its old files addable again.
+  const oldRead = Promise.withResolvers<void>();
+  let held: Request | undefined;
+  await other.route(BRIDGE + '/list', async route => {
+    const request = route.request().postDataJSON();
+    if (held || request?.target?.adapter !== 'vmix' || request.path) return route.fallback();
+    held = route.request();
+    const snapshot = vmix.reply('/list', request);
+    await oldRead.promise;
+    await route.fulfill({ json: snapshot, headers: { 'Access-Control-Allow-Origin': '*' } });
+  });
+  try {
+    await otherPicker.getByTestId('picker-refresh').click();
+    await expect.poll(() => Boolean(held)).toBe(true);
+    media.choice = chosen;
+    await choose.click();
+    await expect(mediaFolder).toHaveText(chosen);
+    const newClip = otherPicker.getByTestId('picker-row').filter({ hasText: 'New clip.mov' });
+    await expect(newClip).toBeVisible();
+    const late = other.waitForResponse(response => response.request() === held);
+    oldRead.resolve();
+    await (await late).finished();
+    await other.evaluate(() => new Promise(resolve => setTimeout(resolve)));
+    await expect(newClip).toBeVisible();
+    await expect(otherPicker.getByTestId('picker-folder')).toHaveCount(0);
+    expect(media.choices).toBe(2);
+
+    // Pairing changes in a different tab while the old Bridge's native picker is open.
+    const nextBridge = 'http://127.0.0.1:8900';
+    const nextFolder = 'E:/Other Bridge';
+    const nextVmix = fakeVmix(8, { folder: nextFolder, files: {} });
+    await slotBridge({ route: (_url, handler) => page.context().route(nextBridge + '/**', handler) }, { vmix: nextVmix });
+    // The picker still belongs to the original pairing when Refresh is pressed in this task.
+    await other.evaluate(bridgeUrl => {
+      const key = 'spx-gfx-caspar';
+      const saved = localStorage.getItem(key)!;
+      localStorage.setItem(key, JSON.stringify({ ...JSON.parse(saved), agentUrl: bridgeUrl }));
+      try {
+        document.querySelector<HTMLButtonElement>('[data-testid="picker-refresh"]')!.click();
+      } finally {
+        localStorage.setItem(key, saved);
+      }
+    }, nextBridge);
+    await otherPicker.getByTestId('picker-refresh').click();
+    await expect(newClip).toBeVisible();
+    expect(nextVmix.media!.paths).toEqual([]);
+    const opened = Promise.withResolvers<void>();
+    const finishChoice = Promise.withResolvers<void>();
+    await page.route(BRIDGE + '/vmix/choose-folder', async route => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      opened.resolve();
+      await finishChoice.promise;
+      await route.fallback();
+    });
+    const pairedFromOtherTab = (agentUrl: string) => evaluateInPage(other, async (url: string) => {
+      const { savePlayoutSettings } = await __noacgImport('/src/control/playoutLink.ts');
+      savePlayoutSettings({ agentUrl: url });
+      await new Promise(resolve => setTimeout(resolve));
+    }, agentUrl);
+    try {
+      await choose.click();
+      await opened.promise;
+      await expect(choose).toBeDisabled();
+      await pairedFromOtherTab(nextBridge);
+      await expect(mediaFolder).toHaveText(nextFolder);
+      await expect(choose).toBeEnabled();
+      const oldChoice = page.waitForResponse(response =>
+        response.url() === BRIDGE + '/vmix/choose-folder' && response.request().method() === 'POST');
+      finishChoice.resolve();
+      await (await oldChoice).finished();
+      await expect(mediaFolder).toHaveText(nextFolder);
+      await pairedFromOtherTab(BRIDGE);
+      await expect(mediaFolder).toHaveText(chosen);
+      expect(media.choices).toBe(3);
+
+      const unsettled = { hop: 'agent' as const, code: 'uncertain' as const, detail: 'The folder save is still settling.' };
+      media.chooseError = unsettled;
+      const pendingStudio = (route: Route) => route.fulfill({
+        json: { ok: false, v: 2, error: unsettled }, headers: { 'Access-Control-Allow-Origin': '*' },
+      });
+      await page.route(BRIDGE + '/studio', pendingStudio);
+      try {
+        await choose.click();
+        await expect(settings.getByRole('status').filter({ hasText: unsettled.detail })).toBeVisible();
+        await expect(mediaFolder).toHaveCount(0);
+        await expect(choose).toBeEnabled();
+      } finally {
+        media.chooseError = undefined;
+        await page.unroute(BRIDGE + '/studio', pendingStudio);
+      }
+      await choose.click();
+      await expect(mediaFolder).toHaveText(chosen);
+    } finally {
+      finishChoice.resolve();
+    }
+  } finally {
+    oldRead.resolve();
+    await other.close();
+  }
+  await page.screenshot({ path: info.outputPath('vmix-media-settings.png') });
+  await settings.getByTestId('playout-settings-close').click();
+  await openPicker();
+  await expect(page.getByTestId('picker-row')).toHaveText(/New clip\.mov/);
+  await page.getByTestId('picker-done').click();
+
+  vmix.state.setup = { hop: 'target', code: 'unreachable', setup: 'not-running', detail: 'Start vMix.' };
+  await clipRow.getByTestId('select-cue').click();
+  await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'server');
+  const mixed = await evaluateInPage(page, async (disabledId: string) => {
+    const { addFolderFromSelection, loadShows, setFolderMode } = await __noacgImport('/src/model/shows.ts');
+    const show = loadShows().find(s => s.name === 'Evening News')!;
+    const graphic = show.cues!.find(c => c.source !== 'playout')!;
+    const { folderId } = addFolderFromSelection(show.id, [graphic.id, disabledId], 'Mixed rundown');
+    if (!folderId) throw new Error('No folder was saved');
+    setFolderMode(show.id, folderId, 'together');
+    return { folderId, graphicId: graphic.id };
+  }, casparCueId!);
+  const folderRow = page.getByTestId('folder-row-' + mixed.folderId);
+  await folderRow.getByTestId('select-folder').click();
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
+  await expect(page.getByTestId('verb-target')).toHaveText('To: this page only');
+  expect(media.actions.slice(6)).toEqual([
+    player('take', 'clips', movie, clips.cueId),
+    player('take', 'clips', movie, clips.cueId),
+    player('out', 'clips', movie),
+  ]);
+  const actionsBeforeMixedTake = media.actions.length;
+  await parkFocusOffControls(page);
+  await page.keyboard.press('Space');
+  const graphicRow = page.getByTestId('cue-' + mixed.graphicId);
+  await expect(graphicRow.getByTestId('cue-up-here')).toBeVisible();
+  expect(bridge.actions).toEqual([]);
+  expect(media.actions).toHaveLength(actionsBeforeMixedTake);
+  await page.getByTestId('verb-out').click();
+  await expect(graphicRow.getByTestId('cue-up-here')).toHaveCount(0);
+
+  await evaluateInPage(page, async ({ folderId, cueId }) => {
+    const { loadShows, moveCueIntoFolder } = await __noacgImport('/src/model/shows.ts');
+    const show = loadShows().find(s => s.name === 'Evening News')!;
+    moveCueIntoFolder(show.id, cueId!, folderId);
+  }, { folderId: mixed.folderId, cueId: clips.cueId });
+  await folderRow.getByTestId('select-folder').click();
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+});
+
+test('an accepted vMix All out finishes both original players after leaving the production', async ({ page }) => {
+  const folder = 'C:/Videos';
+  const vmix = fakeVmix(8, { folder, files: { [folder]: { '': [
+    { name: 'Clip.mp4', kind: 'movie' }, { name: 'Sting.wav', kind: 'audio' },
+  ] } } });
+  const media = vmix.media!;
+  await slotBridge(page.context(), { vmix });
+  await seedSettings(page);
+  await productionPage(page);
+  const [clips, audio] = await evaluateInPage(page, async () => {
+    const { addPlayoutItem, loadShows } = await __noacgImport('/src/model/shows.ts');
+    const show = loadShows().find(s => s.name === 'Evening News')!;
+    const clips = addPlayoutItem(show.id, { adapter: 'vmix', kind: 'media', name: 'Clip.mp4', mediaKind: 'movie', layer: 0 }).cueId;
+    const audio = addPlayoutItem(show.id, { adapter: 'vmix', kind: 'media', name: 'Sting.wav', mediaKind: 'audio', layer: 0 }).cueId;
+    if (!clips || !audio) throw new Error('Both vMix cues must be saved.');
+    await new Promise(resolve => setTimeout(resolve));
+    return [clips, audio];
+  });
+  await page.getByTestId('production-status').click();
+  await page.getByTestId('production-status-panel').getByTestId('vmix-switch').click();
+  await page.keyboard.press('Escape');
+  const take = async (id: string) => {
+    const row = page.getByTestId('cue-' + id);
+    await row.getByTestId('select-cue').click();
+    const sent = page.waitForResponse(response => response.url() === BRIDGE + '/act' &&
+      response.request().postDataJSON()?.action?.cueId === id);
+    await page.getByTestId('verb-take').click();
+    await expect(row).toContainText('ON AIR');
+    return (await (await sent).json()).instance as string;
+  };
+  const clipInstance = await take(clips);
+  const audioInstance = await take(audio);
+  const firstSent = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<void>();
+  let holding = true;
+  await page.route(BRIDGE + '/act', async route => {
+    if (route.request().method() !== 'POST' || route.request().postDataJSON()?.action?.verb !== 'out-player-instance') return route.fallback();
+    if (holding) {
+      holding = false;
+      firstSent.resolve();
+      await finish.promise;
+    }
+    await route.fallback();
+  });
+  try {
+    await page.getByTestId('verb-out-all').click();
+    await firstSent.promise;
+    await page.evaluate(() => { location.hash = '#/home'; });
+    await expect(page.getByTestId('verb-out-all')).toHaveCount(0);
+    finish.resolve();
+    await expect.poll(() => media.actions.filter(call => call.action.verb === 'out-player-instance')
+      .map(call => [call.action.slot.player, call.action.expectedPlayerInstance]).sort()).toEqual([
+      ['audio', audioInstance],
+      ['clips', clipInstance],
+    ]);
+  } finally {
+    finish.resolve();
+  }
 });

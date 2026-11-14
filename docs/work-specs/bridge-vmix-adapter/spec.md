@@ -816,6 +816,12 @@ picker from the unsigned exe; a preset saved with the players.
 
 ## Phase notes
 
+### V4 build notes
+
+V4 adds vMix media to the existing rundown. A cue carries its adapter, file relative to the Bridge's media folder, and media kind. vMix has two player slots. The Studio routes each cue to its own adapter, refuses the other system's cues, and reads the media folder's immediate children from Bridge. Settings opens the Bridge's native folder picker.
+
+The [V4 evidence](evidence/phase-v4.md) records the verified V3 starting point, independent Rules review, implementation choices, checks, and revert command. V5 supplies player observation and the clip clock after a reload.
+
 Each phase's pull request adds here what the next phase must allow for, newest first: the
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found, and
 the check's findings.

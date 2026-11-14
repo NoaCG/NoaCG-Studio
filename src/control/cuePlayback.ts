@@ -166,11 +166,11 @@ export const NEEDS = {
 } as const satisfies Record<string, PlaybackNeed>;
 
 /** What this cue needs beyond a plain Take (plan §6.9). None for a legacy cue or a Loop. */
-export function playbackNeeds(cue: Pick<ShowCue, 'playback' | 'imageFit'>, item: Pick<PlayoutItem, 'loop' | 'mediaKind'>): PlaybackNeed[] {
+export function playbackNeeds(cue: Pick<ShowCue, 'playback' | 'imageFit'>, item: Pick<PlayoutItem, 'adapter' | 'loop' | 'mediaKind'>): PlaybackNeed[] {
   const p = cue.playback;
   const end = effectiveEnd(cue, item);
   const needs: PlaybackNeed[] = [];
-  if (item.mediaKind === 'still' && cue.imageFit !== 'stretch') needs.push(NEEDS.imageFit);
+  if (item.adapter !== 'vmix' && item.mediaKind === 'still' && cue.imageFit !== 'stretch') needs.push(NEEDS.imageFit);
   if (end === 'clear') needs.push(NEEDS.clear);
   if (end === 'next') needs.push(NEEDS.next);
   if (p?.fadeIn || p?.fadeOut) needs.push(NEEDS.fade);
@@ -181,11 +181,21 @@ export function playbackNeeds(cue: Pick<ShowCue, 'playback' | 'imageFit'>, item:
 
 /** What the Bridge and its server said they can do: `/health` features, `/status` capabilities. */
 export interface PlaybackAbility {
+  adapter?: 'casparcg' | 'vmix';
   state: string;
   features?: readonly string[];
   capabilities?: readonly string[];
   version?: string;
 }
+
+export function vmixMediaBlocker(ability: PlaybackAbility | null): string | null {
+  if (!ability) return 'Asking NoaCG Bridge about vMix media.';
+  if (ability.state !== 'ok') return 'Connect NoaCG Bridge and vMix to take this cue.';
+  return ability.features?.includes('vmix-media') ? null : 'Update NoaCG Bridge to play vMix media.';
+}
+
+const serverName = (ability: PlaybackAbility) => ability.adapter === 'vmix' ? 'vMix'
+  : ability.version ? `CasparCG ${ability.version.split(' ')[0]}` : 'this playout server';
 
 const listed = (parts: string[]) => (parts.length < 2 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`);
 
@@ -205,7 +215,7 @@ export function playbackBlocker(needs: readonly PlaybackNeed[], ability: Playbac
   }
   const noCapability = needs.filter((n) => !ability.capabilities?.includes(n.capability));
   if (noCapability.length) {
-    const server = ability.version ? `CasparCG ${ability.version.split(' ')[0]}` : 'this playout server';
+    const server = serverName(ability);
     return `${subject} ${listed(noCapability.map((n) => n.what))}, which ${server} cannot do. To take it, ${listed([...new Set(noCapability.map((n) => n.undo))])}.`;
   }
   return null;
@@ -221,7 +231,7 @@ export function offerBlocked(ability: PlaybackAbility | null, need: Pick<Playbac
   if (ability.state !== 'ok') return 'Connect NoaCG Bridge and the playout server to set this.';
   if (!ability.features?.includes(need.feature)) return 'Update NoaCG Bridge to set this.';
   if (!ability.capabilities?.includes(need.capability)) {
-    return `${ability.version ? `CasparCG ${ability.version.split(' ')[0]}` : 'This playout server'} cannot do this.`;
+    return `${ability.adapter || ability.version ? serverName(ability) : 'This playout server'} cannot do this.`;
   }
   return null;
 }
