@@ -566,6 +566,8 @@ export async function flushTeamProduction(id: string): Promise<string | null> {
 
 async function refreshOnce(): Promise<void> {
   const owner = running;
+  // What this tab held when the pass began; see #2565 below.
+  const before = new Map(server);
   const [teamsAnswer, membersAnswer, headsAnswer] = await Promise.all([
     listMyTeams(),
     listMyTeamMembers(),
@@ -607,7 +609,6 @@ async function refreshOnce(): Promise<void> {
   // base is how a teammate's cue quietly disappears.
   const keep = new Set([...dirty, ...inflight]);
   const stale = heads.filter((h) => !keep.has(h.id) && server.get(h.id)?.token !== h.updatedAt).map((h) => h.id);
-  const before = new Map(server);
   const docs = await fetchTeamProductionDocs(stale);
   if (running !== owner) return;
   if (docs.error) {
@@ -616,8 +617,8 @@ async function refreshOnce(): Promise<void> {
     return;
   }
   noteRead(false);
-  // #2565: the operator may type, or this tab may save, restore, move or delete, while that read is
-  // out, on a fetched production or any other. Such a production keeps its base, token, local
+  // #2565: the operator may type, or this tab may save, restore, move or delete, while this pass
+  // reads (the heads or the documents), on a fetched production or any other. Such a production keeps its base, token, local
   // record and shown head (#2566), whatever the heads read before the fetch said; the next pass
   // reads it again.
   const changed = new Set([...before.keys(), ...server.keys()].filter((id) => server.get(id) !== before.get(id)));

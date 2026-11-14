@@ -316,12 +316,13 @@ function refreshHarness() {
   const head = (id, token) => ({ id, team_id: 'team', updated_at: token, updated_by: 'mate' });
   let heads = [head('show', 'base'), head('other', 'base')];
   // Once the pass under test is reading, a pass started meanwhile (a move asks for one) waits.
-  const reads = { held: false };
+  const reads = { held: false, headsHeld: false };
+  const headReads = [];
   const sb = {
     from: () => ({
       select: (cols) => cols.includes('doc')
         ? { in: (_col, ids) => { fetched.push(ids); const d = deferred(); docs.push(d); return d.promise; } }
-        : { order: async () => ({ data: heads, error: null }) },
+        : { order: () => { if (!reads.headsHeld) return Promise.resolve({ data: heads, error: null }); const d = deferred(); headReads.push(d); return d.promise; } },
       insert: (row) => ({ select: () => ({ single: async () => ({ data: { id: row.id, team_id: row.team_id, updated_at: 'moved', updated_by: 'owner' }, error: null }) }) }),
       delete: () => ({ eq: (_col, id) => ({ select: async () => ({ data: [{ id }], error: null }) }) }),
     }),
@@ -371,7 +372,8 @@ function refreshHarness() {
   }, setTimeout: () => 1, clearTimeout: () => {} });
   for (const show of shows.values()) exports.seedForTest(show);
   return {
-    controller: exports, docs, fetched, answers, reads,
+    controller: exports, docs, fetched, answers, reads, headReads,
+    heads: () => heads,
     settle: () => new Promise(resolve => setImmediate(resolve)),
     name: id => shows.get(id)?.name,
     edit(id, name) { shows.set(id, { ...shows.get(id), name }); exports.editForTest(id); },
@@ -459,4 +461,27 @@ test('a rundown undo saved while teammates\' documents are read is not undone by
   await pass;
   assert.equal(h.name('show'), 'First');
   assert.equal(h.controller.knownForTest('show').token, 't3');
+});
+
+test('a move or a save made while the heads are read is not undone by that older list (#2565 /so)', async () => {
+  const h = refreshHarness();
+  h.reads.headsHeld = true;
+  const pass = h.controller.refreshForTest();
+  while (h.headReads.length === 0) await h.settle();
+  const listed = h.heads(); // the list as the server answered before the move and the save
+  h.reads.held = true;
+  h.reads.headsHeld = false;
+  assert.equal((await h.controller.moveProductionToTeam({ id: 'moved', version: 2, name: 'Moved', graphics: [] }, 'team')).error, null);
+  h.edit('show', 'Mine');
+  h.answers.push({ data: { saved: true, updated_at: 't3', updated_by: 'owner' }, error: null });
+  assert.equal(await h.controller.flushTeamProduction('show'), null);
+  h.headReads[0].resolve({ data: listed, error: null });
+  // The old list makes `show` look stale; the read answers with the row as it was then.
+  while (h.docs.length === 0) await h.settle();
+  h.docs[0].resolve({ data: [{ ...listed[0], doc: { id: 'show', version: 2, name: 'First', graphics: [] } }], error: null });
+  await pass;
+  assert.equal(h.name('moved'), 'Moved', 'the moved production stays on the page');
+  assert.equal(h.controller.knownForTest('moved').token, 'moved');
+  assert.equal(h.name('show'), 'Mine');
+  assert.equal(h.controller.getTeamState().heads.show.updatedAt, 't3', 'the shown head is the confirmed one');
 });
