@@ -102,7 +102,7 @@ export function nightlyMinutes(reports) {
  * on the dev server, which lacks the specs ci.yml never timed (quarantined ones) and runs short for
  * some it holds, while the nightly reports mostly come from the build, about 0.6 of dev-server
  * minutes. So each file weighs the LARGEST of its table minutes and, from each of the newest
- * `NIGHTS_PER_FILE` full reports that timed it, its minutes there times that report's own factor.
+ * `NIGHTS_PER_FILE` full reports that timed it whole, its minutes there times that report's own factor.
  *
  * The factor is table minutes over report minutes on the suite's files both hold that the report
  * finished and passed, never below 1: near 1.6 for a build night, 1.1 for a dev_server one (which
@@ -138,7 +138,8 @@ export function devServerWeights(tableMinutes, reports, suite) {
     const factor = full ? Math.max(1, table / measured) : 1;
     for (const [file, m] of Object.entries(minutes)) {
       if (failed.has(file)) continue;
-      if (full && (nights[file] = (nights[file] ?? 0) + 1) > NIGHTS_PER_FILE) continue;
+      // Only a night that timed the file whole takes one of its nights, as in nightlyMinutes.
+      if (full && !unfinished.has(file) && (nights[file] = (nights[file] ?? 0) + 1) > NIGHTS_PER_FILE) continue;
       weights[file] = Math.max(weights[file] ?? 0, m * factor);
     }
   }

@@ -150,3 +150,11 @@ test('each file reads only the newest three reports that timed it', () => {
   const reports = [5, 1, 1, 9].map((m) => report({ 'a.spec.ts': [1], 'x.spec.ts': [m] }));
   assert.equal(devServerWeights(table, reports, ['a.spec.ts', 'x.spec.ts'])['x.spec.ts'], 5); // the fourth night's 9 is not read
 });
+
+test('an unfinished night takes none of a file\'s three nights', () => {
+  const table = { 'a.spec.ts': 1 };
+  const night = (m, status) => report({ 'a.spec.ts': [1], 'x.spec.ts': [m, status] });
+  // Three unfinished nights, then a whole one: the whole one is still read.
+  const reports = [night(1, 'unfinished'), night(1, 'unfinished'), night(1, 'unfinished'), night(4)];
+  assert.equal(devServerWeights(table, reports, ['a.spec.ts', 'x.spec.ts'])['x.spec.ts'], 4);
+});
