@@ -3529,7 +3529,7 @@
       "ci": {
         "run": 43603124871,
         "head": "9f70b9835777e3815b4336654fe06bb80198ef7c",
-        "status": "ACTUAL_TEST_FAILURES; otherspending; no rerun",
+        "status": "COMPLETED_FAILURE_ATTEMPT1_NO_RERUN",
         "planJob": 132471944499,
         "selection": "Actualmode subset215offline/15shards, includesall4editededitorfiles. Configuredmodeall62active/4isolatedlocalstacks; 3existingquarantinednonblocking(command-sequence/operator-outage-not-unpublished/publish-guard) explicitlyobserved. Criticalalreadyselected/noadds; cataloggate running.",
         "rootRead": "ConnectoractualcompleteE2Eplanlog/JSON; distinguish215PRselection versus fullmain later; no countfalsefullclaim.",
@@ -3553,10 +3553,15 @@
           {
             "job": 132472077131,
             "tests": "wizard-entry-fit367oldTabexpectsOpeneditorfirst"
+          },
+          {
+            "job": 132472077063,
+            "tests": "short-height17viewport127>=180; short-height51groupviewport130>=180; groups259canvas97>150; projects639oldCreateprojectlocator664timeoutafterBlankdefault"
           }
         ],
         "approvalOnlyFailure": "Reviewed132471944447: rootENTIRElogread, noacg/reviewedmissingafter147s/29polls; standardlate-status recovery onlyafterallothergates/Codex. Noproducttestjobrerun.",
-        "repairPlan": "SamebuilderreadALLwholefailedlogs/consolidatefamiliesbeforeedit. Freshreadonlylayoutapproachreview coversactualcanvas/toolbars/panels,minheight,marquee/precision paths; no constant-atatime or weakenedbound. Qualify oldwizardTabexpectation againstnewownerBlankdoor. SoundHARNESSuseschangedcreateBlankTemplate, so exactmain5c118control/trace required beforeunrelatedclaim. NoE4defect established; no code/status/queue action yet."
+        "repairPlan": "SamebuilderreadALLwholefailedlogs/consolidatefamiliesbeforeedit. Freshreadonlylayoutapproachreview coversactualcanvas/toolbars/panels,minheight,marquee/precision paths; no constant-atatime or weakenedbound. Qualify oldwizardTabexpectation againstnewownerBlankdoor. SoundHARNESSuseschangedcreateBlankTemplate, so exactmain5c118control/trace required beforeunrelatedclaim. NoE4defect established; no code/status/queue action yet. Latestprojects failure is only documentedUIsetup/label mismatch sofar; chooseintendedstartermode andretainALLoriginalcancel/source guards. No confirmedE4stateviolation.",
+        "terminal": "10failedcases/6offline shards. Build,Factory,Catalog calibration,all4configuredshards andConfiguredverdict132475618257SUCCESS; CIgate132475747402FAIL. Reviewed-only147stimeout remains separate. Lastshard237PASS4FAIL11.5m; rootwholelogfetched/fullfailureblocksread."
       },
       "codex": {
         "comment": 6878474028,
@@ -3575,6 +3580,7 @@
         "reply": 4573888509,
         "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2552#discussion_r4573888509"
       }
-    }
+    },
+    "independentContextDraft": "wave.kit/briefs/e5f-check-extra-notes-20261114.txt6844bytes preparedonly; all4fullparagraphs/limits/startuphandshake. No checkerbrief/intent/launch before observedactualmerge."
   }
 }
