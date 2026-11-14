@@ -726,6 +726,8 @@ jobs:
           # Without `--shard` Playwright would write `report.zip` on every runner, and the report
           # job flattens all shard artifacts into one directory - see playwright.config.ts.
           NOACG_BLOB_NAME: report-${{ matrix.shardIndex }}.zip
+          # PROBE ONLY (draft): run the shard against the e2e build.
+          NOACG_E2E_ON_BUILD: '1'
           # MAIN'S FULL RUN RECORDS THE TRACED SPEC MAP (scripts/e2e-traced.mjs), so the nightly can
           # take the map, the report and the triage from this run instead of running the same tree
           # again (nightly.yml, `covered`). Empty elsewhere, which leaves tracing off.
