@@ -17,6 +17,11 @@
 // out a spec its dev-map plan selects is printed, and the exit code is 1: an alarm for the owner and
 // a revert candidate for #2530. Exit 2: a run traced too few specs fresh to be judged; run it again.
 //
+// ONLY BUILD-PROJECT SPECS COUNT. The specs that say `// runs on: dev server` run on the dev
+// server in both nightlies, so both maps trace them the same way: a spec they lose is that
+// method's own night-to-night drift, not an effect of tracing on the build (guard run 2 on
+// 4751981d lost no-old-editor and sync-dot, both dev-project specs, one traced file each).
+//
 // WHY THE SAME COMMIT. The dev map is not stable night to night, and it follows code changes:
 // between two consecutive dev nightlies (c46c222a and c92910f4, both before #2530) 5 of 136
 // changed files already selected fewer specs, src/control/liveData.ts going from 126 to 85. Maps
@@ -27,7 +32,27 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { planFor } from '../../../../scripts/e2e-affected.mjs';
 import { mergeRefusal, mergeTraces, tracedFrom } from '../../../../scripts/e2e-traced.mjs';
+import { devServerSpecs } from '../../../../scripts/e2e-dev-server-specs.mjs';
+import { fileURLToPath } from 'node:url';
 
+/**
+ * The specs one changed file's dev-map plan selects that its build-map plan leaves out, counting
+ * only specs on the build project: `devProject` (spec file names, as plans give them) run on the
+ * dev server in both nightlies. A dev-map plan of the whole suite against a narrower build plan is
+ * a loss in itself.
+ */
+export function buildProjectLosses(old, now, devProject) {
+  if (now.mode === 'full') return [];
+  if (old.mode === 'full') return ['(the whole suite)'];
+  const kept = new Set(now.specs);
+  const dev = new Set(devProject);
+  return old.specs.filter((s) => !kept.has(s) && !dev.has(s));
+}
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) main();
+
+function main() {
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
   const value = i >= 0 ? process.argv[i + 1] : fallback;
@@ -77,17 +102,18 @@ for (const merge of merges) {
   }
 }
 
+const devProject = devServerSpecs().map((f) => f.replace(/^e2e\//, ''));
 let fewer = 0;
 for (const file of [...files].sort()) {
   const old = planFor([file], { traced: dev, specsOnDisk });
   const now = planFor([file], { traced: build, specsOnDisk });
-  if (now.mode === 'full') continue;
-  const kept = new Set(now.specs);
-  const lost = old.mode === 'full' ? ['(the whole suite)'] : old.specs.filter((s) => !kept.has(s));
+  const lost = buildProjectLosses(old, now, devProject);
   if (lost.length) {
     fewer += 1;
     console.log(`FEWER ${file}: dev map ${old.mode} ${old.specs.length} -> build map ${now.mode} ${now.specs.length}; lost ${lost.join(', ')}`);
   }
 }
-console.log(`d2 selection guard: ${merges.length} merge(s) since ${arg('since')}, ${files.size} src file(s) planned, ${fewer} select fewer specs on the build map`);
+console.log(`d2 selection guard: ${merges.length} merge(s) since ${arg('since')}, ${files.size} src file(s) planned, ` +
+  `${fewer} select fewer build-project specs on the build map (${devProject.length} dev-project specs not compared)`);
 process.exit(fewer ? 1 : 0);
+}
