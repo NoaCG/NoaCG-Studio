@@ -209,7 +209,9 @@ export default defineConfig(({ command, mode }) => {
         ...(e2e
           ? {
               output: {
-                minify: { mangle: { keepNames: KEEP_NAMES }, compress: { keepNames: KEEP_NAMES } },
+                // No compress pass: it inlines small functions into their callers, and the traced spec map
+                // (e2e/_trace.ts) would then credit the caller's file with code from another.
+                minify: { mangle: { keepNames: KEEP_NAMES }, compress: false },
                 entryFileNames: (chunk: { name: string }) => (chunk.name === 'e2eRegistry' ? 'assets/e2eRegistry.js' : 'assets/[name]-[hash].js'),
               },
               preserveEntrySignatures: 'strict' as const,
