@@ -129,20 +129,29 @@ says what this machine carries, not what the product does with 15 people.
 page, their own included, 90 s after the run: the record held `#148` or `#147` where `#149` was
 typed. Cause, read from the code: `refreshOnce` in `src/backend/teamProductions.ts` takes the set of
 productions with an edit on its way up before it awaits the teammates' documents, then applies the
-fetched record over an edit made during that await. More editors mean more fetches, so it shows
-with seven editors and not with two. It is not #2562 (one account on two devices) and is outside
-this phase's scope; filed as #2565 (P1) and reported to the coordinator. No conflicted copy, no
-Goal or message lost, no Take lost.
+fetched record over an edit made during that await. More editors mean more fetches, so it showed
+here first. It is not #2562 (one account on two devices). Filed as #2565 (P1), reported to the
+coordinator, and fixed first in #2570 once AC-6's own check met it too (next section). No conflicted
+copy, no Goal or message lost, no Take lost. RESULTS_10_FIXED
 
 ### The configured spec
 
 The test, run alone with `--repeat-each 2` on the local stack: 2 passed (j-0004, 1.1 and 1.2
 minutes), 2 passed again on the scene after the review fixes (j-0033, 1.3 and 1.2 minutes), both
-when it was its own file, on the development server; then RESULTS_TEAMS. The CI run on the
-pull request's head runs it in the configured selection. Its two editors can in principle meet
-#2565; in every five-page run here (ten minutes, twelve pairs, five shorter runs) they never did.
+when it was its own file, on the development server. Moved into `teams.spec.ts` and run after that
+file's other walks, it failed twice in a row on #2565 (j-0034); with the fix (#2570) the whole file
+passed 6 of 6 three times (j-0035 to j-0037). The CI run on the pull request's head runs it in the
+configured selection.
 
-## #2562 and #2557
+## #2565, #2562 and #2557
+
+- **#2565** (a team edit made while the page reads teammates' changes is lost): met. First in the
+  10-page run (below), then by AC-6's own configured check once it moved into `teams.spec.ts`: run
+  after that file's other team walks, it failed twice in a row (job j-0034; an editor typed `#9`,
+  the record and every page kept `#7`). The team read runs on window focus, and each person's typing
+  focuses their page, so the window opened often. Fixed first, as its own Risky pull request
+  (#2570, rules before code, a Rules-first and a final `/so`); with that fix the whole file passed
+  three times (j-0035 to j-0037). This pull request lands after it.
 
 - **#2562** (an edit after another device's edit goes to a conflicted copy): not met. It needs one
   account on two devices; AC-6's five people are five accounts on a team production, whose saves

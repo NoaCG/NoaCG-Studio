@@ -609,7 +609,8 @@ Filled in by each phase's pull request.
   and the timing use the same scene from `e2e/configured/measure/five.measure.ts` on the bundled e2e
   build, as phases 6 and 7 judged timing. "A single page" is the taker's page with every other
   person's page closed, alternated with everyone working, in rounds whose order alternates.
-  #2562 and #2557 were not met (see the evidence), so no product change was needed.
+  #2562 and #2557 were not met. #2565 (a team edit made while the page reads teammates' changes was
+  lost) was: fixed first as its own Risky pull request (#2570); this one lands after it.
 - Traps: in the evidence, "Traps met".
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-8.md`; the owner's final check:
   `docs/work-specs/live-publishing/phase-9-checklist.md`.
