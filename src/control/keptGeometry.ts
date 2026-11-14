@@ -25,8 +25,9 @@ const KEPT_PRODUCTIONS = 8;
 /** One write per burst of measurements. */
 const WRITE_MS = 1_000;
 
-/** One cue's kept measurement: the identity's hash, its pool graphic and the measurement. */
+/** One cue's kept measurement: the cue, the identity's hash, its pool graphic and the measurement. */
 interface KeptCue {
+  c: string;
   h: string;
   g: string;
   m: Measurement;
@@ -36,9 +37,13 @@ interface KeptProduction {
   b: string;
   /** When last written, to keep the newest productions. */
   at: number;
-  cues: Record<string, KeptCue>;
+  /** Oldest measurement first, so a reopened page takes them in the order they were measured and
+   *  each graphic's newest measurement (`byGraphic`, which its unmeasured cues read) is the same. */
+  cues: KeptCue[];
 }
 type KeptStore = Record<string, KeptProduction>;
+/** A production's kept cues by cue id, oldest measurement first. */
+export type Kept = ReadonlyMap<string, KeptCue>;
 
 export interface KeptGeometryIo {
   getItem: (key: string) => string | null;
@@ -79,12 +84,15 @@ function readStore(io: KeptGeometryIo): KeptStore {
 }
 
 /** This production's kept cues, when this build measured them; none otherwise. */
-export function readKept(io: KeptGeometryIo, productionId: string): Record<string, KeptCue> {
+export function readKept(io: KeptGeometryIo, productionId: string): Kept {
   const p = readStore(io)[productionId];
-  if (!p || typeof p !== 'object' || p.b !== io.build || !p.cues || typeof p.cues !== 'object') return {};
-  const out: Record<string, KeptCue> = {};
-  for (const [cueId, c] of Object.entries(p.cues)) {
-    if (c && typeof c.h === 'string' && typeof c.g === 'string' && isMeasurement(c.m)) out[cueId] = c;
+  const out = new Map<string, KeptCue>();
+  if (!p || typeof p !== 'object' || p.b !== io.build || !Array.isArray(p.cues)) return out;
+  for (const c of p.cues) {
+    if (c && typeof c.c === 'string' && typeof c.h === 'string' && typeof c.g === 'string' && isMeasurement(c.m)) {
+      out.delete(c.c);
+      out.set(c.c, c);
+    }
   }
   return out;
 }
@@ -96,26 +104,38 @@ export interface CueIdentity {
   id: string;
 }
 
-/** The session's geometry with each cue's kept measurement taken, for a cue this session has not
- *  measured and whose identity hashes as the kept one did. */
-export function adoptKept(part: GeometryPart, kept: Readonly<Record<string, KeptCue>>, cues: readonly CueIdentity[]): GeometryPart {
+/** The session's geometry with each cue's kept measurement taken, in the order they were measured,
+ *  for a cue this session has not measured and whose identity hashes as the kept one did. */
+export function adoptKept(part: GeometryPart, kept: Kept, cues: readonly CueIdentity[]): GeometryPart {
+  const now = new Map(cues.map((c) => [c.cueId, c] as const));
   let next = part;
-  for (const job of cues) {
-    const k = kept[job.cueId];
-    if (!k || next.byCue[job.cueId] || k.g !== job.graphicId || k.h !== identityHash(job.id)) continue;
-    next = measured(next, job.cueId, job.graphicId, job.id, k.m);
+  for (const [cueId, k] of kept) {
+    const job = now.get(cueId);
+    if (!job || next.byCue[cueId] || k.g !== job.graphicId || k.h !== identityHash(job.id)) continue;
+    next = measured(next, cueId, job.graphicId, job.id, k.m);
   }
   return next;
 }
 
-/** What is kept for a production: the session's measurements over the kept ones, for the cues
- *  the production still has (`cues`: cue id to its pool graphic id). */
-export function keptOf(part: GeometryPart, kept: Readonly<Record<string, KeptCue>>, cues: ReadonlyMap<string, string>): Record<string, KeptCue> {
-  const out: Record<string, KeptCue> = {};
-  for (const [cueId, c] of Object.entries(kept)) if (cues.get(cueId) === c.g) out[cueId] = c;
-  for (const [cueId, e] of Object.entries(part.byCue)) {
+/** What is kept for a production: the session's measurements over the kept ones, for the cues the
+ *  production still has (`cues`: cue id to its pool graphic id), with the cues measured since the
+ *  last write (`recent`, oldest first) moved to the end. */
+export function keptOf(part: GeometryPart, kept: Kept, cues: ReadonlyMap<string, string>, recent: readonly string[] = []): Map<string, KeptCue> {
+  const out = new Map<string, KeptCue>();
+  for (const [cueId, c] of kept) if (cues.get(cueId) === c.g) out.set(cueId, c);
+  const entry = (cueId: string): KeptCue | null => {
+    const e = part.byCue[cueId];
     const g = cues.get(cueId);
-    if (g) out[cueId] = { h: identityHash(e.id), g, m: e.m };
+    return e && g ? { c: cueId, h: identityHash(e.id), g, m: e.m } : null;
+  };
+  for (const cueId of Object.keys(part.byCue)) {
+    const k = entry(cueId);
+    if (k) out.set(cueId, k);
+  }
+  for (const cueId of recent) {
+    const k = entry(cueId);
+    out.delete(cueId);
+    if (k) out.set(cueId, k);
   }
   return out;
 }
@@ -131,11 +151,14 @@ export function keptOf(part: GeometryPart, kept: Readonly<Record<string, KeptCue
 export function keepGeometry(part: StorePart<GeometryPart>, productionId: string, cues: () => ReadonlyMap<string, string>, io: KeptGeometryIo) {
   let kept = readKept(io, productionId);
   let timer: unknown = null;
+  /** Cues measured since the last write, oldest first. */
+  let recent: string[] = [];
   const write = () => {
     timer = null;
-    kept = keptOf(part.get(), kept, cues());
+    kept = keptOf(part.get(), kept, cues(), recent);
+    recent = [];
     const store = readStore(io);
-    store[productionId] = { b: io.build, at: (io.now ?? Date.now)(), cues: kept };
+    store[productionId] = { b: io.build, at: (io.now ?? Date.now)(), cues: [...kept.values()] };
     const newest = Object.entries(store)
       .filter(([, p]) => p && typeof p === 'object')
       .sort(([, x], [, y]) => (y.at ?? 0) - (x.at ?? 0))
@@ -148,11 +171,19 @@ export function keepGeometry(part: StorePart<GeometryPart>, productionId: string
   };
   return {
     adopt: (identities: (cueIds: ReadonlySet<string>) => readonly CueIdentity[]) => {
-      const owed = new Set(Object.keys(kept).filter((cueId) => !part.get().byCue[cueId]));
+      const owed = new Set([...kept.keys()].filter((cueId) => !part.get().byCue[cueId]));
       if (owed.size) part.set((p) => adoptKept(p, kept, identities(owed)));
     },
     watch: () => {
+      let seen = part.get();
       const unsubscribe = part.subscribe(() => {
+        const now = part.get();
+        for (const [cueId, e] of Object.entries(now.byCue)) {
+          if (seen.byCue[cueId] === e) continue;
+          recent = recent.filter((c) => c !== cueId);
+          recent.push(cueId);
+        }
+        seen = now;
         if (timer === null) timer = io.setTimeout(write, WRITE_MS);
       });
       return () => {

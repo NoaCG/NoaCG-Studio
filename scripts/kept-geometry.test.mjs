@@ -82,6 +82,23 @@ describe('a reload keeps the boxes a publish carries', () => {
     assert.equal(measuredAgain, 0, 'nothing is measured again for an unchanged identity');
   });
 
+  test("a graphic's unmeasured cue reads the same newest box after a reload", () => {
+    // c4 is never measured: it publishes its graphic's newest measurement, c1's second one here.
+    const cues = { ...CUES, c4: ['g1', 'id-c4'] };
+    const b = browser();
+    const first = openPage(b, cues);
+    first.part.set((p) => G.measured(p, 'c1', 'g1', 'id-c1', box(872)));
+    first.part.set((p) => G.measured(p, 'c2', 'g1', 'id-c2', box(900)));
+    first.part.set((p) => G.measured(p, 'c1', 'g1', 'id-c1', box(874)));
+    const before = published(first.part.get(), cues);
+    assert.deepEqual(before.c4, box(874));
+    b.flush();
+    first.stop();
+    const second = openPage(b, cues);
+    second.kept.adopt(identities(cues));
+    assert.deepEqual(published(second.part.get(), cues), before);
+  });
+
   test('a cue whose identity moved, or another build, is measured again rather than taken', () => {
     const b = browser();
     const first = openPage(b);
@@ -127,7 +144,7 @@ describe('a reload keeps the boxes a publish carries', () => {
     second.part.set((p) => G.measured(p, 'c2', 'g1', 'id-c2', box(900)));
     b.flush();
     second.stop();
-    assert.deepEqual(Object.keys(K.readKept(b.io(), 'show-1')).sort(), ['c1', 'c2']);
+    assert.deepEqual([...K.readKept(b.io(), 'show-1').keys()].sort(), ['c1', 'c2']);
 
     const part = storePart(G.NO_GEOMETRY);
     const io = { ...b.io(), getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('quota'); } };
