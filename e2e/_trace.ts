@@ -16,7 +16,7 @@ import { test as base, type CDPSession, type Page } from 'playwright/test';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sourcesOf } from '../scripts/e2e-build-sources.mjs';
+import { componentsOf, sourcesOf } from '../scripts/e2e-build-sources.mjs';
 
 export * from 'playwright/test';
 
@@ -32,21 +32,24 @@ async function startCoverage(page: Page): Promise<CDPSession> {
 }
 
 /** Script URLs with at least one function, beyond the module body itself, that ran. On the e2e
- *  build a script is a chunk of many modules, so for a chunk this answers the source files of the
- *  functions that ran instead, as URLs of the same origin (scripts/e2e-build-sources.mjs). */
+ *  build a script is a chunk of many modules, so for a chunk this answers source files instead, as
+ *  URLs of the same origin: those of the functions that ran, and every component in the chunk,
+ *  which the dev server counts on load (scripts/e2e-build-sources.mjs). */
 async function executedUrls(session: CDPSession): Promise<string[]> {
   const { result } = await session.send('Profiler.takePreciseCoverage');
   const urls: string[] = [];
   for (const script of result) {
     if (!script.url) continue;
     const ran = script.functions.filter((fn, i) => i > 0 && fn.ranges.some((r) => r.count > 0));
-    if (ran.length === 0) continue;
     const chunk = ON_BUILD ? /^(https?:\/\/[^/]+)\/(assets\/[^?#]+\.js)(?:[?#].*)?$/.exec(script.url) : null;
     if (!chunk) {
-      urls.push(script.url);
+      if (ran.length > 0) urls.push(script.url);
       continue;
     }
-    for (const file of sourcesOf(ROOT, 'dist-e2e', chunk[2], ran.map((fn) => fn.ranges[0].startOffset))) urls.push(`${chunk[1]}/${file}`);
+    // A loaded chunk: the components in it count as the dev server counts them, on load, plus the
+    // source of every function that ran.
+    const files = [...componentsOf(ROOT, 'dist-e2e', chunk[2]), ...sourcesOf(ROOT, 'dist-e2e', chunk[2], ran.map((fn) => fn.ranges[0].startOffset))];
+    for (const file of files) urls.push(`${chunk[1]}/${file}`);
   }
   return urls;
 }

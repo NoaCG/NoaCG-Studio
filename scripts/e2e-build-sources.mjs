@@ -68,9 +68,14 @@ function lineStarts(text) {
 
 const chunks = new Map();
 
-/** Repo-relative source files the functions starting at `offsets` in a built chunk came from.
- *  `chunk` is the chunk's path under `dist` (`assets/x.js`); a chunk with no map gives nothing. */
-export function sourcesOf(root, dist, chunk, offsets) {
+/** Repo-relative path of a map source, or null for one outside the repo or in node_modules. */
+function repoPath(root, parsed, source) {
+  const rel = path.relative(root, path.resolve(parsed.dir, parsed.sourceRoot, source)).replaceAll('\\', '/');
+  return rel.startsWith('..') || rel.startsWith('node_modules/') || path.isAbsolute(rel) ? null : rel;
+}
+
+/** A built chunk with its source map, parsed once per process; null when either is missing. */
+function parsedChunk(root, dist, chunk) {
   const file = path.join(root, dist, chunk);
   if (!chunks.has(file)) {
     const mapFile = `${file}.map`;
@@ -78,10 +83,16 @@ export function sourcesOf(root, dist, chunk, offsets) {
       chunks.set(file, null);
     } else {
       const map = JSON.parse(readFileSync(mapFile, 'utf8'));
-      chunks.set(file, { lookup: sourceLookup(map), starts: lineStarts(readFileSync(file, 'utf8')), dir: path.dirname(file), sourceRoot: map.sourceRoot ?? '' });
+      chunks.set(file, { map, lookup: sourceLookup(map), starts: lineStarts(readFileSync(file, 'utf8')), dir: path.dirname(file), sourceRoot: map.sourceRoot ?? '' });
     }
   }
-  const parsed = chunks.get(file);
+  return chunks.get(file);
+}
+
+/** Repo-relative source files the functions starting at `offsets` in a built chunk came from.
+ *  `chunk` is the chunk's path under `dist` (`assets/x.js`); a chunk with no map gives nothing. */
+export function sourcesOf(root, dist, chunk, offsets) {
+  const parsed = parsedChunk(root, dist, chunk);
   if (!parsed) return [];
   const found = new Set();
   for (const offset of offsets) {
@@ -93,9 +104,18 @@ export function sourcesOf(root, dist, chunk, offsets) {
       else hi = mid - 1;
     }
     const source = parsed.lookup(lo, offset - parsed.starts[lo]);
-    if (!source) continue;
-    const rel = path.relative(root, path.resolve(parsed.dir, parsed.sourceRoot, source)).replaceAll('\\', '/');
-    if (!rel.startsWith('..') && !rel.startsWith('node_modules/') && !path.isAbsolute(rel)) found.add(rel);
+    const rel = source && repoPath(root, parsed, source);
+    if (rel) found.add(rel);
   }
   return [...found];
+}
+
+/** The component modules (.tsx, .jsx) bundled into a built chunk. The dev server's map counts a
+ *  component file as soon as it LOADS: @vitejs/plugin-react appends React Refresh code to it that
+ *  runs a function on load. The build has no such code, so a trace on the build counts every
+ *  component in a chunk the page loaded, which keeps its map a superset of the dev server's. */
+export function componentsOf(root, dist, chunk) {
+  const parsed = parsedChunk(root, dist, chunk);
+  if (!parsed) return [];
+  return parsed.map.sources.filter((s) => /\.(tsx|jsx)$/.test(s)).map((s) => repoPath(root, parsed, s)).filter(Boolean);
 }
