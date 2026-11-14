@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts and useTeamsAvailable.ts over the network
 // covers: src/components/{SyncStatus,AccountSaveNotice}.tsx, src/components/editorFoundation/EditorFoundation.tsx
 // covers: src/backend/{supabase,syncController,teamProductions}.ts
 // covers: src/components/editorFoundation/foundation.css

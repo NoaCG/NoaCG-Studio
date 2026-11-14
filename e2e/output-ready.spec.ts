@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // THE OUTPUT'S OWN READY ANSWER (Phase 6 Step 3, docs/work-specs/playout-ready/spec.md AC-1 to
 // AC-3): the real /output shell with its real boot, stage and graphic documents; only the backend is
 // stood in for, as in output-boot-resilience.spec.ts. What the operator pages make of the answer is

@@ -1,3 +1,4 @@
+// runs on: dev server - its harness page imports /src modules as scripts, which the build does not serve
 // A STRANGER'S OGRAF PACKAGE IN THE NORMAL LIBRARY (docs/work-specs/playout-ograf-rundown/spec.md,
 // E3.1, AC-1). Two packages by two other authors (e2e/fixtures/ograf-library/PROVENANCE.md) go in
 // through the Import graphic card, leave through Export byte for byte, join a production, take

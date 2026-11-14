@@ -1,3 +1,4 @@
+// runs on: dev server - its harness pages import /src modules as scripts, which the build does not serve
 // A FOREIGN OGraf package on the stage (docs/OGRAF_ECOSYSTEM.md §3): the isolated player, the
 // host document it loads, the ControlMessage -> OGraf call mapping, and the benign and hostile
 // fixtures. The one spec that proves the boundary, and output-first-paint because the stage

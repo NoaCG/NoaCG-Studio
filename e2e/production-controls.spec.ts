@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // covers: src/control/**, src/templates/quiz/**
 // covers: src/templates/{scoreboards/**,types/{sportsBugs.ts,scoreboard.ts}}
 // covers: src/components/playoutKeys.ts, src/components/{home,save}/**

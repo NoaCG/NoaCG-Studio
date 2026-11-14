@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // A DEBATE BOARD'S TWO CLOCKS THROUGH A RESEND, ON A REAL OUTPUT (#2161). The real /output shell with
 // its real boot, stage and machine, and the real dc01 document; only the backend is stood in for, as
 // in output-typed-recovery.spec.ts, and it serves the rows a production page writes. Every Take and
