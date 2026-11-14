@@ -1,3 +1,4 @@
+import { editComposition, type CompositionValues } from '../../blocks/compositionEdits';
 import { applyDocumentBrand } from '../../model/brandApplication';
 import type { SavedLook } from '../../model/packets';
 import type { SpxTemplate } from '../../model/types';
@@ -56,6 +57,7 @@ export type EditorOperation =
   | { kind: 'image.place'; assetPath: string; geometry: { x: number; y: number; width: number; height: number }; time: number }
   | { kind: 'image.replace'; selector: string; assetPath: string; box?: { width: number; height: number } }
   | { kind: 'key.set'; selector: string; step: number; property: string; time: number; value: number }
+  | { kind: 'composition.set'; values: Partial<CompositionValues> }
   | { kind: 'base.set'; selector: string; values: BasePatch }
   | { kind: 'text.set'; selector: string; text: string }
   | { kind: 'style.set'; selector: string; values: ArtworkStyle }
@@ -210,6 +212,8 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = applyKeyMove(next, operation); operation.keys.forEach(key => targets.add(key.selector));
     } else if (operation.kind === 'key.paste') {
       next = applyKeyPaste(next, operation); operation.keys.forEach(key => targets.add(key.artwork));
+    } else if (operation.kind === 'composition.set') {
+      next = editComposition(next, operation.values); getTemplateParts(next.html, next.fields, true).forEach(part => targets.add(part.selector));
     } else if (operation.kind === 'base.set') {
       next = editBase(next, operation.selector, operation.values); targets.add(operation.selector);
     } else if (operation.kind === 'layer.create') {

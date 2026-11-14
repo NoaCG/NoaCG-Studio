@@ -121,9 +121,6 @@
     "src/templates/audience/viewerQuestion.ts": {
       "em-dash": 5
     },
-    "src/templates/blank.ts": {
-      "em-dash": 1
-    },
     "src/templates/competition/compMotion.ts": {
       "em-dash": 4
     },
@@ -1216,7 +1213,7 @@
       "em-dash": 41
     },
     "src/templates/shared/base.ts": {
-      "em-dash": 10
+      "em-dash": 5
     },
     "src/templates/shared/clock.ts": {
       "em-dash": 9

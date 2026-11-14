@@ -1,3 +1,4 @@
+// covers: src/model/editorPanelLayout.ts
 // covers: src/components/editorFoundation/**, src/app/router.ts, src/App.tsx, src/templates/**
 
 import { test, expect, type Page } from '@playwright/test';
@@ -420,4 +421,67 @@ test('document ports isolate transactions and refuse unknown source data without
     return { isolated, wrongDocument, restored, unknown, retired };
   });
   expect(result).toEqual({ isolated: true, wrongDocument: true, restored: true, unknown: true, retired: true });
+});
+
+
+for (const [width, height] of [[1366, 768], [1920, 1080]] as const) test(`panel dividers retain reachable layout without editing at ${width}x${height}`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height }); await open(page); await ready(page);
+  await page.getByRole('button', { name: /^Project/ }).first().click();
+  const divider = page.getByRole('separator', { name: 'Inspector panel width', exact: true });
+  await expect(divider).toBeVisible();
+  const snapshot = () => page.evaluate(async () => {
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { source: s.template, history: s.history, future: s.future, selected: s.selectedParts };
+  });
+  const before = await snapshot();
+  const first = (await divider.boundingBox())!;
+  await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2); await page.mouse.down();
+  await page.mouse.move(first.x - 70, first.y + first.height / 2, { steps: 4 }); await page.mouse.up();
+  await expect.poll(async () => (await page.locator('.ef-inspector').boundingBox())!.width).toBeGreaterThan(330);
+  const committedWidth = (await page.locator('.ef-inspector').boundingBox())!.width;
+  const stored = await page.evaluate(() => localStorage.getItem('spx-gfx-editor-layout'));
+  const start = (await divider.boundingBox())!;
+  await page.mouse.move(start.x + 3, start.y + start.height / 2); await page.mouse.down(); await page.mouse.move(start.x - 30, start.y + start.height / 2);
+  expect(await page.evaluate(() => localStorage.getItem('spx-gfx-editor-layout'))).toBe(stored);
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  await expect.poll(async () => (await page.locator('.ef-inspector').boundingBox())!.width).toBe(committedWidth);
+  const project = page.getByRole('separator', { name: 'Project panel width', exact: true }); await project.focus(); await page.keyboard.press('Home');
+  await expect.poll(async () => (await page.locator('.ef-project').boundingBox())!.width).toBe(180);
+  await page.keyboard.press('End'); expect((await page.locator('.ef-canvas').boundingBox())!.width).toBeGreaterThanOrEqual(239);
+  await page.keyboard.press('Home');
+  const timeline = page.getByRole('separator', { name: 'Timeline height', exact: true }); await timeline.focus();
+  const oldHeight = (await page.locator('.ef-timeline').boundingBox())!.height; await page.keyboard.press('ArrowUp');
+  await expect.poll(async () => (await page.locator('.ef-timeline').boundingBox())!.height).toBeGreaterThan(oldHeight);
+  await page.keyboard.press('End'); expect((await page.locator('.ef-workspace').boundingBox())!.height).toBeGreaterThanOrEqual(199);
+  await page.keyboard.press('Home');
+  const retainedWidth = (await page.locator('.ef-inspector').boundingBox())!.width, retainedHeight = (await page.locator('.ef-timeline').boundingBox())!.height;
+  const retained = await page.evaluate(() => localStorage.getItem('spx-gfx-editor-layout'));
+  expect(await snapshot()).toEqual(before);
+  await page.reload(); await ready(page); expect(await snapshot()).toEqual(before);
+  expect((await page.locator('.ef-inspector').boundingBox())!.width).toBe(retainedWidth); expect((await page.locator('.ef-timeline').boundingBox())!.height).toBe(retainedHeight);
+  expect(await page.evaluate(() => localStorage.getItem('spx-gfx-editor-layout'))).toBe(retained);
+  await page.getByRole('button', { name: 'Reset layout', exact: true }).click();
+  await expect.poll(async () => (await page.locator('.ef-inspector').boundingBox())!.width).toBe(280);
+  expect(await snapshot()).toEqual(before); await page.screenshot({ path: info.outputPath('reachable-layout.png') });
+});
+
+for (const arrival of ['before mount', 'after mount'] as const) test('unknown panel layout bytes survive mount, transient resize and reset: ' + arrival, async ({ page }) => {
+  const key = 'spx-gfx-editor-layout';
+  const future = ' {"v":2,"sizes":{"project":343,"inspector":333,"timeline":290},"futureOnly":{"keep":"exact"}}\n';
+  await page.addInitScript(({ key, initial }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, initial); }, { key, initial: arrival === 'before mount' ? future : JSON.stringify({ v: 1, sizes: { project: 230, inspector: 280, timeline: 240 } }) });
+  await open(page); await ready(page);
+  const stored = () => page.evaluate(key => localStorage.getItem(key), key);
+  if (arrival === 'after mount') await page.evaluate(({ key, future }) => localStorage.setItem(key, future), { key, future });
+  expect(await stored()).toBe(future);
+  const before = await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { source: s.template, history: s.history, future: s.future }; });
+  const inspector = page.getByRole('separator', { name: 'Inspector panel width', exact: true });
+  const initial = Number(await inspector.getAttribute('aria-valuenow'));
+  await inspector.focus(); await inspector.press('ArrowLeft');
+  await expect(inspector).toHaveAttribute('aria-valuenow', String(initial + 10)); expect(await stored()).toBe(future);
+  const timeline = page.getByRole('separator', { name: 'Timeline height', exact: true });
+  await timeline.focus(); await timeline.press('ArrowUp'); expect(await stored()).toBe(future);
+  await page.getByRole('button', { name: 'Reset layout', exact: true }).click();
+  await expect(inspector).toHaveAttribute('aria-valuenow', '280'); expect(await stored()).toBe(future);
+  await page.reload(); await ready(page); expect(await stored()).toBe(future);
+  expect(await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { source: s.template, history: s.history, future: s.future }; })).toEqual(before);
 });

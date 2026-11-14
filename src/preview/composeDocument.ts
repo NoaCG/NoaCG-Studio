@@ -6,6 +6,7 @@
 // package keeps the external references (the files are written to disk by the exporter).
 
 import { prepareOutRuntime, preparePlacedTextOutput } from '../blocks/animMigration';
+import { authoringCompositionCss } from '../model/compositionPlacement';
 import { upgradeFontCss } from '../model/fonts';
 import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
@@ -159,7 +160,7 @@ export function composeDocument(template: SpxTemplate, options: ComposeOptions =
   // without a server. The exported package keeps the relative paths + real files.
   // `inset` rewritten into longhands for CasparCG 2.3's Chromium 71, which drops it (assets/cssCompat.ts).
   let html = expandInsetInMarkup(stripLocalAssetTags(inlineAssetRefs(template.html, template.assets)));
-  const css = expandInset(inlineAssetRefs(template.css, template.assets));
+  const css = expandInset(inlineAssetRefs(options.authoring ? authoringCompositionCss(template.css, template.resolution) : template.css, template.assets));
 
   const { width, height } = template.resolution;
 

@@ -1,11 +1,13 @@
+// covers: src/model/compositionPlacement.ts, src/preview/composeDocument.ts
 // covers: src/components/editorFoundation/**
-// covers: src/blocks/{baseEdits,designLayout,artworkEdits,artworkLayers,svgIdentity,editorAnimation,editorOut,animData,animEdit}.ts
+// covers: src/blocks/{compositionSource,compositionEdits,baseEdits,designLayout,artworkEdits,artworkLayers,svgIdentity,editorAnimation,editorOut,animData,animEdit}.ts
 // covers: src/model/structure.ts, src/templates/shared/{animRuntime,easeRuntime}.ts
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
+import { seek as seekGraphic } from './_layerProperty';
 import { installGraphicBody } from './_graphicBody';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { pickDesign } from './_browse';
 import { addToProductionFromFinish } from './_create';
 import { settleDurableWrites } from './_durable';
@@ -45,6 +47,10 @@ async function seed(page: Page, name = 'catalog', nested = false) {
   await expect((await preview(page)).locator('#f0')).toBeAttached();
   await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
   await expect(page.locator('.ef-selection rect')).toHaveCount(1);
+}
+async function currentHairline(page: Page) {
+  await page.goto('/app#/new'); await page.locator('[data-entry="template"]').click(); await pickDesign(page, 'Hairline');
+  await page.getByTestId('wz-skip-to-finish').click(); await page.getByTestId('wz-finish-edit-artwork').click(); await ready(page);
 }
 async function numeric(page: Page, label: string, value: number) {
   label = 'Base ' + label;
@@ -634,4 +640,235 @@ test('B03 refuses conflicting animated scale ownership without changing motion',
     } catch (error) { return String(error); }
   });
   expect(refusal).toMatch(/scale.*animated|animated.*scale/i);
+});
+
+test('E5F whole graphic controls preserve motion, source and durable history', async ({ page }, info) => {
+  // Use the current real creation path, rather than upgrading the retained old fixture.
+  await currentHairline(page); await page.locator('.ef-track[data-selector=".lower-third"] .ef-layer').click();
+  await expect(page.getByRole('textbox', { name: 'Graphic position X', exact: true })).toBeVisible();
+  const initial = await source(page);
+  const field = (label: string) => page.getByRole('textbox', { name: 'Graphic ' + label, exact: true });
+  const set = async (label: string, value: number) => { await field(label).fill(String(value)); await field(label).press('Enter'); await ready(page); };
+  const poses = async () => {
+    const result = [];
+    for (const time of [.16, .56, 1]) { await seekGraphic(page, time); result.push(await Promise.all(['#f0', '#f1', '.lower-third-box'].map(selector => rect(page, selector)))); }
+    return result;
+  };
+  const before = await poses();
+  await set('position X', 120); await set('position Y', -30); await set('scale %', 80);
+  const changed = await source(page);
+  expect({ ...changed, css: initial.css }).toEqual(initial);
+  const after = await poses();
+  for (let pose = 0; pose < before.length; pose++) for (let layer = 0; layer < before[pose].length; layer++) {
+    const a = after[pose][layer], b = before[pose][layer];
+    expect(a.x).toBeCloseTo(120 + b.x * .8, 1); expect(a.y).toBeCloseTo(-30 + b.y * .8, 1);
+    expect(a.width).toBeCloseTo(b.width * .8, 1); expect(a.height).toBeCloseTo(b.height * .8, 1);
+  }
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+  expect((await source(page)).css).toContain('scale: 1;');
+  await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); expect(await source(page)).toEqual(changed);
+  await saveThroughDialog(page, 'Whole composition'); await settleDurableWrites(page); const saved = await source(page);
+  await page.reload(); await ready(page); expect(await source(page)).toEqual(saved);
+  await page.locator('.ef-track[data-selector=".lower-third"] .ef-layer').click();
+  await expect(field('position X')).toHaveValue('120'); await expect(field('scale %')).toHaveValue('80');
+  await set('position X', -80); await set('position Y', 90); await set('scale %', 125);
+  const enlarged = await poses(), enlargedSource = await source(page);
+  for (let pose = 0; pose < before.length; pose++) for (let layer = 0; layer < before[pose].length; layer++) {
+    const a = enlarged[pose][layer], b = before[pose][layer];
+    expect(a.x).toBeCloseTo(-80 + b.x * 1.25, 1); expect(a.y).toBeCloseTo(90 + b.y * 1.25, 1);
+    expect(a.width).toBeCloseTo(b.width * 1.25, 1); expect(a.height).toBeCloseTo(b.height * 1.25, 1);
+  }
+  await page.getByRole('button', { name: 'Reset graphic placement', exact: true }).click(); await ready(page);
+  expect((await source(page)).css).toBe(initial.css);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); expect(await source(page)).toEqual(enlargedSource);
+  await set('position X', 120); await set('position Y', -30); await set('scale %', 80); expect((await source(page)).css).toBe(saved.css);
+  await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
+  await page.getByRole('textbox', { name: 'Artwork text', exact: true }).fill('Moved composition');
+  await page.getByRole('button', { name: 'Apply text', exact: true }).click();
+  await expect((await preview(page)).locator('#f0')).toHaveText('Moved composition');
+  // Draw inside the transformed composition, then compare actual output with the pointer's box.
+  await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
+  const stage = (await page.locator('.ef-artboard').boundingBox())!;
+  const start = { x: stage.x + stage.width * .35, y: stage.y + stage.height * .35 };
+  await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(start.x + 70, start.y + 40, { steps: 6 }); await page.mouse.up(); await ready(page);
+  const drawn = await rect(page, '#rectangle-1'); const t = await source(page);
+  expect(drawn.x).toBeCloseTo(t.resolution.width * .35, 0); expect(drawn.y).toBeCloseTo(t.resolution.height * .35, 0);
+  expect(drawn.width).toBeCloseTo(70 / stage.width * t.resolution.width, 0); expect(drawn.height).toBeCloseTo(40 / stage.height * t.resolution.height, 0);
+  await page.locator('.ef-track[data-selector=".lower-third"] .ef-layer').click();
+  await expect(field('scale %')).toHaveValue('80');
+  await page.screenshot({ path: info.outputPath('whole-graphic.png') });
+});
+
+// Capability checks run in a blank browser: no second scene model or imported source repair.
+test('E5F whole graphic draft resets on same-ID session replacement', async ({ page }) => {
+  await currentHairline(page); await page.locator('.ef-track[data-selector=".lower-third"] .ef-layer').click();
+  const field = page.getByRole('textbox', { name: 'Graphic position X', exact: true });
+  const before = await page.evaluate(async () => {
+    const state = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    return { id: state.documentId, template: state.template, history: state.history, instance: session.instanceId, revision: session.version() };
+  });
+  await field.focus(); await field.fill('377');
+  const replacement = await page.evaluate(async () => {
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const state = useTemplateStore.getState();
+    // The real adapter owns the replacement; no source/history/identity mutation is needed.
+    useTemplateStore.setState({ baseline: { ...state.baseline } });
+    await new Promise(resolve => setTimeout(resolve));
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    return { id: useTemplateStore.getState().documentId, instance: session.instanceId, revision: session.version() };
+  });
+  expect(replacement.id).toBe(before.id); expect(replacement.instance).not.toBe(before.instance); expect(replacement.revision).toEqual(before.revision);
+  await expect(field).toHaveValue('0'); await field.focus(); await field.press('Enter'); await page.getByRole('tab', { name: 'Properties', exact: true }).click();
+  const after = await page.evaluate(async () => { const state = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { id: state.documentId, template: state.template, history: state.history }; });
+  expect(after).toEqual({ id: before.id, template: before.template, history: before.history });
+});
+
+test('E5F unsupported whole graphic sources refuse without mutation', async ({ page }) => {
+  await currentHairline(page);
+  const results = await page.evaluate(async (original) => {
+    const template = original;
+    const { editComposition, compositionValues } = await __noacgImport('/src/blocks/compositionEdits.ts');
+    const variants = [
+      ...['\r', '\u2028', '\u2029'].map(separator => ({ ...template, js: template.js.replace(/^[^\n]*\n/, '// title' + separator + 'document.querySelector("body").style.transform="none";\n') })),
+      { ...template, css: template.css + '\nbody { overflow: hidden !important; }' },
+      { ...template, css: template.css + '\nhtml body { overflow-x: hidden !important; }' },
+      { ...template, css: template.css + '\n@media(min-width:99999px) { body { overflow-y: hidden !important; } }' },
+      { ...template, css: template.css + '\nbody { all: initial; }' },
+      { ...template, html: template.html.replace('<body>', '<body style="overflow:hidden!important">') },
+      { ...template, html: template.html.replace('<body>', '<body style="font-family:serif">') },
+      { ...template, html: template.html.replace('</head>', '<style>body{font-family:serif}</style></head>') },
+      { ...template, css: template.css.replace('html, body {', '@media(min-width:1px) {html, body {').replace('font-family: var(--font-heading);', 'font-family: var(--font-heading); }') },
+      { ...template, js: template.js.replace('var fields =', 'document.querySelector(\'body\').style.transform = \'none\'; var fields =') },
+      { ...template, html: template.html.replace('</head>', '<script src="custom.js"></script></head>') },
+      { ...template, html: template.html.replace('</head>', '<link rel="stylesheet" href="custom.css"></head>') },
+      { ...template, html: template.html.replace('window.SPXGCTemplateDefinition =', 'document.body.remove(); window.SPXGCTemplateDefinition =') },
+      { ...template, html: template.html.replace('</head>', '<base href="https://invalid.test"></head>') },
+      { ...template, css: template.css + '\nbody { display: contents; }' },
+      { ...template, css: template.css + '\nbody { margin-left: 3px; }' },
+      { ...template, css: template.css + '\n@media(min-width:1px) { body { width: 99px; } }' },
+      { ...template, js: template.js.replace('function noacgMachineState()', 'function changedRuntime()') },
+      { ...template, css: template.css + '\nbody { transform: rotate(5deg); }' },
+      { ...template, js: template.js + '\nfunction custom() { return document.body; }' },
+      { ...template, css: template.css + '\n#f0 { position: fixed; }' },
+      { ...template, html: template.html.replace('<body>', '<body><div>').replace('</body>', '</div></body>') },
+    ];
+    const refused = variants.map(t => { const before = JSON.stringify(t); try { editComposition(t, { scale: .5 }); return { reason: '', same: false }; } catch (cause) { return { reason: String(cause), same: before === JSON.stringify(t) }; } });
+    const changed = editComposition(template, { x: 123, y: -45, scale: .75 });
+    const reset = editComposition(changed, { x: 0, y: 0, scale: 1 });
+    return { refused, values: compositionValues(changed), resetEqual: JSON.stringify(reset) === JSON.stringify(template) };
+  }, await source(page));
+  for (const result of results.refused) { expect(result.reason).toContain('source is preserved'); expect(result.same).toBe(true); }
+  expect(results.values).toEqual({ x: 123, y: -45, scale: .75 }); expect(results.resetEqual).toBe(true);
+});
+
+for (const target of ['spx', 'casparcg', 'html-overlay', 'ograf']) test('E5F whole graphic export motion parity: ' + target, async ({ page }) => {
+  await currentHairline(page);
+  const built = await page.evaluate(async ({ original, target }) => {
+    const { editComposition } = await __noacgImport('/src/blocks/compositionEdits.ts');
+    const { losslessAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+    const t = { ...original,
+      html: original.html.replace('</body>', '<div id="left-edge" data-gfx></div><div id="right-edge" data-gfx></div></body>'),
+      css: original.css + '\n#left-edge,#right-edge { position:absolute;top:300px;width:100px;height:80px;background:rgb(231,57,71); }\n#left-edge{left:-50px}#right-edge{left:2300px}' }, changed = editComposition(t, { x: 120, y: -30, scale: .8 });
+    const exporter = (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!;
+    const zip = await exporter.build(changed), untransformed = await exporter.build(t);
+    const files = async (archive: typeof zip) => Object.fromEntries(await Promise.all(Object.keys(archive.files).filter(n => !archive.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await archive.file(n)!.async('base64')])));
+    const pasteboardTemplate = { ...changed, css: changed.css + '\n#left-edge{clip-path:inset(0 0 0 20px)}' };
+    const pasteboard = target === 'spx' ? composeDocument(pasteboardTemplate, { simulate: false, authoring: { padX: 200, padY: 100 } }) : '';
+    const framed = target === 'spx' ? composeDocument(pasteboardTemplate, { simulate: false }) : '';
+    return { framed, pasteboard, baselineFiles: await files(untransformed), unembeddedBaseline: target === 'spx' ? composeDocument(t, { simulate: false }) : '', duration: losslessAnimData(t.js)!.steps[0].duration / losslessAnimData(t.js)!.speed,
+      files: Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')]))),
+      resolution: changed.resolution };
+  }, { original: await source(page), target });
+  const baseline = await page.context().newPage(), output = await page.context().newPage();
+  for (const view of [baseline, output]) await view.setViewportSize({ width: built.resolution.width, height: built.resolution.height });
+  const mount = async (view: Page, files: Record<string, string>) => {
+    await view.route('http://whole-output.local/**', route => {
+      const path = new URL(route.request().url()).pathname.slice(1), body = files[path];
+      return route.fulfill({ status: body == null ? 404 : 200, body: body == null ? '' : Buffer.from(body, 'base64'), contentType: /\.(m?js)$/.test(path) ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : path.endsWith('.woff2') ? 'font/woff2' : 'text/html', headers: { 'access-control-allow-origin': '*' } });
+    });
+    if (target === 'ograf') {
+      await installGraphicBody(view); await view.goto('http://whole-output.local/');
+      await view.evaluate(async () => {
+        document.body.style.margin = '0';
+        const mod = await import('http://whole-output.local/graphic.mjs'); customElements.define('whole-graphic', mod.default);
+        const element = document.createElement('whole-graphic') as HTMLElement & { load(p: unknown): Promise<unknown> };
+        document.body.appendChild(element); await element.load({ data: {} });
+      });
+    } else await view.goto('http://whole-output.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
+  };
+  await mount(baseline, built.baselineFiles); await mount(output, built.files);
+  const poses = async (view: Page, ograf: boolean) => view.evaluate(async ({ ograf, duration }) => {
+    await document.fonts.ready;
+    type Timeline = { duration(): number; pause(): Timeline; time(time: number, suppress: boolean): void };
+    const win = window as unknown as { play(): void; gsap: { globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Timeline[] } } };
+    const element = document.querySelector('whole-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown> };
+    if (ograf) await element.playAction({}); else win.play();
+    const timeline = win.gsap.globalTimeline.getChildren(false, false, true).filter(t => Math.abs(t.duration() - duration) < .0001).pop();
+    if (!timeline) throw Error('Missing actual entrance timeline');
+    timeline.pause();
+    const body = ograf ? graphicBody(element) : document;
+    return [.2, .65, 1].map(fraction => {
+      timeline.time(duration * fraction, true);
+      return ['#f0', '#f1', '.lower-third-box'].map(selector => {
+        const node = body.querySelector(selector)!, rect = node.getBoundingClientRect(), style = getComputedStyle(node);
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, opacity: style.opacity, clip: style.clipPath };
+      });
+    });
+  }, { ograf, duration: built.duration });
+  const before = await poses(baseline, target === 'ograf'), after = await poses(output, target === 'ograf');
+  for (let pose = 0; pose < before.length; pose++) for (let layer = 0; layer < before[pose].length; layer++) {
+    const a = after[pose][layer], b = before[pose][layer];
+    expect(a.x, target + ' x').toBeCloseTo(120 + b.x * .8, 1); expect(a.y, target + ' y').toBeCloseTo(-30 + b.y * .8, 1);
+    expect(a.width, target + ' width').toBeCloseTo(b.width * .8, 1); expect(a.height, target + ' height').toBeCloseTo(b.height * .8, 1);
+    expect(a.opacity).toBe(b.opacity); expect(a.clip).toBe(b.clip);
+  }
+  if (target === 'spx') {
+    const raw = await page.context().newPage(); await raw.setViewportSize({ width: built.resolution.width, height: built.resolution.height }); await raw.setContent(built.unembeddedBaseline);
+    const unembedded = await poses(raw, false);
+    const control = { unembedded, packagedUntransformed: before, packagedTransformed: after };
+    writeFileSync(test.info().outputPath('untransformed-font-control.json'), JSON.stringify(control, null, 2));
+    await test.info().attach('untransformed-font-control', { body: JSON.stringify(control), contentType: 'application/json' });
+    await raw.close();
+  }
+  // The frame stays fixed while artwork formerly outside it can move into view.
+  await output.setViewportSize({ width: built.resolution.width + 100, height: built.resolution.height });
+  await output.evaluate(async () => {
+    const style = document.createElement('style'); style.textContent = '*{will-change:auto!important}'; document.head.appendChild(style);
+    const frames = () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    await frames(); style.remove(); await frames();
+  });
+  const screenshot = await output.screenshot({ omitBackground: true });
+  const pixels = await output.evaluate(async b64 => {
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0)); const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height), context = canvas.getContext('2d')!; context.drawImage(bitmap, 0, 0);
+    return [[90, 220], [140, 250], [1970, 220]].map(([x, y]) => [...context.getImageData(x, y, 1, 1).data]);
+  }, screenshot.toString('base64'));
+  writeFileSync(test.info().outputPath('fixed-frame-paint.png'), screenshot);
+  await test.info().attach('fixed-frame-paint', { body: screenshot, contentType: 'image/png' });
+  expect(pixels).toEqual([[231, 57, 71, 255], [231, 57, 71, 255], [0, 0, 0, 0]]);
+  await output.setViewportSize({ width: built.resolution.width, height: built.resolution.height });
+  expect(output.viewportSize()).toEqual({ width: built.resolution.width, height: built.resolution.height });
+  if (target === 'spx') {
+    const pasteboard = await page.context().newPage(); await pasteboard.setViewportSize({ width: built.resolution.width + 400, height: built.resolution.height + 200 }); await pasteboard.setContent(built.pasteboard);
+    await pasteboard.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    const shot = await pasteboard.screenshot({ omitBackground: true }); writeFileSync(test.info().outputPath('pasteboard-paint.png'), shot);
+    const paint = await pasteboard.evaluate(async b64 => {
+      const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0)), bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height), context = canvas.getContext('2d')!; context.drawImage(bitmap, 0, 0);
+      return [[285, 320], [305, 320], [2170, 320]].map(([x, y]) => [...context.getImageData(x, y, 1, 1).data]);
+    }, shot.toString('base64'));
+    expect(paint).toEqual([[0, 0, 0, 0], [231, 57, 71, 255], [231, 57, 71, 255]]);
+    const framed = await page.context().newPage(); await framed.setViewportSize({ width: built.resolution.width + 100, height: built.resolution.height }); await framed.setContent(built.framed);
+    const frameShot = await framed.screenshot({ omitBackground: true }); writeFileSync(test.info().outputPath('same-source-framed-paint.png'), frameShot);
+    const framePaint = await framed.evaluate(async b64 => {
+      const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0)), bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height), context = canvas.getContext('2d')!; context.drawImage(bitmap, 0, 0);
+      return [[85, 220], [105, 220], [1970, 220]].map(([x, y]) => [...context.getImageData(x, y, 1, 1).data]);
+    }, frameShot.toString('base64'));
+    expect(framePaint.slice(0, 2)).toEqual(paint.slice(0, 2)); expect(framePaint[2]).toEqual([0, 0, 0, 0]);
+    await framed.close(); await pasteboard.close();
+  }
+  await baseline.close(); await output.close();
 });
