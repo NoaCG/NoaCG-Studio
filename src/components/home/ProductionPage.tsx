@@ -2601,6 +2601,15 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     const state = adjustStateOf(cue, record, lib);
     return { id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, state?.measureStyleId ?? ''), values, state };
   };
+  // Saves and publishes in parts (live-publishing G4): measuring ahead and keeping boxes follow it.
+  // Null until the switch is read: the background measurer waits for it, so a box measured anew
+  // never wins over a kept one for the same identity (a Take or Publish measures on its own).
+  const [boxesAhead, setBoxesAhead] = useState<boolean | null>(null);
+  useEffect(() => {
+    let live = true;
+    void partialWritesOn().then((on) => { if (live) setBoxesAhead(on); });
+    return () => { live = false; };
+  }, []);
   /** What this page measured, kept in this browser across a reload (control/keptGeometry.ts, #2532):
    *  a reopened page takes a cue's kept box when its identity is unchanged, so the first publish after
    *  a reload carries the boxes the last one did rather than resending cues nobody changed. */
@@ -2621,9 +2630,11 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [session],
   );
-  useEffect(() => keptBoxes.watch(), [keptBoxes]);
-  /** Takes the kept boxes of `record`'s graphic cues this session has not measured yet. */
+  useEffect(() => (boxesAhead ? keptBoxes.watch() : undefined), [keptBoxes, boxesAhead]);
+  /** Takes the kept boxes of `record`'s graphic cues this session has not measured yet, with saves
+   *  and publishes in parts on (`boxesAhead`): with them off nothing is kept or taken, as before. */
   const adoptKeptBoxes = (record: Show, lib = library) =>
+    boxesAhead === true &&
     keptBoxes.adopt((owed) =>
       (record.cues ?? []).flatMap((cue) => {
         const g = owed.has(cue.id) ? record.graphics.find((x) => x.id === cue.sourceId) : undefined;
@@ -2635,16 +2646,10 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   // in the background from the moment the page opens, so the first publish after a reload has each
   // box and does not drop one it published before (a cue resent for nothing). Otherwise only the
   // adjusted cues, as before.
-  const [boxesAhead, setBoxesAhead] = useState(false);
-  useEffect(() => {
-    let live = true;
-    void partialWritesOn().then((on) => { if (live) setBoxesAhead(on); });
-    return () => { live = false; };
-  }, []);
   // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
   // the identity a cue's box was measured for.
   useEffect(() => {
-    if (!show) return;
+    if (!show || boxesAhead === null) return;
     adoptKeptBoxes(show);
     measurer.want(measureJobs(show, library, boxesAhead));
     // eslint-disable-next-line react-hooks/exhaustive-deps
