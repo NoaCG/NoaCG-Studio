@@ -69,11 +69,17 @@ export async function prefetchRecordBase(id: string): Promise<void> {
   if (recordBases.has(id) || !(await partialWritesOn())) return;
   const sb = await getSupabase();
   if (!sb) return;
+  const base = await readRecordBase(sb, id);
+  if (base && !recordBases.has(id)) recordBases.set(id, base);
+}
+
+/** A production record's stored map and revision, when the map describes that revision. */
+async function readRecordBase(sb: SupabaseClient, id: string): Promise<{ rev: number; map: UnitMap } | null> {
   const { data, error } = await sb.from(TABLE).select('rev, body_units').eq('id', id).eq('kind', 'show').maybeSingle();
-  if (error || !data) return;
+  if (error || !data) return null;
   const row = data as { rev?: unknown; body_units?: { rev?: unknown } | null };
   const map = storedMap(row.body_units);
-  if (map && typeof row.rev === 'number' && row.body_units?.rev === row.rev && !recordBases.has(id)) recordBases.set(id, { rev: row.rev, map });
+  return map && typeof row.rev === 'number' && row.body_units?.rev === row.rev ? { rev: row.rev, map } : null;
 }
 
 export class SupabaseProvider implements StorageProvider {
@@ -213,7 +219,7 @@ export class SupabaseProvider implements StorageProvider {
     const inParts = record.kind === 'show' && !record.deleted && (await partialWritesOn());
     let map: UnitMap | null = null;
     if (inParts) {
-      const base = this.bases.get(record.id) ?? (await this.readBase(sb, record.id));
+      const base = this.bases.get(record.id) ?? (await readRecordBase(sb, record.id));
       const built = await diff(base?.map ?? null, record.body as Record<string, unknown>, unitPace);
       map = built.map;
       if (base) {
@@ -265,15 +271,6 @@ export class SupabaseProvider implements StorageProvider {
     }
   }
 
-  /** The stored map and revision of a production record, when the map describes that revision. */
-  private async readBase(sb: SupabaseClient, id: string): Promise<{ rev: number; map: UnitMap } | null> {
-    const { data, error } = await sb.from(TABLE).select('rev, body_units').eq('id', id).maybeSingle();
-    if (error || !data) return null;
-    const row = data as { rev?: unknown; body_units?: { rev?: unknown } | null };
-    const map = storedMap(row.body_units);
-    if (!map || typeof row.rev !== 'number' || row.body_units?.rev !== row.rev) return null;
-    return { rev: row.rev, map };
-  }
 
   /** One patch save. True when it landed and confirmed this record; false when the base was
    *  replaced (the caller saves whole). A failure to reach the server throws, as a whole save's. */

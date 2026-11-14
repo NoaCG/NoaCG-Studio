@@ -94,6 +94,11 @@ begin
   v_hash := encode(extensions.digest(convert_to(p_data, 'UTF8'), 'sha256'), 'hex');
   insert into public.control_assets (hash, data, bytes) values (v_hash, p_data, octet_length(p_data))
   on conflict (hash) do update set created_at = now();
+  -- Held for this production by a part of its own that names only this image, so a part it stores
+  -- next may name it; pruned like any part no head names.
+  insert into public.control_parts (show_id, digest, body, assets, left_at)
+  values (p_show, 'put:' || v_hash, '{}'::jsonb, array[v_hash], now())
+  on conflict (show_id, digest) do update set left_at = now();
   return v_hash;
 end $$;
 revoke all on function public.control_asset_put(uuid, text) from public, anon, authenticated;
@@ -134,8 +139,15 @@ begin
   end if;
   select coalesce(array_agg(distinct h), '{}') into v_named
     from jsonb_array_elements(coalesce(p_parts, '[]'::jsonb)) p, jsonb_array_elements_text(coalesce(p->'assets', '[]'::jsonb)) h;
+  -- An image counts as stored only when a part of a production the caller may publish names it (a
+  -- put leaves one), as in control_assets_missing: an image only another account stored is
+  -- answered missing, so this never says what other accounts stored.
   select coalesce(array_agg(a.hash), '{}') into v_have
-    from (select a.hash from public.control_assets a where a.hash = any(v_named) for key share) a;
+    from (select a.hash from public.control_assets a
+           where a.hash = any(v_named)
+             and exists (select 1 from public.control_parts p
+                          where p.assets @> array[a.hash] and (p.show_id = p_show or public.control_may_publish(p.show_id)))
+             for key share of a) a;
   select coalesce(array_agg(h), '{}') into v_missing from unnest(v_named) h where not (h = any(v_have));
   if cardinality(v_missing) > 0 then return v_missing; end if;
   -- A digest already stored must name exactly the body sent (G4 R23): otherwise answer
@@ -239,6 +251,11 @@ declare
   v_n        int;
   v_cols     jsonb := coalesce(p_columns, '{}'::jsonb);
 begin
+  -- A production no longer published (or not this caller's to see) is gone, as the whole path
+  -- answers it, before anything is stored.
+  if not exists (select 1 from public.control_shows s where s.id = p_id) then
+    return jsonb_build_object('gone', true);
+  end if;
   -- 1. Parts (and below, once the head is known, the stored ones it names are held).
   v_missing := public.control_parts_put(p_id, p_parts);
   if v_missing = array['part_conflict'] then
@@ -531,8 +548,8 @@ begin
        or (select count(*) from public.control_assets a where a.hash = v_hash) <> 1 then
       raise exception '0120: an image was not stored once under its content name';
     end if;
-    if cardinality(public.control_assets_missing(v_show, array[v_hash, 'nope'])) <> 2 then
-      raise exception '0120: an image no part names did not read as missing';
+    if public.control_assets_missing(v_show, array[v_hash, 'nope']) <> array['nope'] then
+      raise exception '0120: an image this production put read as missing, or one nobody stored did not';
     end if;
     -- A whole head: output composed whole, images inline, the head current.
     v_part := jsonb_build_object('key', 'A', 'html', '<p></p>', 'assets', jsonb_build_array(jsonb_build_object('path', 'a.png', 'h', v_hash)));
@@ -581,6 +598,22 @@ begin
     v_got := public.control_publish_parts(v_show, 4, '{"n":5,"h":"h2","at":"t"}', '{"whole":{"v":1,"graphics":[]},"units":{"f":1,"m":{}}}', '{"whole":[],"units":{"f":1,"m":{}}}', '[]', '{}');
     if public.control_output_head(v_slug)->'head' <> 'null'::jsonb then
       raise exception '0120: an output read a head with the switch off';
+    end if;
+    -- An image only another production's put stored is missing to this one (nothing is learnt).
+    insert into public.control_assets (hash, data, bytes) values ('0120-other', 'data:x;base64,A', 1);
+    if public.control_parts_put(v_show, '[{"d":"pY","body":{},"assets":["0120-other"]}]') <> array['0120-other'] then
+      raise exception '0120: an image no part of this account names was not answered missing';
+    end if;
+    -- The prune: a part no head named for two hours and an image only it named, two days old, go;
+    -- the head's part and its image stay.
+    insert into public.control_assets (hash, data, bytes, created_at) values ('0120-old', 'data:x;base64,A', 1, now() - interval '2 days');
+    insert into public.control_parts (show_id, digest, body, assets, left_at) values (v_show, 'pOld', '{}', array['0120-old'], now() - interval '2 hours');
+    perform public.control_assets_prune();
+    if exists (select 1 from public.control_parts c where c.show_id = v_show and c.digest = 'pOld')
+       or exists (select 1 from public.control_assets a where a.hash = '0120-old')
+       or not exists (select 1 from public.control_parts c where c.show_id = v_show and c.digest = 'pA')
+       or not exists (select 1 from public.control_assets a where a.hash = v_hash) then
+      raise exception '0120: the prune removed the wrong rows or kept an unused one';
     end if;
     get diagnostics v_n = row_count;
     raise exception 'self-check-done';

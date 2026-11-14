@@ -61,6 +61,12 @@ async function partOf(spec: OutputGraphicSpec, g: string): Promise<Part> {
   const assets: Record<string, unknown>[] = [];
   for (const a of spec.assets) {
     const { data: url, ...rest } = a;
+    // Only an image the server stores by content name (a base64 data URL, `control_asset_put`); a
+    // sound's reference or a text file stays inline in the part, as its body sent it.
+    if (typeof url !== 'string' || !isStorableImage(url)) {
+      assets.push({ ...a });
+      continue;
+    }
     const h = await contentName(url);
     data.set(h, url);
     assets.push({ ...rest, h });
@@ -71,6 +77,9 @@ async function partOf(spec: OutputGraphicSpec, g: string): Promise<Part> {
   partMemo.set(memoKey, part);
   return part;
 }
+
+/** What `control_asset_put` accepts (migration 0120): a base64 data URL. */
+export const isStorableImage = (url: string): boolean => url.startsWith('data:') && url.includes(';base64,');
 
 /** The outcome of one attempt. */
 export type PartsOutcome =

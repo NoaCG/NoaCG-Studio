@@ -46,7 +46,7 @@ export async function partialWritesOn(now: number = Date.now()): Promise<boolean
 
 /** What each unit digest waits for: by default a later task; the production page adds "no send of
  *  this page in flight" (G4 section 2, R18) through `setUnitPace`. */
-function laterTask(): Promise<void> {
+export function laterTask(): Promise<void> {
   return new Promise((resolve) => {
     if (typeof MessageChannel === 'function') {
       const channel = new MessageChannel();

@@ -271,24 +271,21 @@ export async function prefetchTeamBase(id: string): Promise<void> {
   if (teamBases.has(id) || !(await partialWritesOn())) return;
   const sb = await getSupabase();
   if (!sb) return;
-  const { data, error } = await sb.from('team_productions').select('rev, doc_units, updated_at').eq('id', id).maybeSingle();
-  if (error || !data) return;
-  const row = data as { rev?: unknown; doc_units?: { rev?: unknown } | null; updated_at?: unknown };
-  const map = storedMap(row.doc_units);
-  if (map && typeof row.rev === 'number' && row.doc_units?.rev === row.rev && typeof row.updated_at === 'string' && !teamBases.has(id)) {
-    teamBases.set(id, { token: row.updated_at, rev: row.rev, map });
-  }
+  const base = await readTeamBase(sb, id, null);
+  if (base && !teamBases.has(id)) teamBases.set(id, base);
 }
 
 /** The stored map, when it describes the row's revision and the row is at `expected`. */
-async function readTeamBase(sb: Backend, id: string, expected: string): Promise<{ token: string; rev: number; map: UnitMap } | null> {
+/** A team record's stored map, revision and token, when the map describes that revision (and, given
+ *  `expected`, only at that token). */
+async function readTeamBase(sb: Backend, id: string, expected: string | null): Promise<{ token: string; rev: number; map: UnitMap } | null> {
   const { data, error } = await sb.from('team_productions').select('rev, doc_units, updated_at').eq('id', id).maybeSingle();
   if (error || !data) return null;
   const row = data as { rev?: unknown; doc_units?: { rev?: unknown } | null; updated_at?: unknown };
   const map = storedMap(row.doc_units);
   if (!map || typeof row.rev !== 'number' || row.doc_units?.rev !== row.rev || typeof row.updated_at !== 'string') return null;
-  if (Date.parse(row.updated_at) !== Date.parse(expected)) return null;
-  return { token: expected, rev: row.rev, map };
+  if (expected !== null && Date.parse(row.updated_at) !== Date.parse(expected)) return null;
+  return { token: expected ?? row.updated_at, rev: row.rev, map };
 }
 
 async function saveTeamProduction(

@@ -53,15 +53,18 @@ export function canonicalJson(value: unknown): string {
 
 const encoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
 
-/** SHA-256 of `text`, first 128 bits, hex. */
-export async function digest128(text: string): Promise<string> {
+/** SHA-256 of `text` in hex, its first `bytes` bytes (all 32 by default). */
+export async function sha256Hex(text: string, bytes = 32): Promise<string> {
   const subtle = (globalThis as { crypto?: { subtle?: SubtleCrypto } }).crypto?.subtle;
-  if (!subtle || !encoder) throw new Error('No Web Crypto: units cannot be named');
-  const bytes = new Uint8Array(await subtle.digest('SHA-256', encoder.encode(text)));
+  if (!subtle || !encoder) throw new Error('No Web Crypto: nothing can be named by its content');
+  const digest = new Uint8Array(await subtle.digest('SHA-256', encoder.encode(text)));
   let hex = '';
-  for (let i = 0; i < 16; i += 1) hex += bytes[i].toString(16).padStart(2, '0');
+  for (let i = 0; i < bytes; i += 1) hex += digest[i].toString(16).padStart(2, '0');
   return hex;
 }
+
+/** SHA-256 of `text`, first 128 bits, hex. */
+export const digest128 = (text: string): Promise<string> => sha256Hex(text, 16);
 
 /** Digests already made, by object: an element that is the same object as last time is not
  *  stringified again. Objects only; a document is never mutated in place by its writers. */

@@ -17,20 +17,11 @@ import { loadGraphics } from '../../model/library';
 import type { CuePublished } from '../../control/hostedControl';
 import type { PayloadVersion } from '../../control/payloadVersion';
 import type { ObsScene } from '../../model/obsScenes';
-import { partialWritesOn, setUnitPace } from '../../backend/partialWrites';
+import { laterTask, partialWritesOn, setUnitPace } from '../../backend/partialWrites';
 import { prefetchRecordBase } from '../../backend/supabaseProvider';
 import { prefetchTeamBase } from '../../backend/teamProductions';
 import { prefetchPublishedBase } from '../../control/publishParts';
 import { sendsIdle } from '../../control/sendsInFlight';
-
-/** Resolves on a later task, so a click queued meanwhile runs first. */
-function laterTask(): Promise<void> {
-  return new Promise((resolve) => {
-    const channel = new MessageChannel();
-    channel.port1.onmessage = () => resolve();
-    channel.port2.postMessage(null);
-  });
-}
 
 /** Whether the server has the guard installed and the switch on; null while unknown. */
 async function readSwitch(): Promise<boolean> {

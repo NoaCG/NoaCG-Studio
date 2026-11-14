@@ -10,6 +10,7 @@
 // the offline preview/export path is completely unchanged.
 
 /** asset.data === `${SENTINEL}${storageKey}` means "the bytes live in Storage under storageKey". */
+import { sha256Hex } from './unitPatch';
 import { isSoundAssetRef, soundBlob } from '../assets/soundAssets';
 import type { SoundAssetRef } from '../model/types';
 import { dataUrlToBlob, fileToDataUrl as blobToDataUrl } from '../assets/assetUtils';
@@ -57,14 +58,7 @@ export type Downloader = (key: string) => Promise<string | null>;
  *  Storage reference. Non-base64 data-URLs (e.g. inline SVG) are left inline. */
 /** An image's CONTENT NAME (live-publishing G4 Terms): SHA-256 over the data URL's UTF-8 bytes, 64
  *  lowercase hex characters, as the server's `control_asset_put` computes it. */
-export async function contentName(data: string): Promise<string> {
-  const subtle = (globalThis as { crypto?: { subtle?: SubtleCrypto } }).crypto?.subtle;
-  if (!subtle) throw new Error('No Web Crypto: an image cannot be named');
-  const bytes = new Uint8Array(await subtle.digest('SHA-256', new TextEncoder().encode(data)));
-  let hex = '';
-  for (const b of bytes) hex += b.toString(16).padStart(2, '0');
-  return hex;
-}
+export const contentName = (data: string): Promise<string> => sha256Hex(data);
 
 /** The Storage key of a file, under `folder`: the content name when `strong` (an upload is skipped
  *  when the key exists, so the key alone must name the content, G4 R20), else today's key. */

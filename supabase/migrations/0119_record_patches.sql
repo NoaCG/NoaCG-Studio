@@ -85,7 +85,7 @@ begin
       from jsonb_array_elements_text(p_op->'order') with ordinality o(id, k)
       join jsonb_array_elements(v_next) x on x->>v_by = o.id;
   end if;
-  if jsonb_typeof(p_op->'len') <> 'number' or jsonb_array_length(v_next) <> (p_op->>'len')::int then
+  if coalesce(jsonb_typeof(p_op->'len'), 'missing') <> 'number' or jsonb_array_length(v_next) <> (p_op->>'len')::int then
     raise exception 'unit patch refused: % has % elements, the writer has %', p_op->>'m', jsonb_array_length(v_next), p_op->>'len';
   end if;
   return v_next;
@@ -253,7 +253,8 @@ begin
     v_new := public.unit_patch_apply(v_row.doc, p_ops);
   exception when raise_exception then
     if sqlerrm like 'unit patch refused%' then
-      return jsonb_build_object('saved', false, 'replaced', true, 'updated_at', v_row.updated_at, 'updated_by', v_row.updated_by, 'doc', v_row.doc, 'rev', v_row.rev);
+      -- No document back: the writer saves whole next, and needs none (G4 section 2).
+      return jsonb_build_object('saved', false, 'replaced', true, 'updated_at', v_row.updated_at, 'updated_by', v_row.updated_by, 'rev', v_row.rev);
     end if;
     raise;
   end;
@@ -280,7 +281,8 @@ declare
   v_n    int;
 begin
   select p.team_id into v_team from public.team_productions p where p.id = p_id;
-  if v_team is null or not public.is_team_member(v_team) then return false; end if;
+  -- The checks of team_production_save: a signed-in member, not suspended.
+  if auth.uid() is null or public.is_suspended() or v_team is null or not public.is_team_member(v_team) then return false; end if;
   update public.team_productions p
      set doc_units = jsonb_build_object('f', 1, 'm', p_units->'m', 'rev', p_rev)
    where p.id = p_id and p.rev = p_rev and jsonb_typeof(p_units->'m') = 'object';
@@ -315,6 +317,9 @@ do $$
 declare
   v_owner uuid;
   v_id    uuid := '00000000-0119-4000-8000-000000000001';
+  v_tp    uuid := '00000000-0119-4000-8000-000000000002';
+  v_team  uuid := '00000000-0119-4000-8000-000000000003';
+  v_at    timestamptz;
   v_rev   bigint;
   v_got   jsonb;
   v_ops   jsonb;
@@ -372,6 +377,30 @@ begin
     v_got := public.documents_show_patch(v_id, v_rev, '[{"m":"name","by":"id","put":[],"del":[],"len":0}]');
     if v_got->>'replaced' is distinct from 'true' or (select d.rev from public.documents d where d.id = v_id) <> v_rev then
       raise exception '0119: a refused patch answered % or wrote', v_got;
+    end if;
+    -- A team record: its map set, a patch on its token, and a refused shape answered without the
+    -- document. The account acts through the claims a request would carry (no request headers, so
+    -- the 0115 guard stands aside as for any migration).
+    perform set_config('request.jwt.claims', json_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
+    insert into public.teams (id, name, owner_id) values (v_team, '0119 self-check', v_owner);
+    insert into public.team_members (team_id, user_id, display_name, role) values (v_team, v_owner, 'self-check', 'owner') on conflict do nothing;
+    insert into public.team_productions (id, team_id, doc, updated_by) values (v_tp, v_team, '{"name":"a","updatedAt":"t1","cues":[{"id":"x","t":1}]}', v_owner);
+    select p.rev, p.updated_at into v_rev, v_at from public.team_productions p where p.id = v_tp;
+    if public.is_suspended() then
+      raise exception 'self-check-done';
+    end if;
+    if not public.team_production_units_set(v_tp, v_rev, '{"m":{"name":"n1","updatedAt":"u1","cues":{"by":"id","order":["x"],"d":{"x":"dx"}}}}') then
+      raise exception '0119: the map of a team record was not kept';
+    end if;
+    v_got := public.team_production_patch(v_tp, v_at, '[{"m":"updatedAt","set":"t2","u":"u2"},{"m":"cues","by":"id","put":[{"v":{"id":"x","t":2},"d":"dx2"}],"del":[],"len":1}]');
+    if v_got->>'saved' is distinct from 'true'
+       or (select p.doc->'cues'->0->>'t' from public.team_productions p where p.id = v_tp) <> '2'
+       or (select (p.doc_units->>'rev')::bigint from public.team_productions p where p.id = v_tp) <> (v_got->>'rev')::bigint then
+      raise exception '0119: a team patch on its token answered %', v_got;
+    end if;
+    v_got := public.team_production_patch(v_tp, (v_got->>'updated_at')::timestamptz, '[{"m":"name","by":"id","put":[],"del":[],"len":0}]');
+    if v_got->>'replaced' is distinct from 'true' or v_got ? 'doc' then
+      raise exception '0119: a refused team patch answered %', v_got;
     end if;
     raise exception 'self-check-done';
   exception when raise_exception then
