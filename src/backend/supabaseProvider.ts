@@ -134,15 +134,19 @@ export class SupabaseProvider implements StorageProvider {
     const from = held?.since ? new Date(Date.parse(held.since) - LISTING_OVERLAP_MS).toISOString() : null;
     // Read in pages, as the server answers at most LISTING_PAGE rows a request (`max_rows`): a row
     // left off a page would read as one the server does not hold.
+    // Each page starts after the last id read (keyset), so a row added or removed between two page
+    // requests cannot shift another off a page.
     const read: Row[] = [];
-    for (let start = 0; ; start += LISTING_PAGE) {
+    for (let after: string | null = null; ; ) {
       let query = sb.from(TABLE).select('id, kind, deleted, updatedAt:body_updated_at, at:updated_at');
       if (held && from) query = query.gte('updated_at', from);
-      const { data, error } = await query.order('id').range(start, start + LISTING_PAGE - 1);
+      if (after !== null) query = query.gt('id', after);
+      const { data, error } = await query.order('id').limit(LISTING_PAGE);
       if (error) return null;
       const page = (data ?? []) as unknown as Row[];
       read.push(...page);
       if (page.length < LISTING_PAGE) break;
+      after = page[page.length - 1].id;
     }
     const rows = held ? held.rows : new Map<string, Row>();
     let since = held?.since ?? null;

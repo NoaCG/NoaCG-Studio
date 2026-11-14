@@ -166,7 +166,7 @@ Rules fixed before results, as above.
   the functions).
 - A publish whose stand-in (this page's own last publish) turned out stale starts again from a fresh
   read, so a teammate's newer saved entries are not replaced by this page's old copy (#779).
-- The listing is read in pages of 1000 (the server's `max_rows`), so a large account loses no
+- The listing is read in pages of 1000 by id (the server's `max_rows`), so a large account loses no
   summary; a test runs 2100 rows.
 - The 0120 self-check runs as the first account that may publish, and checks `control_may_publish`
   against the row policy's rule for an owner, a stranger and a team member.

@@ -65,8 +65,9 @@ function partsProvider(answer) {
   const asked = [];
   const listing = (since) => ({
     gte: (column, value) => { assert.equal(column, 'updated_at'); return listing(value); },
+    gt: () => listing(since),
     order: () => listing(since),
-    range: () => listing(since),
+    limit: () => listing(since),
     then: (resolve, reject) => { asked.push(since); return Promise.resolve(answer(since)).then(resolve, reject); },
   });
   const client = {
@@ -135,16 +136,17 @@ function overTable() {
   let serverTime = Date.parse('2026-11-14T01:00:00.000Z');
   const write = (row) => { serverTime += 1_000; table.set(row.id, { ...row, at: new Date(serverTime).toISOString() }); };
   const asked = [];
-  /** PostgREST as configured: at most `maxRows` rows an answer, a page chosen with `range`. */
+  /** PostgREST as configured: at most `maxRows` rows an answer, the next page chosen by the last id read. */
   const maxRows = 1000;
-  const listing = (since, from = 0, to = Infinity) => ({
-    gte: (column, value) => listing(value, from, to),
-    order: () => listing(since, from, to),
-    range: (a, b) => listing(since, a, b),
+  const listing = (since, after = null, limit = Infinity) => ({
+    gte: (column, value) => listing(value, after, limit),
+    gt: (column, value) => { assert.equal(column, 'id'); return listing(since, value, limit); },
+    order: () => listing(since, after, limit),
+    limit: (n) => listing(since, after, n),
     then: (resolve) => {
       asked.push(since);
-      const rows = [...table.values()].filter((r) => since === null || Date.parse(r.at) >= Date.parse(since)).sort((x, y) => (x.id < y.id ? -1 : 1));
-      const page = rows.slice(from, Math.min(to + 1, from + maxRows));
+      const rows = [...table.values()].filter((r) => (since === null || Date.parse(r.at) >= Date.parse(since)) && (after === null || r.id > after)).sort((x, y) => (x.id < y.id ? -1 : 1));
+      const page = rows.slice(0, Math.min(limit, maxRows));
       return Promise.resolve({ data: page.map((r) => ({ ...r })), error: null }).then(resolve);
     },
   });
