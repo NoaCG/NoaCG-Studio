@@ -41,7 +41,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic } from '../_create';
-import { awaitDurableReady, settleDurableWrites } from '../_durable';
+import { settleDurableWrites } from '../_durable';
 import {
   clearPublishedShows,
   readyOf,
@@ -1180,16 +1180,20 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       // theirs (the edit behaves as without a carry, as `main` does).
       await coldReload();
       const [target, oldBox] = boxesBefore.find(([, b]) => b !== null) as [string, { info: { x: number } | null; paint: { x: number } | null }];
-      const teammatePage = await page.context().newPage();
-      await teammatePage.goto('/');
-      await awaitDurableReady(teammatePage);
-      const teammateOutcome = await teammatePage.evaluate(async ({ id, cueId }) => {
+      // A second writer page of this browser is refused, so the teammate's Publish press is made from
+      // this page, and the page's own records of the store (its stored-box snapshot and its last
+      // stamp) are then put back as they were: from this page's side, exactly a teammate's republish.
+      const teammateOutcome = await page.evaluate(async ({ id, cueId }) => {
         const { publishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
+        const parts = await __noacgImport('/src/control/publishParts.ts');
         const { loadShows } = await __noacgImport('/src/model/shows.ts');
         const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
         const sb = (await getSupabase())!;
+        // The snapshot read when the page opened, and the publication it stands for.
+        await parts.storedBoxes(id);
+        const own = parts.ownPublish(id);
         const { data } = await sb.from('control_shows').select('output').eq('id', id).single();
-        const row = data as { output: { cues: { id: string; appearance?: unknown; adjust?: { box?: { info: { x: number } | null; paint: { x: number } | null } } }[] } };
+        const row = data as { output: { ver: Parameters<typeof parts.notePublishedBoxes>[1]; cues: { id: string; appearance?: unknown; adjust?: { box?: { info: { x: number } | null; paint: { x: number } | null } } }[] } };
         const shift = (r: { x: number } | null) => (r ? { ...r, x: r.x + 7 } : r);
         // The same cues as stored, one box measured a few pixels apart.
         const of = (cue: { id: string }) => {
@@ -1199,16 +1203,17 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
           return { ...(c.appearance ? { appearance: c.appearance } : {}), adjust: { ...c.adjust, box } };
         };
         const show = loadShows().find((x) => x.id === id)!;
-        // A teammate's Publish press, with their own measurement of the one box.
         try {
           await publishControlShow(show, of as never);
-          return 'published';
         } catch (e) {
           return String(e);
         }
+        parts.notePublishedBoxes(id, row.output.ver, row.output.cues);
+        if (own) parts.noteOwnPublish(id, own);
+        else parts.forgetOwnPublish(id);
+        return 'published';
       }, { id: showId, cueId: target });
       expect(teammateOutcome, 'the teammate republished').toBe('published');
-      await teammatePage.close();
       const theirBox = (await storedBoxes()).find(([c]) => c === target)?.[1];
       expect(theirBox, 'the teammate moved the box').not.toEqual(oldBox);
       await edit(page, showId, 'label', 'After a teammate');
