@@ -71,7 +71,7 @@ test('import .html: splits into panes, keeps the definition, validates, exports'
   await dropTemplate(page, 'old-score-bug.html', Buffer.from(FOREIGN_HTML));
 
   const tpl = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { name: t.name, html: t.html, css: t.css, js: t.js, fields: t.fields.map((f) => f.field) };
   });
@@ -106,7 +106,7 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
   await pickDesign(page, 'Hairline');
   await finishIntoNewEditor(page);
   const before = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { css: t.css, js: t.js, resolution: t.resolution, fps: t.fps };
   });
@@ -132,7 +132,7 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
   await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
   await finishIntoNewEditor(page);
   const after = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return {
       name: t.name,
@@ -180,7 +180,7 @@ test('import zip: a NoaCG graphic package (the agent door\'s dual package) keeps
   await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
   await finishIntoNewEditor(page);
   const opened = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { name: t.name, type: t.type, fields: t.fields.map((f) => f.field), hasMachine: /"machine"\s*:/.test(t.js) };
   });
@@ -198,7 +198,7 @@ test('import zip: a NoaCG graphic package (the agent door\'s dual package) keeps
     const bin = atob(base64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const { importZipTemplate } = await import('/src/model/importTemplate.ts');
+    const { importZipTemplate } = await __noacgImport('/src/model/importTemplate.ts');
     const { template, noacg } = await importZipTemplate('football-scoreboard.zip', bytes.buffer);
     return { name: template.name, type: template.type, fields: template.fields.length, assets: template.assets.map((a) => a.path), stale: noacg?.stale };
   }, await backslashed.generateAsync({ type: 'base64' }));
@@ -226,7 +226,7 @@ test('import zip: only the scripts the page loads reach the JS pane', async ({ p
 
   await page.goto('/app');
   const js = await page.evaluate(async (b64) => {
-    const { importZipTemplate } = await import('/src/model/importTemplate.ts');
+    const { importZipTemplate } = await __noacgImport('/src/model/importTemplate.ts');
     const bin = atob(b64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);

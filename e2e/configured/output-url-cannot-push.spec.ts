@@ -21,6 +21,10 @@ import {
   SUPABASE_URL,
   wipeMyGraphics,
 } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // A READ-ONLY LINK MUST NOT BE ABLE TO MOVE A PICTURE.
 //
@@ -87,7 +91,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   await expect(links).toBeHidden();
 
   const slugs = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.name === name);
     return { hosted: s?.hostedSlug ?? null, output: s?.outputSlug ?? null };
   }, showName);
@@ -95,6 +99,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
 
   // ── AIR, in an anonymous context, following live before anything is pressed. ───────────────
   const venue = await browser.newContext();
+  await installDoor(venue);
   const air = await venue.newPage();
   air.on('pageerror', (e) => console.log('[output pageerror]', e.message));
   await air.goto(`/output?production=${encodeURIComponent(slugs.output as string)}&debug=1`);
@@ -125,12 +130,13 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   expect(SUPABASE_URL, 'no VITE_SUPABASE_URL - the REST half of this attack cannot be aimed').toBeTruthy();
   expect(anonKey, 'no VITE_SUPABASE_ANON_KEY - the REST half would be refused for the wrong reason').toBeTruthy();
   const stranger = await browser.newContext();
+  await installDoor(stranger);
   const attacker = await stranger.newPage();
   await attacker.goto('/output?production=none');
 
   const push = await attacker.evaluate(
     async ({ outputSlug, url, key }) => {
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const sb = await getSupabase();
       if (!sb) return { error: 'no backend client in the attacking page' };
       // Everything the output capability answers - the show id and the payload, so the forged
@@ -240,7 +246,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   // attack. Every forged command carries an `oid` beginning `forged-`, and the honest question is
   // whether any of them is in the log.
   const forged = await attacker.evaluate(async (outputSlug) => {
-    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
     const sb = await getSupabase();
     const tail = await sb!.rpc('control_output_tail', { p_output_slug: outputSlug, p_after: 0 });
     const rows = (tail.data ?? []) as { id: number; msg: { t?: string; oid?: string } }[];

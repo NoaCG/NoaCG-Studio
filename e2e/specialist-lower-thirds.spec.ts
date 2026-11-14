@@ -20,7 +20,7 @@ test('a two-person strap gives each person independent fields', async ({ page })
   await bootstrapGraphic(page, 'Split Interview');
 
   const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return t.fields.map((f) => ({ field: f.field, title: f.title }));
   });
@@ -36,8 +36,8 @@ test('a two-person strap gives each person independent fields', async ({ page })
   // Each is a separately addressable element the runtime writes into, so an operator can
   // change one person without touching the other.
   const written = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const t = useTemplateStore.getState().template;
     return new Promise<Record<string, string>>((resolve) => {
       const f = document.createElement('iframe');
@@ -66,7 +66,7 @@ test('dropping the role lines degrades by the design\'s own split rule', async (
   await expect(page.locator('.topbar')).toBeVisible();
 
   const shapes = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const read = (id: string, n: number) => {
       const v = variantById(id)!;
       const tpl = v.create({ lines: v.suggestedLines.slice(0, n) });
@@ -98,9 +98,9 @@ test('every specialist design passes the export gate on all targets', async ({ p
   await expect(page.locator('.topbar')).toBeVisible();
 
   const result = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
-    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
     const list = variantsFor('lower-third').filter((v) => /^ls\d\d$/.test(v.id));
     const failures: string[] = [];
     for (const v of list) {

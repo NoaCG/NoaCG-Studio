@@ -21,7 +21,7 @@ async function ready(page: Page) {
 
 const source = (page: Page) =>
   page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { html: t.html, fields: t.fields.length, assets: t.assets.length };
   });

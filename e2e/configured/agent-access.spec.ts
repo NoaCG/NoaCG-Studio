@@ -33,6 +33,10 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { createClient } from '@supabase/supabase-js';
 import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, mintAccount, SERVICE_ROLE_KEY, settleSync, signIn, signInOnHome, SUPABASE_URL, wipeMyGraphics } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // AGENT ACCESS, live (docs/AGENT_SAVE.md): the whole handoff a coding agent's `noacg login` +
 // `noacg save` make, against the real backend, with the CLI's side played by this spec:
@@ -132,7 +136,7 @@ function loopback(state: string): Promise<{ port: number; code: Promise<string>;
  *  with the session - the same calls the Settings section makes. */
 async function wipeE2EKeys(page: import('@playwright/test').Page, name: string): Promise<void> {
   await page.evaluate(async (n) => {
-    const { listAgentKeys, revokeAgentKey } = await import('/src/backend/agentAccess.ts');
+    const { listAgentKeys, revokeAgentKey } = await __noacgImport('/src/backend/agentAccess.ts');
     for (const k of await listAgentKeys()) if (k.name === n) await revokeAgentKey(k.id);
   }, name);
 }
@@ -218,13 +222,13 @@ test.describe('agent access (configured)', () => {
       // Back on the studio's origin (the consent ended on the loopback page): the key belongs to the
       // account that consented.
       const sessionUser = await page.evaluate(async () => {
-        const { getSupabase } = await import('/src/backend/supabase.ts');
+        const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
         return (await (await getSupabase())!.auth.getUser()).data.user?.id ?? null;
       });
       expect(minted.account.id, 'the key is minted for the account that consented').toBe(sessionUser);
       const doc = await page.evaluate(async () => {
-        const { variantsFor } = await import('/src/templates/catalog.ts');
-        const { graphicDoc } = await import('/src/bridge/bridgeApi.ts');
+        const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+        const { graphicDoc } = await __noacgImport('/src/bridge/bridgeApi.ts');
         const template = variantsFor('lower-third')[0].create({});
         return graphicDoc({ ...template, name: 'Agent E2E L3' }, { name: 'Agent E2E L3', origin: { tool: 'noacg-cli', version: 'e2e' } });
       });
@@ -255,7 +259,7 @@ test.describe('agent access (configured)', () => {
         .poll(
           () =>
             page.evaluate(async (id) => {
-              const { graphicById } = await import('/src/model/library.ts');
+              const { graphicById } = await __noacgImport('/src/model/library.ts');
               const doc = graphicById(id);
               return {
                 present: !!doc,
@@ -277,8 +281,8 @@ test.describe('agent access (configured)', () => {
       const setNames = ['Strap', 'Score', 'Clock'].map((n) => `Agent E2E set ${setTag} ${n}`);
       const buildSet = (names: string[]) =>
         page.evaluate(async (list) => {
-          const { variantsFor } = await import('/src/templates/catalog.ts');
-          const { graphicDoc } = await import('/src/bridge/bridgeApi.ts');
+          const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+          const { graphicDoc } = await __noacgImport('/src/bridge/bridgeApi.ts');
           return list.map((n) => graphicDoc({ ...variantsFor('lower-third')[0].create({}), name: n }, { name: n, origin: { tool: 'noacg-cli', version: 'e2e' } }));
         }, names);
       const sendSet = (graphics: unknown[], operation: string) =>
@@ -319,6 +323,7 @@ test.describe('agent access (configured)', () => {
 
       // A fresh browser, signed in: all three are in the library, once each, and every link opens.
       const fresh = await browser.newContext();
+      await installDoor(fresh);
       try {
         const reader = await fresh.newPage();
         await signInOnHome(reader, E2E_EMAIL, E2E_PASSWORD);
@@ -326,7 +331,7 @@ test.describe('agent access (configured)', () => {
           .poll(
             () =>
               reader.evaluate(async (tag) => {
-                const { loadGraphics } = await import('/src/model/library.ts');
+                const { loadGraphics } = await __noacgImport('/src/model/library.ts');
                 return loadGraphics().filter((g) => g.name.includes(`Agent E2E set ${tag}`)).map((g) => g.id).sort();
               }, setTag),
             { timeout: 30_000 },
@@ -359,7 +364,7 @@ test.describe('agent access (configured)', () => {
       // whether they are the delivered ones, so it says they may already be in the library before
       // it adds copies. Cancel leaves it waiting; it is dismissed here.
       const unidentified = await page.evaluate(async (records) => {
-        const { packGraphicEntry } = await import('/src/packs/graphicsPack.ts');
+        const { packGraphicEntry } = await __noacgImport('/src/packs/graphicsPack.ts');
         return Promise.all(records.map((r) => packGraphicEntry(r.template as never, { name: r.name as string })));
       }, setRecords as Array<{ name: string; template: unknown }>);
       const unidentifiedSent = await fetch(`${origin}/api/me/packages`, {
@@ -458,7 +463,7 @@ test.describe('agent access (configured)', () => {
       // Installed means gone from the waiting list - for good, not just on this screen.
       await expect
         .poll(() => page.evaluate(async (n) => {
-          const { listWaitingPackages } = await import('/src/backend/agentPackages.ts');
+          const { listWaitingPackages } = await __noacgImport('/src/backend/agentPackages.ts');
           return (await listWaitingPackages()).filter((p) => p.name.startsWith(n)).length;
         }, packName))
         .toBe(0);
@@ -485,12 +490,12 @@ test.describe('agent access (configured)', () => {
       expect(shared.status, await shared.clone().text()).toBe(201);
       const sharedId = ((await shared.json()) as { id: string; state: string }).id;
       const mine = await page.evaluate(async () => {
-        const { listMyPacks } = await import('/src/community/packs.ts');
+        const { listMyPacks } = await __noacgImport('/src/community/packs.ts');
         return listMyPacks();
       });
       expect(mine.find((p) => p.id === sharedId)).toMatchObject({ name: shareName, author: 'Agent E2E', state: 'in_review' });
       await page.evaluate(async (id) => {
-        const { withdrawPack } = await import('/src/community/packs.ts');
+        const { withdrawPack } = await __noacgImport('/src/community/packs.ts');
         await withdrawPack(id);
       }, sharedId);
 
@@ -519,17 +524,17 @@ test.describe('agent access (configured)', () => {
       await wipeE2EKeys(page, name).catch(() => undefined);
       await wipeMyGraphics(page).catch(() => undefined);
       await page.evaluate(async () => {
-        const { listWaitingPackages, removeWaitingPackage } = await import('/src/backend/agentPackages.ts');
+        const { listWaitingPackages, removeWaitingPackage } = await __noacgImport('/src/backend/agentPackages.ts');
         for (const p of await listWaitingPackages()) if (p.name.startsWith('Agent E2E package')) await removeWaitingPackage(p.id);
       }).catch(() => undefined);
       // The production Install made (or a failed run's), pushed as a tombstone so the shared
       // account's cloud does not collect one per run.
       await page.evaluate(async () => {
-        const { hydrateDurableStore } = await import('/src/model/durableStore.ts');
+        const { hydrateDurableStore } = await __noacgImport('/src/model/durableStore.ts');
         await hydrateDurableStore();
-        const { deleteShow, loadShows } = await import('/src/model/shows.ts');
+        const { deleteShow, loadShows } = await __noacgImport('/src/model/shows.ts');
         for (const s of loadShows()) if (s.name.startsWith('Agent E2E package')) deleteShow(s.id);
-        const { syncNow } = await import('/src/backend/syncController.ts');
+        const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
         await syncNow();
       }).catch(() => undefined);
     }
@@ -671,7 +676,7 @@ test.describe('agent access (configured)', () => {
       // The cloud holds the final records: one production, its pool the three delivered graphics on
       // their own layers, its rundown in the order sent, unpublished; three library graphics, once.
       const cloud = await page.evaluate(async ({ id, tagged }) => {
-        const { getSupabase } = await import('/src/backend/supabase.ts');
+        const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
         const sb = (await getSupabase())!;
         const show = await sb.from('documents').select('kind, deleted, body').eq('id', id).maybeSingle();
         const graphics = await sb.from('documents').select('id').eq('kind', 'graphic').eq('deleted', false).ilike('name', `${tagged}%`);
@@ -692,6 +697,7 @@ test.describe('agent access (configured)', () => {
 
       // The link opens the production, rundown in order, in a fresh signed-in browser.
       const fresh = await browser.newContext();
+      await installDoor(fresh);
       try {
         const reader = await fresh.newPage();
         await signInOnHome(reader, E2E_EMAIL, E2E_PASSWORD);
@@ -714,7 +720,7 @@ test.describe('agent access (configured)', () => {
       await expect.poll(() => libraryIds(page, `CLI prod ${tag}`), { timeout: 30_000 }).toEqual([...prodIds].sort());
       await expect
         .poll(() => page.evaluate(async (id) => {
-          const { loadShows } = await import('/src/model/shows.ts');
+          const { loadShows } = await __noacgImport('/src/model/shows.ts');
           return loadShows().some((s) => s.id === id);
         }, prod.production.id), { timeout: 30_000 })
         .toBe(true);
@@ -728,7 +734,7 @@ test.describe('agent access (configured)', () => {
       await expect(page.getByTestId('production-page')).toContainText(`${prodName} package`, { timeout: 30_000 });
       await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(4);
       const second = await page.evaluate(async (n) => {
-        const { loadShows } = await import('/src/model/shows.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
         return loadShows().find((s) => s.name === n)?.graphics.map((x) => x.graphicId) ?? null;
       }, `${prodName} package`);
       expect(second, 'the second production pools the delivered graphics').toEqual(prodIds);
@@ -741,13 +747,13 @@ test.describe('agent access (configured)', () => {
       await wipeMyGraphics(page).catch(() => undefined);
       // The productions this walk made, pushed as tombstones, and any package it left waiting.
       await page.evaluate(async () => {
-        const { listWaitingPackages, removeWaitingPackage } = await import('/src/backend/agentPackages.ts');
+        const { listWaitingPackages, removeWaitingPackage } = await __noacgImport('/src/backend/agentPackages.ts');
         for (const p of await listWaitingPackages()) if (p.name.startsWith('CLI production')) await removeWaitingPackage(p.id);
-        const { hydrateDurableStore } = await import('/src/model/durableStore.ts');
+        const { hydrateDurableStore } = await __noacgImport('/src/model/durableStore.ts');
         await hydrateDurableStore();
-        const { syncNow } = await import('/src/backend/syncController.ts');
+        const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
         await syncNow();
-        const { deleteShow, loadShows } = await import('/src/model/shows.ts');
+        const { deleteShow, loadShows } = await __noacgImport('/src/model/shows.ts');
         for (const s of loadShows()) if (s.name.startsWith('CLI production')) deleteShow(s.id);
         await syncNow();
       }).catch(() => undefined);
@@ -856,6 +862,7 @@ test.describe('agent access (configured)', () => {
 
       // BROWSER-OPENED: a fresh browser, signed in as the new account, opens every link it was given.
       const fresh = await browser.newContext();
+      await installDoor(fresh);
       try {
         const reader = await fresh.newPage();
         await signInOnHome(reader, email, password);
@@ -875,6 +882,7 @@ test.describe('agent access (configured)', () => {
 
       // WRONG ACCOUNT: another account opening the same links is told who it is, and sees nothing.
       const other = await browser.newContext();
+      await installDoor(other);
       try {
         const stranger = await other.newPage();
         await signInOnHome(stranger, E2E_EMAIL, E2E_PASSWORD);
@@ -898,7 +906,7 @@ test.describe('agent access (configured)', () => {
       // Install recognises the delivery from the synced library and productions, so both first.
       await expect
         .poll(() => page.evaluate(async (id) => {
-          const { loadShows } = await import('/src/model/shows.ts');
+          const { loadShows } = await __noacgImport('/src/model/shows.ts');
           return loadShows().some((s) => s.id === id);
         }, delivered.production.id), { timeout: 30_000 })
         .toBe(true);
@@ -1092,9 +1100,9 @@ function spawnCli(
 /** The library ids, after a sync pass, of the graphics whose name holds `tag`, sorted. */
 async function libraryIds(page: Page, tag: string): Promise<string[]> {
   return page.evaluate(async (t) => {
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().filter((g) => g.name.includes(t)).map((g) => g.id).sort();
   }, tag);
 }

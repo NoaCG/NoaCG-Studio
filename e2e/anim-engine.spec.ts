@@ -20,7 +20,7 @@ import { toApp } from './_bench';
 /** Runs in the page: boot templates into hidden iframes; build legacy twins. */
 const HARNESS = `
   async function boot(tpl) {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const f = document.createElement('iframe');
     f.style.cssText = 'position:fixed;left:-3000px;top:0;width:1280px;height:720px;';
     document.body.appendChild(f);
@@ -47,9 +47,9 @@ const HARNESS = `
   }
   // The preset's ORIGINAL emitted region, spliced over the data region — the legacy twin.
   async function legacyTwin(tpl, presetId, steps) {
-    const { anyPresetById } = await import('/src/blocks/presetRegistry.ts');
-    const { detectPrefix, countLines } = await import('/src/model/structure.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { anyPresetById } = await __noacgImport('/src/blocks/presetRegistry.ts');
+    const { detectPrefix, countLines } = await __noacgImport('/src/model/structure.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const preset = anyPresetById(presetId);
     const prefix = detectPrefix(tpl.html);
     const data = parseAnimData(tpl.js);
@@ -80,7 +80,7 @@ test('parity: created data templates match each preset\'s legacy emit', async ({
   // wipes, filter blurs, skews.
   const failures = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const failures = [];
     for (const presetId of ['line-reveal', 'slide-up', 'slide-down', 'slide-left', 'slide-right', 'pop-spring', 'mask-wipe', 'blur-in', 'snap-stinger']) {
       const tpl = variantById('lt01').create({ animation: { presetId } });
@@ -115,8 +115,8 @@ test('parity: created data templates match each preset\'s legacy emit', async ({
 test('slide family: each direction produces its own axis and sign of travel', async ({ page }) => {
   await toApp(page);
   const entries = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const out: Record<string, { axis: string; sign: number }> = {};
     for (const presetId of ['slide-up', 'slide-down', 'slide-left', 'slide-right'] as const) {
       const tpl = variantById('lt01')!.create({ animation: { presetId } });
@@ -143,8 +143,8 @@ test('parity: the press chain — pre-hidden reveals, per-press timelines, exhau
   await toApp(page);
   const result = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const tpl = variantById('lt01').create({ animation: { steps: true } });
     const data = parseAnimData(tpl.js);
     if (!data) return { fail: 'creation did not emit the data block' };
@@ -187,8 +187,8 @@ test('parity: clock templates carry startClock/stopClock through the step-call m
   // and the data interpreter must run them exactly where the legacy emit did.
   const failures = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const failures = [];
     for (const pair of [['gt01', 'timer-line-reveal'], ['gt02', 'timer-run']]) {
       const variant = pair[0], presetId = pair[1];
@@ -249,9 +249,9 @@ test('parity: starting-soon flips to a data block and its ambient loop matches t
   // the clock in the same places). Tickers/credits stay legacy (DOM-measured) — pinned below.
   const failures = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     const failures = [];
     const PULSE = '.starting-soon-pulse';
 
@@ -313,9 +313,9 @@ test('resolver: agrees with the real interpreter at keyframe times', async ({ pa
   await toApp(page);
   const mismatches = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     const tpl = variantById('lt01').create({});
     const data = parseAnimData(tpl.js);
     const w = await boot(tpl);
@@ -356,10 +356,10 @@ test('3D transforms: rotationX/Y/z + perspective author and play through the rea
   await toApp(page);
   const problems = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-    const { setKeyframe } = await import('/src/blocks/animEdit.ts');
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { setKeyframe } = await __noacgImport('/src/blocks/animEdit.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     const tpl = variantById('lt01').create({});
     let data = parseAnimData(tpl.js);
     const enterDur = data.steps[0].duration;
@@ -402,8 +402,8 @@ test('serializer: canonical fixed point, lossless splice, hand-edit round-trip',
   await toApp(page);
   const result = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData, serializeAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData, serializeAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const tpl = variantById('lt01').create({});
     const js = tpl.js; // created AS a data block now
     const data = parseAnimData(js);
@@ -481,8 +481,8 @@ test('parity: measured motion matches the legacy emit across content lengths', a
   const failures = await page.evaluate(
     `(async (cases, texts) => {
       ${HARNESS}
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
       const failures = [];
 
       for (const c of cases) {
@@ -546,7 +546,7 @@ test('measured motion actually tracks the content', async ({ page }) => {
   const result = await page.evaluate(
     `(async (short, long) => {
       ${HARNESS}
-      const { variantById } = await import('/src/templates/catalog.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
       const tpl = variantById('tk01').create({ animation: { presetId: 'ticker-marquee' } });
       const w = await boot(tpl);
 
@@ -605,8 +605,8 @@ const HAND_WRITTEN_MEASURED_REGION = [
 test('a hand-written DOM-measured region is refused, not guessed at', async ({ page }) => {
   await toApp(page);
   const result = await page.evaluate(async (region) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { importAnimData } = await import('/src/blocks/animImport.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { importAnimData } = await __noacgImport('/src/blocks/animImport.ts');
     const tpl = variantById('tk01').create({});
     const OPEN = '/* == ANIMATION';
     const CLOSE = '/* == END ANIMATION == */';
@@ -675,8 +675,8 @@ test('parity: infographic measured motion matches the legacy emit, and lands on 
   const result = await page.evaluate(
     `(async (cases) => {
       ${HARNESS}
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
       const failures = [];
       const landed = {};
 
@@ -771,7 +771,7 @@ test('the preset registry lists every family exactly once', async ({ page }) => 
   // console. Module-level: the claim is about the registry, not about any one design.
   await page.goto('/app');
   const report = await page.evaluate(async () => {
-    const { ALL_PRESETS } = await import('/src/blocks/presetRegistry.ts');
+    const { ALL_PRESETS } = await __noacgImport('/src/blocks/presetRegistry.ts');
     const ids = (ALL_PRESETS as unknown as { id: string }[]).map((p) => p.id);
     return { total: ids.length, dupes: [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))] };
   });

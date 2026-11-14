@@ -29,7 +29,7 @@ async function production(page: Page, media: Record<string, unknown>[]): Promise
   await evaluateInPage(
     page,
     async (list) => {
-      const { loadShows, addPlayoutItem } = await import('/src/model/shows.ts');
+      const { loadShows, addPlayoutItem } = await __noacgImport('/src/model/shows.ts');
       const show = loadShows().find((s) => s.name === 'Evening News')!;
       for (const m of list) addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', channel: 2, ...m } as never);
     },
@@ -84,7 +84,7 @@ test('Play next names the clip it plays, past what it skips, and is off with the
   // A cue that already says Play next when the rundown no longer gives it a clip to play - set on
   // a production edited elsewhere - is not taken as a Hold in silence.
   await evaluateInPage(page, async () => {
-    const { loadShows, setCuePlayback } = await import('/src/model/shows.ts');
+    const { loadShows, setCuePlayback } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === 'Evening News')!;
     const giorno = show.cues!.find((c) => c.label === 'GIORNO')!;
     setCuePlayback(show.id, giorno.id, { end: 'next' });
@@ -123,7 +123,7 @@ test('one Take plays the run as a sequence: TO STUDIO less the overlaps, ON AIR 
   // ONE action: the run, each file with its own settings and the last with its own ending.
   expect(fake.actions).toHaveLength(1);
   const cueIds = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return Object.fromEntries(loadShows()[0].cues!.map((c) => [c.label, c.id]));
   });
   expect(fake.actions[0]).toEqual({
@@ -178,7 +178,7 @@ test('an older clip learns its kind from the server\'s list; one the list does n
   await expect
     .poll(() =>
       page.evaluate(async () => {
-        const { loadShows } = await import('/src/model/shows.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
         return loadShows()[0].playoutItems!.map((i) => i.mediaKind ?? null);
       }),
     )

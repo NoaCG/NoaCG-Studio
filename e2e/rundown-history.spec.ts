@@ -52,16 +52,16 @@ async function teamBackend(page: Page, server = false) {
     return respond([]);
   });
   const ids = await seed(page, server);
-  state.doc = await page.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, ids.show);
-  await page.evaluate(async owner => { const m = await import('/src/backend/teamProductions.ts'); m.startTeamSync(owner); await m.refreshTeams(); }, owner);
-  await expect.poll(() => page.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)?.teamId, ids.show)).toBe(team);
+  state.doc = await page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, ids.show);
+  await page.evaluate(async owner => { const m = await __noacgImport('/src/backend/teamProductions.ts'); m.startTeamSync(owner); await m.refreshTeams(); }, owner);
+  await expect.poll(() => page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)?.teamId, ids.show)).toBe(team);
   return { ids, state, advance };
 }
 
 async function seed(page: Page, server = false) {
   await page.goto('/app#/home'); await expect(page.getByTestId('home-page')).toBeVisible();
   const ids = await page.evaluate(async server => {
-    const m = await import('/src/model/shows.ts'), { variantsFor } = await import('/src/templates/catalog.ts');
+    const m = await __noacgImport('/src/model/shows.ts'), { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
     const show = m.createShowNamedChecked('History').show, other = m.createShowNamedChecked('Other').show;
     m.addGraphicToShow(show.id, { ...variantsFor('lower-third')[0].create({}), name: 'Guests' });
     const first = m.loadShows().find(s => s.id === show.id)!.cues![0];
@@ -87,7 +87,7 @@ async function select(page: Page, name: string) { await row(page, name).getByTes
 async function snapshot(page: Page, id: string) {
   await settleDurableWrites(page);
   return page.evaluate(async id => {
-    const m = await import('/src/model/shows.ts'), h = await import('/src/model/rundownHistory.ts');
+    const m = await __noacgImport('/src/model/shows.ts'), h = await __noacgImport('/src/model/rundownHistory.ts');
     return h.sliceKey(h.rundownSlice(m.loadShows().find(s => s.id === id)!));
   }, id);
 }
@@ -164,11 +164,11 @@ test('failed forward edits preserve redo and a failed inverse remains retryable'
 
 test('metadata survives inverse; remote rundown changes, another production and paused identity clear history', async ({ page }) => {
   const ids = await seed(page), before = await snapshot(page, ids.show); await duplicate(page);
-  await page.evaluate(async ids => { const m = await import('/src/model/shows.ts'); const current = m.loadShows().find(s => s.id === ids.show)!; m.upsertShow({ ...current, name: 'Renamed production', data: { score: 9 }, outputSlug: 'keep-this-link' }); m.upsertShow({ ...m.loadShows().find(s => s.id === ids.other)!, name: 'Other renamed' }); }, ids);
+  await page.evaluate(async ids => { const m = await __noacgImport('/src/model/shows.ts'); const current = m.loadShows().find(s => s.id === ids.show)!; m.upsertShow({ ...current, name: 'Renamed production', data: { score: 9 }, outputSlug: 'keep-this-link' }); m.upsertShow({ ...m.loadShows().find(s => s.id === ids.other)!, name: 'Other renamed' }); }, ids);
   await key(page, 'Control+z'); await expectSlice(page, ids.show, before);
-  expect(await page.evaluate(async id => { const s = (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!; return [s.name, s.data, s.outputSlug]; }, ids.show)).toEqual(['Renamed production', { score: 9 }, 'keep-this-link']);
+  expect(await page.evaluate(async id => { const s = (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!; return [s.name, s.data, s.outputSlug]; }, ids.show)).toEqual(['Renamed production', { score: 9 }, 'keep-this-link']);
   await key(page, 'Control+y'); await expect(row(page, 'Alpha copy')).toBeVisible();
-  await page.evaluate(async ids => { const m = await import('/src/model/shows.ts'); m.updateShowCue(ids.show, ids.cues[0], { label: 'Teammate' }); }, ids);
+  await page.evaluate(async ids => { const m = await __noacgImport('/src/model/shows.ts'); m.updateShowCue(ids.show, ids.cues[0], { label: 'Teammate' }); }, ids);
   await expect(page.getByTestId('rundown-note')).toContainText('changed elsewhere'); const remote = await snapshot(page, ids.show);
   await key(page, 'Control+z'); await expectSlice(page, ids.show, remote);
   await select(page, 'Teammate'); await page.getByTestId('cue-label').fill('Last character');
@@ -227,7 +227,7 @@ test('team metadata CAS retry preserves metadata and a recovered forward save be
   await expect(page.getByTestId('rundown-note')).toContainText('Injected team save failure'); await expect(row(page, 'Gamma')).toHaveCount(0);
   const failedCalls = state.calls; await key(page, 'Control+y'); expect(state.calls).toBe(failedCalls);
   state.fail = false;
-  await page.evaluate(async id => { await (await import('/src/backend/teamProductions.ts')).flushTeamProduction(id); }, ids.show);
+  await page.evaluate(async id => { await (await __noacgImport('/src/backend/teamProductions.ts')).flushTeamProduction(id); }, ids.show);
   await expect.poll(() => state.doc?.cues?.length).toBe(2);
   await key(page, 'Control+z'); await expectSlice(page, ids.show, before);
   await key(page, 'Control+y'); await expect(row(page, 'Gamma')).toHaveCount(0);
@@ -260,8 +260,8 @@ test('live Take and Out remain independent of a held team authoring acknowledgem
 test('timed advancement during typing remains independent of a held team acknowledgement', async ({ page }) => {
   const { ids, state } = await teamBackend(page);
   await page.evaluate(async ids => {
-    (await import('/src/model/shows.ts')).setCueAuto(ids.show, ids.cues[0], { after: 2, then: 'next' });
-    await (await import('/src/backend/teamProductions.ts')).flushTeamProduction(ids.show);
+    (await __noacgImport('/src/model/shows.ts')).setCueAuto(ids.show, ids.cues[0], { after: 2, then: 'next' });
+    await (await __noacgImport('/src/backend/teamProductions.ts')).flushTeamProduction(ids.show);
   }, ids);
   await select(page, 'Alpha'); await key(page, 'Space'); await expect(row(page, 'Alpha')).toHaveClass(/up-here/);
   let release!: () => void;
@@ -318,11 +318,11 @@ test('account pausing retains the last character and clears application history'
   const ids = await seed(page);
   await expect(row(page, 'Alpha')).toBeVisible(); await duplicate(page); await select(page, 'Alpha');
   await page.getByTestId('cue-label').fill('Retain last character');
-  await page.evaluate(async () => (await import('/src/model/durableStore.ts')).setAccountAuthoringEnabled(false));
+  await page.evaluate(async () => (await __noacgImport('/src/model/durableStore.ts')).setAccountAuthoringEnabled(false));
   await settleDurableWrites(page); const paused = await snapshot(page, ids.show);
   expect(JSON.parse(paused).cues[0].label).toBe('Retain last character');
   await key(page, 'Control+z'); await expectSlice(page, ids.show, paused);
-  await page.evaluate(async () => (await import('/src/model/durableStore.ts')).setAccountAuthoringEnabled(true));
+  await page.evaluate(async () => (await __noacgImport('/src/model/durableStore.ts')).setAccountAuthoringEnabled(true));
   await key(page, 'Control+z'); await expectSlice(page, ids.show, paused);
 });
 
@@ -330,7 +330,7 @@ test('retention bounds embedded assets and records actual heap separately from s
   const ids = await seed(page), cdp = await page.context().newCDPSession(page);
   await cdp.send('HeapProfiler.collectGarbage'); const baseline = await cdp.send('Runtime.getHeapUsage');
   const retained = await page.evaluate(async id => {
-    const m = await import('/src/model/shows.ts'), h = await import('/src/model/rundownHistory.ts');
+    const m = await __noacgImport('/src/model/shows.ts'), h = await __noacgImport('/src/model/rundownHistory.ts');
     const history = new h.RundownHistory(), start = h.rundownSlice(m.loadShows().find(s => s.id === id)!);
     start.graphics[0].template.assets.push({ path: 'retained-asset.png', mime: 'image/png', data: 'a'.repeat(512 * 1024) });
     let before = start;

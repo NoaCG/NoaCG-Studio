@@ -122,8 +122,8 @@ async function seedProduction(page: Page): Promise<{ id: string; long: string; s
   await page.goto('/app');
   await awaitDurableReady(page);
   const seeded = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createShowNamed, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createShowNamed, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
     const show = createShowNamed('Fixed panes');
     const added: { name: string; fields: number }[] = [];
     // A FIXED list rather than the whole catalog, so a new design never changes this rundown.
@@ -315,10 +315,10 @@ test('the exported controller is the same fixed shell: only its control area scr
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const b64 = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const show = shows.createShowNamed('Fixed panes offline');
     // The esports scorebug again: the longest control area, so the editor overflows the column.
     for (const variant of [variantsFor('esports-score')[0], ...variantsFor('lower-third').slice(0, 6)]) {

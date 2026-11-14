@@ -17,7 +17,7 @@ test('Quiz source-controlled animation is preserved and explains the base editin
   expect((await source(page)).js).toBe(before.js);
 });
 
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect(page.locator('.ef-stage-error')).toHaveCount(0);
@@ -27,7 +27,7 @@ async function seek(page: Page, time: number) {
   const ruler = page.getByRole('slider', { name: 'Playhead' });
   const before = Number(await ruler.getAttribute('aria-valuenow'));
   // Exact public ruler click for times that aren't a ten-frame multiple.
-  const extent = await page.evaluate(async () => Math.max(2, (await import('/src/components/editorFoundation/timelineView.ts')).readTimeline((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template).duration * 1.15));
+  const extent = await page.evaluate(async () => Math.max(2, (await __noacgImport('/src/components/editorFoundation/timelineView.ts')).readTimeline((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template).duration * 1.15));
   const box = (await ruler.boundingBox())!;
   const request = await page.getByTestId('foundation-canvas').getAttribute('data-request');
   await page.mouse.click(box.x + time / extent * box.width, box.y + 20);
@@ -36,8 +36,8 @@ async function seek(page: Page, time: number) {
   // A preceding pose can change data-request without acknowledging this seek.
   // Await the correlated receipt and its rendered pose before editing at the new time.
   await expect.poll(() => page.evaluate(async time => {
-    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
-    const controller = (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics();
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const controller = (await __noacgImport('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics();
     const view = session.port.view(), canvas = document.querySelector('[data-testid="foundation-canvas"]');
     const poseTime = canvas?.getAttribute('data-pose-time');
     return controller?.receipt(session.version(), view).state === 'ready' && Math.abs(view.time - time) < .00001 &&
@@ -49,10 +49,10 @@ async function setup(page: Page, spans: boolean | 'entrance' = false) {
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const selectors = await page.evaluate(async spans => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { createArtwork } = await import('/src/blocks/baseEdits.ts');
-    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { createArtwork } = await __noacgImport('/src/blocks/baseEdits.ts');
+    const { replaceRegionWithAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     let template = useTemplateStore.getState().template;
     template = { ...template, fps: 25, html: template.html + '<!-- preserve artwork -->',
       js: replaceRegionWithAnimData(template.js, { version: 2, root: parseAnimData(template.js)!.root, speed: 1, steps: [{ name: 'In', duration: 3, ease: 'none', layers: {} }, { name: 'Out', duration: 1, ease: 'none', layers: {} }] })! + '\n// preserve user code' };
@@ -60,7 +60,7 @@ async function setup(page: Page, spans: boolean | 'entrance' = false) {
     const box = createArtwork(text.template, { shape: 'rectangle', x: -350, y: -220, width: 200, height: 100 });
     template = box.template;
     if (spans) {
-      const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+      const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
       const data = parseAnimData(template.js)!;
       data.steps[0].spans = spans === 'entrance' ? { [text.selector]: [{ start: 0, end: 2.4 }], [box.selector]: [{ start: 0, end: 2.4 }] } : { [box.selector]: [{ start: .4, end: 1.4 }, { start: 1.8, end: 2.4 }] };
       if (spans !== 'entrance') data.steps[0].layers[box.selector] = { x: [{ time: .4, value: 0 }, { time: 1.4, value: 300 }] };
@@ -75,7 +75,7 @@ async function setup(page: Page, spans: boolean | 'entrance' = false) {
   await page.getByRole('button', { name: 'Apply text', exact: true }).click(); await ready(page);
   return selectors;
 }
-async function data(page: Page) { return page.evaluate(async () => (await import('/src/blocks/animData.ts')).parseAnimData((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!); }
+async function data(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!); }
 async function select(page: Page, selector: string) { await page.locator(`.ef-track[data-selector="${selector}"] .ef-layer`).click(); await ready(page); }
 async function number(page: Page, label: string, value: string) {
   const input = page.locator('.ef-animation-properties').getByRole('textbox', { name: label, exact: true });
@@ -173,8 +173,8 @@ test('nonzero first key, diamond last removal, interpolated disable and exact un
 test('nested SVG armed parent-coordinate drag and explicit base offset preserve motion', async ({ page }) => {
   await setup(page);
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     const store = useTemplateStore.getState();
     store.applyTemplate({ ...store.template, fields: [], layers: [], html: '<div class="fixture"><svg width="1920" height="1080"><g transform="translate(100,80) rotate(30) scale(2)"><rect id="nested" x="120" y="120" width="200" height="100" fill="#eeb844" data-gfx /></g></svg></div>', css: 'body{margin:0}',
       js: emitAnimRegion({ version: 2, root: '.fixture', speed: 1, steps: [{ name: 'In', duration: 3, ease: 'none', layers: {} }, { name: 'Out', duration: 1, ease: 'none', layers: {} }] }) });
@@ -223,8 +223,8 @@ test('numeric animation controls are available on a created layer', async ({ pag
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { createArtwork } = await import('/src/blocks/baseEdits.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { createArtwork } = await __noacgImport('/src/blocks/baseEdits.ts');
     const store = useTemplateStore.getState();
     const result = createArtwork(store.template, { shape: 'rectangle', x: 100, y: 100, width: 200, height: 100 });
     store.applyTemplate(result.template);
@@ -246,7 +246,7 @@ test('armed scale handles key both axes in one transaction and stale numeric dra
   await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); expect(await source(page)).toEqual(before);
   const input = page.locator('.ef-animation-properties').getByRole('textbox', { name: 'Position X', exact: true });
   await input.fill('123');
-  await page.evaluate(async () => (await import('/src/components/editorFoundation/documentAdapter.ts')).setSessionTime(1.5));
+  await page.evaluate(async () => (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).setSessionTime(1.5));
   await input.press('Enter'); await expect(page.getByRole('alert')).toContainText('playhead moved'); expect(await source(page)).toEqual(before);
 });
 
@@ -268,9 +268,9 @@ test('mixed multi-selection keys only armed channels and commits one undo', asyn
 test('explicit visibility preserves keyed opacity at a hold and resolves cue-side ownership', async ({ page }) => {
   const [held, revealed] = await setup(page);
   await page.evaluate(async ({ held, revealed }) => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { writeAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     const store = useTemplateStore.getState(), data = parseAnimData(store.template.js)!;
     data.steps[0].hides = [held]; data.steps[0].spans = { [held]: [{ start: 0, end: 3 }], [revealed]: [] };
     data.steps[0].layers[held] = { opacity: [{ time: 0, value: .6 }] };
@@ -280,8 +280,8 @@ test('explicit visibility preserves keyed opacity at a hold and resolves cue-sid
   expect(await (await preview(page)).locator(held).evaluate(el => getComputedStyle(el).opacity)).toBe('0.6');
   expect(await (await preview(page)).locator(revealed).evaluate(el => getComputedStyle(el).visibility)).toBe('hidden');
   const positions = await page.evaluate(async ({ held, revealed }) => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const { authoringPosition } = await import('/src/components/editorFoundation/animationAuthoring.ts');
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { authoringPosition } = await __noacgImport('/src/components/editorFoundation/animationAuthoring.ts');
     return [authoringPosition(t, held, 3), authoringPosition(t, revealed, 3)];
   }, { held, revealed });
   expect(positions).toEqual([{ step: 0, time: 3 }, { step: 1, time: 0 }]);
@@ -292,11 +292,11 @@ test('explicit visibility preserves keyed opacity at a hold and resolves cue-sid
 test('stored frames, source preservation, inheritance and atomic refusal', async ({ page }) => {
   const [, selector] = await setup(page, true);
   const result = await page.evaluate(async selector => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
-    const { moveLayerSpan } = await import('/src/blocks/animEdit.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
+    const { moveLayerSpan } = await __noacgImport('/src/blocks/animEdit.ts');
     const template = useTemplateStore.getState().template;
     const results = [];
     for (const speed of [.5, 1, 2]) for (const fps of [25, 30]) {
@@ -317,7 +317,7 @@ test('stored frames, source preservation, inheritance and atomic refusal', async
       if (mutation === 'machine') Object.assign(data, { machine: { groups: [] } });
       if (mutation === 'bad-span') data.steps[0].spans![selector][0].start = -1;
       if (mutation === 'legacy-hide') { delete data.steps[1].spans; data.steps[1].hides = [selector]; }
-      const location = (await import('/src/blocks/animData.ts')).locateAnimData(template.js)!;
+      const location = (await __noacgImport('/src/blocks/animData.ts')).locateAnimData(template.js)!;
       const input = { ...template, js: template.js.slice(0, location.start) + JSON.stringify(data) + template.js.slice(location.end) };
       let message = '';
       try { applyOperations(input, [{ kind: 'base.set', selector, values: { x: 123 } }, { kind: 'layer.move', selector, step: 0, delta: .1 }]); } catch (error) { message = String(error); }
@@ -333,10 +333,10 @@ test('stored frames, source preservation, inheritance and atomic refusal', async
 test('known legacy interpreter upgrades for spans while customized source refuses', async ({ page }) => {
   await setup(page);
   const result = await page.evaluate(async () => {
-    const { ANIM_INTERPRETER_JS, writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const { ANIM_INTERPRETER_PRE_OUT_JS } = await import('/src/templates/shared/animRuntimeLegacy.ts');
+    const { ANIM_INTERPRETER_JS, writeAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { ANIM_INTERPRETER_PRE_OUT_JS } = await __noacgImport('/src/templates/shared/animRuntimeLegacy.ts');
     const legacy = ANIM_INTERPRETER_PRE_OUT_JS.replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')
       .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
       .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
@@ -362,8 +362,8 @@ test('visibility intervals and numeric poses match executable SPX, CasparCG and 
   }
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async target => {
-      const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
+      const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
     }, target);
     const output = await page.context().newPage();

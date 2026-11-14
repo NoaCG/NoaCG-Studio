@@ -42,6 +42,10 @@ import {
 } from './_helpers';
 import { settleDurableWrites } from '../_durable';
 import { FAKE_JOIN_ROUTE, TEAM } from '../_teams';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 async function expectTeamInSetup(page: Page, name: string, editedBy?: string) {
   await expect(page.getByTestId(TEAM.productionTeam)).toHaveCount(0);
@@ -115,14 +119,14 @@ async function mintAccount(email: string, password: string): Promise<void> {
  *  push it - the library is where a member's graphic comes from before it is added to anything. */
 async function makeLibraryGraphic(page: Page, name: string): Promise<void> {
   await page.evaluate(async (n) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const { error } = createGraphic({ ...variantsFor('lower-third')[0].create({}), name: n }, { name: n, packageId: null });
     if (error) throw new Error(error);
   }, name);
   await settleDurableWrites(page);
   await page.evaluate(async () => {
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
 }
@@ -132,9 +136,9 @@ async function makeLibraryGraphic(page: Page, name: string): Promise<void> {
 async function dropLibraryGraphics(page: Page, names: string[]): Promise<void> {
   await page
     .evaluate(async (wanted) => {
-      const { loadGraphics, deleteGraphic } = await import('/src/model/library.ts');
+      const { loadGraphics, deleteGraphic } = await __noacgImport('/src/model/library.ts');
       for (const g of loadGraphics()) if (wanted.includes(g.name)) deleteGraphic(g.id);
-      const { syncNow } = await import('/src/backend/syncController.ts');
+      const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
       await syncNow();
     }, names)
     .catch(() => undefined);
@@ -178,7 +182,7 @@ function summarise(s: RundownRecord | null): HeldRundown | null {
 
 async function heldRundown(page: Page, showId: string): Promise<HeldRundown | null> {
   const record = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((x: { id: string }) => x.id === id) ?? null;
   }, showId);
   return summarise(record as RundownRecord | null);
@@ -188,7 +192,7 @@ async function heldRundown(page: Page, showId: string): Promise<HeldRundown | nu
  *  what tells "the edit reached the team" from "the edit is on this screen". */
 async function serverRundown(page: Page, showId: string): Promise<HeldRundown | null> {
   const record = await page.evaluate(async (id) => {
-    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
     const sb = await getSupabase();
     if (!sb) return null;
     const { data } = await sb.from('team_productions').select('doc').eq('id', id).maybeSingle();
@@ -457,7 +461,9 @@ test.describe('teams: the share door', () => {
 
     test('an invited teammate finds the team and its production on Home, and both edit it', async ({ browser }) => {
       const ownerContext = await browser.newContext();
+      await installDoor(ownerContext);
       const mateContext = await browser.newContext();
+      await installDoor(mateContext);
       const owner = await ownerContext.newPage();
       const mate = await mateContext.newPage();
       // `E2E team ` prefix, so the sweep in the walk above deletes it if this run dies mid-way.
@@ -580,18 +586,18 @@ test.describe('teams: the share door', () => {
         // holds a reference; B's copy holds the bytes; somebody outside the team cannot read it.
         const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/AAAMEAQDtAb2rAAAAAElFTkSuQmCC';
         const heldAsset = (page: Page) => page.evaluate(async (id) => {
-          const { loadTeamShows } = await import('/src/model/teamShows.ts');
+          const { loadTeamShows } = await __noacgImport('/src/model/teamShows.ts');
           const show = loadTeamShows().find((s) => s.id === id) as unknown as { e2eAsset?: { data?: string } } | undefined;
           return show?.e2eAsset?.data ?? null;
         }, showId);
         const rowAsset = (page: Page) => page.evaluate(async (id) => {
-          const { getSupabase } = await import('/src/backend/supabase.ts');
+          const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
           const sb = await getSupabase();
           const { data } = await sb!.from('team_productions').select('asset:doc->e2eAsset->>data').eq('id', id).maybeSingle();
           return (data as { asset?: string } | null)?.asset ?? null;
         }, showId);
         await owner.evaluate(async ({ id, data }) => {
-          const { loadTeamShows, writeTeamShow } = await import('/src/model/teamShows.ts');
+          const { loadTeamShows, writeTeamShow } = await __noacgImport('/src/model/teamShows.ts');
           const show = loadTeamShows().find((s) => s.id === id)!;
           writeTeamShow({ ...show, e2eAsset: { path: 'e2e.png', data } } as typeof show);
         }, { id: showId, data: png });
@@ -599,16 +605,17 @@ test.describe('teams: the share door', () => {
         const assetKey = (await rowAsset(owner))!.slice('spx-storage:'.length);
         expect(await heldAsset(owner)).toBe(png);
         await mate.evaluate(async () => {
-          const { refreshTeams } = await import('/src/backend/teamProductions.ts');
+          const { refreshTeams } = await __noacgImport('/src/backend/teamProductions.ts');
           await refreshTeams();
         });
         await expect.poll(() => heldAsset(mate), { timeout: 30_000 }).toBe(png);
         await mintAccount(E2E_THIRD_EMAIL, E2E_THIRD_PASSWORD);
         const strangerContext = await browser.newContext();
+        await installDoor(strangerContext);
         const stranger = await strangerContext.newPage();
         await signInAs(stranger, E2E_THIRD_EMAIL, E2E_THIRD_PASSWORD);
         const strangerRead = await stranger.evaluate(async (key) => {
-          const { getSupabase } = await import('/src/backend/supabase.ts');
+          const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
           const sb = await getSupabase();
           const read = await sb!.storage.from('user-assets').download(key);
           const write = await sb!.storage.from('user-assets').upload(key.replace(/[^/]+$/, 'stranger'), new Blob(['x']));
@@ -680,6 +687,7 @@ test.describe('teams: the share door', () => {
       const contexts: BrowserContext[] = [];
       const open = async (): Promise<Page> => {
         const context = await browser.newContext();
+        await installDoor(context);
         contexts.push(context);
         return context.newPage();
       };
@@ -892,7 +900,7 @@ test.describe('teams: the share door', () => {
           if (owner) {
             if (showId) {
               await owner.evaluate(async (id) => {
-                const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+                const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
                 await unpublishControlShow(id);
               }, showId);
             }

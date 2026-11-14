@@ -180,7 +180,7 @@ test.describe('a trusted JSON source', () => {
       // Registration is the ordinary Show.sources write, which C2 puts on the row at once.
       const registered = await page.evaluate(
         async ({ id, registration, bindings }) => {
-          const { connectShowSource } = await import('/src/model/shows.ts');
+          const { connectShowSource } = await __noacgImport('/src/model/shows.ts');
           const entries = Object.entries(bindings.Hairline).map(([fieldId, p]) => ({ graphic: 'Hairline', fieldId, path: p }));
           const source = { id: 'e1', kind: 'external' as const, label: 'Results', config: registration };
           return connectShowSource(id, source, entries).error;
@@ -202,7 +202,7 @@ test.describe('a trusted JSON source', () => {
       // revisions, but nothing airs.
       const pausedAt = first.id;
       const pauseAnother = (paused: boolean) =>
-        page.evaluate(async ({ s, paused }) => (await import('/src/control/productionDataApi.ts')).setAnotherSystemPaused(s, paused), { s: slug, paused });
+        page.evaluate(async ({ s, paused }) => (await __noacgImport('/src/control/productionDataApi.ts')).setAnotherSystemPaused(s, paused), { s: slug, paused });
       await pauseAnother(true);
       replay.at(1); // count-increase
       await expect.poll(async () => (await snapshot(showId))?.accepted_revision, { timeout: 15_000 }).toBe(2);
@@ -416,7 +416,7 @@ test.describe('a trusted JSON source', () => {
       await publishProduction(page);
       await page.keyboard.press('Escape');
       const registered = await page.evaluate(async ({ id, registration }) => {
-        const { connectShowSource } = await import('/src/model/shows.ts');
+        const { connectShowSource } = await __noacgImport('/src/model/shows.ts');
         const source = { id: 'e1', kind: 'external' as const, label: 'Results', config: registration };
         return connectShowSource(id, source, [{ graphic: 'Hairline', fieldId: 'f0', path: 'external.e1.status' }]).error;
       }, { id: showId, registration: REGISTRATION });
@@ -456,8 +456,8 @@ test.describe('a trusted JSON source', () => {
 
       // No credential anywhere the page or a package can show.
       const exported = await page.evaluate(async (sid) => {
-        const { loadShows } = await import('/src/model/shows.ts');
-        const { buildShowZip } = await import('/src/export/showExport.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        const { buildShowZip } = await __noacgImport('/src/export/showExport.ts');
         const zip = await buildShowZip(loadShows().find((s) => s.id === sid)!);
         return (await Promise.all(Object.values(zip.files).filter((f) => !f.dir).map((f) => f.async('string')))).join('\n');
       }, showId);

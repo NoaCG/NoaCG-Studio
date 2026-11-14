@@ -164,7 +164,7 @@ test('the wizard viewing settings persist with the project across a reload', asy
   await expect
     .poll(async () =>
       page.evaluate(async () => {
-        const { loadProject } = await import('/src/model/project.ts');
+        const { loadProject } = await __noacgImport('/src/model/project.ts');
         return loadProject()?.legibility ?? null;
       }),
     )
@@ -175,8 +175,8 @@ test('the wizard viewing settings persist with the project across a reload', asy
   await expect(page.getByRole('navigation', { name: 'Studio' }).first()).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
   const restored = await page.evaluate(async () => {
-    const { loadProject } = await import('/src/model/project.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { loadProject } = await __noacgImport('/src/model/project.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return { slot: loadProject()?.legibility ?? null, store: useTemplateStore.getState().legibility };
   });
   expect(restored.slot).toEqual({ viewing: { profile: 'streaming' }, floors: 'relaxed' });
@@ -263,7 +263,7 @@ test('a shipped catalog design warns under the same rule and is not blocked', as
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const name = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     return variantById('lt48')?.name ?? null;
   });
   expect(name).toBeTruthy();
@@ -282,8 +282,8 @@ test('the computed floors scale off the template frame: 16:9 = 9:16, 720p smalle
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const floors = await page.evaluate(async (tpl) => {
-    const { checkTemplateLegibility } = await import('/src/validation/designRulesWarnings.ts');
-    const { DEFAULT_SETTINGS } = await import('/src/model/types.ts');
+    const { checkTemplateLegibility } = await __noacgImport('/src/validation/designRulesWarnings.ts');
+    const { DEFAULT_SETTINGS } = await __noacgImport('/src/model/types.ts');
     const at = async (width: number, height: number) => {
       const template = {
         ...tpl,

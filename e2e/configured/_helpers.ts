@@ -41,12 +41,12 @@ export async function unpublishForCleanup(page: Page): Promise<void> {
   await page.evaluate(async () => {
     const id = /#\/production\/([^/?#]+)/.exec(location.hash)?.[1];
     if (!id) throw new Error('unpublishForCleanup: not on a production page');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
-    const S = await import('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
     await unpublishControlShow(id);
     S.setShowHostedSlug(id, undefined);
     S.setShowOutputSlug(id, undefined);
-    await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
   });
   await page.reload();
   await page.getByTestId('production-page').waitFor();
@@ -216,9 +216,9 @@ export async function settleSync(page: Page): Promise<void> {
  *  one to pull back down — and specs that address a saved row by name would go ambiguous. */
 export async function wipeMyGraphics(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const { loadGraphics, deleteGraphic } = await import('/src/model/library.ts');
+    const { loadGraphics, deleteGraphic } = await __noacgImport('/src/model/library.ts');
     for (const g of loadGraphics()) deleteGraphic(g.id);
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
 }
@@ -234,13 +234,13 @@ export async function wipeMyGraphics(page: Page): Promise<void> {
  */
 export async function clearPublishedShows(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     for (const s of loadShows()) {
       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
       deleteShow(s.id);
     }
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
 }

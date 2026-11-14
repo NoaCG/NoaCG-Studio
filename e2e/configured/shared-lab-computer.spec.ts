@@ -52,14 +52,14 @@ async function signOutFromMenu(page: Page): Promise<void> {
  *  it so the account's cloud holds it before anybody signs out. */
 async function makeGraphic(page: Page, name: string): Promise<void> {
   await page.evaluate(async (n) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const { error } = createGraphic({ ...variantsFor('lower-third')[0].create({}), name: n }, { name: n, packageId: null });
     if (error) throw new Error(error);
   }, name);
   await settleDurableWrites(page);
   await page.evaluate(async () => {
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
 }
@@ -68,7 +68,7 @@ async function makeGraphic(page: Page, name: string): Promise<void> {
 async function libraryNames(page: Page): Promise<string[]> {
   await awaitDurableReady(page);
   return page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().map((g) => g.name).sort();
   });
 }

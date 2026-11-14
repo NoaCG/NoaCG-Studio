@@ -26,14 +26,14 @@ for (const [name, width, height] of [['desktop', 1366, 768], ['phone', 390, 844]
       await page.screenshot({ path: testInfo.outputPath('entry.png') });
     }
     const source = await page.evaluate(async () =>
-      (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+      (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
     await link.click();
     await expect(page.getByTestId('editor-foundation')).toBeVisible();
     await expect(page.locator('.wz-modal')).toBeHidden();
     await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
     await expect(page.locator('.ef-stage-error')).toHaveCount(0);
     expect(await page.evaluate(async () =>
-      (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(source);
+      (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(source);
     if (name !== 'desktop') {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await expect(page.getByTestId('foundation-canvas')).toBeInViewport();

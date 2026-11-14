@@ -59,10 +59,10 @@ async function production(page: Page, media: Record<string, unknown>[] = [], see
   const showId = await evaluateInPage(
     page,
     async ({ list, seed }) => {
-      const m = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const { useTemplateStore, flushPendingProject } = await import('/src/store/templateStore.ts');
-      const { useRouter } = await import('/src/app/router.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+      const { useTemplateStore, flushPendingProject } = await __noacgImport('/src/store/templateStore.ts');
+      const { useRouter } = await __noacgImport('/src/app/router.ts');
       const { show, error: notCreated } = m.createShowNamedChecked('Evening News');
       if (notCreated) throw new Error(`production: ${notCreated}`);
       const id = show.id;
@@ -309,8 +309,8 @@ test('OBS scenes: the switch offers a folder as a scene, which publishes its gra
   /** What a publish of the production would carry about scenes, and the folder's own flag. */
   const published = () =>
     page.evaluate(async (showId) => {
-      const { loadShows } = await import('/src/model/shows.ts');
-      const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
       const show = loadShows().find((s) => s.id === showId)!;
       const payload = await buildOutputPayload(show);
       return { scenes: payload.scenes ?? null, flagged: show.folders?.[0]?.obsScene === true, folder: show.folders?.[0]?.id };
@@ -367,7 +367,7 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
   /** The pool by name, and which graphic each cue drives. */
   const record = () =>
     page.evaluate(async (showId) => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       const show = loadShows().find((s) => s.id === showId)!;
       const name = (gid: string) => show.graphics.find((g) => g.id === gid)?.name;
       return {
@@ -426,9 +426,9 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
   // The copy publishes as the Desk's graphic, exports, and reads back the same after a reload (AC-3).
   const shipped = () =>
     page.evaluate(async (showId) => {
-      const { loadShows } = await import('/src/model/shows.ts');
-      const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-      const { buildShowZip } = await import('/src/export/showExport.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+      const { buildShowZip } = await __noacgImport('/src/export/showExport.ts');
       const show = loadShows().find((s) => s.id === showId)!;
       const payload = await buildOutputPayload(show);
       const zip = await buildShowZip(show);
@@ -477,9 +477,9 @@ test('OBS scenes: one row per scene in the panel, Playout settings copies each l
   // With an output link (as after a publish): Copy copies one scene's link, Copy all every link with
   // its scene's name, one per line.
   const scenes = await page.evaluate(async (showId) => {
-    const m = await import('/src/model/shows.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
     m.setShowOutputSlug(showId, 'probe-output');
-    const failure = await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    const failure = await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
     if (failure) throw new Error(failure);
     return (m.loadShows().find((s) => s.id === showId)!.folders ?? []).map((f) => f.id);
   }, id);
@@ -564,9 +564,9 @@ test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out
   await evaluateInPage(
     page,
     async (showId) => {
-      const m = await import('/src/model/shows.ts');
-      const { clockRuntimeJs } = await import('/src/templates/shared/clock.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { clockRuntimeJs } = await __noacgImport('/src/templates/shared/clock.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
       const t = useTemplateStore.getState().template;
       const { error } = m.addGraphicToShow(showId, {
         ...t,
@@ -580,7 +580,7 @@ test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out
       const field = t.fields![0].field;
       const linked = m.connectShowSource(showId, source, [{ graphic: 'Hairline', fieldId: field, path: 'sheet.s1.values.Name' }]);
       if (linked.error || linked.refused.length) throw new Error(linked.error ?? 'refused');
-      const failure = await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+      const failure = await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
       if (failure) throw new Error(failure);
     },
     id,
@@ -1047,7 +1047,7 @@ test('a step whose next cue has lost its graphic takes nothing off, and says why
   });
   // A teammate's save took Strap B's graphic away and left its cue: a record the page can be handed.
   await evaluateInPage(page, async () => {
-    const m = await import('/src/model/shows.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
     const show = m.loadShows().find((s) => s.name === 'Evening News')!;
     m.upsertShow({ ...show, graphics: show.graphics.filter((g) => g.name !== 'Strap B'), updatedAt: new Date().toISOString() });
   });
@@ -1361,7 +1361,7 @@ test('§18 cases 20 and 21: an orphan folderId and an empty folder draw no heade
   // A record as an older build or a merge could leave it: A(F) B C(F), a folder no cue names, and a
   // cue naming a folder that does not exist.
   await evaluateInPage(page, async () => {
-    const m = await import('/src/model/shows.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
     const show = structuredClone(m.loadShows().find((s) => s.name === 'Evening News')!);
     const [h, a, b, c] = show.cues!;
     show.folders = [
@@ -1842,7 +1842,7 @@ test('a seeded rundown reads back whole after a reload: graphics, layers, playba
   const read = async () => ({
     record: await evaluateInPage(
       page,
-      async (id) => JSON.stringify((await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)),
+      async (id) => JSON.stringify((await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)),
       showId,
     ),
     rows: await drawn(page),
@@ -1882,8 +1882,8 @@ test('§18 case 22: every writer of the rundown keeps each folder whole, and an 
     folders: [{ labels: ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA'], name: 'Block' }],
   });
   const steps = await evaluateInPage(page, async () => {
-    const m = await import('/src/model/shows.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const id = m.loadShows().find((s) => s.name === 'Evening News')!.id;
     const now = () => m.loadShows().find((s) => s.id === id)!;
     const cueOf = (label: string) => now().cues!.find((c) => c.label === label)!;
@@ -1983,10 +1983,10 @@ test('folders never leave the production page: the published payload, the export
     ],
   });
   const carried = await evaluateInPage(page, async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { buildShowZip, buildShowZipFor } = await import('/src/export/showExport.ts');
-    const { buildPack } = await import('/src/packs/graphicsPack.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+    const { buildShowZip, buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
+    const { buildPack } = await __noacgImport('/src/packs/graphicsPack.ts');
     const show = loadShows().find((s) => s.name === 'Evening News')!;
     const payload = JSON.parse(JSON.stringify(await buildOutputPayload(show)));
     const texts: string[] = [JSON.stringify(payload.cues), JSON.stringify(payload.playoutCues ?? [])];

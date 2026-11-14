@@ -7,17 +7,17 @@ import { pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
 
 const ready = async (page: Page) => { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); };
-const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+const source = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
 async function open(page: Page, fixture = 'catalog') {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  await page.evaluate(async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
+  await page.evaluate(async t => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
   await ready(page);
 }
 async function create(page: Page) {
   const ids = await page.evaluate(async () => {
-    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     const result = s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [
       { kind: 'layer.create', geometry: { shape: 'rectangle', x: 100, y: -400, width: 80, height: 50 } },
       { kind: 'layer.create', geometry: { shape: 'ellipse', x: 330, y: -320, width: 120, height: 70 } },
@@ -26,7 +26,7 @@ async function create(page: Page) {
   }); await ready(page); return ids;
 }
 async function select(page: Page, ids: string[]) {
-  await page.evaluate(async ids => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSelectedParts(ids), ids); await ready(page);
+  await page.evaluate(async ids => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().setSelectedParts(ids), ids); await ready(page);
 }
 async function rects(page: Page, ids: string[]) {
   const f = (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
@@ -90,11 +90,11 @@ test('alignment edges reach rendered bounds against the selection and the canvas
 test('vertical gaps, nested parent mapping and rotated artwork retain source and pose on undo', async ({ page }) => {
   await open(page); const ids = await create(page);
   await page.evaluate(async ids => {
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     const html = s.template.html.replace('<div id="' + ids[0].slice(1) + '" data-gfx></div>', '<div class="arrangement-parent"><div id="' + ids[0].slice(1) + '" data-gfx></div></div>');
     s.applyTemplate({ ...s.template, html, css: s.template.css + '\n.arrangement-parent {position:absolute;transform-origin:0 0;transform:translate(100px,80px) rotate(30deg) scale(2,.75)}' });
   }, ids); await ready(page);
-  await page.evaluate(async id => { const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(); s.execute({ documentId:s.documentId, expected:s.version(), transactionId:crypto.randomUUID(), operations:[{kind:'base.set',selector:id,values:{rotation:25,scaleX:1.3,scaleY:.8}}] }); }, ids[1]); await ready(page);
+  await page.evaluate(async id => { const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(); s.execute({ documentId:s.documentId, expected:s.version(), transactionId:crypto.randomUUID(), operations:[{kind:'base.set',selector:id,values:{rotation:25,scaleX:1.3,scaleY:.8}}] }); }, ids[1]); await ready(page);
   await select(page, [ids[0]]); const beforeNudge = await source(page), r = (await rects(page, [ids[0]]))[0];
   await page.getByTestId('foundation-canvas').focus(); await page.keyboard.press('Shift+ArrowRight'); await ready(page);
   const moved = (await rects(page, [ids[0]]))[0]; expect(Math.abs(moved.x-r.x-10)).toBeLessThan(.01); expect(Math.abs(moved.y-r.y)).toBeLessThan(.01);
@@ -115,7 +115,7 @@ test('vertical gaps, nested parent mapping and rotated artwork retain source and
 test('imported SVG and Pen geometry align as artwork, with identity and sibling preservation', async ({ page }) => {
   await open(page,'svg');
   await page.evaluate(async () => {
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<g transform="translate(210 90) rotate(25) scale(1.4 .7)"><rect id="arrange-a" x="0" y="0" width="90" height="60" fill="orange"/><path id="arrange-b" d="M180 80 L260 80 L240 140 Z" fill="red"/></g></svg>')});
   }); await ready(page); await select(page,['#arrange-a','#arrange-b']); const before = await source(page);
   await page.getByRole('button',{name:'Align top',exact:true}).click(); await ready(page);
@@ -127,7 +127,7 @@ test('imported SVG and Pen geometry align as artwork, with identity and sibling 
 test('mixed animated and base movement keys only its armed channel at the playhead', async ({ page }) => {
   await open(page); const ids = await create(page);
   await page.evaluate(async id => {
-    const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const s=(await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'animation.key',selector:id,property:'x',step:0,time:0,value:0,action:'set'}]});
   },ids[0]); await ready(page);
   const ruler=page.getByTestId('foundation-ruler'); await ruler.focus(); await ruler.press('Home'); await ready(page); await ruler.press('Shift+ArrowRight'); await ready(page);
@@ -135,7 +135,7 @@ test('mixed animated and base movement keys only its armed channel at the playhe
   await page.getByTestId('foundation-canvas').focus(); await page.keyboard.press('Shift+ArrowRight'); await ready(page);
   const after=await source(page), r=await rects(page,ids.slice(0,2)); r.forEach((r,i)=>expect(r.x-initial[i].x).toBeCloseTo(10,1));
   const motion=await page.evaluate(async ({before,after,id})=>{
-    const {parseAnimData}=await import('/src/blocks/animData.ts');
+    const {parseAnimData}=await __noacgImport('/src/blocks/animData.ts');
     return {before:parseAnimData(before.js)!.steps[0].layers[id],after:parseAnimData(after.js)!.steps[0].layers[id]};
   },{before,after,id:ids[0]});
   expect(motion.after.x).toHaveLength(2); expect(motion.after.x[0]).toEqual(motion.before.x[0]); expect(motion.after.y).toBeUndefined();
@@ -146,11 +146,11 @@ test('mixed animated and base movement keys only its armed channel at the playhe
 test('keyboard text-box resizing reflows without scaling type or moving the pivot', async ({ page }) => {
   await open(page);
   const id=await page.evaluate(async ()=>{
-    const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const s=(await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     return s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'layer.create',geometry:{shape:'text',x:300,y:-450,width:300,height:120,box:true}}]}).changedTargets[0];
   }); await ready(page); await select(page,[id]); const before=await source(page);
   const properties=await page.evaluate(async ({id,before})=>{
-    const {baseValues}=await import('/src/blocks/baseEdits.ts'); return baseValues(before,id).target;
+    const {baseValues}=await __noacgImport('/src/blocks/baseEdits.ts'); return baseValues(before,id).target;
   },{id,before});
   const f=(await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
   const style=await f.locator(id).evaluate(el=>{const s=getComputedStyle(el);return {font:s.fontSize,scale:s.scale};});
@@ -191,9 +191,9 @@ test('Escape, blur and stale source cancel a held key and later repeats stay qui
     if(exit==='Escape') await page.keyboard.press('Escape');
     else if(exit==='blur') await page.getByRole('button',{name:'Align left',exact:true}).focus();
     else if(exit==='window') await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
-    else if(exit==='asset') await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,assets:[...s.template.assets,{path:'notes.txt',data:'data:text/plain;base64,YQ=='}]});});
-    else if(exit==='sample') await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue('f0','Sample changed while held'));
-    else if(exit==='source') await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,css:s.template.css+'\n/* external edit */'});});
+    else if(exit==='asset') await page.evaluate(async()=>{const s=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,assets:[...s.template.assets,{path:'notes.txt',data:'data:text/plain;base64,YQ=='}]});});
+    else if(exit==='sample') await page.evaluate(async()=>(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue('f0','Sample changed while held'));
+    else if(exit==='source') await page.evaluate(async()=>{const s=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,css:s.template.css+'\n/* external edit */'});});
     else if(exit==='selection') await select(page,[ids[1]]);
     else { const ruler=page.getByTestId('foundation-ruler'); await ruler.focus(); await ruler.press('ArrowRight'); }
     if(exit==='source') await expect(page.locator('.ef-arrangement-error')).toContainText('Release the arrows');
@@ -205,13 +205,13 @@ test('Escape, blur and stale source cancel a held key and later repeats stay qui
 
 test('mixed unsupported selection and collapsed parent refuse without partial source changes', async ({ page })=>{
   await open(page); const ids=await create(page);
-  await page.evaluate(async id=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,css:s.template.css+'\n'+id+' { translate:20px 0; }'});},ids[1]);await ready(page);await select(page,ids);
+  await page.evaluate(async id=>{const s=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,css:s.template.css+'\n'+id+' { translate:20px 0; }'});},ids[1]);await ready(page);await select(page,ids);
   const before=await source(page);await page.getByRole('button',{name:'Align left',exact:true}).click();
   await expect(page.locator('.ef-arrangement-error')).toContainText('CSS translate');expect(await source(page)).toEqual(before);
   await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('ArrowRight');expect(await source(page)).toEqual(before);
   await expect(page.locator('.ef-arrangement-error')).toContainText('CSS translate');
   await page.evaluate(async id=>{
-    const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState(),node='<div id="'+id.slice(1)+'" data-gfx></div>';
+    const s=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(),node='<div id="'+id.slice(1)+'" data-gfx></div>';
     s.applyTemplate({...s.template,html:s.template.html.replace(node,'<div style="position:absolute;scale:0">'+node+'</div>')});
   },ids[0]);await ready(page);await select(page,[ids[0]]);const collapsed=await source(page);
   await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('ArrowRight');
@@ -228,10 +228,10 @@ test('template search, UI-created artwork, save/reopen and executed exports at d
   for(const [x,y,w,h] of [[320,280,100,70],[650,400,150,90]]){
     await page.getByRole('button',{name:'rectangle tool',exact:true}).click();
     const a=await screen(x,y),b=await screen(x+w,y+h);await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(b.x,b.y,{steps:4});await page.mouse.up();await ready(page);
-    ids.push((await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
+    ids.push((await page.evaluate(async()=>(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
   }
   await page.getByRole('button',{name:'pen tool',exact:true}).click();await point(950,550);await point(1070,550);await point(1010,630);await point(950,550);await ready(page);
-  ids.push((await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
+  ids.push((await page.evaluate(async()=>(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
   await page.getByRole('button',{name:'select tool',exact:true}).click();
   for(const [i,id] of ids.entries())await page.locator('.ef-track[data-selector="'+id+'"] .ef-layer').click(i?{modifiers:['Control']}:{});
   await page.getByRole('button',{name:'Align left',exact:true}).click();await ready(page);
@@ -248,12 +248,12 @@ test('template search, UI-created artwork, save/reopen and executed exports at d
   await page.getByTestId('save-graphic').click();await page.getByTestId('save-name').fill('Arranged Hairline');await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-status')).toHaveText('Saved');await settleDurableWrites(page);await page.reload();await ready(page);
   const reopened=await source(page);expect(reopened.html).toBe(beforeSave.html);expect(reopened.css).toBe(beforeSave.css);
-  const motions=await page.evaluate(async js=>{const {parseAnimData}=await import('/src/blocks/animData.ts');return js.map(parseAnimData);},[beforeSave.js,reopened.js]);expect(motions[1]).toEqual(motions[0]);
+  const motions=await page.evaluate(async js=>{const {parseAnimData}=await __noacgImport('/src/blocks/animData.ts');return js.map(parseAnimData);},[beforeSave.js,reopened.js]);expect(motions[1]).toEqual(motions[0]);
   const authored=await rects(page,ids);
   for(const target of ['spx','casparcg','ograf']){
     const files=await page.evaluate(async target=>{
-      const t=(await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip=await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t=>t.id===target)!.build(t);
+      const t=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip=await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t=>t.id===target)!.build(t);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n=>!zip.files[n].dir).map(async n=>[n.slice(n.indexOf('/')+1),await zip.file(n)!.async('base64')])));
     },target);
     const output=await page.context().newPage(),exportErrors:string[]=[];output.on('pageerror',e=>exportErrors.push(e.message));await output.setViewportSize({width:1920,height:1080});
@@ -275,21 +275,21 @@ test('template search, UI-created artwork, save/reopen and executed exports at d
 
 test('animated resize preserves its earlier scale key and refuses shared-axis conflicts', async ({page})=>{
   await open(page);const ids=await create(page);
-  await page.evaluate(async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'animation.key',selector:id,step:0,property:'scaleX',time:0,value:1,action:'set'}]});},ids[0]);await ready(page);
+  await page.evaluate(async id=>{const s=(await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'animation.key',selector:id,step:0,property:'scaleX',time:0,value:1,action:'set'}]});},ids[0]);await ready(page);
   const ruler=page.getByTestId('foundation-ruler');await ruler.focus();await ruler.press('Home');await ready(page);await ruler.press('Shift+ArrowRight');await ready(page);await select(page,[ids[0]]);
   const before=await source(page),r=(await rects(page,[ids[0]]))[0];
   await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Control+Shift+ArrowRight');await ready(page);
   const next=await source(page),resized=(await rects(page,[ids[0]]))[0];expect(Math.abs(resized.width-r.width-10)).toBeLessThan(.12);
-  const keys=await page.evaluate(async({id,js})=>(await import('/src/blocks/animData.ts')).parseAnimData(js)!.steps[0].layers[id].scaleX,{id:ids[0],js:next.js});expect(keys).toHaveLength(2);expect(keys[0]).toEqual({time:0,value:1});
+  const keys=await page.evaluate(async({id,js})=>(await __noacgImport('/src/blocks/animData.ts')).parseAnimData(js)!.steps[0].layers[id].scaleX,{id:ids[0],js:next.js});expect(keys).toHaveLength(2);expect(keys[0]).toEqual({time:0,value:1});
   await undo(page);expect(await source(page)).toEqual(before);
-  await page.evaluate(async id=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();const {parseAnimData,spliceAnimData}=await import('/src/blocks/animData.ts');const data=parseAnimData(s.template.js)!;data.steps[0].layers[id]={scale:[{time:0,value:1}]};s.applyTemplate({...s.template,js:spliceAnimData(s.template.js,data)!});},ids[0]);await ready(page);await select(page,[ids[0]]);const shared=await source(page);
+  await page.evaluate(async id=>{const s=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();const {parseAnimData,spliceAnimData}=await __noacgImport('/src/blocks/animData.ts');const data=parseAnimData(s.template.js)!;data.steps[0].layers[id]={scale:[{time:0,value:1}]};s.applyTemplate({...s.template,js:spliceAnimData(s.template.js,data)!});},ids[0]);await ready(page);await select(page,[ids[0]]);const shared=await source(page);
   await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Control+ArrowRight');
   await expect(page.locator('.ef-arrangement-error')).toContainText('share one scale track');expect(await source(page)).toEqual(shared);
 });
 
 test('parent-child selection refuses and no-op alignment adds no history', async({page})=>{
   await open(page,'svg');
-  await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<g id="arrangement-group"><rect id="arrangement-child" width="70" height="40" fill="orange"/></g></svg>')});});await ready(page);
+  await page.evaluate(async()=>{const s=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<g id="arrangement-group"><rect id="arrangement-child" width="70" height="40" fill="orange"/></g></svg>')});});await ready(page);
   await select(page,['#arrangement-group','#arrangement-child']);const before=await source(page);await page.getByRole('button',{name:'Align left',exact:true}).click();await expect(page.locator('.ef-arrangement-error')).toContainText('contains');expect(await source(page)).toEqual(before);
   await select(page,['#arrangement-child']);await page.getByRole('button',{name:'Align left',exact:true}).click();await ready(page);const aligned=await source(page);
   await page.getByRole('button',{name:'Align left',exact:true}).click();await ready(page);expect(await source(page)).toEqual(aligned);
@@ -304,7 +304,7 @@ test('keyboard resize refuses collapsing any member of a mixed selection', async
 });
 
 test('one-pixel keyboard resize remains precise on a wide layer', async({page})=>{
-  await open(page);const id=await page.evaluate(async()=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();return s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'layer.create',geometry:{shape:'rectangle',x:100,y:-300,width:1600,height:100}}]}).changedTargets[0];});await ready(page);await select(page,[id]);
+  await open(page);const id=await page.evaluate(async()=>{const s=(await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();return s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'layer.create',geometry:{shape:'rectangle',x:100,y:-300,width:1600,height:100}}]}).changedTargets[0];});await ready(page);await select(page,[id]);
   const before=await source(page),r=(await rects(page,[id]))[0];await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Control+ArrowRight');await ready(page);
   const resized=(await rects(page,[id]))[0];expect(Math.abs(resized.width-r.width-1)).toBeLessThan(.05);
   await undo(page);expect(await source(page)).toEqual(before);
@@ -312,11 +312,11 @@ test('one-pixel keyboard resize remains precise on a wide layer', async({page})=
 
 test('an anonymous imported path gains identity only on committed alignment', async({page})=>{
   await open(page,'svg');const anonymous=await page.evaluate(async()=>{
-    const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();const html=s.template.html.replace('</svg>','<path data-arrangement="anonymous" d="M600 60 L680 60 L640 120 Z" fill="orange"/><rect id="named-arrangement" x="450" y="200" width="80" height="40" fill="red"/></svg>');
-    s.applyTemplate({...s.template,html});const doc=new DOMParser().parseFromString(html,'text/html');return (await import('/src/model/structure.ts')).getTemplateParts(html,s.template.fields,true).find(p=>doc.querySelector(p.selector)?.getAttribute('data-arrangement')==='anonymous')!.selector;
+    const s=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();const html=s.template.html.replace('</svg>','<path data-arrangement="anonymous" d="M600 60 L680 60 L640 120 Z" fill="orange"/><rect id="named-arrangement" x="450" y="200" width="80" height="40" fill="red"/></svg>');
+    s.applyTemplate({...s.template,html});const doc=new DOMParser().parseFromString(html,'text/html');return (await __noacgImport('/src/model/structure.ts')).getTemplateParts(html,s.template.fields,true).find(p=>doc.querySelector(p.selector)?.getAttribute('data-arrangement')==='anonymous')!.selector;
   });await ready(page);expect(anonymous).toContain('body:nth-of-type(');await select(page,[anonymous,'#named-arrangement']);const before=await source(page);
   await page.getByRole('button',{name:'Align left',exact:true}).click();await ready(page);
-  const selected=await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);expect(selected[0]).toMatch(/^#/);
+  const selected=await page.evaluate(async()=>(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);expect(selected[0]).toMatch(/^#/);
   const r=await rects(page,selected);expect(Math.abs(r[0].x-r[1].x)).toBeLessThan(.12);const edited=await source(page);expect(edited.fields).toEqual(before.fields);expect(edited.assets).toEqual(before.assets);expect(edited.js).toBe(before.js);
   await undo(page);expect(await source(page)).toEqual(before);await page.getByRole('button',{name:'Redo',exact:true}).click();await ready(page);expect(await source(page)).toEqual(edited);
 });
@@ -329,7 +329,7 @@ test('imported image keyboard transforms preserve its asset and siblings',async(
 });
 
 test('own SVG transform resizes in local axes or specifically refuses without changing source',async({page})=>{
-  await open(page,'svg');await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="turned-import" x="400" y="150" width="140" height="70" transform="rotate(25 470 185)" fill="orange"/></svg>')});});await ready(page);await select(page,['#turned-import']);
+  await open(page,'svg');await page.evaluate(async()=>{const s=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="turned-import" x="400" y="150" width="140" height="70" transform="rotate(25 470 185)" fill="orange"/></svg>')});});await ready(page);await select(page,['#turned-import']);
   const before=await source(page),f=(await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
   const sides=()=>f.locator('#turned-import').evaluate(el=>{const m=(el as SVGGraphicsElement).getScreenCTM()!,b=(el as SVGGraphicsElement).getBBox();return {width:Math.hypot(m.a,m.b)*b.width,height:Math.hypot(m.c,m.d)*b.height};});
   const initial=await sides();await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Control+ArrowRight');await ready(page);
@@ -342,7 +342,7 @@ test('own SVG transform resizes in local axes or specifically refuses without ch
 });
 
 for(const transform of ['rotate(25deg)','translate(20px,10px)']) test('own CSS transform resizes in local axes or specifically refuses without changing source: '+transform,async({page})=>{
-  await open(page);const id=(await create(page))[0];await page.evaluate(async ({id,transform})=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,css:s.template.css+'\n'+id+' {transform:'+transform+'}'});},{id,transform});await ready(page);await select(page,[id]);const before=await source(page);
+  await open(page);const id=(await create(page))[0];await page.evaluate(async ({id,transform})=>{const s=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,css:s.template.css+'\n'+id+' {transform:'+transform+'}'});},{id,transform});await ready(page);await select(page,[id]);const before=await source(page);
   const f=(await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
   const sides=()=>f.locator(id).evaluate(el=>{const s=getComputedStyle(el),scale=s.scale==='none'?[1,1]:s.scale.split(' ').map(Number),m=new DOMMatrix().scale(scale[0],scale[1]??scale[0]).multiply(new DOMMatrix(s.transform==='none'?undefined:s.transform));return {width:Math.hypot(m.a,m.b)*parseFloat(s.width),height:Math.hypot(m.c,m.d)*parseFloat(s.height)};});
   const initial=await sides(),pivot=await page.locator('[data-anchor]').getAttribute('transform');await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Control+ArrowRight');await ready(page);
@@ -354,7 +354,7 @@ for(const transform of ['rotate(25deg)','translate(20px,10px)']) test('own CSS t
 });
 
 test('one composition pixel remains exact with normalized SVG coordinates',async({page})=>{
-  await open(page,'svg');await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<g transform="translate(400 150) scale(2000)"><rect id="normalized-art" x=".001" y=".001" width=".04" height=".04" fill="orange"/></g></svg>')});});await ready(page);await select(page,['#normalized-art']);const before=await source(page),initial=(await rects(page,['#normalized-art']))[0];
+  await open(page,'svg');await page.evaluate(async()=>{const s=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<g transform="translate(400 150) scale(2000)"><rect id="normalized-art" x=".001" y=".001" width=".04" height=".04" fill="orange"/></g></svg>')});});await ready(page);await select(page,['#normalized-art']);const before=await source(page),initial=(await rects(page,['#normalized-art']))[0];
   await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('ArrowRight');await ready(page);
   const moved=(await rects(page,['#normalized-art']))[0];expect(Math.abs(moved.x-initial.x-1)).toBeLessThan(.01);expect(Math.abs(moved.y-initial.y)).toBeLessThan(.01);await undo(page);expect(await source(page)).toEqual(before);
 });

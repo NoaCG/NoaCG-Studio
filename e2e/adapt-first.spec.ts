@@ -154,14 +154,14 @@ test('a brief becomes a customized graphic adapted from a proven design', async 
   // The spec asked for top-right; the design is a bottom-anchored strap, and 88 of 89 catalog
   // lower thirds are (docs/ADAPT_FIRST_PLAN.md §1.1).
   const declaredZone = await page.evaluate(async (id) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     return (variantById(id) as { defaultZone: string }).defaultZone;
   }, picked);
   expect(declaredZone).toMatch(/^bottom-/);
 
   // ── 4. The result says which proven design it adapted ───────────────────────
   const variantName = await page.evaluate(async (id) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     return (variantById(id) as { name: string }).name;
   }, picked);
   await expect(page.getByTestId('ai-adapted-from')).toContainText(variantName);
@@ -176,7 +176,7 @@ test('a brief becomes a customized graphic adapted from a proven design', async 
   await expect(page.getByTestId('export-window')).toBeVisible();
   const doc = await mountWorkingDocument(page);
   const sample = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().sampleData as Record<string, string>;
   });
   await updateWorkingDocument(doc, sample);
@@ -195,9 +195,9 @@ test('a brief becomes a customized graphic adapted from a proven design', async 
   await expect(doc.locator('#f0')).toContainText('Miriam Aalto');
 
   const state = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const tpl = (useTemplateStore.getState() as { template: { css: string; js: string; fields: unknown[] } }).template;
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     const res = await validateTemplate(tpl);
     return {
       errors: res.errors,
@@ -260,7 +260,7 @@ test('the shortlist is shown, and picking another design rebuilds on it for free
 
   // The result now names the design that was picked, and still passes its checks.
   const otherName = await page.evaluate(async (id) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     return (variantById(id!) as { name: string }).name;
   }, otherId);
   await expect(page.getByTestId('ai-adapted-from')).toContainText(otherName);

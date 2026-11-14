@@ -63,9 +63,9 @@ async function rehearsal(page: Page) {
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
   const seeded = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamedChecked, addGraphicToShow, addPlayoutItem, loadShows } = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamedChecked, addGraphicToShow, addPlayoutItem, loadShows } = await __noacgImport('/src/model/shows.ts');
     const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'NEXT QUESTION' });
     if (error) throw new Error(error);
     const made = createShowNamedChecked('Studio rehearsal');
@@ -118,7 +118,7 @@ test('cloud confirmation never rewrites a saved cue draft or replaces a teammate
   await field.fill('SAVED QUESTION');
   await field.blur();
   const held = () => page.evaluate(async ({ id, question }) => {
-    const show = (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!;
+    const show = (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!;
     return { at: show.updatedAt, value: show.cues!.find(c => c.id === question)!.values.f0 };
   }, { id, question });
   await expect.poll(async () => (await held()).value).toBe('SAVED QUESTION');
@@ -127,7 +127,7 @@ test('cloud confirmation never rewrites a saved cue draft or replaces a teammate
   expect(await held()).toEqual(saved);
   // A landed remote record uses the same data-changed path as cloud/team reconciliation.
   await page.evaluate(async ({ id, question }) => {
-    const { loadShows, upsertShow } = await import('/src/model/shows.ts');
+    const { loadShows, upsertShow } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find(s => s.id === id)!;
     upsertShow({ ...show, cues: show.cues!.map(c => c.id === question ? { ...c, values: { ...c.values, f0: 'TEAMMATE QUESTION' } } : c) });
   }, { id, question });
@@ -137,7 +137,7 @@ test('cloud confirmation never rewrites a saved cue draft or replaces a teammate
   expect(await held()).toEqual(remote);
   await field.fill('PENDING QUESTION');
   const sameTick = await page.evaluate(async id => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const NativeDate = Date;
     const dateDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Date')!;
     let tick = Date.now();
@@ -158,7 +158,7 @@ test('a refused cue draft write stays on screen and can be flushed after storage
   const { id, question } = await rehearsal(page);
   const field = page.getByTestId('cue-field-f0');
   await page.evaluate(async () => {
-    const { durable } = await import('/src/model/durableStore.ts');
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
     const original = durable.setItem;
     durable.setItem = (key, value) => {
       if (key === 'spx-gfx-shows') throw new Error('Injected full store');
@@ -170,7 +170,7 @@ test('a refused cue draft write stays on screen and can be flushed after storage
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush')));
   await expect(field).toHaveValue('RECOVER THIS QUESTION');
   const heldValue = () => page.evaluate(async ({ id, question }) => {
-    const show = (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!;
+    const show = (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!;
     return show.cues!.find(c => c.id === question)!.values.f0;
   }, { id, question });
   expect(await heldValue()).not.toBe('RECOVER THIS QUESTION');
@@ -184,7 +184,7 @@ test('a refused cue draft write stays on screen and can be flushed after storage
 
 test('a graphic cue on its own key names itself once in the note', async ({ page }) => {
   const { id, question } = await rehearsal(page);
-  const label = await page.evaluate(async ({ id, question }) => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!.cues!.find(c => c.id === question)!.label, { id, question });
+  const label = await page.evaluate(async ({ id, question }) => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!.cues!.find(c => c.id === question)!.label, { id, question });
   await assign(page, label, 'q');
   await parkFocusOffControls(page);
   await page.keyboard.press('q');
@@ -367,15 +367,15 @@ test('account expiry flushes delayed editor work and retains team recovery acros
   await page.goto('/app#/home');
   await awaitDurableReady(page);
   let reloaded = page.waitForEvent('load');
-  await page.evaluate(async () => { const { bindLibraryToAccount } = await import('/src/backend/accountLibrary.ts'); void bindLibraryToAccount('account-a'); });
+  await page.evaluate(async () => { const { bindLibraryToAccount } = await __noacgImport('/src/backend/accountLibrary.ts'); void bindLibraryToAccount('account-a'); });
   await reloaded;
   await awaitDurableReady(page);
   const result = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createShowNamedChecked } = await import('/src/model/shows.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { retainTeamEdit, acknowledgeTeamEdit, pendingTeamEdits } = await import('/src/model/teamOutbox.ts');
-    const { setAccountAuthoringEnabled, commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createShowNamedChecked } = await __noacgImport('/src/model/shows.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { retainTeamEdit, acknowledgeTeamEdit, pendingTeamEdits } = await __noacgImport('/src/model/teamOutbox.ts');
+    const { setAccountAuthoringEnabled, commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const base = { ...createShowNamedChecked('Team quiz').show, teamId: 'team-a' };
     const local = { ...base, name: 'Home edits' };
     retainTeamEdit('account-a', base.id, { token: 'base-revision', base, local, teamId: 'team-a', updatedBy: 'account-a' });
@@ -393,22 +393,22 @@ test('account expiry flushes delayed editor work and retains team recovery acros
   await page.reload();
   await awaitDurableReady(page);
   expect(await page.evaluate(async () => {
-    const { loadProject } = await import('/src/model/project.ts');
-    const { pendingTeamEdits } = await import('/src/model/teamOutbox.ts');
+    const { loadProject } = await __noacgImport('/src/model/project.ts');
+    const { pendingTeamEdits } = await __noacgImport('/src/model/teamOutbox.ts');
     return { css: loadProject()?.template.css, names: Object.values(pendingTeamEdits('account-a')).map(e => e.local.name) };
   })).toEqual({ css: result.css, names: ['Home edits'] });
   reloaded = page.waitForEvent('load');
-  await page.evaluate(async () => { const { bindLibraryToAccount } = await import('/src/backend/accountLibrary.ts'); void bindLibraryToAccount('account-b'); });
+  await page.evaluate(async () => { const { bindLibraryToAccount } = await __noacgImport('/src/backend/accountLibrary.ts'); void bindLibraryToAccount('account-b'); });
   await reloaded;
   await awaitDurableReady(page);
-  expect(await page.evaluate(async () => { const { pendingTeamEdits } = await import('/src/model/teamOutbox.ts'); return pendingTeamEdits('account-b'); })).toEqual({});
+  expect(await page.evaluate(async () => { const { pendingTeamEdits } = await __noacgImport('/src/model/teamOutbox.ts'); return pendingTeamEdits('account-b'); })).toEqual({});
 });
 
 test('expiry commits pending cue and folder text, pauses their editing and leaves media transport usable', async ({ page }) => {
   await page.goto('/app#/home');
   await awaitDurableReady(page);
   const reloaded = page.waitForEvent('load');
-  await page.evaluate(async () => { const { bindLibraryToAccount } = await import('/src/backend/accountLibrary.ts'); void bindLibraryToAccount('transport-account'); });
+  await page.evaluate(async () => { const { bindLibraryToAccount } = await __noacgImport('/src/backend/accountLibrary.ts'); void bindLibraryToAccount('transport-account'); });
   await reloaded;
   const { id, question, bridge } = await rehearsal(page);
   // The account switch left the page on the same hash route, so the helper's later init script
@@ -417,15 +417,15 @@ test('expiry commits pending cue and folder text, pauses their editing and leave
   await expect(page.locator('.pd-cue')).toHaveCount(4);
   await page.locator(`[data-row="${question}"]`).getByTestId('select-cue').click();
   await page.getByTestId('cue-label').fill('Pending cue name');
-  await page.evaluate(async () => { const { setAccountAuthoringEnabled } = await import('/src/model/durableStore.ts'); setAccountAuthoringEnabled(false); });
+  await page.evaluate(async () => { const { setAccountAuthoringEnabled } = await __noacgImport('/src/model/durableStore.ts'); setAccountAuthoringEnabled(false); });
   expect(await page.evaluate(async ({ id, question }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find(s => s.id === id)?.cues?.find(c => c.id === question)?.label;
   }, { id, question })).toBe('Pending cue name');
   await expect(page.getByTestId('cue-editor')).toHaveAttribute('inert', '');
   const folderId = await page.evaluate(async ({ id, question }) => {
-    const { setAccountAuthoringEnabled } = await import('/src/model/durableStore.ts');
-    const { addFolderFromSelection } = await import('/src/model/shows.ts');
+    const { setAccountAuthoringEnabled } = await __noacgImport('/src/model/durableStore.ts');
+    const { addFolderFromSelection } = await __noacgImport('/src/model/shows.ts');
     setAccountAuthoringEnabled(true);
     const added = addFolderFromSelection(id, [question], 'Original folder');
     if (added.error) throw new Error(added.error);
@@ -433,9 +433,9 @@ test('expiry commits pending cue and folder text, pauses their editing and leave
   }, { id, question });
   await page.locator('.pd-folder', { hasText: 'Original folder' }).getByTestId('select-folder').click();
   await page.getByTestId('folder-name-input').fill('Pending folder name');
-  await page.evaluate(async () => { const { setAccountAuthoringEnabled } = await import('/src/model/durableStore.ts'); setAccountAuthoringEnabled(false); });
+  await page.evaluate(async () => { const { setAccountAuthoringEnabled } = await __noacgImport('/src/model/durableStore.ts'); setAccountAuthoringEnabled(false); });
   expect(await page.evaluate(async ({ id, folderId }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find(s => s.id === id)?.folders?.find(f => f.id === folderId)?.name;
   }, { id, folderId })).toBe('Pending folder name');
   await expect(page.locator('[data-account-authoring="paused"]').filter({ has: page.getByTestId('folder-editor') })).toHaveAttribute('inert', '');
@@ -455,8 +455,8 @@ test('expiry commits pending cue and folder text, pauses their editing and leave
 test('rundown admission refuses an oversized draft before adding a cue', async ({ page }) => {
   await rehearsal(page);
   const draft = await page.evaluate(async () => {
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
     const template = variantsFor('lower-third')[0].create({});
     template.name = 'Oversized draft';
     template.css += `/*${'x'.repeat(530000)}*/`;
@@ -469,9 +469,9 @@ test('rundown admission refuses an oversized draft before adding a cue', async (
   await expect(page.getByTestId('rundown-note')).toContainText('512 KB');
   await expect(page.locator('.pd-cue')).toHaveCount(4);
   const bulk = await page.evaluate(async graphic => {
-    const L = await import('/src/model/library.ts');
-    const S = await import('/src/model/shows.ts');
-    const { installPack } = await import('/src/packs/graphicsPack.ts');
+    const L = await __noacgImport('/src/model/library.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
+    const { installPack } = await __noacgImport('/src/packs/graphicsPack.ts');
     const before = { graphics: L.loadGraphics().length, shows: S.loadShows().length };
     let error = '';
     try { await installPack({ name: 'Oversized set', description: '', graphics: [{ template: L.loadGraphics().find(g => g.id === graphic)!.template, cues: [] }] }); }
@@ -485,7 +485,7 @@ test('rundown admission refuses an oversized draft before adding a cue', async (
 test('SVG import strips non-rendering editor payload while keeping artwork and identifying fully off-canvas text', async ({ page }) => {
   await page.goto('/app#/home');
   const result = await page.evaluate(async () => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 20 100 100"><metadata>${'private-editor-data'.repeat(35000)}</metadata><title>Quiz artwork</title><defs><linearGradient id="paint"><stop stop-color="red"/></linearGradient></defs><rect x="10" y="20" width="100" height="100" fill="url(#paint)"/><text x="20" y="60">Visible question</text><g transform="translate(500 0)"><text x="20" y="60">Hidden question</text></g></svg>`;
     const imported = importSvgMarkup(source);
     return { markup: imported.markup, candidates: imported.candidates.map(c => ({ sample: c.sample, outside: !!c.outsideCanvas })), notices: imported.notices };
@@ -503,7 +503,7 @@ test('metadata preparation adopts while on air, and a new stage resolution waits
   // the preparer itself decides is metadata, and the whole-page reload a new resolution needs.
   await page.goto('/app#/home');
   const result = await page.evaluate(async () => {
-    const { createPreparer } = await import('/src/output/prepare.ts');
+    const { createPreparer } = await __noacgImport('/src/output/prepare.ts');
     let onAir = 1, now = 0, adopted = 0, rechecked = 0, reloaded = 0, applied = 0;
     const swapper = { apply: async () => { applied++; return 0; }, beforePlay() {}, afterStop() {}, tick() {}, waiting: () => [], failed: () => [], holds: () => true };
     const HD = { width: 1920, height: 1080, label: 'HD' };
@@ -586,8 +586,8 @@ test('cloud acknowledgement covers the current working revision; failed writes s
   await expect(page.getByTestId('sync-panel')).toHaveCount(0);
   expect(await page.locator('.home-page').evaluate(el => el.getBoundingClientRect().height)).toBe(await page.evaluate(() => window.innerHeight));
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     useTemplateStore.getState().setCss('/* current cloud revision */');
     // Deliberately before the 800 ms autosave. Retry must cover this edit.
     await syncNow();
@@ -596,8 +596,8 @@ test('cloud acknowledgement covers the current working revision; failed writes s
   expect([...rows.values()].find(row => row.kind === 'project')?.body.template?.css).toBe('/* current cloud revision */');
   failWrites = true;
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     useTemplateStore.getState().setCss('/* failed save stays here */');
     await syncNow();
   });
@@ -606,7 +606,7 @@ test('cloud acknowledgement covers the current working revision; failed writes s
   await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'warn');
   await expect(page.getByTestId('account-save-notice')).toContainText('Not saved to cloud');
   expect([...rows.values()].find(row => row.kind === 'project')?.body.template?.css).toBe('/* current cloud revision */');
-  await page.evaluate(async () => { const { getSupabase } = await import('/src/backend/supabase.ts'); await (await getSupabase())!.auth.signOut({ scope: 'local' }); });
+  await page.evaluate(async () => { const { getSupabase } = await __noacgImport('/src/backend/supabase.ts'); await (await getSupabase())!.auth.signOut({ scope: 'local' }); });
   await expect(page.getByTestId('account-save-notice')).toContainText('Account editing paused');
   await expect(page.locator('[aria-modal="true"]')).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 600 });
@@ -620,7 +620,7 @@ test('cloud acknowledgement covers the current working revision; failed writes s
   expect(control!.y + control!.height).toBeLessThanOrEqual(pausedNotice!.y);
   await page.screenshot({ path: 'test-results/studio-account-paused.png', fullPage: true });
   expect(await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     useTemplateStore.getState().setCss('/* refused after expiry */');
     return useTemplateStore.getState().template.css;
   })).toBe('/* failed save stays here */');
@@ -668,7 +668,7 @@ test('a second tab returns to Synced when the tab that made the change confirms 
   await expect(b.locator('.sync-status')).toHaveText('Synced', { timeout: 20_000 });
   const before = rows.size;
   await a.evaluate(async () => {
-    const { createLook } = await import('/src/model/packets.ts');
+    const { createLook } = await __noacgImport('/src/model/packets.ts');
     createLook('From tab A', { styleTag: 'minimal', palette: { id: 'captured', name: 'Captured', styleTags: ['minimal'], accent: '#22aa66', text: '#ffffff', textDim: 'rgba(255,255,255,0.7)', panel: 'rgba(12,14,18,0.92)' }, fontId: null, customFont: null });
   });
   // B hears the change, and says it is in flight, quietly.

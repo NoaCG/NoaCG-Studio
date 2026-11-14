@@ -20,6 +20,10 @@ import { createClient } from '@supabase/supabase-js';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { fakeBridge, seedSettings } from '../_fakeBridge';
 import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, readyOf, signIn, unpublishForCleanup, wipeMyGraphics, type ReadyWindow } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -52,7 +56,7 @@ test('the playout status: quiet until something reports, green when it does, red
   await expect(status).toHaveAttribute('data-tone', 'idle');
   await expect(status).toContainText('Not connected');
   const { outputSlug } = (await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return { outputSlug: loadShows().find((x) => x.id === id)?.outputSlug ?? '' };
   }, showId)) as { outputSlug: string };
   expect(outputSlug).toBeTruthy();
@@ -114,6 +118,7 @@ test('the playout status: quiet until something reports, green when it does, red
 
   // ── An output elsewhere (OBS, say) reports READY: green "Ready", the empty slot no fault. ──
   const anon = await browser.newContext();
+  await installDoor(anon);
   const air = await anon.newPage();
   air.on('pageerror', (e) => console.log('[output pageerror]', e.message));
   await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&name=${encodeURIComponent('Desk A')}&debug=1`);

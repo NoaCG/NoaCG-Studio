@@ -73,8 +73,8 @@ interface Reading {
  *  objects. (The old editor's canvas settled through the simulator channel instead; no live
  *  surface composes with it, so that recipe went with the editor.) */
 const SWEEP = `(async () => {
-  const { CATALOG } = await import('/src/templates/catalog.ts');
-  const { composeDocument } = await import('/src/preview/composeDocument.ts');
+  const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+  const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
   const designs = []; const readings = []; let scanned = 0;
   for (const cat of Object.keys(CATALOG)) {
     for (const variant of CATALOG[cat]) {
@@ -251,8 +251,8 @@ const DRIVE_JS = (manual: boolean) => `
  *  a live document with a live GSAP clock, which is the whole point of this pass. */
 const PLAYED = (seed: 'update' | 'markup', manual = true) => `(async () => {
   const seed = ${JSON.stringify(seed)};
-  const { CATALOG } = await import('/src/templates/catalog.ts');
-  const { composeDocument } = await import('/src/preview/composeDocument.ts');
+  const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+  const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 ${DRIVE_JS(manual)}
   const designs = []; const readings = [];
@@ -521,8 +521,8 @@ interface Retaken {
  *  again - which is the order every re-take in the product uses. Runs inside the page for the
  *  same reason the passes above do: it needs a live document and a live GSAP clock. */
 const RETAKEN = (manual = true) => `(async () => {
-  const { CATALOG } = await import('/src/templates/catalog.ts');
-  const { composeDocument } = await import('/src/preview/composeDocument.ts');
+  const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+  const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 ${DRIVE_JS(manual)}
   const designs = []; const readings = [];

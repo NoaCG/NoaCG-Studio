@@ -16,6 +16,10 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 import { settleDurableWrites } from './_durable';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The category-agnostic acceptance (docs/AGENT_CLI.md, docs/CONTROL_LAYER.md): NoaCG derives an
 // operator surface from a graphic it has never seen and drives it, with ZERO category code.
@@ -259,9 +263,9 @@ type SeedResult = { showId: string; type: string; fields: string[]; events: stri
 async function seedShow(page: Page, req: unknown, name: string): Promise<SeedResult> {
   await page.goto('/app');
   const out = await page.evaluate(async ({ req, name }) => {
-    const { bridgeApi } = await import('/src/bridge/bridgeApi.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { bridgeApi } = await __noacgImport('/src/bridge/bridgeApi.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
     const { template } = await bridgeApi.scaffold(req as never);
     const typeId = (req as { type?: string }).type;
     const events = typeId ? ((await bridgeApi.types()).find((t) => t.id === typeId)?.events ?? []).map((e) => e.label) : [];

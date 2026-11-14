@@ -37,9 +37,9 @@ async function savedProduction(page: Page, variant: string, legacy = false, casp
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   const snapshot = legacy ? JSON.parse(readFileSync(`e2e/fixtures/pre-671/${variant}.json`, 'utf8')) : null;
   const seeded = await page.evaluate(async ({ variant, snapshot, caspar }) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
     const template = snapshot ?? variantById(variant)!.create({});
     const { doc, error } = createGraphic(template, { name: template.name });
     if (error) throw new Error(error);
@@ -99,7 +99,7 @@ for (const width of [1600, 390]) {
       await expect(chip).toHaveText('Reveal');
       await page.getByTestId('program-stage').scrollIntoViewIfNeeded();
       await expect(air.locator('.quiz-correct')).toHaveCount(1);
-      expect(await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.graphics[0].template.js, id)).toBe(js);
+      expect(await page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.graphics[0].template.js, id)).toBe(js);
     });
 
     test(`${source} scoreboard plus and minus remain readable and keep their deltas at ${width}px`, async ({ page }) => {
@@ -119,7 +119,7 @@ for (const width of [1600, 390]) {
         await expect(page.getByTestId(`cue-field-${field}`)).toHaveValue('0');
         await expect(air.locator(`#${field}`)).toHaveText('0');
       }
-      expect(await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.graphics[0].template.js, id)).toBe(js);
+      expect(await page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.graphics[0].template.js, id)).toBe(js);
     });
   }
 
@@ -172,7 +172,7 @@ for (const width of [1600, 390]) {
     await page.reload();
     await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
     await expect(page.getByTestId('cue-list').locator('.pd-folder')).toHaveCount(1);
-    const media = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows()[0].playoutItems);
+    const media = await page.evaluate(async () => (await __noacgImport('/src/model/shows.ts')).loadShows()[0].playoutItems);
     expect(media?.map((item) => ({ name: item.name, kind: item.mediaKind, channel: item.channel, layer: item.layer }))).toEqual([
       { name: 'NEWS/OPENING', kind: 'movie', channel: 2, layer: 10 },
       { name: 'NEWS/THEME', kind: 'audio', channel: 2, layer: 5 },
@@ -194,7 +194,7 @@ for (const width of [1600, 390]) {
     await page.setViewportSize({ width, height: 900 });
     const { id } = await savedProduction(page, 'qz01', false, true);
     await page.evaluate(async (id) => {
-      const m = await import('/src/model/shows.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
       m.removeShowCues(id, m.loadShows().find((s) => s.id === id)!.cues!.map((c) => c.id));
     }, id);
     await settleDurableWrites(page);

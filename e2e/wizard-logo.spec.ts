@@ -75,7 +75,7 @@ async function awaitAtRest(page: Page, selectors: string[]) {
 }
 async function createdTemplate(page: Page) {
   return page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return {
       fields: t.fields,

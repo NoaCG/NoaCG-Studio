@@ -66,7 +66,7 @@ test('a second tab’s work survives the first tab’s next write', async ({ pag
     .poll(
       () =>
         page.evaluate(async () => {
-          const { loadShows } = await import('/src/model/shows.ts');
+          const { loadShows } = await __noacgImport('/src/model/shows.ts');
           return (loadShows()[0].datasets ?? []).length;
         }),
       { message: 'the first tab never adopted the second tab’s table' },
@@ -76,7 +76,7 @@ test('a second tab’s work survives the first tab’s next write', async ({ pag
   // Tab A - which was open the whole time and never showed that table - writes to the same
   // production through the ordinary model path.
   await page.evaluate(async () => {
-    const { loadShows, updateShowCue } = await import('/src/model/shows.ts');
+    const { loadShows, updateShowCue } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows()[0];
     updateShowCue(show.id, show.cues![0].id, { label: 'Renamed in the first tab' });
   });
@@ -86,7 +86,7 @@ test('a second tab’s work survives the first tab’s next write', async ({ pag
   await c.goto(productionUrl);
   await expect(c.getByTestId('production-page')).toBeVisible();
   const survived = await c.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows()[0];
     return { tables: (show.datasets ?? []).length, cue: show.cues?.[0]?.label ?? null };
   });
@@ -131,7 +131,7 @@ test('an adopted write is left to the writer’s sync only when the writer syncs
   type Heard = 'own' | 'left-to-writer' | 'push-here';
   const listen = (p: Page) =>
     p.evaluate(async () => {
-      const { changeSyncedElsewhere } = await import('/src/model/durableStore.ts');
+      const { changeSyncedElsewhere } = await __noacgImport('/src/model/durableStore.ts');
       const heard: string[] = [];
       (window as unknown as { __heard: string[] }).__heard = heard;
       window.addEventListener('spx-data-changed', (e) => {
@@ -142,7 +142,7 @@ test('an adopted write is left to the writer’s sync only when the writer syncs
   const heard = (p: Page) => p.evaluate(() => (window as unknown as { __heard: Heard[] }).__heard.splice(0));
   const addLook = (p: Page, name: string) =>
     p.evaluate(async (lookName) => {
-      const { createLook } = await import('/src/model/packets.ts');
+      const { createLook } = await __noacgImport('/src/model/packets.ts');
       createLook(lookName, {
         styleTag: 'minimal',
         palette: { id: 'captured', name: 'Captured', styleTags: ['minimal'], accent: '#22aa66', text: '#ffffff', textDim: 'rgba(255,255,255,0.7)', panel: 'rgba(12,14,18,0.92)' },
@@ -155,7 +155,7 @@ test('an adopted write is left to the writer’s sync only when the writer syncs
 
   // The first tab runs library sync (offline it never starts, so say what startAutoSync says).
   await page.evaluate(async () => {
-    const { markOwnWritesSynced } = await import('/src/model/durableStore.ts');
+    const { markOwnWritesSynced } = await __noacgImport('/src/model/durableStore.ts');
     markOwnWritesSynced();
   });
 

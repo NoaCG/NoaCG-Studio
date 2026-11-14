@@ -5,15 +5,19 @@ import { readFileSync } from 'node:fs';
 import { pickDesign } from './_browse';
 import type { SpxTemplate } from '../src/model/types';
 import { settleDurableWrites } from './_durable';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ready = async (page: Page) => { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); };
-const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
-const selection = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
+const source = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+const selection = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
 async function open(page: Page, fixture = 'catalog') {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  await page.evaluate(async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
+  await page.evaluate(async t => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
   await ready(page);
 }
 async function screen(page: Page, x: number, y: number) {
@@ -96,7 +100,7 @@ test('curved path, paint, point and handle gestures preserve motion and each und
 });
 test('stale draft cannot commit after another source edit', async ({ page }) => {
   await open(page); await page.getByRole('button', { name: 'pen tool', exact: true }).click(); await point(page, 700, 300); await point(page, 1000, 400);
-  await page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, css: s.template.css + '\n/* other edit */' }); });
+  await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, css: s.template.css + '\n/* other edit */' }); });
   const changed = await source(page); await ready(page); await page.keyboard.press('Enter'); expect(await source(page)).toEqual(changed);
   await expect(page.getByRole('alert')).toContainText('Draw or inspect this path again');
 });
@@ -127,7 +131,7 @@ test('zero-scale point inspection is safe and editing refuses a singular parent'
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await open(page); const id = await draw(page);
   // An untracked parent supplies a genuinely singular rendered pose, independent of GSAP's layer cache.
-  await page.evaluate(async id => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); const node = new RegExp('(<div id="' + id.slice(1) + '"[\\s\\S]*?</svg></div>)'); s.applyTemplate({ ...s.template, html: s.template.html.replace(node, '<div style="position:absolute;scale:0;transform-origin:850px -600px">$1</div>') }); }, id);
+  await page.evaluate(async id => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); const node = new RegExp('(<div id="' + id.slice(1) + '"[\\s\\S]*?</svg></div>)'); s.applyTemplate({ ...s.template, html: s.template.html.replace(node, '<div style="position:absolute;scale:0;transform-origin:850px -600px">$1</div>') }); }, id);
   await ready(page); const before = await source(page);
   expect(await (await frame(page)).locator(id).evaluate(el => el.getBoundingClientRect().width)).toBe(0);
   await page.getByRole('button', { name: 'Edit points', exact: true }).click(); await expect(page.locator('[data-pen-point]')).toHaveCount(3);
@@ -137,12 +141,12 @@ test('zero-scale point inspection is safe and editing refuses a singular parent'
 
 test('raster graphic draws a path, supports layer scale/rotation, None paint and canceled edits', async ({ page }) => {
   await open(page);
-  await page.evaluate(async () => { const { variantById } = await import('/src/templates/catalog.ts'); const t = variantById('imp01')!.create({ designArt: { path: 'images/art.png', width: 960, height: 270 } }); (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }); });
+  await page.evaluate(async () => { const { variantById } = await __noacgImport('/src/templates/catalog.ts'); const t = variantById('imp01')!.create({ designArt: { path: 'images/art.png', width: 960, height: 270 } }); (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }); });
   await ready(page); const id = await draw(page), original = await source(page);
   await page.getByRole('button', { name: 'No fill', exact: true }).click(); await ready(page);
   expect(await (await frame(page)).locator(id + ' path').evaluate(el => getComputedStyle(el).fill)).toBe('none'); await undo(page); expect(await source(page)).toEqual(original);
   // Use ordinary registry transforms on this newly created layer, then edit its points through its rendered pose.
-  await page.evaluate(async id => { const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(); session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'base.set', selector: id, values: { scaleX: 1.3, scaleY: .8, rotation: 25 } }] }); }, id);
+  await page.evaluate(async id => { const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(); session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'base.set', selector: id, values: { scaleX: 1.3, scaleY: .8, rotation: 25 } }] }); }, id);
   await ready(page); const transformed = await source(page);
   await page.getByRole('button', { name: 'Edit points', exact: true }).click();
   const marker = page.locator('[data-pen-point="1"]'), box = (await marker.boundingBox())!;
@@ -150,7 +154,7 @@ test('raster graphic draws a path, supports layer scale/rotation, None paint and
   const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 }, end = { x: start.x + 35, y: start.y + 20 };
   const artboard = (await page.locator('.ef-artboard').boundingBox())!, viewScale = artboard.width / 1920;
   await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(end.x, end.y, { steps: 5 }); await page.mouse.up(); await ready(page);
-  const delta = await page.evaluate(async ({ id, original }) => { const { inspectPath } = await import('/src/blocks/editorPaths.ts'); const a = inspectPath(original, id)!.geometry!.points[1], b = inspectPath((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template, id)!.geometry!.points[1]; return { x: b.x - a.x, y: b.y - a.y }; }, { id, original: transformed });
+  const delta = await page.evaluate(async ({ id, original }) => { const { inspectPath } = await __noacgImport('/src/blocks/editorPaths.ts'); const a = inspectPath(original, id)!.geometry!.points[1], b = inspectPath((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template, id)!.geometry!.points[1]; return { x: b.x - a.x, y: b.y - a.y }; }, { id, original: transformed });
   const [a, b, c, d] = matrix, det = a * d - b * c;
   expect(delta.x).toBeCloseTo((d * 35 - c * 20) / det / viewScale, 1); expect(delta.y).toBeCloseTo((-b * 35 + a * 20) / det / viewScale, 1);
   await undo(page); expect(await source(page)).toEqual(transformed);
@@ -183,11 +187,11 @@ test('edited path remains selectable outside its initial transform frame', async
 test('imported path point and tangent editing maps transformed parents and mints identity once', async ({ page }) => {
   await open(page, 'svg');
   const selector = await page.evaluate(async () => {
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     const t = { ...store.template, html: store.template.html.replace('</svg>', '<g transform="translate(200 20) rotate(18) scale(1.1 .8)"><path data-pen-fixture="true" d="M 0 0\n C 20 -20 70 -20 100 0\n L 50 80 Z" fill="#f6a623" /></g></svg>') };
     store.applyTemplate(t);
     const doc = new DOMParser().parseFromString(t.html, 'text/html');
-    return (await import('/src/model/structure.ts')).getTemplateParts(t.html, t.fields, true).find(p => doc.querySelector(p.selector)?.hasAttribute('data-pen-fixture'))!.selector;
+    return (await __noacgImport('/src/model/structure.ts')).getTemplateParts(t.html, t.fields, true).find(p => doc.querySelector(p.selector)?.hasAttribute('data-pen-fixture'))!.selector;
   });
   await ready(page); await page.locator(`.ef-track[data-selector="${selector}"] .ef-layer`).first().click(); await ready(page);
   const before = await source(page), f = await frame(page);
@@ -205,8 +209,8 @@ test('imported path point and tangent editing maps transformed parents and mints
     expect(await source(page)).toEqual(from); await page.mouse.up(); await ready(page);
     const nextId = (await selection(page))[0]; expect(nextId).toMatch(/^#/);
     const coordinates = await page.evaluate(async id => {
-      const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      return (await import('/src/blocks/editorPaths.ts')).inspectPath(t, id)!.geometry!;
+      const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      return (await __noacgImport('/src/blocks/editorPaths.ts')).inspectPath(t, id)!.geometry!;
     }, nextId);
     const determinant = matrix[0] * matrix[3] - matrix[1] * matrix[2], dx = 35 / fit, dy = -20 / fit;
     const expected = { x: (which === 'point' ? 100 : 70) + (matrix[3] * dx - matrix[2] * dy) / determinant, y: (which === 'point' ? 0 : -20) + (-matrix[1] * dx + matrix[0] * dy) / determinant };
@@ -219,13 +223,13 @@ test('imported path point and tangent editing maps transformed parents and mints
 
 test('SVG stroke width reads pixels and refuses relative units without source changes', async ({ page }) => {
   await open(page, 'svg');
-  await page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('</svg>', '<path id="unit-path" data-gfx d="M 0 0 L 100 0 L 50 80 Z" fill="#f6a623" stroke="#ffffff" STROKE-WIDTH="7px" /></svg>') }); s.setSelectedParts(['#unit-path']); });
+  await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('</svg>', '<path id="unit-path" data-gfx d="M 0 0 L 100 0 L 50 80 Z" fill="#f6a623" stroke="#ffffff" STROKE-WIDTH="7px" /></svg>') }); s.setSelectedParts(['#unit-path']); });
   await ready(page); const before = await source(page), input = page.getByTestId('path-stroke-width').locator('input');
   expect(await (await frame(page)).locator('#unit-path').evaluate(el => getComputedStyle(el).strokeWidth)).toBe('7px');
   await expect(input).toHaveValue('7'); await input.fill('9'); await input.press('Enter'); await ready(page);
   expect(await (await frame(page)).locator('#unit-path').evaluate(el => getComputedStyle(el).strokeWidth)).toBe('9px');
   await undo(page); expect(await source(page)).toEqual(before);
-  await page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('STROKE-WIDTH="7px"', 'STROKE-WIDTH="2em"') }); });
+  await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('STROKE-WIDTH="7px"', 'STROKE-WIDTH="2em"') }); });
   await ready(page); const relative = await source(page);
   await expect(page.getByTestId('path-width-reason')).toContainText('units'); await expect(page.getByTestId('path-stroke-width')).toHaveCount(0);
   expect(await source(page)).toEqual(relative);
@@ -234,9 +238,9 @@ test('SVG stroke width reads pixels and refuses relative units without source ch
 test('guards refuse unsupported geometry, driven source, CSS paint, changed topology and lossy motion', async ({ page }) => {
   await open(page); const id = await draw(page);
   const errors = await page.evaluate(async id => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { inspectPath } = await import('/src/blocks/editorPaths.ts');
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { inspectPath } = await __noacgImport('/src/blocks/editorPaths.ts');
     const geometry = inspectPath(t, id)!.geometry!, errors: Record<string, string> = {};
     const check = (name: string, template: SpxTemplate, op: unknown) => { try { applyOperations(template, [op as Parameters<typeof applyOperations>[1][number]]); errors[name] = 'DID NOT REFUSE'; } catch (cause) { errors[name] = String(cause); } };
     check('time', t, { kind: 'path.create', geometry, time: -1 });
@@ -255,13 +259,13 @@ test('guards refuse unsupported geometry, driven source, CSS paint, changed topo
     check('colour', t, { kind: 'path.paint', selector: id, values: { fill: 'url(#a)' } });
     check('empty', t, { kind: 'path.paint', selector: id, values: {} });
     check('paint', { ...t, css: t.css + '\n' + id + ' path { fill: red; }' }, { kind: 'path.paint', selector: id, values: { fill: '#112233' } });
-    const location = (await import('/src/blocks/animData.ts')).locateAnimData(t.js)!;
+    const location = (await __noacgImport('/src/blocks/animData.ts')).locateAnimData(t.js)!;
     const unknown = JSON.parse(t.js.slice(location.start, location.end)); unknown.future = true;
     check('motion', { ...t, js: t.js.slice(0, location.start) + JSON.stringify(unknown) + t.js.slice(location.end) }, { kind: 'path.create', geometry, time: 0 });
     return errors;
   }, id);
   for (const [name, pattern] of Object.entries({ time: /placement time/, finite: /finite/, missing: /single SVG/, topology: /two|topology/, closed: /topology/, command: /M\/L\/C\/Z/, driven: /driven by code/, css: /driven by CSS/, cssAnimation: /driven by CSS/, independent: /independent SVG/, embedded: /driven by CSS/, svg: /SVG animation/, width: /Stroke width/, colour: /hex colour/, empty: /paint change/, paint: /CSS fill/, motion: /preserve exactly/ })) expect(errors[name], name).toMatch(pattern);
-  await page.evaluate(async id => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace(/d="M [^"]+"/, 'd="M0 0 A20 20 0 0 1 50 50"') }); s.setSelectedParts([id]); }, id);
+  await page.evaluate(async id => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace(/d="M [^"]+"/, 'd="M0 0 A20 20 0 0 1 50 50"') }); s.setSelectedParts([id]); }, id);
   await expect(page.getByRole('button', { name: 'Edit points', exact: true })).toBeDisabled(); await expect(page.getByTestId('path-reason')).toContainText('Other SVG commands');
 });
 
@@ -289,12 +293,12 @@ test('path paint, movement, playhead visibility and save/reopen execute on all e
   await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page); await page.reload(); await ready(page);
   const reopened = await source(page); expect(reopened.html).toBe(edited.html); expect(reopened.css).toBe(edited.css);
   // This historical fixture upgrades its saved interpreter on reopen. Its authored motion must stay exact.
-  const motion = await page.evaluate(async js => { const { parseAnimData } = await import('/src/blocks/animData.ts'); return js.map(parseAnimData); }, [edited.js, reopened.js]);
+  const motion = await page.evaluate(async js => { const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts'); return js.map(parseAnimData); }, [edited.js, reopened.js]);
   expect(motion[1]).toEqual(motion[0]);
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async target => {
-      const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
+      const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
     }, target);
     const output = await page.context().newPage(), errors: string[] = []; output.on('pageerror', e => errors.push(e.message));

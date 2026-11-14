@@ -321,9 +321,9 @@ async function entryWithSavedWork(page: Page) {
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await expect(page.getByTestId('wz-continue')).toHaveCount(0);
   await page.evaluate(async () => {
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     createGraphic(useTemplateStore.getState().template, { name: 'Seeded strap' });
     await commitDurableWrites();
   });
@@ -472,8 +472,8 @@ test('Run the show is a card you press, on the Home row chassis, and still fits 
   // heaviest the step gets: Home row, four cards and this card must all still fit.
   await entryWithSavedWork(page);
   await evaluateInPage(page, async () => {
-    const { createShowNamedChecked } = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { createShowNamedChecked } = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     createShowNamedChecked('Friday night studio magazine with the regional news and the weather after it');
     await commitDurableWrites();
   });
@@ -621,7 +621,7 @@ test('New production from a fresh profile opens an empty production, ready to ad
   await expect(page.getByTestId('production-new-graphic')).toBeVisible();
 
   const shows = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().map((s) => ({ id: s.id, name: s.name, graphics: s.graphics.length }));
   });
   expect(shows).toHaveLength(1);
@@ -635,7 +635,7 @@ test('New production from a fresh profile opens an empty production, ready to ad
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByText('No cues yet.')).toBeVisible();
   const afterReload = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().map((s) => s.id);
   });
   expect(afterReload).toEqual([shows[0].id]);
@@ -654,8 +654,8 @@ test('Run the show opens the productions list with none, and names and opens the
 
   // SOME: the one saved most recently opens, whichever order they were made in.
   const lastId = await page.evaluate(async () => {
-    const { createShowNamedChecked, upsertShow } = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { createShowNamedChecked, upsertShow } = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const older = createShowNamedChecked('Older show').show;
     createShowNamedChecked('Newer show');
     // The older one is the one edited last: its stamp moves past the newer one's.
@@ -682,8 +682,8 @@ test('Run the show follows a production that arrives while the step is open', as
   const card = page.locator('[data-entry="open-playout"]');
   await expect(card).toContainText('no production yet');
   const id = await evaluateInPage(page, async () => {
-    const { createShowNamedChecked } = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { createShowNamedChecked } = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const { show } = createShowNamedChecked('Arrived later');
     await commitDurableWrites();
     return show.id;

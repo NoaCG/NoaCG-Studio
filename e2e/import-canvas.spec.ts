@@ -63,8 +63,8 @@ async function eraseRect(page: Page, fx0: number, fy0: number, fx1: number, fy1:
  *  inside the artwork (as fractions of the artwork, the space the source rect was given in). */
 async function seededField(page: Page) {
   const css = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { lineTextStyle } = await import('/src/blocks/designLayout.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { lineTextStyle } = await __noacgImport('/src/blocks/designLayout.ts');
     const s = useTemplateStore.getState();
     return {
       style: lineTextStyle(s.template.html, s.template.css, 'f0'),
@@ -215,8 +215,8 @@ test('import graphic: the seed recovers the size and position of REAL typeset te
 
   // Author the SAME default string the editor renders, so both ink boxes are comparable.
   await page.evaluate(async (text) => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { setFieldDefault } = await import('/src/blocks/edit.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { setFieldDefault } = await __noacgImport('/src/blocks/edit.ts');
     const store = useTemplateStore.getState();
     store.applyTemplate(setFieldDefault(store.template, 'f0', text));
     await new Promise((resolve) => setTimeout(resolve));
@@ -254,8 +254,8 @@ test('import graphic: the seed recovers the size and position of REAL typeset te
   // The SEED itself, before the fit runtime has a say: cap-height ÷ 0.72 against type whose
   // cap runs 0.68–0.76 em, so it can never be exact — close enough to tweak, not retype.
   const seeded = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { lineFontSize } = await import('/src/blocks/designLayout.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { lineFontSize } = await __noacgImport('/src/blocks/designLayout.ts');
     const s = useTemplateStore.getState();
     return lineFontSize(s.template.css, 'f0')!.value;
   });
@@ -271,8 +271,8 @@ test('import graphic: the seed recovers the size and position of REAL typeset te
 /** Every seeded field: its title, its placement and its type size. */
 async function seededFields(page: Page) {
   return page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { placedLines, lineTextStyle } = await import('/src/blocks/designLayout.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { placedLines, lineTextStyle } = await __noacgImport('/src/blocks/designLayout.ts');
     const s = useTemplateStore.getState();
     const placed = placedLines(s.template.html, s.template.css);
     return s.template.fields.map((f) => ({

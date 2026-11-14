@@ -293,7 +293,7 @@ async function fill(page: Page, air: FrameLocator, title: string, value: string)
 
 test('the advertised behavior inventory equals the live import registry', async ({ page, request }) => {
   await page.goto('/app');
-  const registered = await page.evaluate(async () => (await import('/src/templates/behaviours/registry.ts')).BEHAVIOUR_RECIPES.map((entry) => entry.id));
+  const registered = await page.evaluate(async () => (await __noacgImport('/src/templates/behaviours/registry.ts')).BEHAVIOUR_RECIPES.map((entry) => entry.id));
   expect([...new Set(examples.flatMap((entry) => entry.recipe ? [entry.recipe] : []))].sort()).toEqual(registered.sort());
   for (const entry of examples) {
     const response = await request.get(`/docs/examples/svg-examples/${entry.slug}.svg`);

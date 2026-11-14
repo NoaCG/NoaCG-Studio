@@ -39,7 +39,7 @@ async function create(page: Page) {
 async function mounted(page: Page): Promise<FrameLocator> {
   const doc = await mountWorkingDocument(page);
   const sample = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().sampleData as Record<string, string>;
   });
   await updateWorkingDocument(doc, sample);
@@ -91,7 +91,7 @@ test('an oversized logo is shrunk to the frame at the door, and a small one is l
 
   const stored = () =>
     page.evaluate(async () => {
-      const store = await import('/src/store/templateStore.ts');
+      const store = await __noacgImport('/src/store/templateStore.ts');
       const asset = store.useTemplateStore.getState().template.assets.find((a) => a.path.includes('huge_logo'));
       if (!asset || typeof asset.data !== 'string') return null;
       const size = await new Promise<{ w: number; h: number }>((resolve) => {
@@ -107,7 +107,7 @@ test('an oversized logo is shrunk to the frame at the door, and a small one is l
   // case the fix is for, and a flat synthetic PNG is not (a hand-rolled deflate of one solid
   // block beats any canvas re-encode, and the rule below then correctly keeps the original).
   const shrunk = await page.evaluate(async () => {
-    const { shrinkImageDataUrl } = await import('/src/assets/imageImport.ts');
+    const { shrinkImageDataUrl } = await __noacgImport('/src/assets/imageImport.ts');
     const canvas = document.createElement('canvas');
     canvas.width = 3840;
     canvas.height = 2160;
@@ -149,7 +149,7 @@ test('an oversized logo is shrunk to the frame at the door, and a small one is l
   expect(kept?.chars).toBeLessThanOrEqual(`data:image/png;base64,${flat.toString('base64')}`.length);
 
   const untouched = await page.evaluate(async () => {
-    const store = await import('/src/store/templateStore.ts');
+    const store = await __noacgImport('/src/store/templateStore.ts');
     const asset = store.useTemplateStore.getState().template.assets.find((a) => a.path.includes('small_logo'));
     return typeof asset?.data === 'string' ? asset.data.length : 0;
   });

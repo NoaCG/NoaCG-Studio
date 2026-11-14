@@ -336,7 +336,7 @@ test('a guest row loads into a lower third and airs on Take; editing or deleting
   await settleDurableWrites(data);
   await expect(page.getByTestId('cue-load-row').locator('option', { hasText: 'Guests: Leo Berg' })).toHaveCount(1);
   expect(await data.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const rows = loadShows().find((s) => s.name === 'Guest Night')?.datasets?.[0]?.rows ?? [];
     return rows.some((r) => Object.values(r.values).includes('Assistant referee'));
   }), 'the edit landed in the table').toBe(true);
@@ -558,7 +558,7 @@ test('a bound field takes the LIVE value on air, and an old cue cannot re-air a 
   // so a localStorage read answers [] whatever was written, and a missing record must fail here
   // rather than read as "nothing on it".
   const onRecord = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === 'Match Night');
     if (!show) throw new Error('production not saved');
     return show.data ?? null;
@@ -1032,7 +1032,7 @@ test('an adjust on a bound field patches the tree, and the event still fires', a
   // Read through the durable model (the shows key lives in IndexedDB, so localStorage answers
   // nothing), and from both cues, so an empty read cannot pass as "no cue took it".
   const stored = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === 'Goal Data');
     if (!show) throw new Error('production not saved');
     return (show.cues ?? []).map((c) => c.values?.f1 ?? null);
@@ -1313,7 +1313,7 @@ async function downloaded(page: Page, click: () => Promise<void>): Promise<{ nam
 /** The stored values of a production's cues, in rundown order. */
 async function storedCueValues(page: Page, showId: string): Promise<Record<string, string>[]> {
   return page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return (loadShows().find((s) => s.id === id)?.cues ?? []).map((c) => c.values);
   }, showId);
 }
@@ -1466,7 +1466,7 @@ async function reuseSource(page: Page) {
 
 async function storedBindings(page: Page, showId: string) {
   return page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.id === id);
     return { bindings: show?.bindings ?? {}, sources: show?.sources ?? [] };
   }, showId);
@@ -2023,7 +2023,7 @@ test('a connected field the graphic lacks is flagged, a removed graphic is named
   const { sources } = await storedBindings(page, showId);
   await page.evaluate(
     async ({ showId, path }) => {
-      const { setFieldBindings } = await import('/src/model/shows.ts');
+      const { setFieldBindings } = await __noacgImport('/src/model/shows.ts');
       setFieldBindings(showId, [{ graphic: 'Hairline', fieldId: 'f9', path }]);
     },
     { showId, path: `sheet.${sources[0].id}.values.Name` },
@@ -2036,7 +2036,7 @@ test('a connected field the graphic lacks is flagged, a removed graphic is named
 
   // Underline leaves the production: the review names it instead of redirecting its connection.
   await page.evaluate(async (showId) => {
-    const { loadShows, removeShowGraphic } = await import('/src/model/shows.ts');
+    const { loadShows, removeShowGraphic } = await __noacgImport('/src/model/shows.ts');
     const g = loadShows().find((s) => s.id === showId)?.graphics.find((x) => x.name === 'Underline');
     if (g) removeShowGraphic(showId, g.id);
   }, showId);
@@ -2047,8 +2047,8 @@ test('a connected field the graphic lacks is flagged, a removed graphic is named
 
   // A graphic whose own code reads a Sheet is refused until that code moves here.
   await page.evaluate(async (showId) => {
-    const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
-    const { liveDataBlock } = await import('/src/control/liveData.ts');
+    const { loadShows, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+    const { liveDataBlock } = await __noacgImport('/src/control/liveData.ts');
     const template = loadShows().find((s) => s.id === showId)!.graphics[0].template;
     const js = `${template.js}\n${liveDataBlock({ csvUrl: 'https://docs.google.com/spreadsheets/d/e/x/pub?output=csv', pollSeconds: 5, fields: template.fields })}`;
     addGraphicToShow(showId, { ...template, name: 'Legacy Card', js });
@@ -2071,8 +2071,8 @@ test('one way to connect a Sheet: a graphic with its own reader still updates on
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const showId = await productionFor(page, 'Legacy Sheet');
   await page.evaluate(async (showId) => {
-    const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
-    const { liveDataBlock } = await import('/src/control/liveData.ts');
+    const { loadShows, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+    const { liveDataBlock } = await __noacgImport('/src/control/liveData.ts');
     const template = loadShows().find((s) => s.id === showId)!.graphics[0].template;
     const js = `${template.js}\n${liveDataBlock({ csvUrl: 'http://sheet-test.local/legacy.csv', pollSeconds: 1, fields: template.fields })}`;
     addGraphicToShow(showId, { ...template, name: 'Legacy Card', js });
@@ -2095,7 +2095,7 @@ test('one way to connect a Sheet: a graphic with its own reader still updates on
   await expect(data.getByTestId('bind-own-reader-Legacy Card-f0')).toContainText('reads a Sheet in its own code');
   await data.close();
   const boundAnyway = await page.evaluate(async (showId) => {
-    const { setFieldBinding, loadShows } = await import('/src/model/shows.ts');
+    const { setFieldBinding, loadShows } = await __noacgImport('/src/model/shows.ts');
     setFieldBinding(showId, 'Legacy Card', 'f0', 'guest.name');
     return loadShows().find((s) => s.id === showId)!.bindings?.['Legacy Card'] ?? null;
   }, showId);
@@ -2122,7 +2122,7 @@ test('one way to connect a Sheet: a graphic with its own reader still updates on
   await expect(menu.getByTestId('cue-connect-link')).toBeVisible();
   await expect(ownLine).toHaveCount(0);
   const legacyJs = await page.evaluate(async (showId) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.id === showId)!.graphics.find((g) => g.name === 'Legacy Card')!.template.js;
   }, showId);
   expect(legacyJs).not.toContain('== LIVE DATA');
@@ -2210,12 +2210,12 @@ async function seedPublishedLegacy(page: Page, wire: LegacyWire): Promise<{ docI
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
   const seeded = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { liveDataBlock } = await import('/src/control/liveData.ts');
-    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
-    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { liveDataBlock } = await __noacgImport('/src/control/liveData.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+    const { stampPayload } = await __noacgImport('/src/control/payloadVersion.ts');
     const template = variantsFor('lower-third')[0].create({});
     const js = `${template.js}\n${liveDataBlock({ csvUrl: 'http://sheet-test.local/library.csv', pollSeconds: 60, fields: template.fields })}`;
     const { doc, error } = createGraphic({ ...template, js }, { name: 'Library Card' });
@@ -2243,9 +2243,9 @@ async function seedPublishedLegacy(page: Page, wire: LegacyWire): Promise<{ docI
 async function publishWithoutReader(page: Page, wire: LegacyWire, ids: { showId: string; cueId: string }): Promise<{ n: number; h: string }> {
   const fixture = wire.fixture as { output: { ver: unknown } };
   const published = await page.evaluate(async ({ showId, previous }) => {
-    const { loadShows, recordOwnReaderStops } = await import('/src/model/shows.ts');
-    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const { loadShows, recordOwnReaderStops } = await __noacgImport('/src/model/shows.ts');
+    const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+    const { stampPayload } = await __noacgImport('/src/control/payloadVersion.ts');
     // The published payload ran the reader; this publish drops it, so the stop is recorded.
     recordOwnReaderStops(showId, new Set(['Library Card']));
     const output = await buildOutputPayload(loadShows().find((s) => s.id === showId)!);
@@ -2261,8 +2261,8 @@ async function publishWithoutReader(page: Page, wire: LegacyWire, ids: { showId:
 /** The production's record and this browser's own-reader stores, read through the app. */
 async function ownReaderState(page: Page, showId: string) {
   return page.evaluate(async (showId) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { formerReaders, ownReaderHolds } = await import('/src/model/ownReaderHolds.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { formerReaders, ownReaderHolds } = await __noacgImport('/src/model/ownReaderHolds.ts');
     const show = loadShows().find((s) => s.id === showId)!;
     return {
       stops: show.ownReaderStops ?? [],
@@ -2276,7 +2276,7 @@ async function ownReaderState(page: Page, showId: string) {
 /** Try the binding write directly, as any door does; answers what it stored. */
 async function bindAnyway(page: Page, showId: string) {
   return page.evaluate(async (showId) => {
-    const { setFieldBinding, loadShows } = await import('/src/model/shows.ts');
+    const { setFieldBinding, loadShows } = await __noacgImport('/src/model/shows.ts');
     setFieldBinding(showId, 'Library Card', 'f0', 'guest.name');
     return loadShows().find((s) => s.id === showId)!.bindings?.['Library Card'] ?? null;
   }, showId);
@@ -2306,7 +2306,7 @@ test('a library graphic with its own reader on a published production: Stop remo
   await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
   await page.getByTestId('data-indicator').click();
   await expect(page.getByTestId('own-reader-line')).toContainText('Sheet in Library Card’s own code');
-  const design = await page.evaluate(async (docId) => (await import('/src/model/library.ts')).loadGraphics().find((d) => d.id === docId)!.template.js.includes('== LIVE DATA'), ids.docId);
+  const design = await page.evaluate(async (docId) => (await __noacgImport('/src/model/library.ts')).loadGraphics().find((d) => d.id === docId)!.template.js.includes('== LIVE DATA'), ids.docId);
   expect(design).toBe(false);
   // The copy loses it too (the production's copy is the only truth, live-publishing W2); the output
   // runs the published payload, which keeps it until Publish, so the graphic stays held.
@@ -2376,7 +2376,7 @@ test('a reader stopped in one browser holds the graphic in another that never sa
   // What reaches another browser is the synced production record and library design, exactly as
   // A stored them; nothing of A's own device-local history comes with it.
   const synced = await page.evaluate(async () => {
-    const { durable } = await import('/src/model/durableStore.ts');
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
     return { shows: durable.getItem('spx-gfx-shows'), graphics: durable.getItem('spx-gfx-graphics') };
   });
   await page.close();
@@ -2389,7 +2389,7 @@ test('a reader stopped in one browser holds the graphic in another that never sa
     await expect(b.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
     await awaitDurableReady(b);
     await b.evaluate(async (synced) => {
-      const { durable } = await import('/src/model/durableStore.ts');
+      const { durable } = await __noacgImport('/src/model/durableStore.ts');
       durable.setItem('spx-gfx-graphics', synced.graphics!);
       durable.setItem('spx-gfx-shows', synced.shows!);
       await new Promise((r) => setTimeout(r));

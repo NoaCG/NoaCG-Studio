@@ -28,7 +28,7 @@ test.describe('OGraf parity with the studio', () => {
       test.setTimeout(300_000);
       await toApp(page);
       const ids = await page.evaluate(async ({ unit, units, only }) => {
-        const { CATALOG } = await import('/src/templates/catalog.ts');
+        const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
         return Object.values(CATALOG)
           .flatMap((variants) => (variants ?? []).map((v) => v.id))
           .filter((id, i) => i % units === unit && (!only || only.includes(id)));

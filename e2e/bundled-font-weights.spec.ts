@@ -11,6 +11,10 @@
 // control: its 800 must still differ from its 400, or the comparison would prove nothing.
 
 import { test, expect, type Page } from '@playwright/test';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const WORD = 'JAKE MORRISON';
 /** Latin and Latin Extended letters together: a bundled face is two rules (its latin file and its
@@ -20,7 +24,7 @@ const NAME = 'ŠIMON ŽÁKOVÁ JAKE';
 
 async function pictures(page: Page, kind: 'bundled' | 'imported', fontId: string, word = WORD) {
   return page.evaluate(async ({ kind, fontId, word }) => {
-    const { fontById, fontFaceCss, customFontFaceCss } = await import('/src/model/fonts.ts');
+    const { fontById, fontFaceCss, customFontFaceCss } = await __noacgImport('/src/model/fonts.ts');
     const face = fontById(fontId);
     const family = kind === 'bundled' ? face.family : 'Brand Import';
     const css =

@@ -43,7 +43,7 @@ async function createThroughExport(page: Page) {
 
 async function createdFields(page: Page) {
   return page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return Object.fromEntries(
       useTemplateStore.getState().template.fields.map((f) => [f.title, f.value]),
     );
@@ -108,9 +108,9 @@ test('a setup value lands on the field it names, for every type that has one', a
   // per-type spec would be looking. 25 types carry setup fields today.
   await page.goto('/app');
   const wrong = await page.evaluate(async () => {
-    const { TYPES } = await import('/src/templates/types/registry.ts');
-    const { setupFields } = await import('/src/templates/types/graphicType.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { TYPES } = await __noacgImport('/src/templates/types/registry.ts');
+    const { setupFields } = await __noacgImport('/src/templates/types/graphicType.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const probe = (kind: string, field: { options?: { value: string }[] }) => {
       switch (kind) {
         case 'number': return '7';
@@ -203,8 +203,8 @@ test('a design that paints no accent is offered no package that only moves one',
   // watching the preview settle - same question, and it cannot flake on a debounce. The `:root`
   // `--accent` declaration is normalised away because it is exactly what nothing reads here.
   const distinct = await page.evaluate(async (names) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { PALETTES } = await import('/src/model/wizard.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { PALETTES } = await __noacgImport('/src/model/wizard.ts');
     const variant = variantById('card03')!;
     const built = new Map<string, string>();
     for (const name of names) {

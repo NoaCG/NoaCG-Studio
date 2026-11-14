@@ -111,7 +111,7 @@ test('a prepared field is selected, corrected, re-dropped and reopened on the la
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
   await awaitDurableReady(page);
   const saved = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     const g = loadGraphics().find((d) => d.name === 'Two guests');
     if (!g) return null;
     const doc = new DOMParser().parseFromString(g.template.html, 'text/html');
@@ -130,8 +130,8 @@ test('a reanalysis through the proposal door keeps a correction on the twin it w
   // analysis yet (rows 35 and 36 add the proposer), and this is the door every one goes through.
   await page.goto('/app');
   const result = await page.evaluate(async (markup) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
     const drop = {
       ...D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } }),
       designKeepBakedText: false,
@@ -173,7 +173,7 @@ test('a routine lower third reaches a working graphic with no mapping stop', asy
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
   await awaitDurableReady(page);
   const fields = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().find((d) => d.name === 'Routine strap')?.template.fields.map((f) => f.title) ?? null;
   });
   expect(fields).toEqual(['presenter', 'role', 'score']);
@@ -448,9 +448,9 @@ test('an opt-in preparation goes through the task route into a reversible draft 
   await serveRoute(page, handler);
   await page.goto('/app');
   const result = await page.evaluate(async (markup) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const C = await import('/src/ai/svgInterpretation/client.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const C = await __noacgImport('/src/ai/svgInterpretation/client.ts');
     const svg = importSvgMarkup(markup);
     const drop = {
       ...D.svgDraftFromImport(svg, { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } }),
@@ -578,8 +578,8 @@ test('a slow, cancelled or stale preparation leaves the draft deterministic', as
   });
   await page.goto('/app');
   const waits = await page.evaluate(async (markup) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const C = await import('/src/ai/svgInterpretation/client.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const C = await __noacgImport('/src/ai/svgInterpretation/client.ts');
     const evidence = C.svgPreparationEvidence(importSvgMarkup(markup), { includeText: false });
     const timeout = await C.requestSvgInterpretation(evidence, { includeText: false, timeoutMs: 300 });
     const stop = new AbortController();
@@ -593,9 +593,9 @@ test('a slow, cancelled or stale preparation leaves the draft deterministic', as
   hold = false;
   await Promise.all(parked.map((r) => r.abort().catch(() => null)));
   const stale = await page.evaluate(async ([first, second]) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const C = await import('/src/ai/svgInterpretation/client.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const C = await __noacgImport('/src/ai/svgInterpretation/client.ts');
     const options = { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } };
     const a = importSvgMarkup(first);
     const dropA = { ...D.svgDraftFromImport(a, options), designKeepBakedText: false };
@@ -649,8 +649,8 @@ test('with every AI route failing, an SVG import is saved, taken to air and expo
   for (const [label, reply] of replies) {
     await page.route(SVG_ROUTE, reply);
     outcomes[label] = await page.evaluate(async (markup) => {
-      const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-      const C = await import('/src/ai/svgInterpretation/client.ts');
+      const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+      const C = await __noacgImport('/src/ai/svgInterpretation/client.ts');
       const evidence = C.svgPreparationEvidence(importSvgMarkup(markup), { includeText: false });
       return C.requestSvgInterpretation(evidence, { includeText: false });
     }, TWO_GUESTS);
@@ -681,8 +681,8 @@ test('with every AI route failing, an SVG import is saved, taken to air and expo
   // call home to an AI route.
   await awaitDurableReady(page);
   const packages = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
     const graphic = loadGraphics().find((d) => d.name === 'Fallback strap');
     if (!graphic) return null;
     const out: Record<string, string> = {};
@@ -743,9 +743,9 @@ async function airPaint(page: Page): Promise<string[]> {
 async function ografErrors(page: Page, graphic: string): Promise<{ errors: string[]; files: number } | null> {
   await awaitDurableReady(page);
   return page.evaluate(async (name) => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
-    const { validateOgrafPackage } = await import('/src/export/targets/ografSchema.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
+    const { validateOgrafPackage } = await __noacgImport('/src/export/targets/ografSchema.ts');
     const saved = loadGraphics().find((d) => d.name === name);
     if (!saved) return null;
     const zip = await EXPORT_TARGETS.find((t) => t.id === 'ograf')!.build(saved.template);
@@ -874,7 +874,7 @@ test('row 38: unfamiliar artwork is imported, corrected once, taken, updated, ta
   await expect.poll(async () => ((await air.locator('#f0').textContent()) ?? '').trim(), { timeout: 5000 }).not.toBe('00:00');
   await page.getByTestId('verb-out').click();
   await expect(live).toContainText('nothing on air');
-  const library = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics().map((g) => g.name));
+  const library = await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics().map((g) => g.name));
   expect(library, 'one graphic, replaced in place').toEqual(['Wrzos v Mech']);
   expect(await ografErrors(page, 'Wrzos v Mech'), 'PACKAGE CONFORMANCE after the replacement').toEqual({ errors: [], files: expect.any(Number) });
 });

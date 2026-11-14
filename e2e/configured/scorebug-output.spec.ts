@@ -21,6 +21,10 @@ import { test, expect, type FrameLocator, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { dropSvg, intoProduction } from '../_svg-import';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE PUBLISHED SPORTS PATH (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 4): a scorebug driven from
 // the production dashboard and rendered by the REAL /output page over the REAL hosted log.
@@ -55,13 +59,13 @@ test('a published scorebug takes a score bump and a running clock on the real ou
   // A prior FAILED run can leave its published production behind, and the account SYNCS shows —
   // a stale record with an outputSlug then shadows this run's. Clean slate first.
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     for (const s of loadShows()) {
       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
       deleteShow(s.id);
     }
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
   // The house scorebug counts UP from 0:00, so a running clock is visibly moving rather than
@@ -80,7 +84,7 @@ test('a published scorebug takes a score bump and a running clock on the real ou
   await expect(links).toBeHidden();
 
   const outputSlug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
   }, showName);
   expect(outputSlug).toBeTruthy();
@@ -173,7 +177,7 @@ test('a published scorebug takes a score bump and a running clock on the real ou
   await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);
   });
   await wipeMyGraphics(page);
@@ -233,7 +237,7 @@ test('an imported clock starts, holds and resets from the server on two real out
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const outputSlug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
   }, showName);
   expect(outputSlug).toBeTruthy();
@@ -291,7 +295,7 @@ test('an imported clock starts, holds and resets from the server on two real out
   await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);
   });
   await wipeMyGraphics(page);
@@ -339,7 +343,7 @@ test('an imported duration on two real outputs: the Take and a running correctio
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const outputSlug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
   }, showName);
   expect(outputSlug).toBeTruthy();
@@ -389,7 +393,7 @@ test('an imported duration on two real outputs: the Take and a running correctio
   await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);
   });
   await wipeMyGraphics(page);

@@ -20,9 +20,14 @@ sweeps) are in its "Running the suite: traps".
   app's imports with `?t=`, and a spec's bare `import('/src/…')` loads a second copy whose store
   nothing renders (#1897: the export window never opened). A config's own server is immune; a
   reused developer server is not, so do not edit sources while a run uses it.
-- **Inside `page.evaluate`, an `import('/src/…')` MUST carry the `.ts` extension.** Vite gives the
-  extensionless URL its own module registry, so it can resolve a second instance (a "ghost store")
-  that nobody drove. The symptom is a plausible empty answer, not an error.
+- **Inside `page.evaluate`, reach an app module with `__noacgImport('/src/…ts')`, never `import()`.**
+  The door answers on the dev server and on the built app (src/app/e2eModules.ts); a plain
+  `import('/src/…')` fails on a build, and `npm run check:e2e-registry` refuses it. A spec that
+  serves its own HTML (a probe page, `setContent`) or evaluates on a page that is not the app (the
+  landing page, docs, a probe) has no app boot to install the door: call `installDoor(context)`
+  (`e2e/_door.ts`), and for a context it makes by hand. The path MUST
+  carry the `.ts` extension: an extensionless URL resolves a second instance (a "ghost store")
+  that nobody drove, and the symptom is a plausible empty answer, not an error.
 - **Headless limits.** Monaco is not fully interactive headless, and GSAP does not visibly tick
   (rAF). Assert on DOM or state there.
 - **Never clear localStorage via `addInitScript`.** It also runs in the same-origin srcdoc preview

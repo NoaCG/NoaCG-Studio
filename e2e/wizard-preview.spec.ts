@@ -85,7 +85,7 @@ test('style step: rapid palette clicks settle on the LAST palette, entrance repl
     await page.waitForTimeout(80);
   }
   const inferno = await page.evaluate(async () => {
-    const { paletteById } = await import('/src/model/wizard.ts');
+    const { paletteById } = await __noacgImport('/src/model/wizard.ts');
     return paletteById('inferno').accent;
   });
   await expect.poll(() => previewVar(page, '--accent')).toBe(inferno);

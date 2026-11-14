@@ -233,8 +233,8 @@ interface SavedAiGraphic {
 /** What the walk saved: the newest library record, read from the model the doors write. */
 async function savedGraphic(page: Page): Promise<SavedAiGraphic> {
   return page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const graphics = loadGraphics();
     const last = graphics[graphics.length - 1];
     return {
@@ -252,7 +252,7 @@ async function savedGraphic(page: Page): Promise<SavedAiGraphic> {
 /** How many provider runs the telemetry ring holds. A run is recorded as it finishes. */
 async function runsRecorded(page: Page): Promise<number> {
   return page.evaluate(async () => {
-    const { aiRunRecords } = await import('/src/ai/telemetry.ts');
+    const { aiRunRecords } = await __noacgImport('/src/ai/telemetry.ts');
     return aiRunRecords().length;
   });
 }
@@ -466,7 +466,7 @@ test('finish: the Create-with-AI export door saves the graphic and opens the exp
   // The AI creation survives the session under the chosen name — an export-only run that
   // vanished would cost the whole generation to reproduce.
   const names = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().map((g) => g.name);
   });
   expect(names).toEqual(['Election Night Slate']);
@@ -1144,9 +1144,9 @@ test('a modify keeps the code the user put there themselves', async ({ page }) =
   // impossible because the model faithfully kept the user's own block.
   await page.goto('/app');
   const verdicts = await page.evaluate(async () => {
-    const { mergeSafety } = await import('/src/ai/safety.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { mergeSafety } = await __noacgImport('/src/ai/safety.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const base = variantById('lt01')!.create({});
     const source = { ...base, js: base.js + "\nfetch('https://docs.google.com/x/pub?output=csv');" };
     const kept = mergeSafety(validateTemplate(source), source, source);

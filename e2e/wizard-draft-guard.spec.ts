@@ -178,7 +178,7 @@ test('a fresh open holds nothing: entering any walk and leaving asks nothing', a
     await page.getByTestId('wz-home').click();
     await expect(page.getByTestId('home-page')).toBeVisible();
     const held = await page.evaluate(async () => {
-      const { useSaveUi } = await import('/src/store/saveActions.ts');
+      const { useSaveUi } = await __noacgImport('/src/store/saveActions.ts');
       return useSaveUi.getState().heldWalk;
     });
     expect(held, `${entry}: nothing was done, so nothing is held`).toBe(false);
@@ -226,7 +226,7 @@ async function leaveAndReadHeld(page: Page): Promise<boolean> {
   await page.getByTestId('wz-home').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
   return page.evaluate(async () => {
-    const { useSaveUi } = await import('/src/store/saveActions.ts');
+    const { useSaveUi } = await __noacgImport('/src/store/saveActions.ts');
     return useSaveUi.getState().heldWalk;
   });
 }

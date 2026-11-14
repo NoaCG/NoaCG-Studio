@@ -26,10 +26,10 @@ test('real isolated auth persists project drafts/history and independent install
     const ids = await seedAuthoringProject(page);
     await editProjectText(page, 'Authenticated harbour draft');
     const prepared = await page.evaluate(async ids => {
-      const P = await import('/src/store/authoringProjects.ts'), A = await import('/src/store/saveActions.ts');
-      const S = await import('/src/model/shows.ts'), D = await import('/src/model/durableStore.ts');
-      const I = await import('/src/control/projectInstallation.ts');
-      const { createLook } = await import('/src/model/packets.ts');
+      const P = await __noacgImport('/src/store/authoringProjects.ts'), A = await __noacgImport('/src/store/saveActions.ts');
+      const S = await __noacgImport('/src/model/shows.ts'), D = await __noacgImport('/src/model/durableStore.ts');
+      const I = await __noacgImport('/src/control/projectInstallation.ts');
+      const { createLook } = await __noacgImport('/src/model/packets.ts');
       const look = createLook('Isolated harbour', { styleTag: 'minimal', fontId: 'oswald', customFont: null,
         palette: { id: 'custom', name: 'Harbour', styleTags: ['minimal'], accent: '#16bb99', text: '#ffffff', textDim: '#bbbbcc', panel: '#112233' },
         logo: { path: 'images/isolated.svg', data: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#16bb99"/></svg>') } });
@@ -37,10 +37,10 @@ test('real isolated auth persists project drafts/history and independent install
       for (const id of ids) {
         if (!await P.openProjectDocument(id)) throw new Error(P.useAuthoringProjects.getState().error);
         if (id === ids[0]) {
-          const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+          const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
           session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'brand.apply', look }] });
         }
-        const result = await A.saveGraphicAs((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.name, { kind: 'standalone' });
+        const result = await A.saveGraphicAs((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.name, { kind: 'standalone' });
         if (!result.ok) throw new Error(result.error!); graphicIds.push(result.graphicId!);
       }
       const a = S.createShowNamedChecked('Authenticated A').show, b = S.createShowNamedChecked('Authenticated B').show;
@@ -54,19 +54,19 @@ test('real isolated auth persists project drafts/history and independent install
     // A later master edit must leave both already-installed copies byte-for-byte intact.
     await editProjectText(page, 'Second authenticated master');
     const expectation = await page.evaluate(async () => {
-      const A = await import('/src/store/saveActions.ts');
+      const A = await __noacgImport('/src/store/saveActions.ts');
       if (await A.saveCurrentGraphic() !== 'saved') throw new Error('Master save failed.');
-      const P = await import('/src/store/authoringProjects.ts');
-      const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+      const P = await __noacgImport('/src/store/authoringProjects.ts');
+      const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
       s.undo(); const undo = s.port.read(); s.redo();
       const documents = structuredClone(P.workspace().documents);
-      (await import('/src/store/templateStore.ts')).flushPendingProject();
-      await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+      (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject();
+      await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
       return { documents, undo: undo.html, current: s.port.read().html };
     });
     expect(expectation.undo).toContain('Authenticated harbour draft'); expect(expectation.current).toContain('Second authenticated master');
     await flushAuthoringProject(page);
-    await page.evaluate(async () => { await (await import('/src/backend/syncController.ts')).syncNow(); });
+    await page.evaluate(async () => { await (await __noacgImport('/src/backend/syncController.ts')).syncNow(); });
     await settleSync(page);
     const stored = await admin.from('documents').select('id,kind,body').eq('user_id', uid);
     expect(stored.error).toBeNull();
@@ -84,15 +84,15 @@ test('real isolated auth persists project drafts/history and independent install
     await reopened.getByTestId('home-projects').getByRole('button', { name: /^E4 Lower third/ }).click();
     await expect(reopened.getByTestId('editor-foundation')).toBeVisible();
     const fresh = await reopened.evaluate(async ({ ids, showIds }) => {
-      const P = await import('/src/store/authoringProjects.ts'), S = await import('/src/model/shows.ts');
-      const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+      const P = await __noacgImport('/src/store/authoringProjects.ts'), S = await __noacgImport('/src/model/shows.ts');
+      const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
       const source = s.port.read(), canUndo = s.canUndo(); s.undo(); const undo = s.port.read(); s.redo();
       return { source, undo, redone: s.port.read(), canUndo, projects: P.workspace().projects,
         drafts: P.workspace().documents.filter(d => ids.includes(d.id)).map(d => ({ id: d.id, template: d.template, history: d.history, future: d.future })),
         copies: showIds.map(id => S.loadShows().find(s => s.id === id)!) };
     }, { ids, showIds: prepared.showIds });
     const permission = await reopened.evaluate(async () => {
-      const sb = (await (await import('/src/backend/supabase.ts')).getSupabase())!;
+      const sb = (await (await __noacgImport('/src/backend/supabase.ts')).getSupabase())!;
       const user = await sb.auth.getUser();
       const other = await sb.from('documents').select('id').neq('user_id', user.data.user!.id);
       return { user: user.data.user!.id, otherRows: other.data, error: other.error?.message ?? null };
@@ -108,15 +108,15 @@ test('real isolated auth persists project drafts/history and independent install
     }
     // Rollback is a fresh directed mutation after the installed revision has synced.
     const inverse = await reopened.evaluate(async target => {
-      const P = await import('/src/store/authoringProjects.ts');
+      const P = await __noacgImport('/src/store/authoringProjects.ts');
       const plan = P.workspace().installations!.find(p => p.target === target)!;
-      const result = await (await import('/src/control/projectInstallation.ts')).retryProjectInstallation(plan.id, true);
-      return { plan: result, show: (await import('/src/model/shows.ts')).loadShows().find(s => s.id === target)! };
+      const result = await (await __noacgImport('/src/control/projectInstallation.ts')).retryProjectInstallation(plan.id, true);
+      return { plan: result, show: (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === target)! };
     }, prepared.showIds[0]);
     expect(inverse.plan.status).toBe('rolled-back'); expect(inverse.show).toEqual(inverse.plan.rollback);
     expect(inverse.show.updatedAt > inverse.plan.after.updatedAt).toBe(true);
     expect({ ...inverse.show, updatedAt: inverse.plan.before.updatedAt }).toEqual(inverse.plan.before);
-    await reopened.evaluate(async () => { await (await import('/src/backend/syncController.ts')).syncNow(); });
+    await reopened.evaluate(async () => { await (await __noacgImport('/src/backend/syncController.ts')).syncNow(); });
     await settleSync(reopened);
     const rolledCloud = await admin.from('documents').select('body').eq('user_id', uid).eq('kind', 'show');
     expect(rolledCloud.error).toBeNull();
@@ -128,10 +128,10 @@ test('real isolated auth persists project drafts/history and independent install
     await signInOnHome(afterInverse, email, password);
     await expect(afterInverse.getByTestId('home-projects')).toContainText('E4 show');
     const inverseFresh = await afterInverse.evaluate(async ({ target, installation }) => {
-      const I = await import('/src/control/projectInstallation.ts');
-      const before = (await import('/src/model/shows.ts')).loadShows().find(s => s.id === target)!;
+      const I = await __noacgImport('/src/control/projectInstallation.ts');
+      const before = (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === target)!;
       const retry = await I.retryProjectInstallation(installation);
-      return { before, retry, after: (await import('/src/model/shows.ts')).loadShows().find(s => s.id === target)! };
+      return { before, retry, after: (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === target)! };
     }, { target: prepared.showIds[0], installation: inverse.plan.id });
     expect(inverseFresh.before).toEqual(inverse.show); expect(inverseFresh.after).toEqual(inverse.show);
     expect(inverseFresh.retry.rollback).toEqual(inverse.plan.rollback); expect(inverseFresh.retry.status).toBe('rolled-back');

@@ -77,9 +77,9 @@ async function expectOldEditorNeverShown(page: Page): Promise<void> {
 /** Seed one saved library graphic through the model (the control page needs a record). */
 async function seedGraphic(page: Page, name = 'Lab lower third'): Promise<string> {
   return page.evaluate(async (graphicName) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const template = variantsFor('lower-third')[0].create({});
     const { doc, error } = createGraphic(template, { name: graphicName, packageId: null });
     if (error || !doc) throw new Error(error ?? 'seed failed');
@@ -92,9 +92,9 @@ async function seedGraphic(page: Page, name = 'Lab lower third'): Promise<string
  *  does not auto-open and a bare boot has to choose a surface of its own. */
 async function seedAutosavedProject(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { saveProject } = await import('/src/model/project.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { saveProject } = await __noacgImport('/src/model/project.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const template = variantsFor('lower-third')[0].create({});
     saveProject(template, template, { graphicId: null, dirty: false });
     await commitDurableWrites();
@@ -326,7 +326,7 @@ test('prefs: a version-1 record drops advancedMode on read, and a newer version 
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   const result = await page.evaluate(async (key) => {
-    const { loadPrefs, savePrefs, PREFS_VERSION } = await import('/src/model/prefs.ts');
+    const { loadPrefs, savePrefs, PREFS_VERSION } = await __noacgImport('/src/model/prefs.ts');
 
     // Nothing stored: the defaults, and READING writes nothing.
     localStorage.removeItem(key);

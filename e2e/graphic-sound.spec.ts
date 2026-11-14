@@ -16,12 +16,12 @@ test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required']
 
 // Independent audio fixtures. The parallel health session owns its fixture helpers.
 const HARNESS = `
-  const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-  const { runtimeJs } = await import('/src/templates/shared/base.ts');
-  const { composeDocument } = await import('/src/preview/composeDocument.ts');
-  const { createBlankTemplate } = await import('/src/templates/blank.ts');
-  const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
-  const { parseAnimData } = await import('/src/blocks/animData.ts');
+  const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+  const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
+  const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+  const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
+  const { replaceDefinitionInHtml } = await __noacgImport('/src/model/spxDefinition.ts');
+  const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
   const sound = (id, mode = 'one-shot', levelDb = 0, enabled = true) => ({ id, asset: 'sounds/tone.wav', enabled, levelDb, mode });
   const step = (name, sound) => ({ name, duration: 0.05, ease: 'none', layers: { '#box': { opacity: [{ time: 0, value: 1 }] } }, ...(sound ? { sound } : {}) });
   function tone() {
@@ -182,17 +182,17 @@ test('timer execution and actual gain survive parallel groups and cleanup', asyn
 test('save/reopen, publication gate and output payload retain sound settings and bytes', async ({ page }) => {
   await page.goto('/app'); await awaitDurableReady(page);
   const id = await page.evaluate(`(async()=>{ ${HARNESS}
-    const {createGraphic}=await import('/src/model/library.ts');
-    const {publishGate}=await import('/src/validation/publishGate.ts');
+    const {createGraphic}=await __noacgImport('/src/model/library.ts');
+    const {publishGate}=await __noacgImport('/src/validation/publishGate.ts');
     const t=tpl(quiz()), gate=publishGate(t);
     if(!gate.ok)throw Error(JSON.stringify(gate.errors));
     return createGraphic(t,{name:t.name}).doc.id;
   })()`);
   await settleDurableWrites(page); await page.reload(); await awaitDurableReady(page);
   const r = await page.evaluate(`(async()=>{ ${HARNESS}
-    const {graphicById}=await import('/src/model/library.ts');
-    const {createShowNamed,addGraphicToShow}=await import('/src/model/shows.ts');
-    const {buildOutputPayload}=await import('/src/control/hostedControl.ts');
+    const {graphicById}=await __noacgImport('/src/model/library.ts');
+    const {createShowNamed,addGraphicToShow}=await __noacgImport('/src/model/shows.ts');
+    const {buildOutputPayload}=await __noacgImport('/src/control/hostedControl.ts');
     const g=graphicById(${JSON.stringify(id)}),show=createShowNamed('Sound proof');
     const added=addGraphicToShow(show.id,g.template,{graphicId:g.id});
     const output=await buildOutputPayload(added.shows.find(s=>s.id===show.id));
@@ -207,10 +207,10 @@ test('save/reopen, publication gate and output payload retain sound settings and
 test('dual package preserves the attachment on import, OGraf isolates audio and skips historical one-shots', async ({ page }) => {
   await page.goto('/app');
   const files = await page.evaluate(`(async()=>{ ${HARNESS}
-    const {buildGraphicPackage}=await import('/src/export/noacgPackage.ts');
-    const {validateOgrafOfflineCompatibility}=await import('/src/export/targets/ograf.ts');
-    const {readOgrafPackage}=await import('/src/export/targets/ografImport.ts');
-    const {importZipTemplate}=await import('/src/model/importTemplate.ts');
+    const {buildGraphicPackage}=await __noacgImport('/src/export/noacgPackage.ts');
+    const {validateOgrafOfflineCompatibility}=await __noacgImport('/src/export/targets/ograf.ts');
+    const {readOgrafPackage}=await __noacgImport('/src/export/targets/ografImport.ts');
+    const {importZipTemplate}=await __noacgImport('/src/model/importTemplate.ts');
     const t=tpl(quiz()),zip=await buildGraphicPackage(t),files={};
     for(const [name,file] of Object.entries(zip.files))if(!file.dir)files[name]=await file.async('base64');
     const packageRead=readOgrafPackage(new Map(Object.entries(files).map(([path,b64])=>[path,Uint8Array.from(atob(b64),c=>c.charCodeAt(0))])));
@@ -259,8 +259,8 @@ test('dual package preserves the attachment on import, OGraf isolates audio and 
 test('missing and malformed sounds block publication; the exact decoder exemption does not admit authored network code', async ({ page }) => {
   await page.goto('/app');
   const r=await page.evaluate(`(async()=>{ ${HARNESS}
-    const {publishGate}=await import('/src/validation/publishGate.ts');
-    const {unsafeJsConstructs}=await import('/src/validation/templateBench.ts');
+    const {publishGate}=await __noacgImport('/src/validation/publishGate.ts');
+    const {unsafeJsConstructs}=await __noacgImport('/src/validation/templateBench.ts');
     const t=tpl(linear()),missing=publishGate({...t,assets:[]});
     const d=linear();d.steps[0].sound.levelDb=7;
     const malformed=publishGate(tpl(d));
@@ -273,7 +273,7 @@ test('missing and malformed sounds block publication; the exact decoder exemptio
 test('exported hosted recovery suppresses history, restores one loop and leaves empty polls alone', async ({ page }) => {
   await page.goto('/app');
   const r=await page.evaluate(`(async()=>{ ${HARNESS}
-    const {hostedReceiverBlock}=await import('/src/control/hostedReceiver.ts');
+    const {hostedReceiverBlock}=await __noacgImport('/src/control/hostedReceiver.ts');
     const d=countdown();d.machine.groups[0].transitions=d.machine.groups[0].transitions.filter(t=>t.trigger!=='timer');
     const b=await boot(tpl(d)),w=b.w,fetch=w.fetch.bind(w),sockets=[];
     let tail=[{id:1,msg:{t:'play'}},{id:2,msg:{t:'event',event:'start'}}],reads=0;

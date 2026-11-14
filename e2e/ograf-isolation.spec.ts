@@ -20,6 +20,10 @@ import { fileURLToPath } from 'node:url';
 import { installGraphicBody } from './_graphicBody';
 import { graphicTemplate, ografFiles, type GraphicSource } from './_ografBuild';
 import { matches, paritySweep, PARITY_BOUND } from './_ografParity';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ORIGIN = 'http://ograf-isolation.local';
 const GROUND = [10, 20, 30];
@@ -177,9 +181,9 @@ test('two keyed SVG groups keep independent pivots through interrupted Out and r
     html: '<svg id="pivot-art" width="960" height="270"><rect id="part-a" data-gfx width="100" height="50"/><rect id="part-b" data-gfx x="200" width="100" height="50"/></svg>' });
   const make = async (opening: number, inTime: number, outTime: number) => {
     const source = await page.evaluate(async ({ draft, opening, inTime, outTime }) => {
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
-      const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
-      const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+      const { replaceRegionWithAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+      const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
       const template = draft as Parameters<typeof applyOperations>[0], data = parseAnimData(template.js)!;
       data.steps = [{ name: 'In', duration: inTime, ease: 'none', layers: {} }, { name: 'Out', duration: outTime, ease: 'none', layers: {} }];
       const selector = '#group-1';
@@ -237,9 +241,9 @@ test('owned pivots leave raw same-name GSAP tracks alone in a shared OGraf rende
   const packages: Record<string, Files> = {};
   for (const folder of folders) {
     const source = await page.evaluate(async ({ draft, folder, durations: [inTime, outTime] }) => {
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
-      const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
-      const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+      const { replaceRegionWithAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+      const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
       const template = draft as Parameters<typeof applyOperations>[0], data = parseAnimData(template.js)!;
       data.speed = 1;
       data.steps = [{ name: 'In', duration: inTime, ease: 'none', layers: {} }, { name: 'Out', duration: outTime, ease: 'none', layers: {} }];
@@ -345,7 +349,7 @@ test('a stretch design measures the same room whether or not the renderer offset
   // inside 1920) caps it at 143.2. And the same runtime as a design imported before the edge walk
   // stopped at the canvas carries it in its saved code, which the export upgrades (#925).
   const savedBefore = await page.evaluate(async () => {
-    const { stretchRuntimeJs } = await import('/src/templates/importedDesign/stretch.ts');
+    const { stretchRuntimeJs } = await __noacgImport('/src/templates/importedDesign/stretch.ts');
     const now = 'for (var el = box; el && el !== document.body; el = el.offsetParent) x += el.offsetLeft;';
     const js = stretchRuntimeJs('probe');
     if (!js.includes(now)) throw new Error('the stretch runtime no longer walks its edge as this case expects - update the case');

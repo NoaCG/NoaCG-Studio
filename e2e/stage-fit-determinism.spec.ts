@@ -54,8 +54,8 @@ const PROBES: { id: string; why: string }[] = [
 
 /** What a design SHIPS as its reserve: every remembered room, and the inline styles that hold it. */
 const RESERVES = `(async (ids, recalibrations) => {
-  const { CATALOG } = await import('/src/templates/catalog.ts');
-  const { composeDocument } = await import('/src/preview/composeDocument.ts');
+  const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+  const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
   const all = [];
   for (const variants of Object.values(CATALOG)) for (const v of variants ?? []) all.push(v);
   const out = [];

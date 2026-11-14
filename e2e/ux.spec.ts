@@ -26,7 +26,7 @@ test('export: validation shows inline and gates the download on a broken templat
   // Break the runtime: blank the JS, then open the window on the broken graphic (the window
   // reads the working graphic when it opens).
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const s = useTemplateStore.getState();
     s.applyTemplate({ ...s.template, js: '// gone' });
   });
@@ -59,8 +59,8 @@ test('wizard: direction control mixes a different exit preset at create', async 
   // keeps Line reveal's choreography (the accent draws in) while the Out step carries
   // Slide down's exit (the box lifts away: y + opacity keyframes).
   const data = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     return parseAnimData(useTemplateStore.getState().template.js);
   });
   expect(data).not.toBeNull();

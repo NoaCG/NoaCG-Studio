@@ -17,8 +17,8 @@ import { toApp } from './_bench';
 const HELPERS = `
   window.__rot = window.__rot || {};
   window.__boot = async (name) => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const variant = Object.values(CATALOG).flat().find((v) => v.id === 'bug21');
     const old = window.__rot[name];
     if (old) old.frame.remove();

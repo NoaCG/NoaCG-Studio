@@ -24,8 +24,8 @@ test('a newly created project starts from a Prettier-formatted HTML baseline', a
   await finishIntoNewEditor(page);
 
   const result = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { formatHtml } = await import('/src/format/formatCode.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { formatHtml } = await __noacgImport('/src/format/formatCode.ts');
     const t = useTemplateStore.getState().template;
     return {
       // Already-formatted HTML is a fixed point of formatHtml - so re-formatting is a no-op.

@@ -131,8 +131,8 @@ test('structured setup: pinned category + user fields + intensity land in the cr
   // The created template carries the user's fields as real DataFields, the intensity as
   // the motion speed, and the spec rides the working document for later refines.
   const state = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const s = useTemplateStore.getState();
     return {
       fieldTitles: s.template.fields.map((f) => f.title),

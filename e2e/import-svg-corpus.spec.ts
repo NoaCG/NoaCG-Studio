@@ -393,7 +393,7 @@ test('corpus: a Figma-placed picture is a picture field, and an operator can swa
   await finishIntoNewEditor(page);
 
   const field = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields[2];
   });
   expect(field.ftype).toBe('filelist');

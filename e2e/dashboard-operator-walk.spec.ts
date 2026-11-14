@@ -254,9 +254,9 @@ test('a burst of commands runs in order even while the entrance waits for its fo
   await dropSvg(page, QUIZ_SVG);
   await intoProduction(page, 'Quiz board', 'Burst');
   const after = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const { postPreviewCmd } = await import('/src/preview/previewProtocol.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+    const { postPreviewCmd } = await __noacgImport('/src/preview/previewProtocol.ts');
     const graphic = loadGraphics().find((g) => g.name === 'Quiz board')!;
     const frame = document.createElement('iframe');
     frame.style.cssText = 'position:absolute;left:-9999px;width:1920px;height:1080px';

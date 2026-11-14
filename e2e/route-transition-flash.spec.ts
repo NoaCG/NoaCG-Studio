@@ -92,8 +92,8 @@ async function seedAutosavedProject(page: Page): Promise<void> {
   await page.goto('/app');
   await expect(booted(page)).toBeVisible();
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { saveProject } = await import('/src/model/project.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { saveProject } = await __noacgImport('/src/model/project.ts');
     const s = useTemplateStore.getState();
     saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread);
   });
@@ -129,7 +129,7 @@ test('a deep link to a production never opens under the startup wizard', async (
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   const id = await page.evaluate(async () => {
-    const { createShowNamed } = await import('/src/model/shows.ts');
+    const { createShowNamed } = await __noacgImport('/src/model/shows.ts');
     return createShowNamed('Flash repro').id;
   });
   await settleDurableWrites(page);

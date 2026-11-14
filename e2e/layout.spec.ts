@@ -21,9 +21,9 @@ test('mobile: Home leads with Productions and a dashboard is two taps from open'
   // earlier, hydration can replace it with the empty library it loaded (e2e/AGENTS.md).
   await awaitDurableReady(page);
   await page.evaluate(async () => {
-    const { createBlankTemplate } = await import('/src/templates/blank.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
     const tpl = createBlankTemplate();
     const { doc } = createGraphic(tpl, { name: 'Phone strap' });
     const show = createShowNamed('Morning show');

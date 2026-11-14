@@ -61,8 +61,8 @@ test('the static validators report the same findings over 57 real generations', 
 
   const actual = await page.evaluate(
     async ([hf, rm, assetFiles, assetInfo]) => {
-      const { staticValidateHyperframes } = await import('/src/video/hyperframes/validate.ts');
-      const { staticValidate } = await import('/src/video/compile.ts');
+      const { staticValidateHyperframes } = await __noacgImport('/src/video/hyperframes/validate.ts');
+      const { staticValidate } = await __noacgImport('/src/video/compile.ts');
       const out: Record<string, string[]> = {};
 
       for (const { file, source } of hf as { file: string; source: string }[]) {

@@ -30,6 +30,10 @@ import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 import { addQuestion, goLive, moreWaysIn, questionRow, simulateArrivals, stopLive } from './_interaction';
 import { qrReader } from './_qr';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The production AUDIENCE workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md, Phase 5).
 //
@@ -223,7 +227,7 @@ test('the page settings reach the phone preview: the title and waiting text, and
   await audience.getByTestId('join-page-title').blur();
   await expect(preview.locator('.nj-title')).toHaveText('Settings Night');
   const stored = await audience.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.id === id)?.joinPage ?? null;
   }, showId);
   expect(stored).toEqual({ waiting: 'Back after the break' });
@@ -237,9 +241,9 @@ test('a Join card cue takes its place and size from the cue editor', async ({ pa
   await bootstrapGraphic(page, { name: 'House Q&A' });
   const showId = await productionFor(page, 'Join Card Night');
   await page.evaluate(async (id) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { buildDraftTemplate, initialDraft, mergeDraft } = await import('/src/components/wizard/draft.ts');
-    const { addGraphicToShow } = await import('/src/model/shows.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { buildDraftTemplate, initialDraft, mergeDraft } = await __noacgImport('/src/components/wizard/draft.ts');
+    const { addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
     const variant = variantById('jc01')!;
     const lines = variant.suggestedLines.map((l) => (l.title === 'Join link' ? { ...l, sample: 'https://noacg.studio/j/join-card-night' } : { ...l }));
     addGraphicToShow(id, buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines })), {});
@@ -322,7 +326,7 @@ test('results reach air only as cues the operator takes: one cue per question, n
   await expect(stage()).toHaveText('Add results to rundown on House Vote');
   const staged = async () =>
     audience.evaluate(async () => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       const show = loadShows()[0];
       const results = (show.cues ?? []).filter((c) => c.label.startsWith('Vote —'));
       const cue = results[0];
@@ -404,9 +408,9 @@ test('results reach air only as cues the operator takes: one cue per question, n
 
   // A deleted result cue gets a new one, and the note says so (S3).
   await audience.evaluate(async (id) => {
-    const { loadShows, removeShowCue } = await import('/src/model/shows.ts');
+    const { loadShows, removeShowCue } = await __noacgImport('/src/model/shows.ts');
     removeShowCue(loadShows()[0].id, id);
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     await commitDurableWrites();
   }, first.id);
   await audience.reload();
@@ -437,7 +441,7 @@ test('a second operator tab updates the same result cue; a graphic without the f
   await expect(two.getByTestId('audience-note')).toContainText('✓ Updated the result cue on “House Vote”');
   const results = async () =>
     two.evaluate(async () => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       const show = loadShows()[0];
       return { cues: (show.cues ?? []).filter((c) => c.label.startsWith('Vote —')).map((c) => ({ id: c.id, source: c.sourceId })), mapped: Object.values(show.resultCues ?? {}) };
     });
@@ -447,12 +451,12 @@ test('a second operator tab updates the same result cue; a graphic without the f
   // Its graphic loses the result fields (an edit made elsewhere): the next press makes a new cue on
   // the graphic chosen, with a note, and the old cue stays in the rundown.
   await two.evaluate(async (id) => {
-    const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { loadShows, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows()[0];
     const g = show.graphics.find((x) => x.id === id)!;
     // The graphic updated in place (same name, same id), now without an Options field.
     addGraphicToShow(show.id, { ...g.template, fields: (g.template.fields ?? []).map((f) => (f.title === 'Options' ? { ...f, title: 'Rows' } : f)) }, { graphicId: g.id });
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     await commitDurableWrites();
   }, before.cues[0].source);
   await two.reload();
@@ -574,8 +578,8 @@ test('questions are written, browsed and changed safely, and the list survives a
   // sync would) still has a Stop, and Stop takes phones back to the waiting text.
   await goLive(ws, 'Where are you watching from?');
   await page.evaluate(async (id) => {
-    const { setShowQuestions } = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { setShowQuestions } = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     setShowQuestions(id, (list) => list.filter((q) => q.text !== 'Where are you watching from?'));
     await commitDurableWrites();
   }, showId);
@@ -640,7 +644,7 @@ test('a Word question takes one word per phone, lists words by frequency, and ai
   await expect(ws.getByTestId('word-stage')).toHaveText('Add word cloud to rundown on House Word Cloud');
   const staged = async () =>
     ws.evaluate(async () => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       const show = loadShows()[0];
       const cues = (show.cues ?? []).filter((c) => c.label.startsWith('Words:'));
       return { count: cues.length, id: cues[0]?.id, values: cues[0]?.values ?? {} };
@@ -661,8 +665,8 @@ test('a Word question takes one word per phone, lists words by frequency, and ai
 
   // A copy of the cue made before a Hide (the rundown's own clipboard) is held to it as well.
   const clip = await ws.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { copyClip } = await import('/src/model/cueClipboard.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { copyClip } = await __noacgImport('/src/model/cueClipboard.ts');
     const show = loadShows()[0];
     return copyClip(show, (show.cues ?? []).filter((c) => c.label.startsWith('Words:')).map((c) => c.id));
   });
@@ -673,8 +677,8 @@ test('a Word question takes one word per phone, lists words by frequency, and ai
   await expect(note).toContainText('If the cloud is on air, press Update');
   // Pasting the earlier copy brings no hidden word back (W11), then the copy is removed again.
   const pasted = await ws.evaluate(async (c) => {
-    const { loadShows, pasteInRundown, removeShowCue } = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { loadShows, pasteInRundown, removeShowCue } = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const show = loadShows()[0];
     const r = pasteInRundown(show.id, c as never, { end: true });
     await commitDurableWrites();
@@ -799,7 +803,7 @@ test('unpublished, Interaction offers Publish where phones would join and publis
   await expect(questionRow(ws, 'Rehearse me').getByTestId('question-count')).toHaveText('4');
   await settleDurableWrites(ws);
   const published = await ws.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.id === id)!;
     return { hosted: show.hostedSlug ?? null, join: show.joinSlug ?? null };
   }, showId);
@@ -823,7 +827,7 @@ test('a vote with nowhere to go offers a vote board instead of writing a cue nob
   await expect(audience.getByTestId('result-no-destination')).toBeVisible();
   const cues = async () =>
     page.evaluate(async () => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       return (loadShows()[0].cues ?? []).map((c) => ({ label: c.label, values: c.values }));
     });
   expect((await cues()).filter((c) => c.label.startsWith('Vote —'))).toHaveLength(0);
@@ -843,7 +847,7 @@ test('a vote with nowhere to go offers a vote board instead of writing a cue nob
 /** The cues of the one production, as the workspace's own tab has them. */
 async function cueLabels(tab: Page): Promise<string[]> {
   return tab.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return (loadShows()[0].cues ?? []).map((c) => c.label);
   });
 }
@@ -896,11 +900,11 @@ test('a result staged while the rundown cannot save says so, and staging again a
   expect(await votes()).toBe(1);
   // The cue is deleted, so the next press adds one, and that write is refused.
   await audience.evaluate(async () => {
-    const { loadShows, removeShowCue } = await import('/src/model/shows.ts');
+    const { loadShows, removeShowCue } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows()[0];
     const cue = (show.cues ?? []).find((c) => c.label.startsWith('Vote —'))!;
     removeShowCue(show.id, cue.id);
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     await commitDurableWrites();
   });
   expect(await votes()).toBe(0);
@@ -965,7 +969,7 @@ test('the presenter pointers: queue what is read now and next, without airing an
   // NOTHING AIRED. The pointers reach no rundown and no command log - a producer queues three
   // questions the show never gets to, and that must not put anything in front of anyone.
   const cues = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return (loadShows().find((s) => s.name === 'Autocue')?.cues ?? []).length;
   });
   expect(cues).toBe(1); // just the one seeded when the graphic was pooled
@@ -993,7 +997,7 @@ test('the presenter pointers: queue what is read now and next, without airing an
 /** The production as this tab's store has it: its graphics and cues, plain. */
 async function record(tab: Page, showId: string) {
   return tab.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.id === id)!;
     return {
       graphics: show.graphics.map((g) => ({ id: g.id, name: g.name, fields: (g.template.fields ?? []).map((f) => ({ field: f.field, title: f.title ?? '' })) })),
@@ -1105,8 +1109,8 @@ test('a binding on the card\'s Question is refused once messages are prepared, a
   const bind = (entries: { fieldId: string; path: string | null }[], bulk: boolean) =>
     page.evaluate(
       async ([id, list, many]) => {
-        const shows = await import('/src/model/shows.ts');
-        const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+        const shows = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
         if (many) shows.setFieldBindings(id, list.map((e) => ({ graphic: 'House Q&A', fieldId: e.fieldId, path: e.path ?? '' })));
         else for (const e of list) shows.setFieldBinding(id, 'House Q&A', e.fieldId, e.path);
         await commitDurableWrites();
@@ -1194,7 +1198,7 @@ test('a tab that has not heard of a prepared message cannot bind its field', asy
   // The stale tab still believes nothing is prepared, and binds the Question.
   expect((await record(data, showId)).cues.some((c) => c.stagedFrom)).toBe(false);
   await data.evaluate(async ([id, field]) => {
-    const shows = await import('/src/model/shows.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
     shows.setFieldBinding(id, 'House Q&A', field, 'feed.question');
     await new Promise((r) => setTimeout(r));
   }, [showId, question] as const);
@@ -1217,7 +1221,7 @@ test('a tab that has not heard of a binding cannot prepare a message onto it', a
   await paste(messages, 'Should not land');
 
   await page.evaluate(async ([id, field]) => {
-    const shows = await import('/src/model/shows.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
     shows.setFieldBinding(id, 'House Q&A', field, 'feed.question');
     await new Promise((r) => setTimeout(r));
   }, [showId, question] as const);
@@ -1377,7 +1381,7 @@ async function phonePage(page: Page): Promise<void> {
 async function mount(page: Page, view: Record<string, unknown>, round: 'none' | 'open' | 'choice' = 'none'): Promise<void> {
   await page.evaluate(
     async ({ view, round }) => {
-      const { mountJoinSurface } = await import('/src/audience/joinSurface.ts');
+      const { mountJoinSurface } = await __noacgImport('/src/audience/joinSurface.ts');
       const state =
         round === 'none'
           ? { open: false, mode: 'waiting', round: null, prompt: '', presenter: { current: null, next: null } }
@@ -1639,7 +1643,7 @@ test('the studio QR code decodes to the short link, as SVG and as PNG (AC-5)', a
     await phonePage(page);
     await page.setViewportSize({ width: 800, height: 800 });
     const png = await page.evaluate(async (link) => {
-      const { qrSvg, qrPng } = await import('/src/audience/joinQr.ts');
+      const { qrSvg, qrPng } = await __noacgImport('/src/audience/joinQr.ts');
       const host = document.createElement('div');
       host.id = 'qr';
       host.style.cssText = 'width:400px;height:400px';

@@ -16,6 +16,10 @@ import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE COLD BOOT (docs/CLOUD_PLAYOUT.md §3): the cue is taken BEFORE any renderer exists, and the
 // browser source is opened afterwards. That is the ordinary order in a control room — the
@@ -43,13 +47,13 @@ test('a cue taken before the renderer exists is on air when the browser source b
   // A prior FAILED run can leave its published production behind, and the account SYNCS shows —
   // a stale record with an outputSlug then shadows this run's. Clean slate first.
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     for (const s of loadShows()) {
       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
       deleteShow(s.id);
     }
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
   await bootstrapGraphic(page, { name: 'House Scorebug' });
@@ -66,7 +70,7 @@ test('a cue taken before the renderer exists is on air when the browser source b
   await expect(links).toBeHidden();
 
   const slugs = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === name);
     return { output: show?.outputSlug ?? null, control: show?.hostedSlug ?? null };
   }, showName);
@@ -82,7 +86,7 @@ test('a cue taken before the renderer exists is on air when the browser source b
     .poll(
       async () =>
         page.evaluate(async (slug) => {
-          const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+          const { controlShowBySlug } = await __noacgImport('/src/control/hostedControl.ts');
           const answer = await controlShowBySlug(slug!);
           const show = answer.ok ? answer.value : null;
           return Object.keys(show?.liveCue ?? {}).length;
@@ -137,7 +141,7 @@ test('a cue taken before the renderer exists is on air when the browser source b
   await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);
   });
   await wipeMyGraphics(page);

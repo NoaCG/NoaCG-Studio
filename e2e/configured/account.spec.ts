@@ -49,7 +49,7 @@ test.describe('account essentials', () => {
       await expect(page.getByTestId('account-note')).toContainText('✓ Password changed', { timeout: 15_000 });
     } finally {
       await page.evaluate(async (original) => {
-        const { updatePassword } = await import('/src/backend/auth.ts');
+        const { updatePassword } = await __noacgImport('/src/backend/auth.ts');
         await updatePassword(original);
       }, E2E_PASSWORD);
     }
@@ -100,7 +100,7 @@ test.describe('account essentials', () => {
     // client directly, bypassing backend/auth.signOut and its deliberate-sign-out flag —
     // exactly what a revoked/expired refresh token looks like to the app.
     await page.evaluate(async () => {
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const sb = await getSupabase();
       await sb!.auth.signOut({ scope: 'local' });
     });
@@ -114,7 +114,7 @@ test.describe('account essentials', () => {
 
     // Local work is untouched while signed out.
     const names = await page.evaluate(async () => {
-      const { loadGraphics } = await import('/src/model/library.ts');
+      const { loadGraphics } = await __noacgImport('/src/model/library.ts');
       return loadGraphics().map((g) => g.name);
     });
     expect(names).toContain('Survives expiry');
@@ -134,7 +134,7 @@ test.describe('account essentials', () => {
     await page.getByTestId('home-nav-graphics').click();
     await expect(page.locator('.lib-row', { hasText: 'Survives expiry' })).toBeVisible();
     const after = await page.evaluate(async () => {
-      const { loadGraphics } = await import('/src/model/library.ts');
+      const { loadGraphics } = await __noacgImport('/src/model/library.ts');
       return loadGraphics().map((g) => g.name);
     });
     expect(after).toContain('Survives expiry');

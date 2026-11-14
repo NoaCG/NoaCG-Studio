@@ -74,6 +74,10 @@ import {
 } from './_svg-import';
 import { openWorkspace } from './_workspace';
 import { addQuestion, addResults, goLive } from './_interaction';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // IMPORTED ARTWORK THAT BEHAVES (docs/GRAPHIC_BEHAVIOUR_PLAN.md).
 //
@@ -382,8 +386,8 @@ test('imported score board: NEW GAME zeroes the scores on the EXPORTED controlle
   await settleDurableWrites(page);
 
   const b64 = await page.evaluate(async (production) => {
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const fresh = shows.loadShows().find((s) => s.name === production)!;
     return (await buildShowZipFor(fresh, 'html-overlay')).generateAsync({ type: 'base64' });
   }, 'Package Night');
@@ -957,8 +961,8 @@ test('a second author reopens a saved quiz in a fresh browser, makes it a true n
    *  what each animation step moves. */
   const saved = (p: Page) =>
     p.evaluate(async () => {
-      const { loadGraphics } = await import('/src/model/library.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
       const named = loadGraphics().filter((d) => d.name === 'Olympics quiz');
       if (named.length !== 1) return { count: named.length, fields: null, drawn: null, motion: null };
       const g = named[0];
@@ -984,7 +988,7 @@ test('a second author reopens a saved quiz in a fresh browser, makes it a true n
   await expect
     .poll(() =>
       page.evaluate(async () => {
-        const { loadShows } = await import('/src/model/shows.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
         return loadShows().find((s) => s.name === 'Quiz Night')?.cues?.[0]?.values.f6 ?? null;
       }),
     )
@@ -1002,6 +1006,7 @@ test('a second author reopens a saved quiz in a fresh browser, makes it a true n
 
   // THE SECOND AUTHOR, in a fresh context.
   const second = await browser.newContext({ storageState: storage });
+  await installDoor(second);
   const p2 = await second.newPage();
   await p2.goto(where);
   await expect(p2.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
@@ -1223,7 +1228,7 @@ test('imported vote board: a real audience round moves the bars the designer dre
   await addResults(audience, 'Members vote');
   await expect(audience.getByTestId('audience-note')).toContainText('Take it');
   const staged = await audience.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const cue = loadShows()[0].cues?.find((c) => c.label.startsWith('Vote —'));
     return cue ? cue.values : null;
   });
@@ -1717,13 +1722,13 @@ test('the old Countdown kind: gone from a new import, kept where a draft or a sa
   // name this file's drop gives the walk.
   await awaitDurableReady(page);
   const seeded = await page.evaluate(async (markup) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const { runsOldCountdown } = await import('/src/templates/importedDesign/reimport.ts');
-    const { svgSourceRevision } = await import('/src/ai/svgInterpretation/contract.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const { runsOldCountdown } = await __noacgImport('/src/templates/importedDesign/reimport.ts');
+    const { svgSourceRevision } = await __noacgImport('/src/ai/svgInterpretation/contract.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
     const row = patch.svgFields!.find((f) => f.clock)!;
@@ -1768,8 +1773,8 @@ test('the old Countdown kind: gone from a new import, kept where a draft or a sa
   await expect(page.getByTestId('export-window')).toBeVisible();
   await settleDurableWrites(page);
   const saved = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { runsOldCountdown } = await import('/src/templates/importedDesign/reimport.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { runsOldCountdown } = await __noacgImport('/src/templates/importedDesign/reimport.ts');
     return loadGraphics().map((g) => ({ name: g.name, old: runsOldCountdown(g.template), minutes: g.template.fields.some((f) => / \(minutes\)$/.test(f.title)) }));
   });
   // Saved over the earlier graphic, still running the old countdown with its length in minutes.
@@ -1912,14 +1917,14 @@ test('imported board: the EXPORTED CONTROLLER carries the same warning, in the s
   // The typed value reaches the record after the draft's own delay (control/cueDraft.ts), which
   // the warning can beat: the export below reads the record, so wait for the value to be in it.
   await expect.poll(() => page.evaluate(async () => {
-    const shows = await import('/src/model/shows.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
     return shows.loadShows().find((s) => s.name === 'Relay Night')?.cues?.[0]?.values.f0?.length ?? 0;
   })).toBe(400);
   await settleDurableWrites(page);
 
   const b64 = await page.evaluate(async (production) => {
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const fresh = shows.loadShows().find((s) => s.name === production)!;
     const zip = await buildShowZipFor(fresh, 'html-overlay');
     return zip.generateAsync({ type: 'base64' });

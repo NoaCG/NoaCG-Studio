@@ -37,7 +37,7 @@ test('a malformed request is refused before anything else - no port, no challeng
   // refusal rules hold in the configured build too (where the page reads them).
   await page.goto('/app');
   const verdicts = await page.evaluate(async () => {
-    const { parseAgentRequest, agentCallbackUrl, agentDenyUrl } = await import('/src/backend/agentAccess.ts');
+    const { parseAgentRequest, agentCallbackUrl, agentDenyUrl } = await __noacgImport('/src/backend/agentAccess.ts');
     const p = (q: string) => parseAgentRequest(new URLSearchParams(q));
     const ok = p('agent=state_12345678&port=43123&name=Claude%20Code&challenge=' + 'a'.repeat(64));
     return {

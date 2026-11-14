@@ -16,6 +16,10 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addToProductionFromFinish } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const FIXTURES = fileURLToPath(new URL('fixtures/ograf-library/', import.meta.url));
 const sha = (b: Buffer | Uint8Array) => createHash('sha256').update(b).digest('hex');
@@ -70,9 +74,9 @@ async function exportFromFinish(page: Page): Promise<Map<string, Buffer>> {
 
 const library = (page: Page) =>
   page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { verifyForeignPackage, readForeignPackage } = await import('/src/model/foreignPackage.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { verifyForeignPackage, readForeignPackage } = await __noacgImport('/src/model/foreignPackage.ts');
     const show = loadShows().find((s) => s.name === 'Library walk');
     const pool = await Promise.all(
       (show?.graphics ?? []).map(async (g) => {
@@ -127,7 +131,7 @@ test('two strangers\' packages go in, come out byte for byte, join a production,
     // Back in: the exported zip re-imports with the same revision.
     const reread = await page.evaluate(
       async ({ bytes }) => {
-        const { importForeignOgraf } = await import('/src/export/targets/ografForeign.ts');
+        const { importForeignOgraf } = await __noacgImport('/src/export/targets/ografForeign.ts');
         const read = await importForeignOgraf('back.zip', new Uint8Array(bytes));
         return read && read.ok ? read.record.revision : null;
       },
@@ -156,9 +160,9 @@ test('two strangers\' packages go in, come out byte for byte, join a production,
   const showId = state.showId!;
   await page.evaluate(
     async ({ showId, sourceId }) => {
-      const shows = await import('/src/model/shows.ts');
-      const { copyClip } = await import('/src/model/cueClipboard.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const shows = await __noacgImport('/src/model/shows.ts');
+      const { copyClip } = await __noacgImport('/src/model/cueClipboard.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const { cueId } = shows.addShowCue(showId, sourceId, { label: 'Second half' });
       if (!cueId) throw new Error('no cue');
       if (shows.setCueTyped(showId, cueId, true).error) throw new Error('typed on');
@@ -270,9 +274,9 @@ test('a hostile package held by the library is mounted from its verified bytes, 
   const pkg = await zipOf(packageFiles('hostile-dynamic'), 'hostile/');
   await page.evaluate(
     async ({ bytes }) => {
-      const { importForeignOgraf } = await import('/src/export/targets/ografForeign.ts');
-      const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { importForeignOgraf } = await __noacgImport('/src/export/targets/ografForeign.ts');
+      const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const read = await importForeignOgraf('hostile.zip', new Uint8Array(bytes));
       if (!read?.ok) throw new Error(read ? read.reason : 'not foreign');
       const { show } = createShowNamedChecked('Hostile walk');
@@ -286,8 +290,8 @@ test('a hostile package held by the library is mounted from its verified bytes, 
   await page.reload();
   await awaitDurableReady(page);
   const stored = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { verifyForeignPackage } = await import('/src/model/foreignPackage.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { verifyForeignPackage } = await __noacgImport('/src/model/foreignPackage.ts');
     const g = loadShows().find((s) => s.name === 'Hostile walk')!.graphics[0];
     const check = await verifyForeignPackage(g.template);
     if (!check.ok) throw new Error(check.reason);
