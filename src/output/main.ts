@@ -479,7 +479,7 @@ async function boot(): Promise<void> {
   });
   /** A development build only: `&oldbuild=1` makes this output behave as one built before automatic
    *  updates (no `au`, no own version check), so a spec can walk E2's transition. */
-  const OLD_BUILD_FOR_SPECS = import.meta.env.DEV && new URLSearchParams(window.location.search).get('oldbuild') === '1';
+  const OLD_BUILD_FOR_SPECS = (import.meta.env.DEV || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) && new URLSearchParams(window.location.search).get('oldbuild') === '1';
   const entry = (): LiveEntry =>
     liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), {
       name: outputName ?? sceneName,
@@ -556,7 +556,7 @@ async function boot(): Promise<void> {
     prepare: (prep: { id: string; n: number; h: string }) => preparer.request(prep),
     // …and, in a development build only, the one a command comes through on the fast road, for
     // offline specs with no topic. A playout box's console must not write state the log never saw.
-    command: import.meta.env.DEV ? (graphic: string, msg: ControlEventRow['msg']) => applyCommand(graphic, msg, undefined) : undefined,
+    command: import.meta.env.DEV || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__) ? (graphic: string, msg: ControlEventRow['msg']) => applyCommand(graphic, msg, undefined) : undefined,
     ack: () => ack,
     // The values each graphic's document was last handed, for specs (live-publishing G2 R4).
     handed: (graphic: string) => stage.handed.get(graphic) ?? null,

@@ -35,6 +35,7 @@
     "check:workflows": "node scripts/check-workflows.mjs",
     "check:docs-index": "node scripts/check-docs-index.mjs",
     "check:e2e-registry": "node scripts/e2e-module-registry.mjs",
+    "check:no-e2e-in-dist": "node scripts/check-no-e2e-in-dist.mjs",
     "check:goals-budget": "node scripts/check-goals-budget.mjs",
     "check:whats-new": "node scripts/whats-new.mjs --check",
     "check:roadmap": "node scripts/roadmap.mjs --check",

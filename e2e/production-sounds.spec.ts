@@ -306,9 +306,8 @@ test('stalled preparation retries and restores the current countdown loop once w
 test('single-file sound data stays inert through the HTML parser', async ({ page }) => {
   await page.goto('/app');
   const fixture = await page.evaluate(async () => {
-    const exportModule = '/src/export/selfContained.ts', templateModule = '/src/templates/blank.ts';
-    const { composeSelfContainedHtml } = await import(exportModule);
-    const { createBlankTemplate } = await import(templateModule);
+    const { composeSelfContainedHtml } = await __noacgImport('/src/export/selfContained.ts');
+    const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
     const payload = '</ScRiPt><script id="injected">window.injected=true</script><!--<script>';
     const key = 'sounds/' + payload + '.wav', value = 'data:audio/wav;base64,' + payload;
     const imagePath = 'images/picture.png', image = 'data:image/png;base64,' + payload;

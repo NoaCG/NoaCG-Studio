@@ -948,6 +948,9 @@ export function checkoutSourceGraph() {
       if (/\.(m?[jt]sx?|css)$/.test(file)) sources.set(file, readCheckout(file) ?? '');
     }
   }
+  // The one file outside src/ and api/ a source module imports: the e2e registry's env probe
+  // (EXTRA in scripts/e2e-module-registry.mjs). It is a leaf, so knowing it exists is enough.
+  files.add('e2e/_env-probe.ts');
   sourceGraphCache = sourceGraph(sources, files);
   return sourceGraphCache;
 }

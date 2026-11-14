@@ -13,7 +13,8 @@
 //   app imported, never a second copy.
 // - the dev server answers with the browser's own `import()` of the same URL (no `?import`), which
 //   is what the specs did before, so nothing changes there.
-// - a production build gets neither: the flag compiles the registry out, and DEV is false.
+// - a production build gets neither: `__NOACG_E2E__` (set only by the build mode) and DEV are
+//   both false there, so the first line below returns and the bundler drops the rest.
 
 declare global {
   interface Window {
@@ -26,6 +27,7 @@ type Registry = () => Promise<{ MODULES: Record<string, unknown>; LAZY: Record<s
 /** `registry` is src/e2eRegistry.ts's loader on the e2e build and null otherwise. main.tsx passes
  *  it, because the registry reaches components/ and only the UI region may import that. */
 export function installE2eModules(registry: Registry | null): void {
+  if (!import.meta.env.DEV && !(typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) return;
   if (registry) {
     window.__noacgImport = async (path) => {
       const { MODULES, LAZY } = await registry();

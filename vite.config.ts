@@ -127,13 +127,17 @@ export default defineConfig(({ command, mode }) => {
       if (!(key in process.env)) process.env[key] = value;
     }
   }
-  // THE E2E BUILD (`npm run build:e2e`, served to the browser suite): the app as users get it,
-  // plus the source-module registry specs reach through (src/app/e2eModules.ts).
+  // THE E2E BUILD (`npm run build:e2e`, served to the browser suite): the app's bundle with
+  // function and class names kept (below), the source-module registry specs reach through
+  // (src/app/e2eModules.ts), and the app's test seams on. It is NOT the minified app users get.
+  // `__NOACG_E2E__` is the one switch, and only the build MODE sets it: a `VITE_` variable from
+  // the environment or a .env file can never turn the registry or the seams on in a production
+  // build (scripts/check-no-e2e-in-dist.mjs proves the built dist carries neither).
   const e2e = mode === 'e2e';
   return {
     define: {
       __NOACG_BUILD__: JSON.stringify(buildStamp()),
-      ...(e2e ? { 'import.meta.env.VITE_E2E_MODULES': JSON.stringify('1') } : {}),
+      __NOACG_E2E__: JSON.stringify(e2e),
     },
     // renderApiPlugin mounts the real api/render handlers on the dev server, so the cloud
     // render loop runs fully offline (local Remotion executor) during development.
@@ -184,6 +188,9 @@ export default defineConfig(({ command, mode }) => {
       // in 2026-08 - and `scripts/check-preview-serialization.mjs` cannot see it, because the
       // source would still be correct.
       outDir: e2e ? 'dist-e2e' : 'dist',
+      // The e2e build's manifest tells e2e/_door.ts where the registry chunk landed, for documents
+      // the app does not boot.
+      ...(e2e ? { manifest: true } : {}),
       // The e2e build keeps function and class names UNMANGLED, which is not the `keepNames`
       // above: the identifiers themselves keep their source spelling, so call sites and `.name`
       // agree. The suite's fault injectors pick a write out by the function names on its stack
@@ -192,6 +199,10 @@ export default defineConfig(({ command, mode }) => {
       // move to a function name before the suite runs on this build.
       rollupOptions: {
         ...(e2e ? { output: { minify: { mangle: { keepNames: KEEP_NAMES }, compress: { keepNames: KEEP_NAMES } } } } : {}),
+        // Strict entry signatures keep every shared module out of the page entry chunks, so the
+        // registry never imports an entry: a door call on a page the app did not boot (the landing
+        // page, /output) must not run app.html's boot as a side effect (e2e/_door.ts checks this).
+        ...(e2e ? { preserveEntrySignatures: 'strict' as const } : {}),
         input: {
           landing: 'index.html',
           docs: 'docs.html',

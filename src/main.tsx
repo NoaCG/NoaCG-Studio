@@ -18,7 +18,7 @@ declare global {
 }
 window.__noacgBootStage = 'js';
 // Before any await: a spec may reach for the app's modules as soon as the page has loaded.
-installE2eModules(import.meta.env.VITE_E2E_MODULES === '1' ? () => import('./e2eRegistry') : null);
+installE2eModules(typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__ ? () => import('./e2eRegistry') : null);
 
 // /app?diag=1 is the CONNECTION CHECK, rendered entirely by app.html's inline script so it
 // works even when every JS chunk is blocked. The app must stand down on that URL - booting
