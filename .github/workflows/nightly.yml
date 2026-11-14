@@ -113,18 +113,23 @@ jobs:
           # status is not green. QRED lists the ones that are not; an unreadable answer is not empty.
           # A listed spec no longer on disk is left out: the shards never ran it either, and its status
           # stays red ("No tests found") until the list drops it.
-          ONDISK="$(gh api "repos/${GH_REPO}/contents/e2e?ref=${GITHUB_SHA}&per_page=1000" --jq '[.[] | .path]' 2>/dev/null || echo unreadable)"
+          # The tree says when it was cut short; a cut-short or failed listing is unreadable.
+          ONDISK="$(gh api "repos/${GH_REPO}/git/trees/${GITHUB_SHA}?recursive=1" \
+            --jq 'if .truncated then "unreadable" else [.tree[] | .path | select(startswith("e2e/"))] end' 2>/dev/null || echo unreadable)"
+          [ "$ONDISK" = "unreadable" ] && echo "The commit's file list is unreadable."
           QSPECS="$(gh api "repos/${GH_REPO}/contents/e2e/quarantine.json?ref=${GITHUB_SHA}" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null \
             | jq -c --argjson disk "$ONDISK" '[.specs | keys[] | select(startswith("e2e/configured/") | not) | select(. as $s | $disk | index($s))]' 2>/dev/null || echo unreadable)"
           QGREEN="$(gh api "repos/${GH_REPO}/commits/${GITHUB_SHA}/status?per_page=100" \
             --jq 'if .total_count > 100 then "unreadable" else [.statuses[] | select(.state == "success") | .context] end' 2>/dev/null || echo unreadable)"
           QRED="$(jq -nr --argjson specs "$QSPECS" --argjson green "$QGREEN" '[$specs[] | select(("noacg/quarantine/" + .) as $c | $green | index($c) | not)] | join(" ")' 2>/dev/null || echo unreadable)"
           echo "Push run $RUN: CI gate '${GATE}', ${SHARDS:-no} full shards, ${GREEN} green, ${BLOBS} blob reports, ${TRACES} traces. Quarantine run $QRUN ${QCONCLUSION}; not green: ${QRED:-none}."
-          if [ "$GATE" = "success" ] && [ -n "$SHARDS" ] && [ "$GREEN" = "$SHARDS" ] && [ "$BLOBS" = "$SHARDS" ] && [ "$TRACES" = "$SHARDS" ] && [ "$QCONCLUSION" = "success" ] && [ -z "$QRED" ]; then
+          QUALIFIES=""
+          if [ "$GATE" = "success" ] && [ -n "$SHARDS" ] && [ "$GREEN" = "$SHARDS" ] && [ "$BLOBS" = "$SHARDS" ] && [ "$TRACES" = "$SHARDS" ] && [ "$QCONCLUSION" = "success" ]; then QUALIFIES=1; fi
+          if [ -n "$QUALIFIES" ] && [ -z "$QRED" ]; then
             echo "::notice title=Nightly::main's full push run ${RUN} is green on this commit - the E2E shards are skipped and its reports used."
             echo "run=$RUN" >> "$GITHUB_OUTPUT"
             echo "shards=$SHARDS" >> "$GITHUB_OUTPUT"
-          elif [ "$GATE" = "success" ] && [ -n "$SHARDS" ] && [ "$GREEN" = "$SHARDS" ] && [ "$BLOBS" = "$SHARDS" ] && [ "$TRACES" = "$SHARDS" ] && [ "$QCONCLUSION" = "success" ] && [ "$QRED" != "unreadable" ]; then
+          elif [ -n "$QUALIFIES" ] && [ "$QRED" != "unreadable" ]; then
             # Only quarantined specs are not green. The push run sampled every other spec green, so
             # the shards here run just these, and the report merges them with that run's reports.
             echo "::notice title=Nightly::main's full push run ${RUN} is green on this commit - only the quarantined spec(s) not green there run here: ${QRED}"
@@ -212,7 +217,8 @@ jobs:
       - uses: ./.github/actions/playwright-chromium
 
       # This tier is the whole suite, by definition: the plan hands every spec file on disk to
-      # exactly one shard, and says so or fails. The filters are the anchored ones ci.yml's shards
+      # exactly one shard, and says so or fails. With a quarantine list (`covered`), the shards hold
+      # just those specs, and main's push run on this commit stands in for the rest. The filters are the anchored ones ci.yml's shards
       # use (`specFilterArg`), and `$SPECS` is unquoted for the reason ci.yml's shard step gives.
       # An empty list is refused: Playwright reads no filter as EVERY test.
       # 1200000 ms is NIGHTLY_TEST_BUDGET_MINUTES (scripts/nightly-shards.mjs), the plan's own

@@ -36,7 +36,7 @@ case "$path" in
   *actions/runs/*/jobs*) key=jobs ;;
   *actions/runs/*/artifacts*) key=artifacts ;;
   *contents/e2e/quarantine.json*) key=quarantine_json ;;
-  *contents/e2e\?*) key=on_disk ;;
+  *git/trees/*) key=on_disk ;;
   *commits/*/status*) key=statuses ;;
 esac
 [ -f "$GH_FAKE/$key.json" ] || exit 1
@@ -58,7 +58,7 @@ def base(**over):
         'artifacts': {'artifacts': arts},
         'quarantine_json': {'content': base64.b64encode(json.dumps(
             {'version': 1, 'specs': {q: {} for q in QUARANTINED}}).encode()).decode()},
-        'on_disk': [{'path': q} for q in QUARANTINED if not q.startswith('e2e/configured/')] + [{'path': 'e2e/other.spec.ts'}],
+        'on_disk': {'truncated': False, 'tree': [{'path': q} for q in QUARANTINED] + [{'path': 'e2e/other.spec.ts'}, {'path': 'src/a.ts'}]},
         'statuses': {'total_count': len(green), 'statuses': [
             {'state': 'success', 'context': f'noacg/quarantine/{q}'} for q in green]},
     }
@@ -99,13 +99,15 @@ SCENARIOS = [
     ('statuses unreadable (over 100): full shards', base(statuses=lambda st: {**st, 'total_count': 101}),
      {'run': None, 'quarantine': None}),
     ('red quarantined spec deleted from disk: shards skipped',
-     base(on_disk=lambda d: [x for x in d if x['path'] != EDITOR], statuses=red_status(EDITOR)),
+     base(on_disk=lambda d: {**d, 'tree': [x for x in d['tree'] if x['path'] != EDITOR]}, statuses=red_status(EDITOR)),
      {'run': '111', 'quarantine': None}),
     ('quarantined status pending: only it runs', base(statuses=lambda st: {**st, 'statuses': [
         {**s, 'state': 'pending'} if EDITOR in s['context'] else s for s in st['statuses']]}),
      {'run': '111', 'quarantine': json.dumps([EDITOR], separators=(',', ':'))}),
-    ('e2e listing unreadable + quarantined red: full shards',
+    ('file list unreadable + quarantined red: full shards',
      base(on_disk=lambda d: {'message': 'Not Found'}, statuses=red_status(EDITOR)), {'run': None, 'quarantine': None}),
+    ('file list cut short + quarantined red: full shards',
+     base(on_disk=lambda d: {**d, 'truncated': True}, statuses=red_status(EDITOR)), {'run': None, 'quarantine': None}),
     ('quarantine.json unreadable: full shards', base(quarantine_json=lambda q: {'content': 'not base64 json'}),
      {'run': None, 'quarantine': None}),
 ]

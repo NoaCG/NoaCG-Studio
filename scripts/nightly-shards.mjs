@@ -175,7 +175,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const suite = suiteFor(specFilesOnDisk(), values.only);
   if (suite.length === 0) {
     // An empty plan would hand Playwright no filter, which runs EVERY test.
-    console.error(`nightly-shards: none of --only ${values.only.join(' ')} is on disk.`);
+    console.error(`nightly-shards: no spec file to plan${values.only ? ` - none of --only ${values.only.join(' ')} is on disk` : ''}.`);
     process.exit(1);
   }
   const plan = planNightly({ suite, table: readTable(), reports });
