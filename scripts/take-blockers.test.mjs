@@ -9,7 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { casparOffRefusal, directBlocker, stepBlocker, takeBlockerFor, takePlans } = await import('../src/control/takeBlockers.ts');
+const { serverCueOffRefusal, directBlocker, stepBlocker, takeBlockerFor, takePlans } = await import('../src/control/takeBlockers.ts');
 const { throughPlaces } = await import('../src/control/serverPlayout.ts');
 const { rundownView } = await import('../src/model/rundownRows.ts');
 const { NO_OWNERSHIP } = await import('../src/control/serverState.ts');
@@ -56,9 +56,9 @@ test('nothing held is never refused', () => {
 
 test('a server cue is not taken while the CasparCG switch is off; a graphic cue still is', () => {
   const ctx = context({ cues: [cue('a', 'a'), graphic('g')], items: [vt('a')], casparOn: false, graphics: { 'g-g': 'Strap' } });
-  assert.equal(casparOffRefusal(ctx.cues[0], false), CASPAR_OFF);
-  assert.equal(casparOffRefusal(ctx.cues[0], true), null);
-  assert.equal(casparOffRefusal(ctx.cues[1], false), null);
+  assert.equal(serverCueOffRefusal(ctx.cues[0], false), CASPAR_OFF);
+  assert.equal(serverCueOffRefusal(ctx.cues[0], true), null);
+  assert.equal(serverCueOffRefusal(ctx.cues[1], false), null);
   assert.equal(takeBlockerFor(ctx.cues[0], ctx), CASPAR_OFF);
   assert.equal(takeBlockerFor(ctx.cues[1], ctx), null);
   assert.equal(takeBlockerFor(ctx.cues[0], { ...ctx, casparOn: true }), null);
@@ -203,4 +203,18 @@ test('a cue over a stranger\'s OGraf package takes (E3.2a), unless its record is
   const folder = { id: 'f', name: 'Both', mode: 'together' };
   const inFolder = context({ cues: [graphic('p', { folderId: 'f' }), graphic('s', { folderId: 'f' })], folders: [folder], graphics: { 'g-p': 'Scoreboard', 'g-s': 'Strap' }, foreign: { 'g-p': LATER } });
   assert.equal(takeBlockerFor(folder, inFolder), `P: ${LATER}`);
+});
+
+test('a disabled adapter occupies no slot in an All-together plan', () => {
+  const folder = { id: 'f', name: 'News', mode: 'together' };
+  const items = [vt('vmix', { adapter: 'vmix', layer: 0 }), vt('caspar-a'), vt('caspar-b')];
+  const cues = items.map(item => cue(item.id, item.id, { folderId: folder.id }));
+  const ctx = context({ cues, items, folders: [folder], casparOn: false, ability: { state: 'ok', features: ['vmix-media'], capabilities: ['state'] } });
+  ctx.vmixOn = true;
+  ctx.slots = { ...SLOTS, itemSlot: (settings, item) => item.adapter === 'vmix' ? { adapter: 'vmix', player: 'clips' } : SLOTS.itemSlot(settings, item) };
+  assert.equal(takeBlockerFor(folder, ctx), null);
+  assert.deepEqual(takePlans(folder, ctx).map(plan => plan.slot), ['NoaCG Clips']);
+  assert.match(directBlocker(cues[1], ctx, SETTINGS), /CasparCG.*uses vMix/);
+  assert.match(stepBlocker(cues[1], { ...ctx, bridgeDown: true }), /CasparCG.*uses vMix/);
+  assert.match(takeBlockerFor(folder, { ...ctx, casparOn: true, vmixOn: false }), /both play on 2-10/);
 });

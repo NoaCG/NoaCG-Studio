@@ -8,6 +8,7 @@ import {
   loadPlayoutSettings,
   pairingLinkForAnotherBrowser,
   playoutConfigured,
+  playoutPairingRevision,
   putOutputOnAir,
   savePlayoutSettings,
   serverAddress,
@@ -18,6 +19,10 @@ import {
   targetOf,
   testConnection,
   testVmix,
+  vmixMediaFolder,
+  vmixPairing,
+  watchPlayoutPairing,
+  watchVmixMediaFolder,
   type VmixConnection,
   type PlayoutChannel,
   type PlayoutResult,
@@ -93,6 +98,7 @@ export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onO
   onOutputOnAir?: (result: PlayoutResult, target: string) => void;
 } = {}) {
   const [settings, setSettings] = useState(loadPlayoutSettings);
+  const vmixScope = usePlayoutPairing();
   const [busy, setBusy] = useState<Verb | null>(null);
   // The verdict, with its success sentence written AT THE PRESS: it is past tense, so it must not be
   // re-derived from settings typed since (a Load line once named a channel typed after the
@@ -573,33 +579,99 @@ export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onO
           CasparCG guide
         </a>
       </p>
-      <VmixSettings agentUrl={settings.agentUrl} agentToken={settings.agentToken} />
+      <VmixSettings {...vmixScope} />
     </div>
   );
 }
 
-/** App-wide vMix setup is local to this browser. The Bridge supplies the available channels. */
-export function VmixSettings({ agentUrl, agentToken }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>) {
-  if (!bridgePaired({ agentUrl, agentToken })) return null;
-  return <VmixSettingsForPairing key={JSON.stringify([agentUrl, agentToken])} agentUrl={agentUrl} agentToken={agentToken} />;
+export function usePlayoutPairing() {
+  const [scope, setScope] = useState(() => ({ settings: loadPlayoutSettings(), revision: playoutPairingRevision() }));
+  useEffect(() => {
+    const refresh = () => {
+      const settings = loadPlayoutSettings();
+      const revision = playoutPairingRevision();
+      setScope(previous => previous.revision !== revision || vmixPairing(previous.settings) !== vmixPairing(settings)
+        ? { settings, revision }
+        : previous);
+    };
+    const stop = watchPlayoutPairing(refresh);
+    refresh();
+    return stop;
+  }, []);
+  return scope;
 }
 
-function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>) {
+/** App-wide vMix setup is local to this browser. The Bridge supplies the available channels. */
+export function VmixSettings({ settings, revision }: ReturnType<typeof usePlayoutPairing>) {
+  if (!bridgePaired(settings)) return null;
+  return <VmixSettingsForPairing key={JSON.stringify([revision, vmixPairing(settings)])}
+    agentUrl={settings.agentUrl} agentToken={settings.agentToken} revision={revision} />;
+}
+
+function VmixSettingsForPairing({ agentUrl, agentToken, revision }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'> & { revision: number }) {
   const [connection, setConnection] = useState<VmixConnection>();
   const [retry, setRetry] = useState(0);
   const [checking, setChecking] = useState(false);
   const [settings, setSettings] = useState(loadPlayoutSettings);
   const request = useRef(0);
+  const mediaRead = useRef(0);
+  const mounted = useRef(false);
+  const [mediaFolder, setMediaFolder] = useState<string>();
+  const [mediaProblem, setMediaProblem] = useState<string>();
+  const [choosing, setChoosing] = useState(false);
+  const currentPairing = useCallback(() => revision === playoutPairingRevision()
+    && vmixPairing({ agentUrl, agentToken }) === vmixPairing(loadPlayoutSettings()), [agentUrl, agentToken, revision]);
   useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  useEffect(() => {
+    if (!currentPairing()) return;
     const current = ++request.current;
-    const now = { ...loadPlayoutSettings(), agentUrl, agentToken };
-    void testVmix(now, retry > 0).then(result => {
-      if (request.current !== current) return;
+    void testVmix(loadPlayoutSettings(), retry > 0).then(result => {
+      if (request.current !== current || !currentPairing()) return;
       setConnection(previous => result.supported === undefined && previous?.supported ? { ...result, supported: true } : result);
       setChecking(false);
     });
     return () => { request.current += 1; };
-  }, [agentUrl, agentToken, retry]);
+  }, [currentPairing, retry]);
+  const media = connection?.media === true;
+  useEffect(() => {
+    if (!media) return;
+    const read = () => {
+      if (!currentPairing()) return;
+      const reading = ++mediaRead.current;
+      void vmixMediaFolder(loadPlayoutSettings()).then(reply => {
+        if (mediaRead.current !== reading || !currentPairing()) return;
+        if (reply.folder) {
+          setMediaFolder(reply.folder);
+          setMediaProblem(undefined);
+        } else setMediaProblem(reply.result.detail);
+      });
+    };
+    read();
+    const stop = watchVmixMediaFolder(() => {
+      setMediaFolder(undefined);
+      read();
+    });
+    return () => {
+      mediaRead.current += 1;
+      stop();
+    };
+  }, [currentPairing, media, retry]);
+  const chooseFolder = async () => {
+    if (!currentPairing()) return;
+    const pairing = loadPlayoutSettings();
+    setChoosing(true);
+    setMediaProblem(undefined);
+    const reply = await vmixMediaFolder(pairing, true);
+    if (!mounted.current) return;
+    setChoosing(false);
+    // The folder-change signal starts a fresh /studio read. A chooser reply never sets the folder.
+    if (reply.result.state !== 'ok' && currentPairing()) {
+      setMediaProblem(reply.result.detail);
+    }
+  };
   if (!connection?.supported) return null;
   const info = connection.info;
   const overlay = info && vmixOverlay(settings, info.overlays);
@@ -633,6 +705,22 @@ function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 
           <button type="button" disabled={checking} onClick={() => { setChecking(true); setRetry(n => n + 1); }}>
             {checking ? 'Connecting…' : 'Try again'}
           </button>
+        </>
+      )}
+      {media && (
+        <>
+          <div className="dlg-rows">
+            <div className="dlg-row">
+              <span>Media folder</span>
+              <div>
+                {mediaFolder && <p className="hint" data-testid="vmix-media-folder">{mediaFolder}</p>}
+                <button type="button" data-testid="vmix-choose-folder" disabled={choosing} onClick={() => void chooseFolder()}>
+                  {choosing ? 'Choosing folder…' : 'Choose folder…'}
+                </button>
+              </div>
+            </div>
+          </div>
+          {mediaProblem && <p className="status-bad" role="status">{mediaProblem}</p>}
         </>
       )}
     </section>

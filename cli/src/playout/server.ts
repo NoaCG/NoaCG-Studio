@@ -366,6 +366,12 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
     (expected === null && a.verb !== 'take'))) {
     throw new UsageError('A vMix take or out can name the current input by key. Only take can expect an empty overlay.');
   }
+  const expectedPlayer = a.expectedPlayerInstance;
+  const guardedOut = a.verb === 'out-player-instance';
+  if ((guardedOut || expectedPlayer !== undefined) && (!guardedOut || slot.adapter !== 'vmix' || !('player' in slot) ||
+    typeof expectedPlayer !== 'string' || !/^[a-z0-9._-]{1,128}$/i.test(expectedPlayer))) {
+    throw new UsageError('A guarded vMix player Out requires its expected playback instance.');
+  }
   if (a.imageFit !== undefined && (a.verb !== 'take' || (a.imageFit !== 'fit' && a.imageFit !== 'stretch') || slot.adapter !== 'casparcg')) throw new UsageError('imageFit is Fit or Stretch on a CasparCG media Take.');
   // A field on the wrong verb is refused rather than dropped: a level on an update would otherwise
   // look applied and change nothing (docs/CLIP_PLAYBACK_PLAN.md §6.6, a level applies at the next Take).
@@ -398,11 +404,13 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
       if (!data) throw new UsageError('An update carries data.');
       return { verb: 'update', slot, data };
     }
+    case 'out-player-instance':
     case 'out': {
       const item = isRecord(a.item) ? readItem(a.item) : undefined;
       return {
         verb: 'out', slot, item, ...(a.fadeOut !== undefined ? { fadeOut: readFade(a.fadeOut, 'fadeOut') } : {}),
         ...(typeof expected === 'string' ? { expectedOverlayInput: expected } : {}),
+        ...(typeof expectedPlayer === 'string' ? { expectedPlayerInstance: expectedPlayer } : {}),
       };
     }
     case 'next':
@@ -515,7 +523,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
     if (url === '/health' && req.method === 'GET') {
       send(
         200,
-        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const] : [])] } satisfies BridgeWireReply<'/health'>,
+        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const, 'vmix-player-out-guard' as const] : [])] } satisfies BridgeWireReply<'/health'>,
         true,
       );
       return;

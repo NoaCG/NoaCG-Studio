@@ -9,10 +9,11 @@
 // Optional, and never a gate: editing goes on during and after it, every verb works while it runs,
 // and the button is only ever busy with its own run.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PREPARE_WAIT_MS,
   bridgeChecks,
+  finishedBridgeChecks,
   outputChecks,
   outputSettled,
   pingSettled,
@@ -53,6 +54,8 @@ export function usePrepareForLive({
   onPrep,
   onStamp,
   bridge,
+  vmix = false,
+  requiresVmixFiles,
   ping,
 }: {
   /** The production: another one starts from nothing. */
@@ -73,15 +76,19 @@ export function usePrepareForLive({
    *  publish may have put a newer request there since, and that one stays. */
   onPrep: (prep: PrepRequest | null, endOf?: string) => void;
   onStamp: (stamp: ReadyStamp) => void;
-  /** Gather what the Bridge and CasparCG say (read-only). */
+  /** Gather what the Bridge and the current playout system say (read-only). */
   bridge: () => Promise<BridgeFacts>;
+  vmix?: boolean;
+  requiresVmixFiles?: () => boolean;
   /** Send one ping through the command path (migration 0072). */
   ping: (id: string) => Promise<PingAnswer>;
   /** Additive destination diagnostics, read at completion so one mirror cannot imply both are ready. */
 }): PrepareFlow {
   const [phase, setPhase] = useState<Phase>('idle');
   const [publishLine, setPublishLine] = useState<CheckLine | null>(null);
-  const [bridgeLines, setBridgeLines] = useState<CheckLine[] | null>(null);
+  // null while the Bridge is still being asked, undefined when no reading was available.
+  const [bridgeFacts, setBridgeFacts] = useState<BridgeFacts | null | undefined>(null);
+  const bridgeLines = useMemo(() => bridgeFacts === null ? null : bridgeFacts ? bridgeChecks(bridgeFacts) : [], [bridgeFacts]);
   const [target, setTarget] = useState<HeldVersion | null>(null);
   const [startedAt, setStartedAt] = useState(0);
   const [request, setRequest] = useState<string | null>(null);
@@ -89,10 +96,12 @@ export function usePrepareForLive({
   const [finalLines, setFinalLines] = useState<CheckLine[] | null>(null);
   const [pingSent, setPingSent] = useState<PingSent | null>(null);
   const busyRun = useRef(false);
+  const runScope = useRef<{ vmixFilesRequired: boolean } | null>(null);
   const currentShow = useRef(showId);
   currentShow.current = showId;
   useEffect(() => {
     busyRun.current = false;
+    runScope.current = null;
     setPhase('idle');
     setFinalLines(null);
     setTarget(null);
@@ -140,8 +149,8 @@ export function usePrepareForLive({
   // THE END OF A RUN, once. What it stamps is read as it stands at that render.
   const finished = outputsDone && pingDone;
   const peers = presence.peers;
-  const latest = useRef({ publishLine, lines, settled, timedOut, bridgeLines, peers, target, onPrep, onStamp, now, request, pingSent, ping });
-  latest.current = { publishLine, lines, settled, timedOut, bridgeLines, peers, target, onPrep, onStamp, now, request, pingSent, ping };
+  const latest = useRef({ publishLine, lines, settled, timedOut, bridgeFacts, peers, target, onPrep, onStamp, now, request, pingSent, ping });
+  latest.current = { publishLine, lines, settled, timedOut, bridgeFacts, peers, target, onPrep, onStamp, now, request, pingSent, ping };
   useEffect(() => {
     if (!outputsDone) return;
     const at = latest.current;
@@ -162,11 +171,13 @@ export function usePrepareForLive({
   useEffect(() => {
     if (!finished) return;
     const at = latest.current;
-    if (!at.target) return;
+    const run = runScope.current;
+    if (!at.target || !run) return;
+    runScope.current = null;
     const done = [
       ...(at.publishLine ? [at.publishLine] : []),
       ...withPing(outputChecks(at.lines, at.settled, at.timedOut), at.peers, at.pingSent, at.now),
-      ...(at.bridgeLines ?? []),
+      ...finishedBridgeChecks(at.bridgeFacts, run.vmixFilesRequired),
     ];
     setFinalLines(done);
     setPhase('done');
@@ -178,10 +189,12 @@ export function usePrepareForLive({
   const run = async ({ publish: mayPublish = true }: { publish?: boolean } = {}) => {
     if (busyRun.current) return;
     busyRun.current = true;
-    const stillCurrent = () => currentShow.current === showId;
+    const scope = { vmixFilesRequired: requiresVmixFiles?.() ?? false };
+    runScope.current = scope;
+    const stillCurrent = () => currentShow.current === showId && runScope.current === scope;
     setPhase('publishing');
     setFinalLines(null);
-    setBridgeLines(null);
+    setBridgeFacts(null);
     setPublishLine(null);
     setPingSent(null);
     const factsPending = bridge().catch(() => null);
@@ -197,7 +210,8 @@ export function usePrepareForLive({
           const facts = await factsPending;
           if (!stillCurrent()) return;
           setPublishLine(failed);
-          setFinalLines([failed, ...(facts ? bridgeChecks(facts) : [])]);
+          setFinalLines([failed, ...finishedBridgeChecks(facts, scope.vmixFilesRequired)]);
+          runScope.current = null;
           setPhase('done');
           busyRun.current = false;
           return;
@@ -207,7 +221,7 @@ export function usePrepareForLive({
       } else if (mayPublish) {
         setPublishLine({ key: 'publish', tone: 'ok', label: 'No unpublished changes' });
       }
-      if (!version) { busyRun.current = false; setPhase('idle'); return; }
+      if (!version) { busyRun.current = false; runScope.current = null; setPhase('idle'); return; }
       setTarget(version);
       setStartedAt(Date.now());
       setNow(Date.now());
@@ -217,10 +231,11 @@ export function usePrepareForLive({
       setPhase('preparing');
       const facts = await factsPending;
       if (!stillCurrent()) return;
-      setBridgeLines(facts ? bridgeChecks(facts) : []);
+      setBridgeFacts(facts ?? undefined);
     } catch (e) {
       if (!stillCurrent()) return;
       busyRun.current = false;
+      runScope.current = null;
       const failed: CheckLine = { key: 'publish', tone: 'bad', label: 'Readiness check failed', advice: e instanceof Error ? e.message : String(e) };
       setPublishLine(failed);
       setFinalLines([failed]);
@@ -235,7 +250,7 @@ export function usePrepareForLive({
         ? [
             ...(publishLine ? [publishLine] : []),
             ...withPing(outputChecks(lines, settled, false), peers, pingSent, now),
-            ...(bridgeLines ?? [{ key: 'bridge', tone: 'running', label: 'Checking NoaCG Bridge and CasparCG' } as CheckLine]),
+            ...(bridgeLines ?? [{ key: 'bridge', tone: 'running', label: vmix ? 'Checking NoaCG Bridge and vMix' : 'Checking NoaCG Bridge and CasparCG' } as CheckLine]),
           ]
         : phase === 'publishing'
           ? [{ key: 'publish', tone: 'running', label: 'Publishing your changes' }]

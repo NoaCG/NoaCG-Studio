@@ -716,6 +716,26 @@ test('All out answered with a graphic pressed again keeps that graphic up; a fai
   assert.equal(r2.log.filter(([k]) => k === 'headsStillOn').length, 0);
 });
 
+test('guarded All out keeps a failed player cut through a second success and a graphic failure', async () => {
+  const r = rig({ liveCue: { Strap: 'c1' } });
+  r.page.livePlayoutLayers = [{ cue: serverCue('audio') }, { cue: serverCue('clips') }];
+  const seen = [];
+  const clearing = r.verbs.allOut({
+    cut: async cue => {
+      seen.push(cue.id);
+      return cue.id === 'audio'
+        ? { ok: false, note: 'All out: Audio did not answer before its deadline.', accepted: [] }
+        : { ok: true, note: 'Clips stopped.', accepted: [] };
+    },
+    report: r.sender.note,
+  });
+  await settle();
+  assert.deepEqual(seen, ['audio', 'clips']);
+  r.sends[0].answer.reject(new Error('down'));
+  await clearing;
+  assert.deepEqual(r.notes, ['All out: Audio did not answer before its deadline. bridge: All out failed: down']);
+});
+
 test('All out with nothing to clear sends nothing; unpublished it asks no heads and waits for none', async () => {
   const r = rig({ liveCue: {} });
   r.heads.say = new Map([['Strap', false], ['Score', false], ['Clock', false]]);
