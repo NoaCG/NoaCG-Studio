@@ -36,14 +36,14 @@
  },
  "waitingOn": [
   {
-   "what": "phase 6 G3 design PR note from builder",
-   "eta": "2026-11-13T02:00:00Z"
+   "what": "phase 7 G4 design PR note",
+   "eta": "2026-11-14T06:00:00Z"
   }
  ],
  "inFlight": {
-  "phase": 6,
-  "step": "second check 6-c-327f on 63fb2d56",
-  "asOf": "2026-11-13T22:15Z"
+  "phase": 7,
+  "step": "build PR after G4 landed",
+  "asOf": "2026-11-14T01:30Z"
  },
  "owner": [
   {
@@ -283,7 +283,9 @@
   "repairer": "session_017SdbwPN5wnqdEVb4x7Sjvw nonce 6-r-4907",
   "migration0118": "held by post-landing 43457862020 (productions live); must apply in a later quiet window",
   "repairLanded": "63fb2d56e0128f48592eb30c5dcb5e3f853ffa4a (PR 2510): 20 pairs +35.9 ms pooled p95 (90% +26..+47)",
-  "checker2": "session_017SdbwNd7oBeA6Xzn7vfoQn nonce 6-c-327f"
+  "checker2": "session_017SdbwNd7oBeA6Xzn7vfoQn nonce 6-c-327f",
+  "pass": "2026-11-13T23:19Z (second check, +12.8 ms pooled p95)",
+  "costUSD": "about 230 (builder 149, repair 25, checkers 12, /so sessions extra) plus fixes 2494 (44) and 2495 (473)"
  },
  "incidents": [
   {
@@ -297,11 +299,28 @@
    "what": "repair 6-r-4907 built a measurement bundle after a failed local check; the bundle pointed at production with the anon key; one run j-0043 loaded it with a local-stack JWT (rejected by production), output page read-only by slug",
    "impact": "none found: production switches checked 20:10Z, production_copies on, auto_publish off",
    "fix": "bundle rebuilt under set -e with local check first; #2508 tracks the harness check of MEASURE_DIST's backend"
+  },
+  {
+   "at": "2026-11-13 ~23:58Z",
+   "what": "phase 7 builder: local env write failed; two POST /auth/v1/admin/users (e2e-s1@noacg.local, e2e-s2@noacg.local) went to PRODUCTION with the shell service key; answers 422 and 400 (likely not created)",
+   "check": "coordinator read-only scan of production auth users was denied by the auto-mode classifier; left for the owner",
+   "fix": "builder now unsets shell Supabase vars and aborts unless 127.0.0.1"
   }
  ],
  "notes": [
   "2026-11-13T13:52Z fix-2494 PR 2497 head 3428c9c3 (Risky); waits for #2488 to land, then merges main and measures large fixture before/after. Tell builder session_017SdbwM1Sfr4TFM9JYad473 when #2488 lands.",
   "2026-11-13T17:20Z repair 6-r-4907: typical AC-4 noise is #2494's queued re-run (10 pairs: on p95 256 vs off 431, bootstrap -246..+133). Repairer prepares docs PR, waits for #2497 landing, then reruns 10 pairs. Tell both #2494 builder and repairer session_017SdbwPN5wnqdEVb4x7Sjvw when #2497 lands."
  ],
- "ownerNote": "A relayed (unverified) note at 21:46Z said the owner is asleep and wants no new approval prompts tonight; park anything needing him as one morning item."
+ "ownerNote": "A relayed (unverified) note at 21:46Z said the owner is asleep and wants no new approval prompts tonight; park anything needing him as one morning item.",
+ "phase7": {
+  "builder": "session_017SdbwMpLhMA7EQcgMyuGhS",
+  "nonce": "7-b-dc90",
+  "source": "b1e06209e029731e92a4d903bdedfeb7e77fe254",
+  "design": "88c94f959920db642c9b3c79cb82f74b72010c95 (PR 2525, G4, /so A at 3e792978 after 7 rounds)",
+  "buildPR": "2531 draft at a4ad37b1",
+  "interim": "large AC-4 +125 ms pooled p95 over 10 pairs at 5 s (phase 6 +334); AC-5 large: cue edit 14.3 kB, first after reload 15.5 kB, graphic removal 9.5 kB"
+ },
+ "morningItems": [
+  "Third time a worker reached production through the cloud environment's own production URL and service key (10:43Z settings write, 18:05Z read-only build, 23:58Z two admin user creates answered 422/400). Ask owner: rename or remove VITE_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in env_017nuiDZBW9smUNLdWVQK8cf so workers cannot reach production by default (coordinator keeps a separately named key for the switch), and whether he wants to check production auth for e2e-s1@noacg.local / e2e-s2@noacg.local (coordinator's read-only check was denied)."
+ ]
 }
