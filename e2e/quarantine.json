@@ -17,6 +17,11 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43473841954"
     },
+    "e2e/import-prepare.spec.ts": {
+      "since": "2026-11-14",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43581128114"
+    },
     "e2e/output-debate-clock.spec.ts": {
       "since": "2026-11-13",
       "count": 3,
