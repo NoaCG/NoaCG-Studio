@@ -113,9 +113,10 @@ jobs:
           # status is not green. QRED lists the ones that are not; an unreadable answer is not empty.
           # A listed spec no longer on disk is left out: the shards never ran it either, and its status
           # stays red ("No tests found") until the list drops it.
-          # The tree says when it was cut short; a cut-short or failed listing is unreadable.
+          # The spec files at the top of e2e/, the ones the planner packs (specFilesOnDisk). The tree
+          # says when it was cut short; a cut-short or failed listing is unreadable.
           ONDISK="$(gh api "repos/${GH_REPO}/git/trees/${GITHUB_SHA}?recursive=1" \
-            --jq 'if .truncated then "unreadable" else [.tree[] | .path | select(startswith("e2e/"))] end' 2>/dev/null || echo unreadable)"
+            --jq 'if .truncated then "unreadable" else [.tree[] | .path | select(test("^e2e/[^/]+\\.spec\\.ts$"))] end' 2>/dev/null || echo unreadable)"
           [ "$ONDISK" = "unreadable" ] && echo "The commit's file list is unreadable."
           QSPECS="$(gh api "repos/${GH_REPO}/contents/e2e/quarantine.json?ref=${GITHUB_SHA}" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null \
             | jq -c --argjson disk "$ONDISK" '[.specs | keys[] | select(startswith("e2e/configured/") | not) | select(. as $s | $disk | index($s))]' 2>/dev/null || echo unreadable)"

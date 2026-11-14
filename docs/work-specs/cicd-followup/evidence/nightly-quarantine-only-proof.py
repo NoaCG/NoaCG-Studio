@@ -101,6 +101,11 @@ SCENARIOS = [
     ('red quarantined spec deleted from disk: shards skipped',
      base(on_disk=lambda d: {**d, 'tree': [x for x in d['tree'] if x['path'] != EDITOR]}, statuses=red_status(EDITOR)),
      {'run': '111', 'quarantine': None}),
+    ('red quarantined spec below e2e/ (the planner never packs it): shards skipped',
+     base(quarantine_json=lambda q: {'content': base64.b64encode(json.dumps({'version': 1, 'specs': {
+         'e2e/catalog/x.spec.ts': {}}}).encode()).decode()},
+          on_disk=lambda d: {**d, 'tree': d['tree'] + [{'path': 'e2e/catalog/x.spec.ts'}]}),
+     {'run': '111', 'quarantine': None}),
     ('quarantined status pending: only it runs', base(statuses=lambda st: {**st, 'statuses': [
         {**s, 'state': 'pending'} if EDITOR in s['context'] else s for s in st['statuses']]}),
      {'run': '111', 'quarantine': json.dumps([EDITOR], separators=(',', ':'))}),
