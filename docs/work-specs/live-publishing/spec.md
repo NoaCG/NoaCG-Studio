@@ -543,4 +543,13 @@ Filled in by each phase's pull request.
   A job chained with `--after` fails when the job before it fails. The AC-2 test of
   `publish-guard.spec.ts` fails locally when run after the tests before it in that file, on this
   branch and on `main` alike; alone it passes, and CI runs it green.
+- Repair 1 (check 7-c-c035 on f1556db9 failed it, AC-5: the first cue edit after a reload counted
+  20.3 to 23.7 kB): the page kept its measured boxes in memory only, so after a reload a publish ran
+  before every box was measured again and resent each cue whose `adjust.box` went missing or moved
+  by a pixel (#2532). The page now keeps each cue's last measurement in this browser
+  (`control/keptGeometry.ts`, key `spx-gfx-measured`), with a hash of the identity it was measured
+  for and the build that measured it, and a reopened page takes it only for a cue it has not
+  measured yet, with the same identity, from the same build, in the order the boxes were measured.
+  What a Take airs and what a publish stores are unchanged for the same input: the box is the one
+  this page measured for exactly that cue. No migration.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.
