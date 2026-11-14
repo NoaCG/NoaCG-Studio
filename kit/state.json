@@ -42,16 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [
-    {
-      "step": "check",
-      "note": "Merged through the normal queue on the same tree tested on Windows. Independent exact-merge checker confirmed the 24 passing Playwright cases and 160 focused Windows Node checks. Awaiting CI push, configured suite and CodeQL on the exact merge.",
-      "head": "1b7e067c537d567e119c5f886b22f521b2a80503",
-      "session": "/root/v4_checker",
-      "phase": "v4",
-      "pr": 2378
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": []
