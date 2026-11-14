@@ -31,6 +31,12 @@ function supportedData(template: SpxTemplate) {
   }
 }
 interface Range { start: number; end: number; text: string }
+// DOMParser disables scripting: noscript can manufacture apparent nodes, including
+// across template boundaries. Refuse the entire dependent shape, also in inert content.
+function scriptingDependent(root: Document | DocumentFragment): boolean {
+  return !!root.querySelector('noscript') || [...root.querySelectorAll('template')].some(node =>
+    node.namespaceURI === 'http://www.w3.org/1999/xhtml' && scriptingDependent((node as HTMLTemplateElement).content));
+}
 const scriptsAgree = (doc: Document, definition: Element) => [...doc.scripts].every(script => script === definition || !script.textContent?.trim());
 function replaceRanges(html: string, ranges: Range[]) {
   return [...ranges].sort((a, b) => b.start - a.start).reduce((source, r) => source.slice(0, r.start) + r.text + source.slice(r.end), html);
@@ -42,6 +48,7 @@ export function publicTextDefaults(template: SpxTemplate): PublicTextDefaults {
   try {
     supportedData(template);
     const doc = new DOMParser().parseFromString(template.html, 'text/html');
+    if (scriptingDependent(doc)) return unavailable;
     const ids = new Map<string, Element[]>();
     for (const node of doc.querySelectorAll('[id]')) ids.set(node.id, [...(ids.get(node.id) ?? []), node]);
     const definitions = ids.get('spx-template-definition') ?? [];
@@ -98,6 +105,7 @@ export function publicTextDefaults(template: SpxTemplate): PublicTextDefaults {
         // actual document nodes to change, without relying on those range candidates.
         const assertActualNodes = (html: string, value: string, fields: SpxField[]) => {
           const output = new DOMParser().parseFromString(html, 'text/html');
+          if (scriptingDependent(output)) throw Error(REASON);
           const definitions = output.querySelectorAll('[id="spx-template-definition"]');
           const leaves = output.querySelectorAll('[id="' + id + '"]');
           if (definitions.length !== 1 || leaves.length !== 1 || !output.body.contains(leaves[0]) ||

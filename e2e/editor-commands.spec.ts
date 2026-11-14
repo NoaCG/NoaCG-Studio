@@ -202,7 +202,12 @@ test('public default guards preserve lossless source, atomicity, ID authority an
     const sourceDefinition = new DOMParser().parseFromString(original.html, 'text/html').getElementById('spx-template-definition')!.outerHTML;
     const exactOpen = '<script id="spx-template-definition" type="text/javascript">';
     const normalizedOpen = "<script id='spx-template-definition' type='text/javascript'>";
+    const sourceLeaf = '<span class="quiz-text" id="f1">Paris</span>';
     const variants = [
+      ['body noscript leaf', mutate(original.html.replace(sourceLeaf, '<noscript>' + sourceLeaf + '</noscript>'))],
+      ['body noscript definition', mutate(original.html.replace(sourceDefinition, '').replace('<body>', '<body><noscript>' + sourceDefinition + '</noscript>'))],
+      ['template noscript end-template leaf', mutate(original.html.replace(sourceLeaf, '<template><noscript></template>' + sourceLeaf + '</noscript></template>'))],
+      ['recursive template noscript', beforeAnswer(original, '<template><template><noscript>fallback</noscript></template></template>')],
       ['comment definition before normalized actual', mutate(original.html.replace(exactOpen, '<!-- ' + sourceDefinition + ' -->' + normalizedOpen))],
       ['inert definition before normalized actual', mutate(original.html.replace(exactOpen, '<template>' + sourceDefinition + '</template>' + normalizedOpen))],
       ['inert identical actual leaf alias', beforeAnswer(original, '<template><span class="quiz-text" id="f1">Paris</span></template>')],
@@ -238,7 +243,7 @@ test('public default guards preserve lossless source, atomicity, ID authority an
       return { name, supported: i.targets.find(t => t.id === 'f1')?.capabilities['text.set'].supported ?? false,
         prepared, applied, unchanged: f.snapshot() === before, writes: f.writes() };
     });
-    const literals = ['window.SPXGCTemplateDefinition = {', '<script>window["SPXGCTemplateDefinition"] = {};</script>'].map(text => {
+    const literals = ['window.SPXGCTemplateDefinition = {', '<script>window["SPXGCTemplateDefinition"] = {};</script>', '<noscript><template>literal fallback</template></noscript>'].map(text => {
       const f = fixture(original), initial = structuredClone(f.source()), first = f.apply([field(text)]);
       const after = structuredClone(f.source()), doc = new DOMParser().parseFromString(after.html, 'text/html');
       const payload = doc.getElementById('spx-template-definition')!.textContent!;
@@ -312,4 +317,40 @@ test('public default guards preserve lossless source, atomicity, ID authority an
   expect(result.first.length + result.second.length).toBe(result.total);
   const ids = [...result.first, ...result.second].filter(Boolean); expect(new Set(ids).size).toBe(ids.length);
   expect(result.outsideContext).toBe(true); expect(result.outsideUnchanged).toBe(true);
+});
+
+
+// DOMParser disables scripting; the actual preview/export documents enable it. This
+// independent minimal oracle keeps those two source interpretations explicit.
+test('public default scripting mode witnesses actual nodes and declaration execution', async ({ page, context }, testInfo) => {
+  const leaf = '<span id="f1">Paris</span>';
+  const definition = '<script id="spx-template-definition">window.SPXGCTemplateDefinition = {DataFields:[{field:"f1",value:"Paris"}]};</script>';
+  const sources = [
+    { name: 'positive', body: definition + leaf, actualLeaf: 1, actualDeclaration: true },
+    { name: 'body noscript leaf', body: definition + '<noscript>' + leaf + '</noscript>', actualLeaf: 0, actualDeclaration: true },
+    { name: 'body noscript definition', body: '<noscript>' + definition + '</noscript>' + leaf, actualLeaf: 1, actualDeclaration: false },
+    { name: 'template noscript end-template leaf', body: definition + '<template><noscript></template>' + leaf + '</noscript></template>', actualLeaf: 0, actualDeclaration: true },
+  ];
+  const rows = [];
+  for (const source of sources) {
+    const html = '<!doctype html><html><head></head><body>' + source.body + '</body></html>';
+    const disabled = await page.evaluate(html => {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      return { leaf: doc.querySelectorAll('#f1').length, definition: doc.querySelectorAll('#spx-template-definition').length };
+    }, html);
+    const output = await context.newPage();
+    await output.setContent(html, { waitUntil: 'load' });
+    const enabled = await output.evaluate(() => ({ leaf: document.querySelectorAll('#f1').length,
+      declaration: Object.hasOwn(window, 'SPXGCTemplateDefinition') }));
+    rows.push({ name: source.name, disabled, enabled });
+    await output.close();
+  }
+  const evidence = testInfo.outputPath('public-default-scripting-mode.json');
+  writeFileSync(evidence, JSON.stringify(rows, null, 2));
+  await testInfo.attach('public-default-scripting-mode', { path: evidence, contentType: 'application/json' });
+  for (const [i, row] of rows.entries()) {
+    expect(row.disabled, row.name).toEqual({ leaf: 1, definition: 1 });
+    expect(row.enabled.leaf, row.name).toBe(sources[i].actualLeaf);
+    expect(row.enabled.declaration, row.name).toBe(sources[i].actualDeclaration);
+  }
 });
