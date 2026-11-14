@@ -1002,6 +1002,14 @@ test('parts', async ({ page, browser }) => {
     });
   const read = async (path: string) => ((await (await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } })).json()) as Record<string, number | null>[])[0] ?? {};
   await setSwitch('partial_writes', true);
+  // A publish that went whole says why on the console (G4 section 4): logged with the run.
+  page.on('console', (m) => { if (m.text().includes('publish in parts went whole')) log('fallback', m.text().slice(0, 200)); });
+  if (process.env.MEASURE_URLS === '1') {
+    page.on('response', (r) => {
+      if (!/\/rpc\/control_publish_parts$|\/rest\/v1\/control_shows\?id=eq/.test(r.url()) || r.request().method() === 'OPTIONS') return;
+      void r.text().then((t) => log('publish answer', r.request().method(), r.status(), t.slice(0, 160))).catch(() => undefined);
+    });
+  }
   try {
     await opPage(page);
     const fx = await buildFixture(page, FIXTURE);

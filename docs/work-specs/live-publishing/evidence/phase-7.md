@@ -73,7 +73,7 @@ panel, which carries every graphic's script). See "Departures" below.
 
 ### Configured check (`e2e/configured/publish-guard.spec.ts`, "only what changed is sent, each image once")
 
-Passes (jobs j-0097, j-0130). On a smaller personal production:
+Passes (jobs j-0097, j-0130, j-0139, j-0146). On a smaller personal production:
 
 - a 2 kB cue edit, save and publish together: 13.3 kB counted, under 20 kB; the save is
   `documents_show_patch`, the publish `control_publish_parts`; the new output reads the head and no
@@ -88,11 +88,25 @@ Passes (jobs j-0097, j-0130). On a smaller personal production:
 - a stale head written by an older page, then a Publish press: the press goes in parts and `output` is
   recomposed from the parts;
 - a team production: saves go as `team_production_patch`, the record equals the page's, a publish
-  goes in parts; two edits and a publish counted TEAM_BYTES with every team read included (reported).
+  goes in parts; two edits and a publish counted 302 kB over 21 requests with every team read included (reported): 257 kB of it is one whole `team_production_save`, the first save after the production moved to the team, which has no unit map yet; the edits after it go as patches.
 
 ### The press path (reported)
 
-PRESS_RESULT
+Automatic updates off, the page reopened, a 2 kB cue edit, then Publish changes pressed:
+
+| Fixture | Counted | Made of |
+|---|---|---|
+| Large (j-0153) | 20.4 kB | the edit's save (3.8 kB), the press's own bookkeeping save of `publishedAt` and `publishedRecord` (3.9 kB), the two sync listings those saves start (5.6 kB), the publish (6.0 kB), frames (1.1 kB) |
+| Typical (j-0148) | 19.9 kB | the same requests |
+
+The cost over the automatic path is the press's second save and its listing, about 6 kB. Removing it
+means changing what a press records, which is not a small, safe change here; the press path stays
+about at 20 kB.
+
+The first Publish of a production creates its row and writes whole (G4 section 4). The first publish
+in parts after it therefore uploads every graphic and image once (G4's one-time upload): 8.5 MB on the
+typical fixture, 21 MB of images on the large one. Runs that measured a kind in that window show it
+(typical job j-0148's cue edit); the judged rows above come after it.
 
 ## Measured and reported, not phase 7 acceptance
 
@@ -130,8 +144,12 @@ Rules fixed before results, as above.
   while measurements loaded the machine and passed alone (520). `svg-import-passes` fails 4 corpus
   records on this worker on `main` too.
 - Output code: `scripts/check-output-reader.mjs` after a build: 27 modules parse on Chromium 71.
-- `publish-guard.spec.ts`, the other tests, with `partial_writes` off as CI runs them: pass (j-0131,
-  j-0134). With it on, the race test that intercepts the whole-path `PATCH` sees no such write, by
+- `publish-guard.spec.ts`, the other tests, with `partial_writes` off as CI runs them: pass: the
+  first seven in j-0131, "a page that may not publish" in j-0134, the OBS-scene test in j-0145 (twice)
+  and "reverse order" in j-0154. The OBS-scene test and the AC-5 check each failed at an output's first load for
+  about twenty minutes after a Chrome crash in a measurement on this worker (j-0136, j-0137, j-0141,
+  j-0142), and passed in every run after (j-0139, j-0143 to j-0146); `main` passed it in the same
+  window (j-0140). With it on, the race test that intercepts the whole-path `PATCH` sees no such write, by
   design; the parts path's race is covered by the AC-5 check.
 
 ## Departures from G4's wording
