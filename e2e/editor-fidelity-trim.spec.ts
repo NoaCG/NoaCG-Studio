@@ -14,29 +14,33 @@ import { bindEveryTextLayer, dropSvg, QUIZ_SVG } from './_svg-import';
 import { finishIntoNewEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import type { EditorOperation } from '../src/components/editorFoundation/operations';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The recorded wizard baseline is committed evidence and is only read here. This run's pictures
 // and measurements go to the test's own output folder (ignored), never into docs/.
 const baseline = 'docs/research/editor-r1-1d/baseline';
 const out = (name: string) => test.info().outputPath(name);
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); await expect(page.locator('.ef-stage-error')).toHaveCount(0);
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);
 }
 async function preview(page: Page) { return (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!; }
-async function data(page: Page) { return page.evaluate(async () => (await import('/src/blocks/animData.ts')).parseAnimData((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!); }
+async function data(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!); }
 async function execute(page: Page, operations: EditorOperation[]) {
-  await page.evaluate(async operations => { const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(); session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations }); }, operations); await ready(page);
+  await page.evaluate(async operations => { const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(); session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations }); }, operations); await ready(page);
 }
 /** One `animation.key` set through the editor's session: '' when accepted, else the refusal. */
 async function tryKey(page: Page, key: { selector: string; property: string; value: number; time?: number; step?: number }) {
   const message = await page.evaluate(async ({ selector, property, value, time, step }) => {
-    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'animation.key', selector, step, property, time, value, action: 'set' }] as never }); return ''; } catch (e) { return String(e); }
   }, { step: 0, time: .4, ...key });
   if (!message) await ready(page);
@@ -46,17 +50,17 @@ const LOOK = 'This graphic shows and hides this layer on air. It takes no keys; 
 /** The ownership rule's answer for each (layer, channel) of the working graphic (#1982). */
 async function ownership(page: Page, asks: [string, string][]) {
   return page.evaluate(async asks => {
-    const { keyAuthoringReason } = await import('/src/blocks/editorAnimation.ts'), { parseAnimData } = await import('/src/blocks/animData.ts');
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { keyAuthoringReason } = await __noacgImport('/src/blocks/editorAnimation.ts'), { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
     return asks.map(([selector, channel]) => keyAuthoringReason(t, parseAnimData(t.js), selector, channel));
   }, asks);
 }
 /** A layer's tracks in the cue that opens a package's animation data. */
 async function packagedKeys(page: Page, target: string, selector: string) {
   return page.evaluate(async ({ target, selector }) => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(e => e.id === target)!.build(t);
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(e => e.id === target)!.build(t);
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     for (const name of Object.keys(zip.files)) {
       if (zip.files[name].dir || !/\.(m?js|html)$/.test(name)) continue;
       const text = await zip.file(name)!.async('string');
@@ -109,8 +113,8 @@ async function expectFidelityExports(page: Page, samples: FidelitySample[], targ
   const defaults = Object.fromEntries((await source(page)).fields.map(field => [field.field, String(field.value ?? '')]));
   for (const target of targets) {
     const files = target === 'html' ? null : await page.evaluate(async target => {
-      const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
+      const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
     }, target);
     const output = await page.context().newPage(); await output.setViewportSize({ width: 1920, height: 1080 });
@@ -130,8 +134,8 @@ async function expectFidelityExports(page: Page, samples: FidelitySample[], targ
     } else if (files) {
       await output.goto('http://fidelity-output.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
     } else {
-      const html = await page.evaluate(async () => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(
-        (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
+      const html = await page.evaluate(async () => (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(
+        (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template));
       await output.setContent(html);
     }
     await output.evaluate(() => document.fonts.ready);
@@ -185,7 +189,7 @@ test('nested Illustrator text keys its CSS pivot without re-folding the SVG sour
   const pivotX = page.locator('.ef-anchor').getByRole('textbox', { name: 'Anchor X', exact: true });
   const original = await source(page), first = await pose(), firstGeometry = await geometry();
   const start = Number(await pivotX.inputValue());
-  const history = () => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length);
+  const history = () => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().history.length);
   const entries = await history();
   await page.getByRole('button', { name: 'Enable Anchor X animation', exact: true }).click();
   await ready(page);
@@ -230,7 +234,7 @@ test('actual wizard exposes nested artwork and independent trim handles', async 
   const original = await source(page);
   // The baseline was recorded before G01 changed the emitted interpreter. Everything else must
   // match byte for byte; the interpreter must be exactly the recorded one's upgrade.
-  const interpreter = await page.evaluate(async () => (await import('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS);
+  const interpreter = await page.evaluate(async () => (await __noacgImport('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS);
   const recorded = readFileSync(new URL('./fixtures/interpreter-pre-g01.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   for (const ext of ['html', 'css', 'js'] as const) {
     expect(original[ext].replace(/\r\n/g, '\n')).toBe(readFileSync(baseline + '/wizard.' + ext, 'utf8').replace(/\r\n/g, '\n').replace(recorded, () => interpreter));
@@ -248,7 +252,7 @@ test('actual wizard exposes nested artwork and independent trim handles', async 
   await raster.evaluate(() => document.fonts.ready);
   const sourceText = await raster.locator('svg text').evaluate(el => ({ font: getComputedStyle(el).font, box: (() => { const b = (el as SVGGraphicsElement).getBBox(); return { x: b.x, y: b.y, width: b.width, height: b.height }; })(), html: el.outerHTML }));
   await raster.locator('svg').screenshot({ path: out('source-raster.png') });
-  const html = await page.evaluate(async () => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
+  const html = await page.evaluate(async () => (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template));
   await raster.setContent(html); await raster.evaluate(() => {
     const w = window as unknown as { buildInTimeline(): { pause(): void; progress(p: number, silent: boolean): void } };
     const timeline = w.buildInTimeline(); timeline.pause(); timeline.progress(1, true);
@@ -307,7 +311,8 @@ test('wizard group transforms compose with child keys and preserve source and ex
   await expectFidelityExports(page, samples, ['spx', 'casparcg', 'ograf']);
 });
 
-for (const width of [1920, 1366, 1093]) test('wizard nested identity, trim and history ' + width, async ({ page }) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const width of [1093]) test('wizard nested identity, trim and history ' + width, async ({ page }) => {
   await page.setViewportSize({ width, height: width === 1920 ? 1080 : width === 1366 ? 768 : 614 });
   await imported(page); await seek(page, .8);
   const original = await source(page);
@@ -348,10 +353,10 @@ for (const width of [1920, 1366, 1093]) test('wizard nested identity, trim and h
 test('trim retains disjoint keys and inherited motion at effective FPS, with atomic refusals', async ({ page }) => {
   await imported(page);
   const result = await page.evaluate(async () => {
-    const template = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const template = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     const rows = [];
     for (const speed of [.5, 1, 2]) for (const fps of [25, 30]) {
       const d = parseAnimData(template.js)!; d.speed = speed;
@@ -375,10 +380,10 @@ test('trim retains disjoint keys and inherited motion at effective FPS, with ato
 test('unnamed and duplicate identities are minted atomically and never during drafts', async ({ page }) => {
   await imported(page);
   const result = await page.evaluate(async () => {
-    const original = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { getTemplateParts } = await import('/src/model/structure.ts');
-    const { baseValues } = await import('/src/blocks/baseEdits.ts');
+    const original = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { getTemplateParts } = await __noacgImport('/src/model/structure.ts');
+    const { baseValues } = await __noacgImport('/src/blocks/baseEdits.ts');
     const input = { ...original, html: original.html.replace('<circle ', '<circle id="duplicate" ').replace('<path ', '<path id="duplicate" ').replace('<defs>', '<defs><path id="artwork-1" d="M0 0"/>') };
     const parts = getTemplateParts(input.html, input.fields, true), doc = new DOMParser().parseFromString(input.html, 'text/html');
     const target = parts.find(p => doc.querySelector(p.selector)?.tagName.toLowerCase() === 'circle')!.selector;
@@ -531,13 +536,13 @@ test('a nested imported field stays a field and an animation target, with its ti
   const edited = await source(page);
   expect(await page.evaluate(html => new DOMParser().parseFromString(html, 'text/html').querySelector('#parent > #card > #f0')?.textContent, edited.html)).toBe('Night report');
   const expected = await page.evaluate(async () => {
-    const { resolveValue } = await import('/src/blocks/animEval.ts'); const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const d = parseAnimData((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!;
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts'); const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const d = parseAnimData((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!;
     return [0, .15, .3, .45, .6].map(time => resolveValue(d, '#f0', 'x', 0, time)!);
   });
   // The ease is applied: a quarter of the way in, an Easy Ease is well short of the linear value.
   expect(Math.abs(expected[1] - (-30 + 70 / 4))).toBeGreaterThan(5);
-  const html = await page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), edited);
+  const html = await page.evaluate(async template => (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(template), edited);
   const output = await page.context().newPage(); await output.setContent(html);
   const played = await output.evaluate(() => {
     type Timeline = { pause(): void; time(t: number, silent: boolean): void; render(t: number, silent: boolean, force: boolean): void };
@@ -577,7 +582,7 @@ test('a nested field on a behaviour graphic takes keys, a drawn look refuses the
   expect(await ownership(page, [['#Flash_x20_1', 'opacity'], ['#Flash_x20_1', 'x'], ['#Full_x20_time', 'scaleX'], ['#f2', 'x'], ['#f2', 'opacity'], ['#Row_x20_1', 'x']]))
     .toEqual([LOOK, LOOK, LOOK, null, null, null]);
   // A base placement edit is still the layer's own and leaves the animation data alone.
-  const baseX = await page.evaluate(async template => (await import('/src/blocks/baseEdits.ts')).baseValues(template, '#f2').x, prepared);
+  const baseX = await page.evaluate(async template => (await __noacgImport('/src/blocks/baseEdits.ts')).baseValues(template, '#f2').x, prepared);
   await execute(page, [{ kind: 'base.set', selector: '#f2', values: { x: baseX + 12 } }]);
   expect((await source(page)).js).toBe(prepared.js); expect((await source(page)).fields).toEqual(prepared.fields);
   // K6: the nested score takes keys from the panel's own controls.
@@ -621,7 +626,7 @@ test('a nested field on a behaviour graphic takes keys, a drawn look refuses the
   expect(await ownership(page, [['#Flash_x20_2', 'scaleX'], ['#f2', 'x']])).toEqual([LOOK, null]);
   // The packages carry the key in their animation data.
   for (const target of ['spx', 'ograf']) expect(await packagedKeys(page, target, '#f2')).toEqual(keyed.steps[0].layers['#f2']);
-  const compose = (template: typeof prepared) => page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), template);
+  const compose = (template: typeof prepared) => page.evaluate(async template => (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(template), template);
   const output = await page.context().newPage();
   // Where #f2 stands in artwork units, read through the artwork's own scale.
   const standing = () => output.evaluate(() => { const art = (document.querySelector('svg.imported-design-art') as SVGGraphicsElement).getScreenCTM()!; return (document.querySelector('#f2') as SVGGraphicsElement).getScreenCTM()!.e / art.a; });
@@ -670,7 +675,7 @@ test('drawn look entrances persist and animate landings and re-entry without rep
   expect(changed.html).toContain('data-noacg-look-entrance="fade"');
   expect(changed.js).toContain(original.js.trimEnd()); expect(await data(page)).toEqual(animation);
   const refusalChecks = await page.evaluate(async template => {
-    const { behaviourLooks, setLookEntrance } = await import('/src/blocks/behaviourLook.ts');
+    const { behaviourLooks, setLookEntrance } = await __noacgImport('/src/blocks/behaviourLook.ts');
     const selector = behaviourLooks(template)[0].selector;
     const original = setLookEntrance(template, selector, '');
     const extension = template.js.slice(template.js.indexOf('// BEGIN NOACG LOOK ENTRANCE '));
@@ -696,15 +701,15 @@ test('drawn look entrances persist and animate landings and re-entry without rep
   await expect(page.getByRole('combobox', { name: 'Flash 1 entrance', exact: true })).toHaveValue('fade');
   await page.screenshot({ path: out('look-entrances.png') });
   expect(await page.evaluate(async () => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const targets = (await import('/src/export/registry.ts')).EXPORT_TARGETS;
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const targets = (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS;
     return Promise.all(targets.map(async target => {
       const zip = await target.build(t), contents = await Promise.all(Object.values(zip.files).filter(file => !file.dir && /\.(?:m?js|html)$/.test(file.name)).map(file => file.async('string')));
       return [target.id, contents.some(text => text.includes('BEGIN NOACG LOOK ENTRANCE 1') && text.includes('data-noacg-look-entrance'))];
     }));
   })).toEqual(expect.arrayContaining([['spx', true], ['html-overlay', true], ['h2r', true], ['casparcg', true], ['ograf', true], ['liveos', true]]));
   const output = await page.context().newPage();
-  await output.setContent(await page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), saved));
+  await output.setContent(await page.evaluate(async template => (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(template), saved));
   const result = await output.evaluate(() => {
     const w = window as unknown as {
       gsap: { fromTo(el: Element, from: Record<string, number>, to: unknown): unknown };
@@ -763,7 +768,7 @@ test('a quiz takes keys on its answers and its cues, its drawn moments refuse th
   const keyed = await data(page);
   expect([keyed.steps[0].layers['#f1'].x.length, keyed.steps[1].layers['#f1'].x.length]).toEqual([2, 1]);
   const output = await page.context().newPage();
-  await output.setContent(await page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), await source(page)));
+  await output.setContent(await page.evaluate(async template => (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(template), await source(page)));
   const x = () => output.evaluate(() => Number((window as unknown as { gsap: { getProperty(t: string, p: string): number } }).gsap.getProperty('#f1', 'x')));
   const w = (fn: string, ...args: unknown[]) => output.evaluate(({ fn, args }) => { (window as unknown as Record<string, (...a: unknown[]) => unknown>)[fn](...args); }, { fn, args });
   const on = /imported-design-on/;
@@ -796,7 +801,7 @@ test('a quiz takes keys on its answers and its cues, its drawn moments refuse th
 // layer where it was placed, in the editor and on air, and the keys go on from there.
 test('turning on Position X or Rotation keeps an SVG layer\'s base offset, and a base move under Rotation still moves it', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 }); await imported(page); await seek(page, 0);
-  const base = await page.evaluate(async template => (await import('/src/blocks/baseEdits.ts')).baseValues(template, '#sibling'), await source(page));
+  const base = await page.evaluate(async template => (await __noacgImport('/src/blocks/baseEdits.ts')).baseValues(template, '#sibling'), await source(page));
   const drawn = await standsAt(page, '#sibling');
   await execute(page, [{ kind: 'base.set', selector: '#sibling', values: { x: base.x + 12, y: base.y + 7 } }]);
   const placed = await standsAt(page, '#sibling');
@@ -822,7 +827,7 @@ test('turning on Position X or Rotation keeps an SVG layer\'s base offset, and a
   // A Rotation that plays only inside a state counts as animated too, and a move then goes into the
   // attribute; the offset already in the CSS stays there (on a graphic saved before #2062 GSAP hides it).
   expect(await page.evaluate(async template => {
-    const { parseAnimData } = await import('/src/blocks/animData.ts'), { writeAnimData } = await import('/src/templates/shared/animRuntime.ts'), { editBase, baseValues } = await import('/src/blocks/baseEdits.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts'), { writeAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts'), { editBase, baseValues } = await __noacgImport('/src/blocks/baseEdits.ts');
     const data = parseAnimData(template.js)!;
     const spin = { id: 'spin', timeline: { name: 'Spin', duration: 1, ease: 'none', layers: { '#sibling': { rotation: [{ time: 0, value: 0 }, { time: 1, value: 90 }] } } } };
     const walk = data.steps.map((_, i) => 'cue' + i);
@@ -840,7 +845,7 @@ test('turning on Position X or Rotation keeps an SVG layer\'s base offset, and a
   expect((await standsAt(page, '#sibling'))[0]).toBeCloseTo(placed[0] + 20, 3);
   await seek(page, 0); expect((await standsAt(page, '#sibling'))[0]).toBeCloseTo(placed[0], 3);
   const output = await page.context().newPage();
-  await output.setContent(await page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), await source(page)));
+  await output.setContent(await page.evaluate(async template => (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(template), await source(page)));
   await output.evaluate(() => (window as unknown as { play(): void }).play());
   await expect.poll(() => output.evaluate(() => {
     const art = (document.querySelector('svg.imported-design-art') as SVGGraphicsElement).getScreenCTM()!, at = (document.querySelector('#sibling') as SVGGraphicsElement).getScreenCTM()!;

@@ -32,9 +32,9 @@ async function catalogProduction(page: Page, variant: string, name: string): Pro
   await page.keyboard.press('Escape');
   const id = await page.evaluate(
     async ({ variant, name }) => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const { createGraphic } = await import('/src/model/library.ts');
-      const shows = await import('/src/model/shows.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { createGraphic } = await __noacgImport('/src/model/library.ts');
+      const shows = await __noacgImport('/src/model/shows.ts');
       const tpl = variantById(variant)!.create({});
       const { doc, error } = createGraphic(tpl, { name });
       if (error) throw new Error(error);

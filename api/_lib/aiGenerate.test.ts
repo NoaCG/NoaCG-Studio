@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 import generate from '../ai/generate.js';
+import { executeGatewayRequest, GatewayError } from './aiGateway.js';
+import { studioEditorErrorMessage } from './aiEditorPolicy.js';
 import { gatewayLedgerConfigured, gatewayLedgerEntry } from './aiGatewayLedger.js';
 import { aiGenerateRateLimitCaps } from './rateLimit.js';
 import { userAiKeysCookie } from './aiCredentials.js';
@@ -19,6 +21,9 @@ const ENV = [
   'IP_HASH_SALT',
   'AI_GATEWAY_API_KEY',
   'AI_KEY_ENCRYPTION_SECRET',
+  'VITE_AI_PROVIDER',
+  'VITE_AI_MODEL',
+  'VITE_AI_FALLBACKS',
 ] as const;
 const original = new Map(ENV.map((name) => [name, process.env[name]]));
 
@@ -355,4 +360,168 @@ test('generic editor BYOK uses the anonymous owners sealed key with hosted backe
     assert.equal((await response.json() as { output: string }).output, 'A bounded answer');
     assert.equal(calls.length, 1, 'BYOK must neither verify an absent account nor spend the managed key');
   } finally { globalThis.fetch = realFetch; }
+});
+
+
+for (const tool of ['editor_help', 'editor_proposal']) test('Studio ' + tool + ' ignores browser routing and personal-key cookies', async () => {
+  process.env.VITE_AI_PROVIDER = 'anthropic'; process.env.VITE_AI_MODEL = 'claude-sonnet-5';
+  process.env.ANTHROPIC_API_KEY = 'managed-test-key';
+  process.env.AI_KEY_ENCRYPTION_SECRET = 'editor-test-encryption-secret-at-least-32';
+  const cookie = userAiKeysCookie(new Request('https://noacg.test'), { anthropic: 'personal-test-key' }, null);
+  const originalFetch = globalThis.fetch;
+  const calls: { key: string | null; body: Record<string, unknown> }[] = [];
+  globalThis.fetch = async (_input, init) => {
+    calls.push({ key: new Headers(init?.headers).get('x-api-key'), body: JSON.parse(String(init?.body)) });
+    return new Response(JSON.stringify({ content: [{ type: 'tool_use', id: 'tool-test', name: tool, input: { answer: 'Managed answer' } }],
+      usage: { input_tokens: 10, output_tokens: 5 } }), { status: 200 });
+  };
+  try {
+    const req = new Request('https://noacg.test/api/ai/generate', { method: 'POST',
+      headers: { cookie, 'x-forwarded-for': uniqueIp() }, body: JSON.stringify({
+        surface: 'editor', route: { provider: 'openai', model: 'personal-model' }, fallbacks: [{ provider: 'google', model: 'personal-fallback' }],
+        request: { system: 'Bounded editor test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+          model: 'override', modelRole: 'fast', temperature: 1.7, seed: 12345,
+          structuredOutput: { name: tool, description: 'Test', schema: { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'], additionalProperties: false } } },
+      }) });
+    const res = await generate.fetch(req); assert.equal(res.status, 200);
+    const result = await res.json() as ModelResult;
+    assert.equal(result.provider, 'anthropic'); assert.equal(result.model, 'claude-sonnet-5');
+    assert.equal(calls.length, 1); assert.equal(calls[0].key, 'managed-test-key');
+    assert.equal(calls[0].body.model, 'claude-sonnet-5');
+    assert.equal(calls[0].body.temperature, undefined); assert.equal(calls[0].body.seed, undefined);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('Studio assistant refuses a missing managed credential instead of charging a personal key', async () => {
+  process.env.VITE_AI_PROVIDER = 'anthropic'; process.env.VITE_AI_MODEL = 'claude-sonnet-5';
+  process.env.AI_KEY_ENCRYPTION_SECRET = 'editor-test-encryption-secret-at-least-32';
+  const cookie = userAiKeysCookie(new Request('https://noacg.test'), { anthropic: 'personal-test-key' }, null);
+  const req = gatewayRequest(uniqueIp(), { surface: 'editor', request: { system: 'Test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+    structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } } } });
+  req.headers.set('cookie', cookie);
+  const res = await generate.fetch(req); assert.equal(res.status, 412);
+  const body = await res.json() as { error: { code: string; message: string } };
+  assert.equal(body.error.code, 'missing_key'); assert.match(body.error.message, /Studio editor assistant is unavailable/);
+  assert.doesNotMatch(body.error.message, /own.*key|settings/i);
+});
+
+
+test('Studio managed gateway preserves the existing retention policy on the wire', async () => {
+  process.env.AI_GATEWAY_API_KEY = 'managed-test-key';
+  const realFetch = globalThis.fetch;
+  let sent: Record<string, unknown> = {};
+  globalThis.fetch = async (_input, init) => {
+    sent = JSON.parse(String(init?.body));
+    return Response.json({ choices: [{ message: { content: '{"answer":"Managed help"}' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1 } });
+  };
+  try {
+    const response = await generate.fetch(gatewayRequest(uniqueIp(), { surface: 'editor', request: {
+      system: 'Bounded test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+      structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'] } },
+    } }));
+    assert.equal(response.status, 200); assert.equal(sent.model, 'alibaba/qwen3-coder-next');
+    const gateway = (sent.providerOptions as { gateway: Record<string, unknown> }).gateway;
+    assert.equal(gateway.zeroDataRetention, true); assert.equal(gateway.disallowPromptTraining, true);
+    assert.deepEqual(gateway.tags, ['surface:editor']);
+  } finally { globalThis.fetch = realFetch; }
+});
+
+for (const authorization of [null, 'Bearer stale-or-unverifiable']) test('Studio assistant keeps hosted authentication: ' + String(authorization), async () => {
+  process.env.SUPABASE_URL = 'https://isolated-auth.test'; process.env.SUPABASE_ANON_KEY = 'public-test-key';
+  process.env.VITE_AI_PROVIDER = 'anthropic'; process.env.VITE_AI_MODEL = 'claude-sonnet-5'; process.env.ANTHROPIC_API_KEY = 'managed-test-key';
+  process.env.AI_KEY_ENCRYPTION_SECRET = 'editor-test-encryption-secret-at-least-32';
+  const cookie = userAiKeysCookie(new Request('https://noacg.test'), { anthropic: 'personal-test-key' }, null);
+  const req = gatewayRequest(uniqueIp(), { surface: 'editor', request: { system: 'Test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+    structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } } } });
+  req.headers.set('cookie', cookie); if (authorization) req.headers.set('authorization', authorization);
+  const res = await generate.fetch(req); assert.equal(res.status, 401);
+  assert.equal((await res.json() as { error: { code: string } }).error.code, 'authentication_required');
+});
+
+for (const [name, change] of [['token ceiling', { maxTokens: 26001 }], ['unstructured output', { structuredOutput: undefined }], ['foreign tool', { structuredOutput: { name: 'image_generation' } }]] as [string, Record<string, unknown>][])
+  test('Studio assistant refuses ' + name + ' before provider execution', async () => {
+    const res = await generate.fetch(gatewayRequest(uniqueIp(), { surface: 'editor', request: {
+      system: 'Bounded test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+      structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } }, ...change,
+    } }));
+    assert.equal(res.status, 400); assert.equal((await res.json() as { error: { code: string } }).error.code, 'invalid_request');
+  });
+
+// Studio owns these settings: a caller cannot repair a managed route or token budget.
+for (const surface of ['editor', undefined] as const) {
+  for (const status of [400, 404]) test('managed failure ownership: model rejection ' + status + ' / ' + String(surface), async () => {
+    process.env.VITE_AI_PROVIDER = 'anthropic'; process.env.VITE_AI_MODEL = 'managed-model';
+    process.env.ANTHROPIC_API_KEY = 'managed-test-key';
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response('This model is no longer available to new users.', { status });
+    try {
+      const response = await generate.fetch(gatewayRequest(uniqueIp(), { surface,
+        route: { provider: 'anthropic', model: 'personal-model' }, request: {
+          system: 'Test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+          structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } },
+        } }));
+      assert.equal(response.status, 502);
+      const { error } = await response.json() as { error: { code: string; message: string; retryable: boolean } };
+      assert.equal(error.code, 'provider_rejected'); assert.equal(error.retryable, false);
+      if (surface === 'editor') assert.equal(error.message, 'The Studio editor assistant is unavailable. Manual editing is available.');
+      else assert.match(error.message, /Pick a newer model from the list/);
+    } finally { globalThis.fetch = realFetch; }
+  });
+
+  test('managed failure ownership: truncated response / ' + String(surface), async () => {
+    process.env.AI_GATEWAY_API_KEY = 'managed-test-key';
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({ choices: [{ message: { content: '{' }, finish_reason: 'length' }],
+      usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.001 } });
+    try {
+      const response = await generate.fetch(gatewayRequest(uniqueIp(), { surface,
+        route: { provider: 'vercel', model: 'personal-model' }, request: {
+          system: 'Test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+          structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } },
+        } }));
+      assert.equal(response.status, 502);
+      const { error } = await response.json() as { error: { code: string; message: string; retryable: boolean } };
+      assert.equal(error.code, 'malformed_response'); assert.equal(error.retryable, false);
+      if (surface === 'editor') {
+        assert.match(error.message, /Studio editor assistant/); assert.match(error.message, /simpler request/);
+        assert.doesNotMatch(error.message, /outputBudget|src\/|Raise/);
+      } else assert.match(error.message, /Raise.*budget/);
+    } finally { globalThis.fetch = realFetch; }
+  });
+}
+
+test('managed failure ownership: invalid deployment model retains the route bound without personal setup', async () => {
+  process.env.VITE_AI_PROVIDER = 'anthropic'; process.env.VITE_AI_MODEL = 'x'.repeat(161);
+  const realFetch = globalThis.fetch; let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error('must not send'); };
+  try {
+    const response = await generate.fetch(gatewayRequest(uniqueIp(), { surface: 'editor', request: {
+      system: 'Test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+      structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } },
+    } }));
+    assert.equal(response.status, 400); assert.equal(calls, 0);
+    assert.deepEqual((await response.json() as { error: unknown }).error, { code: 'invalid_request',
+      message: 'The Studio editor assistant is unavailable. Manual editing is available.', retryable: false });
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('managed failure ownership: presentation preserves served usage and the content-free ledger', async () => {
+  const body: AiGatewayRequestBody = { surface: 'editor', route: { provider: 'anthropic', model: 'claude-sonnet-5-5' }, request: {
+    system: 'Test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+    structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } },
+  } };
+  await assert.rejects(executeGatewayRequest(body, { keyFor: async () => 'fixture-key', fetchImpl: async () =>
+    Response.json({ content: [{ type: 'text', text: '{' }], stop_reason: 'max_tokens',
+      usage: { input_tokens: 10, output_tokens: 5 } }) }), (error: unknown) => {
+    assert.ok(error instanceof GatewayError); assert.equal(error.code, 'malformed_response');
+    assert.equal(error.status, 502); assert.equal(error.retryable, false);
+    const usage = error.servedUsage; assert.ok(usage); assert.equal(usage.totalTokens, 15);
+    const entry = () => gatewayLedgerEntry({ userId: null, ipHash: 'fixture', body, userKeys: {},
+      errorCode: error.code, servedUsage: error.servedUsage });
+    const before = entry(); const originalMessage = error.message;
+    assert.match(studioEditorErrorMessage(error), /simpler request/);
+    assert.equal(error.message, originalMessage); assert.equal(error.servedUsage, usage);
+    assert.deepEqual(entry(), before); assert.equal(before.inputTokens, 10); assert.equal(before.outputTokens, 5);
+    return true;
+  });
 });

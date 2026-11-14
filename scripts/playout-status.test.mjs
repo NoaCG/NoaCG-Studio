@@ -75,21 +75,21 @@ test('before the first publish: grey "Not published", green "CasparCG ready" whe
   assert.equal(caspar({ started: false, slot: { ...ours, holds: 'other' }, ready: null }).checks.some((c) => c.key === 'slot'), false);
 });
 
-test('published: quiet until something reports, green "Connected" once a renderer does', () => {
+test('published: quiet until something reports, green "Ready" once a renderer does (live-publishing O2)', () => {
   assert.deepEqual(pair(status({ ready: null })), ['idle', 'Not connected'], 'a page opened before the studio is up is not an alarm');
-  assert.deepEqual(pair(status()), ['ok', 'Connected']);
+  assert.deepEqual(pair(status()), ['ok', 'Ready']);
   assert.deepEqual(pair(status({ publishing: true, ready: null })), ['idle', 'Publishing…']);
   const preparing = status({ ready: { tone: 'idle', label: '○ Preparing 0 of 4', lead: 'Preparing 0 of 4', preparing: true, outputs: 1, ready: 0 } });
   assert.deepEqual(pair(preparing), ['idle', 'Preparing 0 of 4']);
 });
 
-test('CasparCG: on its slot and reporting is Connected; the Bridge alone never is', () => {
-  assert.deepEqual(pair(caspar()), ['ok', 'Connected']);
+test('CasparCG: on its slot and reporting is Ready; the Bridge alone never is', () => {
+  assert.deepEqual(pair(caspar()), ['ok', 'Ready']);
   assert.deepEqual(pair(caspar({ ready: null })), ['idle', 'Loading on 1-20']);
   assert.deepEqual(pair(caspar({ slot: { ...ours, holds: 'empty' }, ready: null })), ['idle', 'Not loaded on 1-20'], 'never loaded this session: Load is due, nothing is wrong');
   assert.deepEqual(pair(caspar({ slot: undefined, ready: null })), ['idle', 'Graphics not connected']);
   // OBS carries the graphics, the Bridge carries clips: an empty slot is not a fault.
-  assert.deepEqual(pair(caspar({ slot: { ...ours, holds: 'empty' } })), ['ok', 'Connected']);
+  assert.deepEqual(pair(caspar({ slot: { ...ours, holds: 'empty' } })), ['ok', 'Ready']);
 });
 
 test('amber is attention: waiting for clear, slow commands, an old Bridge', () => {
@@ -128,7 +128,7 @@ test('red is for loss and faults, named, and the deciding check comes first', ()
     assert.equal(s.checks[0].tone, 'bad', `${text}: the deciding check comes first`);
   }
   // A Bridge fault means nothing with CasparCG off.
-  assert.deepEqual(pair(status({ bridge: { state: 'bridge', detail: '' } })), ['ok', 'Connected']);
+  assert.deepEqual(pair(status({ bridge: { state: 'bridge', detail: '' } })), ['ok', 'Ready']);
 });
 
 test('a lost output loading again by itself is amber, and red with the reason once out of tries (#1657)', () => {
@@ -188,4 +188,23 @@ test('a picture that may no longer be air says which hop is lost: this page, Noa
   assert.equal(staleWords(false, 'server').tag, 'CASPARCG NOT ANSWERING · NOT LIVE');
   assert.match(staleWords(false, 'server').badge, /^CasparCG is not answering/);
   assert.match(staleWords(false, 'bridge').badge, /^NoaCG Bridge is not answering/);
+});
+
+test('automatic updates: a save being published reads amber, one not reaching the outputs red, never green (G3 section 9)', () => {
+  const amber = status({ autoPublish: { tone: 'amber', line: 'Publishing your changes' } });
+  assert.equal(amber.tone, 'warn');
+  assert.equal(amber.text, 'Updating outputs');
+  const red = status({ autoPublish: { tone: 'red', line: 'The newest save is not on the outputs yet: the server did not answer.' } });
+  assert.equal(red.tone, 'bad');
+  assert.equal(red.text, 'Saved, not on the outputs');
+  assert.match(red.checks[0].label, /the server did not answer/);
+  assert.equal(status({ autoPublish: null }).tone, 'ok');
+});
+
+test('an output opened before automatic updates reads amber with its name until it switches over (G3 section 7)', () => {
+  const old = status({ oldOutputs: ['Studio A'] });
+  assert.equal(old.tone, 'warn');
+  assert.equal(old.text, 'Reload Studio A when nothing is on air');
+  assert.match(old.checks[0].label, /switches over by itself the next time nothing is on air there/);
+  assert.equal(status({ oldOutputs: [] }).tone, 'ok');
 });

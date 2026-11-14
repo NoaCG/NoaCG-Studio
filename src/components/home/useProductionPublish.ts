@@ -21,7 +21,7 @@ import {
   setShowHostedSlug,
   setShowOutputSlug,
   setShowOutputSetup,
-  refreshGraphicCopies,
+  recordOwnReaderStops,
   type Show,
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
@@ -43,13 +43,16 @@ import { changeVmixOutput, type VmixOutputCommand, type VmixReplace } from '../.
 import type { Resolution } from '../../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
-import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../../model/library';
+import { loadGraphics, templateForSavedGraphic } from '../../model/library';
+import type { SavedGraphic } from '../../model/packets';
 import { hasLiveData } from '../../control/liveData';
-import { claimJoinName, outputPageUrl, publishControlShow, PublishBehind, type CuePublished, type LiveCueMap } from '../../control/hostedControl';
+import { claimJoinName, outputPageUrl, publishControlShow, PublishBehind, type CuePublished, type LiveCueMap, type PublishedCapabilities } from '../../control/hostedControl';
 import { fastEventGraphics } from '../../control/matchClockWire';
 import { type CasparFacts } from './PlayoutPanel';
 import { copyLink } from './copyLink';
-import { flushTeamProduction, refreshTeams } from '../../backend/teamProductions';
+import { flushTeamProduction, refreshTeams, teamSettleOwed } from '../../backend/teamProductions';
+import { settleProductionForSend } from '../../backend/syncController';
+import { catchUpRecord, confirmedRevision } from '../../backend/savedRevision';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { type HeldVersion } from '../../control/readiness';
 import { slotHolds } from '../../control/prepareLive';
@@ -70,6 +73,20 @@ const CLAIM_NEEDS_ACCOUNT =
   'Changing the audience link needs the account that published this production. Sign in first.';
 
 /** The publish, slot and links state, and the sign-in follow-through of a Publish. */
+/** What a copy button copied: a production link, or one OBS scene's link by its scene id. */
+export type CopyKind = 'output' | 'join' | 'presenter' | 'dock' | `scene:${string}`;
+
+/** What a publish of these graphics pins, from the library as it is now: the graphics whose events
+ *  need the server's timestamp (a clock, so they leave the fast road) and those whose payload still
+ *  reads a Sheet in its own code. Every publish recomputes both, a press's and an automatic one. */
+export function publishedFacts(graphics: readonly SavedGraphic[]): { fast: Set<string>; readers: Set<string> } {
+  const pinned = loadGraphics();
+  return {
+    fast: fastEventGraphics(graphics.map((g) => ({ key: g.name, ...templateForSavedGraphic(g, pinned) }))),
+    readers: new Set(graphics.filter((g) => hasLiveData(templateForSavedGraphic(g, pinned).js)).map((g) => g.name)),
+  };
+}
+
 export function useProductionPublish({ authStatus, signInOpen }: { authStatus: AuthUiState['status']; signInOpen: boolean }) {
   /** The Playout panel under the playout status (home/PlayoutStatusControl.tsx): opened by a press,
    *  and by itself right after a publish, where the next step is. */
@@ -79,7 +96,7 @@ export function useProductionPublish({ authStatus, signInOpen }: { authStatus: A
   const [busy, setBusy] = useState(false);
   /** A publish is on the wire: the status reads "Publishing…". */
   const [publishing, setPublishing] = useState(false);
-  const [copied, setCopied] = useState<'output' | 'join' | 'presenter' | null>(null);
+  const [copied, setCopied] = useState<CopyKind | null>(null);
   /** The readable audience name being typed, and what the database said about the last claim. */
   const [nameDraft, setNameDraft] = useState('');
   const [nameNote, setNameNote] = useState<string | null>(null);
@@ -148,6 +165,8 @@ interface PublishActionsIo {
   liveCueRef: { readonly current: LiveCueMap };
   /** The first publish found graphics taken in rehearsal: the page takes them out of PROGRAM. */
   onFirstPublish: (rehearsed: string[]) => void;
+  /** A publish landed: the page takes the graphics it put in an OBS scene (obs-scenes #2489). */
+  onPublished: (published: PublishedCapabilities) => void;
   prepareFlow: Pick<PrepareFlow, 'run'>;
   /** Each cue's appearance and adjust records for the published payload, measured for the
    *  production as it will be published (playout adjustments): what the hosted page's Take
@@ -161,7 +180,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   const {
     show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
     hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
-    setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, onFirstPublish, prepareFlow,
+    setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, onFirstPublish, onPublished, prepareFlow,
   } = io;
   /**
    * THE ACCOUNT GATE for the three verbs here that write hosted rows: publish, unpublish and
@@ -234,12 +253,12 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     setNote('✓ Template file downloaded');
   };
 
-  const copy = (kind: 'output' | 'join' | 'presenter', text: string) => {
+  const copy = (kind: CopyKind, text: string) => {
     void copyLink(text).then((ok) => {
       if (!ok) return;
       // Taking the output URL is what turns "is the output connected?" into a question worth
       // asking on this header - see the heartbeat readout in ProductionShell.
-      if (kind === 'output') setShows(noteShowOutputOpened(show.id));
+      if (kind === 'output' || kind.startsWith('scene:')) setShows(noteShowOutputOpened(show.id));
       setCopied(kind);
       setTimeout(() => setCopied((c) => (c === kind ? null : c)), 2000);
     });
@@ -420,28 +439,52 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       // Started before this press: then this is a re-publish, and open outputs are asked to prepare.
       const wasStarted = !!current?.hostedSlug;
       // THE PUBLISH GUARD (docs/work-specs/publish-guard/spec.md): a team production is pulled to
-      // its latest record, this page's newer designs are copied into the record and saved, and the
-      // payload is built from that. A published version ahead of it (a teammate who published in
-      // between, or a newer design than this page's copy) is pulled in once more.
+      // its latest record, the stopped Sheet readers are recorded and saved, and the payload is
+      // built from that record's copies, never the library (live-publishing G1 section 1). A
+      // published version ahead of it (a teammate who published in between) is pulled in once more.
       const publishLatest = async () => {
         for (let attempt = 0; ; attempt += 1) {
           const team = !!loadShows().find((s) => s.id === show.id)?.teamId;
           if (team) await refreshTeams();
-          const library = loadGraphics();
           // The payload's readers as this page saw them: one this publish drops is recorded (C6).
-          const refreshed = refreshGraphicCopies(show.id, (g) => resolveSavedGraphicDoc(g, library), publishedReaders);
+          const refreshed = recordOwnReaderStops(show.id, publishedReaders);
           setShows(refreshed.shows);
           if (refreshed.error) throw new Error(refreshed.error);
           // A team save that fails does not stop the publish (G2): an older design is still refused.
-          if (team) await flushTeamProduction(show.id);
-          else {
+          // It does stop it while a settle is still owed, so a pulled design never publishes.
+          if (team) {
+            const flushError = await flushTeamProduction(show.id);
+            if (flushError && teamSettleOwed(show.id)) throw new Error(flushError);
+          } else {
             const failure = await commitDurableWrites();
             if (failure) throw new Error(failure);
+            // A personal production is settled against the cloud's record first, so a design an
+            // older page pulled from the library never publishes (live-publishing G1 section 3).
+            // A team one was settled by its save just above.
+            const unsettled = await settleProductionForSend(show.id);
+            if (unsettled) throw new Error(unsettled);
           }
           const latest = loadShows().find((s) => s.id === show.id);
           if (!latest) return null;
           try {
-            return await publishControlShow(latest, await io.appearanceFor?.(latest));
+            // The saved revision this record is, when the server can say (designs/G3.md section 2). A
+            // save still on its way is pushed now; a newer save on the server is brought in. When the
+            // revision cannot be read (an instance without 0117, or a read that failed), the publish
+            // goes out unversioned, as before this phase. With automatic updates on, the guard refuses
+            // that one with its old-page words ("Reload this page to edit") and nothing stored changes;
+            // the next press, once the revision reads, publishes versioned.
+            let record = latest;
+            let confirmed = await confirmedRevision(record).catch(() => null);
+            if (confirmed && 'wait' in confirmed) {
+              await catchUpRecord(record.teamId);
+              const again = loadShows().find((s) => s.id === show.id);
+              if (!again) return null;
+              record = again;
+              confirmed = await confirmedRevision(record).catch(() => null);
+              if (confirmed && 'wait' in confirmed) throw new Error('Your latest change is still saving. Publish again in a moment.');
+            }
+            const rev = confirmed && 'rev' in confirmed ? confirmed.rev : undefined;
+            return await publishControlShow(record, await io.appearanceFor?.(record), rev);
           } catch (e) {
             if (!(e instanceof PublishBehind) || attempt > 0) throw e;
           }
@@ -463,14 +506,10 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
         // slug is deliberately the same one). A graphic that has just gained a clock would
         // otherwise keep its events on the fast road for the rest of the session, so the answer
         // is recomputed here from the library this publish pinned.
-        const pinned = loadGraphics();
-        fastEventGraphicsRef.current = fastEventGraphics(
-          (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, pinned) })),
-        );
+        fastEventGraphicsRef.current = publishedFacts(current?.graphics ?? []).fast;
         // What this publish carried, read from the record as it now stands (a retry may have taken a
         // teammate's change in): the graphics whose payload still reads a Sheet in its own code.
-        const carried = loadShows().find((s) => s.id === show.id)?.graphics ?? [];
-        setPublishedReaders(new Set(carried.filter((g) => hasLiveData(templateForSavedGraphic(g, pinned).js)).map((g) => g.name)));
+        setPublishedReaders(publishedFacts(loadShows().find((s) => s.id === show.id)?.graphics ?? []).readers);
         // REHEARSAL ENDS AT THE FIRST PUBLISH (AC-7): what a Take put up before it played on this
         // page only, so it leaves PROGRAM rather than be mistaken for air.
         if (!wasStarted) {
@@ -479,6 +518,9 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
             onFirstPublish(rehearsed);
           }
         }
+        // Before the slot load below, so a Take or Out pressed while it loads is seen as the
+        // operator's and keeps that graphic's scene join from being sent over it (obs-scenes #2489).
+        onPublished(published);
         // PUBLISH LOADS THE CASPARCG SLOT (AC-5): the first publish with CasparCG switched on puts
         // this production's renderer on its slot, the step that used to be its own Put on air. It
         // asks before replacing another production, and a failure names the step.

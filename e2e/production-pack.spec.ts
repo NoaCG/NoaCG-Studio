@@ -17,6 +17,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The graphics-pack ROUND TRIP and the Fight Night pack (src/packs/graphicsPack.ts,
 // docs/GRAPHICS_PACKS.md, docs/FIGHT_NIGHT_PACK_PLAN.md): any production exports as one
@@ -53,13 +57,13 @@ test('a production exports as a graphics pack and imports back with its rundown 
   await expect
     .poll(async () =>
       page.evaluate(async () => {
-        const { loadShows } = await import('/src/model/shows.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
         return loadShows().find((s) => s.name === 'Pack Origin')?.cues?.[0]?.values.f0 ?? null;
       }),
     )
     .toBe('Anna Andersson');
   const originalId = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.name === 'Pack Origin')?.id ?? null;
   });
 
@@ -96,7 +100,7 @@ test('a production exports as a graphics pack and imports back with its rundown 
   await expect(page.getByTestId('cue-list').locator('.pd-cue').first()).toContainText('Anna Pack');
 
   const imported = await page.evaluate(async (origin) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === 'Pack Origin' && s.id !== origin);
     if (!show) return null;
     return {
@@ -131,7 +135,7 @@ test('the Fight Night pack installs whole: 12 graphics, the 19-cue rundown in sh
   await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(19);
 
   const installed = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === 'Fight Night');
     if (!show) return null;
     const byId = new Map(show.graphics.map((g) => [g.id, g.name]));
@@ -191,22 +195,22 @@ test('a broken or too-new pack is refused with a readable message', async ({ pag
     ['does not have', { ...shipped, collections: undefined }],
   ];
   const refusals = await page.evaluate(async (texts) => {
-    const { parsePack } = await import('/src/packs/graphicsPack.ts');
+    const { parsePack } = await __noacgImport('/src/packs/graphicsPack.ts');
     return texts.map((t) => parsePack(t).error);
   }, variants.map(([, v]) => JSON.stringify(v)));
   variants.forEach(([reason], i) => expect(refusals[i], reason).toContain(reason));
 
   // A step that fails after the production exists takes it back out: a graphic that still reads
   // a Sheet in its own code takes no binding, so this install fails at its bindings.
-  const before = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().length);
+  const before = await page.evaluate(async () => (await __noacgImport('/src/model/shows.ts')).loadShows().length);
   const readsOwn = { ...shipped, graphics: shipped.graphics.map((g: { name: string; js: string }) => (g.name === 'Count bug' ? { ...g, js: `${g.js}\n/* == LIVE DATA (published CSV → update) — edit or delete this whole block == */\n` } : g)) };
   await card.getByTestId('import-pack-file').setInputFiles({ name: 'reads-own.noacgpack.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(readsOwn)) });
   await expect(card.locator('.status-bad')).toContainText('data connections could not all be made');
-  expect(await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().length)).toBe(before);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/model/shows.ts')).loadShows().length)).toBe(before);
   // And a pack carrying production data never installs over an existing production.
   const over = await page.evaluate(async (text) => {
-    const P = await import('/src/packs/graphicsPack.ts');
-    const S = await import('/src/model/shows.ts');
+    const P = await __noacgImport('/src/packs/graphicsPack.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
     const { show } = S.createShowNamedChecked('Already here');
     return P.installPack(P.parsePack(text).pack!, { kind: 'existing', id: show.id }).then(() => null, (e: Error) => e.message);
   }, JSON.stringify(shipped));
@@ -235,7 +239,7 @@ async function installElection(page: import('@playwright/test').Page) {
 }
 const stored = (page: import('@playwright/test').Page, name: string) =>
   page.evaluate(async (n) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().filter((s) => s.name === n).map((s) => JSON.parse(JSON.stringify(s)));
   }, name);
 
@@ -304,8 +308,8 @@ test('the election package installs connected: preview and Take all four, and th
 
   // A record the reader refuses is never written, and the list the page is handed is untouched.
   const refused = await page.evaluate(async () => {
-    const S = await import('/src/model/shows.ts');
-    const { selectionCheck } = await import('/src/control/sourceMapping.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
+    const { selectionCheck } = await __noacgImport('/src/control/sourceMapping.ts');
     const show = S.loadShows().find((s) => s.name === 'Election night rehearsal')!;
     const cue = show.cues![2];
     const r = S.setCueSelection(show.id, cue.id, { v: 1, recipe: 'nowhere', key: ['02', 101] }, selectionCheck);
@@ -354,8 +358,8 @@ test('the election production exports and imports again with its fonts, picture,
   // A production whose card was removed still exports a file that imports: the recipe and the
   // bindings of a graphic no longer in the pool stay behind.
   const reduced = await page.evaluate(async (id) => {
-    const S = await import('/src/model/shows.ts');
-    const P = await import('/src/packs/graphicsPack.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
+    const P = await __noacgImport('/src/packs/graphicsPack.ts');
     const show = S.loadShows().find((s) => s.id === id)!;
     S.removeShowGraphicChecked(id, show.graphics.find((g) => g.name === 'Candidate card')!.id);
     const pack = await P.buildPack(S.loadShows().find((s) => s.id === id)!);
@@ -403,8 +407,8 @@ test('the replay source stays registered while only the candidate collection rea
   await installElection(page);
   const source = JSON.parse(readFileSync(fileURLToPath(new URL('../docs/work-specs/playout-election-package/replay-source.json', import.meta.url)), 'utf8'));
   const after = await page.evaluate(async (source) => {
-    const S = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const show = S.loadShows().find((s) => s.name === 'Election night rehearsal')!;
     // No field follows the source any more: only the recipe of the candidate card reads it.
     for (const [graphic, fields] of Object.entries(show.bindings ?? {})) for (const fieldId of Object.keys(fields)) S.setFieldBinding(show.id, graphic, fieldId, null);

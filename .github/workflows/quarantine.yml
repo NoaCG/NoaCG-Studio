@@ -118,6 +118,9 @@ jobs:
         continue-on-error: true
         env:
           SPEC: ${{ matrix.spec }}
+          # The suite runs on the e2e build (playwright.config.ts); the specs that need the dev
+          # server say so in their header and run there (scripts/e2e-dev-server-specs.mjs).
+          NOACG_E2E_ON_BUILD: '1'
           # TMPDIR on the runner's disk, as configured-suite.yml and hosted-latency.yml have it. The
           # runner's /tmp is a 7.9 GB tmpfs and Playwright starts Chromium with --disable-dev-shm-usage,
           # so its shared memory lives in TMPDIR; on /tmp a long shard can die on

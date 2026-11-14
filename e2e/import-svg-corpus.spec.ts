@@ -57,9 +57,17 @@ const fixture = (slug: string) =>
  *  file (pick the picture, export; pick the picture, build it and operate it) would otherwise
  *  fail on `.wz-modal` never appearing - a message that sends the reader looking for a broken
  *  wizard. Its own doc comment carries the signed-in half of the same story. */
-async function mapCorpusFile(page: Page, slug: string) {
+async function mapCorpusFile(page: Page, slug: string, reuse = false) {
   platesAtRest.clear();
-  await page.goto('/app');
+  // The sweep walks one file after another in the same app rather than booting it once per file:
+  // Escape rewinds the wizard from the mapping step to its front page (CreationWizard), where
+  // dropSvg finds it open and imports the next file.
+  if (reuse) {
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-entry="import-graphic"]')).toBeVisible();
+  } else {
+    await page.goto('/app');
+  }
   await dropSvg(page, fixture(slug));
 }
 
@@ -385,7 +393,7 @@ test('corpus: a Figma-placed picture is a picture field, and an operator can swa
   await finishIntoNewEditor(page);
 
   const field = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields[2];
   });
   expect(field.ftype).toBe('filelist');
@@ -578,11 +586,13 @@ test('corpus: every file arrives on the too-long answer and the picture count it
   expect(sidecars.length).toBeGreaterThan(12);
 
   const wrong: string[] = [];
+  let booted = false;
   for (const s of sidecars) {
     // One step per file, so a walk that dies names the file it died on rather than a line in a
     // shared helper.
     await test.step(s.name, async () => {
-      await mapCorpusFile(page, s.name);
+      await mapCorpusFile(page, s.name, booted);
+      booted = true;
       const answered = await growthNow(page);
       if (s.expect.growth && !GROWTH_FINDINGS.includes(s.name)) {
         if (answered.mode !== s.expect.growth) {

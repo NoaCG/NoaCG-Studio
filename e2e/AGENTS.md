@@ -6,9 +6,14 @@ sweeps) are in its "Running the suite: traps".
 
 ## Gotchas when writing a spec
 
-- **Offline mode and a reused server.** The suite pins offline mode via `webServer.env`, but
-  `reuseExistingServer: true` adopts a dev server already running on THIS checkout's port, with
-  the real `.env`. Kill that server first. Other worktrees' servers are harmless.
+- **Offline mode and a reused server.** The offline and catalog suites pin offline mode via
+  `webServer.env`, but on the dev server (the local default) `reuseExistingServer: true` adopts a
+  dev server already running on THIS checkout's port, with the real `.env`. Kill that server first.
+  On the build nothing is reused, and the dev project's server takes the checkout's second port, so
+  it cannot run beside a configured-suite run in the same checkout. Other worktrees' servers are
+  harmless. The CONFIGURED suite does not adopt one (issue #2495): an adopted server decides where
+  the run writes, through the api/ handlers it mounts as well as the page, so a busy live port
+  stops that suite dead instead of misleading it.
 - **Stale modules.** After many edits the dev server can serve a stale module (HMR lag). If state
   reads disagree with the visible UI, restart it and reload before trusting them. A server that a
   Playwright config starts itself does not watch files (`NOACG_E2E_SERVER`, vite.config.ts), so
@@ -17,9 +22,19 @@ sweeps) are in its "Running the suite: traps".
   app's imports with `?t=`, and a spec's bare `import('/src/…')` loads a second copy whose store
   nothing renders (#1897: the export window never opened). A config's own server is immune; a
   reused developer server is not, so do not edit sources while a run uses it.
-- **Inside `page.evaluate`, an `import('/src/…')` MUST carry the `.ts` extension.** Vite gives the
-  extensionless URL its own module registry, so it can resolve a second instance (a "ghost store")
-  that nobody drove. The symptom is a plausible empty answer, not an error.
+- **Inside `page.evaluate`, reach an app module with `__noacgImport('/src/…ts')`, never `import()`.**
+  The door answers on the dev server and on the built app (src/app/e2eModules.ts); a plain
+  `import('/src/…')` fails on a build, and `npm run check:e2e-registry` refuses it. A spec that
+  serves its own HTML (a probe page, `setContent`) or evaluates on a page that is not the app (the
+  landing page, docs, a probe) has no app boot to install the door: call `installDoor(context)`
+  (`e2e/_door.ts`), and for a context it makes by hand. The path MUST
+  carry the `.ts` extension: an extensionless URL resolves a second instance (a "ghost store")
+  that nobody drove, and the symptom is a plausible empty answer, not an error.
+- **The suite runs on the e2e build, not the dev server** (`NOACG_E2E_ON_BUILD=1` in CI,
+  playwright.config.ts). A spec that needs what only the dev server has (a `/src` module swapped
+  with `page.route`, a `?t=` fresh copy, a source file read by its URL) starts with
+  `// runs on: dev server - <why>` and runs in the `dev` project; `npm run check:e2e-dev-server`
+  refuses one that does not say so. Prefer the door and a stand-in that works on the build.
 - **Headless limits.** Monaco is not fully interactive headless, and GSAP does not visibly tick
   (rAF). Assert on DOM or state there.
 - **Never clear localStorage via `addInitScript`.** It also runs in the same-origin srcdoc preview

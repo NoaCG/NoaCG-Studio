@@ -16,8 +16,8 @@ async function seedLibrary(page: Page, names: string[]): Promise<void> {
   await page.goto('/app#/home/graphics');
   await page.keyboard.press('Escape');
   await page.evaluate(async (list: string[]) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const tpl = variantsFor('lower-third')[0].create({});
     for (const name of list) createGraphic(tpl, { name });
   }, names);

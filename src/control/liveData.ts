@@ -15,8 +15,8 @@
 
 import type { SpxField } from '../model/types';
 
-import { LIVE_DATA_OPEN as OPEN, hasLiveData } from '../model/liveDataMark';
-const CLOSE = '/* == END LIVE DATA == */';
+import { LIVE_DATA_OPEN as OPEN, LIVE_DATA_CLOSE as CLOSE, hasLiveData, stripLiveData } from '../model/liveDataMark';
+export { stripLiveData };
 
 export { hasLiveData };
 
@@ -39,8 +39,8 @@ export function liveDataUrl(js: string): string | null {
  * take over its fields only once that reader no longer runs where the graphic plays, so two
  * readers never write the same field.
  *
- * `resolvedJs` is the design the production plays and publishes next (the library record when it
- * has one), `copyJs` the production's own copy. Published, two observations stand for the output
+ * `resolvedJs` is the design the production plays and publishes next, which is its own copy
+ * (live-publishing G1), so the same as `copyJs`; the two stay apart for a caller that holds both. Published, two observations stand for the output
  * itself: `outputReads`, the published payload this page last saw (at its resolve or its own
  * successful Publish) still carries the block, so a Publish that failed after refreshing the copy
  * unlocks nothing; and `outputBehind`, a graphic seen with a reader that no output is yet proven
@@ -72,24 +72,15 @@ export function ownReaderGate(input: {
 }
 
 /**
- * Where the migration removes the block. The library record is the design every production plays,
- * so it goes there when there is one. The production's copy goes too unless the production is
- * published: there the copy is what the output runs, and Publish replaces it with the record, which
- * is what keeps Connect waiting until the output has stopped the old reader. A published graphic
- * with no library record could not carry the change to its output, so the migration is refused.
+ * Where the migration removes the block. The production's copy is what it plays and publishes
+ * (live-publishing G1 section 1), so the copy always; Connect still waits on the `publish` and
+ * `clear` gates until the output has dropped the old reader. The library record goes too when this
+ * browser holds it, so a later add of that graphic does not bring the reader back.
  */
-export function ownReaderRemoval(input: { library: boolean; published: boolean }): { library: boolean; copy: boolean } | null {
-  if (!input.library && input.published) return null;
-  return { library: input.library, copy: !input.published };
+export function ownReaderRemoval(input: { library: boolean }): { library: boolean; copy: true } {
+  return { library: input.library, copy: true };
 }
 
-/** Remove an existing live-data block (so "Add" is really "replace"). */
-export function stripLiveData(js: string): string {
-  const start = js.indexOf(OPEN);
-  const end = js.indexOf(CLOSE);
-  if (start === -1 || end === -1) return js;
-  return (js.slice(0, start) + js.slice(end + CLOSE.length)).replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
-}
 
 /** The default column→field map: each editable field guesses its sheet header from its title. */
 function defaultMap(fields: SpxField[]): Record<string, string> {

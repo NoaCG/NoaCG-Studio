@@ -1,3 +1,4 @@
+// runs on: dev server - reads source modules by their /src URL
 // Relevant Bridge health and operator words with a locally published fixture. The configured
 // sibling proves real Presence/publishing; this one always runs without backend credentials.
 // covers: src/control/{playoutStatus,prepareLive,prepareBridge,readiness}.ts, src/model/{readyMemory,outputSetup}.ts
@@ -57,12 +58,12 @@ test('a browser production ignores a paired Bridge and old outputs, while Caspar
   await expect(page.getByTestId('home-page')).toBeVisible();
   await awaitDurableReady(page);
   const fixture = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows, upsertShow } = await import('/src/model/shows.ts');
-    const { saveReadyMemory } = await import('/src/model/readyMemory.ts');
-    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows, upsertShow } = await __noacgImport('/src/model/shows.ts');
+    const { saveReadyMemory } = await __noacgImport('/src/model/readyMemory.ts');
+    const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+    const { stampPayload } = await __noacgImport('/src/control/payloadVersion.ts');
     const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
     if (error || !doc) throw new Error(error ?? 'seed failed');
     const show = createShowNamed('Evening News');
@@ -163,7 +164,7 @@ test('a browser production ignores a paired Bridge and old outputs, while Caspar
   bridge.stateGate = () => {};
   releaseState();
   await expect.poll(() => page.evaluate(() => (window as unknown as { __healthSlotReplies?: number }).__healthSlotReplies ?? 0)).toBeGreaterThan(repliesBefore);
-  expect(await page.evaluate(async (showId) => (await import('/src/model/readyMemory.ts')).loadReadyMemory(showId).casparOutput, id), 'an older slot reply must not restore intent after Unload').toBeUndefined();
+  expect(await page.evaluate(async (showId) => (await __noacgImport('/src/model/readyMemory.ts')).loadReadyMemory(showId).casparOutput, id), 'an older slot reply must not restore intent after Unload').toBeUndefined();
   await expect(slot).toContainText('Empty');
   await expect(slot).toHaveAttribute('data-tone', 'idle');
   await expect(status).not.toHaveAttribute('data-tone', 'bad');
@@ -204,7 +205,7 @@ test('a browser production ignores a paired Bridge and old outputs, while Caspar
   bridge.missing = false;
   const sent = bridge.actions.length;
   const cueId = await page.evaluate(async (showId) => {
-    const { addPlayoutItem } = await import('/src/model/shows.ts');
+    const { addPlayoutItem } = await __noacgImport('/src/model/shows.ts');
     return addPlayoutItem(showId, { adapter: 'casparcg', kind: 'media', name: 'OPENER', channel: 2, layer: 10 }).cueId;
   }, id);
   await page.getByTestId(`cue-${cueId}`).getByTestId('select-cue').click();

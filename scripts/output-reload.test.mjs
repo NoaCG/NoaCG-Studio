@@ -201,3 +201,29 @@ test('a Take that reaches the log after the reload started is replayed by the re
   assert.equal(reported.followFrom, 40);
   assert.equal(alreadyInSnapshot(reported.snapshotAt, 'Strap', 41), true);
 });
+
+test('a version other than the one held is prepared at once; a re-check of the held one keeps the 15 s spacing (G3 section 6)', async () => {
+  let clock = 1_000_000;
+  let resolves = 0;
+  const { preparer } = wholePage({
+    resolve: async () => {
+      resolves += 1;
+      return null; // nothing to take: each run ends at once
+    },
+    now: () => clock,
+  });
+  preparer.request({ id: 'v2', n: 2, h: 'bbbb' });
+  await until(() => resolves === 1);
+  await new Promise((r) => setTimeout(r, 10));
+  preparer.request({ id: 'v3', n: 3, h: 'cccc' });
+  await until(() => resolves === 2);
+  await new Promise((r) => setTimeout(r, 10));
+  // Neither was taken (the server gave nothing), so a later check asks again.
+  assert.deepEqual(preparer.version(), { n: 1, h: 'aaaa' });
+  preparer.request({ id: 'again', n: 1, h: 'aaaa' });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(resolves, 2, 'a re-check of the version held waits for its spacing');
+  assert.deepEqual(preparer.version(), { n: 1, h: 'aaaa' });
+  // Its turn comes once the spacing has passed (the timer it set fires on the real clock).
+  clock += 15_000;
+});

@@ -1,0 +1,48 @@
+{
+  "source": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+  "scope": "Functional renewal after main OS1b merge; DEV only, no timing target",
+  "j0139": "PRETEST cache EROFS, no product result",
+  "j0140": "PASS source/history/save/reopen/subset installation and operator DOM; original full Program capture LIMITED (unsettled black entrance)",
+  "j0141": "PRETEST cache EROFS, no product result",
+  "j0142": "FAILED unqualified foreground-color oracle; direct retained leaf PNG visibly paints exact operator text; finite Out/replay NOT RUN in this slice",
+  "rawSource": {
+    "uncompressedBytes": 2188025,
+    "sha256": "ba26441af0c619d6b12851d5ecd317605384a48c317e851534a4ce182818a15e"
+  },
+  "captures": [
+    {
+      "ownedGroup": "merged-starter",
+      "name": "starter-brand-override-redo.png",
+      "bytes": 113592,
+      "sha256": "0c1bd22cb441cad7b553ddcc97acb5e43d86ab2fe69ffdbe7376088ca2c2eb5a",
+      "transport": "retained owned capture plus verified recovery archive; no new Actions artifact readback claimed"
+    },
+    {
+      "ownedGroup": "merged-starter",
+      "name": "starter-rundown-take.png",
+      "bytes": 89057,
+      "sha256": "07bae639687bfa60a8b31d1e2a2e3a014d89592aebf8edff7f6cbc9f32bfdc60",
+      "transport": "retained owned capture plus verified recovery archive; no new Actions artifact readback claimed"
+    },
+    {
+      "ownedGroup": "merged-starter",
+      "name": "starter-three.png",
+      "bytes": 76547,
+      "sha256": "ccb4d5ca88f7146f6c894e83b8df1cee99a78b4eca9979df72bcbb93910076ab",
+      "transport": "retained owned capture plus verified recovery archive; no new Actions artifact readback claimed"
+    },
+    {
+      "ownedGroup": "program-paint",
+      "name": "take-glyph.png",
+      "bytes": 547,
+      "sha256": "c9a9bf0329b07587fae61ed0f262fd3f13ae531431ee5199b48d976964c6d110",
+      "transport": "retained owned capture plus verified recovery archive; no new Actions artifact readback claimed"
+    }
+  ],
+  "captureArchive": {
+    "checkpoint": "091b1ab35ed603594f1d9b9b694611c6d3556e15",
+    "path": "kit/e5c-renewal/manifest.json",
+    "localBytesIndependentlyVerified": 8,
+    "mismatches": []
+  }
+}

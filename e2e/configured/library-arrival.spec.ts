@@ -87,9 +87,9 @@ test.describe('library arriving on a new browser (configured)', () => {
     await expect(page.getByTestId('library-arrival')).toHaveCount(0);
 
     await page.evaluate(async () => {
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const { createGraphic } = await import('/src/model/library.ts');
-      const { createShowNamedChecked } = await import('/src/model/shows.ts');
+      const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+      const { createGraphic } = await __noacgImport('/src/model/library.ts');
+      const { createShowNamedChecked } = await __noacgImport('/src/model/shows.ts');
       for (const name of ['Arrival one', 'Arrival two', 'Arrival three']) {
         const { error } = createGraphic({ ...variantsFor('lower-third')[0].create({}), name }, { name, packageId: null });
         if (error) throw new Error(error);
@@ -99,7 +99,7 @@ test.describe('library arriving on a new browser (configured)', () => {
     });
     await settleDurableWrites(page);
     await page.evaluate(async () => {
-      const { syncNow } = await import('/src/backend/syncController.ts');
+      const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
       await syncNow();
     });
     await expect.poll(() => cloudCount(admin, userId, 'graphic')).toBe(3);
@@ -208,7 +208,7 @@ test.describe('a library sync the cloud stopped answering (configured)', () => {
     await signInOnHome(page, RETRY_EMAIL, PASSWORD);
     silent = true;
     await page.evaluate(async () => {
-      const { error } = (await import('/src/model/shows.ts')).createShowNamedChecked('Saved by the retry');
+      const { error } = (await __noacgImport('/src/model/shows.ts')).createShowNamedChecked('Saved by the retry');
       if (error) throw new Error(error);
       await new Promise((resolve) => setTimeout(resolve));
     });
@@ -274,7 +274,7 @@ test.describe('sounds the cloud does not answer for (configured)', () => {
       asked.push(route.request().url());
       return silent ? new Promise<void>(() => {}) : route.continue();
     });
-    await page.evaluate(async () => { void (await import('/src/backend/syncController.ts')).syncNow(); });
+    await page.evaluate(async () => { void (await __noacgImport('/src/backend/syncController.ts')).syncNow(); });
     await expect.poll(() => asked.length).toBe(1);
     await page.clock.fastForward(PAST_THE_LIMIT);
     // The pass that got no answer arms the automatic retry (backend/syncController.ts: 15 s, spread
@@ -292,7 +292,7 @@ test.describe('sounds the cloud does not answer for (configured)', () => {
     await page.getByTestId('sync-action').click();
     await settleSync(page);
     expect(asked).toHaveLength(4);
-    const looks = await page.evaluate(async () => (await import('/src/model/packets.ts')).loadAllLooks().filter((l) => l.name.startsWith('Sting ')).length);
+    const looks = await page.evaluate(async () => (await __noacgImport('/src/model/packets.ts')).loadAllLooks().filter((l) => l.name.startsWith('Sting ')).length);
     expect(looks).toBe(3);
   });
 });

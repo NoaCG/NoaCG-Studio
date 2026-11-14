@@ -18,7 +18,7 @@ import { publishAudio } from '../backend/productionAudio';
 import { graphicLayer, loadShows, type CueAuto, type CueEnd, type Show, type ShowCue } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
-import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
+import { designEditedAt, loadGraphics, entriesForSavedGraphic, newerLibraryDesign, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import { publishedRecordDigest } from '../model/publishedRecord';
 import { monitorReplay, planOutputRecovery, type ReplayItem } from './outputRecovery';
 import type { Resolution, SpxField, SpxTemplate, SoundAssetRef } from '../model/types';
@@ -40,6 +40,10 @@ import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, SEQ_HEAD_EVENT, commandT
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
+import { counted } from './sendsInFlight';
+import { obsScenesOf, SCENE_ID, type ObsScene } from '../model/obsScenes';
+import { partialWritesOn } from '../backend/partialWrites';
+import { forgetOwnPublish, noteOwnPublish, notePublishedBoxes, ownPublish, pruneDue, publishInParts } from './publishParts';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
 import { uuid } from '../model/id';
@@ -213,6 +217,11 @@ export interface OutputPayload {
   graphics: OutputGraphicSpec[];
   cues: OutputCue[];
   playoutCues?: OutputPlayoutCue[];
+  /** ADDITIVE OPTIONAL (docs/work-specs/obs-scenes/spec.md OS1a R3): the production's OBS scenes,
+   *  written only while its OBS scenes switch is on and a folder is a scene. A link with
+   *  `&scene=<id>` builds only the graphics its scene names (output/sceneScope.ts). Cue metadata:
+   *  the version stamp does not cover it. An output built before it ignores the field. */
+  scenes?: ObsScene[];
   /** THE VERSION THIS PAYLOAD IS (control/payloadVersion.ts; Phase 6 Step 3 R2): written by every
    *  publish from 2026-10 on. ADDITIVE OPTIONAL: a payload published before it has none, and is
    *  then never called behind. */
@@ -378,8 +387,20 @@ export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(
   });
 }
 
+/** The stored panel's saved entries of the graphics whose records this library lacks (issue #779),
+ *  and only theirs (live-publishing G4: the whole panel carries every graphic's script). An instance
+ *  without migration 0120 reads the whole panel, as before. */
+export async function publishedPanelEntries(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>, showId: string, names: string[]): Promise<PanelGraphicSpec[]> {
+  const { data, error } = await sb.rpc('control_panel_entries', { p_show: showId, p_names: names });
+  if (!error) return readPanel(data);
+  if (error.code !== 'PGRST202') throw Object.assign(new Error(error.message), { code: error.code });
+  const whole = await sb.from('control_shows').select('panel').eq('id', showId).maybeSingle();
+  if (whole.error) throw Object.assign(new Error(whole.error.message), { code: whole.error.code });
+  return readPanel((whole.data as { panel?: unknown } | null)?.panel);
+}
+
 /** Normalize a stored panel row to the current shape (additive fields defaulted, never a crash). */
-function readPanel(panel: unknown): PanelGraphicSpec[] {
+export function readPanel(panel: unknown): PanelGraphicSpec[] {
   if (!Array.isArray(panel)) return [];
   return (panel as PanelGraphicSpec[]).map((g) => ({
     ...g,
@@ -395,6 +416,7 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
   const o = output as OutputPayload;
   if ((o.v !== 1 && o.v !== 2) || !Array.isArray(o.graphics)) return null;
   const ver = readPayloadVersion(o.ver);
+  const scenes = readScenes(o.scenes);
   return {
     v: o.v,
     ...(readOutputSetup(o.outputSetup) ? { outputSetup: readOutputSetup(o.outputSetup)! } : {}),
@@ -406,9 +428,21 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
     // Carried through, not dropped: the hosted page lists these beside the graphics' cues.
     // Before 2026-09-23 this reader left them out and the list was never shown.
     ...(Array.isArray(o.playoutCues) && o.playoutCues.length ? { playoutCues: o.playoutCues } : {}),
+    ...(scenes ? { scenes } : {}),
     // The version stamp, when the publish wrote one (READY's guarantee 2).
     ...(ver ? { ver } : {}),
   };
+}
+
+/** A payload's scenes off the wire, or null when it carries none: each kept only when it is one. */
+export function readScenes(value: unknown): ObsScene[] | null {
+  if (!Array.isArray(value)) return null;
+  const scenes = value.filter(
+    (s): s is ObsScene =>
+      !!s && typeof s === 'object' && typeof s.id === 'string' && SCENE_ID.test(s.id) && typeof s.name === 'string' &&
+      Array.isArray(s.graphics) && s.graphics.every((g: unknown) => typeof g === 'string'),
+  );
+  return scenes.length ? scenes.map((s) => ({ id: s.id, name: s.name, graphics: [...s.graphics] })) : null;
 }
 
 /** Serialize one template's assets for the JSON payload (Blob bytes become data URLs). */
@@ -529,7 +563,9 @@ export async function buildOutputPayload(
       };
     });
   const soundAssets = [...new Map(graphics.flatMap(g => g.assets.flatMap(a => a.audio ? [a.audio] : [])).map(a => [a.hash,a])).values()];
-  return { ...(show.outputSetup ? { outputSetup: show.outputSetup } : {}), ...(show.rundownColors ? { rundownColors: show.rundownColors } : {}), v: soundAssets.length ? 2 : 1, ...(soundAssets.length ? { soundAssets } : {}), resolution, graphics, cues, ...(playoutCues.length ? { playoutCues } : {}) };
+  // OBS scenes only while the switch is on and a folder is one (OS1a R3): otherwise today's payload.
+  const scenes = obsScenesOf(show);
+  return { ...(show.outputSetup ? { outputSetup: show.outputSetup } : {}), ...(show.rundownColors ? { rundownColors: show.rundownColors } : {}), v: soundAssets.length ? 2 : 1, ...(soundAssets.length ? { soundAssets } : {}), resolution, graphics, cues, ...(playoutCues.length ? { playoutCues } : {}), ...(scenes.length ? { scenes } : {}) };
 }
 
 /** Every capability a publish hands back. The audience pair is nullable on purpose: a server
@@ -544,6 +580,9 @@ export interface PublishedCapabilities {
   version?: PayloadVersion;
   /** The digest of the production record this publish was built from (model/publishedRecord.ts). */
   record?: string;
+  /** The OBS scenes the published row held before this publish, and the ones it holds now (none
+   *  when the switch is off): which graphics joined a scene (obs-scenes #2489). */
+  scenes?: { before: ObsScene[]; after: ObsScene[] };
 }
 
 /** Digests already computed, by library record, its save time and the graphic's layer: a record
@@ -556,37 +595,41 @@ const libraryDigestMemo = new Map<string, string>();
  * says whether publishing would change what the outputs render - which is how a graphic edited in
  * the library, never touching the production record, still counts as an unpublished change.
  *
- * A graphic that falls back to the snapshot embedded in the production record is left out: that
- * copy changes only with the record, whose own digest says so (model/publishedRecord.ts). In a
- * team production a member without the publisher's library record therefore never reads the
- * publisher's newer design as a change of their own to publish over it
- * (https://github.com/NoaCG/NoaCG-Studio/issues/779).
+ * Every copy counts: the production's copy is what publishes (live-publishing G1 section 1), so a
+ * library edit is no change here and the copy's own save time names its content.
  */
-export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<Record<string, string>> {
+export async function libraryGraphicDigests(show: Show, _library?: GraphicDoc[]): Promise<Record<string, string>> {
   const digests: Record<string, string> = {};
-  // The first graphic carries the look's imported face when Publish does (buildOutputPayload), so
-  // its digest is read as Publish would write it, never memoised: the face is not the graphic's.
-  const lookFace = lookImportedFace(show);
-  for (const [i, g] of show.graphics.entries()) {
-    const doc = resolveSavedGraphicDoc(g, library);
-    if (!doc && g.graphicId) continue;
-    if (i === 0 && lookFace) {
-      const [carrier] = withLookFaceIn([await graphicSpec(g, templateForSavedGraphic(g, library))], lookFace.asset);
-      digests[g.name] = await graphicDigest(carrier);
-      continue;
-    }
-    const memoKey = doc
-      ? `${doc.id}|${doc.updatedAt}|${graphicLayer(g)}|${g.name}|${JSON.stringify(g.soundConfig)}`
-      : JSON.stringify(g);
-    let digest = libraryDigestMemo.get(memoKey);
-    if (digest === undefined) {
-      digest = await graphicDigest(await graphicSpec(g, templateForSavedGraphic(g, library)));
+  for (const [i, g] of show.graphics.entries()) digests[g.name] = await copyDigest(show, i, g.template);
+  return digests;
+}
+
+/**
+ * The stamp digest (payloadVersion.ts `g`) a publish would write for pool graphic `index` of `show`
+ * carrying `template` as its design: the copy's own by default, or a candidate's when adoption asks
+ * which design is the one on air (designs/G1.md section 5). Its name, layer and sounds are the
+ * copy's, and the first graphic carries the look's imported face as Publish adds it.
+ */
+export async function copyDigest(show: Show, index: number, template: GraphicDoc['template']): Promise<string> {
+  const g = show.graphics[index];
+  const placed = { ...g, template: { ...template, name: g.name } };
+  const lookFace = index === 0 ? lookImportedFace(show) : null;
+  if (lookFace) {
+    const [carrier] = withLookFaceIn([await graphicSpec(placed, templateForSavedGraphic(placed))], lookFace.asset);
+    return graphicDigest(carrier);
+  }
+  const memoKey = template === g.template
+    ? `${g.id}|${g.savedAt}|${g.name}|${graphicLayer(g)}|${JSON.stringify(g.soundConfig)}`
+    : null;
+  let digest = memoKey ? libraryDigestMemo.get(memoKey) : undefined;
+  if (digest === undefined) {
+    digest = await graphicDigest(await graphicSpec(placed, templateForSavedGraphic(placed)));
+    if (memoKey) {
       if (libraryDigestMemo.size > 200) libraryDigestMemo.clear();
       libraryDigestMemo.set(memoKey, digest);
     }
-    digests[g.name] = digest;
   }
-  return digests;
+  return digest;
 }
 
 /** Publish (or update) a production's hosted pages: the operator panel spec (live-resolved,
@@ -594,7 +637,7 @@ export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = 
  *  the two surfaces must agree on the cue list). Prunes log rows older than 7 days (the 0029
  *  owner DELETE policy) so a 24/7 output URL never grows the log without bound.
  *  Returns every capability slug, or null offline. */
-export async function publishControlShow(show: Show, publishedOf?: CuePublished): Promise<PublishedCapabilities | null> {
+export async function publishControlShow(show: Show, publishedOf?: CuePublished, rev?: number): Promise<PublishedCapabilities | null> {
   // THE LIBRARY->AIR GATE, before anything else - including the backend check: an invalid
   // graphic cannot publish, and that is true of this function whoever calls it and wherever it
   // runs (validation/productionGate.ts - the same publishGate the community door runs). A
@@ -614,20 +657,44 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // fails stops the publish.
   // The panel rides along (no template payload in it): the entries of a graphic whose record this
   // publisher does not hold stay as published (`buildPanelSpec`).
-  const previous = await sb.from('control_shows').select('ver:output->ver, panel').eq('id', show.id).maybeSingle();
-  if (previous.error) throw new Error(previous.error.message);
-  const held = readPayloadVersion((previous.data as { ver?: unknown } | null)?.ver);
-  const heldPanel = readPanel((previous.data as { panel?: unknown } | null)?.panel);
+  // …and its OBS scenes, as small as the stamp: what this publish replaces, for the page that
+  // takes a graphic that joins a scene (#2489, `PublishedCapabilities.scenes`).
+  // With parts on (live-publishing G4 section 4), this page's own last publish stands in for the
+  // read while the stored stamp is still that one (a stale one answers `moved`), and a read names
+  // small columns: the stamp, the head's scenes, the panel only when a graphic's record is in
+  // another library. A publish that names no revision reads the stamp: its older-design check below
+  // is judged against what is stored, not what this page last wrote.
+  const inParts = await partialWritesOn();
+  const own = inParts && rev !== undefined ? ownPublish(show.id) : null;
+  const prev = own
+    ? { ver: own.ver, scenes: own.scenes, panel: own.panel }
+    : inParts
+      ? await smallPublishedRead(sb, show, library)
+      : await (async () => {
+          const previous = await sb.from('control_shows').select('ver:output->ver, scenes:output->scenes, panel').eq('id', show.id).maybeSingle();
+          if (previous.error) throw new Error(previous.error.message);
+          return previous.data as { ver?: unknown; scenes?: unknown; panel?: unknown } | null;
+        })();
+  const held = readPayloadVersion(prev?.ver);
+  const heldPanel = readPanel(prev?.panel);
+  const scenes = { before: readScenes(prev?.scenes) ?? [], after: built.scenes ?? [] };
   const edited = Object.fromEntries(show.graphics.map((g) => [g.name, designEditedAt(g, library)]));
-  const version = await stampPayload(built, held, undefined, edited);
-  // NEVER AN OLDER DESIGN (G3): this page's copy of a graphic is older than the one on air - a
-  // second device not yet synced, or a teammate whose production has not received the newer copy.
-  const older = olderDesigns(version, held);
+  const stamped = await stampPayload(built, held, undefined, edited);
+  // THE SAVED REVISION (live-publishing designs/G3.md section 2): a publish built from a record this
+  // page knows is saved revision `rev` names it, so the server keeps publications in save order.
+  const version: PayloadVersion = rev === undefined ? stamped : { ...stamped, r: rev };
+  // NEVER AN OLDER DESIGN (publish-guard G3): this page's copy of a graphic is older than the one on
+  // air - a second device not yet synced, or a teammate whose production has not received the newer
+  // copy. A publish that names its revision is ordered by the server instead (designs/G3.md section 3).
+  const older = rev === undefined ? olderDesigns(version, held) : [];
   if (older.length) {
     const one = older.length === 1;
-    throw new PublishBehind(`${older.join(', ')} on air ${one ? 'is' : 'are'} newer than this page's copy. Reload this page to get ${one ? 'it' : 'them'}.`);
+    // The copy is the only truth (live-publishing G1 section 1): a reload cannot bring a newer design
+    // in, only Update can, and only when this browser's library holds it.
+    const updatable = show.graphics.some((g) => older.includes(g.name) && newerLibraryDesign(g, library));
+    throw new PublishBehind(`${older.join(', ')} on air ${one ? 'is' : 'are'} newer than this production's copy.${updatable ? ' Update it from the library first.' : ''}`);
   }
-  const expected: ExpectedVersion = { exists: !!previous.data, n: held?.n ?? null };
+  const expected: ExpectedVersion = { exists: !!prev, n: held?.n ?? null };
   const output: OutputPayload = { ...built, ver: version };
   // The upsert names only the columns it owns, which is what keeps `audience_state` (0035) —
   // open/mode/prompt/round/rev, all of it live operator state — from being reset by a
@@ -674,6 +741,29 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // the SET makes Postgres lock the existing row FOR UPDATE, which blocks every Take's KEY SHARE on
   // it for the whole multi-megabyte write. An update that leaves `id` out of the SET takes FOR NO
   // KEY UPDATE, which a Take passes (migration 0071, review finding ordering:F1).
+  // ONLY WHAT CHANGED (live-publishing G4 section 4, R21): over an existing row, with the switch on,
+  // the press sends the difference from the stored publication, as an automatic publish does. The
+  // first Publish (an insert) and a path that falls back write whole, below.
+  if (expected.exists && (await partialWritesOn())) {
+    const got = await publishInParts(sb, show.id, built, published.panel, version, held, {
+      title: published.title,
+      bindings: published.bindings,
+      sources: published.sources,
+      collections: published.collections,
+      profile: published.profile,
+      ...(show.teamId ? { team_id: show.teamId } : {}),
+    });
+    if (got.kind === 'moved') {
+      forgetOwnPublish(show.id);
+      throw new PublishBehind(RACED);
+    }
+    if (got.kind === 'landed') {
+      noteOwnPublish(show.id, { ver: version, rev: rev ?? null, scenes: scenes.after, panel: published.panel });
+      notePublishedBoxes(show.id, version, output.cues);
+      return afterPublishWrite(sb, show, version, scenes, got.answer);
+    }
+    forgetOwnPublish(show.id);
+  }
   const error = await writeControlShow(sb, published, expected);
   // AN INSTANCE THAT HAS NOT RUN 0058 (or 0097, for `sources`) MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
   // upsert when one named column is not in its schema cache, so naming `profile` unconditionally
@@ -698,16 +788,62 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
     // is the one that describes what is actually wrong.
     if (retry) throw new Error(error.message);
   }
+  notePublishedBoxes(show.id, version, output.cues);
+  return afterPublishWrite(sb, show, version, scenes);
+}
+
+/** The publication as a press needs it, from small columns (G4 section 4): the stamp, the scenes
+ *  from the head when it is current (else from the payload), the panel only when a graphic's record
+ *  is in another library. Null: no row. */
+async function smallPublishedRead(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>, show: Show, library: GraphicDoc[]): Promise<{ ver?: unknown; scenes?: unknown; panel?: unknown } | null> {
+  const { data, error } = await sb.from('control_shows').select('ver:published_ver, hver:published_head->ver, hscenes:published_head->scenes').eq('id', show.id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const row = data as { ver?: unknown; hver?: unknown; hscenes?: unknown };
+  let scenes = row.hscenes;
+  if (JSON.stringify(row.hver ?? null) !== JSON.stringify(row.ver ?? null) || row.ver == null) {
+    const whole = await sb.from('control_shows').select('scenes:output->scenes').eq('id', show.id).maybeSingle();
+    if (whole.error) throw new Error(whole.error.message);
+    scenes = (whole.data as { scenes?: unknown } | null)?.scenes;
+  }
+  const missing = show.graphics.filter((g) => !resolveSavedGraphicDoc(g, library)).map((g) => g.name);
+  const panel: unknown = missing.length ? await publishedPanelEntries(sb, show.id, missing) : [];
+  return { ver: row.ver, scenes, panel };
+}
+
+/** What a press's publish does once its write landed, whole or in parts: the prune, the slugs read
+ *  back, the join page's brand and its readable name. */
+async function afterPublishWrite(
+  sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
+  show: Show,
+  version: PayloadVersion,
+  scenes: { before: ObsScene[]; after: ObsScene[] },
+  /** A publish in parts' answer: the slugs, whether phones have a page and their brand (G4). */
+  answer?: Record<string, unknown>,
+): Promise<PublishedCapabilities> {
   // The prune result is deliberately unread (best-effort retention; the 0029 owner DELETE
-  // policy may not exist on an older instance) — run it beside the slug read-back.
-  const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  // policy may not exist on an older instance) — run it beside the slug read-back. A publish in
+  // parts prunes at most hourly from one page and reads nothing back: its answer says it.
+  const fromAnswer = answer && typeof answer.slug === 'string'
+    ? {
+        data: {
+          slug: answer.slug,
+          outputSlug: (answer.output_slug as string | null) ?? null,
+          joinSlug: (answer.join_slug as string | null) ?? null,
+          presenterSlug: (answer.presenter_slug as string | null) ?? null,
+          audience_state: answer.audience === true ? {} : null,
+        },
+        error: null,
+      }
+    : null;
   const [, readBack] = await Promise.all([
-    sb.from('control_events').delete().eq('show_id', show.id).lt('created_at', cutoff),
-    sb
-      .from('control_shows')
-      .select('slug, outputSlug:output_slug, joinSlug:join_slug, presenterSlug:presenter_slug, audience_state')
-      .eq('id', show.id)
-      .single(),
+    fromAnswer && !pruneDue(show.id) ? Promise.resolve() : pruneControlEvents(sb, show.id),
+    fromAnswer ??
+      sb
+        .from('control_shows')
+        .select('slug, outputSlug:output_slug, joinSlug:join_slug, presenterSlug:presenter_slug, audience_state')
+        .eq('id', show.id)
+        .single(),
   ]);
   // A server WITHOUT 0035 answers the audience columns with an error rather than with nulls,
   // so the fallback re-reads the two columns that have always existed. Publishing a production
@@ -716,7 +852,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
     const legacy = await sb.from('control_shows').select('slug, outputSlug:output_slug').eq('id', show.id).single();
     if (legacy.error) throw new Error(legacy.error.message);
     const row = legacy.data as { slug: string; outputSlug: string | null };
-    return { ...row, joinSlug: null, presenterSlug: null, version, record: publishedRecordDigest(show) };
+    return { ...row, joinSlug: null, presenterSlug: null, version, record: publishedRecordDigest(show), scenes };
   }
   const row = readBack.data as {
     slug: string;
@@ -735,27 +871,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // P5 (control/joinPageSync.ts): the page goes through the same one-at-a-time queue as
   // Interaction's sync, which reads the production as saved when this turn runs, so a title
   // changed during a long publish (or a slow logo upload) is what phones end on.
-  if (row.audience_state) {
-    // A failed read throws, so it is never mistaken for "phones have no page yet" (P4).
-    const read = async () => {
-      const { data, error } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: {} });
-      if (error) throw new Error(error.message);
-      return ((data ?? null) as { brand?: AudienceBrand } | null)?.brand ?? null;
-    };
-    await syncJoinPage(
-      show.id,
-      {
-        readShow: () => loadShows().find((s) => s.id === show.id) ?? show,
-        readBrand: read,
-        publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
-        send: async (brand) => {
-          const { error } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: { brand } });
-          if (error) throw new Error(error.message);
-        },
-      },
-      0,
-    );
-  }
+  if (row.audience_state) await sendJoinBrand(show, row.slug, fromAnswer ? ((answer!.brand ?? null) as AudienceBrand | null) : undefined);
   // A production that has never had an audience slug gets a READABLE one derived from its name,
   // here, on its first publish - so a link an operator can read out exists without anyone typing
   // an ending. Only on the first publish: after that the name is a shared URL, and republishing
@@ -771,7 +887,49 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
     presenterSlug: row.presenterSlug,
     version,
     record: publishedRecordDigest(show),
+    scenes,
   };
+}
+
+/** The production's brand to its join page, merged into the audience state by the server (P4, P5;
+ *  see the comment at its use in `publishControlShow`). Also after an automatic publish
+ *  (control/publishRevision.ts). */
+export async function sendJoinBrand(show: Show, slug: string, known?: AudienceBrand | null): Promise<void> {
+  const sb = await getSupabase();
+  if (!sb) return;
+  // A failed read throws, so it is never mistaken for "phones have no page yet" (P4). A brand the
+  // caller already read with its publish (live-publishing G4) is used once instead of asking again.
+  let given = known;
+  const read = async () => {
+    if (given !== undefined) {
+      const brand = given;
+      given = undefined;
+      return brand;
+    }
+    const { data, error } = await sb.rpc('audience_set_join', { p_slug: slug, p_patch: {} });
+    if (error) throw new Error(error.message);
+    return ((data ?? null) as { brand?: AudienceBrand } | null)?.brand ?? null;
+  };
+  await syncJoinPage(
+    show.id,
+    {
+      readShow: () => loadShows().find((s) => s.id === show.id) ?? show,
+      readBrand: read,
+      publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
+      send: async (brand) => {
+        const { error } = await sb.rpc('audience_set_join', { p_slug: slug, p_patch: { brand } });
+        if (error) throw new Error(error.message);
+      },
+    },
+    0,
+  );
+}
+
+/** Log rows older than 7 days removed, best effort (the 0029 owner DELETE policy may be missing on
+ *  an older instance): every publish does it, so a 24/7 output URL never grows the log for ever. */
+export function pruneControlEvents(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>, showId: string): Promise<unknown> {
+  const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  return Promise.resolve(sb.from('control_events').delete().eq('show_id', showId).lt('created_at', cutoff)).catch(() => undefined);
 }
 
 /**
@@ -1570,7 +1728,7 @@ type WireItem = ControlSendItem & { fast?: true };
  * cannot be un-played, so the honest ending is to SAY so - this throws exactly as the plain send
  * always did, with `aired` telling the surfaces which sentence to use.
  */
-export async function sendControlVerb(opts: {
+async function sendControlVerbOnce(opts: {
   slug: string;
   /** The production's show id — the key the hold-back and the recovery stand-down are scoped by.
    *  Null when it is not known yet, which means no fast road for this verb: with no id there is
@@ -1752,8 +1910,19 @@ function pressSender(slug: string, session: SeqSession, items: readonly ControlS
  * screen did in the meantime (review ordering:F1). The error thrown carries `landed`: how many
  * batches landed before it. Protocol 1 numbers nothing and sends exactly as one call per batch.
  */
-export async function sendControlVerbs(
-  opts: Omit<Parameters<typeof sendControlVerb>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
+/** One press's send, counted while it is on the wire, whichever road it takes and including the
+ *  wait for the road: an automatic publish never runs a step beside it (sendsInFlight.ts, G3 R10). */
+export function sendControlVerb(opts: Parameters<typeof sendControlVerbOnce>[0]): ReturnType<typeof sendControlVerbOnce> {
+  return counted(() => sendControlVerbOnce(opts));
+}
+
+/** Several batches of one press, counted the same way. */
+export function sendControlVerbs(opts: Parameters<typeof sendControlVerbsOnce>[0]): Promise<VerbSent> {
+  return counted(() => sendControlVerbsOnce(opts));
+}
+
+async function sendControlVerbsOnce(
+  opts: Omit<Parameters<typeof sendControlVerbOnce>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
 ): Promise<VerbSent> {
   const { batches, ...one } = opts;
   // Every batch is numbered here, so the wait for the road comes first, as for one batch. The first
@@ -2500,4 +2669,28 @@ function readLogRow(payload: unknown): ControlEventRow | null {
     return null;
   }
   return row as ControlEventRow;
+}
+
+/** The published row's version stamp, read as one field so the payload is not downloaded: what
+ *  adoption matches copies against (designs/G1.md section 5). Null when unreadable, unpublished,
+ *  or published before stamps. */
+export async function readPublishedStamp(showId: string): Promise<PayloadVersion | null> {
+  const sb = await getSupabase();
+  if (!sb) return null;
+  const { data, error } = await sb.from('control_shows').select('ver:output->ver').eq('id', showId).maybeSingle();
+  if (error || !data) return null;
+  return readPayloadVersion((data as { ver?: unknown }).ver);
+}
+
+/** The published stamp and saved revision for an output (migration 0118), never the payload: what a
+ *  new output's own check reads (live-publishing designs/G3.md section 6). `absent`: the instance has
+ *  no such function yet, so the output does as before and asks no more this page load. */
+export async function controlOutputVersion(outputSlug: string): Promise<RpcAnswer<{ ver: PayloadVersion | null; rev: number | null } | null> | 'absent'> {
+  const sb = await getSupabase();
+  if (!sb) return { ok: false, error: 'no backend client' };
+  const { data, error } = await sb.rpc('control_output_version', { p_output_slug: outputSlug });
+  if (error) return error.code === 'PGRST202' ? 'absent' : { ok: false, error: error.message };
+  if (!data || typeof data !== 'object') return { ok: true, value: null };
+  const row = data as { ver?: unknown; rev?: unknown };
+  return { ok: true, value: { ver: readPayloadVersion(row.ver), rev: typeof row.rev === 'number' ? row.rev : null } };
 }

@@ -3,16 +3,23 @@
 // Vercel. Handlers are fetch-style (Request -> Response) and are loaded through
 // ssrLoadModule — same modules Vercel deploys, TS + HMR for free.
 
+import { previewApiHost } from './previewApiHost.mjs';
+
 /** @returns {import('vite').Plugin} */
 export function renderApiPlugin() {
-  return {
+  const plugin = {
     name: 'noacg-render-api',
     configureServer(server) {
       server.middlewares.use('/api/render', (req, res) => {
         void handle(server, req, res);
       });
     },
+    // The same routes on `vite preview`, for the e2e build (scripts/previewApiHost.mjs).
+    configurePreviewServer(preview) {
+      plugin.configureServer(previewApiHost(preview));
+    },
   };
+  return plugin;
 }
 
 const ROUTES = new Set(['start', 'status', 'cancel', 'complete', 'cleanup', 'file']);

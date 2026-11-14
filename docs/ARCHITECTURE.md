@@ -128,6 +128,9 @@ here and not in §6 are wrong - fix the code, not the table.
   loads no React and no step. Moving the import draft's pure core down to templates would retire
   this edge)
 - `app` -> (nothing)
+- `output`, `join`, `ograf`, `bridge` entry files (`main.ts`) -> `app/e2eModules.ts` only: each page
+  installs the door browser specs reach its modules through (`window.__noacgImport`); that file
+  imports nothing, and in production it installs nothing
 - `components` -> any lower domain, **through its seam column in §2**
 
 Hard invariants (all machine-enforced - 1-4 by eslint, 5 and the whole edge table by

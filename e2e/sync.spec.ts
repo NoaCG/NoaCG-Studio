@@ -1,3 +1,4 @@
+// runs on: dev server - imports fresh module copies (?t=), which only the dev server serves
 // covers: src/components/auth/**, src/backend/**
 // focus
 //

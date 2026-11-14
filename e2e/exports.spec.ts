@@ -15,6 +15,10 @@ import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The CasparCG and OGraf export targets — not just zip-structure checks: the CasparCG
 // file is loaded and driven with an XML payload, and the OGraf Graphic is imported and
@@ -48,8 +52,8 @@ test("a saved graphic's control entries ride into its own export, not just the s
   // up named rows downloads a panel with an empty switcher.
   await createHairline(page);
   await page.evaluate(async () => {
-    const { createGraphic, newEntry } = await import('/src/model/library.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createGraphic, newEntry } = await __noacgImport('/src/model/library.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const store = useTemplateStore.getState();
     const field = store.template.fields[0]?.field ?? 'f0';
     const { doc } = createGraphic(store.template, {
@@ -127,11 +131,11 @@ test('a single file imported and exported again carries its target scripts once'
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const files = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { importHtmlTemplate } = await import('/src/model/importTemplate.ts');
-    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
-    const { h2rTarget } = await import('/src/export/targets/h2r.ts');
-    const { htmlOverlayTarget } = await import('/src/export/targets/htmlOverlay.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { importHtmlTemplate } = await __noacgImport('/src/model/importTemplate.ts');
+    const { casparTarget } = await __noacgImport('/src/export/targets/casparcg.ts');
+    const { h2rTarget } = await __noacgImport('/src/export/targets/h2r.ts');
+    const { htmlOverlayTarget } = await __noacgImport('/src/export/targets/htmlOverlay.ts');
     const graphicFile = async (zip: Awaited<ReturnType<typeof casparTarget.build>>) =>
       zip.file('hairline/hairline.html')!.async('string');
     const out: Record<string, { imported: string; again: string }> = {};
@@ -177,7 +181,7 @@ test('export target choice is remembered as the default across reloads', async (
   await expect
     .poll(() =>
       page.evaluate(async () => {
-        const { loadProject } = await import('/src/model/project.ts');
+        const { loadProject } = await __noacgImport('/src/model/project.ts');
         return loadProject()?.template.name ?? null;
       }),
     )
@@ -194,7 +198,7 @@ test('html overlay: self-contained, autoplays with the Data panel values, contro
   // A custom value typed for the graphic: the store's sample data, which is what the old Data
   // panel wrote and what every field control writes - the export must bake it in.
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     useTemplateStore.getState().setSampleValue('f0', 'Overlay Works');
   });
   const zip = await downloadTarget(page, 'HTML overlay (OBS / vMix)');
@@ -234,8 +238,8 @@ test('html overlay under OBS: the entrance waits for program and plays again on 
   // OBS sends no event for the state a page loads in, so it starts from document.visibilityState.
   await page.goto('/app');
   const html = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { htmlOverlayTarget } = await import('/src/export/targets/htmlOverlay.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { htmlOverlayTarget } = await __noacgImport('/src/export/targets/htmlOverlay.ts');
     const zip = await htmlOverlayTarget.build(variantById('lt01')!.create({}));
     return zip.file('hairline/hairline.html')!.async('string');
   });
@@ -304,6 +308,82 @@ Object.defineProperty(document, 'visibilityState', { configurable: true, get: fu
   await plain.setContent(html, { waitUntil: 'load' });
   await expect.poll(() => opacity(plain)).toBe('1');
   await plain.close();
+});
+
+test('html overlay, settled (OBS scene fallback): at rest from load, no entrance, no automatic Out, deaf to OBS (obs-scenes OS3 AC-12)', async ({ page }) => {
+  await page.goto('/app');
+  const build = (settled: boolean) =>
+    page.evaluate(async (settled) => {
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { htmlOverlayTarget } = await __noacgImport('/src/export/targets/htmlOverlay.ts');
+      const template = variantById('lt01')!.create({});
+      // An automatic Out after half a second: a settled file never takes it.
+      template.settings = { ...template.settings, out: '500' };
+      const zip = await htmlOverlayTarget.build(template, { settled, sampleData: { f0: 'SETTLED NAME' } });
+      return zip.file('hairline/hairline.html')!.async('string');
+    }, settled);
+  // Every frame from the first: whether the graphic shows, and whether an animation with an end (an
+  // entrance) is running then, under a stand-in for obs-browser that loads the page in a scene not
+  // on air.
+  const harness = (html: string) =>
+    html.replace(
+      /<head>/i,
+      `<head><script>window.obsstudio = { pluginVersion: '2.26.9' };
+Object.defineProperty(document, 'visibilityState', { configurable: true, get: function () { return 'hidden'; } });
+window.frames_ = [];
+(function sample() {
+  var el = document.querySelector('.lower-third');
+  var running = 0;
+  var kids = window.gsap ? window.gsap.globalTimeline.getChildren(true, true, false) : [];
+  for (var i = 0; i < kids.length; i++) if (kids[i].isActive() && kids[i].totalDuration() < 1e9) running++;
+  if (el && getComputedStyle(el).opacity !== '0') window.frames_.push(running);
+  requestAnimationFrame(sample);
+})();</script>`,
+    );
+  /** Frames drawn while the graphic showed with an animation that has an end still running. */
+  const entranceFrames = (view: Page) => view.evaluate(() => (window as unknown as { frames_: number[] }).frames_.filter((n) => n > 0).length);
+  const opacity = (view: Page) => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity);
+  const obs = (view: Page, type: string, detail: Record<string, boolean>) =>
+    view.evaluate(([type, detail]) => window.dispatchEvent(new CustomEvent(type as string, { detail })), [type, detail] as const);
+
+  // Today's file, for contrast: under OBS, loaded off air, it waits for program; on program it enters,
+  // and the frames show it, which is what makes the frame check below mean something.
+  const plain = await page.context().newPage();
+  await plain.setContent(harness(await build(false)), { waitUntil: 'load' });
+  await plain.waitForTimeout(400);
+  expect(await opacity(plain)).not.toBe('1');
+  await obs(plain, 'obsSourceActiveChanged', { active: true });
+  await expect.poll(() => opacity(plain)).toBe('1');
+  await expect.poll(() => entranceFrames(plain), { message: 'an entrance is seen frame by frame' }).toBeGreaterThan(0);
+  await plain.close();
+
+  const settled = await build(true);
+  expect(settled).toContain('Settled autoplay for an OBS scene fallback');
+  const view = await page.context().newPage();
+  await view.setContent(harness(settled), { waitUntil: 'load' });
+  // On air from load, though OBS has said nothing, with the exported value.
+  await expect.poll(() => opacity(view)).toBe('1');
+  await expect(view.locator('body')).toContainText('SETTLED NAME');
+  // No frame of an entrance: whenever it shows, nothing with an end is still running.
+  await view.waitForTimeout(500);
+  expect(await entranceFrames(view), 'no frame of an entrance').toBe(0);
+  // OBS hiding it, showing it, taking it off program: nothing moves. No automatic Out either.
+  await obs(view, 'obsSourceActiveChanged', { active: false });
+  await obs(view, 'obsSourceVisibleChanged', { visible: false });
+  await obs(view, 'obsSourceActiveChanged', { active: true });
+  await view.waitForTimeout(1500);
+  expect(await opacity(view)).toBe('1');
+  // A Stop and a Play from the panel: the play is settled too, with no frame of an entrance.
+  await view.evaluate(() => (window as unknown as { stop(): void }).stop());
+  await expect.poll(() => opacity(view)).toBe('0');
+  await view.evaluate(() => {
+    (window as unknown as { frames_: number[] }).frames_ = [];
+    (window as unknown as { play(): void }).play();
+  });
+  await expect.poll(() => opacity(view)).toBe('1');
+  await view.waitForTimeout(500);
+  expect(await entranceFrames(view)).toBe(0);
+  await view.close();
 });
 
 test('casparcg: one self-contained html that speaks JSON and CasparCG XML', async ({ page }) => {
@@ -517,8 +597,8 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
 test('ograf: non-real-time schedule seeks are deterministic in shuffled order', async ({ page }) => {
   await createHairline(page);
   const capabilities = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { buildOgrafManifest } = await import('/src/export/targets/ograf.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { buildOgrafManifest } = await __noacgImport('/src/export/targets/ograf.ts');
     const template = useTemplateStore.getState().template;
     return (['live', 'post-production', 'both'] as const).map((usage) => {
       const manifest = buildOgrafManifest(template, usage);
@@ -609,7 +689,7 @@ test('ograf: non-real-time schedule seeks are deterministic in shuffled order', 
 test('ograf: post-production intent is blocked for non-deterministic code', async ({ page }) => {
   await createHairline(page);
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const store = useTemplateStore.getState();
     store.applyTemplate({ ...store.template, js: `${store.template.js}\nMath.random();\n` });
   });
@@ -775,8 +855,8 @@ test('ograf: the machine\'s operator events are custom actions, guarded like eve
 // no console error: a broken <img alt=""> over transparent video looks like an empty slot.
 // Measured before the fix on cr01 — naturalWidth 0 and a failed file:// request.
 const IMAGE_ROUNDTRIP = `(async () => {
-  const { CATALOG } = await import('/src/templates/catalog.ts');
-  const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+  const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+  const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
   const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=';
   let tpl = null, field = null;
   for (const variant of Object.values(CATALOG).flat().filter(Boolean)) {

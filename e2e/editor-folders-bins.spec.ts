@@ -7,13 +7,17 @@ import { evaluateInPage } from './_evaluate';
 import { settleDurableWrites } from './_durable';
 import { pickDesign } from './_browse';
 import { holdKeyRepeats } from './_keys';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ready = async (page: Page) => expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
-const source = (page: Page) => evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
-const selection = (page: Page) => evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
+const source = (page: Page) => evaluateInPage(page, async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+const selection = (page: Page) => evaluateInPage(page, async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
 async function execute(page: Page, operations: unknown[]) {
   const result = await evaluateInPage(page, async operations => {
-    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     return session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: operations as EditorOperation[] });
   }, operations);
   await ready(page); return result;
@@ -22,7 +26,7 @@ async function open(page: Page) {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  await evaluateInPage(page, async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync('docs/research/editor-r1-foundation/fixture-catalog.json', 'utf8')) as SpxTemplate);
+  await evaluateInPage(page, async t => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync('docs/research/editor-r1-foundation/fixture-catalog.json', 'utf8')) as SpxTemplate);
   await ready(page);
   return (await execute(page, [
     { kind: 'layer.create', geometry: { shape: 'rectangle', x: 220, y: -390, width: 100, height: 80 } },
@@ -31,7 +35,7 @@ async function open(page: Page) {
   ])).changedTargets;
 }
 async function select(page: Page, ids: string[]) {
-  await evaluateInPage(page, async ids => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSelectedParts(ids), ids);
+  await evaluateInPage(page, async ids => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().setSelectedParts(ids), ids);
 }
 async function history(page: Page, redo = false) { await page.getByRole('button', { name: redo ? 'Redo' : 'Undo', exact: true }).click(); await ready(page); }
 async function folder(page: Page, ids: string[], name: string) {
@@ -119,7 +123,7 @@ test('organization refuses stale revisions, mixed scopes, cycles and partial bat
   const before = await source(page); await input.press('Enter');
   await expect(page.getByRole('alert')).toContainText('changed'); expect(await source(page)).toEqual(before);
   const result = await evaluateInPage(page, async ids => {
-    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(); const before = s.port.read(), selected = s.port.view().selectedParts, undo = s.canUndo();
+    const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(); const before = s.port.read(), selected = s.port.view().selectedParts, undo = s.canUndo();
     const run = (operations: unknown[]) => { try { s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: operations as EditorOperation[] }); return ''; } catch (error) { return String(error); } };
     const refusal = run([{ kind: 'folder.create', name: 'Transient', scope: null, members: [ids[0]] }, { kind: 'folder.move', members: ['folder:missing'], folder: null }]);
     return { refusal, unchanged: before === s.port.read(), selected: JSON.stringify(selected) === JSON.stringify(s.port.view().selectedParts), undo: undo === s.canUndo() };
@@ -131,7 +135,7 @@ test('nested bin renames refuse occupied moving paths without changing source or
   await open(page);
   await execute(page, [{ kind: 'asset.import', assets: [{ path: 'images/A/C/red.svg', data: 'data:image/svg+xml;base64,PHN2Zy8+' }, { path: 'images/A/B/C/red.svg', data: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' }] }, { kind: 'bin.create', dir: 'images/A' }]);
   const result = await evaluateInPage(page, async () => {
-    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     const before = s.port.read(), revision = s.version(), canUndo = s.canUndo(), view = JSON.stringify(s.port.view()); let refusal = '';
     try { s.execute({ documentId: s.documentId, expected: revision, transactionId: crypto.randomUUID(), operations: [{ kind: 'bin.rename', from: 'images/A', to: 'images/A/B' }] }); } catch (cause) { refusal = String(cause); }
     return { refusal, unchanged: s.port.read() === before && JSON.stringify(s.version()) === JSON.stringify(revision) && JSON.stringify(s.port.view()) === view && s.canUndo() === canUndo };
@@ -145,7 +149,7 @@ test('asset moves preserve folder labels and retain emptied inferred bins in one
   await folder(page, [ids[0]], label);
   await page.getByRole('button', { name: /^Project/ }).click(); await page.locator('.asset-row').click();
   const before = await source(page); await page.getByRole('combobox', { name: 'Asset bin' }).selectOption('Second'); await ready(page);
-  const moved = await source(page), organization = await evaluateInPage(page, async () => (await import('/src/model/editorOrganization.ts')).readOrganization((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
+  const moved = await source(page), organization = await evaluateInPage(page, async () => (await __noacgImport('/src/model/editorOrganization.ts')).readOrganization((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template));
   expect({ label: organization.folders[0].name, retained: organization.bins.includes('images/First') }).toEqual({ label, retained: true });
   expect(moved.assets[0].path).toBe('images/Second/red.svg'); expect(moved.assets[0].data).toBe(before.assets[0].data);
   await history(page); expect(await source(page)).toEqual(before); await history(page, true); expect(await source(page)).toEqual(moved);
@@ -153,7 +157,7 @@ test('asset moves preserve folder labels and retain emptied inferred bins in one
   await execute(page, [{ kind: 'asset.delete', path: moved.assets[0].path }]);
   const deleted = await source(page);
   expect(deleted.assets).toEqual([]);
-  expect(await evaluateInPage(page, async () => (await import('/src/model/editorOrganization.ts')).readOrganization((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template).folders[0].name)).toBe(label);
+  expect(await evaluateInPage(page, async () => (await __noacgImport('/src/model/editorOrganization.ts')).readOrganization((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template).folders[0].name)).toBe(label);
   await expect(page.getByRole('button', { name: 'Bin Second', exact: true })).toBeVisible();
   await history(page); expect(await source(page)).toEqual(moved); await history(page, true); expect(await source(page)).toEqual(deleted);
 });
@@ -163,8 +167,8 @@ test('folder guards refuse mixed group scopes and cycles; inline keys and names 
   await folder(page, ids.slice(0, 2), 'A'); await folder(page, [ids[2]], 'B');
   const before = await source(page);
   const verdicts = await evaluateInPage(page, async ids => {
-    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
-    const { readOrganization } = await import('/src/model/editorOrganization.ts'); const [a, b] = readOrganization(s.port.read()).folders;
+    const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const { readOrganization } = await __noacgImport('/src/model/editorOrganization.ts'); const [a, b] = readOrganization(s.port.read()).folders;
     const run = (operations: unknown[]) => { try { s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: operations as EditorOperation[] }); return ''; } catch (error) { return String(error); } };
     const move = run([{ kind: 'folder.move', members: [b.id], folder: a.id }]);
     const moved = s.port.read(); const cycle = run([{ kind: 'folder.move', members: [a.id], folder: b.id }]);
@@ -194,7 +198,7 @@ test('grouping and exact ungroup retain outer and local folder membership', asyn
   await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click(); await ready(page);
   await expect(page.getByRole('button', { name: 'Folder Local', exact: true })).toBeVisible();
   await expect(page.locator(`.ef-track[data-selector="${ids[0]}"]`)).toHaveCount(1);
-  const folders = await evaluateInPage(page, async () => (await import('/src/model/editorOrganization.ts')).readOrganization((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template).folders);
+  const folders = await evaluateInPage(page, async () => (await __noacgImport('/src/model/editorOrganization.ts')).readOrganization((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template).folders);
   expect(folders.find(folder => folder.name === 'Local')?.scope).toBeNull();
   expect(folders.find(folder => folder.name === 'Local')?.parent).toBe(folders.find(folder => folder.name === 'Outer')?.id);
   expect(folders.find(folder => folder.name === 'Outer')?.members).toEqual([ids[2]]);
@@ -207,7 +211,7 @@ test('bin rename retains field defaults, live samples, bytes and rejects collisi
   await execute(page, [{ kind: 'asset.import', assets: [{ path: 'images/First/red.svg', data: data('red') }, { path: 'images/Second/blue.svg', data: data('blue') }] }, { kind: 'image.place', assetPath: 'images/First/red.svg', geometry: { x: 250, y: -250, width: 40, height: 40 }, time: .1 }]);
   const before = await source(page);
   const refusal = await evaluateInPage(page, async () => {
-    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(), before = s.port.read();
+    const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(), before = s.port.read();
     let message = ''; try { s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'bin.rename', from: 'images/First', to: 'images/Second' }] }); } catch (cause) { message = String(cause); }
     return { message, exact: before === s.port.read() };
   });
@@ -215,7 +219,7 @@ test('bin rename retains field defaults, live samples, bytes and rejects collisi
   await execute(page, [{ kind: 'bin.rename', from: 'images/First', to: 'images/Brand' }]);
   const renamed = await source(page), field = renamed.fields.find(field => field.value === 'images/Brand/red.svg')!;
   expect(field).toBeTruthy(); expect(renamed.assets.map(asset => asset.data)).toEqual(before.assets.map(asset => asset.data));
-  expect(await evaluateInPage(page, async name => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[name], field.field)).toBe('images/Brand/red.svg');
+  expect(await evaluateInPage(page, async name => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[name], field.field)).toBe('images/Brand/red.svg');
   await history(page); expect(await source(page)).toEqual(before); await history(page, true); expect(await source(page)).toEqual(renamed);
   await page.getByRole('button', { name: /^Project/ }).click(); await page.getByRole('button', { name: 'Bin Brand', exact: true }).dblclick();
   const input = page.getByRole('textbox', { name: 'Bin name' }); await input.fill('Stale');
@@ -229,7 +233,7 @@ test('folder ordering changes editor order only; unknown metadata remains read-o
   await expect(page.locator('.ef-folder-row .ef-layer')).toHaveText([/TwoFolder$/, /OneFolder$/]);
   expect(artwork(await source(page))).toEqual(original);
   await history(page); await expect(page.locator('.ef-folder-row .ef-layer')).toHaveText([/OneFolder$/, /TwoFolder$/]);
-  await evaluateInPage(page, async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('"version":1', '"version":99') }); });
+  await evaluateInPage(page, async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('"version":1', '"version":99') }); });
   await expect(page.getByRole('button', { name: 'New layer folder' })).toBeDisabled();
   await expect(page.getByRole('alert')).toContainText('unsupported organization metadata');
 });
@@ -245,7 +249,7 @@ test('unsupported organization metadata disables asset bin moves and preserves s
   await open(page);
   await execute(page, [{ kind: 'asset.import', assets: [{ path: 'images/logo.svg', data: 'data:image/svg+xml;base64,PHN2Zy8+' }, { path: 'images/Target/other.svg', data: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' }] }, { kind: 'bin.create', dir: 'images/Empty' }]);
   await page.getByRole('button', { name: /^Project/ }).click(); await page.locator('.asset-row').filter({ hasText: 'logo.svg' }).click();
-  await evaluateInPage(page, async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('"version":1', '"version":99') }); });
+  await evaluateInPage(page, async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('"version":1', '"version":99') }); });
   const before = await source(page);
   await expect(page.getByRole('combobox', { name: 'Asset bin' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'New asset bin', exact: true })).toBeDisabled();
@@ -262,11 +266,20 @@ for (const saved of [false, true]) for (const kind of ['folder', 'bin'] as const
     await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page); await page.reload(); await ready(page);
   }
   const fixture = await source(page);
-  const openingId = await evaluateInPage(page, async () => (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().documentId);
+  const openingId = await evaluateInPage(page, async () => (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().documentId);
+  const openingOwner = await evaluateInPage(page, async () => {
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const bound = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
+    (window as unknown as { closedFolderCommands: typeof bound }).closedFolderCommands = bound;
+    const commands = bound.inspect();
+    (window as unknown as { closedFolderPort: typeof session.port }).closedFolderPort = session.port;
+    const state = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { authoring: state.documentId, graphic: state.saved.graphicId, instance: session.instanceId, expected: commands.ok ? commands.expected : null };
+  });
   const swap = async () => {
     await evaluateInPage(page, async ({ t, saved }) => {
-      const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-      if (saved) (await import('/src/store/saveActions.ts')).openGraphicById(s.saved.graphicId!);
+      const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+      if (saved) (await __noacgImport('/src/store/saveActions.ts')).openGraphicById(s.saved.graphicId!);
       else s.applyTemplate(t, { resetSampleData: true });
     }, { t: fixture, saved });
     await ready(page);
@@ -275,8 +288,23 @@ for (const saved of [false, true]) for (const kind of ['folder', 'bin'] as const
   await page.getByRole('button', { name: kind === 'folder' ? 'New layer folder' : 'New asset bin', exact: true }).click();
   const name = kind === 'folder' ? 'Folder name' : 'Bin name';
   await page.getByRole('textbox', { name }).fill('Old document'); await swap();
-  const nextId = await evaluateInPage(page, async () => (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().documentId);
+  const nextId = await evaluateInPage(page, async () => (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().documentId);
   if (saved) expect(nextId).toBe(openingId); else expect(nextId).not.toBe(openingId);
+  const nextOwner = await evaluateInPage(page, async prior => {
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const state = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    let closed = '';
+    try { (window as unknown as { closedFolderPort: typeof session.port }).closedFolderPort.restore({ selectedParts: [], time: 99 }); } catch (e) { closed = String(e); }
+    const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), current = c.inspect();
+    if (!current.ok || !prior) throw new Error('Command ownership unavailable.');
+    const stale = c.apply({ expected: { ...current.expected, sessionId: prior.sessionId }, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } }] });
+    const retired = (window as unknown as { closedFolderCommands: typeof c }).closedFolderCommands.apply({ expected: prior, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } }] });
+    return { authoring: state.documentId, graphic: state.saved.graphicId, instance: session.instanceId, closed, stale, retired };
+  }, openingOwner.expected);
+  expect(nextOwner.authoring).not.toBe(openingOwner.authoring); expect(nextOwner.instance).not.toBe(openingOwner.instance);
+  expect(nextOwner.graphic).toBe(openingOwner.graphic); expect(nextOwner.closed).toContain('closed');
+  expect(nextOwner.stale.ok).toBe(false); if (!nextOwner.stale.ok) expect(nextOwner.stale.refusal.code).toBe('stale_context');
+  expect(nextOwner.retired.ok).toBe(false); if (!nextOwner.retired.ok) expect(nextOwner.retired.refusal.code).toBe('session_closed');
   await expect(page.getByRole('textbox', { name })).toHaveCount(0);
   expect(await source(page)).toEqual(fixture);
 });
@@ -287,8 +315,8 @@ for (const kind of ['unknown', 'collision'] as const) test(kind + ' organization
   await page.getByRole('combobox', { name: 'Move to layer folder' }).selectOption({ label: 'Parent' });
   await folder(page, [ids[2]], 'Same');
   const verdict = await evaluateInPage(page, async kind => {
-    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
-    const { readOrganization } = await import('/src/model/editorOrganization.ts');
+    const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const { readOrganization } = await __noacgImport('/src/model/editorOrganization.ts');
     const parent = readOrganization(s.port.read()).folders.find(folder => folder.name === 'Parent')!;
     const before = s.port.read(), view = JSON.stringify(s.port.view()), undo = s.canUndo();
     const run = (operations: unknown[]) => { try { s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: operations as EditorOperation[] }); return ''; } catch (cause) { return String(cause); } };
@@ -357,8 +385,8 @@ test('real template task uses folders, groups and bins, reopens and executes eve
   const poses = await Promise.all([...ids, image].map(id => frame.locator(id).evaluate(el => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })));
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await evaluateInPage(page, async target => {
-      const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
+      const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
     }, target);
     const output = await page.context().newPage(); output.on('pageerror', error => errors.push(error.message)); await output.setViewportSize({ width: 1920, height: 1080 });

@@ -1,0 +1,195 @@
+# Phase 5 evidence: the honest light and held Takes
+
+Acceptance (verbatim): "Design G2 graded A by an independent /so" and "AC-3".
+
+Design: `designs/G2.md`, graded A+ by an independent `/so` at 13a698c2 (full reviews B at b08b3036,
+B at 1cb9bb7c, A at 1d0d79eb; delta reviews A at 0ce63d63 and A+ at 13a698c2), landed as #2426
+(merge 12173c3f). The build follows it; where it departs, the departure is under "Rules found while
+building" with its reason.
+
+## What was built
+
+- **Outputs report what they ran** (`src/control/runReport.ts`, `src/output/main.ts`). Every report
+  row carries `state.run = { o, p, h, e }` and the Presence entry `ready.run`; for graphic g,
+  `ran(o, g) = h[g] ? h[g].from - 1 : p`. A report fires at most 800 ms after a graphic's last
+  change and at most 2 s after its first unreported change. Only a hosted, released graphic with
+  nothing unsettled writes a report of itself, so no report banks work the output has not run. A
+  command settled with no report of its own re-banks one settled graphic within about a second.
+- **One outcome per command, by position** (`src/output/stage.ts`): `posted`, `skipped` or
+  `failed`, on removal and replacement too, with a 20 s watchdog; the placer keeps the position of
+  the command it rewrites (`placeOnOutput.ts`).
+- **Held Takes** (`src/output/hold.ts`, `main.ts`). A live Take of a graphic the output cannot run
+  yet starts a hold; every command of that graphic waits behind it in log order. Cancellation is
+  decided first (a queue ending in an Out never shows). A graphic the stage does not host is read
+  from the published payload at once (the demand), ahead of the Presence request and its 15 s
+  spacing, and the preparation reuses that payload. On release: on time (at most 5 s after the
+  surviving Take reached the output) with its entrance; otherwise hidden (picture and sound),
+  replayed, and shown at its final state when it stands still (6 s cap). Failures (`unpublished`,
+  `load`, `script`, `limit`) are named until a later Take or Out settles, All out, or deletion.
+- **A frame's own hidden flag** (`stage.ts` `hide`): `offair` and `sound-quiet` together, restored
+  to the stage's own settings when cleared; a frame still loading takes it before anything it
+  holds. A late boot frame is hidden when the stage comes back on air and shown once settled.
+- **Restart** (`outputRecovery.ts` `unreportedRows`): a graphic the head says is on that no report
+  banks replays its own rows below `followFrom`, typed or not, within `unreportedPages`, else takes
+  its head cue's published values.
+- **Versions** (`swap.ts`, `prepare.ts`, `swapPlan.ts`, `readiness.ts`): `chg.b` names what is
+  still being built; a graphic in `chg.w` of a `waiting` report reads green
+  "<graphic>: new design at next Take" (O3); a change still building reads amber
+  "Updating outputs" (O2).
+- **The light** (`src/control/runConfirm.ts`, `playoutStatus.ts`, `ProductionPage.tsx`,
+  `sessionWire.ts`): the page owes every command row it follows and the head it resolved (the
+  seed); per output and graphic it confirms, judges held work by its `h` entry, and ages what was
+  not received oldest first (grey under 5 s, amber, red at 15 s; the seed 15 s and 30 s, never red
+  while Presence is down). Green is "Ready" only when everything is confirmed; old outputs read
+  amber "Reload <output> when nothing is on air"; protocol 1 outputs amber "<output> cannot
+  confirm". PROGRAM's tag reads "ran" once every output confirmed the last command. A cue whose
+  graphic an output still loads wears a LOADING mark (O7).
+
+## Rules found while building
+
+- **A cancelled hold on a boot frame with history is released hidden** (the reference model in
+  `scripts/output-hold.test.mjs` caught the first version, which returned `cancelled` first and
+  would have played the boot's history on air).
+- **A page opened before the production has a head takes its epoch from the first report heard**
+  (the local configured run caught it: an empty epoch made the page ignore every report, so the
+  light never confirmed).
+- **A mounted OGraf package counts as ready** (its calls wait for `load()` inside the layer); only a
+  package still waiting for its base is held.
+- **Protocol 1 outputs keep today's behaviour and do not hold**: holds and run reports need the
+  numbered log's positions (G2 section 6 words them as unable to confirm).
+- **The page's own send answers are not used as owed positions** (G2 section 6 listed them). The
+  answer (`VerbSent`) carries no position, and threading one through the Take path's send code was
+  judged not worth the risk to that path ("Let's avoid any risky changes"); the command row, which
+  arrives with the numbered frame, owes the position instead, so the light reads grey a moment
+  later rather than at the answer. PROGRAM's "ran" uses the newest row learned at or after the send.
+- **The page owes pressed commands, not a data road's rows** (G2 section 6 said "whoever wrote it").
+  E1's words are "each command pressed"; a feed's or the data API's row carries `src`, and the
+  harness showed a feed writing every 200 ms keeps one row always younger than a report, so the
+  light would read grey "Confirming…" for the whole of a live feed. Data rows still move each
+  output's cursor and are confirmed with it; they only no longer hold green back.
+- **A status row is never a command with an outcome** (the configured run caught it: a `cue` row
+  reached the stage with a position and was counted as a command for a graphic with no frame).
+- **Every unsettled entry an output reports keeps green away by itself**, whether or not the page
+  saw the command (PR review: a page opened mid-hold owes only its seed). A `placing` entry (W1's
+  measurement, capped at 2 s) reads grey "Confirming…", not amber (G2's table had it amber), so a
+  preset Take does not flash amber.
+- **A held Take's frame first takes the values and look kept for it** (PR review: the Take's own
+  `update` comes before its `play` and was settled while the frame loaded, so the graphic would have
+  aired its template's defaults). The configured test now checks the strap's document was handed
+  the cue's values on both outputs.
+- **A Take or Out ends a failure before anything else decides, and a hold that cannot go on settles
+  when it is cancelled** (final review, one class: a red the operator could not clear). An Out of a
+  graphic with nothing to run it on now clears its failure; a load deadline, a script error or the
+  limit settles a cancelled hold instead of failing it; a reload's replay of a graphic the output
+  does not host is read past instead of failed. The rules live in `hold.ts` (`routeLive`,
+  `endsFailure`, `giveUp`) and are Node-tested. A hold keeps its own `from` when making room drops
+  its first command, and the 5 s mark is told to Presence when it passes.
+- **Monitors pass no positions**, so the production page's PROGRAM and PREVIEW stages are unchanged.
+- **A held look keeps its place hint** (second Codex review, P2). A preset's Take sends its look and
+  a place hint together; the hint was dropped while the frame loaded, so the placer could not
+  measure the cue's values and the graphic would air at the earlier measurement's position. The
+  primed update now carries both.
+- **A stage command waits under a key of its own** (second Codex review, P2). A republished log
+  numbers from 1 again, so a new command could share a position with one still waiting from the old
+  log and settle it, or be settled by it. Each command now waits under a unique key; its position
+  goes out only in the outcome. The graphic stays listed from 0 until the old work settles.
+- **Three older source-shape tests read the new code** (`ograf-typed-recovery`, `ograf-typed-writer`):
+  the boot's unreported read is now typed or not (G2 section 4), the report adds `run`, and a
+  dataless update with no look is a skipped command. Each assertion is as strict as before.
+
+- **A failure only reports** (final review at d97cb850, B; then a read-only reassessment of the
+  rule model, because two rounds found variants of one missing rule). A graphic marked failed whose
+  frame had loaded dropped every command but Take and Out, so the next Take aired old values and a
+  live feed froze. Now routing reads the hold and the frame alone (`liveStep` in `hold.ts`); a Take
+  or Out clears the failure, and a Take on a ready frame first gets the graphic's kept values.
+  Node-tested with every input combination and a 2,000-walk reference model.
+- **A real stage failure replaces an overdue one** (final review at 90bf214d, B): `afterOutcome`
+  in `hold.ts`, behaviour-tested, so a later post cannot clear a D2 red. A hidden late Take now
+  counts stillness only once its stage work has drained (second Codex review at 90bf214d).
+- **Open: the page's confirmation lifetime lives in `ProductionPage.tsx`** (Codex at 90bf214d, P1):
+  the owed-command history, pruning and epoch transitions are page refs, against the folder rule
+  that puts playout lifetimes in `src/control/`. Left for the repair owner.
+- **D1 and D2** (owner, 2026-11-12): an overdue command is reported once and kept, boot history is
+  watched too (no more grey "Confirming..." forever), and the queue running in full clears the red.
+  See the spec's Phase 5 notes for the G2 wording these change.
+
+## Not built (G2 section 9), and what covers each case
+
+| G2 section 9 case | Covered by | Status |
+|---|---|---|
+| All out or a deletion while the graphic loads | `output-hold.test.mjs` (cancelled queues, R6; `giveUp`); deletion settles in `onRemoved` | Node only; no configured walk. Phase 9 owner check |
+| Updates, an event and Nexts pressed while it loads | `output-hold.test.mjs` reference model (2,000 random queues of Take, update, event, Next, Out) | Node only; no configured walk |
+| A restart during the hold | none beyond `unreportedRows` in `output-reload.test.mjs` | Not built. Phase 9 owner check |
+| A delayed report row reads grey then amber | `run-confirm.test.mjs` "ages oldest first: grey, amber at 5 s, red at 15 s" | Node only |
+| Dropped reports read red at 15 s | same test; "never turns red while Presence is down" | Node only |
+| A second page opened while an output holds | `run-confirm.test.mjs` "a page opened mid-hold" | Node only |
+| "Reload <output> when nothing is on air" | `run-confirm.test.mjs` "an output that cannot confirm: an older build, or the old log" | Node only |
+| A feed never turns the light amber | the page owes pressed command rows only (`sessionWire.ts`); the `w3` measurement ran a 5 Hz feed with no amber | No dedicated test. Phase 9 owner check |
+| A Take failed on one output leaves later Takes confirmed | `run-confirm.test.mjs` "confirmed per graphic (R12)" | Node only |
+| The throttled measurement | not run: the `w3` group ran unthrottled only | Not built. Phase 9 owner check |
+
+## Verification
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | pass |
+| eslint on every changed file | pass |
+| `vite build` and `npm run check:output-reader` (Chromium 71 parse) | pass: 27 output modules parse |
+| `scripts/output-hold.test.mjs` (reference model, 2,000 random queues) | pass |
+| `scripts/run-confirm.test.mjs` | pass |
+| `scripts/ograf-typed-recovery.test.mjs`, `scripts/ograf-typed-writer.test.mjs` | pass (failed in CI on d97cb850 before their update) |
+| `scripts/readiness.test.mjs`, `scripts/playout-status.test.mjs`, `scripts/output-setup.test.mjs`, `scripts/swap-plan.test.mjs`, `scripts/place-on-output.test.mjs`, `scripts/output-reload.test.mjs` | pass |
+| `e2e/output-first-paint.spec.ts` (queued, local) | 14 of 14 pass, the new hidden-frame test included |
+| `e2e/configured/per-graphic-replacement.spec.ts` on the local stack | see "Configured runs" |
+| `node scripts/check-e2e-protection.mjs --changed origin/main` | pass |
+| `node scripts/e2e-capacity.mjs` | WARN (not refused): 93 % of the table; one backend test added |
+
+### Configured runs (local stack, CLI 2.111.0, cloud worker)
+
+- `e2e/configured/per-graphic-replacement.spec.ts`, both tests pass (job j-0011, and j-0018 for
+  the PROGRAM "ran" check on the first): two outputs swap a changed graphic in place and the light
+  is green with "House Scorebug: new design at next Take" while it is on air (O3); PROGRAM reads
+  "ran" once both outputs report the Take. The held-Take test: the payload read held back 2 s on
+  Desk A and 8 s on Desk B; a Take of a new strap and a Take and Out of a second while both load.
+  The light was sampled every 250 ms through the hold and never read green; Desk B reported the
+  strap as shown late without its entrance; each output played exactly one entrance
+  (`data-plays` 1), so the cancelled strap never played; then green, "Ready".
+- Found on the way (in "Rules found while building"): an empty epoch on a page opened before the
+  first head; a `cue` status row reaching the stage as a command.
+
+### Measured (phase 2 harness, `MEASURE_BUILD=prod`, typical fixture, unthrottled, warm cache)
+
+Graphic cue Take, press to sent, with each output reporting what it ran and a second device writing
+a data-road update to another graphic every 200 ms, against phase 3's figure on one output with no
+stream (11.7 / 17.2 ms, p50 / p95):
+
+| Outputs | n | Press to sent p50 / p95 (ms) | Failures | Press to confirmed by every output p50 / p95 (ms) |
+|---|---|---|---|---|
+| 2 | 50 (two runs of 25) | 11.2 / 16.9 and 11.6 / 18.2 | 0 | 397 / 463 and 398 / 945 |
+| 4 | 50 (two runs of 25) | 13.0 / 25.3 and 14.8 / 21.3 | 0 | 424 / 1,169 and 439 / 1,075 |
+
+So the report rows and re-banks do not slow a Take with two outputs; with four the p95 is 4 to 8 ms
+higher, within AC-1's own-time target. "Confirmed" is press to PROGRAM's "ran" (every output's run
+report has reached the page), which the 5 s grey window covers at p95. Results in
+`/tmp/noacg-measure`-style files on the worker (`w3-typical-fast-prod-parto{2a,2b,4a,4b}.json`).
+Not measured here: the large fixture, throttled networks, and the demand read's bytes (it is the
+whole published payload, phase 2's "Output start" figures), left to the phase 6 and 7 runs that
+change what is read.
+
+## Not checked by the run (for the owner's final check, phase 9)
+
+- A held Take on CasparCG 2.5 and 2.3: the output page inside CasparCG's own browser, a late frame
+  coming on air without its entrance, its sound and without a flash.
+- The light on a studio network, with a real output's report rows.
+- A foreign OGraf package's own sound during its late case (NoaCG's exported graphics honour
+  `skipAnimation`; a stranger's package may not).
+
+## Traps met
+
+- The local configured stack: `dockerd`, `iproute2` (`ss`) and `supabase@2.111.0` from npm; the
+  stack's work directory is `/tmp/noacg-configured-stacks/slot-0`, where `supabase status -o json`
+  must run. Browser runs go through `npm run queue` (the Playwright config refuses a direct run on a
+  cloud worker), and a foreground wait on the queue is blocked: `node scripts/jobs.mjs wait <id>`
+  in a background job.
+- `check-e2e-protection` flags an added `test.skip(true, …)`; a conditional `test.skip(cond, …)`
+  says the same and passes.

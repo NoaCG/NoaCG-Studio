@@ -2,15 +2,35 @@
   "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
   "version": 1,
   "specs": {
-    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
-      "since": "2026-11-11",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/42945843116"
+    "e2e/configured/command-sequence.spec.ts": {
+      "since": "2026-11-13",
+      "count": 3,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43487230143"
     },
-    "e2e/output-debate-clock.spec.ts": {
-      "since": "2026-11-11",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43020316776"
+    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
+      "since": "2026-11-13",
+      "count": 3,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43449608414/job/131968256880"
+    },
+    "e2e/configured/publish-guard.spec.ts": {
+      "since": "2026-11-14",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43583442187"
+    },
+    "e2e/editor-images.spec.ts": {
+      "since": "2026-11-14",
+      "count": 3,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43631303258"
+    },
+    "e2e/editor-projects.spec.ts": {
+      "since": "2026-11-13",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43473841954"
+    },
+    "e2e/import-prepare.spec.ts": {
+      "since": "2026-11-14",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43581128114"
     }
   },
   "released": {
@@ -27,10 +47,6 @@
       "last": "2026-11-04"
     },
     "e2e/configured/audience-live.spec.ts": {
-      "count": 1,
-      "last": "2026-10-22"
-    },
-    "e2e/configured/command-sequence.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
     },
@@ -62,6 +78,10 @@
       "count": 16,
       "last": "2026-11-03"
     },
+    "e2e/configured/per-graphic-replacement.spec.ts": {
+      "count": 1,
+      "last": "2026-11-13"
+    },
     "e2e/configured/playout-both-roads.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
@@ -71,8 +91,8 @@
       "last": "2026-10-22"
     },
     "e2e/configured/production-data-key-tick.spec.ts": {
-      "count": 2,
-      "last": "2026-11-10"
+      "count": 3,
+      "last": "2026-11-12"
     },
     "e2e/configured/production-data-key.spec.ts": {
       "count": 5,
@@ -122,10 +142,6 @@
       "count": 2,
       "last": "2026-10-17"
     },
-    "e2e/editor-images.spec.ts": {
-      "count": 2,
-      "last": "2026-10-11"
-    },
     "e2e/editor-keys.spec.ts": {
       "count": 3,
       "last": "2026-10-19"
@@ -151,8 +167,8 @@
       "last": "2026-10-21"
     },
     "e2e/import-svg-corpus.spec.ts": {
-      "count": 1,
-      "last": "2026-10-18"
+      "count": 2,
+      "last": "2026-11-13"
     },
     "e2e/import-svg-credits.spec.ts": {
       "count": 1,
@@ -170,6 +186,14 @@
       "count": 1,
       "last": "2026-10-03"
     },
+    "e2e/output-debate-clock.spec.ts": {
+      "count": 3,
+      "last": "2026-11-14"
+    },
+    "e2e/pack-import.spec.ts": {
+      "count": 1,
+      "last": "2026-11-13"
+    },
     "e2e/playout-cues.spec.ts": {
       "count": 1,
       "last": "2026-10-08"
@@ -177,6 +201,10 @@
     "e2e/playout-feedback-health.spec.ts": {
       "count": 1,
       "last": "2026-10-04"
+    },
+    "e2e/production-audience.spec.ts": {
+      "count": 1,
+      "last": "2026-11-13"
     },
     "e2e/production-chat-intake.spec.ts": {
       "count": 3,
@@ -187,12 +215,16 @@
       "last": "2026-11-04"
     },
     "e2e/publish-output-setup.spec.ts": {
-      "count": 2,
-      "last": "2026-10-30"
+      "count": 3,
+      "last": "2026-11-13"
     },
     "e2e/rundown-history.spec.ts": {
       "count": 3,
       "last": "2026-10-30"
+    },
+    "e2e/ticker-linked-update.spec.ts": {
+      "count": 1,
+      "last": "2026-11-12"
     },
     "e2e/wizard-shell.spec.ts": {
       "count": 5,

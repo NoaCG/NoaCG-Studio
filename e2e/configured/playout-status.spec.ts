@@ -4,7 +4,7 @@
 // THE ONE PLAYOUT STATUS (docs/work-specs/playout-workflow-simplification AC-2 to AC-5; it
 // replaced studio-day-playout AC-7's words). The production page answers "will a Take air?" in one
 // control, always with words beside the colour: grey while nothing is reporting (never an alarm),
-// green "Connected" once a renderer reports, red only for a renderer seen this session and lost or
+// green "Ready" once a renderer reports (live-publishing O2), red only for a renderer seen this session and lost or
 // a real fault, and CasparCG matters only with its switch on. Publish changes moves the open
 // outputs onto the new version by themselves. None of it exists offline: there is nothing to
 // publish, no output to report and no version to move to.
@@ -20,6 +20,10 @@ import { createClient } from '@supabase/supabase-js';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { fakeBridge, seedSettings } from '../_fakeBridge';
 import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, readyOf, signIn, unpublishForCleanup, wipeMyGraphics, type ReadyWindow } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -52,7 +56,7 @@ test('the playout status: quiet until something reports, green when it does, red
   await expect(status).toHaveAttribute('data-tone', 'idle');
   await expect(status).toContainText('Not connected');
   const { outputSlug } = (await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return { outputSlug: loadShows().find((x) => x.id === id)?.outputSlug ?? '' };
   }, showId)) as { outputSlug: string };
   expect(outputSlug).toBeTruthy();
@@ -112,8 +116,9 @@ test('the playout status: quiet until something reports, green when it does, red
   await page.keyboard.press('Escape');
   expect(studio.actions.map((a) => a.verb)).toEqual(['take', 'out']);
 
-  // ── An output elsewhere (OBS, say) reports READY: green "Connected", the empty slot no fault. ──
+  // ── An output elsewhere (OBS, say) reports READY: green "Ready", the empty slot no fault. ──
   const anon = await browser.newContext();
+  await installDoor(anon);
   const air = await anon.newPage();
   air.on('pageerror', (e) => console.log('[output pageerror]', e.message));
   await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&name=${encodeURIComponent('Desk A')}&debug=1`);
@@ -128,7 +133,7 @@ test('the playout status: quiet until something reports, green when it does, red
   const settled = fontsOk ? 'ok' : 'warn';
   await expect(status).toHaveAttribute('data-outputs', '1', { timeout: 30_000 });
   await expect(status).toHaveAttribute('data-tone', settled, { timeout: 30_000 });
-  if (fontsOk) await expect(status).toContainText('Connected');
+  if (fontsOk) await expect(status).toContainText('Ready');
 
   // ── CasparCG switched off: a Bridge that has gone means nothing to this production. ──
   studio.missing = true;

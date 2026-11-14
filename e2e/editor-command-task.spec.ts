@@ -10,11 +10,11 @@ const evidence = (name: string) => test.info().outputPath(name);
 // One walk per viewport and mode: the UI walk is the reference that the shared command handler (semantic)
 // and the reviewed model proposals (proposal) must each reproduce exactly.
 let semantic = false, proposal = false;
-async function inspect(page: Page) { return page.evaluate(async () => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); return i; }); }
+async function inspect(page: Page) { return page.evaluate(async () => { const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); return i; }); }
 async function reviewed(page: Page, id: string, args: unknown, commit = true) {
   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
   await page.evaluate(async () => {
-    (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-task', configuredProviders: ['openai'] });
+    (await __noacgImport('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-task', configuredProviders: ['openai'] });
   });
   const handler = async (route: import('@playwright/test').Route) => { writeFileSync(evidence('request-' + id + '.json'), JSON.stringify({ body: route.request().postDataJSON(), source: await source(page), expected: { id, args } }, null, 2)); return route.fulfill({ json: { output: { summary: 'Review ' + id, commands: [{ id, args }] }, provider: 'openai', model: 'deterministic-task', usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }, attempts: [] } }); };
   await page.route('**/api/ai/generate', handler);
@@ -22,7 +22,7 @@ async function reviewed(page: Page, id: string, args: unknown, commit = true) {
   await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('textbox', { name: 'Describe an edit', exact: true }).fill('Apply the qualified ' + id + ' task edit');
   const sent = page.waitForRequest('**/api/ai/generate');
-  const accepted = await page.evaluate(async () => (await import('/src/ai/consent.ts')).noticeAcceptedLocally());
+  const accepted = await page.evaluate(async () => (await __noacgImport('/src/ai/consent.ts')).noticeAcceptedLocally());
   const before = await source(page), beforeHistory = (await inspect(page)).history;
   await page.getByRole('button', { name: 'Propose edits', exact: true }).click();
   if (!accepted) await page.getByTestId('ai-consent-accept').click(); await sent;
@@ -36,16 +36,16 @@ async function reviewed(page: Page, id: string, args: unknown, commit = true) {
     await ready(page);
   }
 }
-async function direct(page: Page, id: string, args: unknown) { const r = await page.evaluate(async ({ id, args }) => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); const r = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id, args }] }); await new Promise(r => setTimeout(r)); return r; }, { id, args }); expect(r.ok, JSON.stringify(r)).toBe(true); await ready(page); return r; }
+async function direct(page: Page, id: string, args: unknown) { const r = await page.evaluate(async ({ id, args }) => { const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); const r = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id, args }] }); await new Promise(r => setTimeout(r)); return r; }, { id, args }); expect(r.ok, JSON.stringify(r)).toBe(true); await ready(page); return r; }
 async function apply(page: Page, id: string, args: unknown) { if (proposal) await reviewed(page, id, args); else await direct(page, id, args); }
-async function changeView(page: Page, request: unknown) { const r = await page.evaluate(async request => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); const r = c.view({ expected: i.expected, ...(request as object) }); await new Promise(r => setTimeout(r)); return r; }, request); expect(r.ok, JSON.stringify(r)).toBe(true); await ready(page); }
-const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
-const selection = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
+async function changeView(page: Page, request: unknown) { const r = await page.evaluate(async request => { const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); const r = c.view({ expected: i.expected, ...(request as object) }); await new Promise(r => setTimeout(r)); return r; }, request); expect(r.ok, JSON.stringify(r)).toBe(true); await ready(page); }
+const source = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+const selection = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
 async function frame(page: Page) { return (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!; }
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);
@@ -73,7 +73,8 @@ async function numeric(page: Page, label: string, value: string) {
   await input.fill(value); await input.press('Enter'); await ready(page);
   await expect(page.locator('.ef-animation-properties [role=alert]')).toHaveCount(0);
 }
-for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'laptop-125']] as const) test('shared UI, semantic and reviewed-proposal authoring, reopen and output task ' + label, async ({ browser }, testInfo) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const [width, height, label] of [[1093, 614, 'laptop-125']] as const) test('shared UI, semantic and reviewed-proposal authoring, reopen and output task ' + label, async ({ browser }, testInfo) => {
   const compared: unknown[] = []; const creations: unknown[] = [];
   for (const mode of ['ui', 'semantic', 'proposal']) {
   semantic = mode !== 'ui'; proposal = mode === 'proposal';
@@ -102,7 +103,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   };
   await checkpoint();
   if (!semantic) await page.evaluate(async () => {
-    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(), original = s.execute.bind(s);
+    const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(), original = s.execute.bind(s);
     const captured: unknown[] = []; (window as unknown as { taskCreations: unknown[] }).taskCreations = captured;
     s.execute = request => { const result = original(request); for (const op of request.operations) if (op.kind === 'layer.create') captured.push(structuredClone(op.geometry)); return result; };
   });
@@ -127,7 +128,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   const publicId = '#' + initial.fields[0].field;
   await select(page, publicId);
   await page.evaluate(async field => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue(field, 'Operator rehearsal');
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue(field, 'Operator rehearsal');
     await new Promise(resolve => setTimeout(resolve));
   }, initial.fields[0].field);
   if (semantic) await apply(page, 'text.set', { targetId: publicId.slice(1), text: 'Morning report' }); else {
@@ -145,16 +146,16 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   const completed = await source(page), beforeCancel = await inspect(page);
   if (proposal) { await reviewed(page, 'text.set', { targetId: publicId.slice(1), text: 'Cancelled model edit' }, false); await page.getByRole('button', { name: 'Cancel', exact: true }).click(); await page.getByRole('button', { name: 'Close assistant', exact: true }).click(); expect(await source(page)).toEqual(completed); }
   if (semantic) await page.evaluate(async geometry => {
-    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
+    const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
     const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message);
     c.session.begin(i.expected.revision);
     const draft = c.session.preview([{ kind: 'layer.create', geometry } as never]);
     if (!draft.diff.length) throw new Error('The semantic draft did not stage a source patch.');
   }, creations[0]);
   else { await choose(page, 'pen'); await point(page, 1500, 800); await point(page, 1700, 880); }
-  const busy = await page.evaluate(async () => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); return c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'out.set', args: { time: 1.2 } }] }); });
+  const busy = await page.evaluate(async () => { const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); return c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'out.set', args: { time: 1.2 } }] }); });
   expect(busy.ok).toBe(false); if (!busy.ok) expect(busy.refusal.code).toBe('busy');
-  if (semantic) await page.evaluate(async () => { (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().session.cancel(); await new Promise(r => setTimeout(r)); }); else await page.keyboard.press('Escape'); expect(await source(page)).toEqual(completed); expect((await inspect(page)).history).toEqual(beforeCancel.history);
+  if (semantic) await page.evaluate(async () => { (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().session.cancel(); await new Promise(r => setTimeout(r)); }); else await page.keyboard.press('Escape'); expect(await source(page)).toEqual(completed); expect((await inspect(page)).history).toEqual(beforeCancel.history);
   await choose(page, 'select'); await select(page, shapes[0]);
   await seek(page, 1.2); if (semantic) await apply(page, 'out.set', { time: 1.2 }); else { await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click(); await ready(page); } await checkpoint();
   await seek(page, 0); if (semantic) await apply(page, 'animation.key', { targetId: shapes[0].slice(1), step: 0, property: 'x', time: 0, value: 0, action: 'set' }); else { await page.getByRole('button', { name: 'Enable Position X animation', exact: true }).click(); await ready(page); } await checkpoint();
@@ -162,19 +163,19 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   if (semantic) await apply(page, 'animation.key', { targetId: shapes[0].slice(1), step: 0, property: 'x', time: 0, value: 20, action: 'set' }); else await numeric(page, 'Position X', String(baseX + 20)); await checkpoint();
   await seek(page, 1); if (semantic) await apply(page, 'animation.key', { targetId: shapes[0].slice(1), step: 0, property: 'x', time: 1, value: 60, action: 'set' }); else await numeric(page, 'Position X', String(baseX + 60)); await checkpoint();
   expect(await page.evaluate(async id => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    return (await import('/src/blocks/editorAnimation.ts')).animationSource(t).steps[0].layers[id].x.length;
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    return (await __noacgImport('/src/blocks/editorAnimation.ts')).animationSource(t).steps[0].layers[id].x.length;
   }, shapes[0])).toBe(2);
   await seek(page, .6); if (semantic) await apply(page, 'step.add', { time: .6 }); else { await page.getByRole('button', { name: 'Add Step at playhead', exact: true }).click(); await ready(page); } await checkpoint();
   const heldX = await page.evaluate(async id => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const data = (await import('/src/blocks/editorAnimation.ts')).animationSource(t);
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const data = (await __noacgImport('/src/blocks/editorAnimation.ts')).animationSource(t);
     return data.steps.slice(0, -1).map(step => Number(step.layers[id].x.at(-1)!.value));
   }, shapes[0]);
   expect(heldX).toHaveLength(2); expect(heldX[1]).toBeGreaterThan(heldX[0]);
   const beforeRefusal = await source(page);
   const refused = await page.evaluate(async id => {
-    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message);
+    const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message);
     const request = { expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'base.set', args: { targetId: id.slice(1), values: { y: 10 } } }] };
     return [c.apply({ ...request, expected: { ...i.expected, revision: { ...i.expected.revision, source: i.expected.revision.source - 1 } } }),
       c.apply({ ...request, commands: [...request.commands, { id: 'text.set', args: { targetId: 'missing', text: 'x' } }] }),
@@ -186,7 +187,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   expect(await source(page)).toEqual(beforeRefusal);
   const beforeHistory = await source(page);
   if (semantic) {
-    for (const direction of ['undo', 'redo']) { const r = await page.evaluate(async direction => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); const r = c.history({ expected: i.expected, direction }); await new Promise(r => setTimeout(r)); return r; }, direction); expect(r.ok).toBe(true); await ready(page); }
+    for (const direction of ['undo', 'redo']) { const r = await page.evaluate(async direction => { const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); const r = c.history({ expected: i.expected, direction }); await new Promise(r => setTimeout(r)); return r; }, direction); expect(r.ok).toBe(true); await ready(page); }
   } else { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); }
   expect(await source(page)).toEqual(beforeHistory);
   await seek(page, 1.2); await select(page, textId);
@@ -200,15 +201,15 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   await page.getByRole('button', { name: 'Out', exact: true }).click();
   await expect.poll(() => frame(page).then(f => f.locator(shapes[0]).evaluate(el => getComputedStyle(el.parentElement!).opacity))).toBe('0');
   await seek(page, 1.2); await select(page, textId);
-  const validation = await page.evaluate(async () => (await import('/src/validation/validateTemplate.ts')).validateTemplate((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
+  const validation = await page.evaluate(async () => (await __noacgImport('/src/validation/validateTemplate.ts')).validateTemplate((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template));
   expect(validation.ok, JSON.stringify(validation)).toBe(true);
   const beforeSave = await source(page);
-  expect(await page.evaluate(async field => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[field], initial.fields[0].field)).toBe('Operator rehearsal');
+  expect(await page.evaluate(async field => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[field], initial.fields[0].field)).toBe('Operator rehearsal');
   await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Shared commands ' + label); await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page);
   const saved = await source(page); await page.reload(); await ready(page);
   expect(await source(page)).toEqual(saved); expect(saved.fields).toEqual(beforeSave.fields); expect(saved.assets).toEqual(initial.assets);
-  expect(await page.evaluate(async field => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[field], initial.fields[0].field)).toBe('Morning report');
+  expect(await page.evaluate(async field => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[field], initial.fields[0].field)).toBe('Morning report');
   if (width === 1093) await page.getByRole('combobox', { name: 'Canvas zoom', exact: true }).selectOption('2');
   await seek(page, 1.2); await select(page, textId); await choose(page, 'pen');
   await expect((await frame(page)).locator(textId)).toHaveText('LIVE REPORT');
@@ -225,8 +226,8 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   if (proposal) { await page.getByRole('button', { name: 'Cancel', exact: true }).click(); await page.getByRole('button', { name: 'Close assistant', exact: true }).click(); }
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async target => {
-      const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
+      const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
     }, target);
     const output = await page.context().newPage(); output.on('pageerror', error => errors.push(error.message));

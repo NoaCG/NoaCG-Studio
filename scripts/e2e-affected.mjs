@@ -35,6 +35,7 @@ import { fileURLToPath } from 'node:url';
 import { CONFIGURED_BACKEND, CONFIGURED_COVERAGE, CONFIGURED_FULL, CONFIGURED_SPECS, COVERAGE, CRITICAL, FOCUS } from './e2e-lists.mjs';
 import { COPY_PATH_FILE, copyEdit, scanScript, specsNaming } from './e2e-affected-copy.mjs';
 import { measured } from './measured.mjs';
+import { EXTRA as REGISTRY_EXTRA } from './e2e-module-registry.mjs';
 import {
   budgetMinutes,
   predictShardMinutes,
@@ -285,7 +286,7 @@ const APP_SHELL = /^app\.html$/;
 // What the DEV SERVER loads is not listed here: it is read off vite.config.ts's imports
 // (`devServerModules`, #957) and passes IGNORE the same way.
 const SUITE_CRITICAL_SCRIPTS =
-  'build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|execution-profile|e2e-affected|e2e-lists|e2e-trace|build-news-pack|build-production-pack|packs/';
+  'build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|execution-profile|e2e-affected|e2e-lists|e2e-trace|e2e-dev-server-specs|e2e-build-sources|build-news-pack|build-production-pack|packs/';
 // `.env.example` is a template a human copies; nothing loads it. Vite and the dev-server middleware
 // read `.env`, and a spec drives a dev server that has never opened the example - so escalating on
 // it ran 53 specs to prove nothing. It already has a real gate in `npm run build`:
@@ -321,7 +322,7 @@ const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
 // site build loads and whose spec headers say so. IGNORE runs before the header lookup, so a path
 // missing here leaves its `covers:` line dead and its edits plan `mode: none`; the test "every
 // docs or scripts file a spec header names plans that spec" fails when that happens. Each one:
-//   - svg-samples/ and tutorials/svg-examples/: the practice SVGs the import specs and the
+//   - svg-samples/, tutorials/svg-examples/ and tutorials/svg-templates/: the practice SVGs the import specs and the
 //     downloads pack load (the latter's README ships in the pack, so it counts too).
 //   - whats-new/ and GOALS.md: Vite builds the landing's What's new section, /whats-new and
 //     /roadmap from the notes, roadmap.md and GOALS.md (scripts/whats-new.mjs, scripts/roadmap.mjs).
@@ -329,8 +330,8 @@ const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
 //     a content edit turned main red in #1198 with no E2E on its PR. The whats-new README is the
 //     writers' guide; the build skips it.
 //   - research/editor-r1-1d/baseline/: the recorded wizard baseline editor-fidelity-trim reads.
-const DOCS_LOADED = String.raw`svg-samples\/|tutorials\/svg-examples\/|whats-new\/|GOALS\.md$|research\/editor-r1-1d\/baseline\/`;
-const MD_LOADED = String.raw`docs\/tutorials\/svg-examples\/.*\.md$|docs\/whats-new\/(?!README\.md$)|docs\/GOALS\.md$`;
+const DOCS_LOADED = String.raw`svg-samples\/|tutorials\/svg-(examples|templates)\/|whats-new\/|GOALS\.md$|research\/editor-r1-1d\/baseline\/`;
+const MD_LOADED = String.raw`docs\/tutorials\/svg-(examples|templates)\/.*\.md$|docs\/whats-new\/(?!README\.md$)|docs\/GOALS\.md$`;
 // `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
 const IGNORE = [new RegExp(`^docs/(?!${DOCS_LOADED})`), new RegExp(`^(?!${MD_LOADED}).*\\.md$`), /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, /^scripts\/e2e-traced\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
@@ -588,7 +589,7 @@ const helpersFor = (changed) => (changed.some((f) => /^e2e\/_/.test(f)) ? helper
 /**
  * WHAT THE CATALOG GATE MEASURES THROUGH, read off its specs rather than listed (cicd-improvement
  * ci04). The calibration gate (`playwright.catalog.config.ts`, e2e/catalog/) renders every design
- * by importing source INTO THE PAGE - `await import('/src/templates/catalog.ts')`,
+ * by importing source INTO THE PAGE - `await __noacgImport('/src/templates/catalog.ts')` (or `import(`),
  * `/src/preview/composeDocument.ts`, the bench - and its Node side imports more: helpers that build
  * packages through src/export (e2e/_ografParity.ts) and scripts whose text feeds assertions
  * (scripts/rules.mjs). A file in either closure can move a catalog measurement, so its change
@@ -650,7 +651,7 @@ export function catalogReachOf(specs, readFile) {
     }
     // Page imports are named from the app root, and only from the Node side.
     if (file.startsWith('src/')) continue;
-    for (const m of code.matchAll(/\bimport\(\s*['"`]\/(src\/[^'"`?]+)/g)) {
+    for (const m of code.matchAll(/\b(?:import|__noacgImport)\(\s*['"`]\/(src\/[^'"`?]+)/g)) {
       if (read(m[1]) === null) return null;
       pageImports = true;
       add(m[1]);
@@ -948,6 +949,9 @@ export function checkoutSourceGraph() {
       if (/\.(m?[jt]sx?|css)$/.test(file)) sources.set(file, readCheckout(file) ?? '');
     }
   }
+  // The files outside src/ and api/ a source module imports: the e2e registry's EXTRA modules
+  // (scripts/e2e-module-registry.mjs), the env probe. Each is a leaf, so knowing it exists is enough.
+  for (const path of REGISTRY_EXTRA) files.add(path.slice(1));
   sourceGraphCache = sourceGraph(sources, files);
   return sourceGraphCache;
 }

@@ -35,7 +35,7 @@ import { addToProductionFromFinish } from './_create';
 /** How many kits the registry offers - the source of truth the grid is rendered from. */
 async function packCount(page: Page): Promise<number> {
   return page.evaluate(async () => {
-    const { PACKS } = await import('/src/templates/packs.ts');
+    const { PACKS } = await __noacgImport('/src/templates/packs.ts');
     return PACKS.length;
   });
 }
@@ -44,7 +44,7 @@ async function packCount(page: Page): Promise<number> {
  *  a starter is curated config, and the assertion worth keeping is that the screen agrees. */
 async function starterOf(page: Page, packId: string): Promise<string[]> {
   return page.evaluate(async (id) => {
-    const { PACKS } = await import('/src/templates/packs.ts');
+    const { PACKS } = await __noacgImport('/src/templates/packs.ts');
     return [...PACKS.find((p: { id: string }) => p.id === id)!.starter];
   }, packId);
 }
@@ -85,8 +85,8 @@ async function savedShow(page: Page) {
   await settleDurableWrites(page);
   return page.evaluate(async () => {
     const showId = location.hash.split('/').pop();
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     const shows = loadShows() as unknown as {
       id: string;
       name: string;
@@ -433,10 +433,10 @@ test('clearing the brand gives every kit graphic its kit palette back', async ({
   // transform - a brand in, then None, lands each graphic back on the kit's own palette.
   await page.goto('/app');
   const result = await page.evaluate(async () => {
-    const { packById } = await import('/src/templates/packs.ts');
-    const { kitSelection } = await import('/src/templates/kit.ts');
-    const { buildKit, rebrandKit, kitPaletteFor } = await import('/src/components/wizard/template/kitPlan.ts');
-    const { initialDraft } = await import('/src/components/wizard/draft.ts');
+    const { packById } = await __noacgImport('/src/templates/packs.ts');
+    const { kitSelection } = await __noacgImport('/src/templates/kit.ts');
+    const { buildKit, rebrandKit, kitPaletteFor } = await __noacgImport('/src/components/wizard/template/kitPlan.ts');
+    const { initialDraft } = await __noacgImport('/src/components/wizard/draft.ts');
     const pack = packById('newsroom')!;
     const items = kitSelection(pack, pack.starter);
     const built = buildKit(pack, items, initialDraft(), null);
@@ -536,7 +536,7 @@ test('the export door saves the whole set first, then packages it', async ({ pag
 
   // THE SAVE IS NOT OPTIONAL.
   const savedCount = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return (loadGraphics() as unknown as unknown[]).length;
   });
   expect(savedCount).toBe(2);
@@ -599,7 +599,7 @@ test('a kit opened FOR a production joins that one, in its look', async ({ page 
   expect(graphicHtmls).toHaveLength(3);
 
   const report = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const shows = loadShows() as unknown as { name: string; graphics: { template: { css: string } }[] }[];
     return {
       names: shows.map((s) => s.name),
@@ -618,10 +618,10 @@ test('every kit can run a show in one Style out of the box', async ({ page }) =>
   // Module-level, over every kit: the claim is about all of them, which no UI walk covers.
   await page.goto('/app');
   const report = await page.evaluate(async () => {
-    const { PACKS, validatePacks, REFERENCE_FORMAT_COUNT } = await import('/src/templates/packs.ts');
-    const { kitChoices, kitSelection } = await import('/src/templates/kit.ts');
-    const { kitItemDraft, kitPaletteFor } = await import('/src/components/wizard/template/kitPlan.ts');
-    const { buildDraftTemplate, initialDraft } = await import('/src/components/wizard/draft.ts');
+    const { PACKS, validatePacks, REFERENCE_FORMAT_COUNT } = await __noacgImport('/src/templates/packs.ts');
+    const { kitChoices, kitSelection } = await __noacgImport('/src/templates/kit.ts');
+    const { kitItemDraft, kitPaletteFor } = await __noacgImport('/src/components/wizard/template/kitPlan.ts');
+    const { buildDraftTemplate, initialDraft } = await __noacgImport('/src/components/wizard/draft.ts');
     const found: string[] = [];
     const accentsByKit: Record<string, string[]> = {};
     for (const pack of PACKS) {

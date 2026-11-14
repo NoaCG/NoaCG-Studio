@@ -628,13 +628,15 @@ function missingTimeouts(version, statements) {
  *   functions and triggers behind them, and the tables they read and write (`control_shows`,
  *   `control_events`, and `control_heads` or whatever comes next under the same prefix);
  * - `realtime.messages`, whose policies admit the `cmd-`, `log-`, `live-` and `seq-` topics;
- * - the predicates the policies on those tables call and the trigger function they share. These
+ * - the predicates the policies on those tables call and the trigger functions they share
+ *   (`set_updated_at`, and `production_authoring_guard` from 0115, which a control_shows trigger
+ *   and two others call). These
  *   are named everywhere else too, so only a statement ABOUT them counts (defining, dropping,
  *   altering, granting or revoking the function), not every policy that calls one.
  */
 export const LIVE_PATH_PREFIX = 'control_';
 export const LIVE_PATH_TABLES = ['realtime.messages'];
-export const LIVE_PATH_FUNCTIONS = ['is_suspended', 'feature_denied', 'is_team_member', 'set_updated_at'];
+export const LIVE_PATH_FUNCTIONS = ['is_suspended', 'feature_denied', 'is_team_member', 'set_updated_at', 'production_authoring_guard'];
 /** Files from this version on must declare the class; older ones are applied everywhere already. */
 export const FIRST_LIVE_PATH_MIGRATION = '0068';
 /** How recent a renderer heartbeat or an operator command must be to count (QUIET_WINDOW_SQL). */

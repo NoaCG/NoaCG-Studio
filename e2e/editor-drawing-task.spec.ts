@@ -6,13 +6,13 @@ import { settleDurableWrites } from './_durable';
 
 // This run's pictures go to the test's own output folder (ignored), never into docs/.
 const evidence = (name: string) => test.info().outputPath(name);
-const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
-const selection = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
+const source = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+const selection = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
 async function frame(page: Page) { return (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!; }
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);
@@ -40,7 +40,8 @@ async function numeric(page: Page, label: string, value: string) {
   await input.fill(value); await input.press('Enter'); await ready(page);
   await expect(page.locator('.ef-animation-properties [role=alert]')).toHaveCount(0);
 }
-for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'laptop-125']] as const) test('cumulative wizard authoring, reopen and output task ' + label, async ({ page }, testInfo) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const [width, height, label] of [[1093, 614, 'laptop-125']] as const) test('cumulative wizard authoring, reopen and output task ' + label, async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   const errors: string[] = [], network: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -70,7 +71,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   const publicId = '#' + initial.fields[0].field;
   await select(page, publicId);
   await page.evaluate(async field => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue(field, 'Operator rehearsal');
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue(field, 'Operator rehearsal');
     await new Promise(resolve => setTimeout(resolve));
   }, initial.fields[0].field);
   await page.getByRole('textbox', { name: 'Artwork text', exact: true }).fill('Morning report');
@@ -99,19 +100,19 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   const baseX = Number(await page.locator('.ef-animation-properties').getByRole('textbox', { name: 'Position X', exact: true }).inputValue());
   await numeric(page, 'Position X', String(baseX + 20)); await seek(page, 1); await numeric(page, 'Position X', String(baseX + 60));
   expect(await page.evaluate(async id => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    return (await import('/src/blocks/editorAnimation.ts')).animationSource(t).steps[0].layers[id].x.length;
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    return (await __noacgImport('/src/blocks/editorAnimation.ts')).animationSource(t).steps[0].layers[id].x.length;
   }, shapes[0])).toBe(2);
   await seek(page, .6); await page.getByRole('button', { name: 'Add Step at playhead', exact: true }).click(); await ready(page);
   const heldX = await page.evaluate(async id => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const data = (await import('/src/blocks/editorAnimation.ts')).animationSource(t);
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const data = (await __noacgImport('/src/blocks/editorAnimation.ts')).animationSource(t);
     return data.steps.slice(0, -1).map(step => Number(step.layers[id].x.at(-1)!.value));
   }, shapes[0]);
   expect(heldX).toHaveLength(2); expect(heldX[1]).toBeGreaterThan(heldX[0]);
   const beforeRefusal = await source(page);
   const refused = await page.evaluate(async id => {
-    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     const request = { documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'base.set', selector: id, values: { y: 10 } }] };
     const messages: string[] = [];
     try { s.execute({ ...request, expected: { ...request.expected, source: request.expected.source - 1 } } as never); } catch (e) { messages.push(String(e)); }
@@ -121,12 +122,12 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   expect(refused).toHaveLength(2); expect(refused[0]).toContain('document changed'); expect(await source(page)).toEqual(beforeRefusal);
   await seek(page, 1.2); await select(page, paths[2]);
   const beforeSave = await source(page);
-  expect(await page.evaluate(async field => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[field], initial.fields[0].field)).toBe('Operator rehearsal');
+  expect(await page.evaluate(async field => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[field], initial.fields[0].field)).toBe('Operator rehearsal');
   await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Persistent drawing ' + label); await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page);
   const saved = await source(page); await page.reload(); await ready(page);
   expect(await source(page)).toEqual(saved); expect(saved.fields).toEqual(beforeSave.fields); expect(saved.assets).toEqual(initial.assets);
-  expect(await page.evaluate(async field => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[field], initial.fields[0].field)).toBe('Morning report');
+  expect(await page.evaluate(async field => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[field], initial.fields[0].field)).toBe('Morning report');
   if (width === 1093) await page.getByRole('combobox', { name: 'Canvas zoom', exact: true }).selectOption('2');
   await seek(page, 1.2); await select(page, paths[2]); await choose(page, 'pen');
   await expect((await frame(page)).locator(textId)).toHaveText('LIVE REPORT');
@@ -138,8 +139,8 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   await page.screenshot({ path: evidence(label + '.png') });
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async target => {
-      const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
+      const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
     }, target);
     const output = await page.context().newPage(); output.on('pageerror', error => errors.push(error.message));

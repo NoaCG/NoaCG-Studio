@@ -279,8 +279,8 @@ test.describe('runtime bench detection fixtures', () => {
     test.setTimeout(120_000);
     await toApp(page);
     const told = await page.evaluate(async () => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { benchTemplateRuntime } = await import('/src/validation/runtimeBench.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const { benchTemplateRuntime } = await __noacgImport('/src/validation/runtimeBench.ts');
       const dc01 = Object.values(CATALOG).flat().find((v) => v?.id === 'dc01')!;
       const cuts = async (css: string) => {
         const tpl = dc01.create({});
@@ -313,8 +313,8 @@ test.describe('runtime bench detection fixtures', () => {
     test.setTimeout(240_000);
     await toApp(page);
     const told = await page.evaluate(async () => {
-      const bridge = await import('/src/bridge/bridgeApi.ts');
-      const { benchTemplateRuntime } = await import('/src/validation/runtimeBench.ts');
+      const bridge = await __noacgImport('/src/bridge/bridgeApi.ts');
+      const { benchTemplateRuntime } = await __noacgImport('/src/validation/runtimeBench.ts');
       const out: string[] = [];
       const types = (await bridge.types()).filter((t) => t.neutral).map((t) => t.id);
       if (types.length < 10) out.push(`only ${types.length} neutral scaffolds found`);
@@ -339,8 +339,8 @@ test.describe('runtime bench detection fixtures', () => {
     test.setTimeout(120_000);
     await toApp(page);
     const told = await page.evaluate(async () => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { benchTemplateRuntime } = await import('/src/validation/runtimeBench.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const { benchTemplateRuntime } = await __noacgImport('/src/validation/runtimeBench.ts');
       const ids = ['lt60', 'ls03', 'ls07', 'ls20', 'card48', 'al09', 'gt08', 'sb27', 'bug33', 'bug34', 'vs02'];
       const out: string[] = [];
       for (const id of ids) {
@@ -436,8 +436,8 @@ test.describe('design adjustments', () => {
     test.setTimeout(60_000);
     await toApp(page);
     const res = await page.evaluate(`(async () => { ${HELPERS}
-      const { specToTemplate } = await import('/src/ai/designSpec.ts');
-      const { applyDesignAdjustments } = await import('/src/ai/designAdjust.ts');
+      const { specToTemplate } = await __noacgImport('/src/ai/designSpec.ts');
+      const { applyDesignAdjustments } = await __noacgImport('/src/ai/designAdjust.ts');
       const spec = {
         fit: 'catalog', reason: 'test', name: 'Adjusted Strap',
         summary: 'test', category: 'lower-third', variantId: 'lt01',

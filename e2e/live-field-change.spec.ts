@@ -21,7 +21,7 @@ test('every category keeps its live values across a renamed, added or removed fi
   test.setTimeout(ALL ? 900_000 : 120_000);
   await page.goto('/app', { waitUntil: 'domcontentloaded' });
   const targets: { id: string; cat: string }[] = await page.evaluate(async (all) => {
-    const cat = await import('/src/templates/catalog.ts');
+    const cat = await __noacgImport('/src/templates/catalog.ts');
     const out: { id: string; cat: string }[] = [];
     for (const [category, variants] of Object.entries(cat.CATALOG)) {
       for (const v of (variants ?? []).slice(0, all ? undefined : 1)) out.push({ id: v.id, cat: category });
@@ -31,8 +31,8 @@ test('every category keeps its live values across a renamed, added or removed fi
   expect(targets.length).toBeGreaterThan(10);
   // A rename keeps the field's id, so an Update of the renamed field reaches the body on air.
   const renamed = await page.evaluate(async (id) => {
-    const cat = await import('/src/templates/catalog.ts');
-    const { setFieldTitle } = await import('/src/blocks/edit.ts');
+    const cat = await __noacgImport('/src/templates/catalog.ts');
+    const { setFieldTitle } = await __noacgImport('/src/blocks/edit.ts');
     const tpl = cat.variantById(id)!.create({});
     const first = tpl.fields[0];
     const after = setFieldTitle(tpl, first.field, 'Renamed on air');
@@ -46,10 +46,10 @@ test('every category keeps its live values across a renamed, added or removed fi
   for (let at = 0; at < targets.length; at += 8) {
     const batch = targets.slice(at, at + 8).map((t) => t.id);
     const result: { findings: Finding[]; checked: number } = await page.evaluate(async (ids) => {
-      const cat = await import('/src/templates/catalog.ts');
-      const comp = await import('/src/preview/composeDocument.ts');
-      const types = await import('/src/model/types.ts');
-      const { sentinelFor } = await import('/src/validation/fieldPaint.ts');
+      const cat = await __noacgImport('/src/templates/catalog.ts');
+      const comp = await __noacgImport('/src/preview/composeDocument.ts');
+      const types = await __noacgImport('/src/model/types.ts');
+      const { sentinelFor } = await __noacgImport('/src/validation/fieldPaint.ts');
       const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
       type Field = Parameters<typeof sentinelFor>[0];
       /** Round B's text and numbers are round A's index plus this, so the page text says which. */

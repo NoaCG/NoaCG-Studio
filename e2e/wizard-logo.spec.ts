@@ -1,3 +1,4 @@
+// runs on: dev server - imports fresh module copies (a cache-busting suffix), which only the dev server serves
 // covers: src/templates/**
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 // focus
@@ -75,7 +76,7 @@ async function awaitAtRest(page: Page, selectors: string[]) {
 }
 async function createdTemplate(page: Page) {
   return page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return {
       fields: t.fields,

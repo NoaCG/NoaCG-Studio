@@ -5,22 +5,22 @@ import { writeFileSync } from 'node:fs';
 import { evaluateInPage } from './_evaluate';
 import { settleDurableWrites } from './_durable';
 type Point = { x: number; y: number };
-const source = (p: Page) => p.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
-const history = (p: Page) => p.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length);
-const base = (p: Page, s: string) => p.evaluate(async s => (await import('/src/blocks/baseEdits.ts')).baseValues((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template, s), s);
+const source = (p: Page) => p.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+const history = (p: Page) => p.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().history.length);
+const base = (p: Page, s: string) => p.evaluate(async s => (await __noacgImport('/src/blocks/baseEdits.ts')).baseValues((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template, s), s);
 async function ready(p: Page) {
   await expect(p.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect.poll(() => p.evaluate(async () => {
-    const v = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view(), c = document.querySelector('[data-testid=foundation-canvas]')!;
+    const v = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view(), c = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(c.getAttribute('data-pose-time')) - v.time) < .00001 && c.getAttribute('data-pose-cue') === String(v.cue ?? 'arriving');
   })).toBe(true);
 }
 async function setup(p: Page, box = false) {
   await p.goto('/app?editor=foundation#/editor-foundation'); await expect(p.getByTestId('editor-foundation')).toBeVisible();
   const s = await evaluateInPage(p, async (box: boolean) => {
-    const t = (await import('/src/templates/catalog.ts')).variantById('lt01')!.create({});
-    const a = (await import('/src/blocks/baseEdits.ts')).createArtwork(t, { shape: box ? 'text' : 'rectangle', x: 700, y: -560, width: 400, height: 160, box });
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(a.template, { resetSampleData: true }); return a.selector;
+    const t = (await __noacgImport('/src/templates/catalog.ts')).variantById('lt01')!.create({});
+    const a = (await __noacgImport('/src/blocks/baseEdits.ts')).createArtwork(t, { shape: box ? 'text' : 'rectangle', x: 700, y: -560, width: 400, height: 160, box });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(a.template, { resetSampleData: true }); return a.selector;
   }, box);
   await ready(p); await p.locator(`.ef-track[data-selector="${s}"] .ef-layer`).first().click(); await ready(p); return s;
 }
@@ -70,7 +70,8 @@ test('linked scale preserves unequal axes for typing, corners and sides; Shift i
   b = await base(p, s); expect(b.scaleX / b.scaleY).toBeCloseTo(2, 5); near(await point(p, '[data-edge="3"]'), opposite);
   expect((await source(p)).html).toBe(initial.html); expect((await source(p)).js).toBe(initial.js);
 });
-for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'zoom-proxy']] as const) test('text-box side versus corner and rotation reopen ' + label, async ({ page: p }) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const [width, height, label] of [[1366, 768, 'laptop'], [1093, 614, 'zoom-proxy']] as const) test('text-box side versus corner and rotation reopen ' + label, async ({ page: p }) => {
   test.setTimeout(120_000); const errors: string[] = []; p.on('pageerror', e => errors.push(e.message));
   await p.setViewportSize({ width, height }); const s = await setup(p, true);
   if (label === 'zoom-proxy') { await p.getByRole('combobox', { name: 'Canvas zoom' }).selectOption('2'); await ready(p); }

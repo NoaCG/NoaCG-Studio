@@ -22,7 +22,7 @@ import { settleDurableWrites } from './_durable';
 // grouping for air is a PRODUCTION, covered by shows/productions specs.)
 
 const workingSource = (page: Page) => page.evaluate(async () =>
-  (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
 async function editTitle(page: Page, text: string) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
@@ -84,7 +84,7 @@ test('Save As never makes a second graphic under a taken name: it offers a free 
   await expect(page.locator('.ef-document-name')).toHaveText('Presenter lower third 2');
   await settleDurableWrites(page);
   const names = await page.evaluate(async () =>
-    (await import('/src/model/library.ts')).loadGraphics().map((g) => g.name).sort());
+    (await __noacgImport('/src/model/library.ts')).loadGraphics().map((g) => g.name).sort());
   expect(names).toEqual(['Presenter lower third', 'Presenter lower third 2']);
 });
 
@@ -618,9 +618,9 @@ test('a look carries SHAPE, and never grafts a token onto a design that reads no
   // calls them is already covered by the look test above.
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const out = await page.evaluate(async () => {
-    const { variantById, CATALOG } = await import('/src/templates/catalog.ts');
-    const { captureLookFromTemplate, applyLookToTemplate } = await import('/src/model/packets.ts');
-    const { getCssVariable } = await import('/src/model/cssVars.ts');
+    const { variantById, CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { captureLookFromTemplate, applyLookToTemplate } = await __noacgImport('/src/model/packets.ts');
+    const { getCssVariable } = await __noacgImport('/src/model/cssVars.ts');
 
     const source = variantById('lt08').create({}); // Frosted Card - glass: a real radius and blur
     const look = captureLookFromTemplate(source);
@@ -729,8 +729,8 @@ test('the Graphics header is one row, and the type chips and sort narrow and reo
   await page.goto('/app#/home/graphics');
   await page.keyboard.press('Escape');
   await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const strap = variantsFor('lower-third')[0].create({});
     const crawl = variantsFor('ticker')[0].create({});
     createGraphic(strap, { name: 'Zulu Strap' });

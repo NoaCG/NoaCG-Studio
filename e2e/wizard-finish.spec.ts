@@ -57,8 +57,8 @@ test('finish: the production door saves, pools with a seeded cue, and lands on t
   await expect(page.getByTestId('production-page')).toBeVisible();
 
   const state = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const graphics = loadGraphics();
     const show = loadShows().find((s) => s.name === 'Friday Show');
     return {
@@ -103,8 +103,8 @@ test('finish: the production door names the rundown before it leaves the wizard'
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
   expect(
     await page.evaluate(async () => {
-      const { loadGraphics } = await import('/src/model/library.ts');
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       return loadGraphics().length + loadShows().length;
     }),
   ).toBe(0);
@@ -120,7 +120,7 @@ test('back after creating returns to the wizard, warns, and replaces rather than
   // nothing points it anywhere, so a walk-back that forgot where it had been would default to
   // this one and append a second copy of the graphic to a show the reader never named.
   await page.evaluate(async () => {
-    const { createShowNamed } = await import('/src/model/shows.ts');
+    const { createShowNamed } = await __noacgImport('/src/model/shows.ts');
     createShowNamed('Old Show');
   });
   await settleDurableWrites(page); // it has to survive toFinishStep's own reload
@@ -186,8 +186,8 @@ test('back after creating returns to the wizard, warns, and replaces rather than
   // back that minted a second "Guest Strap" every time would make re-entry worse than no
   // re-entry at all.
   const state = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const graphics = loadGraphics();
     const shows = loadShows();
     const show = shows.find((s) => s.name === 'Friday Show')!;
@@ -235,7 +235,7 @@ test('finish: the editor door creates the project and leaves saving to the user'
   // Nothing was written to the library: this door hands over to the editor, where Save is
   // the user's move — exactly as it was before the step existed.
   const saved = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().length;
   });
   expect(saved).toBe(0);
@@ -259,7 +259,7 @@ test('finish: the export door saves the graphic and opens the export window over
   // The graphic survives the session — an export-only creation that vanished would cost the
   // user every wizard choice to get the same package back.
   const names = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().map((g) => g.name);
   });
   expect(names).toEqual(['Match Day Strap']);
@@ -296,7 +296,7 @@ async function exportThenRewind(page: Page, name: string): Promise<void> {
 
 async function libraryNames(page: Page): Promise<string[]> {
   return (await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().map((g) => g.name);
   })) as string[];
 }
@@ -359,8 +359,8 @@ test('finish: the name reaches the exported package folder', async ({ page }) =>
   // the zip AND the template file's own name — what the operator picks from in the playout
   // server. Without it every package shipped under the design's catalog name ('hairline/…').
   const files = await page.evaluate(async () => {
-    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     const spx = EXPORT_TARGETS.find((t) => t.id === 'spx')!;
     const zip = await spx.build(loadGraphics()[0].template, { sampleData: {} });
     return Object.keys(zip.files);
@@ -555,8 +555,8 @@ async function setWriteSwitch(page: Page, value: { hold?: string; refuse?: strin
 /** The library's names and, per production name, the names in its rundown. */
 async function saved(page: Page): Promise<{ library: string[]; rundowns: Record<string, string[]> }> {
   return page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return {
       library: loadGraphics().map((g) => g.name),
       rundowns: Object.fromEntries(loadShows().map((s) => [s.name, s.graphics.map((g) => g.name)])),
@@ -589,7 +589,7 @@ test('production door: a refused rundown write names the retry and leaves the re
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.evaluate(async () => {
-    const { createShowNamed } = await import('/src/model/shows.ts');
+    const { createShowNamed } = await __noacgImport('/src/model/shows.ts');
     createShowNamed('Old Show');
   });
   await settleDurableWrites(page);
@@ -638,7 +638,7 @@ test('production door pressed twice while its save is held: one production (R7)'
   await settleDurableWrites(page);
 
   const productions = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().map((s) => [s.name, s.graphics.map((g) => g.name)]);
   });
   expect({ library: (await saved(page)).library, productions }).toEqual({

@@ -6,8 +6,8 @@ test('discovery schemas reject malformed, extra, unbounded and unqualified argum
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const results = await page.evaluate(async () => {
-    const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
-    const { discoverCommands } = await import('/src/components/editorFoundation/commands.ts');
+    const { activeEditorCommands } = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts');
+    const { discoverCommands } = await __noacgImport('/src/components/editorFoundation/commands.ts');
     const c = activeEditorCommands(), discovery = discoverCommands(), s = c.session;
     const before = s.port.read(), state = s.commandState();
     const inspect = c.inspect(); if (!inspect.ok) throw new Error(inspect.refusal.message);
@@ -44,7 +44,7 @@ test('discovery schemas reject malformed, extra, unbounded and unqualified argum
 test('revision, view, history, liveness and active-gesture guards retain source and drafts', async ({ page }) => {
   await page.goto('/app?editor=foundation#/editor-foundation'); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const result = await page.evaluate(async () => {
-    const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
+    const { activeEditorCommands } = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts');
     const c = activeEditorCommands(), s = c.session;
     const get = () => { const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); return i; };
     const command = { id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } };
@@ -74,27 +74,27 @@ test('revision, view, history, liveness and active-gesture guards retain source 
 test('commit receipt stays separate from matching preview readiness and route lifetime', async ({ page }) => {
   await page.goto('/app?editor=foundation#/editor-foundation'); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const result = await page.evaluate(async () => {
-    const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
+    const { activeEditorCommands } = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts');
     const c = activeEditorCommands(), i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message);
     const result = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 50, y: 30, width: 90, height: 90 } } }] });
     (window as unknown as { priorCommands: typeof c }).priorCommands = c;
     await new Promise(r => setTimeout(r)); return result;
   });
   expect(result.ok).toBe(true); if (result.ok) { expect(result.state).toBe('committed'); expect(result.preview.state).not.toBe('ready'); expect(result.history.undo).toBe(1); expect(result.changedIds).toHaveLength(1); }
-  await expect.poll(() => page.evaluate(async () => { const r = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect(); return r.ok ? r.preview.state : r.refusal.code; })).toBe('ready');
-  const acknowledged = await page.evaluate(async () => (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect());
+  await expect.poll(() => page.evaluate(async () => { const r = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect(); return r.ok ? r.preview.state : r.refusal.code; })).toBe('ready');
+  const acknowledged = await page.evaluate(async () => (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect());
   if (acknowledged.ok && acknowledged.preview.state === 'ready') { expect(acknowledged.preview.revision).toEqual(acknowledged.expected.revision); expect(acknowledged.preview.time).toBe(acknowledged.view.time); expect(acknowledged.preview.drawingSpace).not.toBeNull(); }
-  const sourceBeforeLeave = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  const sourceBeforeLeave = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
   await page.evaluate(() => { location.hash = '#/home'; });
   // Dirty navigation first resolves the document while the command binding is still live.
   // Save through the real decision, then retain the original unmount/reopen assertions.
   await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   await expect(page.getByTestId('home-page')).toHaveCount(0);
-  const pending = await page.evaluate(async () => (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect());
+  const pending = await page.evaluate(async () => (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect());
   expect(pending.ok).toBe(true);
   if (pending.ok && acknowledged.ok) expect(pending.expected).toEqual(acknowledged.expected);
-  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(sourceBeforeLeave);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(sourceBeforeLeave);
   await page.getByTestId('switch-save').click();
   await expect(page.getByTestId('save-dialog')).toBeVisible();
   await page.getByTestId('save-confirm').click();
@@ -104,7 +104,7 @@ test('commit receipt stays separate from matching preview readiness and route li
   // Real navigation destroys the old realm; document reopen gives a fresh instance.
   await page.goto('/app?editor=foundation#/editor-foundation'); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  const reopened = await page.evaluate(async () => (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect());
+  const reopened = await page.evaluate(async () => (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect());
   expect(reopened.ok).toBe(true); if (reopened.ok && acknowledged.ok) expect(reopened.expected.sessionId).not.toBe(acknowledged.expected.sessionId);
 });
 
@@ -112,9 +112,9 @@ test('commit receipt stays separate from matching preview readiness and route li
 test('capability inspection preserves unsupported styled, unnamed and ambiguous source', async ({ page }) => {
   await page.goto('/app?editor=foundation#/editor-foundation'); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const result = await page.evaluate(async () => {
-    const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
-    const { EditorCommands } = await import('/src/components/editorFoundation/commands.ts');
-    const { EditorSession } = await import('/src/components/editorFoundation/session.ts');
+    const { activeEditorCommands } = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts');
+    const { EditorCommands } = await __noacgImport('/src/components/editorFoundation/commands.ts');
+    const { EditorSession } = await __noacgImport('/src/components/editorFoundation/session.ts');
     const seed = { ...activeEditorCommands().session.port.read() };
     seed.html = seed.html.replace(/(<(?:span|text)\b[^>]*id="f0"[^>]*>)[\s\S]*?(<\/(?:span|text)>)/, '$1<tspan>Keep styled runs</tspan>$2');
     let template = { ...seed, html: seed.html.replace('</body>', '<svg><text id="styled"><tspan>Keep styled runs</tspan></text><rect width="50" height="50"/><text id="ambiguous">A</text><text id="ambiguous">B</text></svg></body>') };
@@ -138,7 +138,7 @@ test('capability inspection preserves unsupported styled, unnamed and ambiguous 
 test('qualified base position commits once and renders the authored parent pixels', async ({ page }) => {
   await page.goto('/app?editor=foundation#/editor-foundation'); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const result = await page.evaluate(async () => {
-    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
+    const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
     const inspect = () => { const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); return i; };
     const created = c.apply({ expected: inspect().expected, transactionId: 'create-base-target', commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } }] });
     if (!created.ok) throw new Error(created.refusal.message);
@@ -147,17 +147,17 @@ test('qualified base position commits once and renders the authored parent pixel
     await new Promise(r => setTimeout(r)); return { targetId, moved };
   });
   expect(result.moved.ok).toBe(true); if (result.moved.ok) { expect(result.moved.history.undo).toBe(2); expect(result.moved.changedIds).toEqual([result.targetId]); expect(result.moved.patches.map(p => p.file)).toEqual(['css']); }
-  await expect.poll(() => page.evaluate(async () => { const i = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect(); return i.ok ? i.preview.state : 'refused'; })).toBe('ready');
+  await expect.poll(() => page.evaluate(async () => { const i = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect(); return i.ok ? i.preview.state : 'refused'; })).toBe('ready');
   const frame = (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
   await expect.poll(() => frame.locator('#' + result.targetId).evaluate(el => ({ x: getComputedStyle(el).left, y: getComputedStyle(el).top }))).toEqual({ x: '70px', y: '30px' });
 });
 test('remounting the editor refuses a request from the closed command binding', async ({ page }) => {
   await page.goto('/app?editor=foundation#/editor-foundation'); await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  const prior = await page.evaluate(async () => { const i = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect(); if (!i.ok) throw new Error(i.refusal.message); return i.expected; });
+  const prior = await page.evaluate(async () => { const i = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect(); if (!i.ok) throw new Error(i.refusal.message); return i.expected; });
   await page.evaluate(() => { location.hash = '#/home'; }); await expect(page.getByTestId('editor-foundation')).toHaveCount(0);
   await page.evaluate(() => { location.hash = '#/editor-foundation'; }); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const result = await page.evaluate(async priorSessionId => {
-    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message);
+    const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message);
     // Current revision/view isolate the lifetime guard from other stale-context guards.
     const before = JSON.stringify(c.session.port.read());
     const refusal = c.apply({ expected: { ...i.expected, sessionId: priorSessionId }, transactionId: 'prior-binding', commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } }] });

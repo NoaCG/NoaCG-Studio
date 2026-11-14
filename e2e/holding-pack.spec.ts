@@ -35,8 +35,8 @@ async function toTemplateStep(page: Page, category: string) {
 async function inTemplate<T>(page: Page, variantId: string, probe: string): Promise<T> {
   return page.evaluate(
     async ([id, body]) => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
       const variant = Object.values(CATALOG).flat().find((v) => v.id === id);
       if (!variant) throw new Error(`no catalog variant ${id}`);
       const frame = document.createElement('iframe');
@@ -72,7 +72,7 @@ test('the three families are browsable and every design in them is offered', asy
     // and one wizard category can spread across several of them (an info-card that carries a
     // type browses under Titles / Topics / Notices, not under Information cards).
     const expected = await page.evaluate(async (cat) => {
-      const { allTemplateMeta } = await import('/src/templates/templateMeta.ts');
+      const { allTemplateMeta } = await __noacgImport('/src/templates/templateMeta.ts');
       return allTemplateMeta().filter(({ meta }) => meta.category === cat).length;
     }, category);
     // Derived from the live catalog on purpose: the assertion is "every design is reachable",
@@ -102,7 +102,7 @@ test('a ceremony card creates from the wizard and lands in the editor', async ({
   await page.locator('.wz-next').click();
   await finishIntoNewEditor(page);
   const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { name: t.name, fields: t.fields.map((f) => f.title), type: t.type };
   });
@@ -233,10 +233,106 @@ test('Update re-arms a running countdown, and an update that did not touch it le
   expect(r.afterStartTime).toBeGreaterThan(5600); // ~95 minutes, not the 5-minute duration
 });
 
+// THE ABSOLUTE DEADLINE (docs/work-specs/obs-scenes/spec.md, AC-8 and OS4 rules R7-R11): the
+// start-time field also takes an ISO date and time WITH its offset, the form a caller writes for
+// "in 5 minutes" so a write stays absolute. Run in a timezone other than the offset's, on
+// Playwright's clock, paused so every second is exact and every frame reads the same time.
+test.describe('a countdown to an absolute deadline', () => {
+  test.use({ timezoneId: 'America/New_York' });
+
+  /** Boot ss11 into a named frame, write its fields and start the clock; answer what it shows. */
+  const start = (page: Page, name: string, f3: string) =>
+    page.evaluate(
+      async ([n, value]) => {
+        const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+        const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+        const variant = Object.values(CATALOG).flat().find((v) => v.id === 'ss11')!;
+        const store = ((window as unknown as { __dl?: Record<string, HTMLIFrameElement> }).__dl ??= {});
+        store[n]?.remove();
+        const frame = document.createElement('iframe');
+        frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;opacity:0.01;';
+        document.body.appendChild(frame);
+        await new Promise((res) => {
+          frame.onload = res;
+          frame.srcdoc = composeDocument(variant.create({}));
+        });
+        store[n] = frame;
+        const w = frame.contentWindow as unknown as { update: (d: string) => void; startClock: () => void };
+        w.update(JSON.stringify({ f2: '10', f3: value }));
+        w.startClock();
+        return frame.contentDocument!.querySelector('.starting-soon-clock')!.textContent;
+      },
+      [name, f3] as const,
+    );
+  const read = (page: Page, name: string) =>
+    page.evaluate((n) => {
+      const doc = (window as unknown as { __dl: Record<string, HTMLIFrameElement> }).__dl[n].contentDocument!;
+      return {
+        clock: doc.querySelector('.starting-soon-clock')!.textContent,
+        done: doc.querySelector('.starting-soon')!.classList.contains('starting-soon-done'),
+      };
+    }, name);
+
+  test.beforeEach(async ({ page }) => {
+    // Held at 10:01:00 in Helsinki (+02:00), 03:01 in the page's own New York.
+    await page.clock.install({ time: new Date('2026-11-14T08:00:00Z') });
+    await toApp(page);
+    await page.clock.pauseAt(new Date('2026-11-14T08:01:00Z'));
+  });
+
+  test('it counts the time left to the instant, across a reload and a hidden page', async ({ page }) => {
+    const deadline = '2026-11-14T11:30:00+02:00';
+    expect(await start(page, 'a', deadline)).toBe('1:29:00');
+
+    await page.clock.runFor(10 * 60_000);
+    expect((await read(page, 'a')).clock).toBe('1:19:00');
+    // A reload starts again from the same instant, not from a length.
+    expect(await start(page, 'b', deadline)).toBe('1:19:00');
+
+    // Hidden and throttled: five minutes of wall time with no timer run, then its next tick.
+    const now = await page.evaluate(() => Date.now());
+    await page.clock.setSystemTime(now + 5 * 60_000);
+    await page.clock.runFor(300);
+    expect((await read(page, 'a')).clock).toBe('1:14:00');
+    expect((await read(page, 'b')).clock).toBe('1:14:00');
+  });
+
+  test('it holds at zero after the deadline, and a past deadline shows zero, never tomorrow', async ({ page }) => {
+    expect(await start(page, 'a', '2026-11-14T10:01:03+02:00')).toBe('0:03');
+    await page.clock.runFor(10_000);
+    expect(await read(page, 'a')).toEqual({ clock: '0:00', done: true });
+    await page.clock.runFor(60_000);
+    expect(await read(page, 'a')).toEqual({ clock: '0:00', done: true });
+
+    // On air at zero, a new deadline (the break extended) counts at once.
+    await page.evaluate(() => {
+      const f = (window as unknown as { __dl: Record<string, HTMLIFrameElement> }).__dl.a;
+      (f.contentWindow as unknown as { update: (d: string) => void }).update(JSON.stringify({ f3: '2026-11-14T10:05:00+02:00' }));
+    });
+    await page.clock.runFor(60_000);
+    expect(await read(page, 'a')).toEqual({ clock: '1:50', done: false });
+
+    expect(await start(page, 'past', '2026-11-14T09:59:00+02:00')).toBe('0:00');
+    expect((await read(page, 'past')).done, 'finished from its start').toBe(true);
+    expect(await start(page, 'z', '2026-11-14T07:00:00Z')).toBe('0:00');
+    await page.clock.runFor(1000);
+    expect(await read(page, 'past')).toEqual({ clock: '0:00', done: true });
+  });
+
+  test('an invalid value is an empty field: the duration counts', async ({ page }) => {
+    expect(await start(page, 'no-offset', '2026-11-14T11:30:00')).toBe('10:00');
+    expect(await start(page, 'no-such-day', '2026-11-31T11:30:00+02:00')).toBe('10:00');
+    expect(await start(page, 'bad-hour', '2026-11-14T24:30:00+02:00')).toBe('10:00');
+    expect(await start(page, 'empty', '')).toBe('10:00');
+    // A UTC deadline with fractions reads, too.
+    expect(await start(page, 'utc', '2026-11-14T08:05:00.500Z')).toBe('4:01');
+  });
+});
+
 test('a clock-less holding screen carries no countdown at all', async ({ page }) => {
   await toApp(page);
   const emitted = await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     const t = CATALOG['starting-soon']!.find((v) => v.id === 'ss08')!.create({});
     return {
       definesClock: /function startClock/.test(t.js),
@@ -322,8 +418,8 @@ test('a looping reel survives create, save and reopen with its motion intact', a
   await bootstrapGraphic(page, { name: 'Credit Reel' });
 
   const before = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const t = useTemplateStore.getState().template;
     const data = parseAnimData(t.js);
     return {
@@ -337,8 +433,8 @@ test('a looping reel survives create, save and reopen with its motion intact', a
 
   // Save into the library, reload the app, reopen: the document must come back byte-identical.
   const id = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const t = useTemplateStore.getState().template;
     const { doc, error } = createGraphic(t, { name: 'Reel round trip', baseline: t });
     if (error) throw new Error(error);
@@ -351,7 +447,7 @@ test('a looping reel survives create, save and reopen with its motion intact', a
   await page.reload();
   await expect(page.locator('.topbar')).toBeVisible();
   const after = await page.evaluate(async (graphicId) => {
-    const { loadAllGraphics } = await import('/src/model/library.ts');
+    const { loadAllGraphics } = await __noacgImport('/src/model/library.ts');
     const doc = loadAllGraphics().find((g) => g.id === graphicId);
     return doc?.template.js ?? null;
   }, id);

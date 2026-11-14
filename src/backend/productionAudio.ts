@@ -1,6 +1,7 @@
 import { getSupabase } from './supabase';
 import { externalizeAssets, dataUrlToBlob, classifyAssetRefusal } from './assets';
 import type { SoundAssetRef } from '../model/types';
+import { partialWritesOn } from './partialWrites';
 
 export async function authoringSoundLoader(asset: SoundAssetRef): Promise<Blob> {
   const sb = await getSupabase();
@@ -14,7 +15,14 @@ export async function authoringSoundLoader(asset: SoundAssetRef): Promise<Blob> 
 export async function publishAudio<T extends {graphics:{assets:{audio?:SoundAssetRef}[]}[]}>(body: T): Promise<T> {
   const sb = await getSupabase(); if (!sb) throw new Error('Sign in to publish sounds.');
   const { data,error } = await sb.auth.getUser(); if (error || !data.user) throw new Error('Sign in to publish sounds.');
+  const inParts = await partialWritesOn();
   const published = await externalizeAssets(body,data.user.id,async(key,dataUrl)=>{
+    // Keys name the sound by its SHA-256 (audio-<hash>): one Storage already holds is not sent again
+    // (live-publishing G4 section 4, "Sounds").
+    if (inParts) {
+      const held = await sb.storage.from('user-assets').exists(key).catch(() => ({ data: false }));
+      if (held.data === true) return;
+    }
     const blob = dataUrlToBlob(dataUrl);
     const { error } = await sb.storage.from('user-assets').upload(key,blob,{contentType:blob.type,upsert:false});
     if (error && String(error.statusCode) !== '409') throw new Error(classifyAssetRefusal(error)?.reason ?? `Sound upload failed: ${error.message}`);

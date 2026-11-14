@@ -38,6 +38,11 @@ export interface Swapper {
   tick(): void;
   /** Graphics with a change waiting because they are on air here. */
   waiting(): string[];
+  /** Graphics whose change is still being built, or waiting to be (G2 section 5). */
+  building(): string[];
+  /** Add a graphic the stage does not host now, from `payload`, ahead of any build (G2 section 3:
+   *  a held Take's demand). */
+  addNow(spec: OutputGraphicSpec, payload: OutputPayload): void;
   /** The changes that failed, one issue each. */
   failed(): ReadyIssue[];
   /** Every graphic holds the version `next` stamps, and nothing waits or failed. */
@@ -45,7 +50,7 @@ export interface Swapper {
 }
 
 export interface SwapperOptions {
-  stage: Pick<OutputStage, 'prepare' | 'add' | 'remove' | 'requestState' | 'motion' | 'replies'>;
+  stage: Pick<OutputStage, 'prepare' | 'add' | 'remove' | 'requestState' | 'motion' | 'replies' | 'graphics'>;
   /** Per graphic, the digest of the frame the boot built ('' when the boot payload had no stamp). */
   held: Record<string, string>;
   /** Whether `graphic` is on air on this output now. */
@@ -63,6 +68,9 @@ export interface SwapperOptions {
   onRemoved(graphic: string): void;
   /** A change took over, or a graphic left: what `waiting` and `holds` answer may have moved. */
   changed(): void;
+  /** Resolves once no Take waits to run on this output except one for `graphic` itself: no new frame
+   *  starts while a Take waits (live-publishing G3 R20, owner decision Q1). Absent: no wait. */
+  quiet?(graphic: string): Promise<void>;
   now?: () => number;
 }
 
@@ -84,6 +92,8 @@ export function createSwapper(opts: SwapperOptions): Swapper {
   const stoppedAt = new Map<string, number>();
   /** Graphics whose frame is being watched to stand still, each with its own watch. */
   const settling = new Map<string, object>();
+  /** The builds of the publish being taken that have not finished. */
+  let toBuild: string[] = [];
 
   /** Load `spec` in a hidden frame and check it: the frame with its check, or why it failed. */
   const build = async (spec: OutputGraphicSpec, payload: OutputPayload): Promise<GraphicCheck | ReadyIssue> => {
@@ -182,6 +192,7 @@ export function createSwapper(opts: SwapperOptions): Swapper {
       for (const graphic of plan.remove) gone.add(graphic);
       const specOf = (graphic: string) => payload.graphics.find((g) => g.key === graphic)!;
       for (const graphic of plan.add) {
+        if (opts.quiet) await opts.quiet(graphic);
         // The publication it comes from: an imported package's base is asked with it, before this
         // output has adopted that version.
         stage.add(specOf(graphic), payload.ver?.h);
@@ -190,11 +201,14 @@ export function createSwapper(opts: SwapperOptions): Swapper {
       }
       // One at a time: a playout box's main thread is the one that must not miss frames.
       for (let i = 0; i < plan.build.length; i += 1) {
+        toBuild = plan.build.slice(i);
         progress(i, plan.build.length);
+        if (opts.quiet) await opts.quiet(plan.build[i]);
         const verdict = await build(specOf(plan.build[i]), payload);
         if (!('done' in verdict)) failures.set(plan.build[i], verdict);
         advance();
       }
+      toBuild = [];
       advance();
       return plan.build.length;
     },
@@ -213,6 +227,17 @@ export function createSwapper(opts: SwapperOptions): Swapper {
     },
     failed() {
       return Array.from(failures.values());
+    },
+    building() {
+      return toBuild.slice();
+    },
+    addNow(spec, payload) {
+      if (held[spec.key] !== undefined || stage.graphics.indexOf(spec.key) >= 0) return;
+      gone.delete(spec.key);
+      stage.add(spec, payload.ver ? payload.ver.h : undefined, { loadSound: opts.loadSound ? opts.loadSound(payload) : undefined });
+      held[spec.key] = payload.ver ? payload.ver.g[spec.key] || '' : '';
+      opts.onAdded(spec, payload);
+      opts.changed();
     },
     holds(next, keys) {
       if (ready.size > 0 || gone.size > 0 || failures.size > 0) return false;

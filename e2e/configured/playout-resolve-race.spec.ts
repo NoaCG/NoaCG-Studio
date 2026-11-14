@@ -26,6 +26,10 @@ import { publishProduction } from '../_publish';
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
@@ -145,7 +149,7 @@ test('a Take of another graphic while the reloaded page reads the rows keeps the
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   if (await page.getByTestId('production-status-panel').isVisible()) await page.getByTestId('production-status').click();
   const outputSlug = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.id === id)?.outputSlug ?? null;
   }, showId);
   expect(outputSlug).toBeTruthy();
@@ -232,7 +236,7 @@ test('an Update on another graphic while the reloaded page reads an off-air cloc
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   if (await page.getByTestId('production-status-panel').isVisible()) await page.getByTestId('production-status').click();
   const outputSlug = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.id === id)?.outputSlug ?? null;
   }, showId);
   expect(outputSlug).toBeTruthy();

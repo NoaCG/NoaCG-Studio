@@ -53,7 +53,7 @@ test('the whole credit roll is one field, and one role can credit five people', 
   // the logo, and the operator's speed (owner walk 2026-08-28 - a roll has to fit whatever is
   // under it, and that is set at the desk).
   const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.map((f) => `${f.field}:${f.ftype}:${f.title}`);
   });
   expect(fields).toEqual([
@@ -135,7 +135,7 @@ test('the Fields step is one paste box, not a field per person', async ({ page }
 
   // …and it is still ONE field on the other side, holding all 40 names under one role.
   const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.map((f) => `${f.field}:${f.ftype}`);
   });
   expect(fields).toEqual(['f0:textarea', 'f1:textfield', 'f2:filelist', 'f3:number']);
@@ -144,7 +144,7 @@ test('the Fields step is one paste box, not a field per person', async ({ page }
   // design's defaults, so the value the store holds is handed to it the way playout would, and
   // the 40 names it paints are the ones that crossed the wizard.
   const sample = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().sampleData.f0 ?? '';
   });
   expect(sample).toBe(roll);
@@ -175,7 +175,7 @@ test('the closing logo is a default, not a requirement', async ({ page }) => {
 
   // No field, and no markup or styling for a slot the graphic does not have.
   const built = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return {
       // The FIELD, not an id: with the logo off the speed field takes f2, so an id is no
@@ -248,9 +248,9 @@ for (const recipe of ['thumbnail', 'canvas'] as const) {
     await toApp(page);
 
     const covered = (await page.evaluate(`(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const { postPreviewCmd } = await import('/src/preview/previewProtocol.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+    const { postPreviewCmd } = await __noacgImport('/src/preview/previewProtocol.ts');
     const recipe = ${JSON.stringify(recipe)};
     const out = [];
     for (const variant of CATALOG['end-credits']) {
@@ -327,8 +327,8 @@ for (const design of [
     await toApp(page);
 
     const measured = (await page.evaluate(`(async () => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
       const axis = ${JSON.stringify(design.axis)};
       const tpl = variantById(${JSON.stringify(design.id)}).create({});
       const speedField = tpl.fields.filter((f) => f.ftype === 'number')[0];

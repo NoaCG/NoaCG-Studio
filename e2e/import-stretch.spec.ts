@@ -66,9 +66,9 @@ async function eraseTextBar(page: Page) {
 /** The created template's stretch guides + validation, via the app's own readers. */
 async function stretchState(page: Page) {
   return page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { designStretchInfo } = await import('/src/blocks/designLayout.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { designStretchInfo } = await __noacgImport('/src/blocks/designLayout.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     const s = useTemplateStore.getState();
     const v = validateTemplate(s.template);
     return {
@@ -117,7 +117,7 @@ test('stretch: picking it writes the 9-slice into the created code, and the guid
   expect(state.valid).toBe(true); // the export gate passes
   // The created template is otherwise BARE — the preview's demo line never ships.
   const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.length;
   });
   expect(fields).toBe(0);
@@ -131,8 +131,8 @@ test('stretch: the SPX folder package carries the 9-slice with subfolder-correct
   // The packaged css/template.css hops bucket urls to ../ (it ships one level down while
   // assets unpack at the project root); the editor's own css stays root-relative.
   const pkg = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
     const t = useTemplateStore.getState().template;
     const zip = await EXPORT_TARGETS.find((x) => x.id === 'spx')!.build(t, {
       sampleData: useTemplateStore.getState().sampleData,

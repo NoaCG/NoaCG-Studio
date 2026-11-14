@@ -398,4 +398,199 @@ Filled in by each phase's pull request.
   releases was refused. A harness page that imports `/src/...` cannot run on a bundled build.
   `preview/` may not import `control/`, so the measuring frame takes its qualification from its
   caller.
+- Repair 2 (check on 92e581a7 failed it): an edit was lost when the page reloaded before its save
+  landed, with no press too. IndexedDB aborts a write still committing when the page reloads, so
+  the page going also records the owed edit in localStorage, and the production page applies it
+  once on its next visit unless the production was saved after it. Rules P1 to P5 in the evidence.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-3.md`.
+
+### Phase 4: The production's copy is the only truth; old pages only play out
+
+- Design: `designs/G1.md`, graded A by an independent `/so` at e32746e, landed as #2404.
+- Previous verified `main`: eee7827892b1936c00acc263655cf6a6e753e4be.
+- Revert: `git revert -m 1 <this pull request's merge commit>` brings back library-first reads and
+  the publish's copy refresh. Migration 0115 stays applied and is inert while the
+  `production_copies` switch is off; turn the switch off first if it was turned on (delete the
+  `system_settings` row or set `"on"` to false). The `designAt` stamps left on copies are additive
+  and ignored by the older code; its record digest reads a `2:` digest as changed until the next
+  publish.
+- Rules: G1 section 7, R1 to R13 (stated before the code, reviewed Rules-first in the design gate).
+- Decisions: the personal sync settle runs inside the sync engine (the settle is pure kernel code,
+  so no registration hook was needed); a team publish or export flushes the team save, which
+  settles; the production page re-reads its library only when the stored library moved, by
+  reference; adding a graphic the production already holds replaces it as before and stamps it
+  (G1 section 2 had it ask the dropped-field question; refusing it broke the wizard's confirmed
+  re-import "Replace anyway"); `production_copies_state()` is for signed-in pages only and recorded
+  in the advisor baseline; the new browser checks extend the publish guard's configured spec, since
+  backend growth is stopped. Found while building: adoption must settle against the server's copy
+  before it stamps, or it keeps an old page's pulled design (caught by the configured walk). The switch is turned on separately, by the owner or the coordinator with the owner's
+  permission, after the app is live and `production_copies_state()` reports the mark on
+  production (G1 section 6).
+- Traps: in the evidence, "Traps met".
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-4.md`.
+
+### Phase 5: The honest light and held Takes
+
+- Design: `designs/G2.md`, graded A+ by an independent `/so` at 13a698c2, landed as #2426.
+- Previous verified `main`: 8b1a55c9 (the build's last merge from `main`).
+- Revert: `git revert -m 1 <this pull request's merge commit>` brings back today's output (a Take
+  for a graphic it does not host is dropped, reports bank whatever was applied) and today's light
+  ("Connected" from READY alone). Nothing persisted changed: `state.run` is one more member of a
+  report row's state, which older readers ignore, so no data step goes with it.
+- Rules: G2 section 8, R1 to R14 (reviewed Rules-first in the design gate).
+- Decisions: holds and run reports live on the numbered log only; the page owes the command rows it
+  follows and the head it resolved, not its own send answers (the answer carries no position, and
+  the Take path's send code was left alone); a mounted OGraf package counts as ready; monitors pass
+  no positions. Rules found while building are in the evidence.
+- Owner decisions (2026-11-12, on #2361, after the final review's repeated family):
+  - D1: a command with no outcome at 20 s (a boot frame or a package base still loading) reads
+    `failed load` in red, and nothing is dropped; when the frame loads its queue runs hidden and
+    the red clears. A held Take still gives up and drops its queue at 20 s (R8).
+  - D2: a single stage failure on a running graphic stays red until that graphic's next Take or
+    Out, All out, or its deletion; later commands still run.
+- G2 wording these change: R1's "answered failed and leaves the queue" becomes D1. Section 1's "a
+  graphic in `h` has settled nothing from `from` on" becomes "has not settled everything from
+  `from` on": `ran = from - 1` stays a lower bound. R4's "or whose hold has failed" applies only
+  while the graphic has no frame able to run it: a failure is a line in `h`, never a gate.
+- Traps: in the evidence, "Traps met".
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-5.md`.
+
+### Phase 6: Automatic updates, whole publishes
+
+- Design: `designs/G3.md`, graded A by an independent `/so` at 4d61c38e and A on the delta to
+  c5d09460, landed as #2469.
+- Previous verified `main`: 814f105901f01bdfe1bdadc12afed0cfefa10319 (the build's branch point;
+  later `main` merged in before landing).
+- Revert: `git revert -m 1 <this pull request's merge commit>` brings back Publish changes and
+  outputs that prepare only on a page's request. Turn the `auto_publish` switch off first (delete the
+  `system_settings` row or set `"on"` to false): with it off the page publishes only on a press and
+  the guard refuses nothing. Migrations 0117 and 0118 stay applied and are inert for older code: `rev`
+  and `published_rev` are columns nothing older reads, and the guard only skips a publication naming
+  an older revision, which only this build writes.
+- Rules: G3 section 11, R1 to R20 (reviewed Rules-first in the design gate).
+- Decisions: the saved revision is read from the server's identity columns (`body_updated_at` for a
+  personal record, the team token) rather than kept by the sync engine; the configured walk lives
+  in `publish-guard.spec.ts` (it holds the service-role switch helpers, and backend growth is
+  stopped); the press-to-ran harness republishes through a session flag only the harness sets.
+- Found while building, fixed: the Presence reader dropped `au`; a revision-only update now
+  carries the source columns (review on #2469); and, on the #2488 review, a team confirmation now
+  holds its record across the revision read, automatic mode needs a known revision before it hides
+  Publish changes, a 401 that outlives one session refresh is transient, and a page that may not
+  publish reads red while a save waits. The configured walk runs with both switches on
+  (`production_copies` and `auto_publish`), as production has them.
+- AC-4: on the typical fixture at a 5 s edit pace, publishing adds +35.9 ms pooled p95 over 20
+  interleaved pairs (90% range +26 to +47 ms), within 50 ms, a pass by the rule fixed before the
+  last ten pairs (see Repair 1). In that loop a full publish reaches the outputs about every 10 s
+  and every other edit is a revision-only update; the large fixture under continuous editing does not pass (about +334 ms p95, the output
+  re-reading each whole copy). Owner decision (b), recorded on #2361, 2026-11-13: land
+  with the typical fixture passing, judge the large fixture at the end of phase 7 with D1, and keep
+  automatic updates off in production until then. Separately, editing faster than one sync pass on a
+  large production makes the sync engine re-run without pause (#2494, fixed before phase 8, not here).
+- Migrations: `0117_production_revision.sql` (ordinary), `0118_publication_guard.sql` (live-path,
+  renumbered from 0116 and 0117 when `main` took 0116 for the JSON source tick;
+  applies in a quiet window). Turning `auto_publish` on is a separate step, after the app is live
+  and `auto_publish_state()` reports `installed: true` on production (G3 section 8).
+- Traps: in the evidence, "Traps met".
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-6.md`.
+- Repair 1 (check 6-c-3476 on 7451fbba failed it, typical AC-4 timing +260 ms over 4 pairs): 10
+  interleaved pairs on the same commit read p95 256 ms on against 431 ms off, with the same count of
+  slow Takes (47 and 48). A bootstrap over pairs puts the difference between -246 and +133 ms, so the
+  first single pair's +2 and the check's +260 are both draws from one spread. Probes show the slow
+  Takes, on both sides, wait for the page's save: every edit makes two sync passes (#2494's queued
+  re-run), with page long tasks of 95 to 190 ms. With #2497 landed, a publish waits for a pass
+  that ends synced, so at 3 s nothing was published. Owner decision (a), 2026-11-13: automatic
+  updates publish once editing pauses, and AC-4 is judged at a 5 s edit pace (the harness's
+  `MEASURE_EDIT_MS`, default 5000). The rule, fixed before the last ten pairs: pass when the pooled
+  p95 difference over 20 pairs is 50 ms or less. Result: p95 141 ms on against 105 ms off over
+  1000 Takes each, +35.9 (90% range +26 to +47). 239 edits, 225 confirmed saves, 204 publishes,
+  the newest save published at the end of 19 of 20 runs; every other edit changes nothing the
+  outputs show (the fixture's last cue is the CasparCG server cue, which has no field values), so 6
+  of each run's publishes were new versions and the rest revision-only updates. Slow Takes 43
+  against 21 and the longer tail are recorded and carried to phase 7 with D1. The only code change is that harness
+  pace setting, which normal builds leave out. The evidence's +2 is replaced by both tables.
+
+### Phase 7: Only what changed, each image once
+
+- Design: `designs/G4.md`, graded by independent `/so` reviews (see the design's pull request for the
+  rounds and the final grade), landed as its own pull request before this one.
+- Previous verified `main`: 88c94f959920db642c9b3c79cb82f74b72010c95 (the design's landing, merged
+  into the build branch).
+- Revert: `git revert -m 1 <this pull request's merge commit>` brings back whole saves, whole
+  publishes and whole output reads. Turn the `partial_writes` switch off first (delete the
+  `system_settings` row or set `"on"` to false): with it off every page saves and publishes whole and
+  every output reads whole at once, so the revert changes nothing anyone sees. Migrations 0119 and
+  0120 stay applied and are inert for older code: `body_units`, `doc_units`, `published_head` and
+  `published_units` are columns nothing older reads, the new tables are reached only through the new
+  functions, and `output` is always written whole.
+- Rules: G4 section 8, R1 to R24 (R23, the parts path leaves everything as the whole path would, was
+  added by the round-cap reassessment of the design).
+- Migrations: `0119_record_patches.sql` (ordinary), `0120_publication_parts.sql` (live-path; applies in
+  a quiet window). Turning `partial_writes` on is a separate step, after the app is live and
+  `partial_writes_state()` reports `installed: true` on production (G4 section 7). `auto_publish`
+  stays off.
+- Departures from G4's wording, each for its intent:
+  - The sync listing is incremental with parts on: after a full listing, a pass reads only the rows
+    the server changed since (`updated_at`, with a minute's overlap), and reads in full again every
+    ten minutes and after a purge or removal. G4 said no result is kept after the listing answers;
+    on the large fixture the full listing alone was 12.7 kB of a 23.7 kB cue edit. The coordinator
+    was told before it was built.
+  - A press that names no saved revision reads the stored stamp instead of using this page's own
+    last publish: its older-design check (G3) is judged against what is stored.
+  - The publisher's 30 s revision check reads a personal record's `rev` in a query of its own, so
+    the count can tell that poll from a save's own read (G4 section 11 reports fixed-period reads).
+- Traps: a large-fixture measure on the development server crashed the browser while building the
+  fixture (int3, typical fixture fine); on the production build, where AC-5 is measured, it runs.
+  A job chained with `--after` fails when the job before it fails. The AC-2 test of
+  `publish-guard.spec.ts` fails locally when run after the tests before it in that file, on this
+  branch and on `main` alike; alone it passes, and CI runs it green.
+- Repair 1 (check 7-c-c035 on f1556db9 failed it, AC-5: the first cue edit after a reload counted
+  20.3 to 23.7 kB): the page kept its measured boxes in memory only, so after a reload a publish ran
+  before every box was measured again and resent each cue whose `adjust.box` went missing (#2532).
+  Two parts, both in `control/keptGeometry.ts`:
+  - Each cue's last measurement is kept in this browser (key `spx-gfx-measured`) with a hash of the
+    identity it was measured for and the build that measured it; a reopened page takes it for a cue
+    it has not measured yet.
+  - The coordinator's route (b) on #2361, after the full `/so` found the cold case (a new build, a
+    new browser, a teammate) still failing: a publish keeps the box the stored publication carries
+    for a cue the page has not measured, read once when the production opens
+    (`publishParts.ts` `prefetchPublishedBoxes`). A box changes in the publication only when the page
+    has measured one, so a measurement result never rides on an edit unless it is new.
+  What the page's own Take airs is unchanged; the hosted page's Adjust block resolves presets against
+  the published box, which a carry keeps equal to the stored one. Both publish paths
+  take their payload from the one `publishedOf` call, so they write the same record (R23). No
+  migration. Rules (a Risky row: reload state). K1 to K7 were written after the first code, K8 after
+  the first full `/so`, K9 after the second and K10 after the third and its reassessment, so none
+  was challenged before coding; each is pinned by a test:
+  - K1 With `partial_writes` off, nothing is kept, taken, read or carried: Takes and publishes are as
+    on `main`. Only the background measurer differs: it starts once the switch is read.
+  - K2 With it on, a reopened page takes a kept box for a cue only when it has not measured that cue
+    since it opened, the cue is still of the same graphic, its measure identity hashes the same, and
+    the same build measured it.
+  - K3 A taken box counts as measured for that identity: neither the background measurer nor a
+    publish's wait measures it again, and a Take or a publish uses it.
+  - K4 A measurement made since the page opened always wins over a kept or a published one.
+  - K5 Kept boxes are taken in the order they were measured, so each graphic's newest box (read by
+    its unmeasured cues) is the one it was before the reload.
+  - K6 Nothing kept is lost: the write a measurement owes goes as the page leaves (`pagehide`); a cue
+    the production no longer has is dropped at the next write; at most 8 productions are kept;
+    storage that refuses a read or write changes nothing but the saving.
+  - K7 The background measurer starts once the switch is read, so a box measured anew never races
+    a kept one.
+  - K8 The rule: a publish never writes a box into the publication other than the box the stored
+    publication it builds on holds for that exact cue, unless the page measured it itself. A cue
+    with no measurement since the page opened (none of its own, none of its graphic's) carries the
+    stored box only then; otherwise none, exactly as on `main`.
+  - K9 "That exact cue": the stored cue is the cue as it is now (the same values, adjust records,
+    look, frame and stage, and its graphic's design digest in the stored stamp).
+  - K10 "The publication it builds on": the page keeps a snapshot of the stored stamp (its number
+    and time, since an unpublish restarts the number) and its cue boxes, read in one request at each
+    opening and replaced by what this page's own publish wrote when it lands, the press included. An
+    automatic publish passes the stamp it builds on and carries only from a snapshot of that stamp; a
+    publish that carried and then finds the stamp moved builds again from the stamp as it is now
+    (carrying nothing). A press measures before it reads the stamp, so it carries nothing. A failed
+    read is not kept. Every write of the cues moves the stamp, so a teammate's or another tab's
+    publish always ends the carry. Found by the reassessment after the third full review, which
+    graded the model sound with these changes.
+  A box kept in this browser and taken after a reload (K2, K3) counts as this page's own
+  measurement: like a fresh measurement on `main`, it may replace a teammate's box.
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.

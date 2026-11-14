@@ -56,6 +56,10 @@ do not grow with the suite's file count.
    without a gate. Amended: base capacity on measured job headroom and a fixed resource envelope;
    a higher shard count must not silently raise the budget; no blanket exemptions by bot identity or
    a revert label; automatic repairs can neither weaken protection nor manufacture exceptions.
+   Amended 2026-11-12 (owner, landing outranks cost): only a new spec file adds spec-minutes; an
+   edit to a spec file that already exists is never refused, and its minutes still show. Where
+   the line is still right about cost, the change lands and owes a dated repayment item instead
+   of being refused (scripts/capacity-repay.mjs); an exception is still how to avoid owing one.
 3. Evidence: "Graded rule with defect replay or fault injection". Amended: preserve named
    behaviours, failure modes and necessary integration boundaries, not raw counts; consolidation may
    reduce duplicate cases when retained protection is demonstrated; counts and skips are warning

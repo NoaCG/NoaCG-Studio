@@ -81,7 +81,12 @@ function isItemList(value: unknown): value is Item[] {
  * Merge one list item by item. Returns null when the three lists are not all id-keyed, and the
  * caller then treats the whole field as one value.
  */
-function mergeItems(base: unknown, ours: unknown, theirs: unknown): { value: Item[]; conflict: boolean } | null {
+function mergeItems(
+  base: unknown,
+  ours: unknown,
+  theirs: unknown,
+  mergeBoth?: (base: Item, ours: Item, theirs: Item) => { item: Item; conflict: boolean },
+): { value: Item[]; conflict: boolean } | null {
   const b = base ?? [];
   const o = ours ?? [];
   const t = theirs ?? [];
@@ -100,7 +105,11 @@ function mergeItems(base: unknown, ours: unknown, theirs: unknown): { value: Ite
     if (ourItem) {
       if (same(ourItem, baseItem)) result.push(theirItem);
       else if (same(theirItem, baseItem) || same(theirItem, ourItem)) result.push(ourItem);
-      else {
+      else if (mergeBoth && baseItem) {
+        const merged = mergeBoth(baseItem, ourItem, theirItem);
+        if (merged.conflict) conflict = true;
+        result.push(merged.item);
+      } else {
         conflict = true;
         result.push(theirItem);
       }
@@ -257,7 +266,7 @@ export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string):
       else doc[key] = o[key];
       continue;
     }
-    const items = mergeItems(b[key], o[key], t[key]);
+    const items = mergeItems(b[key], o[key], t[key], key === 'graphics' ? mergeGraphic : undefined);
     if (items) {
       doc[key] = key === 'graphics' ? separateNewLayers(items.value, b[key], t[key]) : items.value;
       if (items.conflict) lost.push(FIELD_LABEL[key] ?? key);
@@ -283,6 +292,39 @@ export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string):
   }
   doc.updatedAt = at;
   return { doc: doc as unknown as Show, lost, gathered: settled.changed };
+}
+
+/**
+ * A POOL GRAPHIC BOTH SIDES CHANGED (live-publishing W2, designs/G1.md section 3): the three-way rule
+ * runs twice, once over its design members (`template` without its own name, `savedAt`, `designAt`,
+ * `graphicId`) and once over its placement (everything else, the template's name with the pool
+ * name). So a design stamp or an Update on one side and a layer, adjustment, sound or name edit on
+ * the other both stand; the same part changed differently on both sides is a conflict where theirs
+ * stands. The template's name is always the merged pool name.
+ */
+function mergeGraphic(base: Item, ours: Item, theirs: Item): { item: Item; conflict: boolean } {
+  type G = { template: { name?: string } & Record<string, unknown>; savedAt?: unknown; designAt?: unknown; graphicId?: unknown; name?: string } & Record<string, unknown>;
+  const split = (item: Item) => {
+    const { template, savedAt, designAt, graphicId, ...placement } = item as unknown as G;
+    return {
+      design: { template: { ...template, name: '' }, savedAt, designAt, graphicId },
+      placement: { ...placement, templateName: template?.name },
+    };
+  };
+  const [b, o, t] = [split(base), split(ours), split(theirs)];
+  let conflict = false;
+  const pick = <K extends 'design' | 'placement'>(part: K) => {
+    if (same(o[part], b[part])) return t[part];
+    if (same(t[part], b[part]) || same(t[part], o[part])) return o[part];
+    conflict = true;
+    return t[part];
+  };
+  const design = pick('design');
+  const { templateName, ...placement } = pick('placement') as Record<string, unknown> & { templateName?: string };
+  const name = typeof placement.name === 'string' ? placement.name : templateName;
+  const item: Record<string, unknown> = { ...placement, template: { ...design.template, name } };
+  for (const key of ['savedAt', 'designAt', 'graphicId'] as const) if (design[key] !== undefined) item[key] = design[key];
+  return { item: item as unknown as Item, conflict };
 }
 
 /** A string map merged key by key: our change to a key stands where theirs left it as the base had

@@ -16,6 +16,10 @@ import JSZip from 'jszip';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { openProductionWithCurrent } from './_create';
 import { dropSvg, intoProduction } from './_svg-import';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE CREDITS ROLL ON IMPORTED ARTWORK (docs/END_CREDITS.md, "The same field on an imported SVG").
 //
@@ -51,11 +55,11 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
   // after SVG assembly, so measuring at the original call time can leave the last line on air.
   await page.goto('/app');
   const documents = await page.evaluate(async (source) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-    const { initialDraft, mergeDraft } = await import('/src/components/wizard/draft/core.ts');
-    const { withUniversalMotion } = await import('/src/components/wizard/draft/template.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+    const { initialDraft, mergeDraft } = await __noacgImport('/src/components/wizard/draft/core.ts');
+    const { withUniversalMotion } = await __noacgImport('/src/components/wizard/draft/template.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const imported = importSvgMarkup(source);
     const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
     const template = IMPORTED_SVG.create({
@@ -141,7 +145,7 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
 test('imported artwork credits preserve the complete design and roll off the whole frame', async ({ page }, testInfo) => {
   await page.goto('/app');
   const expectedRuns = await page.evaluate(async (source) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
     const parsed = new DOMParser().parseFromString(importSvgMarkup(source).markup, 'image/svg+xml');
     return Array.from(parsed.querySelectorAll('text tspan')).map((run) => ({
       text: run.textContent,
@@ -221,8 +225,8 @@ test('imported artwork credits preserve the complete design and roll off the who
 
   // The downloadable browser overlay must carry the same artwork and engine without the app.
   const b64 = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const production = loadShows().find((s) => s.name === 'Night sky')!;
     return (await buildShowZipFor(production, 'html-overlay')).generateAsync({ type: 'base64' });
   });
@@ -304,11 +308,11 @@ async function openLegacyProduction(page: Page, graphic: string, production: str
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
   await page.evaluate(async ({ source, graphicName, useBox }) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-    const { formatTemplate } = await import('/src/format/formatCode.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { useDocKindStore } = await import('/src/store/docKindStore.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+    const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { useDocKindStore } = await __noacgImport('/src/store/docKindStore.ts');
     const imported = importSvgMarkup(source);
     const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
     const box = imported.shapes.find((s) => s.label === 'Credits box');
@@ -338,7 +342,7 @@ test('the Credits preview reads roles and names off a role-beside drawing', asyn
   await dropSvg(page, BESIDE_CREDITS_SVG);
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
   const picker = page.getByTestId('map-svg-recipe-credits');
-  // The first role layer, Réalisation: the title drawn above it is not part of the list.
+  // The first role layer, Réalisation: the title drawn above it is the list's first line.
   const role = await picker.locator('option').evaluateAll((options) =>
     (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
   await picker.selectOption(role);
@@ -346,6 +350,7 @@ test('the Credits preview reads roles and names off a role-beside drawing', asyn
   await expect(preview).toHaveAttribute('data-layout', 'role-beside');
   await expect(preview.locator('[data-credit="role"]')).toHaveText(['Réalisation', 'Image']);
   await expect(preview.locator('[data-credit="name"]')).toHaveText(['Léa Orme', 'Noé Rivage', 'Émilie Lac']);
+  await expect(preview.locator('[data-credit="title"]')).toHaveText(['ÉQUIPE']);
   // Beside: a role shares its line with its first name; a second name stays in the name column.
   const top = (text: string) => preview.getByText(text, { exact: true }).evaluate((el) => Math.round(el.getBoundingClientRect().top));
   expect(await top('Image')).toBe(await top('Noé Rivage'));
@@ -360,6 +365,7 @@ test('the Credits preview reads roles and names off a role-beside drawing', asyn
   await expect(page.getByTestId('map-svg-credits-roles').locator('option:checked')).toHaveText('Left');
   // Role beside renders in its own styling (row 20): the other drawn layers set the looks.
   await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveText([
+    /, sets the look of the show title, the first line of Credits$/,
     /, sets the look of every name in Credits$/,
     /, sets the look of every role in Credits$/,
     /, sets the look of every name in Credits$/,
@@ -406,22 +412,22 @@ test('role-beside credits roll in their two drawn columns, from a name layer pic
   await intoProduction(page, 'Équipe credits', 'Équipe night');
   await settleDurableWrites(page);
 
-  const credits = page.getByTestId('cue-field-f1');
-  await expect(credits).toHaveValue('Réalisation:\nLéa Orme\nImage:\nNoé Rivage\nÉmilie Lac');
-  await expect(page.getByTestId('cue-field-f0')).toHaveValue('ÉQUIPE');
-  await expect(page.getByTestId('cue-field-f3')).toHaveCount(0);
+  // The drawn title is the list's first line, never a field of its own.
+  const credits = page.getByTestId('cue-field-f0');
+  await expect(credits).toHaveValue('ÉQUIPE\nRéalisation:\nLéa Orme\nImage:\nNoé Rivage\nÉmilie Lac');
+  await expect(page.getByTestId('cue-field-f2')).toHaveCount(0);
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const rows = air.locator('.imported-design-credits-row');
-  await expect(rows).toHaveText(['Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
+  await expect(rows).toHaveText(['ÉQUIPE', 'Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
   await expect(air.locator('[data-noacg-credit]')).toHaveText(['Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
   await expect.poll(() => air.locator('.imported-design-credits-roll').evaluate(() =>
     !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
   // Where and how credits-2 draws them: roles from 90 in pale green 26, names from 440 in white 32.
   const role = ['rgb(191, 228, 206)', '26px'];
   const nm = ['rgb(255, 255, 255)', '32px'];
-  expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.x, r.y, r.fill, r.size])).toEqual([
+  expect((await creditRowsAtRest(air)).filter((r) => r.kind !== 'title').map((r) => [r.kind, r.x, r.y, r.fill, r.size])).toEqual([
     ['role', 90, 195, ...role], ['name', 440, 195, ...nm], ['role', 90, 365, ...role], ['name', 440, 365, ...nm], ['name', 440, 420, ...nm],
   ]);
 
@@ -429,7 +435,8 @@ test('role-beside credits roll in their two drawn columns, from a name layer pic
   // new one - several names per role, a role with none, the drawn steps kept.
   await credits.fill('Son:\nAri Moss\nIda Lake\nJun Harbor\nMontage:\nMusique:\nSol Reed');
   await page.getByTestId('verb-update').click();
-  await expect(rows).toHaveText(['Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
+  await expect(rows).toHaveText(['ÉQUIPE', 'Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
+  // A list that starts with a role has no title line, so no title is painted.
   await page.getByTestId('verb-retake').click();
   await expect(rows).toHaveText(['Son', 'Ari Moss', 'Ida Lake', 'Jun Harbor', 'Montage', 'Musique', 'Sol Reed']);
   expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.x, r.y])).toEqual([
@@ -491,7 +498,7 @@ test('credits that cannot be styled say why they stay fixed artwork, in one line
   const values = await picker.locator('option').evaluateAll((options) => (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean));
   await picker.selectOption(values[1]);
   const fallback = page.getByTestId('map-svg-credits-fallback');
-  await expect(page.locator('[data-testid^="map-svg-driven-"]').first()).toHaveText(/, sets the look of every name in Credits$/);
+  await expect(page.locator('[data-testid^="map-svg-driven-"]').first()).toHaveText(/, sets the look of the show title, the first line of Credits$/);
   await expect(fallback).toHaveCount(0);
   // The title is a look of its own, so picking it gives no roles and names: it says so, and its
   // row scrolls as artwork.
@@ -563,7 +570,7 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   await dropSvg(page, ABOVE_CREDITS_SVG);
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
   const picker = page.getByTestId('map-svg-recipe-credits');
-  // The first role layer, Research: PRODUCTION drawn above it stays artwork.
+  // The first role layer, Research: PRODUCTION drawn above it is the show title, the list's first line.
   const role = await picker.locator('option').evaluateAll((options) =>
     (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
   await picker.selectOption(role);
@@ -575,27 +582,27 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   // The other drawn layers are not fields of their own: their rows say what they become.
   const sourceRows = page.locator('[data-testid^="map-svg-driven-"]');
   await expect(sourceRows).toHaveText([
+    /, sets the look of the show title, the first line of Credits$/,
     /, sets the look of every name in Credits$/,
     /, sets the look of every name in Credits$/,
     /, sets the look of every role in Credits$/,
     /, sets the look of every name in Credits$/,
   ]);
-  await expect(page.locator('[data-testid^="map-svg-row-"] input[type="checkbox"]:disabled')).toHaveCount(4);
+  await expect(page.locator('[data-testid^="map-svg-row-"] input[type="checkbox"]:disabled')).toHaveCount(5);
   await intoProduction(page, 'Research credits', 'Research night');
   await settleDurableWrites(page);
 
-  // ONE list field holding the drawn list, the title, Scroll speed: never a field per name.
-  const credits = page.getByTestId('cue-field-f1');
-  await expect(credits).toHaveValue('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
-  await expect(page.getByTestId('cue-field-f0')).toHaveValue('PRODUCTION');
-  await expect(page.getByTestId('cue-field-f2')).toHaveValue('100');
-  await expect(page.getByTestId('cue-field-f3')).toHaveCount(0);
+  // ONE list field holding the drawn list, its title first, and Scroll speed: never a field per name.
+  const credits = page.getByTestId('cue-field-f0');
+  await expect(credits).toHaveValue('PRODUCTION\nResearch:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('100');
+  await expect(page.getByTestId('cue-field-f2')).toHaveCount(0);
 
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const rows = air.locator('.imported-design-credits-row');
-  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect(rows).toHaveText(['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
   // The drawn layers are the source: kept, laid out, never painted.
   const sources = air.locator('[data-noacg-credit]');
   await expect(sources).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
@@ -603,7 +610,7 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   await expect(air.locator('#role0')).toHaveText('Research');
   // Each row is drawn in its source's look, where its source was drawn: read in the roll's own
   // group, so the roll's travel is set aside and the drawing's units remain.
-  const atRest = () => rows.evaluateAll((els) => els.map((el) => {
+  const atRest = () => rows.evaluateAll((els) => els.filter((el) => el.getAttribute('data-noacg-credits') !== 'title').map((el) => {
     const roll = el.closest('.imported-design-credits-roll') as SVGGElement;
     const m = roll.getScreenCTM()!.inverse().multiply((el as SVGTextElement).getScreenCTM()!);
     const p = (el as SVGTextElement).getStartPositionOfChar(0);
@@ -623,13 +630,13 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   ]);
   const roll = await air.locator('.imported-design-credits-roll').evaluate(() => (window as unknown as { noacgCreditsLast: { step: number; rows: number } }).noacgCreditsLast);
   expect(roll.step).toBe(55);
-  expect(roll.rows).toBe(5);
+  expect(roll.rows).toBe(6);        // the five drawn rows and the title
 
   // A new list on Update: the roll on air keeps the list it took (row 24), and Re-take airs the
   // new one - repeated roles, several names, the drawn spacing kept.
   await credits.fill('Research:\nIda Lake\nSol Reed\nJun Harbor\nSound:\nMia Holt\nResearch:\nOla Berg');
   await page.getByTestId('verb-update').click();
-  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect(rows).toHaveText(['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
   await page.getByTestId('verb-retake').click();
   await expect(rows).toHaveText(['Research', 'Ida Lake', 'Sol Reed', 'Jun Harbor', 'Sound', 'Mia Holt', 'Research', 'Ola Berg']);
   const again = await atRest();
@@ -659,17 +666,16 @@ test('role-above credits chosen to hold still air as one still page, and a list 
   await intoProduction(page, 'Research page', 'Research still');
   await settleDurableWrites(page);
 
-  // One list field and the drawn title; a still page has no Scroll speed.
-  const credits = page.getByTestId('cue-field-f1');
-  await expect(credits).toHaveValue('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
-  await expect(page.getByTestId('cue-field-f0')).toHaveValue('PRODUCTION');
-  await expect(page.getByTestId('cue-field-f2')).toHaveCount(0);
+  // One list field, the drawn title its first line; a still page has no Scroll speed.
+  const credits = page.getByTestId('cue-field-f0');
+  await expect(credits).toHaveValue('PRODUCTION\nResearch:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-f1')).toHaveCount(0);
 
   // Two hundred names cannot stand on one page even at the floor: before any take, the field
   // says so in words.
   const tooLong = ['Research:', ...Array.from({ length: 200 }, (_, i) => `Name Number ${i + 1}`)].join('\n');
   await credits.fill(tooLong);
-  await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-field-over-f0')).toBeVisible();
   await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
   // On Take the page is not shown: nothing clipped, nothing rolling.
   await page.getByTestId('verb-take').click();
@@ -681,7 +687,7 @@ test('role-above credits chosen to hold still air as one still page, and a list 
   });
   await expect.poll(async () => (await state()).last).toEqual({ still: true, rows: 201, scale: 0.3, refused: true });
   expect(await state()).toMatchObject({ tween: null, moved: 'none', shown: 'hidden' });
-  await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-field-over-f0')).toBeVisible();
 
   // The drawn list again, on Update: the page shows, still, where the rows were drawn.
   await credits.fill('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
@@ -691,7 +697,7 @@ test('role-above credits chosen to hold still air as one still page, and a list 
   await expect.poll(async () => (await state()).shown).toBe('visible');
   expect(await state()).toMatchObject({ tween: null, moved: 'none' });
   expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.y])).toEqual([['role', 175], ['name', 240], ['name', 295], ['role', 445], ['name', 510]]);
-  await expect(page.getByTestId('cue-field-over-f1')).toHaveCount(0);
+  await expect(page.getByTestId('cue-field-over-f0')).toHaveCount(0);
 });
 
 test('role-above credits chosen to play as cards change on Next card, and a card too long says so before the take', async ({ page }) => {
@@ -721,26 +727,27 @@ test('role-above credits chosen to play as cards change on Next card, and a card
   await intoProduction(page, 'Research cards', 'Research cards');
   await settleDurableWrites(page);
 
-  // One list field, the drawn title and a blank Card time; no Scroll speed.
-  const credits = page.getByTestId('cue-field-f1');
-  await expect(credits).toHaveValue('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
-  await expect(page.getByTestId('cue-field-f2')).toHaveValue('');
-  await expect(page.getByText('F2 · Card time (s)')).toBeVisible();
+  // One list field, the drawn title its first line, and a blank Card time; no Scroll speed.
+  const credits = page.getByTestId('cue-field-f0');
+  await expect(credits).toHaveValue('PRODUCTION\nResearch:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('');
+  await expect(page.getByText('F1 · Card time (s)')).toBeVisible();
   await expect(page.getByText('Scroll speed (%)')).toHaveCount(0);
 
   // A second card too long even at the floor: the field says so before any take.
   await credits.fill(['Research:', 'Nia Vale', '', 'Cast:', ...Array.from({ length: 200 }, (_, i) => `Name Number ${i + 1}`)].join('\n'));
-  await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-field-over-f0')).toBeVisible();
   await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
 
-  // Two cards that fit: Take shows the first, Next card the second.
-  await credits.fill('Research:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss');
-  await expect(page.getByTestId('cue-field-over-f1')).toHaveCount(0);
+  // Two cards that fit, the list starting with its show title: Take shows the first card with the
+  // title above it, Next card the second without it. The title is no row of either card's count.
+  await credits.fill('PRODUCTION\nResearch:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-over-f0')).toHaveCount(0);
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const rows = air.locator('.imported-design-credits-row');
-  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen']);
+  await expect(rows).toHaveText(['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen']);
   await page.getByTestId('cue-actions').getByRole('button', { name: /Next card$/ }).click();
   await expect(rows).toHaveText(['Sound', 'Ari Moss']);
   expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.y])).toEqual([['role', 175], ['name', 240]]);
@@ -753,12 +760,12 @@ test('role-above credits chosen to play as cards change on Next card, and a card
 type RollBuild = { layout: string; motion: string; engine: string | null; js: string; html: string };
 function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' | 'block' | 'editable', face: boolean, playback: 'roll' | 'static' | 'cards' = 'roll', advance?: number): Promise<RollBuild[]> {
   return page.evaluate(async ({ source, roleWord, as, face, playback, advance }) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-    const C = await import('/src/templates/importedDesign/creditsRoll.ts');
-    const { initialDraft, mergeDraft } = await import('/src/components/wizard/draft/core.ts');
-    const { withUniversalMotion } = await import('/src/components/wizard/draft/template.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+    const C = await __noacgImport('/src/templates/importedDesign/creditsRoll.ts');
+    const { initialDraft, mergeDraft } = await __noacgImport('/src/components/wizard/draft/core.ts');
+    const { withUniversalMotion } = await __noacgImport('/src/components/wizard/draft/template.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const imp = importSvgMarkup(source);
     const motions = (template: ReturnType<typeof IMPORTED_SVG.create>, svg: Parameters<typeof C.creditsEngine>[0], layout: string) => (['drop', 'rise', 'pop'] as const).map((motion) => ({
       layout, motion, engine: C.creditsEngine(svg), js: template.js,
@@ -798,11 +805,12 @@ function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' |
 }
 
 /** Where the moving credits stand on screen at the start and at the end of the take, against the
- *  artwork's frame: the styled rows as one group, or every layer of the fixed block. */
+ *  artwork's frame: the styled roll as one group - its rows and the title drawn above them, which
+ *  travels with them (creditsRiders) - or every layer of the fixed block. */
 function rollPoses(page: Page) {
   return page.evaluate(() => {
     const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value?: number): number }; noacgCreditsLast: { distance: number } };
-    const rows = document.querySelector('.imported-design-credits-rows');
+    const rows = document.querySelector('.imported-design-credits-roll');
     const moving = rows ? [rows] : [...document.querySelectorAll('.imported-design-credits')];
     const extent = () => {
       const boxes = moving.map((el) => el.getBoundingClientRect());
@@ -1151,11 +1159,15 @@ const CARD_LAYOUTS = [
 ];
 const LAYOUT_NAME = (layout: (typeof CARD_LAYOUTS)[number]) => (layout.role === 'Research' ? 'role above' : 'role beside');
 /** One layout built as cards (Next only, or with a card time), on a blank page, with its lists. */
-async function cardsPage(page: Page, layout: (typeof CARD_LAYOUTS)[number], advance?: number) {
+async function cardsPage(page: Page, layout: (typeof CARD_LAYOUTS)[number], advance?: number, clock = false) {
   await page.goto('/app');
   const [build] = await buildRolls(page, layout.source, layout.role, 'styled', false, 'cards', advance);
   expect(build.engine, build.layout).toBe('styled');
   await page.goto('/robots.txt');
+  // A page clock, for a test that would otherwise sit out card times in real time: it flows as
+  // the wall clock does, and runFor moves it on, firing every timer and animation frame on the
+  // way, so GSAP's card holds and changes run exactly as they would, only sooner.
+  if (clock) await page.clock.install();
   await page.setContent(build.html);
   const field = await page.evaluate(() => (window as unknown as { noacgFieldFor(role: string, key: null): string }).noacgFieldFor('credits', null));
   const write = (list: string[]) => page.evaluate(({ field, list }) => (window as unknown as { update(d: Record<string, string>): void }).update({ [field]: list }), { field, list: list.join('\n') });
@@ -1274,13 +1286,20 @@ for (const layout of CARD_LAYOUTS) {
   });
 
   test(`styled credits as cards, ${LAYOUT_NAME(layout)}: the card time, Next during a timed card, and live updates on air`, async ({ page }) => {
-    const { at, field, write, groups, list, expected } = await cardsPage(page, layout, 2);
+    const { at, field, write, groups, list, expected } = await cardsPage(page, layout, 2, true);
+    // Card times are read on the page's clock, which runFor moves on: what a hold measures is the
+    // graphic's time, and a turn is never earlier than its bound (checked just short of it).
+    const now = () => page.evaluate(() => Date.now());
+    // Move the page's time on to 100 ms short of `ms` after `from`.
+    const shortOf = async (from: number, ms: number) => page.clock.runFor(Math.max(0, ms - 100 - ((await now()) - from)));
     // AUTOMATIC ADVANCE: the author's two seconds per card, and Next still skips ahead.
     await write(list);
     await cardsDispatch(page, 'play');
-    const started = Date.now();
+    const started = await now();
+    await shortOf(started, 1900);
+    expect((await cardsState(page)).shown, `${at}: the first card holds short of its two seconds`).toBe(0);
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: timed`, timeout: 6000, intervals: [25] }).toBe(1);
-    const held = Date.now() - started;
+    const held = (await now()) - started;
     expect(held, `${at}: the first card held its two seconds`).toBeGreaterThanOrEqual(1900);
     await changeEnded(page, at);
     const pressed = Date.now();
@@ -1297,13 +1316,15 @@ for (const layout of CARD_LAYOUTS) {
     const setTime = (seconds: string) => page.evaluate(({ time, seconds }) => (window as unknown as { update(d: Record<string, string>): void }).update({ [time]: seconds }), { time, seconds });
     await cardsDispatch(page, 'play');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: taken again`).toBe(0);
-    const taken = Date.now();
-    await page.waitForTimeout(1500);
+    const taken = await now();
+    await page.clock.runFor(1500);
     await setTime('8');
-    await page.waitForTimeout(1500);
+    await page.clock.runFor(1500);
     await setTime('4');
+    await shortOf(taken, 3900);
+    expect((await cardsState(page)).shown, `${at}: the changed time has not turned it yet`).toBe(0);
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: the changed time`, timeout: 8000 }).toBe(1);
-    const turned = Date.now() - taken;
+    const turned = (await now()) - taken;
     expect(turned, `${at}: turned after the new time, counted from the hold's start`).toBeGreaterThanOrEqual(3900);
     expect(turned, `${at}: not counted from the first change`).toBeLessThan(5000);
 
@@ -1331,23 +1352,25 @@ for (const layout of CARD_LAYOUTS) {
     await write(groups[0]);
     await cardsDispatch(page, 'play');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: one card`).toBe(0);
-    await page.waitForTimeout(2500);
+    await page.clock.runFor(2500);
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: the only card holds`).toEqual([0, false]);
     await write(list);
-    await page.waitForTimeout(2500);
+    await page.clock.runFor(2500);
     const kept = await cardsState(page);
     expect([kept.shown, kept.tween, kept.cards.length, await waiting()], `${at}: written on air, the cards taken stay`).toEqual([0, false, 1, true]);
 
     // A DEAL ON AIR THAT GROWS THE DECK: the only card gains cards, starts its hold and turns.
     await redeal(list);
+    await page.clock.runFor(1900);   // the card's two seconds, mostly on the page clock
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: grown, it turns`, timeout: 5000 }).toBe(1);
 
     // SHRUNK TO THE LAST, THEN GROWN: the card on air becomes the last (no hold), its old hold's
     // time passes, and grown again it starts a hold and turns.
     await redeal([...groups[0], '', ...groups[1]]);
-    await page.waitForTimeout(2500);
+    await page.clock.runFor(2500);
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: now the last card`).toEqual([1, false]);
     await redeal(list);
+    await page.clock.runFor(1900);   // the card's two seconds, mostly on the page clock
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: grown again, it turns`, timeout: 5000 }).toBe(2);
 
     // WRITTEN DURING A CHANGE: the change lands on the next card the take dealt, as taken.
@@ -1385,9 +1408,10 @@ for (const layout of CARD_LAYOUTS) {
     // A DEAL WITHOUT AN UPDATE: the only card holds with no timer; dealt again into several, it
     // starts its hold and turns.
     await setTime('2');
-    await page.waitForTimeout(2500);
+    await page.clock.runFor(2500);
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: one card, no hold`).toEqual([0, false]);
     await redeal(list);
+    await page.clock.runFor(1900);   // the card's two seconds, mostly on the page clock
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: dealt again, it turns`, timeout: 5000 }).toBe(1);
 
     // THE BOUND ON AIR: a Card time of 1 is held to 2 seconds.
@@ -1395,9 +1419,11 @@ for (const layout of CARD_LAYOUTS) {
     await write(list);
     await cardsDispatch(page, 'play');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: taken at 1 s`).toBe(0);
-    const fast = Date.now();
+    const fast = await now();
+    await shortOf(fast, 1900);
+    expect((await cardsState(page)).shown, `${at}: still the first card short of 2 s`).toBe(0);
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: held to 2 s`, timeout: 5000 }).toBe(1);
-    expect(Date.now() - fast, `${at}: no faster than 2 s`).toBeGreaterThanOrEqual(1900);
+    expect((await now()) - fast, `${at}: no faster than 2 s`).toBeGreaterThanOrEqual(1900);
   });
 }
 
@@ -1561,8 +1587,8 @@ test('imported credits: one pasted list rolls through the Credits box in the sam
   // THE EXPORT ROLLS ON ITS OWN: the package carries the engine and the parser it shares with
   // the catalog rolls, and nothing that reaches for the network.
   const b64 = await page.evaluate(async (production) => {
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const fresh = shows.loadShows().find((s) => s.name === production)!;
     return (await buildShowZipFor(fresh, 'html-overlay')).generateAsync({ type: 'base64' });
   }, 'Friday Show');

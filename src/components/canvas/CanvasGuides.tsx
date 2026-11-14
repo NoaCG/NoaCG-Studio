@@ -70,8 +70,8 @@ export default function CanvasGuides({ width, height, safeAreas, grid, canvasRec
         data-testid="canvas-bounds"
         x={cx + 0.5}
         y={cy + 0.5}
-        width={cw - 1}
-        height={ch - 1}
+        width={Math.max(0, cw - 1)}
+        height={Math.max(0, ch - 1)}
         fill="none"
         stroke="rgba(255,255,255,0.45)"
         strokeWidth={1}

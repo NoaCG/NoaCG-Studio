@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // PLACE AND SIZE IN THE BROWSER (docs/work-specs/playout-adjustments/spec.md, phase 1): the halves
 // Node cannot prove. The measurement a settled document answers (AC-2's two rectangles for a band,
 // AC-3's smallest text against the receipt's numbers), the output stage's frame transform composing
@@ -8,6 +9,10 @@
 // covers: src/preview/settleGraphic.ts, src/components/home/measureCue.ts, src/preview/measureDocument.ts, src/output/placeOnOutput.ts, src/output/stage.ts, src/output/main.ts, src/control/cueAdjust.ts, src/control/cueStyle.ts, src/preview/composeDocument.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 type Rect = { x: number; y: number; w: number; h: number };
 type Measured = { info: Rect | null; paint: Rect | null; minText: number | null } | null;
@@ -16,9 +21,9 @@ type Measured = { info: Rect | null; paint: Rect | null; minText: number | null 
  *  cue PREVIEW has not shown (components/home/measureCue.ts). */
 async function measureDesign(page: Page, id: string): Promise<Measured> {
   return page.evaluate(async (variant) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { measureCue } = await import('/src/components/home/measureCue.ts');
-    const { seedValues } = await import('/src/model/shows.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { measureCue } = await __noacgImport('/src/components/home/measureCue.ts');
+    const { seedValues } = await __noacgImport('/src/model/shows.ts');
     const template = variantById(variant)!.create({});
     return measureCue(template, seedValues(template.fields));
   }, id);
@@ -50,8 +55,8 @@ test.describe('the measurement a settled document answers', () => {
 
   test('SVG artwork is measured by what it draws, not by a full-frame artboard around it', async ({ page }) => {
     const m = await page.evaluate(async () => {
-      const { measureCue } = await import('/src/components/home/measureCue.ts');
-      const { DEFAULT_SETTINGS } = await import('/src/model/types.ts');
+      const { measureCue } = await __noacgImport('/src/components/home/measureCue.ts');
+      const { DEFAULT_SETTINGS } = await __noacgImport('/src/model/types.ts');
       const html = '<div><svg width="1920" height="1080" viewBox="0 0 1920 1080">' +
         '<defs><rect id="unused" x="0" y="0" width="1920" height="1080" fill="#000"/></defs>' +
         '<rect x="0" y="0" width="1920" height="1080" fill="none"/>' +
@@ -68,7 +73,7 @@ test.describe('the measurement a settled document answers', () => {
     const m = await measureDesign(page, 'lt63');
     const frame = { width: 1920, height: 1080 };
     const kind = await page.evaluate(async ([measured, size]) => {
-      const { geometryLimit } = await import('/src/control/cueAdjust.ts');
+      const { geometryLimit } = await __noacgImport('/src/control/cueAdjust.ts');
       return geometryLimit(measured, size);
     }, [m, frame] as const);
     expect(kind).toBe('spans');
@@ -84,8 +89,8 @@ test('the output stage composes the frame transform as the resolver says, and ke
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/app#/home');
   const result = await page.evaluate(async () => {
-    const { createOutputStage } = await import('/src/output/stage.ts');
-    const A = await import('/src/control/cueAdjust.ts');
+    const { createOutputStage } = await __noacgImport('/src/output/stage.ts');
+    const A = await __noacgImport('/src/control/cueAdjust.ts');
     document.body.innerHTML = '';
     const root = document.createElement('div');
     root.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px';
@@ -157,11 +162,11 @@ test('W1: a Take carrying a place hint is first shown at the preset as this stag
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/app#/home');
   const result = await page.evaluate(async () => {
-    const { createOutputStage } = await import('/src/output/stage.ts');
-    const { measureCue } = await import('/src/components/home/measureCue.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { seedValues } = await import('/src/model/shows.ts');
-    const A = await import('/src/control/cueAdjust.ts');
+    const { createOutputStage } = await __noacgImport('/src/output/stage.ts');
+    const { measureCue } = await __noacgImport('/src/components/home/measureCue.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { seedValues } = await __noacgImport('/src/model/shows.ts');
+    const A = await __noacgImport('/src/control/cueAdjust.ts');
     const template = variantById('lt01')!.create({});
     const fieldId = template.fields[0].field;
     const short = { ...seedValues(template.fields), [fieldId]: 'Ann' };
@@ -266,8 +271,8 @@ async function styledStage(page: Page, imported = false, design = 'lt01') {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/app#/home');
   await page.evaluate(async ({ imported, design }) => {
-    const { createOutputStage } = await import('/src/output/stage.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { createOutputStage } = await __noacgImport('/src/output/stage.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const assets: { path: string; data: string }[] = [];
     if (imported) {
       const bytes = new Uint8Array(await (await fetch('/fonts/anton.woff2')).arrayBuffer());
@@ -301,8 +306,8 @@ async function styledStage(page: Page, imported = false, design = 'lt01') {
 /** Send a fold's resolved style to the stage as Take sends it. */
 async function sendStyle(page: Page, record: unknown, imported: { family: string; assetPath: string }[] = []) {
   await page.evaluate(async ({ record, imported, name }) => {
-    const A = await import('/src/control/cueAdjust.ts');
-    const St = await import('/src/control/cueStyle.ts');
+    const A = await __noacgImport('/src/control/cueAdjust.ts');
+    const St = await __noacgImport('/src/control/cueStyle.ts');
     const style = St.resolveStyle(A.effectiveAdjust(record, undefined), imported);
     const stage = (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage;
     stage.apply('L3', { t: 'update', data: { f0: name }, appearance: A.appearanceOf(null, style) });
@@ -377,7 +382,7 @@ test('a chosen face reaches the document through the stage: every glyph of the n
   expect(await doc.locator('html').evaluate((h) => h.style.getPropertyValue('--accent'))).toBe('#00a3ff');
   // Taken off: an identity puts the design back.
   await page.evaluate(async () => {
-    const A = await import('/src/control/cueAdjust.ts');
+    const A = await __noacgImport('/src/control/cueAdjust.ts');
     (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage.apply('L3', { t: 'update', data: {}, appearance: A.IDENTITY });
   });
   await expect.poll(() => doc.locator('html').evaluate((h) => h.style.getPropertyValue('--font-heading'))).toBe('');
@@ -480,8 +485,8 @@ for (const late of [false, true]) test(`an appearance-only update (a send to on-
     w.update = (d: string) => { w.__updates.push(d); own(d); };
   });
   await page.evaluate(async () => {
-    const A = await import('/src/control/cueAdjust.ts');
-    const St = await import('/src/control/cueStyle.ts');
+    const A = await __noacgImport('/src/control/cueAdjust.ts');
+    const St = await __noacgImport('/src/control/cueStyle.ts');
     const style = St.resolveStyle(A.effectiveAdjust({ v: 1, font: { fontId: 'archivo' }, vars: { accent: '#ff7a00' } }, undefined), []);
     (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage.apply('L3', { t: 'update', data: {}, appearance: A.appearanceOf(null, style) });
   });
@@ -531,10 +536,10 @@ test('a stage finds an imported face its payload does not hold through its face 
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/app#/home');
   const declared = await page.evaluate(async () => {
-    const { createOutputStage } = await import('/src/output/stage.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const A = await import('/src/control/cueAdjust.ts');
-    const St = await import('/src/control/cueStyle.ts');
+    const { createOutputStage } = await __noacgImport('/src/output/stage.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const A = await __noacgImport('/src/control/cueAdjust.ts');
+    const St = await __noacgImport('/src/control/cueStyle.ts');
     const bytes = new Uint8Array(await (await fetch('/fonts/anton.woff2')).arrayBuffer());
     let bin = '';
     for (const b of bytes) bin += String.fromCharCode(b);

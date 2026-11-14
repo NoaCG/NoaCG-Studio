@@ -23,6 +23,10 @@ import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn, watchLogReads, wipeMyGraphics, openSecondProductionPage } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -31,7 +35,7 @@ const GRAPHIC = 'House Scorebug';
 /** Does this server have the sequence road? A server without 0071 answers PGRST202 for its resolve. */
 async function hasSequenceRoad(page: Page): Promise<boolean> {
   return page.evaluate(async () => {
-    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
     const sb = await getSupabase();
     if (!sb) return false;
     const { error } = await sb.rpc('control_show_resolve', { p_slug: 'no-such-production' });
@@ -43,7 +47,7 @@ async function hasSequenceRoad(page: Page): Promise<boolean> {
 async function rowsAfter(page: Page, slug: string, afterSeq: number): Promise<{ seq: number; graphic: string; t: string }[]> {
   return page.evaluate(
     async ({ slug, afterSeq }) => {
-      const { hostedControlTailSeq } = await import('/src/control/hostedControl.ts');
+      const { hostedControlTailSeq } = await __noacgImport('/src/control/hostedControl.ts');
       const tail = await hostedControlTailSeq(slug, afterSeq, null);
       return (tail?.rows ?? []).map((r) => ({ seq: r.seq, graphic: r.graphic, t: r.msg.t }));
     },
@@ -55,7 +59,7 @@ async function rowsAfter(page: Page, slug: string, afterSeq: number): Promise<{ 
 async function head(page: Page, slug: string): Promise<{ seq: number; on: boolean | null }> {
   return page.evaluate(
     async ({ slug, graphic }) => {
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const sb = await getSupabase();
       const { data } = await sb!.rpc('control_show_resolve', { p_slug: slug });
       const d = data as { seq?: number; graphics?: Record<string, { on?: boolean }> } | null;
@@ -75,7 +79,7 @@ async function publishScorebug(page: Page, showName: string): Promise<{ showId: 
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const slugs = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.name === name);
     return { hosted: s?.hostedSlug ?? '', output: s?.outputSlug ?? '' };
   }, showName);
@@ -188,6 +192,38 @@ test('W1: a Take sends before its own save, with the typed value from memory, an
   await expect(box).toHaveValue('W1 typed first');
 
   await air.close();
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+});
+
+test('typed, Take with the send still unanswered, then the page reloads: the edit is kept', async ({ page }) => {
+  // Live-publishing phase 3 check on 92e581a7: the Take's own save waits for the send, so a reload
+  // while the send is out found only the page-hide save, which a reload aborts. The page keeps the
+  // owed edit where a reload cannot drop it and applies it on the next visit.
+  test.setTimeout(240_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
+  await clearPublishedShows(page);
+  await publishScorebug(page, `Take Reload ${Date.now()}`);
+  const first = () => page.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue');
+  await first().click();
+  const box = page.getByTestId('cue-editor').locator('input[type="text"][data-testid^="cue-field-"]').first();
+  await expect(box).toBeVisible();
+  const field = (await box.getAttribute('data-testid'))!;
+  await page.route('**/rest/v1/rpc/control_send_seq', async (route: Route) => {
+    await new Promise((r) => setTimeout(r, 800));
+    await route.continue().catch(() => {});
+  });
+  await box.fill('Kept over the reload');
+  await page.getByTestId('verb-take').click();
+  await page.waitForTimeout(50);
+  await page.reload();
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  await first().click();
+  await expect(page.getByTestId(field)).toHaveValue('Kept over the reload');
+
   await clearPublishedShows(page);
   await wipeMyGraphics(page);
 });
@@ -315,7 +351,7 @@ test('an operator page whose first resolves are refused stays on the numbered ro
   );
   expect(resolves.refused, 'the first resolves were refused').toBe(2);
   expect(resolves.through, 'and the page asked again').toBeGreaterThan(0);
-  expect(await op.evaluate(async (slug) => (await import('/src/control/hostedControl.ts')).sendsInOrder(slug), hosted), 'on the numbered road').toBe(true);
+  expect(await op.evaluate(async (slug) => (await __noacgImport('/src/control/hostedControl.ts')).sendsInOrder(slug), hosted), 'on the numbered road').toBe(true);
   await expect(op.getByTestId('unordered-sends')).toHaveCount(0);
   await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('0');
 
@@ -380,7 +416,7 @@ test('a press of several batches never undoes a later press, and nothing pressed
   const onAir = (graphics: string[]) =>
     op.evaluate(
       async ({ slug, graphics }) => {
-        const { sendControlVerbs } = await import('/src/control/hostedControl.ts');
+        const { sendControlVerbs } = await __noacgImport('/src/control/hostedControl.ts');
         const batches: { graphic: string; msg: { t: 'play' } }[][] = [];
         for (let i = 0; i < graphics.length; i += 8) batches.push(graphics.slice(i, i + 8).map((graphic) => ({ graphic, msg: { t: 'play' } })));
         await sendControlVerbs({ slug, showId: null, batches });
@@ -396,8 +432,8 @@ test('a press of several batches never undoes a later press, and nothing pressed
   await holdFirst((b) => b.p_sender?.all_out === true && !!b.p_items?.some((i) => i.graphic === 'L1'));
   const a = await op.evaluate(
     async ({ slug, layers }) => {
-      const { clearAllCueBatches, sendControlVerb, sendControlVerbs } = await import('/src/control/hostedControl.ts');
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { clearAllCueBatches, sendControlVerb, sendControlVerbs } = await __noacgImport('/src/control/hostedControl.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const sb = await getSupabase();
       const showId = ((await sb!.rpc('control_show_resolve', { p_slug: slug })).data as { id: string }).id;
       const w = window as unknown as { __releaseHeld: () => Promise<void> };
@@ -424,7 +460,7 @@ test('a press of several batches never undoes a later press, and nothing pressed
   await holdFirst((b) => !b.p_sender?.all_out && !!b.p_items?.some((i) => i.graphic === 'M1' && i.msg?.t === 'stop'));
   const b = await op.evaluate(
     async ({ slug, nine }) => {
-      const { clearAllCueBatches, sendControlVerb, sendControlVerbs } = await import('/src/control/hostedControl.ts');
+      const { clearAllCueBatches, sendControlVerb, sendControlVerbs } = await __noacgImport('/src/control/hostedControl.ts');
       const w = window as unknown as { __releaseHeld: () => Promise<void> };
       const out = sendControlVerbs({ slug, showId: null, batches: clearAllCueBatches(nine) });
       const retake = await sendControlVerb({ slug, showId: null, items: [{ graphic: 'M6', msg: { t: 'play' } }] });
@@ -443,7 +479,7 @@ test('a press of several batches never undoes a later press, and nothing pressed
   await onAir(['H']);
   await holdFirst((b) => !b.p_sender?.all_out && b.p_items?.length === 1 && b.p_items[0].graphic === 'H');
   const c = await op.evaluate(async ({ slug }) => {
-    const { clearAllCueBatches, sendControlVerb, sendControlVerbs } = await import('/src/control/hostedControl.ts');
+    const { clearAllCueBatches, sendControlVerb, sendControlVerbs } = await __noacgImport('/src/control/hostedControl.ts');
     const w = window as unknown as { __releaseHeld: () => Promise<void> };
     const settle = (p: Promise<unknown>) => p.then((v) => v, (e: Error) => ({ error: e.message }));
     const p4 = settle(sendControlVerb({ slug, showId: null, items: [{ graphic: 'H', msg: { t: 'update', data: { f0: 'p4' } } }] }));
@@ -468,7 +504,7 @@ test('a press of several batches never undoes a later press, and nothing pressed
 
   const heads = await page.evaluate(
     async ({ slug }) => {
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const sb = await getSupabase();
       const { data } = await sb!.rpc('control_show_resolve', { p_slug: slug });
       return ((data as { graphics?: Record<string, { on?: boolean }> } | null)?.graphics ?? {}) as Record<string, { on?: boolean }>;

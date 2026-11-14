@@ -39,7 +39,7 @@ for (const w of ['R', 'L', 'K', 'F'] as Write[]) {
     const all = await library(page);
     expect(all.map(g => g.name)).toEqual(['Matrix wizard']);
     await settleDurableWrites(page);
-    const shows = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().length);
+    const shows = await page.evaluate(async () => (await __noacgImport('/src/model/shows.ts')).loadShows().length);
     expect(shows).toBe(1);
   });
 }

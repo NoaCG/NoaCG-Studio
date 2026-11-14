@@ -1,0 +1,48 @@
+=== j-0133 node e5c.local/starter.tmp.mjs
+=== cwd <owned-worktree>
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+ExpectError: expect(locator).toHaveText(expected) failed
+
+Locator: locator('[data-testid="program-stage"] iframe').contentFrame().locator('#f0')
+Expected: "Live harbour update"
+Error: strict mode violation: locator('[data-testid="program-stage"] iframe') resolved to 2 elements:
+    1) <iframe data-layer="20" allow="autoplay" title="News Headline" sandbox="allow-scripts" srcdoc="<!DOCTYPE html>↵<html lang="en">↵<head>↵  <meta charset="UTF-8" />↵  <title>News Headline</title>↵↵  <!-- GSAP animation library (bundled locally — no internet needed at playout). -->↵  ↵↵  <!-- Template styles and logic. -->↵  ↵  ↵↵  <!-- SPX template definition: the data fields shown to the operator. -->↵  <script id="spx-template-definition" type="text/javascript">↵window.SPXGCTemplateDefinition = {↵    "…></iframe> aka locator('iframe[title="News Headline"]')
+    2) <iframe data-layer="21" allow="autoplay" title="Clean Title" sandbox="allow-scripts" srcdoc="<!DOCTYPE html>↵<html lang="en">↵<head>↵  <meta charset="UTF-8" />↵  <title>Clean Title</title>↵↵  <!-- GSAP animation library (bundled locally — no internet needed at playout). -->↵  ↵↵  <!-- Template styles and logic. -->↵  ↵  ↵↵  <!-- SPX template definition: the data fields shown to the operator. -->↵  <script id="spx-template-definition" type="text/javascript">↵window.SPXGCTemplateDefinition = {↵    "desc…></iframe> aka locator('iframe[title="Clean Title"]')
+
+Call log:
+  - Expect "to.have.text" with timeout 5000ms
+  - waiting for locator('[data-testid="program-stage"] iframe').contentFrame().locator('#f0')
+
+    at captureRawStack (<shared-dependencies>/playwright-core/lib/coreBundle.js:3172:17)
+    at callMatcherAsStep (<shared-dependencies>/playwright/lib/matchers/expect.js:12877:57)
+    at Object.toHaveText (<shared-dependencies>/playwright/lib/matchers/expect.js:12867:23)
+    at <owned-worktree>/e5c.local/starter.tmp.mjs:18:417 {
+  matcherResult: {
+    name: 'toHaveText',
+    expected: 'Live harbour update',
+    message: 'expect(locator).toHaveText(expected) failed\n' +
+      '\n' +
+      `Locator: locator('[data-testid="program-stage"] iframe').contentFrame().locator('#f0')\n` +
+      'Expected: "Live harbour update"\n' +
+      `Error: strict mode violation: locator('[data-testid="program-stage"] iframe') resolved to 2 elements:\n` +
+      `    1) <iframe data-layer="20" allow="autoplay" title="News Headline" sandbox="allow-scripts" srcdoc="<!DOCTYPE html>↵<html lang="en">↵<head>↵  <meta charset="UTF-8" />↵  <title>News Headline</title>↵↵  <!-- GSAP animation library (bundled locally — no internet needed at playout). -->↵  ↵↵  <!-- Template styles and logic. -->↵  ↵  ↵↵  <!-- SPX template definition: the data fields shown to the operator. -->↵  <script id="spx-template-definition" type="text/javascript">↵window.SPXGCTemplateDefinition = {↵    "…></iframe> aka locator('iframe[title="News Headline"]')\n` +
+      `    2) <iframe data-layer="21" allow="autoplay" title="Clean Title" sandbox="allow-scripts" srcdoc="<!DOCTYPE html>↵<html lang="en">↵<head>↵  <meta charset="UTF-8" />↵  <title>Clean Title</title>↵↵  <!-- GSAP animation library (bundled locally — no internet needed at playout). -->↵  ↵↵  <!-- Template styles and logic. -->↵  ↵  ↵↵  <!-- SPX template definition: the data fields shown to the operator. -->↵  <script id="spx-template-definition" type="text/javascript">↵window.SPXGCTemplateDefinition = {↵    "desc…></iframe> aka locator('iframe[title="Clean Title"]')\n` +
+      '\n' +
+      'Call log:\n' +
+      '  - Expect "to.have.text" with timeout 5000ms\n' +
+      `  - waiting for locator('[data-testid="program-stage"] iframe').contentFrame().locator('#f0')\n`,
+    pass: false,
+    actual: undefined,
+    log: [
+      '  - Expect "to.have.text" with timeout 5000ms',
+      `  - waiting for locator('[data-testid="program-stage"] iframe').contentFrame().locator('#f0')`
+    ],
+    timeout: undefined,
+    ariaSnapshot: undefined
+  }
+}
+
+Node.js v24.19.0

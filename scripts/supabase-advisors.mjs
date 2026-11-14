@@ -155,7 +155,11 @@ const ACCEPTED_CLASSES = {
     'audience_submit and audience_vote (0111) replace the 0035 and 0097 phone doors with the round ' +
     'and revision the phone read added: they take the join slug, check the audience kill switch, and ' +
     'accept a send only into that production\'s open round at that revision, so a phone can reach ' +
-    'nothing it could not before and a closed or edited question refuses it.',
+    'nothing it could not before and a closed or edited question refuses it. ' +
+    'control_output_head, control_output_parts and control_output_assets (0120, live-publishing G4) ' +
+    'are the output-slug doors of control_output_resolve read in pieces: the head is the payload ' +
+    'without graphic bodies, a part is one graphic of that production, and an image is answered only ' +
+    'when a part of that production names it, so a slug holder reads nothing resolve did not answer.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot. The community_pack_* functions (0079, ' +
@@ -170,7 +174,19 @@ const ACCEPTED_CLASSES = {
     'nothing the owner\'s row policy and the control slug do not already allow. ' +
     'audience_go_live, audience_stop and audience_clear_results (0111) are the anon control-slug ' +
     'doors above, reached by a signed-in operator; audience_submit and audience_vote (0111) are the ' +
-    'join-slug phone doors, reached by a viewer who happens to be signed in.',
+    'join-slug phone doors, reached by a viewer who happens to be signed in. ' +
+    'Live-publishing phase 7 (0119, 0120, designs/G4.md): team_production_patch and ' +
+    'team_production_units_set repeat team_production_save\'s own checks (signed in, not suspended, a ' +
+    'member of the production\'s team, compare-and-swap on the token), because clients have no update ' +
+    'right on team_productions; partial_writes_state answers only whether the switch is on, as ' +
+    'auto_publish_state does. control_asset_put, control_assets_missing, control_parts_put, ' +
+    'control_compose_graphics and control_parts_settle are the only door to control_assets and ' +
+    'control_parts, which have no client privilege and no policy: each first checks ' +
+    'control_may_publish, the control_shows row policy\'s own test (owner, or a current team member) ' +
+    'with the suspension and hosted-feature checks, and touches only that production\'s parts; an ' +
+    'image is stored under the name the server computes, and the missing check answers only about ' +
+    'images the caller\'s own productions name. The output-slug reads above are reached by a ' +
+    'signed-in output too.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
     '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +

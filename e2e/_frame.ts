@@ -98,8 +98,8 @@ export function frameOpacity(page: Page, selector: string): Promise<number> {
  */
 export async function mountWorkingDocument(page: Page): Promise<FrameLocator> {
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     document.querySelectorAll('iframe.working-document').forEach((f) => f.remove());
     const f = document.createElement('iframe');
     f.className = 'working-document';

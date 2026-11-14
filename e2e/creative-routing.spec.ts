@@ -1,3 +1,4 @@
+// runs on: dev server - imports the pilot brief bank from /benchmarks, which the build does not serve
 // covers: src/ai/**
 //
 // The pilot brief bank is read by the anchor re-verification (the decay rule) - a bank edit
@@ -37,7 +38,7 @@ test.describe('creative routing (phase A)', () => {
   test('explicit modes are never overridden by the intent', async ({ page }) => {
     await open(page);
     const routes = await page.evaluate(async (intent) => {
-      const { normalizeIntent, routeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeIntent, routeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
       const fit = normalizeIntent(intent);
       const original = normalizeIntent({ ...intent, originalityRequested: true });
       return {
@@ -52,7 +53,7 @@ test.describe('creative routing (phase A)', () => {
   test('auto routes on fit, originality, and confidence - each branch proven non-vacuous', async ({ page }) => {
     await open(page);
     const routes = await page.evaluate(async (intent) => {
-      const { normalizeIntent, routeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeIntent, routeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
       const route = (raw: unknown) => routeIntent(normalizeIntent(raw), 'auto').route;
       return {
         fitHigh: route(intent),
@@ -84,8 +85,8 @@ test.describe('creative routing (phase A)', () => {
   test('the scope guard is honoured end to end: registry note -> prompt, decision stays explicit-mode safe', async ({ page }) => {
     await open(page);
     const scope = await page.evaluate(async (intent) => {
-      const { intentSystemPrompt, normalizeIntent, routeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { typeById } = await import('/src/templates/types/registry.ts');
+      const { intentSystemPrompt, normalizeIntent, routeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { typeById } = await __noacgImport('/src/templates/types/registry.ts');
       const beyond = normalizeIntent({ ...(intent as object), beyondScope: true, scopeEvidence: 'a losers bracket' });
       return {
         bracketNote: typeById('bracket')?.structuralScope ?? null,
@@ -111,8 +112,8 @@ test.describe('creative routing (phase A)', () => {
       const bank = (await import('/benchmarks/creative/v1/briefs.json')).default as {
         briefs: { id: string; expectedRoute: string; catalogAnchor?: string }[];
       };
-      const { typeById } = await import('/src/templates/types/registry.ts');
-      const { variantsFor } = await import('/src/templates/catalog.ts');
+      const { typeById } = await __noacgImport('/src/templates/types/registry.ts');
+      const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
       const missing: string[] = [];
       let checked = 0;
       for (const brief of bank.briefs) {
@@ -136,7 +137,7 @@ test.describe('creative routing (phase A)', () => {
   test('the stub provider honors the mode end to end', async ({ page }) => {
     await open(page);
     const runs = await page.evaluate(async () => {
-      const { StubAIProvider } = await import('/src/ai/stubProvider.ts');
+      const { StubAIProvider } = await __noacgImport('/src/ai/stubProvider.ts');
       const stub = new StubAIProvider();
       const ctx = { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 };
       const pick = (c: { routing?: { route: string; mode: string }; intent?: { originalityRequested: boolean } }) => ({
@@ -199,10 +200,10 @@ test.describe('creative routing (phase A)', () => {
       });
     });
     const session = await page.evaluate(async () => {
-      const { saveAiSettings, defaultModelForProvider } = await import('/src/ai/settings.ts');
+      const { saveAiSettings, defaultModelForProvider } = await __noacgImport('/src/ai/settings.ts');
       const sessionModel = 'qwen/qwen3-coder-next';
       saveAiSettings({ provider: 'vercel', model: sessionModel, fallbacks: [] });
-      const { claudeProvider } = await import('/src/ai/claudeProvider.ts');
+      const { claudeProvider } = await __noacgImport('/src/ai/claudeProvider.ts');
       const ctx = { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 };
       // The run unwinds on the stopped design/coder calls; only the routing matters here.
       await claudeProvider.generate('A four-team playoff bracket.', ctx as never).catch(() => null);
@@ -220,9 +221,9 @@ test.describe('creative routing (phase A)', () => {
   test('structural check: list data, field capacity, and states - with mutation twins', async ({ page }) => {
     await open(page);
     const results = await page.evaluate(async () => {
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const { structuralIntentStaticFindings } = await import('/src/validation/structuralIntentCheck.ts');
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+      const { structuralIntentStaticFindings } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
       const lowerThird = variantsFor('lower-third')[0].create();
       const matchup = variantsFor('matchup')[0].create();
       const intent = (over: Record<string, unknown>) =>
@@ -267,9 +268,9 @@ test.describe('creative routing (phase A)', () => {
   test('a lower third returned for a stinger brief is a finding, not a valid result', async ({ page }) => {
     await open(page);
     const result = await page.evaluate(async () => {
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const { structuralKindFindings } = await import('/src/validation/structuralIntentCheck.ts');
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+      const { structuralKindFindings } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
       // What a correct classifier returns for "a stinger that wipes the screen between
       // segments" - the catalog carries this, so routing to adapt is RIGHT.
       const stinger = normalizeIntent({
@@ -335,10 +336,10 @@ test.describe('creative routing (phase A)', () => {
       }
     });
     const runs = await page.evaluate(async () => {
-      const { saveAiSettings } = await import('/src/ai/settings.ts');
+      const { saveAiSettings } = await __noacgImport('/src/ai/settings.ts');
       saveAiSettings({ provider: 'vercel', model: 'qwen/qwen3-coder-next', fallbacks: [] });
-      const { claudeProvider } = await import('/src/ai/claudeProvider.ts');
-      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const { claudeProvider } = await __noacgImport('/src/ai/claudeProvider.ts');
+      const { benchStructuralIntent } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
       const ctx = { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 };
       const change = await claudeProvider.generate(
         'A full-frame stinger that wipes the screen between segments.',
@@ -361,8 +362,8 @@ test.describe('creative routing (phase A)', () => {
 
     designCategory = 'transition';
     const twin = await page.evaluate(async () => {
-      const { claudeProvider } = await import('/src/ai/claudeProvider.ts');
-      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const { claudeProvider } = await __noacgImport('/src/ai/claudeProvider.ts');
+      const { benchStructuralIntent } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
       const ctx = { images: [], palette: null, resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 25 };
       const change = await claudeProvider.generate(
         'A full-frame stinger that wipes the screen between segments.',
@@ -382,10 +383,10 @@ test.describe('creative routing (phase A)', () => {
   test('a lower third returned for a timing-tower brief is a finding', async ({ page }) => {
     await open(page);
     const result = await page.evaluate(async () => {
-      const { variantsFor, variantById } = await import('/src/templates/catalog.ts');
-      const { structuralKindFindings } = await import('/src/validation/structuralIntentCheck.ts');
-      const { anchorsSatisfiedBy } = await import('/src/templates/structuralAnchor.ts');
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { variantsFor, variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { structuralKindFindings } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
+      const { anchorsSatisfiedBy } = await __noacgImport('/src/templates/structuralAnchor.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
       // 'tower' is a FAMILY word, so this also proves the family vocabulary resolves to the
       // same anchor the router used - one table, not two.
       const tower = normalizeIntent({
@@ -424,9 +425,9 @@ test.describe('creative routing (phase A)', () => {
     // Three ways it must NOT fire. Without these the check could pass its positive cases by
     // simply always finding something.
     const quiet = await page.evaluate(async () => {
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const { structuralKindFindings } = await import('/src/validation/structuralIntentCheck.ts');
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+      const { structuralKindFindings } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
       const lowerThird = variantsFor('lower-third')[0];
       const novel = normalizeIntent({
         kind: 'novel', novelDescription: 'a rotating sponsor carousel', confidence: 'high',
@@ -455,7 +456,7 @@ test.describe('creative routing (phase A)', () => {
     // Expectations are derived from the LIVE catalog, so this table cannot rot silently: a
     // structure the catalog gains flips to adapt here and the assertion says which.
     const routes = await page.evaluate(async () => {
-      const { normalizeIntent, routeIntent, structuralFit } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeIntent, routeIntent, structuralFit } = await __noacgImport('/src/ai/structuralIntent.ts');
       const base = {
         confidence: 'high' as const, summary: 's',
         parts: [{ id: 'c', role: 'content' }], fields: [], originalityRequested: false,
@@ -491,9 +492,9 @@ test.describe('creative routing (phase A)', () => {
     await open(page);
     test.setTimeout(60_000);
     const results = await page.evaluate(async () => {
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+      const { benchStructuralIntent } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
       const lowerThird = variantsFor('lower-third')[0].create();
       const ticker = variantsFor('ticker')[0].create();
       const repeating = normalizeIntent({

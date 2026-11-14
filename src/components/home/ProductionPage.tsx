@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
+import { joinedScenes, obsScenesOf, sceneFolderIds, sceneGraphicNames, sceneLink, type ObsScene } from '../../model/obsScenes';
+import { EMPTY_WATCH, forgetScene, loadedScenes, sceneRows, watchScenes, type SceneWatch } from '../../control/obsSceneRows';
+import { airMark, takeJoined } from '../../control/sceneJoin';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -20,13 +23,16 @@ import {
   fillPlayoutItemFacts,
   renameFolderChecked,
   setFolderMode,
+  setFolderObsScene,
+  setShowObsScenes,
   setFolderPlayback,
   setCueAuto,
   type PlayoutItem,
   type SheetShowSource,
   type FeedShowSource,
   type FileShowSource,
-  fillsFields,
+  hasReaderLine,
+  type NoacgReadSource,
   type Show,
   type ShowCue,
   type ShowFolder,
@@ -84,6 +90,9 @@ import { createProductionDataSession } from '../../control/productionDataSession
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
 import { FEED_LEASE_MS, createFeedReader } from '../../control/feedSource';
+import { collectionReads, createJsonReader, jsonLeaseMs, projectJson } from '../../control/jsonSource';
+import { currentMatchPath, pickOf } from '../../control/bracketAdapter';
+import { readExternalRegistration } from '../../control/externalSource';
 import { createFileReader } from '../../control/fileSource';
 import { loadFileHandle } from '../../control/fileHandles';
 import { useStorePart } from './useStorePart';
@@ -105,7 +114,7 @@ import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefu
 import { typedErrorsByPath, typedSummary, typedUnsent } from '../../control/ografForm';
 import { graphicButtons, receivesTypedActions } from '../../control/ografContract';
 import { createTypedSaves, createTypedSendMemo, typedActionPart, typedActionSendFor, TYPED_VALUES_PART } from '../../control/typedSend';
-import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
+import { getPath, setPath, resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
@@ -142,9 +151,13 @@ import ProductionAudienceWorkspace, { useMessageSources } from './ProductionAudi
 import { pollFieldMap } from '../../control/resultStaging';
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
-import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
+import { designEditedAt, libraryStoreText, loadGraphics, newerLibraryDesign, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
+import { describeProductionGate, productionGateFailures } from '../../validation/productionGate';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
+import { keepGeometry, publishBox } from '../../control/keptGeometry';
+import { stampKey, storedBoxes } from '../../control/publishParts';
+import { LIVE_BUILD } from '../../control/livePath';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
@@ -160,7 +173,9 @@ import { publishedAdjustOf } from '../../control/hostedAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
+import { droppedFields, setSceneAirCues, updateCopyFromLibrary } from '../../model/shows';
 import { setCueSelection, setCueTyped, setCueTypedArgs, setCueTypedValues, setGraphicSounds } from '../../model/shows';
+import { forgetOwedCueEdit, keepOwedCueEdit, readOwedCueEdit } from '../../model/owedCueEdit';
 import ProductionSounds from './ProductionSounds';
 import { soundTopology } from '../../assets/productionSounds';
 import {
@@ -206,6 +221,7 @@ import {
   libraryGraphicDigests,
   sendsInOrder,
   sentHere,
+  copyDigest,
   verbAired,
   verbStale,
   verbsLanded,
@@ -215,6 +231,7 @@ import {
   type ControlEventRow,
   type ControlFollowStatus,
   type ControlSendItem,
+  type CuePublished,
   type LiveCueMap,
 } from '../../control/hostedControl';
 import type { ReplayItem } from '../../control/outputRecovery';
@@ -225,6 +242,7 @@ import { type ProgramStageHandle } from './ProgramStage';
 import PlayoutMonitors from './PlayoutMonitors';
 import { composeDocument } from '../../preview/composeDocument';
 import { isBackendConfigured } from '../../backend/config';
+import { partialWritesOn } from '../../backend/partialWrites';
 import { useAuthState } from '../auth/useAuthState';
 import SignInPrompt from '../auth/SignInPrompt';
 import { productionWhenSynced } from '../../backend/graphicWhenSynced';
@@ -232,7 +250,7 @@ import { useAuthUi } from '../auth/authUi';
 import ActionLog from './ActionLog';
 import { cueOverflowKeys } from './CueOverflowNote';
 import ProductionExportDialog from './ProductionExportDialog';
-import { BridgeSection, BrowserSourceRow, CasparRows, DueActions, PanelProblems, RendererRows, VmixRows } from './PlayoutPanel';
+import { BridgeSection, BrowserSourceRow, CasparRows, DueActions, ObsSceneRows, PanelProblems, RendererRows, VmixRows } from './PlayoutPanel';
 import { ProductionLinksDialog } from './ProductionLinks';
 import { PlayoutStatusControl } from './PlayoutStatusControl';
 import CueRundown, { nameList } from './CueRundown';
@@ -254,11 +272,12 @@ import { actionButtonFor } from './CueActions';
 import LiveControls, { type LiveBlockView } from './LiveControls';
 import { liveBlocks, liveNumberFields as liveNumbersOf, liveSelection, pickFields, pickOptions } from '../../control/liveControls';
 import ProductionShell from './ProductionShell';
+import LiveDock from './LiveDock';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
 import { isImageAsset } from '../../assets/assetUtils';
 import BrandLogo from '../BrandLogo';
-import { publishActions, publishFacts, useProductionPublish } from './useProductionPublish';
+import { publishActions, publishFacts, publishedFacts, useProductionPublish } from './useProductionPublish';
 import { rundownActions, useRundownAuthoring } from './useRundownAuthoring';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
 import { PanelDialog, usePanelAnswer } from '../control/PanelControl';
@@ -267,11 +286,16 @@ import { declaredForeign, graphicControls, panelGraphic, runCapability, type Con
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { teamShowsStatus } from '../../model/teamShows';
 import { announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
+import { useCopyAdoption } from './useCopyAdoption';
 import { usePublishDrift } from './usePublishDrift';
 import { type PayloadVersion } from '../../control/payloadVersion';
-import { clockWords, type HeldVersion, type ReadyStamp } from '../../control/readiness';
-import { commandPathsOf, type PrepRequest } from '../../control/prepareLive';
+import { clockWords, unwatchedOutputs, type HeldVersion, type ReadyStamp } from '../../control/readiness';
+import { commandPathsOf, requestId, type PrepRequest } from '../../control/prepareLive';
+import { oldOutputNames } from '../../control/autoPublish';
+import { useAutoPublish } from './useAutoPublish';
 import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type StatusFacts } from '../../control/playoutStatus';
+import { confirmLines, newerRun, pruneOwed, type ConfirmOutput, type Owed } from '../../control/runConfirm';
+import { epochTag, readRun, withoutRun, type RunReport } from '../../control/runReport';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
@@ -281,20 +305,71 @@ import { usePrepareForLive } from '../control/PrepareForLive';
 const DRAFT_ADAPTERS: CueDraftAdapters = {
   onPageHide: (run) => {
     const hidden = () => {
-      if (document.visibilityState === 'hidden') run();
+      if (document.visibilityState === 'hidden') run(true);
     };
-    window.addEventListener('noacg-account-authoring-pausing', run);
-    window.addEventListener('pagehide', run);
+    const going = () => run(true);
+    const pausing = () => run(false);
+    window.addEventListener('noacg-account-authoring-pausing', pausing);
+    window.addEventListener('pagehide', going);
     document.addEventListener('visibilitychange', hidden);
     return () => {
-      window.removeEventListener('noacg-account-authoring-pausing', run);
-      window.removeEventListener('pagehide', run);
+      window.removeEventListener('noacg-account-authoring-pausing', pausing);
+      window.removeEventListener('pagehide', going);
       document.removeEventListener('visibilitychange', hidden);
+    };
+  },
+  // Shown again: visible after hidden, or restored from the back-forward cache.
+  onPageShown: (run) => {
+    const shown = () => {
+      if (document.visibilityState === 'visible') run();
+    };
+    const restored = (e: PageTransitionEvent) => {
+      if (e.persisted) run();
+    };
+    window.addEventListener('pageshow', restored);
+    document.addEventListener('visibilitychange', shown);
+    return () => {
+      window.removeEventListener('pageshow', restored);
+      document.removeEventListener('visibilitychange', shown);
     };
   },
   onFlushAsked: (run) => {
     window.addEventListener('noacg-account-authoring-flush', run);
     return () => window.removeEventListener('noacg-account-authoring-flush', run);
+  },
+  // A control whose press sends before it saves (live-publishing W1) is marked `data-sends-first`.
+  // Captured on the window, so the draft hears it before the focus moves and before any handler.
+  onSendsFirstPress: (run) => {
+    // A mouse press moves the focus while its button is down. A touch or pen press moves it after
+    // the pointer is up, with the click the tap makes, so it ends at that click (or 1 s on, if the
+    // tap makes none).
+    let late: ReturnType<typeof setTimeout> | undefined;
+    const end = () => {
+      clearTimeout(late);
+      run(false);
+    };
+    const down = (e: PointerEvent) => {
+      clearTimeout(late);
+      run(e.target instanceof Element && e.target.closest('[data-sends-first]') !== null);
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return end();
+      clearTimeout(late);
+      late = setTimeout(end, 1000);
+    };
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', end, true);
+    window.addEventListener('click', end, true);
+    window.addEventListener('blur', end);
+    return () => {
+      clearTimeout(late);
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', end, true);
+      window.removeEventListener('click', end, true);
+      window.removeEventListener('blur', end);
+    };
   },
 };
 /** Where an item and a Play-through folder play, for the Take refusals and the server verbs. */
@@ -547,9 +622,18 @@ interface PoolMachine extends ControlsMachine {
 
 /** What a published production's sources write carries (control/hostedControl.ts `writePublishedSources`). */
 type PublishedSources = Pick<Show, 'bindings' | 'sources' | 'collections'>;
-type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'> | Pick<FileShowSource, 'kind' | 'config'>, boolean];
+type ReaderPlan = [
+  string,
+  Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'> | Pick<FileShowSource, 'kind' | 'config'> | Pick<NoacgReadSource, 'kind' | 'config'>,
+  boolean,
+];
 
-export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
+/**
+ * `dock`: the same page drawn as the LIVE DOCK, a 300 px column for an OBS Custom Browser Dock
+ * (docs/work-specs/obs-scenes/spec.md OS6 K1). Every hook, session and wire runs as on the full
+ * page; only the render at the end differs.
+ */
+export default function ProductionPage({ id, sub, dock = false }: { id: string; sub?: ProductionSub | null; dock?: boolean }) {
   const navigate = useRouter((s) => s.navigate);
   const goBack = useRouter((s) => s.goBack);
   // The mutators return the fresh list — holding it in state (the ControlPanel pattern) keeps
@@ -570,16 +654,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * cannot move what this operator is holding. Re-reading after this tab's OWN write is
    * harmless: it reads back what it just wrote.
    */
+  /** Bumped only by this page's own-reader migration (data-sources C6). `library` feeds the monitors,
+   *  the measurer and the pool machines, so a library edit elsewhere must not move it: a new identity
+   *  rebuilds the program payload and restarts the monitor under the operator. */
+  const [libraryRev, setLibraryRev] = useState(0);
+  /** Bumped when the stored library moves (a library edit here or in another tab, a sync pull), for
+   *  "Newer design in library" and Update only. What plays is the production's copy, never this. */
+  const [designLibraryRev, setDesignLibraryRev] = useState(0);
   useEffect(() => {
-    const onDataChanged = () => setShows(loadShows());
+    // The library is read again only when it moved (by reference, no parse), so a cue save costs
+    // nothing here and a library edit reaches "Newer design in library" (live-publishing O4).
+    let libraryText = libraryStoreText();
+    const onDataChanged = () => {
+      setShows(loadShows());
+      const now = libraryStoreText();
+      if (now !== libraryText) { libraryText = now; setDesignLibraryRev((n) => n + 1); }
+    };
     window.addEventListener('spx-data-changed', onDataChanged);
     return () => window.removeEventListener('spx-data-changed', onDataChanged);
   }, []);
-  /** Bumped when this page changes a library design itself (the own-reader migration, data-sources
-   *  C6), so the monitors rebuild on the design the production now plays. */
-  const [libraryRev, setLibraryRev] = useState(0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when this page changed a design
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only on this page's own-reader migration
   const library = useMemo(() => loadGraphics(), [libraryRev]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when the stored library moved
+  const designLibrary = useMemo(() => loadGraphics(), [libraryRev, designLibraryRev]);
   // Fresh picker choices must not replace the library identity held by running monitor frames.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- data-change events refresh shows and the library together
   const pickerLibrary = useMemo(() => loadGraphics(), [shows]);
@@ -731,6 +828,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A getter, so the publish flow and the modules hold one stable `{ current }` (the compiler lint
   // reads a plain ref handed to the render-time publish call as read during render).
   const liveCueRef = useMemo(() => ({ get current() { return drawnLiveCue.current; } }), []);
+  // OBS scenes OS1b C10: a write never moves a cue on air to a scene's copy. The session's air part,
+  // not the paced copy the page draws, so a Take that landed a moment ago counts.
+  useEffect(() => {
+    setSceneAirCues(id, () => new Set(Object.values(liveCueOf(session.air.get())).filter((cue): cue is string => !!cue)));
+    return () => setSceneAirCues(id, null);
+  }, [session, id]);
   /** Each ⚡ button's last press and what it came to (control/pressFeedback.ts), dropped as soon as
    *  the session's `air` part puts another instance on its layer, an Out and a Take of the same cue
    *  included. */
@@ -855,6 +958,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const airHeldRef = useRef(false);
   useEffect(() => holdReload(() => airHeldRef.current), []);
   const [loggedAt, setLoggedAt] = useState<number | null>(null);
+  /** WHAT THE OUTPUTS OWE AND HAVE RUN (live-publishing G2 section 6): every command position this
+   *  page knows of, and each output's newest run report heard on a report row. */
+  const [owed, setOwed] = useState<Owed[]>([]);
+  const [heardRuns, setHeardRuns] = useState<Record<string, RunReport>>({});
+  /** The epoch the run reports are read in (its first 8 characters); null: take the next one heard. */
+  const runEpochRef = useRef<string | null>(null);
+  /** Epochs a republish ended: a report still from one of them is about a log that is gone. */
+  const retiredEpochsRef = useRef(new Set<string>());
+  /** When this page last learned of a command row: PROGRAM's "ran" is about a send at or before it. */
+  const newestOwedRef = useRef(0);
+  /** When this page's newest graphic send left. */
+  const lastSendRef = useRef(0);
+  /** The outputs as last judged, for dropping positions every one of them has confirmed. */
+  const confirmOutputsRef = useRef<ConfirmOutput[]>([]);
+  const noteRun = useCallback((run: RunReport) => {
+    if (retiredEpochsRef.current.has(run.e)) return;
+    if (runEpochRef.current === null) runEpochRef.current = run.e;
+    if (run.e !== runEpochRef.current) return;
+    setHeardRuns((m) => {
+      const next = newerRun(m[run.o], run);
+      return next === m[run.o] ? m : { ...m, [run.o]: next };
+    });
+  }, []);
   /** The browser has no network: nothing from the server reaches this page. */
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false);
   useEffect(() => {
@@ -943,6 +1069,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The production's live state is recovered from the wire (its resolve and the rows after it):
    *  until then an empty on-air map is not evidence that a graphic is off air. */
   const [liveRecovered, setLiveRecovered] = useState(false);
+  /** False once this page has gone (it is keyed by production): a Take it still owes is dropped. */
+  const pageLiveRef = useRef(true);
+  useEffect(() => {
+    pageLiveRef.current = true;
+    return () => {
+      pageLiveRef.current = false;
+    };
+  }, []);
   useEffect(() => {
     setLiveRecovered(false);
     setPublishedReaders(new Set());
@@ -957,6 +1091,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     log: follow ? follow.status === 'SUBSCRIBED' : null,
     cmd: commandStatus === null ? null : commandStatus === 'SUBSCRIBED',
   });
+  // Positions every expected output has confirmed are dropped, so the list holds only what is still
+  // unknown (live-publishing G2 section 6).
+  useEffect(() => {
+    setOwed((list) => {
+      const next = pruneOwed(list, confirmOutputsRef.current);
+      return next.length === list.length ? list : next;
+    });
+  }, [heardRuns, livePresence.peers]);
   /** READY (components/control/OutputHealth.tsx): the published version this page knows (its
    *  resolve, then each of its own publishes), and the outputs it expects, remembered per production
    *  in this browser and announced on the live topic so the hosted page and the phone count the
@@ -966,6 +1108,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Changed since the last publish: the record itself, or what the outputs would render (a graphic
    *  edited in the library, which never touches the record) - usePublishDrift. */
   const authoringAllowed = useAccountAuthoring();
+  // ADOPTION (live-publishing O5, designs/G1.md section 5): once the production-copies switch is on.
+  useCopyAdoption(show, authoringAllowed, setShows);
   const { unpublished: unpublishedChanges, requiresPreparation, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
   // EXPECTED FOR THIS SESSION ONLY (playout-workflow-simplification D4): an output seen since this
   // page opened and then gone is lost, in red; yesterday's OBS is never expected today, so a page
@@ -975,6 +1119,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     livePresence,
     false,
   );
+  /** What this page has heard of the OBS scene links since it opened (obs-scenes OS3 M3, M5): when
+   *  each scene's link was last present and the OBS scenes it went on program in. */
+  const [sceneWatch, setSceneWatch] = useState<SceneWatch>(EMPTY_WATCH);
+  /** The production's scenes, read again only when the record changes, not with every second's clock. */
+  const obsSceneList = useMemo(() => (show?.obsScenes ? obsScenesOf(show) : []), [show]);
+  useEffect(() => setSceneWatch(EMPTY_WATCH), [show?.id]);
+  const sceneWatchJoined = livePresence.status === 'joined' && livePresence.showId === (show?.id ?? null);
+  // Only while the switch is on (M1): a production without OBS scenes reads nothing new.
+  const watchingScenes = sceneWatchJoined && !!show?.obsScenes;
+  useEffect(() => {
+    if (watchingScenes) setSceneWatch((w) => watchScenes(w, livePresence.peers, Date.now()));
+  }, [watchingScenes, livePresence.peers]);
   /** PREPARE FOR LIVE (components/control/PrepareForLive.tsx): the last stamp, kept per production
    *  in this browser, and the request to the outputs while a run is out. Both are announced. */
   const [readyStamp, setReadyStamp] = useState<ReadyStamp | null>(null);
@@ -986,6 +1142,32 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Take out request `id`, and only that one: Prepare for Live and every publish each put one in,
    *  and the newer stays when the older one's time is up. */
   const dropPrep = useCallback((id: string) => setPrepRequest((cur) => (cur?.id === id ? null : cur)), []);
+  // AUTOMATIC UPDATES (live-publishing designs/G3.md): once the server's guard is installed and its
+  // switch is on, every save of this published production is published with no press, and each
+  // publish asks every output to prepare at once, old ones included.
+  const appearanceForRef = useRef<((s: Show, base?: PayloadVersion | null) => Promise<CuePublished | undefined>) | undefined>(undefined);
+  /** The scene-join step after any publish, a press's or an automatic one (set below, once the
+   *  verbs it takes with exist). */
+  const sceneJoinRef = useRef<((published: { version: PayloadVersion; scenes: { before: ObsScene[]; after: ObsScene[] } }) => void) | null>(null);
+  const autoPublish = useAutoPublish({
+    show,
+    mayPublish: backendConfigured && authStatus === 'signed-in' && authoringAllowed,
+    account: user?.id ?? null,
+    appearanceFor: appearanceForRef,
+    // The same after-publish steps a press's publish runs (useProductionPublish): the stamp, which
+    // graphics' events need the server's time and which still read a Sheet, and a graphic that
+    // joined an OBS scene taken there. Then the outputs are asked to prepare the new version.
+    onPublished: ({ version: ver, scenes, record }) => {
+      setPublishedStamp(ver);
+      const facts = publishedFacts(record.graphics);
+      fastEventGraphicsRef.current = facts.fast;
+      setPublishedReaders(facts.readers);
+      if (scenes) sceneJoinRef.current?.({ version: ver, scenes });
+      // A development build lets a spec withhold the request, to prove outputs find it alone.
+      if ((import.meta.env.DEV || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) && (window as unknown as { __noacgWithholdPrep?: boolean }).__noacgWithholdPrep) return;
+      setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
+    },
+  });
   const relevanceSettings = loadPlayoutSettings();
   const casparTarget = casparOutputTarget(relevanceSettings);
   const onAirChanged = (what: 'air' | 'stop', result: PlayoutResult, target: string) => {
@@ -1447,6 +1629,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           draftOwner.current === session.key ? historyRef.current!.writeDraft(() => updateShowCueChecked(session.key, cueId, fields)) : Promise.resolve(false),
         retainCue: (cueId, fields) => !updateShowCueChecked(session.key, cueId, fields).error,
         record: (cueId) => cuesRef.current.find((c) => c.id === cueId),
+        owed: {
+          keep: (edit) => keepOwedCueEdit(session.key, edit),
+          read: () => readOwedCueEdit(session.key),
+          forget: () => forgetOwedCueEdit(session.key),
+        },
         setTimeout: (run, ms) => setTimeout(run, ms),
         clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
       }),
@@ -1475,6 +1662,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const history = useRundownHistory(show ?? null, setShows, setRundownNote, (a, b) => historySafety.current(a, b), cancelDraft);
   historyRef.current = history;
   useEffect(() => cueDraft.listen(DRAFT_ADAPTERS), [cueDraft]);
+  // An edit recorded when a page of this production last went (control/cueDraft.ts `recover`),
+  // once its cues are here (a team production arrives a moment after the page), against the
+  // production as first loaded: the effect runs after the render that has them.
+  const showHere = !!show;
+  useEffect(() => {
+    if (!showHere) return;
+    cueDraft.recover();
+    // An account's page can open before its session lets it write: the record waits for that.
+    const again = () => cueDraft.recover();
+    window.addEventListener('noacg-account-authoring', again);
+    return () => window.removeEventListener('noacg-account-authoring', again);
+  }, [cueDraft, showHere]);
   useEffect(() => { void flushDraft(); void historyRef.current?.closeGroup(); }, [sub, flushDraft]);
 
   // ── PRODUCTION DATA: the tree, and what it resolves to (docs/PRODUCTION_DATA_PLAN.md) ────
@@ -1556,6 +1755,44 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   sourcesRef.current = show?.sources;
   const bindingsRef = useRef(bindings);
   bindingsRef.current = bindings;
+  /** The tree as this page holds it: a JSON reader reads the operator's current match from it. */
+  const liveDataRef = useRef(liveData);
+  liveDataRef.current = liveData;
+  /** Sources the operator picked a current match on since this page's last read of them: that
+   *  read takes the pick as new, so "None" then the held match recovers whatever the timing. */
+  const freshPicks = useRef(new Set<string>());
+  /** An operator's write of one value to the tree: the current match's pick, and the Live dock's
+   *  break deadline (OS6 K7). Published, the tree is written with the production's data key; without
+   *  it the value would stay in this browser, so it is refused and said. Onto the newest tree, so a
+   *  write that landed since the last render keeps its value. */
+  const writeTree = useCallback(
+    (path: string, value: JsonValue, refused: string): boolean => {
+      const data = session.data.get();
+      if (hostedSlug && !data.dataKey) {
+        setNote(`${refused}: this page cannot write the production’s data yet.`);
+        return false;
+      }
+      setLiveData(setPath(data.liveData, path, value));
+      return true;
+    },
+    [session, hostedSlug, setLiveData],
+  );
+  /** The operator's current match of a bracket source (OS5b, B11, B14): written to the tree, and
+   *  this page's reader reads at once (another tab's at its next read). */
+  const currentMatch = useMemo(
+    () => ({
+      get: (sourceId: string) => pickOf(getPath(liveDataRef.current, currentMatchPath(sourceId))),
+      pick: (sourceId: string, matchId: string | null) => {
+        freshPicks.current.add(sourceId);
+        if (!writeTree(currentMatchPath(sourceId), matchId ?? '', 'The current match was not picked')) {
+          freshPicks.current.delete(sourceId);
+          return;
+        }
+        sourceStatus.poke(sourceId);
+      },
+    }),
+    [writeTree, sourceStatus],
+  );
   const graphicsRef = useRef(show?.graphics);
   graphicsRef.current = show?.graphics;
   const libraryRef = useRef(library);
@@ -1837,8 +2074,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // reads go through the guarded feed route, every 5 minutes (control/feedSource.ts); a file is read
   // through this browser's handle for it, every 5 s like a tab (control/fileSource.ts).
   // Only what a reader is built from, so a rename or a Pause never restarts one.
+  // A connector NoaCG reads itself (obs-scenes OS5a) has a reader too: its payload through the route.
   const readerPlan = JSON.stringify(
-    (show?.sources ?? []).filter(fillsFields).map((s) => [s.id, { kind: s.kind, config: s.config }, Boolean(s.inbox)] as ReaderPlan),
+    (show?.sources ?? []).filter(hasReaderLine).map((s) => [s.id, { kind: s.kind, config: s.config }, s.kind !== 'external' && Boolean(s.inbox)] as ReaderPlan),
   );
   useEffect(() => {
     const plan = JSON.parse(readerPlan) as ReaderPlan[];
@@ -1881,7 +2119,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   owner: readerTab,
                   hold: dataSession.holdServerTree,
                   note: setNote,
-                  leaseMs: source.kind === 'feed' ? FEED_LEASE_MS : undefined,
+                  leaseMs: source.kind === 'feed' ? FEED_LEASE_MS : source.kind === 'external' ? jsonLeaseMs(source.config.read.everyMs) : undefined,
                 })
               : undefined,
           },
@@ -1891,6 +2129,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           write: dataSession.applySourcePatch,
           onStatus: (status) => sourceStatus.set(sourceId, status),
         };
+        if (source.kind === 'external') {
+          // The registration as the route reads it: its lists and recipe evaluate each payload.
+          const registration = readExternalRegistration({ id: sourceId, kind: 'external', config: source.config });
+          return [
+            sourceId,
+            createJsonReader({
+              ...common,
+              url: source.config.endpoint,
+              everyMs: source.config.read.everyMs,
+              // An open page knows the operator's current match (obs-scenes OS5b, B11, B12).
+              project: (payload, previous) =>
+                projectJson({
+                  sourceId,
+                  payload,
+                  bindings: bindingsRef.current,
+                  fieldsOf,
+                  registration,
+                  collections: collectionReads(collectionsRef.current, sourceId),
+                  current: { pick: getPath(liveDataRef.current, currentMatchPath(sourceId)), previous, fresh: freshPicks.current.delete(sourceId) },
+                }),
+            }),
+          ] as const;
+        }
         const reader =
           source.kind === 'feed'
             ? createFeedReader({ ...common, url: source.config.url })
@@ -1902,7 +2163,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 shape: source.config.shape,
                 inbox: inboxes.get(sourceId)?.take,
               });
-        return [sourceId, reader];
+        return [sourceId, reader] as const;
       }),
     );
     sourceStatus.onPoke((sourceId) => readers.get(sourceId)?.poke());
@@ -1920,7 +2181,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         sourceStatus.set(sourceId, undefined);
       }
     };
-  }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept]);
+  }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept, fieldsOf]);
   // PUBLISHED, a connection, a disconnection and a Pause reach the row at once (data-sources C2):
   // the operator door then takes the new path, the tick honours the Pause with every page closed,
   // and nothing waits for the next publish. One writer per published production, one write at a
@@ -2036,6 +2297,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       fastEventGraphicsRef.current = new Set();
     },
     resolved: (resolved) => {
+      // The seed: every expected output must have reached the head this page opened on.
+      // A production with no head yet has no epoch: the first report heard names it.
+      runEpochRef.current = resolved.seq && resolved.seq.epoch ? epochTag(resolved.seq.epoch) : null;
+      setHeardRuns({});
+      setOwed(resolved.seq ? [{ at: resolved.seq.from, graphic: null, learnedAt: wallClock() }] : []);
       // Protocol 1 is the whole document's for good (hostedControl.ts `seqRoad`), so the mark is
       // never cleared, not even while a reconnect's resolve waits.
       if (!resolved.seq) setUnordered(true);
@@ -2072,8 +2338,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // A 'live' row is the renderer REPORTING what it applied — machine state included, which is
     // what keeps the action buttons' greying honest about air.
     machineState: (graphic, state) => {
-      noteMachineState(graphic, state);
-      noteOutputOgraf(graphic, state);
+      // What the output has run rides its report (G2 section 1); the buttons read the rest.
+      const run = readRun((state as { run?: unknown } | null)?.run);
+      if (run) noteRun(run);
+      const machine = withoutRun(state);
+      noteMachineState(graphic, machine);
+      noteOutputOgraf(graphic, machine);
+    },
+    owe: (at, graphic) => {
+      const learnedAt = wallClock();
+      newestOwedRef.current = learnedAt;
+      setOwed((list) => {
+        if (list.some((o) => o.at === at && o.graphic === graphic)) return list;
+        const next = list.concat({ at, graphic, learnedAt });
+        // Bounded through a long outage: the oldest position decides the age, the newest are kept.
+        return next.length > 1000 ? [next[0]].concat(next.slice(-999)) : next;
+      });
+    },
+    epochReset: () => {
+      if (runEpochRef.current !== null) retiredEpochsRef.current.add(runEpochRef.current);
+      runEpochRef.current = null;
+      setHeardRuns({});
+      // The new log's seed: every output owes a report from it before anything reads green.
+      setOwed([{ at: 0, graphic: null, learnedAt: wallClock() }]);
     },
     // THE TREE MOVED SERVER-SIDE: re-read it, rather than subscribing to `control_shows` a second
     // time. Any `src`, not `api` alone: this page's own `withBoundValues` airs the tree on the next
@@ -2349,19 +2636,79 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         if (!everyGraphic || seen.has(g.id)) return [];
         seen.add(g.id);
       }
-      const values = airedValuesOf(cue);
-      const state = adjustStateOf(cue, record, lib);
-      const styleId = state?.measureStyleId ?? '';
+      const { id, values, state } = identityOf(cue, g, record, lib);
       const input: MeasureInput = { template: templateForSavedGraphic(g, lib), values, style: previewStyleOf(state) };
-      return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, styleId), input }];
+      return [{ cueId: cue.id, graphicId: g.id, id, input }];
     });
   };
+  /** A graphic cue's measurement identity: what a Take of it airs, in the style it airs in. */
+  const identityOf = (cue: ShowCue, g: SavedGraphic, record: Show, lib = library) => {
+    const values = airedValuesOf(cue);
+    const state = adjustStateOf(cue, record, lib);
+    return { id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, state?.measureStyleId ?? ''), values, state };
+  };
+  // Saves and publishes in parts (live-publishing G4): measuring ahead and keeping boxes follow it.
+  // Null until the switch is read: the background measurer waits for it, so a box measured anew
+  // never wins over a kept one for the same identity (a Take or Publish measures on its own).
+  const [boxesAhead, setBoxesAhead] = useState<boolean | null>(null);
+  useEffect(() => {
+    let live = true;
+    void partialWritesOn().then((on) => { if (live) setBoxesAhead(on); });
+    return () => { live = false; };
+  }, []);
+  /** What this page measured, kept in this browser across a reload (control/keptGeometry.ts, #2532):
+   *  a reopened page takes a cue's kept box when its identity is unchanged, so the first publish after
+   *  a reload carries the boxes the last one did rather than resending cues nobody changed. */
+  const keptBoxes = useMemo(
+    () =>
+      keepGeometry(
+        session.geometry,
+        id,
+        () => new Map((latestShow.current?.cues ?? []).filter((c) => c.source !== 'playout').map((c) => [c.id, c.sourceId] as const)),
+        {
+          getItem: (k) => localStorage.getItem(k),
+          setItem: (k, v) => localStorage.setItem(k, v),
+          setTimeout: (run, ms) => setTimeout(run, ms),
+          clearTimeout: (t) => clearTimeout(t as ReturnType<typeof setTimeout>),
+          build: LIVE_BUILD,
+        },
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session],
+  );
+  useEffect(() => {
+    if (!boxesAhead) return;
+    const stop = keptBoxes.watch();
+    // A reload or a closed tab runs no cleanup: the write a measurement owes goes as the page leaves.
+    window.addEventListener('pagehide', keptBoxes.flush);
+    return () => {
+      window.removeEventListener('pagehide', keptBoxes.flush);
+      stop();
+    };
+  }, [keptBoxes, boxesAhead]);
+  /** Takes the kept boxes of `record`'s graphic cues this session has not measured yet, with saves
+   *  and publishes in parts on (`boxesAhead`): with them off nothing is kept or taken, as before. */
+  const adoptKeptBoxes = (record: Show, lib = library) =>
+    boxesAhead === true &&
+    keptBoxes.adopt((owed) =>
+      (record.cues ?? []).flatMap((cue) => {
+        const g = owed.has(cue.id) ? record.graphics.find((x) => x.id === cue.sourceId) : undefined;
+        if (!g || cue.source === 'playout' || isForeignGraphic(g.template)) return [];
+        return [{ cueId: cue.id, graphicId: g.id, id: identityOf(cue, g, record, lib).id }];
+      }),
+    );
+  // With saves and publishes in parts (live-publishing G4), every graphic as Publish asks, measured
+  // in the background from the moment the page opens, so the first publish after a reload has each
+  // box and does not drop one it published before (a cue resent for nothing). Otherwise only the
+  // adjusted cues, as before.
   // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
   // the identity a cue's box was measured for.
   useEffect(() => {
-    if (show) measurer.want(measureJobs(show));
+    if (!show || boxesAhead === null) return;
+    adoptKeptBoxes(show);
+    measurer.want(measureJobs(show, library, boxesAhead));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [show, library, stage, measurer, resolved]);
+  }, [show, library, stage, measurer, resolved, boxesAhead]);
 
   /**
    * EVERY POOL GRAPHIC'S MACHINE, not just the selected one.
@@ -2532,7 +2879,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     serverInstant: (item) => needsServerInstant(clockSpecsRef.current.clocks.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
     debts: () => sendDebts.current,
     outputUsable: () => usableOutputRef.current,
-    sending: (delta) => setSendingNow((n) => Math.max(0, n + delta)),
+    sending: (delta) => {
+      // When this page's newest send left: its row can arrive before its answer does.
+      if (delta > 0) lastSendRef.current = wallClock();
+      setSendingNow((n) => Math.max(0, n + delta));
+    },
     owed: setSendOwed,
     loggedAt: setLoggedAt,
     noOutput: () => setNoOutputTake(true),
@@ -2583,7 +2934,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
   // hears that part directly; it publishes only when a key would show a difference.
-  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS, auto: true });
+  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: dock ? 'Live dock' : 'Production page', runs: PRODUCTION_PANEL_VERBS, auto: true });
   const [panelOpen, setPanelOpen] = useState(false);
   const audienceInbox = useAudienceInbox(show);
   // While answering, the panel also hears the timing part, after the whole fold: a reading moves
@@ -2604,6 +2955,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   useEffect(() => {
     armEngine.current?.update({ published: !!hostedSlug, timedCues });
   }, [session, hostedSlug, timedCues]);
+
+  // The editor can move to another cue without a selection change: it follows the cue on air
+  // (`editTarget === 'air'`). After a render that moved it, the save of the draft it left starts,
+  // as `selectCue` starts it. The cue is set further down, past the early return.
+  const editingCueIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    cueDraft.showing(editingCueIdRef.current, () => { void flushDraft(); void historyRef.current?.closeGroup(); });
+  });
 
   if (!show) {
     // A TEAM production opened cold - a teammate's link, a reload - arrives with the first team
@@ -2686,26 +3045,87 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // Every graphic cue carries its records (none, for a graphic nobody adjusted) and the box this
       // page measured (one cue of an unadjusted graphic is measured here for it), so the hosted page's Adjust block can start from any of them; only an
       // adjusted cue carries an appearance.
-      appearanceFor: async (latest) => {
+      appearanceFor: appearanceForRef.current = async (latest: Show, base?: PayloadVersion | null) => {
         const lib = loadGraphics();
-        await Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
+        adoptKeptBoxes(latest, lib);
+        // The stored boxes (a cue not measured yet keeps its published one, #2532) are waited for
+        // beside the measurements, within the same cap.
+        const capped = <T,>(p: Promise<T>) => Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), PUBLISH_MEASURE_CAP_MS))]);
+        const [snapshot] = await Promise.all([
+          // Only a publish that names the stored stamp it builds on carries from it (a press does not).
+          boxesAhead === true && base !== undefined ? capped(storedBoxes(latest.id)) : null,
+          Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS))),
+        ]);
         const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
         const ctx = styleCtxOf(latest, templates);
-        return (cue) => {
+        // A stored box is the box the publication holds only while that publication is the one this
+        // publish builds on (#2532): the snapshot's stamp is the base's.
+        const stored = snapshot && snapshot.ver === stampKey(base) ? snapshot.boxes : null;
+        // The design digest a stored box is checked against, for each graphic one of whose cues has
+        // a stored box (the stamp's `ver.g`, memoized: the publish computes the same right after).
+        const digests = new Map<string, string>();
+        if (stored) {
+          for (const [i, g] of latest.graphics.entries()) {
+            if ((latest.cues ?? []).some((c) => c.sourceId === g.id && stored.has(c.id))) digests.set(g.id, await copyDigest(latest, i, g.template));
+          }
+        }
+        // Marked with the stamp it carried from once it carries a box, so a publish that then finds
+        // the stamp moved builds again (control/publishParts.ts `carriedFrom`).
+        const of: CuePublished & { carriedFrom?: string } = (cue) => {
           const g = latest.graphics.find((x) => x.id === cue.sourceId);
           const state = adjustStateOf(cue, latest, lib, ctx);
           if (!g || !state) return undefined;
-          const adjust = publishedAdjustOf(g, cue, ctx.lookFor?.(g.id), state.m, frameOf(g, lib), stage);
+          // A cue the page has not measured keeps the box the stored publication carries (#2532).
+          const frame = frameOf(g, lib);
+          const look = ctx.lookFor?.(g.id);
+          const rest = publishedAdjustOf(g, cue, look, null, frame, stage);
+          const box = stored ? publishBox(state.m, stored.get(cue.id), { values: cue.values, rest, digest: digests.get(g.id) ?? null }) : state.m;
+          if (box && box !== state.m && snapshot) of.carriedFrom = snapshot.ver;
+          const adjust = publishedAdjustOf(g, cue, look, box, frame, stage);
           return { ...(state.send ? { appearance: state.send } : {}), adjust };
         };
+        return of;
       },
       // REHEARSAL ENDS AT THE FIRST PUBLISH: the live map and PROGRAM stay this page's.
       onFirstPublish: (rehearsed) => {
         applyProgram(clearAllCueBatches(rehearsed).flat());
         setLiveCue({});
       },
+      onPublished: (published) => {
+        if (published.version && published.scenes) sceneJoinRef.current?.({ version: published.version, scenes: published.scenes });
+      },
     },
   );
+  // #2489: a graphic a publish put in an OBS scene goes on air there, as the operator's own Take,
+  // once the scene's open links have read the publish (control/sceneJoin.ts). A press's publish and
+  // an automatic one both run it.
+  sceneJoinRef.current = (published) => {
+    const showId = show.id;
+    void takeJoined(
+      {
+        published: () => !!verbSender.current?.published,
+        entries: () => livePresenceRef.current.peers,
+        record: () => loadShows().find((s) => s.id === showId),
+        // The Take a press sends, answering why it did not go, so one note names every join
+        // that failed; its folder step moves as a press's does.
+        take: async (cue) => {
+          const taken = await verbs.takeGraphic(cue, 'Take');
+          if (!taken) return 'its graphic is gone';
+          if (!taken.ok) return taken.note;
+          noteStep(cue);
+          return null;
+        },
+        airOf: (graphic) => airMark(session.air.get(), graphic),
+        failed: (failures) => {
+          const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
+          setNote(`Not on air in their OBS scenes: ${failures.map((f) => `${f.join.graphic} (${why(f.error)})`).join(', ')}`);
+        },
+        live: () => pageLiveRef.current,
+      },
+      joinedScenes(published.scenes.before, published.scenes.after),
+      published.version.n,
+    );
+  };
 
   preparePublishRef.current = () => publishNow();
   reloadRef.current = async () => (outputUrl ? reloadOnSlot(outputUrl) : null);
@@ -2918,6 +3338,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const editDraft = (patch: CueEdit) => {
     if (editingCue) cueDraft.edit(editingCue, patch);
   };
+  editingCueIdRef.current = editingCue?.id ?? null;
 
   /**
    * ONE VERB ON THE PLAYOUT SERVER, reporting nothing: control/serverPlayout.ts decides what it sends
@@ -2970,7 +3391,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const intent = {
       cue, item, verb, label, options,
       blocked: verb === 'take' ? (options.direct ? directBlocker(cue) : takeBlockerFor(cue)) : null,
-      readable: slotReadable,
+      readable: stateReadable(bridgeStatus),
       rundown: takeContext,
     };
     return vmix ? runVmixAndRecord(serverPlayout, io, intent, currentVmix) : runAndRecord(serverPlayout, io, intent);
@@ -3055,8 +3476,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       remove: async () => {
         if (!show) return 'This production is no longer open.';
         const fresh = resolveSavedGraphicDoc(graphic, loadGraphics());
-        const plan = ownReaderRemoval({ library: !!fresh, published: !!hostedSlug });
-        if (!plan) return `${graphic.name} has no library record here, so Publish could not take the change to the output. Keep its own reader.`;
+        const plan = ownReaderRemoval({ library: !!fresh });
         if (plan.library && fresh && hasLiveData(fresh.template.js)) {
           const saved = updateGraphic(fresh.id, { template: { ...fresh.template, js: stripLiveData(fresh.template.js) } });
           if (saved.error) return saved.error;
@@ -3126,6 +3546,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphics: show.graphics,
     liveCue,
     layerPeers: layerPeersOf,
+    // OBS scenes OS1b C9: All out leaves the scene graphics of the record this page holds as they are.
+    sceneGraphics: () => sceneGraphicNames(show),
     answersOnOutput: (graphic) => isForeignGraphic(show.graphics.find((g) => g.name === graphic)?.template),
     liveLayers,
     livePlayoutLayers,
@@ -3232,7 +3654,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     playoutVerb,
     clearMisses,
     noteStep,
-    stopFolders: () => folderPlayout.stopAll('all-out'),
+    stopFolders: () => folderPlayout.stopAll('all-out', sceneFolderIds(show)),
     outUnnamed,
     clearThroughBridge,
     clearing: setClearing,
@@ -3249,6 +3671,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const descriptors = editorTemplate ? fieldDescriptors(editorTemplate.fields) : [];
   /** The edited graphic's layer, and who else is on it when two graphics share it. */
   const editedLayer = poolGraphic ? graphicLayer(poolGraphic) : 0;
+  // NEWER DESIGN IN LIBRARY, AND UPDATE (live-publishing O4, designs/G1.md section 2): the copy is
+  // what plays; a newer library design comes in only here, through the rundown's history (one undo
+  // step), the production gate first, and naming a field it drops before it takes the design.
+  const newerDesign = poolGraphic ? newerLibraryDesign(poolGraphic, designLibrary) : undefined;
+  const designUpdate = show && poolGraphic && newerDesign ? (() => {
+    const dropped = droppedFields(show, poolGraphic, newerDesign.template);
+    const cuesUsing = (show.cues ?? []).filter((c) => c.source !== 'playout' && c.sourceId === poolGraphic.id).length;
+    return {
+      dropped: dropped.length ? `Update drops ${dropped.join(', ')} from ${cuesUsing} cue${cuesUsing === 1 ? '' : 's'}.` : null,
+      run: async () => {
+        const refused = productionGateFailures([{ ...poolGraphic, template: newerDesign.template }], designLibrary);
+        if (refused.length) { setRundownNote(describeProductionGate(refused)); return; }
+        await history.write(() => updateCopyFromLibrary(show.id, poolGraphic.id, newerDesign, poolGraphic.savedAt), `Update ${poolGraphic.name}`);
+      },
+    };
+  })() : null;
   const sharingLayer = poolGraphic ? clashes.get(editedLayer) : undefined;
   const layerClash = !!sharingLayer;
   const advancedOpen = layerClash || (!!poolGraphic && advancedFor === poolGraphic.id);
@@ -3804,7 +4242,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     : undefined;
   /** Lost, not merely empty: this session saw it there (`slotSeenOurs`). */
   const slotLost = slotSeenOurs && !!outputSlot && (outputSlot.holds === 'empty' || outputSlot.holds === 'other');
+  // WHAT EVERY EXPECTED OUTPUT HAS CONFIRMED RUNNING (live-publishing G2 section 6, E1): its newest
+  // run report from a report row or its Presence entry, judged against every position owed.
+  const confirmOutputs: ConfirmOutput[] = expectedOutputs.map((e) => {
+    const entry = livePresence.peers.find((p) => p.kind === 'output' && p.id === e.id);
+    const said =
+      entry?.ready?.run && !retiredEpochsRef.current.has(entry.ready.run.e) && entry.ready.run.e === (runEpochRef.current ?? entry.ready.run.e)
+        ? entry.ready.run
+        : null;
+    const heard = heardRuns[e.id] ?? null;
+    const run = said && heard ? newerRun(heard, said) : (said ?? heard);
+    return { id: e.id, name: e.name, run, present: !!entry, speaks: !!entry?.ready?.run || !!heard, oldLog: !!entry && entry.proto !== 2 };
+  });
+  confirmOutputsRef.current = confirmOutputs;
+  /** Graphics an output holds for a Take while it loads them (O7's Loading mark). */
+  const loadingGraphics = new Set<string>();
+  for (const out of confirmOutputs) {
+    if (!out.run) continue;
+    for (const graphic of Object.keys(out.run.h)) if (out.run.h[graphic][1] !== 'failed') loadingGraphics.add(graphic);
+  }
+  const confirm = hostedSlug && !offline ? confirmLines({ now, owed, outputs: confirmOutputs, presenceJoined: livePresence.status === 'joined' }) : [];
+  const ranLast = confirm.length === 0 && loggedAt !== null && newestOwedRef.current >= lastSendRef.current && confirmOutputs.length > 0;
   const playoutStatus = describePlayoutStatus({
+    confirm,
     started,
     publishing,
     casparOn,
@@ -3815,12 +4275,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     ready: readySummary,
     noOutputTake,
     fileCheck: serverFilesCheck(serverFileKey, serverFiles, bridgeStatus, vmixOn),
+    autoPublish: autoPublish.view && autoPublish.view.tone !== 'idle' ? { tone: autoPublish.view.tone, line: autoPublish.view.line } : null,
+    oldOutputs: autoPublish.active ? oldOutputNames(livePresence.peers, expectedOutputs) : null,
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
   const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing';
   const { headerAction, casparFacts } = publishFacts(publishState, {
     started, casparOn, playoutIsConfigured, bridgeOk, outputSlot, cues, backendConfigured, needsSignIn, slotWhere,
-    outputUrl, requiresPreparation, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory, casparTarget,
+    outputUrl, requiresPreparation: requiresPreparation && !autoPublish.active, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory, casparTarget,
     flowBusy, publish, loadOnSlot,
   });
   /** The panel's own lines for what went wrong where no row of its own says it. */
@@ -3838,6 +4300,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (failure) setNote(`The CasparCG switch was not saved: ${failure}`);
     if (!on) setReplaceAsk(false);
     if (on) setVmixReplace(undefined);
+  };
+  /** THE OBS SCENE ROWS (obs-scenes OS3 M2 to M6), while the switch is on: one per scene, and the
+   *  outputs they speak for, which leave the generic Outputs list. */
+  const scenePresence = sceneWatchJoined ? 'joined' : livePresence.status === 'joined' ? 'joining' : livePresence.status;
+  const scenePanel = show.obsScenes
+    ? sceneRows({ scenes: obsSceneList, peers: livePresence.peers, presence: scenePresence, watch: sceneWatch, expected: expectedOutputs, published: readiness.knownVersion, now })
+    : null;
+  const panelOutputs = scenePanel ? readiness.outputs.filter((line) => !scenePanel.claimed.has(line.id)) : readiness.outputs;
+  /** The OBS scenes switch (obs-scenes OS1a R2): folders may be OBS scenes, each with its own link. */
+  const setObsScenes = async (on: boolean) => {
+    const result = setShowObsScenes(show.id, on);
+    setShows(result.shows);
+    const failure = result.error ?? (await commitDurableWrites());
+    if (failure) setNote(`The OBS scenes switch was not saved: ${failure}`);
   };
   const setVmix = async (on: boolean) => {
     const result = setShowOutputSetup(show.id, withPlayoutSystem(show.outputSetup, on ? 'vmix' : null));
@@ -3868,10 +4344,40 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     waiting: audienceInbox.waiting,
   };
 
+  if (dock) {
+    return (
+      <LiveDock
+        show={show}
+        setShows={setShows}
+        store={sourceStatus}
+        currentMatch={currentMatch}
+        ownReaders={ownReaders}
+        panel={panel}
+        published={!!hostedSlug}
+        // What the selection keys act on: the page's own selection, its first cue until one is picked.
+        selected={selectedFolder ? folderName(selectedFolder) : (selectedCue?.label ?? null)}
+        note={note}
+        now={now}
+        rows={scenePanel?.rows ?? null}
+        scenes={obsSceneList}
+        cueState={(cue) => ({ onAir: cueOnAirNow(cue), refused: stepBlocker(cue) })}
+        // K4: the press a Companion cue key makes, run only in the state its button says (Take off
+        // air, Out on air).
+        onPress={(cueId, onAir) => {
+          const cue = cues.find((c) => c.id === cueId);
+          if (cue && cueOnAirNow(cue) === onAir) return onVerb('take-cue', { repeat: false, cue: cueId });
+        }}
+        // K7: read from the tree, written through the current match's road.
+        deadlineValue={(path) => getPath(liveData, path)}
+        writeDeadline={(path, value) => writeTree(path, value, 'The break deadline was not set')}
+      />
+    );
+  }
+
   return (
     <ProductionShell
       show={show}
-      data={<DataIndicator show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} />}
+      data={<DataIndicator show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} currentMatch={currentMatch} />}
       status={
         <>
           <PlayoutStatusControl
@@ -3887,7 +4393,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             {sub && productionNote}
             {started && (
               <RendererRows
-                outputs={readiness.outputs}
+                outputs={panelOutputs}
+                emptyText={panelOutputs.length < readiness.outputs.length ? 'Only OBS scene links, below' : undefined}
+                unwatched={unwatchedOutputs(expectedOutputs, livePresence.peers)}
                 onDismiss={forgetOutput}
                 onCheck={() => void prepareFlow.run({ publish: false })}
                 checking={flowBusy}
@@ -3907,11 +4415,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               locked={casparFacts.locked}
               onVmix={on => void setVmix(on)}
               onCaspar={on => void setCaspar(on)}
+              obsScenesOn={!!show.obsScenes}
+              obsScenesLoaded={show.obsScenes ? loadedScenes(livePresence.peers, scenePresence) : 0}
+              onObsScenes={on => void setObsScenes(on)}
               onSettings={() => {
                 setStatusOpen(false);
                 setPlayoutSettingsOpen(true);
               }}
             >
+              {scenePanel && (
+                <ObsSceneRows
+                  rows={scenePanel.rows}
+                  onDismiss={(row) => {
+                    for (const id of row.gone) forgetOutput(id);
+                    setSceneWatch((w) => forgetScene(w, row.id));
+                  }}
+                />
+              )}
               <VmixRows
                 key={String(vmixOn && !slotBusy)}
                 on={vmixOn}
@@ -4121,7 +4641,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onWaits={noteProgramWaits}
           onReady={programReady}
           onOverflow={notePreviewOverflow}
-          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting) })}
+          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting), ran: ranLast })}
           serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server') ? bridgeStatus.state : null}
           programChip={
             chipGraphic ? (
@@ -4162,6 +4682,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onClick={() => onVerb('take')}
             title={takeButton.title}
             data-testid="verb-take"
+            data-sends-first
           >
             {takeButton.face.text} <kbd>SPACE</kbd>
           </button>
@@ -4176,6 +4697,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onClick={() => selectedCue && void takeCue(selectedCue)}
             title="Re-take: play this cue’s entrance again from the start"
             data-testid="verb-retake"
+            data-sends-first
           >
             ⟳ Re-take <kbd>R</kbd>
           </button>
@@ -4221,6 +4743,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 : undefined
             }
             data-testid="verb-next"
+            data-sends-first
           >
             {/* Unnamed, the button is drawn exactly as it always was. */}
             {nextLabel ? (
@@ -4381,6 +4904,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             show={show}
             setShows={setShows}
             poolGraphic={poolGraphic}
+            designUpdate={designUpdate}
             editingCue={editingCue}
             draft={cueDraft}
             editingCueNo={editingCueNo}
@@ -4396,6 +4920,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             editDraft={editDraft}
             flushDraft={flushDraft}
             rundownHistory={history}
+            saveOnBlur={cueDraft.blurred}
             updateLive={updateLive}
             hasUnsent={hasUnsent}
             unsentFields={unsentFields}
@@ -4539,13 +5064,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             sounds={(editingView) => (
               <ProductionSounds
                 key={`${show.id}:${poolGraphic.id}:${poolGraphic.type === 'picture' ? String(editingView.values.f0 ?? '') : 'graphic'}`}
-                template={resolveSavedGraphicDoc(poolGraphic,library)?.template ?? poolGraphic.template}
+                template={poolGraphic.template}
                 config={poolGraphic.soundConfig}
                 assets={show.graphics.flatMap(g=>g.soundConfig?.assets ?? [])}
                 visual={poolGraphic.type === 'picture' ? `picture:${String(editingView.values.f0 ?? '')}` : 'graphic'}
                 onSave={async (config,expected,source)=>{
                   const current = loadShows().find(s=>s.id === show.id)?.graphics.find(g=>g.id === poolGraphic.id);
-                  const template = current && (resolveSavedGraphicDoc(current,loadGraphics())?.template ?? current.template);
+                  const template = current?.template;
                   if (!current || !template || template.js !== source.js || soundTopology(template) !== source.topology) throw new Error('The visual changed while the sound was preparing. Choose the trigger again.');
                   const result = setGraphicSounds(show.id,poolGraphic.id,config,expected);
                   setShows(result.shows);
@@ -4592,6 +5117,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       </section>
 
       <CueRundown
+        loadingGraphics={loadingGraphics}
         pinnedGraphics={pinned}
         onPin={writePin}
         candidateValues={(cue) => (cue.selection === undefined ? null : candidateOverlay(cue))}
@@ -4647,6 +5173,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         duplicateCues={duplicateCues}
         takeOutOfFolders={takeOutOfFolders}
         removeFolder={removeFolderOf}
+        obsScenes={
+          show.obsScenes
+            ? {
+                setScene: (folderId, on) => void writeRundown(() => setFolderObsScene(show.id, folderId, on), on ? 'Make OBS scene' : 'Not an OBS scene', 'The folder was not saved'),
+                copyLink: outputUrl ? (folderId) => void copy(`scene:${folderId}`, sceneLink(outputUrl, folderId)) : null,
+                copied: copied?.startsWith('scene:') ? copied.slice(6) : null,
+              }
+            : null
+        }
         moveRundown={moveRundown}
         toggleFolder={toggleFolder}
         setRundownNote={setRundownNote}
@@ -4662,7 +5197,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           joinUrl={joinUrl}
           interactionHref={routeHash({ view: 'production', id: show.id, sub: 'audience' })}
           presenterUrl={presenterUrl}
-          copied={copied}
+          copied={copied === 'output' || copied === 'join' || copied === 'presenter' ? copied : null}
           onCopy={copy}
           onClose={() => setLinksOpen(false)}
         />
@@ -4676,6 +5211,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           canPutOutputOnAir={() => pageCanDispatch() && !!currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'casparcg')}
           outputUrl={managedOutputUrl}
           onOutputOnAir={(result, target) => onAirChanged('air', result, target)}
+          obsScenes={show.obsScenes ? { outputUrl, copied, onCopy: copy } : null}
           onClose={() => {
             setPlayoutSettingsOpen(false);
             setPlayoutSettingsRev((n) => n + 1);

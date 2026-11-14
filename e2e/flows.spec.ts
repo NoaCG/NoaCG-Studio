@@ -27,7 +27,7 @@ async function toVariantStep(page: Page, variantName: string) {
 async function mountCreated(page: Page): Promise<FrameLocator> {
   const doc = await mountWorkingDocument(page);
   const sample = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().sampleData as Record<string, string>;
   });
   await updateWorkingDocument(doc, sample);
@@ -48,7 +48,7 @@ test('wizard: field titles flow into the created graphic', async ({ page }) => {
   await finishIntoNewEditor(page);
 
   const titles = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.map((f) => f.title);
   });
   expect(titles).toContain('Guest name');
@@ -104,7 +104,7 @@ test('import graphics: image lands in the logo slot', async ({ page }) => {
   // guards the ORDERING RULE, so it asks the catalog rather than naming a design and going
   // red every time the pack grows one.
   const firstWithLogo = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
     const vs = variantsFor('lower-third') as { name: string; logo: string }[];
     return vs.find((v) => v.logo !== 'none')!.name;
   });

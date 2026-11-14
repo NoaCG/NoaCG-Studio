@@ -1,5 +1,6 @@
 import { validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { livePort } from './scripts/dev-port.mjs';
 
@@ -18,6 +19,18 @@ for (const key of [
   'SUPABASE_SERVICE_ROLE_KEY',
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',
+  // SUPABASE_URL is here for the GUARD rather than for a spec. The Vite server this config starts
+  // copies every missing file key into its own environment (vite.config.ts) and mounts the real
+  // api/ handlers, which read SUPABASE_URL in preference to VITE_SUPABASE_URL (api/_lib/*), and
+  // two specs drive that server-side half in process. A value left only in the file would
+  // therefore be live for the api half and invisible to e2e/_configured-guard.ts, which reads
+  // process.env. It is a hostname, and it changes the guard's verdict.
+  //
+  // SUPABASE_SECRET_KEY is deliberately NOT here. No key changes the verdict - the guard names one
+  // only in the wording of a refusal - so loading it from the file would put an admin credential
+  // into the runner and every worker to buy a better sentence, which is the material issue #2495
+  // is about.
+  'SUPABASE_URL',
 ]) {
   if (!process.env[key] && fileEnv[key]) process.env[key] = fileEnv[key];
 }
@@ -29,13 +42,28 @@ for (const key of [
 //
 // Opt-in and secret-free: run with `npm run test:e2e:live`. The specs skip themselves when E2E_EMAIL /
 // E2E_PASSWORD are unset, so a public clone or a creds-less CI never runs them (and never needs the
-// secrets). They write real rows to the configured project and clean up after — point .env at a
-// test/staging Supabase project or a throwaway account, never a production tenant with real users.
+// secrets). They write real rows and clean up after, so since issue #2495 the BACKEND IS CHECKED
+// rather than advised: the run is refused unless it is pointed at a LOCAL stack of its own
+// (`supabase start`, which is what both CI jobs mint), whatever the environment file says. A
+// hosted project is no longer a legitimate target for a developer run - the rule, its one
+// declared exception and the incident behind it are in scripts/configured-target.mjs.
 const cloudLimits = validateCloudWorkerRequest();
 
 export default defineConfig({
   ...cloudLimits,
   testDir: './e2e/configured',
+  // WHICH BACKEND THIS RUN MAY TOUCH, decided before the first test (issue #2495). The suite
+  // writes real rows, deletes them and holds an admin key, and until this existed the only thing
+  // choosing the project was whatever `VITE_SUPABASE_URL` the shell happened to carry - which on
+  // a cloud worker is PRODUCTION. e2e/_configured-guard.ts refuses anything but a stack the run
+  // owns; scripts/configured-target.mjs holds the rule and the incident that bought it.
+  //
+  // ABSOLUTE, and it has to be. Playwright resolves `globalSetup` against the directory of the
+  // CONFIG FILE it loaded, and configs in other folders spread this one - e2e/configured/measure/
+  // measure.config.ts is the live-publishing measurement harness. A repo-relative string travels
+  // into those and resolves against their folder, so the config dies at load with "Cannot find
+  // module" before it reads a single file, and nothing in CI loads them to say so.
+  globalSetup: fileURLToPath(new URL('./e2e/_configured-guard.ts', import.meta.url)),
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
@@ -57,7 +85,17 @@ export default defineConfig({
   webServer: {
     command: `vite --host 127.0.0.1 --port ${livePort()} --strictPort`,
     url: `http://127.0.0.1:${livePort()}`,
-    reuseExistingServer: true,
+    // ITS OWN SERVER, ALWAYS (issue #2495), as the endurance configs have had it: "one already on
+    // this port may carry another backend". Adopting a server adopts its whole environment, and a
+    // dev server has TWO halves that reach a database - the page, built against its
+    // `VITE_SUPABASE_URL`, and the api/ handlers it mounts, which read `SUPABASE_URL` and an admin
+    // key (api/_lib/*; feed-route.spec.ts and production-data-key-tick.spec.ts import a handler
+    // and run it in the worker, and other specs reach the server's own through HTTP). Reading the
+    // page's half back out is possible and the guard does it; the server's own half is invisible
+    // from outside. Starting the server here is what makes both halves inherit the environment this
+    // run was admitted on. The cost is one Vite start per run, and a stray server on this port now
+    // fails the run loudly (`--strictPort`) instead of quietly deciding where the writes go.
+    reuseExistingServer: false,
     timeout: 60_000,
     // NO Supabase override here (unlike the offline config): Vite loads VITE_SUPABASE_URL / _ANON_KEY
     // from .env, so the app runs in configured mode. The editor itself is open (no login wall);

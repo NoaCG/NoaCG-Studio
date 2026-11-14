@@ -58,8 +58,8 @@ test(`a multi-column block keeps its columns inside its own width${SCOPE_NOTE}`,
   await toApp(page);
 
   const result = await page.evaluate(async ({ tolerance, only }: { tolerance: number; only: string[] | null }) => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
 
     // Copy well past what the design was drawn for, derived from each field's OWN sample so the
     // field keeps its role - the same derivation footprint-stability.spec.ts uses at its long end,

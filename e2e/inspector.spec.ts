@@ -20,14 +20,14 @@ test('redo restores an undone edit; a new edit clears the redo branch', async ({
   // are what the editor's keys call (Ctrl+Z, Ctrl+Shift+Z, bound by the shell).
   const speed = async () =>
     page.evaluate(async () => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
       return parseAnimData(useTemplateStore.getState().template.js)?.speed;
     });
   const setSpeed = (value: number) =>
     page.evaluate(async (v) => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
       const s = useTemplateStore.getState();
       const data = parseAnimData(s.template.js);
       if (!data) throw new Error('no data block');
@@ -37,7 +37,7 @@ test('redo restores an undone edit; a new edit clears the redo branch', async ({
     }, value);
   const history = (verb: 'undo' | 'redo') =>
     page.evaluate(async (v) => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
       useTemplateStore.getState()[v]();
     }, verb);
   await setSpeed(1.5);
@@ -60,11 +60,11 @@ test('filter track: every keyframe keeps the same shape, so the runtime really i
   // invariant the composed track rests on: GSAP matches a filter string's numbers positionally,
   // so keyframes that disagreed on their function list would jump instead of tweening.
   const result = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-    const { setFilterComponent } = await import('/src/blocks/animEdit.ts');
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { setFilterComponent } = await __noacgImport('/src/blocks/animEdit.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
 
     const store = useTemplateStore.getState();
     const tpl = store.template;

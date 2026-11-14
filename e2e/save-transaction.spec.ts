@@ -155,7 +155,7 @@ async function secondTab(page: Page, how: 'tab' | 'duplicate') {
   await other.goto(page.url()); await expect(other.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
   return other;
 }
-const slotOf = (page: Page) => page.evaluate(async () => JSON.parse((await import('/src/model/durableStore.ts')).durable.getItem('spx-gfx-project') ?? 'null'));
+const slotOf = (page: Page) => page.evaluate(async () => JSON.parse((await __noacgImport('/src/model/durableStore.ts')).durable.getItem('spx-gfx-project') ?? 'null'));
 async function firstSaveNamed(page: Page, name: string) {
   await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill(name);
   await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
@@ -251,7 +251,7 @@ for (const holds of ['other work', 'its own source'] as const) {
     if (holds === 'other work') { await draw(page, .52); await flush(page); await settleDurableWrites(page); }
     const draft = await source(page);
     await page.evaluate(async id => {
-      const { durable } = await import('/src/model/durableStore.ts');
+      const { durable } = await __noacgImport('/src/model/durableStore.ts');
       const { mintingReserved: _, ...slot } = JSON.parse(durable.getItem('spx-gfx-project')!);
       durable.setItem('spx-gfx-project', JSON.stringify({ ...slot, graphicId: null, reservedGraphicId: id }));
     }, alpha.id);
@@ -285,19 +285,19 @@ for (const holds of ['other work', 'its own source'] as const) {
 
 /** This browser as a device with no draft of its own, as a device signing in fresh is. */
 const noDraft = (page: Page) => page.evaluate(async () => {
-  const { LocalStorageProvider } = await import('/src/backend/storage.ts');
+  const { LocalStorageProvider } = await __noacgImport('/src/backend/storage.ts');
   await new LocalStorageProvider().remove('project', '');
 });
 /** A sync pull of one record, written as the sync engine writes it. */
 const pull = (page: Page, kind: 'project' | 'graphic', body: { id: string; updatedAt?: string }) => page.evaluate(async ({ kind, body }) => {
-  const { LocalStorageProvider } = await import('/src/backend/storage.ts');
+  const { LocalStorageProvider } = await __noacgImport('/src/backend/storage.ts');
   await new LocalStorageProvider().put({ kind, id: body.id, updatedAt: body.updatedAt ?? new Date().toISOString(), body });
 }, { kind, body });
 /** Another device's first Save of `template` under `id`, as it arrives here by a pull. */
 const otherDevicesRecord = (page: Page, id: string, name: string, template: unknown) => page.evaluate(async ({ id, name, template }) => {
-  const { newGraphicDoc } = await import('/src/model/graphicDoc.ts');
-  const { prepareOutRuntime } = await import('/src/blocks/animMigration.ts');
-  const { LocalStorageProvider } = await import('/src/backend/storage.ts');
+  const { newGraphicDoc } = await __noacgImport('/src/model/graphicDoc.ts');
+  const { prepareOutRuntime } = await __noacgImport('/src/blocks/animMigration.ts');
+  const { LocalStorageProvider } = await __noacgImport('/src/backend/storage.ts');
   const t = template as { js: string };
   const doc = newGraphicDoc({ ...t, js: prepareOutRuntime(t.js) } as never, { id, name });
   await new LocalStorageProvider().put({ kind: 'graphic', id, updatedAt: doc.updatedAt, body: doc });
@@ -409,8 +409,8 @@ const syncedAMinuteAgo = (page: Page) => page.evaluate(() => localStorage.setIte
 /** One sync pass (the engine's own runSync) against a cloud holding another device's "Alpha"
  *  under `mine`'s id, a moment newer. Answers the conflicts and what the cloud holds after. */
 const losingPass = (page: Page, mine: { id: string }) => page.evaluate(async mine => {
-  const { runSync } = await import('/src/backend/sync.ts');
-  const { LocalStorageProvider } = await import('/src/backend/storage.ts');
+  const { runSync } = await __noacgImport('/src/backend/sync.ts');
+  const { LocalStorageProvider } = await __noacgImport('/src/backend/storage.ts');
   const doc = mine as { id: string; template: { css: string } };
   const at = new Date(Date.now() + 1000).toISOString();
   const alpha = { ...doc, name: 'Alpha', template: { ...doc.template, name: 'Alpha', css: `${doc.template.css}\n/* another device */` }, createdAt: at, updatedAt: at };
@@ -512,7 +512,7 @@ test('matrix lost conflict: an edit made between the Save and the pass stays uns
   const all = await library(page);
   expect(all, 'Gamma and the conflicted copy').toHaveLength(2);
   expect(await record(page, gamma.id), 'the other device\'s Gamma byte-equal').toBe(alpha);
-  const edited = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  const edited = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
   expect(body(all.find(g => g.id === copy.id)!.template), 'the edit is not in the conflicted copy').toEqual(body(edited));
   await nothingAsks(page, copy.id);
 });
@@ -631,8 +631,8 @@ for (const answer of ['save-chain', 'discard-chain', 'save-timeout'] as const) {
     let next = copy;
     if (answer !== 'save-timeout') {
       next = await page.evaluate(async beta => {
-        const { createGraphic } = await import('/src/model/library.ts');
-        const { graphicSuperseded } = await import('/src/model/project.ts');
+        const { createGraphic } = await __noacgImport('/src/model/library.ts');
+        const { graphicSuperseded } = await __noacgImport('/src/model/project.ts');
         const { doc } = createGraphic(beta.template, { name: 'Beta second (conflicted copy)', baseline: beta.baseline, aiSpec: beta.aiSpec, aiThread: beta.aiThread, legibility: beta.legibility });
         graphicSuperseded(beta.id, doc);
         await new Promise(r => setTimeout(r));

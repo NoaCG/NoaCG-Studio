@@ -13,11 +13,11 @@ import { toApp } from './_bench';
 
 const HARNESS = `
   async function types() {
-    const { TYPES } = await import('/src/templates/types/registry.ts');
+    const { TYPES } = await __noacgImport('/src/templates/types/registry.ts');
     return TYPES;
   }
   async function boot(tpl) {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const f = document.createElement('iframe');
     f.style.cssText = 'position:fixed;left:-3000px;top:0;width:1280px;height:720px;';
     document.body.appendChild(f);
@@ -32,11 +32,11 @@ test('every type conforms: parses, validates, binds its fields and events, and e
   await toApp(page);
   const report = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { allOperatorEvents, deriveMachine, spxSteps, validateMachine } = await import('/src/blocks/animMachine.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
-    const { variantsFromType, missingParts, typeFieldsToSpx } = await import('/src/templates/types/graphicType.ts');
-    const { hasMachineRuntime } = await import('/src/templates/shared/animRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { allOperatorEvents, deriveMachine, spxSteps, validateMachine } = await __noacgImport('/src/blocks/animMachine.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
+    const { variantsFromType, missingParts, typeFieldsToSpx } = await __noacgImport('/src/templates/types/graphicType.ts');
+    const { hasMachineRuntime } = await __noacgImport('/src/templates/shared/animRuntime.ts');
 
     const out = [];
     for (const type of await types()) {
@@ -125,8 +125,8 @@ test('promotion is byte-identical apart from the machine the type adds', async (
   // only by gaining a machine. This is the guarantee that makes promotion safe to do in bulk.
   const report = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantsFromType } = await import('/src/templates/types/graphicType.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { variantsFromType } = await __noacgImport('/src/templates/types/graphicType.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const out = [];
     for (const type of await types()) {
       for (const design of type.designs) {
@@ -166,18 +166,18 @@ test('a promoted design keeps the capabilities it was authored with', async ({ p
   // why it has to be compared against the hand-written variant rather than against output.
   const report = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantsFromType } = await import('/src/templates/types/graphicType.ts');
+    const { variantsFromType } = await __noacgImport('/src/templates/types/graphicType.ts');
     // The hand-written lists, BEFORE the merge — a design's authored capabilities.
     const sources = await Promise.all([
-      import('/src/templates/lowerThirds/index.ts'),
-      import('/src/templates/infoCards/index.ts'),
-      import('/src/templates/cornerBug/index.ts'),
-      import('/src/templates/infographics/index.ts'),
-      import('/src/templates/gameTimers/index.ts'),
-      import('/src/templates/startingSoon/index.ts'),
-      import('/src/templates/tickers/index.ts'),
-      import('/src/templates/scoreboards/index.ts'),
-      import('/src/templates/quiz/index.ts'),
+      __noacgImport('/src/templates/lowerThirds/index.ts'),
+      __noacgImport('/src/templates/infoCards/index.ts'),
+      __noacgImport('/src/templates/cornerBug/index.ts'),
+      __noacgImport('/src/templates/infographics/index.ts'),
+      __noacgImport('/src/templates/gameTimers/index.ts'),
+      __noacgImport('/src/templates/startingSoon/index.ts'),
+      __noacgImport('/src/templates/tickers/index.ts'),
+      __noacgImport('/src/templates/scoreboards/index.ts'),
+      __noacgImport('/src/templates/quiz/index.ts'),
     ]);
     const authored = {};
     for (const mod of sources) {
@@ -230,8 +230,8 @@ test('a promoted design keeps the capabilities it was authored with', async ({ p
 const TYPE_HARNESS = `
   ${HARNESS}
   async function bootType(typeId) {
-    const { typeById } = await import('/src/templates/types/registry.ts');
-    const { variantsFromType } = await import('/src/templates/types/graphicType.ts');
+    const { typeById } = await __noacgImport('/src/templates/types/registry.ts');
+    const { variantsFromType } = await __noacgImport('/src/templates/types/graphicType.ts');
     const tpl = variantsFromType(typeById(typeId))[0].create({});
     return { tpl, w: await boot(tpl) };
   }
@@ -485,7 +485,7 @@ test('a type keeps its catalog identity: same id, same slot, reachable by id', a
   await toApp(page);
   const result = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { CATALOG, variantById, variantsFor } = await import('/src/templates/catalog.ts');
+    const { CATALOG, variantById, variantsFor } = await __noacgImport('/src/templates/catalog.ts');
     const rows = [];
     for (const type of await types()) {
       for (const design of type.designs) {

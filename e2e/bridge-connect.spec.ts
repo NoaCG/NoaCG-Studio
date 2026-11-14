@@ -852,7 +852,7 @@ test('the permission diagnosis is only ever offered where the browser actually g
   // leaves them with a call that HANGS on an unanswered prompt.
   await page.goto('/app');
   const matrix = await page.evaluate(async () => {
-    const { localNetworkGateApplies } = await import('/src/control/playoutLink.ts');
+    const { localNetworkGateApplies } = await __noacgImport('/src/control/playoutLink.ts');
     const bridge = 'http://127.0.0.1:8899';
     return {
       hostedToLoopback: localNetworkGateApplies('https://noacg.studio', bridge),
@@ -888,7 +888,7 @@ test('a browser that has no such permission reports "unknown" rather than preten
       configurable: true,
       value: { query: () => Promise.reject(new TypeError('unknown permission name')) },
     });
-    const { localNetworkPermission } = await import('/src/control/playoutLink.ts');
+    const { localNetworkPermission } = await __noacgImport('/src/control/playoutLink.ts');
     return localNetworkPermission();
   });
   expect(state).toBe('unknown');
@@ -908,7 +908,7 @@ test('the loopback permission is read by the name Firefox and current Chrome use
             name in names ? Promise.resolve({ state: names[name] }) : Promise.reject(new TypeError(`unknown ${name}`)),
         },
       });
-      const { localNetworkPermission } = await import('/src/control/playoutLink.ts');
+      const { localNetworkPermission } = await __noacgImport('/src/control/playoutLink.ts');
       return localNetworkPermission();
     }, known);
   expect(await read({ 'loopback-network': 'prompt', 'local-network': 'granted' })).toBe('prompt');
@@ -917,7 +917,7 @@ test('the loopback permission is read by the name Firefox and current Chrome use
   // Which browser, by user agent, only to word the sentence: every Chromium and Firefox UA also
   // says "Safari", so Safari is the one that says it with nothing else.
   const who = await page.evaluate(async () => {
-    const { isFirefox, isSafari } = await import('/src/control/playoutLink.ts');
+    const { isFirefox, isSafari } = await __noacgImport('/src/control/playoutLink.ts');
     const ua = {
       firefox: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0',
       chrome: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
@@ -1138,7 +1138,7 @@ async function publishedProduction(page: Page): Promise<void> {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, 'Evening News');
   await page.evaluate(async () => {
-    const { loadShows, setShowHostedSlug, setShowOutputSlug, setShowOutputSetup } = await import('/src/model/shows.ts');
+    const { loadShows, setShowHostedSlug, setShowOutputSlug, setShowOutputSetup } = await __noacgImport('/src/model/shows.ts');
     const id = loadShows()[0].id;
     setShowOutputSetup(id, { v: 1, destinations: [{ id: 'casparcg', profile: 'casparcg' }] });
     setShowHostedSlug(id, 'demo-slug');
@@ -1415,9 +1415,9 @@ async function seededPublishedProduction(page: Page, published = true): Promise<
   await expect(page.getByTestId('home-page')).toBeVisible();
   await awaitDurableReady(page);
   const id = await page.evaluate(async (started) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, setShowOutputSetup } = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, setShowOutputSetup } = await __noacgImport('/src/model/shows.ts');
     const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap', packageId: null });
     if (error || !doc) throw new Error(error ?? 'seed failed');
     const show = createShowNamed('Evening News');
@@ -1449,7 +1449,7 @@ test('the production header says whether CasparCG answers, and its panel holds t
   // work instead of opening Settings to find out (owner, 2026-09-23). It is the Bridge row of the
   // panel behind the playout status, and the output an OBS operator copies sits above it.
   await page.evaluate(async () => {
-    const { loadShows, setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const { loadShows, setShowHostedSlug, setShowOutputSlug } = await __noacgImport('/src/model/shows.ts');
     const id = loadShows()[0].id;
     setShowHostedSlug(id, 'demo-slug');
     setShowOutputSlug(id, 'demo-output');
@@ -1568,7 +1568,7 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
   await seedOnce(page, { vmix: { overlay: 3 } });
   await seededPublishedProduction(page);
   await page.evaluate(async () => {
-    const { addPlayoutItem, loadShows } = await import('/src/model/shows.ts');
+    const { addPlayoutItem, loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows()[0];
     addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'Intro.mov', layer: 10 });
     await new Promise(resolve => setTimeout(resolve));

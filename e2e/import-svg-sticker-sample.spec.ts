@@ -50,7 +50,7 @@ test('the Sticker lower third sample imports with its layer names as fields, and
   // the computed font-weight cannot tell them apart (it reads 400 either way): the emitted
   // face says 900, and the Black name really renders WIDER than the Bold one at one size.
   const css = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.css;
   });
   expect(css).toMatch(/font-family: "Archivo-Black";[^}]*font-weight: 900;/);

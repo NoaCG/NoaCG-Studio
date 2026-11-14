@@ -22,8 +22,9 @@ export const PLACE_CAP_MS = 2_000;
 type Msg = { t: string; data?: Record<string, string>; appearance?: unknown; place?: unknown; typed?: unknown };
 
 export interface PlacerIo<M extends Msg> {
-  /** Apply one command to the graphic now (the stage's own `apply`). */
-  apply: (graphic: string, msg: M) => void;
+  /** Apply one command to the graphic now (the stage's own `apply`). `from`: the command it was
+   *  made from, when the placer put the place it resolved into a copy. */
+  apply: (graphic: string, msg: M, from?: M) => void;
   /** Whether a hint for this graphic may be resolved here now. */
   canPlace: (graphic: string) => boolean;
   /** Measure the graphic settled with `values` in `look`'s style; null when it cannot, by the cap. */
@@ -39,7 +40,7 @@ export function createPlacer<M extends Msg>(io: PlacerIo<M>) {
   const release = (graphic: string, held: M[], look: AppliedAppearance | null) => {
     holding.delete(graphic);
     const [first, ...rest] = held;
-    io.apply(graphic, look ? ({ ...first, appearance: look } as M) : first);
+    io.apply(graphic, look ? ({ ...first, appearance: look } as M) : first, first);
     for (const next of rest) apply(graphic, next);
   };
   const apply = (graphic: string, msg: M): void => {

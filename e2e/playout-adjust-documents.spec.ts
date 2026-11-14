@@ -34,6 +34,10 @@ import { differing } from './_ografParity';
 import { awaitDurableReady } from './_durable';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 import { bakeAppearance } from '../src/control/appearanceRuntime';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ORIGIN = 'http://adjust-docs.local';
 const GROUND = [10, 20, 30];
@@ -77,6 +81,7 @@ interface Served {
 
 async function openRenderer(browser: Browser, served: Served): Promise<Page> {
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await installDoor(context);
   const page = await context.newPage();
   await page.route(`${ORIGIN}/**`, (route) => {
     const path = decodeURIComponent(new URL(route.request().url()).pathname).replace(/^\//, '');
@@ -159,14 +164,17 @@ function painted(a: Buffer): number {
 }
 
 /** The root's frames against the frame transform's, net of the frame's own mount-to-mount
- *  difference, per sample. */
+ *  difference, per sample. The noise is only ever subtracted, so a design whose raw difference is
+ *  within RESIDUAL_BOUND at every sample passes whatever the noise is: the second framed mount
+ *  that measures it is taken only when a sample is over the bound (`noise` is null otherwise). */
 async function residuals(page: Page, framed: string, rooted: string, look: AppliedAppearance, start: Start, samples: number[]) {
   const ref = await framesOf(page, framed, look, start, samples);
-  const again = await framesOf(page, framed, look, start, samples);
   const root = await framesOf(page, rooted, null, start, samples);
+  const raw = samples.map((_, i) => differing(ref[i], root[i]));
+  const again = raw.some((d) => d > RESIDUAL_BOUND) ? await framesOf(page, framed, look, start, samples) : null;
   return samples.map((ms, i) => {
-    const noise = differing(ref[i], again[i]);
-    return { ms, painted: painted(ref[i]), noise, residual: differing(ref[i], root[i]) - noise };
+    const noise = again ? differing(ref[i], again[i]) : null;
+    return { ms, painted: painted(ref[i]), noise, residual: raw[i] - (noise ?? 0) };
   });
 }
 
@@ -210,11 +218,19 @@ function differingShifted(a: Buffer, b: Buffer): number {
   return Math.max(one(pa, pb), one(pb, pa));
 }
 
+/** Baked files against the same target's file framed by the stage, once landed: one mount of the
+ *  framed file, compared with each baked one. */
+async function landedAll(page: Page, framed: string, rooted: string[], look: AppliedAppearance | null, start: Start) {
+  const ref = (await framesOf(page, framed, look, start, [4_000]))[0];
+  const aparts: number[] = [];
+  for (const file of rooted) aparts.push(differingShifted(ref, (await framesOf(page, file, null, start, [4_000]))[0]));
+  return { painted: painted(ref), aparts };
+}
+
 /** A baked file against the same target's file framed by the stage, once landed. */
 async function landed(page: Page, framed: string, rooted: string, look: AppliedAppearance | null, start: Start) {
-  const ref = (await framesOf(page, framed, look, start, [4_000]))[0];
-  const root = (await framesOf(page, rooted, null, start, [4_000]))[0];
-  return { painted: painted(ref), apart: differingShifted(ref, root) };
+  const { painted: count, aparts } = await landedAll(page, framed, [rooted], look, start);
+  return { painted: count, apart: aparts[0] };
 }
 
 test('the sweep: every viewport-unit design paints the same with the transform on its root as in a transformed frame', async ({ page, browser }) => {
@@ -222,8 +238,8 @@ test('the sweep: every viewport-unit design paints the same with the transform o
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const swept = await page.evaluate(async ({ controls, look }) => {
-    const { CATALOG, variantById } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { CATALOG, variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const units = /\b\d*\.?\d+(?:vw|vh|vmin|vmax|[sld]v[wh])\b|\binner(?:Width|Height)\b|position\s*:\s*fixed/;
     const listed = Object.values(CATALOG).flat().filter((v) => {
       const t = v!.create({} as never);
@@ -249,7 +265,7 @@ test('the sweep: every viewport-unit design paints the same with the transform o
   const rows: string[] = [];
   for (const d of swept.docs) {
     const r = await residuals(renderer, `doc/${d.id}-framed`, `doc/${d.id}-rooted`, SWEEP_LOOK, 'play', [400, 1_500, 4_000]);
-    rows.push(`${d.id}: ${r.map((s) => `${s.ms}ms painted ${s.painted} noise ${s.noise} residual ${s.residual}`).join(' | ')}`);
+    rows.push(`${d.id}: ${r.map((s) => `${s.ms}ms painted ${s.painted} noise ${s.noise ?? 'not measured'} residual ${s.residual}`).join(' | ')}`);
     expect(Math.max(...r.map((s) => s.painted)), `${d.id} painted nothing at any sample`).toBeGreaterThan(1_000);
     for (const s of r) expect(s.residual, `${d.id} at ${s.ms} ms:\n${rows.join('\n')}`).toBeLessThanOrEqual(RESIDUAL_BOUND);
   }
@@ -273,11 +289,11 @@ test('each target bakes the graphic\'s place and size into its files, painting w
   await awaitDurableReady(page);
   const TARGETS = ['html-overlay', 'casparcg', 'spx', 'ograf', 'h2r'];
   const built = await page.evaluate(async (targets) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
-    const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
+    const { measureExportAppearances } = await __noacgImport('/src/components/home/exportAppearances.ts');
     const show = shows.createShowNamed('Placed Show');
     // lt01 to the other side and 10 % smaller: a preset against its measured box, a size about it.
     // Two designs that hold still once landed: a target is compared on its landed frame, and a
@@ -339,10 +355,10 @@ test('an export measures a placed graphic in the face its fold sets, so a narrow
   await page.keyboard.press('Escape');
   await awaitDurableReady(page);
   const frames = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { measureExportAppearances } = await __noacgImport('/src/components/home/exportAppearances.ts');
     const frameFor = async (adjust: unknown) => {
       const show = shows.createShowNamed('Placed Show');
       const tpl = variantById('lt01')!.create({} as never);
@@ -373,13 +389,13 @@ test('each target bakes the graphic\'s type and colour, painting what the design
     sb14: { font: { fontId: 'oswald' }, vars: { accent: '#22cc66' } },
   } as const;
   const built = await page.evaluate(async ({ targets, style }) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
-    const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
-    const A = await import('/src/control/cueAdjust.ts');
-    const St = await import('/src/control/cueStyle.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
+    const { measureExportAppearances } = await __noacgImport('/src/components/home/exportAppearances.ts');
+    const A = await __noacgImport('/src/control/cueAdjust.ts');
+    const St = await __noacgImport('/src/control/cueStyle.ts');
     const styled = shows.createShowNamed('Styled Show');
     const rewritten = shows.createShowNamed('Rewritten Show');
     for (const id of ['lt01', 'sb14'] as const) {
@@ -452,9 +468,11 @@ test('each target bakes the graphic\'s type and colour, painting what the design
       };
       const [baked, restyled, plain] = [fileIn(target), fileIn(`restyled-${target}`), fileIn(`plain-${target}`)];
       const start = target === 'html-overlay' ? 'autoplay' : 'play';
-      const r = await landed(renderer, restyled, baked, null, start);
-      // The comparison can see the style at all: the unstyled file is far from the restyled one.
-      const unstyled = await landed(renderer, restyled, plain, null, start);
+      // One landed frame of the restyled file, against the baked one and, so the comparison can be
+      // seen to see the style at all, against the unstyled one.
+      const both = await landedAll(renderer, restyled, [baked, plain], null, start);
+      const r = { painted: both.painted, apart: both.aparts[0] };
+      const unstyled = { apart: both.aparts[1] };
       rows.push(`${target} ${g.name}: painted ${r.painted} apart ${r.apart} (unstyled ${unstyled.apart})`);
       expect(r.painted, `${target} ${g.name} shows something`).toBeGreaterThan(1_000);
       expect(unstyled.apart, `${target} ${g.name}: the style shows`).toBeGreaterThan(RESIDUAL_BOUND);

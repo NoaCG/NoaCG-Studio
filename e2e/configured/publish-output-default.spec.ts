@@ -12,8 +12,8 @@ test.skip(!haveCreds, 'Configured throwaway account is required.');
 async function seed(page: Page): Promise<string> {
   await awaitDurableReady(page);
   const id = await page.evaluate(async () => {
-    const S = await import('/src/model/shows.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
     const result = S.createShowNamedChecked(`Output default check ${Date.now()}`);
     if (result.error) throw Error(result.error);
     S.addGraphicToShow(result.show.id, variantsFor('lower-third')[0].create({}));
@@ -27,18 +27,18 @@ async function seed(page: Page): Promise<string> {
 
 async function preference(page: Page) {
   return page.evaluate(async () => {
-    const sb = await (await import('/src/backend/supabase.ts')).getSupabase();
+    const sb = await (await __noacgImport('/src/backend/supabase.ts')).getSupabase();
     const { data } = await sb!.auth.getSession();
     if (!data.session) throw Error('Test account is not signed in');
-    return (await import('/src/backend/auth.ts')).readDefaultOutput(data.session.user.id);
+    return (await __noacgImport('/src/backend/auth.ts')).readDefaultOutput(data.session.user.id);
   });
 }
 async function savePreference(page: Page, setup: ProductionOutputSetup | null) {
   return page.evaluate(async setup => {
-    const sb = await (await import('/src/backend/supabase.ts')).getSupabase();
+    const sb = await (await __noacgImport('/src/backend/supabase.ts')).getSupabase();
     const { data } = await sb!.auth.getSession();
     if (!data.session) throw Error('Test account is not signed in');
-    return (await import('/src/backend/auth.ts')).saveDefaultOutput(data.session.user.id, setup);
+    return (await __noacgImport('/src/backend/auth.ts')).saveDefaultOutput(data.session.user.id, setup);
   }, setup);
 }
 
@@ -50,11 +50,11 @@ test('the CasparCG default is stored by Auth, starts a new production switched o
   // Recover only this spec's throwaway fixtures after an interrupted run. The account has no
   // real productions; other test records and account metadata remain untouched otherwise.
   const recovered = await page.evaluate(async () => {
-    const S = await import('/src/model/shows.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
     const own = S.loadShows().filter(s => /^Output default check [0-9]+$/.test(s.name));
-    for (const s of own) { await (await import('/src/control/hostedControl.ts')).unpublishControlShow(s.id); S.deleteShow(s.id); }
-    if (own.length) await (await import('/src/backend/syncController.ts')).syncNow();
-    await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    for (const s of own) { await (await __noacgImport('/src/control/hostedControl.ts')).unpublishControlShow(s.id); S.deleteShow(s.id); }
+    if (own.length) await (await __noacgImport('/src/backend/syncController.ts')).syncNow();
+    await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
     return own.length;
   });
   if (recovered) expect((await savePreference(page, null)).error).toBeNull();
@@ -102,7 +102,7 @@ test('the CasparCG default is stored by Auth, starts a new production switched o
     await expect(switchOf(other)).toBeChecked({ timeout: 30_000 });
     await other.keyboard.press('Escape');
     await publishProduction(other);
-    await expect.poll(() => other.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)?.outputSetup?.destinations.some(d => d.profile === 'casparcg'), remote[0])).toBe(true);
+    await expect.poll(() => other.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)?.outputSetup?.destinations.some(d => d.profile === 'casparcg'), remote[0])).toBe(true);
     // Cleared there: the next new production starts off, and the one already made keeps its switch.
     const otherBox = await workflowSettings(other);
     await expect(otherBox).toBeChecked();
@@ -123,11 +123,11 @@ test('the CasparCG default is stored by Auth, starts a new production switched o
       for (const [tab, ids] of [[page, created], [other, remote]] as const) {
         if (!ids.length) continue;
         await tab.evaluate(async ids => {
-          const S = await import('/src/model/shows.ts');
-          const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+          const S = await __noacgImport('/src/model/shows.ts');
+          const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
           for (const id of ids) { await unpublishControlShow(id); S.deleteShow(id); }
-          await (await import('/src/backend/syncController.ts')).syncNow();
-          await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+          await (await __noacgImport('/src/backend/syncController.ts')).syncNow();
+          await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
         }, ids);
       }
     } finally {

@@ -292,7 +292,8 @@ export type OgrafLifecycleCall =
 export function ografCallFor(msg: ControlMessage): OgrafLifecycleCall | null {
   switch (msg.t) {
     case 'play':
-      return { call: 'play', args: [{ goto: 0 }] };
+      // A scene link's settled Take (obs-scenes OS1a R9) asks the package to skip its animation.
+      return { call: 'play', args: [msg.settled ? { goto: 0, skipAnimation: true } : { goto: 0 }] };
     case 'next':
       return { call: 'play', args: [{ delta: 1 }] };
     case 'stop':

@@ -78,7 +78,7 @@ test('the HyperFrames runtime runs the same checks as the Remotion host', async 
   await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 10_000 });
 
   const secs = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     const p = useVideoProjectStore.getState().project;
     return p.durationInFrames / p.fps;
   });
@@ -113,7 +113,7 @@ test('the HyperFrames runtime runs the same checks as the Remotion host', async 
 
   const clipFindings = async (boxWidth: number, shiftX = 0) => {
     await page.evaluate(async (doc) => {
-      const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+      const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
       useVideoProjectStore.getState().setSource(doc);
     }, documentWith(boxWidth, shiftX));
     // The preview reloads on a debounce and every one of these documents shows the same
@@ -270,8 +270,8 @@ test.describe('the gate reports whether it actually ran', () => {
     await page.goto('/app');
     const results = await page.evaluate(
       async ([html, settings]) => {
-        const { validateHyperframesComposition } = await import('/src/video/hyperframes/validate.ts');
-        const { HyperframesBridge } = await import('/src/video/hyperframes/bridge.ts');
+        const { validateHyperframesComposition } = await __noacgImport('/src/video/hyperframes/validate.ts');
+        const { HyperframesBridge } = await __noacgImport('/src/video/hyperframes/bridge.ts');
         const sum = (r: { ok: boolean; probed: boolean; errors: { rule: string }[] }) => ({
           ok: r.ok,
           probed: r.probed,
@@ -310,9 +310,9 @@ test.describe('the gate reports whether it actually ran', () => {
 
     const results = await page.evaluate(
       async ([html, settings]) => {
-        const { validateHyperframesComposition } = await import('/src/video/hyperframes/validate.ts');
-        const { HyperframesBridge } = await import('/src/video/hyperframes/bridge.ts');
-        const { getActiveHyperframesBridge } = await import('/src/video/bridgeRegistry.ts');
+        const { validateHyperframesComposition } = await __noacgImport('/src/video/hyperframes/validate.ts');
+        const { HyperframesBridge } = await __noacgImport('/src/video/hyperframes/bridge.ts');
+        const { getActiveHyperframesBridge } = await __noacgImport('/src/video/bridgeRegistry.ts');
         const sum = (r: { ok: boolean; probed: boolean; errors: { rule: string }[] }) => ({
           ok: r.ok,
           probed: r.probed,
@@ -370,8 +370,8 @@ test('text painted behind a panel is caught by the gate, not just by the bench',
   await expect(page.locator('.video-player-frame')).toBeVisible();
 
   const results = await page.evaluate(async () => {
-    const { validateHyperframesComposition } = await import('/src/video/hyperframes/validate.ts');
-    const { getActiveHyperframesBridge } = await import('/src/video/bridgeRegistry.ts');
+    const { validateHyperframesComposition } = await __noacgImport('/src/video/hyperframes/validate.ts');
+    const { getActiveHyperframesBridge } = await __noacgImport('/src/video/bridgeRegistry.ts');
     const settings = { width: 1920, height: 1080, fps: 30, durationInFrames: 120, transparent: false };
 
     // `panelLeft` decides the verdict: 0 parks an opaque panel over the headline for the whole
@@ -436,8 +436,8 @@ test('gradient wordmarks broken by same-color slabs are caught by the gate', asy
   await expect(page.locator('.video-player-frame')).toBeVisible();
 
   const results = await page.evaluate(async () => {
-    const { validateHyperframesComposition } = await import('/src/video/hyperframes/validate.ts');
-    const { getActiveHyperframesBridge } = await import('/src/video/bridgeRegistry.ts');
+    const { validateHyperframesComposition } = await __noacgImport('/src/video/hyperframes/validate.ts');
+    const { getActiveHyperframesBridge } = await __noacgImport('/src/video/bridgeRegistry.ts');
     const settings = { width: 1920, height: 1080, fps: 30, durationInFrames: 120, transparent: false };
 
     const documentWith = (slabLeft: number) => `<!doctype html>
@@ -511,8 +511,8 @@ test('competing duplicate wordmark bindings are rejected without flagging an ali
   await expect(page.locator('.video-player-frame')).toBeVisible();
 
   const results = await page.evaluate(async () => {
-    const { validateHyperframesComposition } = await import('/src/video/hyperframes/validate.ts');
-    const { getActiveHyperframesBridge } = await import('/src/video/bridgeRegistry.ts');
+    const { validateHyperframesComposition } = await __noacgImport('/src/video/hyperframes/validate.ts');
+    const { getActiveHyperframesBridge } = await __noacgImport('/src/video/bridgeRegistry.ts');
     const settings = { width: 1920, height: 1080, fps: 30, durationInFrames: 120, transparent: false };
 
     const documentWith = (broken: boolean) => `<!doctype html>
@@ -590,8 +590,8 @@ test('dark-on-dark text and text painted across other text are caught by the gat
   await expect(page.locator('.video-player-frame')).toBeVisible();
 
   const results = await page.evaluate(async () => {
-    const { validateHyperframesComposition } = await import('/src/video/hyperframes/validate.ts');
-    const { getActiveHyperframesBridge } = await import('/src/video/bridgeRegistry.ts');
+    const { validateHyperframesComposition } = await __noacgImport('/src/video/hyperframes/validate.ts');
+    const { getActiveHyperframesBridge } = await __noacgImport('/src/video/bridgeRegistry.ts');
     const settings = { width: 1920, height: 1080, fps: 30, durationInFrames: 120, transparent: false };
 
     const documentWith = (body: string, css: string) => `<!doctype html>

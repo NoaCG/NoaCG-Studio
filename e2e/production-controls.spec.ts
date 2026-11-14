@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // covers: src/control/**, src/templates/quiz/**
 // covers: src/templates/{scoreboards/**,types/{sportsBugs.ts,scoreboard.ts}}
 // covers: src/components/playoutKeys.ts, src/components/{home,save}/**
@@ -120,11 +121,11 @@ async function standInBackend(page: Page): Promise<string> {
 /** A published production of one lower third, saved here, and the resolve's answer for it. */
 async function seedPublishedProduction(page: Page) {
   return page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
-    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+    const { stampPayload } = await __noacgImport('/src/control/payloadVersion.ts');
     const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
     if (error || !doc) throw new Error(error ?? 'seed failed');
     const show = createShowNamed('Evening News');
@@ -288,7 +289,7 @@ test('two presses made while the resolve is on its way keep their order (#1697)'
   await expect(page.getByTestId('production-page')).toBeVisible();
   const showId = page.url().split('/production/')[1];
   await page.evaluate(async (showId) => {
-    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const { sendControlVerb } = await __noacgImport('/src/control/hostedControl.ts');
     const press = (t: 'play' | 'stop') => sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] });
     const take = press('play');
     await new Promise((r) => setTimeout(r, 50));
@@ -309,7 +310,7 @@ test('All out pressed as the resolve lands is numbered after an older waiting Ta
   await expect(page.getByTestId('production-page')).toBeVisible();
   const showId = page.url().split('/production/')[1];
   await page.evaluate(async (showId) => {
-    const { sendControlVerb, sendControlVerbs, sendsInOrder } = await import('/src/control/hostedControl.ts');
+    const { sendControlVerb, sendControlVerbs, sendsInOrder } = await __noacgImport('/src/control/hostedControl.ts');
     const take = sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
     while (!sendsInOrder('status-slug')) await new Promise((r) => setTimeout(r, 2));
     const allOut = sendControlVerbs({ slug: 'status-slug', showId, batches: [[{ graphic: 'Guest Strap', msg: { t: 'stop' } }]], allOut: true });
@@ -328,7 +329,7 @@ test('a press on a production the resolve called missing asks again, and goes nu
   exists = true;
   const showId = page.url().split('/production/')[1];
   await page.evaluate(async (showId) => {
-    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const { sendControlVerb } = await __noacgImport('/src/control/hostedControl.ts');
     await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
   }, showId);
   expect(sendsSeq(), 'it went numbered').toBeGreaterThan(0);
@@ -358,7 +359,7 @@ test('a stalled re-ask of a production called missing does not hold the press pa
   stall = true;
   const showId = page.url().split('/production/')[1];
   const settledIn = await page.evaluate(async (showId) => {
-    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const { sendControlVerb } = await __noacgImport('/src/control/hostedControl.ts');
     const started = Date.now();
     await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] }).catch(() => null);
     return Date.now() - started;
@@ -379,7 +380,7 @@ test('a press left without a road when its wait ends never retries by row id (#1
   await expect(page.getByTestId('production-page')).toBeVisible();
   const showId = page.url().split('/production/')[1];
   await page.evaluate(async (showId) => {
-    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const { sendControlVerb } = await __noacgImport('/src/control/hostedControl.ts');
     const press = (t: 'play' | 'stop') => sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] }).catch(() => null);
     const w = window as unknown as { presses: Promise<unknown>[] };
     w.presses = [press('play')];
@@ -390,7 +391,7 @@ test('a press left without a road when its wait ends never retries by row id (#1
   await page.waitForTimeout(800);
   slow = false;
   await page.evaluate(async () => {
-    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    const { controlShowBySlug } = await __noacgImport('/src/control/hostedControl.ts');
     await controlShowBySlug('status-slug');
     await Promise.all((window as unknown as { presses: Promise<unknown>[] }).presses);
   });
@@ -416,13 +417,13 @@ test('a re-ask nobody answered leaves the production to be asked again (#1697)',
   // of that: the stand-in can have answered while the page has not yet read it (merge-group run
   // 40294074273, #1742). Ask once here and await the answer inside the page.
   await page.evaluate(async () => {
-    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    const { controlShowBySlug } = await __noacgImport('/src/control/hostedControl.ts');
     await controlShowBySlug('status-slug');
   });
   const press = (t: 'play' | 'stop') =>
     page.evaluate(
       async ({ showId, t }) => {
-        const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+        const { sendControlVerb } = await __noacgImport('/src/control/hostedControl.ts');
         await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] }).catch(() => null);
       },
       { showId, t },
@@ -946,10 +947,10 @@ test('± LIVE NUMBERS on the EXPORTED controller: the bump is a partial, carryin
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const b64 = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     // sb22 House Podiums: four scores (number) beside a spotlight index (number, but carried
     // as the ⚡ action's PAYLOAD) - both halves of §7c's derivation in one graphic.
     const tpl = variantById('sb22')!.create({});
@@ -1066,10 +1067,10 @@ test('a GOAL on the EXPORTED controller carries the new score as the event\'s pa
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const b64 = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const tpl = variantById('sb03')!.create({});
     const { doc } = createGraphic(tpl, { name: 'House Score' });
     const show = shows.createShowNamed('Derby');
@@ -1222,10 +1223,10 @@ test('the EXPORTED CONTROLLER stamps the clock too: the origin rides the wire be
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const b64 = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const tpl = variantById('sb09')!.create({});          // House Match Board: f5 counts down from 10:00
     const { doc } = createGraphic(tpl, { name: 'House Match Board' });
     const show = shows.createShowNamed('Cup Tie');
@@ -1423,8 +1424,8 @@ test.describe('the control area is the one scroller', () => {
     // the wizard because the SHAPE is the whole subject and the wizard's format picker is
     // covered by its own specs.
     await page.evaluate(async () => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const shows = await import('/src/model/shows.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const shows = await __noacgImport('/src/model/shows.ts');
       const portrait = {
         ...variantById('lt01')!.create({}),
         resolution: { width: 1080, height: 1920, label: '1080x1920' },
@@ -1655,7 +1656,7 @@ test.describe('the cue editor groups fields by what they belong to', () => {
     // directly, with the shape that gets PAST the threshold: a poll whose options each carry a
     // colour. Without the lettered-list rule it groups A against B and hides C in "Both".
     const decided = await page.evaluate(async () => {
-      const { groupCueFields } = await import('/src/control/cueFieldGroups.ts');
+      const { groupCueFields } = await __noacgImport('/src/control/cueFieldGroups.ts');
       const lettered = ['Option A', 'Option A colour', 'Option B', 'Option B colour', 'Option C', 'Option C colour']
         .map((label, i) => ({ key: `f${i}`, label }));
       const sided = ['Team A', 'Score A', 'Team B', 'Score B', 'Period'].map((label, i) => ({ key: `f${i}`, label }));
@@ -1749,7 +1750,7 @@ test('the ⚡ block arranges in place, and clearing the arrangement puts the gen
   // that never had a profile and one whose last arrangement was cleared must be byte-identical,
   // or every surface downstream grows a second "no profile" to recognise.
   const stored = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === 'Club Match')!;
     return { hasKey: 'profile' in show, profile: show.profile ?? null };
   });
@@ -1770,11 +1771,11 @@ test('the EXPORTED controller carries the arrangement, and a deleted profile exp
   await page.keyboard.press('Escape');
 
   const exported = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
-    const { withGraphicArrange } = await import('/src/model/profile.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
+    const { withGraphicArrange } = await __noacgImport('/src/model/profile.ts');
     // sb08 Club Scorebug: the same clock machine the in-app case above arranges, so the two
     // deployments are measured on ONE graphic rather than on two that happen to agree.
     const tpl = variantById('sb08')!.create({});
@@ -1863,10 +1864,10 @@ test('a production stored with Combined controls still opens, arranged, and carr
   await page.keyboard.press('Escape');
 
   const id = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { durable, commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { durable, commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     // sb08 Club Scorebug: the clock machine the ARRANGE cases above use.
     const tpl = variantById('sb08')!.create({});
     const { doc } = createGraphic(tpl, { name: 'Club Scorebug' });
@@ -1913,8 +1914,8 @@ test('a production stored with Combined controls still opens, arranged, and carr
   /** The stored profile, and the text of both packages this production exports right now. */
   const read = () =>
     page.evaluate(async (showId) => {
-      const { loadShows } = await import('/src/model/shows.ts');
-      const { buildShowZip, buildShowZipFor } = await import('/src/export/showExport.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { buildShowZip, buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
       const show = loadShows().find((s) => s.id === showId)!;
       const text = async (zip: Awaited<ReturnType<typeof buildShowZip>>) => {
         const out: string[] = [];
@@ -2078,7 +2079,7 @@ test('the default SPACE mode is unchanged: selecting previews, SPACE airs, SPACE
 
   // The two modes are the same table on every surface - the decision itself, pinned once.
   const table = await page.evaluate(async () => {
-    const { spaceAction } = await import('/src/components/playoutKeys.ts');
+    const { spaceAction } = await __noacgImport('/src/components/playoutKeys.ts');
     const states = [
       { live: false, previewed: false },
       { live: false, previewed: true },
@@ -2105,10 +2106,10 @@ test('the EXPORTED controller carries both SPACE modes, read off the relay: prev
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const b64 = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const tpl = variantById('lt01')!.create({});
     const { doc } = createGraphic(tpl, { name: 'Hairline' });
     const show = shows.createShowNamed('Evening News');
@@ -2237,10 +2238,10 @@ test('the EXPORTED controller draws a pinned graphic above the editor and presse
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const exported = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
-    const { withPinnedGraphic } = await import('/src/model/profile.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
+    const { withPinnedGraphic } = await __noacgImport('/src/model/profile.ts');
     const show = shows.createShowNamed('Pinned Night');
     shows.addGraphicToShow(show.id, { ...variantById('sb03')!.create({}), name: 'House Score' });
     shows.addGraphicToShow(show.id, { ...variantById('sb22')!.create({}), name: 'Podiums' });
@@ -2450,7 +2451,7 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   const showId = await openProductionWithCurrent(page, 'Adjust Night');
   // A second cue of the same lower third, for the cue exception.
   await page.evaluate(async (id) => {
-    const shows = await import('/src/model/shows.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
     const g = shows.loadShows().find((s) => s.id === id)!.graphics[0];
     shows.addShowCue(id, g.id, { label: 'Second guest', values: { f0: 'Ben', f1: 'Guest' } });
     await new Promise((r) => setTimeout(r));
@@ -2557,7 +2558,7 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   await page.getByTestId('adjust-y').fill('5');
   await expect(page.getByTestId('adjust-y')).toHaveAttribute('data-dirty', 'true');
   await page.evaluate(async (id) => {
-    const shows = await import('/src/model/shows.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
     const cue = shows.loadShows().find((s) => s.id === id)!.cues![0];
     shows.stepAdjust(id, cue.id, 'graphic', { y: 3 });
     await new Promise((r) => setTimeout(r));
@@ -2625,7 +2626,7 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
   await bootstrapGraphic(page, 'Hairline');
   const showId = await openProductionWithCurrent(page, 'Type Night');
   await page.evaluate(async (id) => {
-    const shows = await import('/src/model/shows.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
     const g = shows.loadShows().find((s) => s.id === id)!.graphics[0];
     shows.addShowCue(id, g.id, { label: 'Second guest', values: { f0: 'Ben', f1: 'Guest' } });
     await new Promise((r) => setTimeout(r));
@@ -2637,9 +2638,9 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
       .evaluate((el, n) => el.style.getPropertyValue(n), name)
       .catch(() => null);
   const designAccent = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { templateForSavedGraphic, loadGraphics } = await import('/src/model/library.ts');
-    const { getCssVariable } = await import('/src/model/cssVars.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { templateForSavedGraphic, loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { getCssVariable } = await __noacgImport('/src/model/cssVars.ts');
     return getCssVariable(templateForSavedGraphic(loadShows().find((s) => s.id === id)!.graphics[0], loadGraphics()).css, 'accent');
   }, showId);
   const summary = page.getByTestId('cue-adjust-summary');
@@ -2656,7 +2657,7 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
   await page.getByTestId('adjust-colour-designed').click();
   await settleDurableWrites(page);
   expect(await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return [s.graphics[0].adjust ?? null, ...(s.cues ?? []).map((c) => c.adjust ?? null)];
   }, showId)).toEqual([null, null, null]);
@@ -2670,7 +2671,7 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
   await expect(page.getByTestId('adjust-typeface')).toHaveValue('b:archivo');
   await settleDurableWrites(page);
   expect(await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const a = (loadShows().find((x) => x.id === id)!.graphics[0].adjust ?? {}) as Record<string, unknown>;
     return { x: a.x ?? null, y: a.y ?? null };
   }, showId), 'no nudge from the select').toEqual({ x: null, y: null });
@@ -2745,7 +2746,7 @@ test('Setup ▾ Look works on a production with no captured look and no saved br
   await bootstrapGraphic(page, 'Hairline');
   const showId = await openProductionWithCurrent(page, 'No Look');
   await page.evaluate(async (id) => {
-    const shows = await import('/src/model/shows.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
     shows.setShowLook(id, undefined);
     await new Promise((r) => setTimeout(r));
   }, showId);
@@ -2759,7 +2760,7 @@ test('Setup ▾ Look works on a production with no captured look and no saved br
   await page.getByTestId('look-typeface').selectOption({ label: 'Oswald' });
   await page.getByTestId('look-on').click();
   await expect(page.getByTestId('look-on')).toHaveAttribute('aria-pressed', 'true');
-  const look = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.look?.fontId, showId);
+  const look = await page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.look?.fontId, showId);
   expect(look).toBe('oswald');
 });
 
@@ -2771,7 +2772,7 @@ test('the Type row reads a look\'s imported face in effect, and offers no other 
   await bootstrapGraphic(page, 'Hairline');
   const showId = await openProductionWithCurrent(page, 'Look Face');
   await page.evaluate(async (id) => {
-    const shows = await import('/src/model/shows.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
     shows.setShowLookApplied(id, true, {
       styleTag: 'clean',
       palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#cccccc', panel: '#101820' },
@@ -2803,12 +2804,12 @@ test('Setup ▾ Look turns a production look on and off, counts its reach, keeps
   await addCatalogGraphic(page, showId, 'Imported SVG design');
   const look = { styleTag: 'clean', palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#cccccc', panel: '#101820' }, fontId: 'archivo', customFont: null };
   await page.evaluate(async ([id, captured]) => {
-    const shows = await import('/src/model/shows.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
     const g = shows.loadShows().find((s) => s.id === id)!.graphics[0];
     shows.addShowCue(id, g.id, { label: 'Second guest', values: { f0: 'Ben', f1: 'Guest' } });
     // An old production's captured look, never turned on.
     shows.setShowLook(id, captured as never);
-    const { addLook } = await import('/src/model/packets.ts');
+    const { addLook } = await __noacgImport('/src/model/packets.ts');
     addLook('Autumn Quiz', { ...(captured as object), palette: { ...(captured as { palette: object }).palette, accent: '#00a3ff' }, fontId: 'oswald' } as never);
     await new Promise((r) => setTimeout(r));
   }, [showId, look] as const);
@@ -2884,8 +2885,8 @@ test('Setup ▾ Look turns a production look on and off, counts its reach, keeps
 
   // AC-7: duplicate, turn another brand on in the copy; the original keeps its own.
   const copyId = await page.evaluate(async (id) => {
-    const shows = await import('/src/model/shows.ts');
-    const { routeHash } = await import('/src/app/router.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { routeHash } = await __noacgImport('/src/app/router.ts');
     const copy = shows.duplicateShowChecked(id).show!;
     location.hash = routeHash({ view: 'production', id: copy.id });
     await new Promise((r) => setTimeout(r));
@@ -2902,8 +2903,8 @@ test('Setup ▾ Look turns a production look on and off, counts its reach, keeps
   }
   await settleDurableWrites(page);
   expect(await page.evaluate(async ([a, b]) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { audienceBrandFor } = await import('/src/audience/audienceBrand.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { audienceBrandFor } = await __noacgImport('/src/audience/audienceBrand.ts');
     const of = (id: string) => loadShows().find((s) => s.id === id)!;
     return [of(a).lookApplied ?? null, audienceBrandFor(of(a).look)?.accent, of(b).lookApplied ?? null, audienceBrandFor(of(b).look)?.accent];
   }, [showId, copyId] as const)).toEqual([null, '#ff7a00', true, '#00a3ff']);

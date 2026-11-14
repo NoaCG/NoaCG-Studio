@@ -42,7 +42,7 @@ async function attachTestSource(page: Page, showName: string): Promise<void> {
   // The sources sit under Interaction's folded "More ways in".
   await moreWaysIn(page);
   await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === name);
     if (!show) throw new Error(`no production named ${name}`);
     const seam = (window as unknown as {
@@ -285,7 +285,7 @@ test('YouTube comments: one press brings the newest 100; the source is remembere
   // The key stayed in memory: not in browser storage, not in the production's record.
   await settleDurableWrites(audience);
   const kept = await audience.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return { stored: localStorage.getItem('spx-gfx-youtube-key'), record: JSON.stringify(loadShows().find((s) => s.id === id)?.sources) };
   }, showId);
   expect(kept.stored).toBeNull();

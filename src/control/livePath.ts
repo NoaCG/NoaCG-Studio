@@ -39,6 +39,7 @@ import {
   type HeldVersion,
   type OutputReady,
   type ReadyStamp,
+  MAX_EXPECTED_OUTPUTS,
 } from './readiness';
 
 // ── WHO IT IS ────────────────────────────────────────────────────────────────────────────────
@@ -416,6 +417,52 @@ export interface LiveEntry {
    *  values and actions (E2.1). Absent from an output built before it: a page sends such an output
    *  no envelope. */
   typed?: number;
+  /** An output that checks the published version by itself (live-publishing G3 section 6): 1.
+   *  Absent from an output built before it, which a page asks to reload when nothing is on air. */
+  au?: number;
+  /** A scene link's own word (docs/work-specs/obs-scenes/spec.md OS1a R8). Absent on every other
+   *  output. */
+  scene?: SceneReport;
+}
+
+/** What a scene link says about itself: its scene id, whether the payload it holds knows that
+ *  scene, and from OBS's browser source events where the source is (`obs`, absent until the first
+ *  event: unknown), the OBS scene it was last on program in, and every OBS scene it has been on
+ *  program in since it loaded (`seen`, obs-scenes OS3 M5; absent while there is none). */
+export interface SceneReport {
+  id: string;
+  known: boolean;
+  obs?: 'program' | 'preview' | 'hidden';
+  last?: string;
+  seen?: string[];
+}
+
+/** OBS scene names a scene report carries at most, the first ones seen (OS3 M5): the link, its
+ *  report and the operator's row all keep the same ones. */
+export const SCENE_SEEN_MAX = 12;
+
+/** What a scene link is called on the operator's panel when its URL names it nothing else (OS3 M6):
+ *  the scene's name cleaned and cut as `&name=` is (`outputNameParam`), so the panel can match a
+ *  remembered output to its scene by it. */
+export function sceneLinkName(sceneName: string): string | undefined {
+  // Everything below a space (control characters) goes: a name is one line of plain text.
+  return sceneName.replace(/[^ -\uffff]/g, '').trim().slice(0, 40) || undefined;
+}
+
+/** A scene report off the wire, or undefined. */
+export function readSceneReport(value: unknown): SceneReport | undefined {
+  const r = value as Partial<SceneReport> | null;
+  if (!r || typeof r !== 'object' || typeof r.id !== 'string' || typeof r.known !== 'boolean') return undefined;
+  const seen = Array.isArray(r.seen)
+    ? [...new Set(r.seen.filter((n): n is string => typeof n === 'string').map((n) => n.slice(0, 80)))].slice(0, SCENE_SEEN_MAX)
+    : [];
+  return {
+    id: r.id.slice(0, 80),
+    known: r.known,
+    ...(r.obs === 'program' || r.obs === 'preview' || r.obs === 'hidden' ? { obs: r.obs } : {}),
+    ...(typeof r.last === 'string' ? { last: r.last.slice(0, 80) } : {}),
+    ...(seen.length > 0 ? { seen } : {}),
+  };
 }
 
 /** This page's entry as it stands now: who it is, filled in here, and what only the caller knows
@@ -426,7 +473,7 @@ export function liveEntry(
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
-  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack' | 'typed'>,
+  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack' | 'typed' | 'scene' | 'au'>,
 ): LiveEntry {
   return {
     kind,
@@ -446,9 +493,7 @@ export function liveEntry(
 /** An output's name from its URL: `&name=CasparCG 1-20`, trimmed to what a line can show. */
 export function outputNameParam(search: string): string | undefined {
   const name = new URLSearchParams(search).get('name');
-  // Everything below a space (control characters) goes: a name is one line of plain text.
-  const clean = name ? name.replace(/[^ -￿]/g, '').trim().slice(0, 40) : '';
-  return clean || undefined;
+  return name ? sceneLinkName(name) : undefined;
 }
 
 /** A Presence entry read off the wire, or null when it is not one. Anyone holding the show id can
@@ -462,13 +507,14 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
   const pub = readHeld(m.pub);
   const exp = Array.isArray(m.exp)
     ? m.exp
-        .slice(0, 16)
+        .slice(0, MAX_EXPECTED_OUTPUTS)
         .filter((e): e is ExpectedOutput => !!e && typeof e.id === 'string' && typeof e.name === 'string')
         .map((e) => ({ id: e.id.slice(0, 40), name: e.name.slice(0, 80), seen: typeof e.seen === 'number' ? e.seen : 0 }))
     : undefined;
   const stamp = readReadyStamp(m.stamp);
   const prep = readPrepRequest(m.prep);
   const ack = readPingAck(m.ack);
+  const scene = readSceneReport(m.scene);
   return {
     kind: m.kind,
     id: m.id.slice(0, 40),
@@ -489,6 +535,8 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     ...(prep ? { prep } : {}),
     ...(ack ? { ack } : {}),
     ...(typeof m.typed === 'number' && Number.isInteger(m.typed) && m.typed > 0 ? { typed: m.typed } : {}),
+    ...(m.au === 1 ? { au: 1 } : {}),
+    ...(scene ? { scene } : {}),
   };
 }
 

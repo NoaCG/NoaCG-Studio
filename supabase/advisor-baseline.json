@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
   "recordedAt": "2026-11-10",
-  "count": 220,
+  "count": 240,
   "entries": {
     "anon_security_definer_function_executable_public_audience_clear_results_p_slug text, p_question text": {
       "name": "anon_security_definer_function_executable",
@@ -128,10 +128,25 @@
       "level": "WARN",
       "detail": "Function `public.control_data_pause_by_slug(p_slug text, p_paused boolean)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_data_pause_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "anon_security_definer_function_executable_public_control_output_assets_p_output_slug text, p_hashes text[]": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_output_assets(p_output_slug text, p_hashes text[])` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_assets`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "anon_security_definer_function_executable_public_control_output_by_slug_p_output_slug text": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.control_output_by_slug(p_output_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_control_output_head_p_output_slug text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_output_head(p_output_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_head`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_control_output_parts_p_output_slug text, p_digests text[]": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_output_parts(p_output_slug text, p_digests text[])` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_parts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_output_report_p_output_slug text, p_graphic text, p_data jsonb, p_state jsonb, p_last_event_id bigint": {
       "name": "anon_security_definer_function_executable",
@@ -162,6 +177,11 @@
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.control_output_tail_seq(p_output_slug text, p_after bigint, p_epoch uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_tail_seq`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_control_output_version_p_output_slug text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_output_version(p_output_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_version`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_ping_seq_p_slug text, p_id text": {
       "name": "anon_security_definer_function_executable",
@@ -383,6 +403,11 @@
       "level": "WARN",
       "detail": "Function `public.audience_word_counts(p_slug text, p_round uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_word_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_auto_publish_state_": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.auto_publish_state()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/auto_publish_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_community_pack_decide_p_id uuid, p_state text, p_reason text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -433,6 +458,21 @@
       "level": "WARN",
       "detail": "Function `public.community_pack_withdraw(p_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_withdraw`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_control_asset_put_p_show uuid, p_data text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_asset_put(p_show uuid, p_data text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_asset_put`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_assets_missing_p_show uuid, p_hashes text[]": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_assets_missing(p_show uuid, p_hashes text[])` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_assets_missing`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_compose_graphics_p_show uuid, p_refs jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_compose_graphics(p_show uuid, p_refs jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_compose_graphics`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_control_cue_arm_p_slug text, p_lane text, p_cue text, p_op text, p_by text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -463,10 +503,25 @@
       "level": "WARN",
       "detail": "Function `public.control_data_pause_by_slug(p_slug text, p_paused boolean)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_data_pause_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_control_output_assets_p_output_slug text, p_hashes text[]": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_output_assets(p_output_slug text, p_hashes text[])` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_assets`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_control_output_by_slug_p_output_slug text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.control_output_by_slug(p_output_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_output_head_p_output_slug text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_output_head(p_output_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_head`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_output_parts_p_output_slug text, p_digests text[]": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_output_parts(p_output_slug text, p_digests text[])` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_parts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_output_report_p_output_slug text, p_graphic text, p_data jsonb, p_state jsonb, p_last_event_id bigint": {
       "name": "authenticated_security_definer_function_executable",
@@ -497,6 +552,21 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.control_output_tail_seq(p_output_slug text, p_after bigint, p_epoch uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_tail_seq`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_output_version_p_output_slug text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_output_version(p_output_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_version`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_parts_put_p_show uuid, p_parts jsonb, p_named text[]": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_parts_put(p_show uuid, p_parts jsonb, p_named text[])` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_parts_put`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_parts_settle_p_show uuid": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_parts_settle(p_show uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_parts_settle`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_ping_seq_p_slug text, p_id text": {
       "name": "authenticated_security_definer_function_executable",
@@ -628,6 +698,16 @@
       "level": "WARN",
       "detail": "Function `public.panel_revoke(p_slug text, p_key_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_revoke`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_partial_writes_state_": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.partial_writes_state()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/partial_writes_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_production_copies_state_": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.production_copies_state()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/production_copies_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_public_system_notice_": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -658,10 +738,20 @@
       "level": "WARN",
       "detail": "Function `public.team_join(p_code text, p_display_name text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_join`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_team_production_patch_p_id uuid, p_expected timestamp with time zone, p_ops jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_production_patch(p_id uuid, p_expected timestamp with time zone, p_ops jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_patch`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_team_production_save_p_id uuid, p_expected timestamp with time zone, p_doc jsonb": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.team_production_save(p_id uuid, p_expected timestamp with time zone, p_doc jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_save`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_team_production_units_set_p_id uuid, p_rev bigint, p_units jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_production_units_set(p_id uuid, p_rev bigint, p_units jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_units_set`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_team_rotate_code_p_team uuid": {
       "name": "authenticated_security_definer_function_executable",
@@ -757,6 +847,16 @@
       "name": "rls_enabled_no_policy",
       "level": "INFO",
       "detail": "Table \\`public.control_data_ticks\\` has RLS enabled, but no policies exist"
+    },
+    "rls_enabled_no_policy_public_control_assets": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.control_assets\\` has RLS enabled, but no policies exist"
+    },
+    "rls_enabled_no_policy_public_control_parts": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.control_parts\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_control_heads": {
       "name": "rls_enabled_no_policy",

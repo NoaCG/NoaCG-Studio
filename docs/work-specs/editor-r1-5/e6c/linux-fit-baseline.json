@@ -1,0 +1,259 @@
+{
+  "source": "1178ac8e8b1c3cabef036e57a1a50c74576ebf93",
+  "at": "2026-11-13T15:02:24.781Z",
+  "browser": "149.0.7827.55",
+  "platform": "linux",
+  "fonts": [
+    {
+      "name": "inter",
+      "bytes": 48256,
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "name": "oswald",
+      "bytes": 21472,
+      "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed"
+    },
+    {
+      "name": "saira",
+      "bytes": 32888,
+      "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17"
+    }
+  ],
+  "runtimeSha256": "e98eadc644f079d5287996ffacf8fff8cca8a871ce0ecb1488623d1d19314592",
+  "rows": [
+    {
+      "family": "inter",
+      "weight": "400",
+      "fontReady": true,
+      "room": 800,
+      "width": 800,
+      "glyphWidth": 800,
+      "fontSize": 27.606,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "inter",
+      "weight": "400",
+      "fontReady": true,
+      "room": 1043,
+      "width": 1043,
+      "glyphWidth": 1043,
+      "fontSize": 35.8538,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "inter",
+      "weight": "400",
+      "fontReady": true,
+      "room": 1090,
+      "width": 1088,
+      "glyphWidth": 1088,
+      "fontSize": 37.6132,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "inter",
+      "weight": "700",
+      "fontReady": true,
+      "room": 800,
+      "width": 791,
+      "glyphWidth": 791,
+      "fontSize": 26.4281,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "inter",
+      "weight": "700",
+      "fontReady": true,
+      "room": 1043,
+      "width": 1038,
+      "glyphWidth": 1038,
+      "fontSize": 34.4556,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "inter",
+      "weight": "700",
+      "fontReady": true,
+      "room": 1090,
+      "width": 1086,
+      "glyphWidth": 1086,
+      "fontSize": 36.0083,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "oswald",
+      "weight": "400",
+      "fontReady": true,
+      "room": 800,
+      "width": 798,
+      "glyphWidth": 798,
+      "fontSize": 36.1923,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "oswald",
+      "weight": "400",
+      "fontReady": true,
+      "room": 1043,
+      "width": 1044,
+      "glyphWidth": 1044,
+      "fontSize": 46.9156,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "oswald",
+      "weight": "400",
+      "fontReady": true,
+      "room": 1090,
+      "width": 1061,
+      "glyphWidth": 1061,
+      "fontSize": 48,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "oswald",
+      "weight": "700",
+      "fontReady": true,
+      "room": 800,
+      "width": 797,
+      "glyphWidth": 797,
+      "fontSize": 31.974,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "oswald",
+      "weight": "700",
+      "fontReady": true,
+      "room": 1043,
+      "width": 1045,
+      "glyphWidth": 1045,
+      "fontSize": 41.5357,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "oswald",
+      "weight": "700",
+      "fontReady": true,
+      "room": 1090,
+      "width": 1089,
+      "glyphWidth": 1089,
+      "fontSize": 43.503,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "saira",
+      "weight": "400",
+      "fontReady": true,
+      "room": 800,
+      "width": 798,
+      "glyphWidth": 798,
+      "fontSize": 27.7135,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "saira",
+      "weight": "400",
+      "fontReady": true,
+      "room": 1043,
+      "width": 1043,
+      "glyphWidth": 1043,
+      "fontSize": 36.3573,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "saira",
+      "weight": "400",
+      "fontReady": true,
+      "room": 1090,
+      "width": 1090,
+      "glyphWidth": 1090,
+      "fontSize": 37.7531,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "saira",
+      "weight": "700",
+      "fontReady": true,
+      "room": 800,
+      "width": 799,
+      "glyphWidth": 799,
+      "fontSize": 27.1762,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "saira",
+      "weight": "700",
+      "fontReady": true,
+      "room": 1043,
+      "width": 1042,
+      "glyphWidth": 1042,
+      "fontSize": 35.431,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "saira",
+      "weight": "700",
+      "fontReady": true,
+      "room": 1090,
+      "width": 1091,
+      "glyphWidth": 1091,
+      "fontSize": 36.8584,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    }
+  ],
+  "overflow": [
+    {
+      "family": "oswald",
+      "weight": "400",
+      "fontReady": true,
+      "room": 1043,
+      "width": 1044,
+      "glyphWidth": 1044,
+      "fontSize": 46.9156,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "oswald",
+      "weight": "700",
+      "fontReady": true,
+      "room": 1043,
+      "width": 1045,
+      "glyphWidth": 1045,
+      "fontSize": 41.5357,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    },
+    {
+      "family": "saira",
+      "weight": "700",
+      "fontReady": true,
+      "room": 1090,
+      "width": 1091,
+      "glyphWidth": 1091,
+      "fontSize": 36.8584,
+      "floor": 26.400000000000002,
+      "text": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III"
+    }
+  ]
+}

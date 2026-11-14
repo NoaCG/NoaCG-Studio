@@ -64,7 +64,7 @@ const hash = (s: string): string => createHash('sha256').update(s, 'utf8').diges
 /** Every catalog variant, created at its own defaults. CATALOG is already the MERGED
  *  catalog, so this covers the type-compiled designs alongside the hand-written ones. */
 const EMIT = `(async (only) => {
-  const { CATALOG } = await import('/src/templates/catalog.ts');
+  const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
   const out = [];
   for (const [category, variants] of Object.entries(CATALOG)) {
     for (const variant of variants ?? []) {
@@ -215,7 +215,7 @@ test('no two catalog designs share a name', async ({ page }) => {
   await page.keyboard.press('Escape');
 
   const named = (await page.evaluate(`(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     const out = [];
     for (const [category, variants] of Object.entries(CATALOG)) {
       for (const variant of variants ?? []) {
@@ -274,8 +274,8 @@ const CAPTURE = `(async (only) => {
   // hiding a real move (a themed radius or padding change is never sub-pixel).
   const round1 = (s) => String(s).replace(/-?\\d+\\.\\d+/g, (m) => (Math.round(parseFloat(m) * 10) / 10).toFixed(1));
 
-  const { CATALOG } = await import('/src/templates/catalog.ts');
-  const { composeDocument } = await import('/src/preview/composeDocument.ts');
+  const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+  const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
   const out = [];
 
   for (const variants of Object.values(CATALOG)) {

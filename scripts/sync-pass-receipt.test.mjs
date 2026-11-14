@@ -41,7 +41,8 @@ function controller(timers = [], browser = { navigator: {} }) {
     './supabaseProvider': { SupabaseProvider: class { async purgeTombstones() {} } },
     './sync': { libraryHasArrived: () => true, runSync: () => { const pass = deferred(); passes.push(pass); return pass.promise; } },
     '../model/packets': { purgeOldTombstones: noop },
-    '../model/shows': { purgeOldShowTombstones: noop },
+    '../model/shows': { purgeOldShowTombstones: noop, loadShows: () => [], settleShowCopies: () => ({ shows: [], error: null, changed: false }) },
+    '../model/copySettle': { needsSettle: () => false },
     '../model/videoProject': { purgeOldVideoTombstones: noop },
     '../model/library': { purgeOldGraphicTombstones: noop },
   };
@@ -89,9 +90,53 @@ test('coalesced callers receive the next pass receipt even when newer work start
   h.edit(); h.passes[1].resolve(result());
   const receipt = await second;
   assert.equal(receipt.completed, true); assert.equal(await third, receipt);
-  await tick(); assert.equal(h.passes.length, 3);
+  // The edit that landed during pass 1 does not chain a pass at once (#2494): it waits for the
+  // debounce it armed, so the follow-up is one pass per pause, not one pass per pass.
+  await tick(); assert.equal(h.passes.length, 2);
+  assert.equal(h.api.getSyncState().phase, 'pending');
+  const debounce = h.timers.filter((fn) => fn.ms === 2500 && !fn.cleared && !fn.fired);
+  assert.equal(debounce.length, 1);
+  debounce[0](); await tick();
+  assert.equal(h.passes.length, 3);
   assert.equal(h.api.getSyncState().phase, 'syncing');
   h.passes[2].resolve(result()); await tick();
+});
+
+test('continuous edits during a pass cost one pass per pause, not one pass per pass (#2494)', async () => {
+  const timers = [], h = controller(timers);
+  void h.api.syncNow();               // the pass at page load overlaps the edits
+  await tick();
+  assert.equal(h.passes.length, 1);
+  h.edit(); h.edit(); h.edit();       // edits land faster than the pass completes
+  h.passes[0].resolve(result());
+  await tick();
+  // The pass ended with a newer revision waiting. Pre-fix it re-ran at once and kept re-running
+  // for as long as the edits continued, slowing every Take; now it waits for the debounce.
+  assert.equal(h.passes.length, 1, 'no pass-to-pass chain while edits keep arriving');
+  assert.equal(h.api.getSyncState().phase, 'pending');
+  const debounce = () => timers.filter((fn) => fn.ms === 2500 && !fn.cleared && !fn.fired);
+  assert.equal(debounce().length, 1, 'the follow-up waits for the debounce, not an immediate re-run');
+  // When typing pauses the debounce fires: exactly one pass confirms the latest revision.
+  debounce()[0](); await tick();
+  assert.equal(h.passes.length, 2, 'a pass still runs once the edits stop');
+  h.passes[1].resolve(result()); await tick();
+  assert.equal(h.api.getSyncState().phase, 'synced', 'the revision is confirmed: no edit lost');
+  assert.equal(h.passes.length, 2, 'and the chain has ended');
+});
+
+test('an adopted cross-tab change during a pass triggers no local pass or debounce (#2494)', async () => {
+  const timers = [], h = controller(timers);
+  void h.api.syncNow();              // a pass is running
+  await tick();
+  assert.equal(h.passes.length, 1);
+  h.adopt();                         // another tab's change arrives from IndexedDB during the pass
+  h.passes[0].resolve(result());
+  await tick();
+  // The tab that made the change owns pushing it and broadcasts its confirmation; this tab must
+  // not run a redundant per-tab pass, nor arm a debounce (which would stall that confirmation).
+  assert.equal(h.passes.length, 1, 'the tab that made the change pushes it; this tab runs no pass');
+  assert.equal(timers.filter((fn) => fn.ms === 2500 && !fn.cleared && !fn.fired).length, 0,
+    'and arms no debounce of its own');
 });
 
 test('coalesced callers released without a runnable next pass receive no completion', async () => {
@@ -155,6 +200,103 @@ test('a tab that takes another tab\'s confirmed pass as its own stops its own re
   void b.api.syncNow(); await tick(); b.passes[1].resolve(result()); await settle();
   assert.equal(a.api.getSyncState().phase, 'synced');
   assert.deepEqual(armed(a), [], 'no retry left to run a pass the other tab already ran');
+});
+
+test('a confirmation from the writing tab that lands during this tab\'s pass settles it when the pass ends (#2494)', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  void a.api.syncNow(); void b.api.syncNow();
+  await tick();
+  a.adopt();                                  // b's edit reaches a from IndexedDB during a's pass
+  b.passes[0].resolve(result()); await settle(); // b confirms while a is still running
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced', 'the held confirmation settles the chip');
+  assert.equal(a.passes.length, 1, 'with no pass of its own');
+});
+
+test('a held confirmation does not cover an adoption that came after it', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  void a.api.syncNow(); void b.api.syncNow();
+  await tick();
+  a.adopt();
+  b.passes[0].resolve(result()); await settle();
+  a.adopt();                                  // a newer change the confirmation predates
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'pending');
+});
+
+const debounceOf = (h) => h.timers.filter((fn) => fn.ms === 2500 && !fn.cleared && !fn.fired);
+
+test('own edit pushed, adopted change behind it: the writer\'s later confirmation settles the tab', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  a.edit(); debounceOf(a)[0](); await tick();     // a's own edit, its debounced pass running
+  a.adopt();                                      // b's change reaches a during that pass
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'pending', 'b has not confirmed its change yet');
+  assert.equal(a.passes.length, 1);
+  void b.api.syncNow(); await tick(); b.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced', 'b\'s confirmation is accepted: nothing of a\'s is unsent');
+  assert.equal(a.passes.length, 1);
+});
+
+test('own edit pushed, adopted change confirmed during the pass: the pass ends synced', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  a.edit(); debounceOf(a)[0](); await tick();
+  a.adopt();
+  void b.api.syncNow(); await tick(); b.passes[0].resolve(result()); await settle();
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced');
+  assert.equal(a.passes.length, 1);
+});
+
+test('a pass that ends pending tells no other tab it confirmed anything', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab(), c = browser.tab();
+  a.edit(); debounceOf(a)[0](); await tick();     // a's own edit, its pass running
+  b.edit(); a.adopt(); c.adopt();                 // b's edit reaches a and c; b has not synced it
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'pending');
+  assert.equal(c.api.getSyncState().phase, 'pending', 'b\'s edit is not in the cloud yet');
+});
+
+const settleOf = (h) => h.timers.filter((fn) => fn.ms === 30_000 && !fn.cleared && !fn.fired);
+
+test('two tabs that each adopted the other\'s edit during their passes do not wait on each other for ever', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  a.edit(); b.edit(); debounceOf(a)[0](); debounceOf(b)[0](); await tick();
+  a.adopt(); b.adopt();                           // each tab's edit reaches the other mid-pass
+  a.passes[0].resolve(result()); b.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'pending');
+  assert.equal(b.api.getSyncState().phase, 'pending');
+  assert.equal(settleOf(a).length, 1, 'one settle pass armed, not an immediate re-run');
+  assert.equal(a.passes.length, 1);
+  settleOf(a)[0](); await tick(); a.passes[1].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced');
+  assert.equal(b.api.getSyncState().phase, 'synced', 'a\'s whole-library confirmation settles b');
+  assert.equal(settleOf(b).length, 0, 'and cancels b\'s own settle pass');
+  assert.equal(b.passes.length, 1);
+});
+
+test('a confirmation that arrives first cancels the settle pass', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  a.edit(); debounceOf(a)[0](); await tick();
+  a.adopt();
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(settleOf(a).length, 1);
+  void b.api.syncNow(); await tick(); b.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced');
+  assert.equal(settleOf(a).length, 0);
+  assert.equal(a.passes.length, 1);
+});
+
+test('an own edit made during the pass is not covered by a held confirmation', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  void a.api.syncNow(); await tick();
+  a.adopt(); a.edit();                            // b's change and a's own, both during the pass
+  void b.api.syncNow(); await tick(); b.passes[0].resolve(result()); await settle();
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'pending');
+  assert.equal(debounceOf(a).length, 1, 'a\'s own edit still owes its debounced pass');
+  debounceOf(a)[0](); await tick(); a.passes[1].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced');
 });
 
 test('only one tab of a browser retries against a silent cloud; the others follow its answer', async () => {

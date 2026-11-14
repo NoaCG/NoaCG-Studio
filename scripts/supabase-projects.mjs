@@ -30,10 +30,18 @@ export const DEFAULT_STAGING_REF = 'garafohbzmsybtysxphb';
  */
 export function productionRef(env = {}) {
   const match = /^https:\/\/([a-z0-9]+)\.supabase\.co/i.exec(env.VITE_SUPABASE_URL || '');
-  return match ? match[1] : '';
+  // Folded like `stagingRef` below, and for the same reason twice over: a ref is a hostname label
+  // wherever it is used, and `scripts/connector-switch.mjs` compares the two refs to refuse a run
+  // that would change production while calling it staging. One side folded and the other not makes
+  // a shouted host slip past that refusal (scripts/connector-switch.test.mjs, issue #2495).
+  return match ? match[1].toLowerCase() : '';
 }
 
 /** The staging project, overridable so a fork can name its own. */
 export function stagingRef(env = {}) {
-  return env.STAGING_SUPABASE_PROJECT_REF || DEFAULT_STAGING_REF;
+  // Trimmed and folded: a ref read from a secret can carry a trailing newline or capitals, and it
+  // is compared against a hostname, which is case-insensitive. Without this a fork's own correctly
+  // configured staging project is refused with a message pointing at the project rather than at
+  // the whitespace (scripts/configured-target.mjs, issue #2495).
+  return (env.STAGING_SUPABASE_PROJECT_REF || DEFAULT_STAGING_REF).trim().toLowerCase();
 }

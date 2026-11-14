@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Locator, type Page } from '@playwright/test';
 import { fakeBridge, seedSettings } from '../../_fakeBridge';
-import { readyOf } from '../_helpers';
+import { openSecondProductionPage, readyOf, SERVICE_ROLE_KEY, SUPABASE_URL } from '../_helpers';
 import { answerPanel, pairPanel } from '../_panel';
 import { buildFixture, cleanUp, outputSlugOf } from './_fixture';
 import {
@@ -180,13 +180,13 @@ async function opPage(page: Page) {
   await instrument(page.context());
 }
 
-async function openOutput(browser: Browser, slug: string, size = { width: 1280, height: 720 }) {
+async function openOutput(browser: Browser, slug: string, size = { width: 1280, height: 720 }, extra = '') {
   const ctx = await browser.newContext({ viewport: size });
   await instrument(ctx);
   await ctx.addInitScript(FRAME_LOADS);
   const out = await ctx.newPage();
   await throttle(out, NET);
-  await out.goto(`/output?production=${encodeURIComponent(slug)}`);
+  await out.goto(`/output?production=${encodeURIComponent(slug)}${extra}`);
   return out;
 }
 
@@ -250,12 +250,12 @@ test('takes-a', async ({ page, browser }) => {
   log('built', fx.graphics, fx.storedOutputBytes);
   // Read through the development modules before any switch to the bundled build.
   const plainLabels = await page.evaluate(async ({ id, cues }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
   }, { id: fx.showId, cues: fx.cues.plain });
   const labels = await page.evaluate(async ({ id, cues }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return Object.fromEntries(cues.map((c) => [c, s.cues!.find((x) => x.id === c)!.label]));
   }, { id: fx.showId, cues: [fx.cues.picture, fx.cues.server] });
@@ -453,7 +453,7 @@ test('render', async ({ page, browser }) => {
   await healthyOutput(out, fx.graphics);
   const cast = await screencast(out);
   const labels = await page.evaluate(async ({ id, cues }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
   }, { id: fx.showId, cues: fx.cues.plain.slice(0, 5) });
@@ -528,15 +528,15 @@ test('publish', async ({ page, browser }) => {
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await healthyOutput(out, fx.graphics);
   const labels = await page.evaluate(async ({ id, cues }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
   }, { id: fx.showId, cues: fx.cues.plain.slice(0, 5) });
   // A publish loop in the page: the same publication call the header's Publish changes ends in,
   // back to back, each window stamped.
   await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { publishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { publishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     const w = window as unknown as { __lpPub: { on: boolean; windows: [number, number][]; errors: string[]; running: number | null } };
     w.__lpPub = { on: true, windows: [], errors: [], running: null };
     void (async () => {
@@ -616,11 +616,11 @@ test('bytes', async ({ page, browser }) => {
       await field.blur();
     } else if (kind === 'graphic-add') {
       await page.evaluate(async ({ id, i, share }) => {
-        const { CATALOG } = await import('/src/templates/catalog.ts');
-        const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-        const { formatTemplate } = await import('/src/format/formatCode.ts');
-        const { addGraphicToShow } = await import('/src/model/shows.ts');
-        const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+        const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+        const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+        const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
+        const { addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
         const variant = Object.values(CATALOG).flat().find((v) => v.name === 'Hairline')!;
         const draft = mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })), zone: null, logoEnabled: null, animation: { presetId: null, outPresetId: null }, paletteId: null, customPalette: null, fontId: null });
         const t = await formatTemplate(buildDraftTemplate(variant, draft));
@@ -642,8 +642,8 @@ test('bytes', async ({ page, browser }) => {
       }, { id: fx.showId, i, share: Math.floor(fx.imageFileBytes / fx.graphics) });
     } else if (kind === 'graphic-remove') {
       await page.evaluate(async (id) => {
-        const { loadShows, removeShowGraphicChecked } = await import('/src/model/shows.ts');
-        const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+        const { loadShows, removeShowGraphicChecked } = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
         const g = loadShows().find((s) => s.id === id)!.graphics.find((x) => x.name === 'LP2 Added')!;
         const { error } = removeShowGraphicChecked(id, g.id);
         const failure = error ?? (await commitDurableWrites());
@@ -651,8 +651,8 @@ test('bytes', async ({ page, browser }) => {
       }, fx.showId);
     } else {
       await page.evaluate(async ({ id, i }) => {
-        const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
-        const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+        const { loadShows, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
         const g = loadShows().find((s) => s.id === id)!.graphics.find((x) => x.name === 'LP2 G03')!;
         const { error } = addGraphicToShow(id, { ...g.template, css: `${g.template.css}\n/* lp2 design update ${i} */ .lp2-gen { outline: 0; }` }, {});
         const failure = error ?? (await commitDurableWrites());
@@ -775,3 +775,403 @@ test('boot', async ({ page, browser }) => {
   });
 });
 
+
+// ── W3 (live-publishing phase 5, G2 section 9): with outputs reporting what they ran, a graphic
+// cue Take's press to sent against phase 2's figure, and press to the light confirming it (every
+// output's run report reached the page), with MEASURE_OUTPUTS outputs (default 2) and a command
+// stream of MEASURE_FEED_MS (default 200 ms) updates to another graphic from a second device:
+// report rows and re-banks take the head lock a Take needs, and must not slow it.
+test('w3', async ({ page, browser }) => {
+  const outputsWanted = Number(process.env.MEASURE_OUTPUTS ?? 2);
+  const feedMs = Number(process.env.MEASURE_FEED_MS ?? 200);
+  await seedSettings(page);
+  // The fixture's server cue turns CasparCG on: without a Bridge the light is rightly red.
+  await fakeBridge(page);
+  await opPage(page);
+  const fx = await buildFixture(page, FIXTURE);
+  const plainLabels = await page.evaluate(async ({ id, cues }) => {
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
+  }, { id: fx.showId, cues: fx.cues.plain });
+  const facts = await page.evaluate(async (id) => {
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return { slug: s.hostedSlug ?? '', fed: s.graphics[s.graphics.length - 1].name };
+  }, fx.showId);
+  const slug = await outputSlugOf(page, fx.showId);
+  await toProd(page);
+  await throttle(page, NET);
+  const outs: Page[] = [];
+  for (let i = 0; i < outputsWanted; i++) outs.push(await openOutput(browser, slug));
+  for (const out of outs) await healthyOutput(out, fx.graphics);
+  // The stream: a second device writing an update to the fed graphic every feedMs.
+  const feeder = feedMs > 0 ? await openSecondProductionPage(page, fx.showId) : null;
+  if (feeder) {
+    // Plain HTTP with the page's own session: the bundled build serves no source modules.
+    await feeder.evaluate(
+      ({ controlSlug, graphic, every, url, anon }) => {
+        let token = '';
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i) ?? '';
+          if (key.startsWith('sb-') && key.endsWith('-auth-token')) token = (JSON.parse(localStorage.getItem(key) ?? '{}') as { access_token?: string }).access_token ?? '';
+        }
+        let n = 0;
+        (window as unknown as { __feed: ReturnType<typeof setInterval> }).__feed = setInterval(() => {
+          n += 1;
+          void fetch(`${url}/rest/v1/rpc/control_send_many`, {
+            method: 'POST',
+            headers: { apikey: anon, Authorization: `Bearer ${token || anon}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_slug: controlSlug, p_items: [{ graphic, msg: { t: 'update', data: { f0: `feed ${n}` }, src: 'api' } }] }),
+          });
+        }, every);
+      },
+      { controlSlug: facts.slug, graphic: facts.fed, every: feedMs, url: process.env.VITE_SUPABASE_URL ?? '', anon: process.env.VITE_SUPABASE_ANON_KEY ?? '' },
+    );
+  }
+  const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
+  const status = page.getByTestId('production-status');
+  const samples: Sample[] = [];
+  const confirmed: number[] = [];
+  let unconfirmed = 0;
+  for (let i = 0; i < SAMPLES; i++) {
+    await select(page, plainLabels[i % Math.min(5, plainLabels.length - 1)]);
+    await clearLpm(page);
+    const pressedAt = await nowOn(page);
+    samples.push(await pressAndMeasure(page, take, 'verb-take', SEND));
+    // Press to confirmed: PROGRAM's tag reads "ran" once every output has reported running it (E1,
+    // G2 section 6). The light itself also weighs the fixture's server cue, which this harness's
+    // Bridge does not list, so the tag is the reading that is about the outputs alone.
+    const ok = await page
+      .waitForFunction(() => document.querySelector('[data-testid="program-air"]')?.getAttribute('data-state') === 'ran', null, { timeout: 20_000, polling: 25 })
+      .then(() => true, () => false);
+    if (ok) confirmed.push((await nowOn(page)) - pressedAt);
+    else {
+      unconfirmed += 1;
+      log(
+        'not confirmed',
+        await page.getByTestId('program-air').getAttribute('data-state', { timeout: 1_000 }).catch(() => 'none'),
+        await status.getAttribute('data-outputs'),
+        await status.getAttribute('data-ready-label'),
+        await status.getAttribute('title'),
+      );
+    }
+    // Sends only: a feed's rows make the page read its data tree again each time (as any data road).
+    await settle(page, 250, 20_000, SEND);
+    await outBtn.click();
+    await settle(page, 250, 20_000, SEND);
+  }
+  if (feeder) await feeder.close();
+  report('w3', { graphic: samples }, { outputs: outputsWanted, feedMs, pressToConfirmed: summary(confirmed, unconfirmed), fixtureFacts: fx });
+});
+
+// PRESS TO RAN DURING AUTOMATIC PUBLISHING (live-publishing designs/G3.md section 13, AC-4). With
+// MEASURE_LOOP=1 the page publishes its saved revision again and again, whole (a session flag only
+// this harness sets), so every output reads the published copy each time; without it, nothing is
+// published. "Ran" is the output's graphic running the Take: its play() call, on the one time origin.
+// MEASURE_EDIT=cues|add|design makes the page edit the production (the last cue's text and values,
+// or a graphic added and removed) every MEASURE_EDIT_MS, default 5000; MEASURE_AUTO=0 runs that with
+// automatic updates off. A publish follows a sync pass that ends synced, so AC-4 is judged at a pace
+// where each pass ends before the next edit (owner, 2026-11-13).
+test('autopublish', async ({ page, browser }) => {
+  // The switch is a service-role write: only ever against a local stack.
+  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('autopublish writes a switch: run it only against a local stack');
+  const loop = process.env.MEASURE_LOOP === '1';
+  const editMode = ['cues', 'labels', 'add', 'design'].includes(process.env.MEASURE_EDIT ?? '') ? process.env.MEASURE_EDIT! : null;
+  const autoOn = process.env.MEASURE_AUTO !== '0';
+  const setAuto = (on: boolean) =>
+    fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
+      method: 'POST',
+      headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key: 'auto_publish', value: { on } }),
+    });
+  // MEASURE_PARTS=1: saves and publishes in parts (live-publishing G4), before the fixture is built.
+  const setParts = (on: boolean) =>
+    fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
+      method: 'POST',
+      headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key: 'partial_writes', value: { on } }),
+    });
+  await setParts(process.env.MEASURE_PARTS === '1');
+  await opPage(page);
+  const fx = await buildFixture(page, FIXTURE);
+  const labels = await page.evaluate(async ({ id, cues }) => {
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
+  }, { id: fx.showId, cues: fx.cues.plain.slice(0, 5) });
+  const slug = await outputSlugOf(page, fx.showId);
+  await setAuto(autoOn);
+  try {
+    await page.evaluate((on) => (on ? sessionStorage.setItem('noacg-measure-publish-loop', '1') : sessionStorage.removeItem('noacg-measure-publish-loop')), loop);
+    await page.evaluate((mode) => (mode ? sessionStorage.setItem('noacg-measure-edit-loop', mode) : sessionStorage.removeItem('noacg-measure-edit-loop')), editMode);
+    await page.evaluate((ms) => sessionStorage.setItem('noacg-measure-edit-ms', String(ms)), Number(process.env.MEASURE_EDIT_MS ?? 5000));
+    /** The output version, the record's saved revision and the published one, on the server. */
+    const stateOf = async () => {
+      const read = async (path: string) => ((await (await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } })).json()) as Record<string, number | null>[])[0] ?? {};
+      const [row, doc] = await Promise.all([read(`control_shows?id=eq.${fx.showId}&select=n:output->ver->n,published_rev`), read(`documents?id=eq.${fx.showId}&select=rev`)]);
+      return { n: row.n ?? 0, publishedRev: row.published_rev ?? null, rev: doc.rev ?? null };
+    };
+    const stateBefore = await stateOf();
+    /** The page's REST and RPC requests during the samples, by method and path (edit loops only). */
+    const requests: Record<string, number> = {};
+    if (editMode) {
+      page.on('request', (r) => {
+        const u = r.url();
+        if (!u.includes('/rest/v1/')) return;
+        const k = `${r.method()} ${u.split('/rest/v1/')[1].split('?')[0]}${u.includes('select=rev') ? ' (rev)' : ''}`;
+        requests[k] = (requests[k] ?? 0) + 1;
+      });
+    }
+    await toProd(page);
+    await throttle(page, NET);
+    const out = await openOutput(browser, slug);
+    await healthyOutput(out, fx.graphics);
+    type W = { __noacgPublishWindows?: [number, number, string, number][]; __noacgPublishRunning?: number | null };
+    if (loop) await expect.poll(() => page.evaluate(() => ((window as unknown as W).__noacgPublishWindows ?? []).length), { timeout: 120_000 }).toBeGreaterThan(0);
+    const toRan: number[] = [];
+    const sentRows: Sample[] = [];
+    const failures: string[] = [];
+    let during = 0;
+    for (let i = 0; i < SAMPLES; i++) {
+      await select(page, labels[i % labels.length]);
+      await clearLpm(page);
+      const pressedAt = await nowOn(page);
+      sentRows.push(await pressAndMeasure(page, page.getByTestId('verb-take'), 'verb-take', SEND));
+      let ran: number | null = null;
+      const end = Date.now() + 15_000;
+      while (Date.now() < end && ran === null) {
+        const plays = (await framePlays(out)).flatMap((f) => f.plays).filter((p) => p.playAt > pressedAt).sort((a, b) => a.playAt - b.playAt);
+        if (plays.length) ran = plays[0].playAt;
+        else await page.waitForTimeout(25);
+      }
+      if (ran === null) failures.push('no run');
+      else toRan.push(ran - pressedAt);
+      if (loop || editMode) {
+        const w = await page.evaluate(() => ({ windows: (window as unknown as W).__noacgPublishWindows ?? [], running: (window as unknown as W).__noacgPublishRunning ?? null }));
+        if (w.windows.some(([a, b]) => pressedAt >= a && pressedAt <= b) || (w.running !== null && pressedAt >= w.running)) during += 1;
+      }
+      await settle(page, 150, 20_000, SEND);
+      await page.getByTestId('verb-out').click();
+      await settle(page, 150, 20_000, SEND);
+      await page.waitForTimeout(300);
+    }
+    const windows = loop || editMode ? await page.evaluate(() => (window as unknown as W).__noacgPublishWindows ?? []) : [];
+    const edits = editMode ? await page.evaluate(() => (window as unknown as { __noacgEdits?: number }).__noacgEdits ?? 0) : 0;
+    const stateAfter = await stateOf();
+    const versionsPublished = stateAfter.n - stateBefore.n;
+    report(`autopublish-${editMode ? `edit-${editMode}-${autoOn ? 'on' : 'off'}` : loop ? 'loop' : 'none'}`, { take: sentRows }, {
+      edits,
+      editMs: Number(process.env.MEASURE_EDIT_MS ?? 5000),
+      versionsPublished,
+      server: { before: stateBefore, after: stateAfter },
+      requests: editMode ? requests : undefined,
+      publisherTally: editMode ? await page.evaluate(() => (window as unknown as { __noacgPublisherTally?: Record<string, number> }).__noacgPublisherTally ?? {}) : undefined,
+      publishSteps: editMode ? windows.map((x) => ({ ms: Math.round(x[1] - x[0]), kind: x[2], over16: ((x as unknown as [number, number, string, number, number[]])[4] ?? []).map((v, i) => [i, Math.round(v)]).filter(([, v]) => v > 16) })) : undefined,
+      fixtureFacts: fx,
+      pressToRan: summary(toRan, failures.length),
+      pressToRanSamples: toRan,
+      failures: failures.slice(0, 5),
+      pressesDuringAPublish: during,
+      publishes: { n: windows.length, ms: summary(windows.map(([a, b]) => b - a)), longestStepMs: summary(windows.map((x) => x[3])), longestStepMaxMs: Math.max(0, ...windows.map((x) => x[3])), kinds: [...new Set(windows.map((x) => x[2]))] },
+    });
+  } finally {
+    await page.evaluate(() => { sessionStorage.removeItem('noacg-measure-publish-loop'); sessionStorage.removeItem('noacg-measure-edit-loop'); sessionStorage.removeItem('noacg-measure-edit-ms'); }).catch(() => undefined);
+    await setAuto(false).catch(() => undefined);
+    await setParts(false).catch(() => undefined);
+  }
+});
+
+// ONLY WHAT CHANGED (live-publishing designs/G4.md section 11, AC-5). With the `partial_writes`
+// switch and automatic updates on, on the development build (the edits are module writes): each
+// round edits one cue's text (2 kB), updates one graphic's design, adds a graphic with an image,
+// adds another with the same image, and removes both. Bytes are every request and response of the
+// production page and of each output, both ways with headers, WebSocket frames included, from the
+// edit until the publication names the save and the output holds it, then 4 s quiet. A new output
+// reads in parts; MEASURE_WHOLE=1 adds an output that reads every version whole (`&wholeread=1`,
+// an output built before phase 7), reported only. Judged (AC-5, G4 section 11): a cue edit's save
+// and publish requests by family, preflights included, under 20 kB; the rest of the page's traffic
+// is reported beside it.
+test('parts', async ({ page, browser }) => {
+  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('parts writes switches: run it only against a local stack');
+  const setSwitch = (key: string, on: boolean) =>
+    fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
+      method: 'POST',
+      headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key, value: { on } }),
+    });
+  const read = async (path: string) => ((await (await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } })).json()) as Record<string, number | null>[])[0] ?? {};
+  await setSwitch('partial_writes', true);
+  // A publish that went whole says why on the console (G4 section 4): logged with the run.
+  page.on('console', (m) => { if (m.text().includes('publish in parts went whole')) log('fallback', m.text().slice(0, 200)); });
+  if (process.env.MEASURE_URLS === '1') {
+    page.on('response', (r) => {
+      if (!/\/rpc\/control_publish_parts$|\/rest\/v1\/control_shows\?id=eq/.test(r.url()) || r.request().method() === 'OPTIONS') return;
+      void r.text().then((t) => log('publish answer', r.request().method(), r.status(), t.slice(0, 160))).catch(() => undefined);
+    });
+  }
+  try {
+    await opPage(page);
+    const fx = await buildFixture(page, FIXTURE);
+    log('built', fx.graphics, fx.storedOutputBytes);
+    const stateOf = async () => {
+      const [row, doc] = await Promise.all([read(`control_shows?id=eq.${fx.showId}&select=n:output->ver->n,published_rev`), read(`documents?id=eq.${fx.showId}&select=rev`)]);
+      return { n: row.n ?? 0, publishedRev: row.published_rev ?? null, rev: doc.rev ?? 0 };
+    };
+    await setSwitch('auto_publish', true);
+    await page.reload();
+    await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+    await throttle(page, NET);
+    const slug = await outputSlugOf(page, fx.showId);
+    const out = await openOutput(browser, slug);
+    await healthyOutput(out, fx.graphics);
+    const whole = process.env.MEASURE_WHOLE === '1' ? await openOutput(browser, slug, undefined, '&wholeread=1') : null;
+    if (whole) await healthyOutput(whole, fx.graphics);
+    const opMeter = await meterBytes(page);
+    const outMeter = await meterBytes(out);
+    const wholeMeter = whole ? await meterBytes(whole) : null;
+    /** What each patch sent, by unit: which members, how many list elements, how many bytes. */
+    let sent: { fn: string; units: [string, number, number][] }[] = [];
+    page.on('request', (r) => {
+      const fn = /\/rpc\/(control_publish_parts|documents_show_patch)$/.exec(r.url())?.[1];
+      if (!fn || r.method() !== 'POST') return;
+      try {
+        const body = JSON.parse(r.postData() ?? '{}') as { p_ops?: unknown[]; p_head?: { ops?: unknown[]; whole?: unknown }; p_panel?: { ops?: unknown[]; whole?: unknown } | null; p_parts?: unknown[] };
+        const ops = [...(body.p_ops ?? []), ...(body.p_head?.ops ?? []), ...((body.p_panel?.ops ?? []) as unknown[]).map((o) => ({ ...(o as object), m: `panel:${(o as { m: string }).m}` }))] as { m: string; put?: unknown[] }[];
+        const units: [string, number, number][] = ops.map((o) => [o.m, o.put?.length ?? -1, JSON.stringify(o).length]);
+        if (body.p_head?.whole) units.push(['head:whole', -1, JSON.stringify(body.p_head.whole).length]);
+        if (body.p_parts?.length) units.push(['parts', body.p_parts.length, JSON.stringify(body.p_parts).length]);
+        sent.push({ fn, units });
+      } catch { /* not JSON */ }
+    });
+    const holds = async (o: Page) => { const r = await readyOf(o); return r && r.n === r.of ? (r.v?.n ?? 0) : 0; };
+    const image = (i: number) => page.evaluate(({ i, bytes }) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = Math.max(1, Math.round(bytes / (256 * 3)));
+      const ctx = canvas.getContext('2d')!;
+      const img = ctx.createImageData(canvas.width, canvas.height);
+      let seed = 0x2468 + i;
+      for (let k = 0; k < img.data.length; k += 4) {
+        for (let c = 0; c < 3; c++) img.data[k + c] = ((seed = (seed * 1664525 + 1013904223) >>> 0) >>> 24);
+        img.data[k + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      return canvas.toDataURL('image/png');
+    }, { i, bytes: Math.floor(fx.imageFileBytes / fx.graphics) });
+    // MEASURE_KINDS (comma-separated) narrows a run, so a large fixture fits one five-minute job.
+    // `reopened`: the page reloads first, so this is the first edit after the page opens (G4 section
+    // 11); what the page reads as it opens is before the count starts.
+    // `press`: automatic updates off and the page reopened, a cue edit, then Publish changes pressed
+    // (the press path, reported beside AC-5); the switch goes back on after it.
+    const all = ['warm', 'cue-edit', 'reopened', 'design-update', 'graphic-add', 'graphic-add-same-image', 'graphic-remove', 'press'] as const;
+    const wanted = process.env.MEASURE_KINDS ? new Set(process.env.MEASURE_KINDS.split(',')) : null;
+    const kinds = all.filter((k) => !wanted || wanted.has(k));
+    const rounds = Number(process.env.MEASURE_ROUNDS ?? 1);
+    const rows: Record<string, unknown>[] = [];
+    for (let round = 0; round < rounds; round++) {
+      const pic = await image(round);
+      for (const kind of kinds) {
+        if (kind === 'press') await setSwitch('auto_publish', false);
+        if (kind === 'reopened' || kind === 'press') {
+          await page.reload();
+          await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
+        }
+        await settle(page, 4_000, 60_000);
+        const before = await stateOf();
+        // MEASURE_URLS=1 also says which fields of which published cues the edit changed.
+        const cuesNow = async () => process.env.MEASURE_URLS === '1' ? ((await read(`control_shows?id=eq.${fx.showId}&select=cues:output->cues`)) as unknown as { cues?: Record<string, unknown>[] }).cues ?? [] : [];
+        const cuesBefore = await cuesNow();
+        opMeter.reset();
+        outMeter.reset();
+        wholeMeter?.reset();
+        sent = [];
+        const t0 = await nowOn(page);
+        if (kind === 'warm' || kind === 'cue-edit' || kind === 'reopened' || kind === 'press') {
+          await select(page, 'LP2 Stepped');
+          const field = page.getByTestId('cue-field-f0');
+          await field.fill(kind === 'warm' ? `Warm ${round}` : `${kind === 'reopened' ? 'r' : kind === 'press' ? 'p' : ''}${round} `.padEnd(2048, 'x'));
+          await field.blur();
+          if (kind === 'press') {
+            // Saved first, then pressed, as an operator does.
+            await expect.poll(async () => (await stateOf()).rev > before.rev, { timeout: 60_000, intervals: [100] }).toBe(true);
+            const panel = page.getByTestId('production-status-panel');
+            if (!(await panel.isVisible())) await page.getByTestId('production-status').click();
+            await panel.getByTestId('panel-publish-changes').click({ timeout: 30_000 });
+            await page.keyboard.press('Escape');
+          }
+        } else {
+          await page.evaluate(async ({ id, kind, round, pic }) => {
+            const m = await __noacgImport('/src/model/shows.ts');
+            const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+            const s = m.loadShows().find((x) => x.id === id)!;
+            let error: string | null = null;
+            if (kind === 'design-update') {
+              const g = s.graphics.find((x) => x.name === 'LP2 G03')!;
+              error = m.addGraphicToShow(id, { ...g.template, css: `${g.template.css}\n/* parts design update ${round} */` }, {}).error ?? null;
+            } else if (kind === 'graphic-add' || kind === 'graphic-add-same-image') {
+              const g = s.graphics.find((x) => x.name === 'LP2 G03')!;
+              const name = kind === 'graphic-add' ? 'LP2 Parts A' : 'LP2 Parts B';
+              error = m.addGraphicToShow(id, { ...g.template, name, assets: [...g.template.assets, { path: 'assets/parts.png', data: pic }] }, {}).error ?? null;
+            } else {
+              for (const name of ['LP2 Parts A', 'LP2 Parts B']) {
+                const g = m.loadShows().find((x) => x.id === id)!.graphics.find((x) => x.name === name);
+                if (g) error = error ?? m.removeShowGraphicChecked(id, g.id).error ?? null;
+              }
+            }
+            const failure = error ?? (await commitDurableWrites());
+            if (failure) throw new Error(failure);
+          }, { id: fx.showId, kind, round, pic });
+        }
+        let tPublished = NaN, tReady = NaN, tWhole = NaN;
+        try {
+          await expect.poll(async () => { const now = await stateOf(); return now.rev > before.rev && now.publishedRev === now.rev; }, { timeout: 120_000, intervals: [50] }).toBe(true);
+          tPublished = await nowOn(page);
+          const n = (await stateOf()).n;
+          await expect.poll(() => holds(out), { timeout: 120_000, intervals: [50] }).toBe(n);
+          tReady = await nowOn(out);
+          if (whole) {
+            await expect.poll(() => holds(whole), { timeout: 120_000, intervals: [50] }).toBe(n);
+            tWhole = await nowOn(whole);
+          }
+        } catch { /* recorded as a failure below */ }
+        await settle(page, 4_000, 60_000);
+        const op = opMeter.total();
+        // G4 section 11: the save's and the publish's own requests, by family (preflights included,
+        // the meter counts each OPTIONS as the request it precedes); the page's WebSocket frames
+        // sent (its prepare request). Everything else is reported, not counted.
+        const counted = (name: string) => /^rest:(documents|control_shows)$|^rpc:(control_publish_parts|control_asset_put|control_assets_missing|documents_show_\w+|team_production_\w+|audience_set_join)$|^storage$|^auth$/.test(name);
+        const judged = Object.entries(op.byName).reduce((n, [name, b]) => n + (counted(name) ? b.up + b.down : name === 'websocket' ? b.up : 0), 0);
+        rows.push({
+          kind,
+          round,
+          editToPublished: tPublished - t0,
+          editToOutputHolds: tReady - t0,
+          editToWholeOutputHolds: tWhole - t0,
+          failed: Number.isNaN(tReady),
+          pageBytesJudged: judged,
+          pageBytesAll: op.up + op.down,
+          sent,
+          op,
+          output: outMeter.total(),
+          wholeOutput: wholeMeter?.total(),
+          ...(process.env.MEASURE_URLS === '1' ? { cueFields: await cuesNow().then((after) => {
+            const changed: Record<string, number> = {};
+            after.forEach((c, i) => {
+              const was = cuesBefore[i] ?? {};
+              for (const k of new Set([...Object.keys(c), ...Object.keys(was)])) if (JSON.stringify(c[k]) !== JSON.stringify(was[k])) changed[k] = (changed[k] ?? 0) + 1;
+            });
+            const i = after.findIndex((c, k) => JSON.stringify(c.adjust) !== JSON.stringify((cuesBefore[k] ?? {}).adjust) && JSON.stringify(c.values) === JSON.stringify((cuesBefore[k] ?? {}).values));
+            return { changed, sample: i < 0 ? '' : JSON.stringify([cuesBefore[i]?.adjust, after[i]?.adjust]).slice(0, 600) };
+          }) } : {}),
+        });
+        log(kind, round, rows[rows.length - 1].pageBytesJudged, (rows[rows.length - 1].output as { down: number }).down);
+        if (kind === 'press') await setSwitch('auto_publish', true);
+      }
+    }
+    writeResult(`parts-${tag}`, { fixture: FIXTURE, net: NET, at: new Date().toISOString(), fixtureFacts: fx, rows });
+  } finally {
+    await setSwitch('auto_publish', false).catch(() => undefined);
+    await setSwitch('partial_writes', false).catch(() => undefined);
+  }
+});

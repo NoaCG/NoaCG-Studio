@@ -9,15 +9,15 @@ import { settleDurableWrites } from './_durable';
 
 // Run artifacts stay in this test's ignored output folder; committed receipts are curated separately.
 const evidence = (name: string) => test.info().outputPath(name);
-const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+const source = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
 const inspection = (page: Page) => page.evaluate(async () => {
-  const i = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect();
+  const i = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect();
   if (!i.ok) throw Error(i.refusal.message); return i;
 });
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);
@@ -52,8 +52,8 @@ async function capture(page: Page, name: string) {
 
 async function exportedFiles(page: Page, target: string) {
   return await page.evaluate(async target => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
     return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
   }, target);
 }
@@ -78,7 +78,8 @@ async function mountOutput(page: Page, target: string, files: Record<string, str
   return { output, command };
 }
 
-for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'laptop-125']] as const) test('agent package visual round-trip ' + label, async ({ page }) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const [width, height, label] of [[1093, 614, 'laptop-125']] as const) test('agent package visual round-trip ' + label, async ({ page }) => {
   test.setTimeout(180_000); page.setDefaultTimeout(15_000); const errors: string[] = [], network: string[] = [];
   const watch = (p: Page) => {
     p.on('pageerror', e => errors.push(e.message)); p.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -95,7 +96,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   for (const asset of initial.assets) expect(asset.data.split(',')[1]).toBe(await zip.file(asset.path)!.async('base64'));
   // The build predates the current interpreter. It opens already holding the runtime its first
   // Save writes, so that Save rewrites nothing under the user.
-  const current = (js: string) => page.evaluate(async js => (await import('/src/blocks/animMigration.ts')).prepareOutRuntime(js), js);
+  const current = (js: string) => page.evaluate(async js => (await __noacgImport('/src/blocks/animMigration.ts')).prepareOutRuntime(js), js);
   const built = await zip.file('js/template.js')!.async('string');
   expect(await current(built), 'the fixture carries an earlier interpreter, so this check bites').not.toBe(built);
   expect(await current(initial.js), 'the imported draft already holds what Save writes').toBe(initial.js);
@@ -116,7 +117,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   await size.fill('50'); await size.press('Escape'); await ready(page);
   expect(await source(page)).toEqual(completed); expect((await inspection(page)).history).toEqual(history);
   const refused = await page.evaluate(async () => {
-    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), i = c.inspect(); if (!i.ok) throw Error(i.refusal.message);
+    const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), i = c.inspect(); if (!i.ok) throw Error(i.refusal.message);
     const request = { expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'text.set', args: { targetId: 'f0', text: 'wrong' } }] };
     return [c.apply({ ...request, expected: { ...i.expected, revision: { ...i.expected.revision, source: i.expected.revision.source - 1 } } }),
       c.apply({ ...request, commands: [{ id: 'text.set', args: { targetId: 'festival-note', text: 'unsupported' } }] })];
@@ -175,7 +176,7 @@ test('independent CLI scoreboard retains its operator machine after visual edit 
   expect(completed.fields.find(f => f.field === 'f1')?.value).toBe('0');
   await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Harbor cup edited'); await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page); const saved = await source(page);
-  const id = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved.graphicId);
+  const id = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().saved.graphicId);
   await page.reload(); await ready(page); expect(await source(page)).toEqual(saved); await seek(page, .6); await select(page, 'f0');
   await capture(page, 'independent-scoreboard');
   const packages = await Promise.all(['spx', 'casparcg', 'ograf'].map(async target => ({ target, files: await exportedFiles(page, target) })));
@@ -209,7 +210,7 @@ test('independent CLI scoreboard retains its operator machine after visual edit 
 test('inline data scripts retain their tags while classic scripts use the JS pane', async ({ page }) => {
   await page.goto('/app');
   const results = await page.evaluate(async () => {
-    const { importHtmlTemplate } = await import('/src/model/importTemplate.ts');
+    const { importHtmlTemplate } = await __noacgImport('/src/model/importTemplate.ts');
     return ['type="application/json"', "type='text/x-template'", 'type=importmap', 'TYPE="APPLICATION/LD+JSON"', 'type="module"', 'type="text/javascript"', "type='application/javascript'", ''].map(attrs => {
       const tag = `<script ${attrs}>/* marker */</script>`;
       const { template } = importHtmlTemplate('types.html', `<html><head>${tag}</head><body></body></html>`);
@@ -223,7 +224,7 @@ test('inline data scripts retain their tags while classic scripts use the JS pan
 test('CSS edits patch effective repeated rules without changing nested or unrelated rules', async ({ page }) => {
   await page.goto('/app');
   const result = await page.evaluate(async () => {
-    const { setCssDeclaration, findRuleBody } = await import('/src/blocks/edit.ts');
+    const { setCssDeclaration, findRuleBody } = await __noacgImport('/src/blocks/edit.ts');
     const first = '#panel { width:20px; /* keep layout */ }', last = '#panel { background:#ffffff; /* keep appearance */ }';
     const nested = '@media (min-width:999999px) { #panel { background:#abcdef; } }';
     const original = `${first}\n${last}\n${nested}\n#unrelated { color: red; }`;

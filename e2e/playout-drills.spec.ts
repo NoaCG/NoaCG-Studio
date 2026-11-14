@@ -47,7 +47,7 @@ test('storage full: a save fails LOUDLY, the library keeps the last good copy, f
   // write is taken optimistically and confirmed a moment later, so without the rollback the
   // library would go on serving an edit that never reached the disk.
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const s = useTemplateStore.getState();
     s.applyTemplate({ ...s.template, css: s.template.css + '\n/* mid-crisis edit */\n/*' + 'y'.repeat(256 * 1024) + '*/\n' });
   });
@@ -55,7 +55,7 @@ test('storage full: a save fails LOUDLY, the library keeps the last good copy, f
   await expect(page.getByTestId('save-status')).toHaveText('Save failed');
 
   const stored = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     const doc = loadGraphics().find((g) => g.name === 'Quota victim');
     return { exists: !!doc, carriesEdit: doc?.template.css.includes('mid-crisis edit') ?? false };
   });
@@ -69,7 +69,7 @@ test('storage full: a save fails LOUDLY, the library keeps the last good copy, f
   await page.keyboard.press('Control+s');
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
   const after = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().find((g) => g.name === 'Quota victim')?.template.css.includes('mid-crisis edit') ?? false;
   });
   expect(after).toBe(true);

@@ -48,7 +48,9 @@ const WRITES: Record<Write, { key: string; has: string[]; not: string[] }> = {
   L: { key: LIB, has: [], not: [] },
   K: { key: SLOT, has: ['commitLink', 'persistLink'], not: [] },
   F: { key: SLOT, has: ['settleTrailingAutosave'], not: [] },
-  I: { key: SLOT, has: [], not: ['saveActions.ts'] },
+  // Not a save's own write: every slot write src/store/saveActions.ts makes runs through one of these
+  // three, and a function name survives the e2e build where a file name does not.
+  I: { key: SLOT, has: [], not: ['persistLink', 'settleTrailingAutosave', 'discardDraft'] },
   D: { key: SLOT, has: ['discardDraft'], not: ['persistLink'] },
 };
 type Probe = { rules: { w: Write; action: Action; used?: boolean }[]; acted: { w: Write; action: Action }[]; releases: (() => void)[]; errors: number };
@@ -94,15 +96,15 @@ export const errors = (page: Page) => page.evaluate(() => window.matrix?.errors 
 export const releasable = (page: Page) => expect.poll(() => page.evaluate(() => window.matrix.releases.filter(Boolean).length)).toBe(1);
 export const release = (page: Page) => page.evaluate(() => window.matrix.releases[0]());
 
-export const library = (page: Page) => page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
-export const link = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
-export const flush = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+export const library = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics());
+export const link = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
+export const flush = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject());
 /** The source a record should hold, compared without its name (a save names it). */
 export const body = (t: { name?: string }) => ({ ...t, name: '' });
 
 export async function commandEdit(page: Page, thenClick?: string) {
   await page.evaluate(async thenClick => {
-    const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
+    const { activeEditorCommands } = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts');
     const c = activeEditorCommands(), i = c.inspect();
     if (!i.ok) throw Error(i.refusal.message);
     const result = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 640 + Math.round(Math.random() * 200), y: 120, width: 80, height: 80 } } }] });

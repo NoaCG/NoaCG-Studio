@@ -141,6 +141,7 @@ export default function CueRundown({
   library,
   playoutSettings,
   liveCue,
+  loadingGraphics,
   started,
   casparOn,
   vmixOn,
@@ -182,6 +183,7 @@ export default function CueRundown({
   duplicateCues,
   takeOutOfFolders,
   removeFolder,
+  obsScenes,
   moveRundown,
   toggleFolder,
   setRundownNote,
@@ -209,6 +211,9 @@ export default function CueRundown({
   playoutSettings: PlayoutSettings;
   /** Which cue is on air on each graphic's layer. Read-only here. */
   liveCue: LiveCueMap;
+  /** Graphics an output is still loading for a Take (live-publishing O7): the cue on air wears a
+   *  Loading mark until every output has run it. */
+  loadingGraphics?: ReadonlySet<string>;
   /** The production is started, so a graphic's Take reaches air. Not started, a graphic that is up
    *  plays on this page only and its row says UP, never ON AIR (the program monitor's rule). */
   started: boolean;
@@ -290,6 +295,9 @@ export default function CueRundown({
   /** Take the selected cues out of their folders. */
   takeOutOfFolders: (cueIds: readonly string[]) => Promise<void>;
   removeFolder: (folderId: string) => Promise<unknown>;
+  /** The OBS scenes switch is on (obs-scenes OS1a R1): a folder can be made a scene and its link
+   *  copied. Null while it is off, and no folder offers either. */
+  obsScenes: { setScene: (folderId: string, on: boolean) => void; copyLink: ((folderId: string) => void) | null; copied: string | null } | null;
   moveRundown: (what: Movable, place: Place) => Promise<unknown>;
   toggleFolder: (folderId: string) => void;
   setRundownNote: (note: string | null) => void;
@@ -662,6 +670,19 @@ export default function CueRundown({
                   setMenuRowId(null);
                   void removeFolder(folder.id);
                 }}
+                scene={
+                  obsScenes
+                    ? {
+                        on: folder.obsScene === true,
+                        copied: obsScenes.copied === folder.id,
+                        onToggle: () => {
+                          setMenuRowId(null);
+                          obsScenes.setScene(folder.id, folder.obsScene !== true);
+                        },
+                        onCopy: obsScenes.copyLink ? () => obsScenes.copyLink!(folder.id) : null,
+                      }
+                    : null
+                }
                 onDragStart={(e) => startDrag(row, e)}
                 onDragEnd={endDrag}
               />
@@ -885,6 +906,11 @@ export default function CueRundown({
                   data-testid="cue-unsent-mark"
                 >
                   EDITED
+                </span>
+              )}
+              {cueAirs && !!cueGraphic && loadingGraphics?.has(cueGraphic) && (
+                <span className="pd-tag unsent" title="An output is still loading this graphic: it plays there once loaded." data-testid="cue-loading-mark">
+                  LOADING
                 </span>
               )}
               {cueAirs ? (

@@ -20,7 +20,7 @@
 
 import { getSupabase } from './supabase';
 import { listMyTeamMembers, listMyTeams, type Team, type TeamMember } from './teams';
-import { deleteShow, type Show } from '../model/shows';
+import { deleteShow, separateMergedScenes, type Show } from '../model/shows';
 import {
   applyServerTeamShow,
   applyServerTeamShows,
@@ -31,11 +31,14 @@ import {
   setTeamShowsStatus,
 } from '../model/teamShows';
 import { mergeTeamShow } from '../model/teamShowMerge';
+import { settleGraphics } from '../model/copySettle';
 import { canAuthorAccount, commitDurableWrites, libraryInUse } from '../model/durableStore';
 import { acknowledgeTeamEdit, pendingTeamEdits, retainTeamEdit } from '../model/teamOutbox';
 import { replaceRundown, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../model/rundownHistory';
 import { blobToDataUrl, classifyAssetRefusal, dataUrlToBlob, externalizeSharedAssets, rehydrateSharedAssets } from './assets';
 import { backoffDelay } from './pacing';
+import { diff, storedMap, type PatchOp, type UnitMap } from './unitPatch';
+import { noteWritten, partialWritesOn, unitPace } from './partialWrites';
 
 export interface TeamRundownReceipt { owner: object | null; token: string | null; id: string }
 export function beginTeamRundownEdit(id: string): TeamRundownReceipt {
@@ -174,11 +177,19 @@ type Backend = NonNullable<Awaited<ReturnType<typeof getSupabase>>>;
 
 /** A document without its files. A file that will not upload stays inline: a larger save, never a
  *  lost one. */
-function withoutAssets(sb: Backend, doc: Show, teamId: string): Promise<unknown> {
+function withoutAssets(sb: Backend, doc: unknown, teamId: string, strongKeys = false): Promise<unknown> {
   return externalizeSharedAssets(doc, `team/${teamId}`, async (key, dataUrl) => {
     if (knownAssets.has(key)) return true;
     if (refusedAssets.has(key)) return false;
     try {
+      // EACH IMAGE ONCE (live-publishing G4 section 3, R7): bytes Storage holds are not sent again.
+      if (key.includes('/s256-')) {
+        const held = await sb.storage.from(ASSET_BUCKET).exists(key).catch(() => ({ data: false }));
+        if (held.data === true) {
+          knownAssets.set(key, dataUrl);
+          return true;
+        }
+      }
       const blob = dataUrlToBlob(dataUrl);
       const { error } = await sb.storage.from(ASSET_BUCKET).upload(key, blob, { contentType: blob.type, upsert: false });
       // 409: a teammate already uploaded these bytes.
@@ -191,7 +202,7 @@ function withoutAssets(sb: Backend, doc: Show, teamId: string): Promise<unknown>
     } catch {
       return false;
     }
-  });
+  }, strongKeys);
 }
 
 /** A stored document with its files back. Throws when a download fails, so the read is retried with
@@ -250,6 +261,33 @@ type SaveAnswer =
   | { saved: true; updatedAt: string; updatedBy: string | null }
   | { saved: false; updatedAt: string; updatedBy: string | null; doc: Show };
 
+/** Per team production: the unit map and revision of the document this tab last saved, with the
+ *  token that save answered (live-publishing G4 section 1). */
+const teamBases = new Map<string, { token: string; rev: number; map: UnitMap }>();
+
+/** Read a team production's stored map when its page opens (G4 section 1), so its first save is a
+ *  patch without a read inside the edit; kept with the token it was read at. */
+export async function prefetchTeamBase(id: string): Promise<void> {
+  if (teamBases.has(id) || !(await partialWritesOn())) return;
+  const sb = await getSupabase();
+  if (!sb) return;
+  const base = await readTeamBase(sb, id, null);
+  if (base && !teamBases.has(id)) teamBases.set(id, base);
+}
+
+/** The stored map, when it describes the row's revision and the row is at `expected`. */
+/** A team record's stored map, revision and token, when the map describes that revision (and, given
+ *  `expected`, only at that token). */
+async function readTeamBase(sb: Backend, id: string, expected: string | null): Promise<{ token: string; rev: number; map: UnitMap } | null> {
+  const { data, error } = await sb.from('team_productions').select('rev, doc_units, updated_at').eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  const row = data as { rev?: unknown; doc_units?: { rev?: unknown } | null; updated_at?: unknown };
+  const map = storedMap(row.doc_units);
+  if (!map || typeof row.rev !== 'number' || row.doc_units?.rev !== row.rev || typeof row.updated_at !== 'string') return null;
+  if (expected !== null && Date.parse(row.updated_at) !== Date.parse(expected)) return null;
+  return { token: expected ?? row.updated_at, rev: row.rev, map };
+}
+
 async function saveTeamProduction(
   id: string,
   expected: string,
@@ -258,11 +296,53 @@ async function saveTeamProduction(
 ): Promise<{ answer: SaveAnswer | null; error: string | null }> {
   const sb = await getSupabase();
   if (!sb) return { answer: null, error: 'No backend configured.' };
-  const p_doc = await withoutAssets(sb, doc, teamId);
+  // ONLY WHAT CHANGED (live-publishing G4 section 2): with a base for this token, the units that
+  // changed go up as a patch, under the same compare-and-swap; otherwise the whole document, below.
+  const inParts = await partialWritesOn();
+  let map: UnitMap | null = null;
+  if (inParts) {
+    const held = teamBases.get(id);
+    const base = held && Date.parse(held.token) === Date.parse(expected) ? held : await readTeamBase(sb, id, expected);
+    const built = await diff(base?.map ?? null, doc as unknown as Record<string, unknown>, unitPace);
+    map = built.map;
+    if (base) {
+      const sent: PatchOp[] = [];
+      for (const op of built.ops) {
+        if ('set' in op) sent.push({ ...op, set: await withoutAssets(sb, op.set, teamId, true) });
+        else if ('put' in op) {
+          const put: { v: unknown; d: string }[] = [];
+          for (const p of op.put) put.push({ v: await withoutAssets(sb, p.v, teamId, true), d: p.d });
+          sent.push({ ...op, put });
+        } else sent.push(op);
+      }
+      const { data, error } = await sb.rpc('team_production_patch', { p_id: id, p_expected: expected, p_ops: sent });
+      if (error) return { answer: null, error: error.message };
+      const a = data as { saved?: boolean; replaced?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show; rev?: unknown; units?: unknown } | null;
+      if (!a || typeof a.updated_at !== 'string') return { answer: null, error: 'The save was not answered.' };
+      teamBases.delete(id);
+      if (a.saved) {
+        if (typeof a.rev === 'number') {
+          teamBases.set(id, { token: a.updated_at, rev: a.rev, map });
+          noteWritten(id, a.rev, a.updated_at);
+          if (a.units !== true) void Promise.resolve(sb.rpc('team_production_units_set', { p_id: id, p_rev: a.rev, p_units: { m: map } })).catch(() => {});
+        }
+        return { answer: { saved: true, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null }, error: null };
+      }
+      // Another save came first: today's conflict answer, merged as before.
+      if (!a.replaced) return { answer: { saved: false, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null, doc: await withAssets(sb, a.doc as Show, teamId) }, error: null };
+      // The stored document could not take the patch: the whole document, below.
+    }
+  }
+  const p_doc = await withoutAssets(sb, doc, teamId, inParts);
   const { data, error } = await sb.rpc('team_production_save', { p_id: id, p_expected: expected, p_doc });
   if (error) return { answer: null, error: error.message };
-  const a = data as { saved?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show } | null;
+  const a = data as { saved?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show; rev?: unknown } | null;
   if (!a || typeof a.updated_at !== 'string') return { answer: null, error: 'The save was not answered.' };
+  if (inParts && map && a.saved && typeof a.rev === 'number') {
+    teamBases.set(id, { token: a.updated_at, rev: a.rev, map });
+    noteWritten(id, a.rev, a.updated_at);
+    void Promise.resolve(sb.rpc('team_production_units_set', { p_id: id, p_rev: a.rev, p_units: { m: map } })).catch(() => {});
+  }
   return {
     answer: a.saved
       ? { saved: true, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null }
@@ -441,6 +521,27 @@ export function refreshTeams(asked = true): Promise<void> {
   return refreshing;
 }
 
+/** Whether this tab's team record still holds a copy the send-time settle would change against the
+ *  server's copy (live-publishing G1 section 3). A publish or export whose flush failed stops on it:
+ *  the save fails before settling when storage refuses, and the record must not leave unsettled. */
+export function teamSettleOwed(id: string): boolean {
+  const known = server.get(id);
+  const local = loadTeamShows().find((s) => s.id === id);
+  if (!known || !local) return false;
+  return settleGraphics(local.graphics, known.doc.graphics, new Date().toISOString()).changed;
+}
+
+/** The compare-and-swap token of the team record this tab holds, when its local copy is exactly
+ *  that record: no edit waiting, none on its way (live-publishing G3 section 1). Null otherwise. */
+export function teamConfirmedToken(id: string): string | null {
+  return teamEditOwed(id) ? null : server.get(id)?.token ?? null;
+}
+
+/** Whether this tab holds an edit of the team record not yet confirmed by the server. */
+export function teamEditOwed(id: string): boolean {
+  return dirty.has(id) || inflight.has(id) || state.saving[id] === 'pending';
+}
+
 /** Confirm this production's pending edits before an operator requests a fresh cloud read. */
 export async function flushTeamProduction(id: string): Promise<string | null> {
   const owner = running;
@@ -598,9 +699,21 @@ async function pushSave(id: string): Promise<void> {
   dirty.delete(id);
   let base = known.doc;
   let token = known.token;
+  // THE SEND-TIME SETTLE (live-publishing G1 section 3): a copy no copy-truth build stamped whose
+  // design differs from the server's copy this edit started from takes the server's design, so a
+  // design an older page pulled from the library is dropped before anything goes up. The settled
+  // record is what this tab shows from now on. Inside the save's error handling: a write that throws
+  // (browser storage full) must leave the edit dirty and the save no longer in flight.
   let doc = teamDoc(sent);
   let failure: string | null = null;
   try {
+    const settled = settleGraphics(sent.graphics, base.graphics, new Date().toISOString());
+    if (settled.changed) {
+      sent = { ...sent, graphics: settled.graphics };
+      applyServerTeamShow(sent);
+      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: known.updatedBy, teamId: known.teamId });
+      doc = teamDoc(sent);
+    }
     for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
       const { answer, error } = await saveTeamProduction(id, token, doc, known.teamId);
       if (running !== owner || owner.userId !== libraryInUse()) return;
@@ -644,6 +757,8 @@ async function pushSave(id: string): Promise<void> {
         ];
         setState({ notes: { ...state.notes, [id]: said.join(' ') } });
       }
+      // OS1b C2: two teammates' cues of one graphic merged into two OBS scenes get a copy each.
+      next = separateMergedScenes(next, theirs);
       applyServerTeamShow({ ...next, teamId: known.teamId });
       sent = { ...next, teamId: known.teamId };
       base = theirs;

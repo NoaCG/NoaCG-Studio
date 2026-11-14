@@ -12,6 +12,10 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/model/obsScenes.ts, src/components/home/PlayoutPanel.tsx
+// covers: src/components/home/ObsScenesSettings.tsx, src/components/PlayoutSettingsDialog.tsx, src/control/obsSceneRows.ts
+// covers: src/components/home/LiveDock.tsx, src/control/liveDock.ts, src/app/router.ts
+// covers: src/components/home/ProductionExportDialog.tsx, src/export/showExport.ts
 // focus
 //
 // A RUNDOWN'S FOLDERS (docs/CLIP_PLAYBACK_PLAN.md §6.2, §6.5, §6.6 and §7, phase 4). The rundown half:
@@ -24,6 +28,8 @@
 // layer (e2e/_fakeBridge.ts); its runner is tested against a stateful fake CasparCG in cli/test.
 
 import { test, expect, type Locator, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import JSZip from 'jszip';
 import { bootstrapGraphic } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
@@ -37,7 +43,9 @@ import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 interface Seed {
   graphics?: { name: string; layer?: number }[];
   playback?: Record<string, Record<string, unknown>>;
-  folders?: { labels: string[]; name?: string; mode?: 'manual' | 'through' | 'together'; end?: 'loop'; layer?: number; collapsed?: boolean }[];
+  folders?: { labels: string[]; name?: string; mode?: 'manual' | 'through' | 'together'; end?: 'loop'; layer?: number; collapsed?: boolean; scene?: true }[];
+  /** The production's OBS scenes switch on (obs-scenes OS1a R2). */
+  obsScenes?: true;
 }
 
 /** A production: the Hairline graphic's cue first, then the given server media, each on its own
@@ -51,10 +59,10 @@ async function production(page: Page, media: Record<string, unknown>[] = [], see
   const showId = await evaluateInPage(
     page,
     async ({ list, seed }) => {
-      const m = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const { useTemplateStore, flushPendingProject } = await import('/src/store/templateStore.ts');
-      const { useRouter } = await import('/src/app/router.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+      const { useTemplateStore, flushPendingProject } = await __noacgImport('/src/store/templateStore.ts');
+      const { useRouter } = await __noacgImport('/src/app/router.ts');
       const { show, error: notCreated } = m.createShowNamedChecked('Evening News');
       if (notCreated) throw new Error(`production: ${notCreated}`);
       const id = show.id;
@@ -75,7 +83,9 @@ async function production(page: Page, media: Record<string, unknown>[] = [], see
         if (f.mode) m.setFolderMode(id, folderId, f.mode);
         if (f.end || f.layer) m.setFolderPlayback(id, folderId, { ...(f.end ? { end: f.end } : {}), ...(f.layer ? { layer: f.layer } : {}) });
         if (f.collapsed) m.setFolderCollapsed(id, folderId, true);
+        if (f.scene) m.setFolderObsScene(id, folderId, true);
       }
+      if (seed.obsScenes) m.setShowObsScenes(id, true);
       // The new graphic's autosave is still on its debounce; it lands now, not during the test,
       // where it would count as a rundown write or meet a storage failure the test arms.
       flushPendingProject();
@@ -292,6 +302,352 @@ test('the menus: a folder from one cue, a cue moved into and out of one, a dupli
   await expect(page.getByTestId('remove-folder')).toHaveText('Remove folder (keeps its 3 cues)');
   await page.getByTestId('remove-folder').click();
   await expect.poll(() => drawn(page)).toEqual(['Hairline', 'ALPHA', 'CHARLIE', 'BRAVO']);
+});
+
+test('OBS scenes: the switch offers a folder as a scene, which publishes its graphics; off, nothing shows and the payload is as before (obs-scenes OS1a R1 to R3, R10)', async ({ page }) => {
+  const id = await production(page, CLIPS, { folders: [{ labels: ['Hairline', 'ALPHA'], name: 'Gameplay' }] });
+  /** What a publish of the production would carry about scenes, and the folder's own flag. */
+  const published = () =>
+    page.evaluate(async (showId) => {
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+      const show = loadShows().find((s) => s.id === showId)!;
+      const payload = await buildOutputPayload(show);
+      return { scenes: payload.scenes ?? null, flagged: show.folders?.[0]?.obsScene === true, folder: show.folders?.[0]?.id };
+    }, id);
+  const menu = async () => {
+    await folder(page, 'Gameplay').getByTestId('folder-menu').click();
+    await expect(page.getByTestId('remove-folder')).toBeVisible();
+  };
+
+  // Off: no folder offers a scene, and nothing is published about one.
+  await menu();
+  await expect(page.getByTestId('folder-obs-scene-toggle')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  expect((await published()).scenes).toBeNull();
+
+  const status = page.getByTestId('production-status');
+  await status.click();
+  const panel = page.getByTestId('production-status-panel');
+  await expect(panel.getByTestId('obs-scenes-switch')).not.toBeChecked();
+  await panel.getByTestId('obs-scenes-switch').click();
+  await expect(panel.getByTestId('obs-scenes-switch')).toBeChecked();
+  await page.keyboard.press('Escape');
+
+  // On: the folder becomes a scene from its menu, and says so. Its link is copied only once the
+  // production has an output link (it is not published here).
+  await menu();
+  await page.getByTestId('folder-obs-scene-toggle').click();
+  await expect(folder(page, 'Gameplay').getByTestId('folder-obs-scene')).toBeVisible();
+  await menu();
+  await expect(page.getByTestId('folder-obs-scene-toggle')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('folder-obs-scene-copy')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await settleDurableWrites(page);
+  const on = await published();
+  // Its graphic cue's graphic, never its server clip.
+  expect(on.scenes).toEqual([{ id: on.folder, name: 'Gameplay', graphics: ['Hairline'] }]);
+
+  // Off again: the flag is kept for later, and nothing about scenes shows or publishes.
+  await status.click();
+  await panel.getByTestId('obs-scenes-switch').click();
+  await expect(panel.getByTestId('obs-scenes-switch')).not.toBeChecked();
+  await page.keyboard.press('Escape');
+  await expect(folder(page, 'Gameplay').getByTestId('folder-obs-scene')).toHaveCount(0);
+  await settleDurableWrites(page);
+  expect(await published()).toMatchObject({ scenes: null, flagged: true });
+});
+
+test('OBS scenes: a graphic added to a second scene becomes its copy, Take and Out act on one scene, and All out leaves scene graphics (obs-scenes OS1b AC-2, AC-3)', async ({ page }) => {
+  const id = await production(page, [], {
+    graphics: [{ name: 'Score' }, { name: 'Hand' }],
+    folders: [{ labels: ['Hairline'], name: 'Gameplay', scene: true }, { labels: ['Score'], name: 'Desk', scene: true }],
+    obsScenes: true,
+  });
+  /** The pool by name, and which graphic each cue drives. */
+  const record = () =>
+    page.evaluate(async (showId) => {
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const show = loadShows().find((s) => s.id === showId)!;
+      const name = (gid: string) => show.graphics.find((g) => g.id === gid)?.name;
+      return {
+        pool: show.graphics.map((g) => `${g.name} @${g.layer}`),
+        cues: Object.fromEntries((show.cues ?? []).map((c) => [c.label, name(c.sourceId)])),
+      };
+    }, id);
+  await expect.poll(() => drawn(page)).toEqual(['[Gameplay]', '  Hairline', '[Desk]', '  Score', 'Hand']);
+
+  // Hairline into the second scene: a duplicate of its cue, dragged under Score, drives the Desk's
+  // own copy, on a layer of its own; the Gameplay cue keeps the graphic (C2 to C4).
+  // A row by its whole name: "Hairline" is also the start of "Hairline copy".
+  const row = (label: string) => list(page).locator('.pd-cue').filter({ has: page.locator('.pd-cue-label strong', { hasText: new RegExp(`^${label}$`) }) });
+  // A cue on air is not moved to a copy: its graphic would stay on air with no cue (C10).
+  const take = async (label: string) => {
+    await row(label).getByTestId('select-cue').click();
+    await page.getByTestId('verb-take').click();
+    await expect(row(label)).toHaveClass(/up-here/);
+  };
+  await row('Hairline').getByTestId('cue-menu').click();
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click();
+  // The folder's only cue: its duplicate comes in a copy of the folder, which is not a scene.
+  const duplicated = ['[Gameplay]', '  Hairline', '[Gameplay copy]', '  Hairline copy', '[Desk]', '  Score', 'Hand'];
+  await expect.poll(() => drawn(page)).toEqual(duplicated);
+  await take('Hairline copy');
+  await drag(page, row('Hairline copy'), row('Score'), 'bottom');
+  await expect(page.getByTestId('rundown-note')).toContainText('Take "Hairline copy" off air before you put its graphic in a second OBS scene.');
+  await expect.poll(() => drawn(page)).toEqual(duplicated);
+  await page.getByTestId('verb-out').click();
+  await expect(row('Hairline copy')).not.toHaveClass(/up-here/);
+  await drag(page, row('Hairline copy'), row('Score'), 'bottom');
+  await expect.poll(() => drawn(page)).toEqual(['[Gameplay]', '  Hairline', '[Desk]', '  Score', '  Hairline copy', 'Hand']);
+  await settleDurableWrites(page);
+  const copied = await record();
+  expect(copied.cues).toEqual({ Hairline: 'Hairline', Score: 'Score', Hand: 'Hand', 'Hairline copy': 'Hairline · Desk' });
+  await expect(page.getByTestId('rundown-note')).toHaveCount(0);
+  expect(copied.pool.map((g) => g.split(' @')[0])).toEqual(['Hairline', 'Hairline · Desk', 'Score', 'Hand']);
+  expect(new Set(copied.pool.map((g) => g.split(' @')[1])).size, 'every graphic on its own layer').toBe(4);
+
+  // Take and Out in one scene leave the other scene's graphic as it is (C7).
+  await take('Hairline');
+  await take('Hairline copy');
+  await expect(row('Hairline')).toHaveClass(/up-here/);
+  await page.getByTestId('verb-out').click();
+  await expect(row('Hairline copy')).not.toHaveClass(/up-here/);
+  await expect(row('Hairline')).toHaveClass(/up-here/);
+
+  // All out clears the hand-taken cue only: on stays on, out stays out (C9).
+  await take('Hand');
+  await page.getByTestId('verb-out-all').click();
+  await expect(row('Hand')).not.toHaveClass(/up-here/);
+  await expect(row('Hairline')).toHaveClass(/up-here/);
+  await expect(row('Hairline copy')).not.toHaveClass(/up-here/);
+  await expect(row('Score')).not.toHaveClass(/up-here/);
+
+  // The copy publishes as the Desk's graphic, exports, and reads back the same after a reload (AC-3).
+  const shipped = () =>
+    page.evaluate(async (showId) => {
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+      const { buildShowZip } = await __noacgImport('/src/export/showExport.ts');
+      const show = loadShows().find((s) => s.id === showId)!;
+      const payload = await buildOutputPayload(show);
+      const zip = await buildShowZip(show);
+      return {
+        scenes: (payload.scenes ?? []).map((s) => `${s.name}: ${s.graphics.join(', ')}`),
+        built: payload.graphics.map((g) => g.key).includes('Hairline · Desk'),
+        exported: Object.keys(zip.files).some((f) => f.endsWith('/hairline_desk/hairline_desk.html')),
+      };
+    }, id);
+  expect(await shipped()).toEqual({ scenes: ['Gameplay: Hairline', 'Desk: Score, Hairline · Desk'], built: true, exported: true });
+  await page.reload();
+  await expect(row('Hairline copy')).toBeVisible();
+  expect(await record()).toEqual(copied);
+});
+
+test('OBS scenes: one row per scene in the panel, Playout settings copies each link and all of them, and the overlay export offers Settled for scene graphics only (obs-scenes OS3 AC-6, AC-12)', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const id = await production(page, [], {
+    graphics: [{ name: 'Score' }, { name: 'Hand' }],
+    folders: [{ labels: ['Hairline'], name: 'Gameplay', scene: true }, { labels: ['Score'], name: 'Desk', scene: true }],
+    obsScenes: true,
+  });
+  const status = page.getByTestId('production-status');
+  const panel = page.getByTestId('production-status-panel');
+  // Not published, so nothing can be loaded: each scene reads Not loaded, and nothing is ticked yet.
+  await status.click();
+  const rows = panel.getByTestId('obs-scene-row');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('Gameplay');
+  await expect(rows.nth(1)).toContainText('Desk');
+  await expect(panel.getByTestId('obs-scene-state')).toHaveText(['Not loaded', 'Not loaded']);
+  await expect(panel.getByTestId('obs-scene-seen')).toHaveText(['Not yet seen', 'Not yet seen']);
+
+  // Playout settings: each scene with its graphics; the links come with the first publish.
+  await panel.getByTestId('panel-playout-settings').click();
+  const settings = page.getByTestId('settings-obs-scenes');
+  await expect(settings.getByTestId('settings-obs-scene')).toHaveCount(2);
+  await expect(settings.getByTestId('settings-obs-scene').nth(0)).toContainText('Hairline');
+  await expect(settings.getByTestId('settings-obs-scene').nth(1)).toContainText('Score');
+  await expect(settings.getByTestId('settings-obs-scene-link')).toHaveText(['Available after publishing', 'Available after publishing']);
+  await expect(settings.getByTestId('settings-obs-copy-all')).toBeDisabled();
+  await expect(settings.getByTestId('settings-obs-guide')).toHaveAttribute('href', 'https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/OBS_SCENES.md');
+  await expect(settings.getByTestId('settings-obs-too-many')).toHaveCount(0);
+  await page.getByTestId('playout-settings-close').click();
+
+  // With an output link (as after a publish): Copy copies one scene's link, Copy all every link with
+  // its scene's name, one per line.
+  const scenes = await page.evaluate(async (showId) => {
+    const m = await __noacgImport('/src/model/shows.ts');
+    m.setShowOutputSlug(showId, 'probe-output');
+    const failure = await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
+    if (failure) throw new Error(failure);
+    return (m.loadShows().find((s) => s.id === showId)!.folders ?? []).map((f) => f.id);
+  }, id);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
+  const links = await settings.getByTestId('settings-obs-scene-link').allTextContents();
+  expect(links.map((l) => new URL(l).searchParams.get('scene'))).toEqual(scenes);
+  expect(links.every((l) => new URL(l).searchParams.get('production') === 'probe-output')).toBe(true);
+  const clipboard = () => page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'));
+  await settings.getByTestId('settings-obs-scene-copy').nth(1).click();
+  await expect(settings.getByTestId('settings-obs-scene-copy').nth(1)).toHaveText('✓ Copied');
+  expect(await clipboard()).toBe(links[1]);
+  await settings.getByTestId('settings-obs-copy-all').click();
+  await expect(settings.getByTestId('settings-obs-copy-all')).toHaveText('✓ Copied');
+  expect(await clipboard()).toBe(`Gameplay: ${links[0]}\nDesk: ${links[1]}`);
+  await page.getByTestId('playout-settings-close').click();
+
+  // The export: Settled is offered on the overlay package only, ticked; it settles the scene
+  // graphics and leaves Hand, in no scene, as today, and the README lists each scene's files.
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('export-production').click();
+  const dialog = page.getByTestId('production-export-dialog');
+  await dialog.getByTestId('prod-target-casparcg').check();
+  await expect(dialog.getByTestId('prod-export-settled')).toHaveCount(0);
+  await dialog.getByTestId('prod-target-html-overlay').check();
+  await expect(dialog.getByTestId('prod-export-settled-box')).toBeChecked();
+  const [download] = await Promise.all([page.waitForEvent('download'), dialog.getByTestId('prod-export-download').click()]);
+  const zip = await JSZip.loadAsync(readFileSync(await download.path()));
+  const text = (suffix: string) => zip.file(new RegExp(`${suffix}$`))[0]!.async('string');
+  expect(await text('/hairline/hairline.html')).toContain('Settled autoplay for an OBS scene fallback');
+  expect(await text('/score/score.html')).toContain('Settled autoplay for an OBS scene fallback');
+  const hand = await text('/hand/hand.html');
+  expect(hand).not.toContain('Settled autoplay');
+  expect(hand).toContain('Autoplay for browser sources');
+  const readme = await text('evening_news/README.md');
+  expect(readme).toContain('- Gameplay: hairline/hairline.html');
+  expect(readme).toContain('- Desk: score/score.html');
+
+  // Unticked, nothing is settled.
+  await dialog.getByTestId('prod-export-settled-box').uncheck();
+  const [plain] = await Promise.all([page.waitForEvent('download'), dialog.getByTestId('prod-export-download').click()]);
+  const plainZip = await JSZip.loadAsync(readFileSync(await plain.path()));
+  expect(await plainZip.file(/\/hairline\/hairline\.html$/)[0]!.async('string')).not.toContain('Settled autoplay');
+  await dialog.locator('.gallery-close').click();
+
+  // Switched off with no scene link loaded, there is nothing to ask (#2454).
+  await status.click();
+  await panel.getByTestId('obs-scenes-switch').click();
+  await expect(panel.getByTestId('obs-scenes-off-ask')).toHaveCount(0);
+  await expect(panel.getByTestId('obs-scenes-switch')).not.toBeChecked();
+  await expect(panel.getByTestId('obs-scene-row')).toHaveCount(0);
+});
+
+test('OBS scenes: more than 16 scenes is said in Playout settings (obs-scenes OS3 M9)', async ({ page }) => {
+  const names = Array.from({ length: 17 }, (_, i) => `G${i + 1}`);
+  await production(page, [], {
+    graphics: names.map((name) => ({ name })),
+    folders: names.map((name) => ({ labels: [name], name: `Scene ${name}`, scene: true as const })),
+    obsScenes: true,
+  });
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
+  await expect(page.getByTestId('settings-obs-scene')).toHaveCount(17);
+  await expect(page.getByTestId('settings-obs-too-many')).toHaveText(
+    'More than 16 OBS scenes: NoaCG watches 16 outputs, so a scene link beyond those that stops answering is not reported.',
+  );
+});
+
+test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out, its selection, and writes the break deadline as a whole time (obs-scenes OS6 AC-11)', async ({ page }) => {
+  const id = await production(page, [], {
+    graphics: [{ name: 'Score' }],
+    folders: [{ labels: ['Hairline'], name: 'Gameplay', scene: true }, { labels: ['Score'], name: 'Desk', scene: true }],
+    obsScenes: true,
+  });
+  // A countdown whose start-time field is bound to data (K7): the clock its design emits names it.
+  // And a Sheet source feeding Hairline, answered here, for the dock's source line (K8).
+  await page.route('https://docs.google.com/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: 'Name,Value\nName,Ann Lee\n' }),
+  );
+  await evaluateInPage(
+    page,
+    async (showId) => {
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { clockRuntimeJs } = await __noacgImport('/src/templates/shared/clock.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const t = useTemplateStore.getState().template;
+      const { error } = m.addGraphicToShow(showId, {
+        ...t,
+        name: 'Break',
+        fields: [...(t.fields ?? []), { field: 'f9', ftype: 'textfield', title: 'Start time', value: '' }],
+        js: `${t.js}\n${clockRuntimeJs('starting-soon', 'f8', 'f9')}`,
+      });
+      if (error) throw new Error(error);
+      m.setFieldBinding(showId, 'Break', 'f9', 'break.deadline');
+      const source = { id: 's1', kind: 'sheet' as const, label: 'Studio guests', config: { sheetId: 'sheet-1', gid: null, shape: 'values' as const } };
+      const field = t.fields![0].field;
+      const linked = m.connectShowSource(showId, source, [{ graphic: 'Hairline', fieldId: field, path: 'sheet.s1.values.Name' }]);
+      if (linked.error || linked.refused.length) throw new Error(linked.error ?? 'refused');
+      const failure = await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
+      if (failure) throw new Error(failure);
+    },
+    id,
+  );
+  await page.setViewportSize({ width: 300, height: 800 });
+  await page.evaluate((showId) => (window.location.hash = `#/dock/${showId}`), id);
+  const dock = page.getByTestId('live-dock');
+  await expect(dock).toBeVisible();
+  // One column: nothing wider than the dock.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(300);
+  await expect(dock.getByTestId('dock-unpublished')).toHaveText('Not published');
+  await expect(dock.getByTestId('dock-health')).toContainText('0 of 2 ready');
+  // What Companion's selection keys act on: the first cue until one is picked (K2).
+  await expect(dock.getByTestId('dock-selected')).toHaveText('Selected: Hairline');
+
+  // The source's line as the data panel draws it, with Pause and Resume (K8).
+  const line = dock.getByTestId('dock-sources').getByTestId('source-line-s1');
+  await expect(line).toContainText('Studio guests');
+  await expect(line).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+  await line.getByTestId('source-pause').click();
+  await expect(line).toHaveAttribute('data-state', 'paused');
+  await line.getByTestId('source-pause').click();
+  await expect(line).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+
+  // No OBS event: the picked scene, the first until changed (K3).
+  const scenes = dock.getByTestId('dock-scenes');
+  await expect(scenes).toHaveAttribute('data-mode', 'picked');
+  await expect(scenes.getByTestId('dock-cue')).toHaveCount(1);
+  await expect(scenes.getByTestId('dock-cue')).toContainText('Hairline');
+  const deadline = dock.getByTestId('dock-deadline');
+  const above = (await deadline.boundingBox())!.y;
+  await dock.getByTestId('dock-scene-pick').selectOption({ label: 'Desk' });
+  const score = scenes.getByTestId('dock-cue');
+  await expect(score).toContainText('Score');
+  // The controls above the scenes did not move (K5).
+  expect((await deadline.boundingBox())!.y).toBe(above);
+
+  // Take and Out, each in the state its button says (K4).
+  await expect(score.getByTestId('dock-out')).toBeDisabled();
+  await score.getByTestId('dock-take').click();
+  await expect(score).toHaveAttribute('data-on', 'true');
+  await expect(score.getByTestId('dock-take')).toBeDisabled();
+  await score.getByTestId('dock-out').click();
+  await expect(score).toHaveAttribute('data-on', 'false');
+
+  // The break deadline: a whole time, read back as one (K7).
+  await expect(deadline.getByTestId('dock-deadline-value')).toHaveText('No deadline set');
+  await deadline.getByTestId('dock-deadline-5').click();
+  await expect(deadline.getByTestId('dock-deadline-value')).toHaveText(/^Until .* · (5:00|4:5\d) left$/);
+  await expect(deadline.getByTestId('dock-deadline-value')).toHaveAttribute('data-value', /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/);
+  const held = () => deadline.getByTestId('dock-deadline-value').textContent();
+  const after5 = await held();
+  await deadline.getByTestId('dock-deadline-2').click();
+  await expect(deadline.getByTestId('dock-deadline-value')).toHaveText(/ · (2:00|1:5\d) left$/);
+  expect(await held()).not.toBe(after5);
+  await deadline.getByTestId('dock-deadline-time').fill('23:59');
+  await deadline.getByTestId('dock-deadline-set').click();
+  await expect(deadline.getByTestId('dock-deadline-value')).toHaveAttribute('data-value', /T23:59:00[+-]\d\d:\d\d$/);
+
+  // The full page at its own address is the page it always was, and its settings offer the dock.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.evaluate((showId) => (window.location.hash = `#/production/${showId}`), id);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('live-dock')).toHaveCount(0);
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
+  await expect(page.getByTestId('settings-obs-dock-link')).toHaveText(new RegExp(`#/dock/${id}$`));
 });
 
 test('a drag lands by the third of a row: into a folder, out of it, a folder as a whole - one write each', async ({ page }) => {
@@ -691,7 +1047,7 @@ test('a step whose next cue has lost its graphic takes nothing off, and says why
   });
   // A teammate's save took Strap B's graphic away and left its cue: a record the page can be handed.
   await evaluateInPage(page, async () => {
-    const m = await import('/src/model/shows.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
     const show = m.loadShows().find((s) => s.name === 'Evening News')!;
     m.upsertShow({ ...show, graphics: show.graphics.filter((g) => g.name !== 'Strap B'), updatedAt: new Date().toISOString() });
   });
@@ -1005,7 +1361,7 @@ test('§18 cases 20 and 21: an orphan folderId and an empty folder draw no heade
   // A record as an older build or a merge could leave it: A(F) B C(F), a folder no cue names, and a
   // cue naming a folder that does not exist.
   await evaluateInPage(page, async () => {
-    const m = await import('/src/model/shows.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
     const show = structuredClone(m.loadShows().find((s) => s.name === 'Evening News')!);
     const [h, a, b, c] = show.cues!;
     show.folders = [
@@ -1486,7 +1842,7 @@ test('a seeded rundown reads back whole after a reload: graphics, layers, playba
   const read = async () => ({
     record: await evaluateInPage(
       page,
-      async (id) => JSON.stringify((await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)),
+      async (id) => JSON.stringify((await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)),
       showId,
     ),
     rows: await drawn(page),
@@ -1526,8 +1882,8 @@ test('§18 case 22: every writer of the rundown keeps each folder whole, and an 
     folders: [{ labels: ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA'], name: 'Block' }],
   });
   const steps = await evaluateInPage(page, async () => {
-    const m = await import('/src/model/shows.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const id = m.loadShows().find((s) => s.name === 'Evening News')!.id;
     const now = () => m.loadShows().find((s) => s.id === id)!;
     const cueOf = (label: string) => now().cues!.find((c) => c.label === label)!;
@@ -1627,10 +1983,10 @@ test('folders never leave the production page: the published payload, the export
     ],
   });
   const carried = await evaluateInPage(page, async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { buildShowZip, buildShowZipFor } = await import('/src/export/showExport.ts');
-    const { buildPack } = await import('/src/packs/graphicsPack.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+    const { buildShowZip, buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
+    const { buildPack } = await __noacgImport('/src/packs/graphicsPack.ts');
     const show = loadShows().find((s) => s.name === 'Evening News')!;
     const payload = JSON.parse(JSON.stringify(await buildOutputPayload(show)));
     const texts: string[] = [JSON.stringify(payload.cues), JSON.stringify(payload.playoutCues ?? [])];

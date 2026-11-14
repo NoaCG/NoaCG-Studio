@@ -12,7 +12,7 @@ export async function toApp(page: Page) {
 // Runs in the page: the bench import + a minimal SpxTemplate factory for fixtures.
 export const HELPERS = `
   async function bench(tpl, opts) {
-    const { benchTemplateRuntime } = await import('/src/validation/runtimeBench.ts');
+    const { benchTemplateRuntime } = await __noacgImport('/src/validation/runtimeBench.ts');
     const res = await benchTemplateRuntime(tpl, opts);
     return { ok: res.ok, errors: res.errors, warnings: res.warnings };
   }

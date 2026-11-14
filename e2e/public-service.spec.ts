@@ -36,13 +36,13 @@ import JSZip from 'jszip';
 /** Runs in the page: build a catalog variant and boot it into a hidden iframe. */
 const HARNESS = `
   async function build(id, options) {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const v = variantById(id);
     if (!v) throw new Error('no variant ' + id);
     return v.create(options || {});
   }
   async function boot(tpl) {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const f = document.createElement('iframe');
     f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1920px;height:1080px;';
     document.body.appendChild(f);
@@ -265,7 +265,7 @@ test('every ticker design draws the tag as a tag, with no markup reaching the st
   await toApp(page);
   const rows = (await page.evaluate(`(async () => {
     ${HARNESS}
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     const out = [];
     for (const variant of CATALOG.ticker || []) {
       const w = await boot(variant.create({}));
@@ -477,9 +477,9 @@ test('the alerts that claim no states have none, and the ones that do put them o
   await toApp(page);
   const r = (await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { eventButtons } = await import('/src/control/controlModel.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { eventButtons } = await __noacgImport('/src/control/controlModel.ts');
     const out = {};
     for (const id of ['al01','al02','al03','al04','al05','al06','al07','al08','al09','al10']) {
       const tpl = variantById(id).create({});
@@ -516,8 +516,8 @@ test('a two-language notice alternates on its own, holds where it is told, and g
   await toApp(page);
   const r = (await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { eventLegality, isEventLegal } = await import('/src/control/controlModel.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { eventLegality, isEventLegal } = await __noacgImport('/src/control/controlModel.ts');
     // Speed 1.5 shortens the type's 7s hold; the machine divides timers by speed.
     const tpl = variantById('pi08').create({ animation: { speed: 1.5 } });
     // The same precomputed guard a control page greys its buttons from.
@@ -620,8 +620,8 @@ test('a public-information panel keeps its instruction numbering and its attribu
 test('save, reload and reopen keeps a severity machine and a language machine intact', async ({ page }) => {
   await toApp(page);
   const saved = (await page.evaluate(`(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const out = {};
     for (const id of ['al01', 'pi08', 'tk18']) {
       const tpl = variantById(id).create({});
@@ -642,9 +642,9 @@ test('save, reload and reopen keeps a severity machine and a language machine in
   // Read the model directly, so the shell being on screen proves nothing about the mirror.
   await awaitDurableReady(page);
   const r = (await page.evaluate(`(async (ids) => {
-    const { loadAllGraphics } = await import('/src/model/library.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { loadAllGraphics } = await __noacgImport('/src/model/library.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     const docs = loadAllGraphics();
     const out = {};
     for (const [id, docId] of Object.entries(ids)) {
@@ -673,8 +673,8 @@ test('every export target packages the new categories with no dangling reference
   await toApp(page);
   const GRAPHICS = ['tk15', 'al01', 'pi08'];
   const built = (await page.evaluate(`(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
     const out = [];
     for (const id of ${JSON.stringify(GRAPHICS)}) {
       const tpl = variantById(id).create({});

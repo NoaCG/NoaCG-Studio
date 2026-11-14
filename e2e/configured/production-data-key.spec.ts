@@ -35,13 +35,13 @@ test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 /** Leave no published production behind: the account is shared by the whole live suite. */
 async function clearShows(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     for (const s of loadShows()) {
       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
       deleteShow(s.id);
     }
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
 }
@@ -130,7 +130,7 @@ test('Another system: the card key pushes a connected graphic, Pause holds every
   await review.getByTestId('cue-connect-confirm').click();
   await expect(review).toBeHidden();
   const paths = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.id === id)?.bindings?.['Hairline'] ?? {};
   }, showId);
   expect(paths.f0).toMatch(/^api\.hairline\./);
@@ -141,10 +141,10 @@ test('Another system: the card key pushes a connected graphic, Pause holds every
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.keyboard.press('Escape');
-  const slug = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.hostedSlug ?? '', showId);
+  const slug = await page.evaluate(async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.hostedSlug ?? '', showId);
   const updates = () =>
     page.evaluate(async (slug) => {
-      const { hostedControlTail } = await import('/src/control/hostedControl.ts');
+      const { hostedControlTail } = await __noacgImport('/src/control/hostedControl.ts');
       return (await hostedControlTail(slug, 0))
         .filter((row) => (row.msg as { t?: string }).t === 'update')
         .map((row) => ({ id: row.id, src: (row.msg as { src?: string }).src ?? null, data: (row.msg as { data?: Record<string, string> }).data ?? {} }));

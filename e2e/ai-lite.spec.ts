@@ -153,8 +153,8 @@ test('Lite creates one grounded graphic, records usability and acceptance, and s
   await expect.poll(() => outcomes).toContain('accepted');
 
   const templateFacts = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const graphics = loadGraphics();
     const template = graphics.at(-1)?.template;
     return {

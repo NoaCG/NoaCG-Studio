@@ -1,3 +1,4 @@
+// runs on: dev server - blocks /src/main.tsx to make the app bundle fail, a URL only the dev server has
 // covers: src/backend/**
 // focus
 //

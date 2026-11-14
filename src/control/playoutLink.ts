@@ -27,6 +27,7 @@
 // so another browser or account paired with it opens with the same channels; the copy here is what
 // every surface reads, and the only one with an older Bridge.
 
+import { counted, noteSendStarted } from './sendsInFlight';
 import { loadShows, productionPlayoutSystem, MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL, PLAYOUT_CLIP_LAYER, type PlayoutItem, type ShowFolder } from '../model/shows';
 import { DEFAULT_STUDIO, defaultChannelName, sameServer, sameStudio, studioFields, studioOf, studioStep } from './studioSetup';
 import {
@@ -718,6 +719,23 @@ async function through(
   path: PlayoutRoute,
   extra: RequestFields | (() => RequestFields | null),
   hop: 'act' | 'list' = 'act',
+  verify?: VerifyBeforeAct,
+): Promise<PlayoutReply | null> {
+  // A server action counts as a send while on the wire, so an automatic publish waits for it
+  // (sendsInFlight.ts); the Bridge's reads do not.
+  if (path !== '/act') return throughBridge(settings, path, extra, hop, verify);
+  const answered = noteSendStarted();
+  try {
+    return await throughBridge(settings, path, extra, hop, verify);
+  } finally {
+    answered();
+  }
+}
+async function throughBridge(
+  settings: PlayoutSettings,
+  path: PlayoutRoute,
+  extra: RequestFields | (() => RequestFields | null),
+  hop: 'act' | 'list',
   verify?: VerifyBeforeAct,
 ): Promise<PlayoutReply | null> {
   if (!playoutConfigured(settings)) {
@@ -1473,7 +1491,9 @@ export async function actVmixMedia(
   }
   // A Bridge that lost this capability since health must reject the new verb outright.
   const request = guardedOut ? { ...action, verb: 'out-player-instance' } : action;
-  const call = await callBridge(settings.agentUrl, '/act', { target: vmixTarget, action: request }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix');
+  const call = await counted(() => callBridge(
+    settings.agentUrl, '/act', { target: vmixTarget, action: request }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix',
+  ));
   const { result } = readVmixReply(settings, call, '/act', action.verb === 'take', true);
   // vMix can refuse cleanup after the requested clip has started. A failed dispatched action
   // cannot authorize transport on the previous cue without a fresh accepted Take.

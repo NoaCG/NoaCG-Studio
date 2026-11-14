@@ -17,10 +17,10 @@ test.beforeEach(async ({ page }) => {
 test('every holding and ending scene paints an opaque full-frame background with idle motion', async ({ page }) => {
   const report = await page.evaluate(async () => {
     const [{ CATALOG }, { composeDocument }, { parseAnimData }, { validateTemplate }] = await Promise.all([
-      import('/src/templates/catalog.ts'),
-      import('/src/preview/composeDocument.ts'),
-      import('/src/blocks/animData.ts'),
-      import('/src/validation/validateTemplate.ts'),
+      __noacgImport('/src/templates/catalog.ts'),
+      __noacgImport('/src/preview/composeDocument.ts'),
+      __noacgImport('/src/blocks/animData.ts'),
+      __noacgImport('/src/validation/validateTemplate.ts'),
     ]);
     const out: Array<Record<string, unknown>> = [];
     for (const category of ['starting-soon', 'end-credits'] as const) {
@@ -72,9 +72,9 @@ test('every holding and ending scene paints an opaque full-frame background with
 test('structural frames keep exact transparent source holes, safe labels, and portrait geometry', async ({ page }) => {
   const report = await page.evaluate(async (ids) => {
     const [{ variantById }, { composeDocument }, { validateTemplate }] = await Promise.all([
-      import('/src/templates/catalog.ts'),
-      import('/src/preview/composeDocument.ts'),
-      import('/src/validation/validateTemplate.ts'),
+      __noacgImport('/src/templates/catalog.ts'),
+      __noacgImport('/src/preview/composeDocument.ts'),
+      __noacgImport('/src/validation/validateTemplate.ts'),
     ]);
     const out: Array<Record<string, unknown>> = [];
     for (const id of ids) {
@@ -141,10 +141,10 @@ test('structural frames keep exact transparent source holes, safe labels, and po
 test('premium transitions cover every edge, self-clear, replay, and recover by snap', async ({ page }) => {
   const report = await page.evaluate(async (ids) => {
     const [{ variantById }, { composeDocument }, { parseAnimData }, { validateMachine }] = await Promise.all([
-      import('/src/templates/catalog.ts'),
-      import('/src/preview/composeDocument.ts'),
-      import('/src/blocks/animData.ts'),
-      import('/src/blocks/animMachine.ts'),
+      __noacgImport('/src/templates/catalog.ts'),
+      __noacgImport('/src/preview/composeDocument.ts'),
+      __noacgImport('/src/blocks/animData.ts'),
+      __noacgImport('/src/blocks/animMachine.ts'),
     ]);
     const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     const out: Array<Record<string, unknown>> = [];
@@ -228,8 +228,8 @@ test('the focused full-frame set passes the live runtime bench', async ({ page }
   const ids = ['ss04', 'ss08', 'cr06', 'cr09', 'fr05', 'fr10', 'fr14', ...TRANSITION_IDS];
   const report = await page.evaluate(async (variantIds) => {
     const [{ variantById }, { benchTemplateRuntime }] = await Promise.all([
-      import('/src/templates/catalog.ts'),
-      import('/src/validation/runtimeBench.ts'),
+      __noacgImport('/src/templates/catalog.ts'),
+      __noacgImport('/src/validation/runtimeBench.ts'),
     ]);
     const out = [];
     for (const id of variantIds) {

@@ -56,6 +56,15 @@ earlier phase IDs; sequential admission preserves the authorized phase order.
 A required acceptance environment may describe several named checks/environments;
 do not replace hardware, OS, performance or human acceptance with cloud fixtures.
 
+Later owner-authorized amendments use the existing supervisor `admit` operation
+with owner-decision files on main and the exact commit holding them. In addition
+to future `insert` operations, `revise: [{id, environment?, dependsOn?}]` may change
+only a phase with no recorded event. It cannot change IDs, titles, acceptance,
+spec/brief, original authorization or history; dependencies may only gain unique
+prerequisites. Insertions/revisions share the ledger transaction and recovery CAS,
+and append explicit before/after revision evidence. This does not grant a blanket
+Cloud substitution for device, OS, performance or human acceptance.
+
 `wave-plan-store --open ... --project <json>` creates the continuing wave file in
 the existing job store, with its immutable authorization and copied phase titles.
 It starts paused. Use that same file and `--until` on every restart. Different

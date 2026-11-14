@@ -12,9 +12,10 @@ import { settleDurableWrites } from './_durable';
 import type { SpxTemplate } from '../src/model/types';
 import { dropSvg, boxGrow } from './_svg-import';
 import { fileURLToPath } from 'node:url';
+import { upgradeSvgFitRuntime } from '../src/assets/svgFitUpgrade';
 
 const fixture = (name: string) => JSON.parse(readFileSync(new URL('../docs/research/editor-r1-foundation/fixture-' + name + '.json', import.meta.url), 'utf8')) as SpxTemplate;
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect(page.locator('.ef-stage-error')).toHaveCount(0);
@@ -36,7 +37,7 @@ async function seed(page: Page, name = 'catalog', nested = false) {
     if (nested) template.html = template.html.replace(/(<text\b[^>]*id="f0"[\s\S]*?<\/text>)/,
       '<g id="test-parent" transform="translate(100,80) rotate(30) scale(2)">$1</g>');
     template.html += '\n<!-- preservation sentinel -->'; template.js += '\n// preservation sentinel';
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(template, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(template, { resetSampleData: true });
     // Answer from a later task: the editor re-renders on that write (rule e2e/async-whose-last-act-starts-work).
     await new Promise((resolve) => setTimeout(resolve));
   }, { template: fixture(name), nested });
@@ -83,8 +84,8 @@ test('B04 basic opacity preserves motion and survives history and reopening', as
   await page.reload(); await ready(page);
   await expect.poll(async () => (await preview(page)).locator('#f0').evaluate(el => getComputedStyle(el).opacity)).toBe('0.6');
   const refused = await page.evaluate(async () => {
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const template = useTemplateStore.getState().template;
     try { applyOperations(template, [{ kind: 'style.set', selector: '.lower-third-box', values: { opacity: .5 } }]); return ''; }
     catch (error) { return String(error); }
@@ -96,7 +97,7 @@ for (const name of ['catalog', 'svg']) test('B04 artwork content, appearance and
   await seed(page, name);
   const initial = await source(page);
   await page.evaluate(async () => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue('f0', 'Operator sample stays');
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue('f0', 'Operator sample stays');
     await new Promise((resolve) => setTimeout(resolve));
   });
   const text = page.getByRole('textbox', { name: 'Artwork text', exact: true });
@@ -104,7 +105,7 @@ for (const name of ['catalog', 'svg']) test('B04 artwork content, appearance and
   await page.getByRole('button', { name: 'Apply text', exact: true }).click();
   await expect((await preview(page)).locator('#f0')).toHaveText('Evening report');
   expect((await source(page)).js).toBe(initial.js);
-  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData.f0)).toBe('Operator sample stays');
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData.f0)).toBe('Operator sample stays');
   await page.getByRole('combobox', { name: 'Font', exact: true }).selectOption({ label: 'Archivo' });
   await page.getByRole('textbox', { name: 'Font size', exact: true }).fill('42');
   await page.locator('.ef-appearance-field .grow').fill('#22aa77');
@@ -184,7 +185,7 @@ test('B04 solid fill and reference-sensitive refusal preserve source atomically'
   await page.locator('.ef-appearance-field .grow').press('Enter');
   await expect.poll(async () => (await preview(page)).locator('#rectangle-1').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(238, 119, 34)');
   await page.evaluate(async () => {
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     store.applyTemplate({ ...store.template, js: store.template.js + '\nfunction customReference() { return document.getElementById("rectangle-1"); }' });
     await new Promise((resolve) => setTimeout(resolve));
   });
@@ -198,8 +199,8 @@ test('B04 solid fill and reference-sensitive refusal preserve source atomically'
 test('B04 duplicate retains CSS cascade and delete removes rules before an ID can be reused', async ({ page }) => {
   await seed(page);
   const result = await page.evaluate(async () => {
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const original = useTemplateStore.getState().template;
     const template = { ...original, css: original.css + '\n#f0, #f1 { color: #112233; }\n#f1 { color: #778899; }' };
     const duplicate = applyOperations(template, [{ kind: 'layer.duplicate', selector: '#f0' }]);
@@ -291,8 +292,8 @@ test('D03 base layout and an existing animation channel remain independent', asy
   const base = await source(page);
   expect(base.js).toBe(original.js);
   await page.evaluate(async () => {
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const session = activeEditorSession(), data = parseAnimData(session.port.read().js)!;
     const last = data.steps[0].layers['#f0'].x.at(-1)!;
     // Existing R1.0 registry operation; no key-authoring UI is added by this slice.
@@ -389,15 +390,15 @@ for (const name of ['Hairline', 'House Quiz', 'House Countdown', 'Illustrator', 
       if (edit) {
         await page.getByTestId('wz-finish-edit-artwork').click();
         await expect(page.getByTestId('editor-foundation')).toBeVisible(); await ready(page);
-        expect(await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().length)).toBe(0);
+        expect(await page.evaluate(async () => (await __noacgImport('/src/model/shows.ts')).loadShows().length)).toBe(0);
       } else {
         await addToProductionFromFinish(page);
         await expect(page.getByTestId('production-page')).toBeVisible();
       }
       documents.push(await source(page));
       carried.push(await page.evaluate(async () => {
-        const state = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-        return { assets: await (await import('/src/components/editorFoundation/PreviewController.ts')).assetDigest(state.template), samples: state.sampleData };
+        const state = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+        return { assets: await (await __noacgImport('/src/components/editorFoundation/PreviewController.ts')).assetDigest(state.template), samples: state.sampleData };
       }));
       await context.close();
     }
@@ -436,7 +437,7 @@ test('B03 linked/unlinked, negative and zero scale, Shift/Alt pivot and singular
   expect(after.y + after.height / 2).toBeCloseTo(before.y + before.height / 2, 1);
   expect(after.width / before.width).not.toBeCloseTo(after.height / before.height, 1);
   expect(await page.evaluate(async () => {
-    try { (await import('/src/components/editorFoundation/useArtworkGesture.ts')).inverseDelta([0, 0, 0, 1], { x: 5, y: 0 }); return ''; }
+    try { (await __noacgImport('/src/components/editorFoundation/useArtworkGesture.ts')).inverseDelta([0, 0, 0, 1], { x: 5, y: 0 }); return ''; }
     catch (e) { return String(e); }
   })).toContain('singular');
 });
@@ -471,24 +472,25 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
   await settleDurableWrites(page); await page.reload(); await ready(page);
   const reopened = await source(page);
   expect(reopened.html).toBe(edited.html); expect(reopened.css).toBe(edited.css);
-  // Saving upgrades a known legacy interpreter. Artwork edits, animation data and
-  // source outside that owned region must still round-trip without changes.
+  // Saving upgrades a known legacy interpreter, and the SVG fit an older import carried (this
+  // fixture predates #2355). Artwork edits, animation data and all other source must still
+  // round-trip without changes.
   const preserved = await page.evaluate(async ({ before, after }) => {
-    const { losslessAnimData } = await import('/src/blocks/animData.ts');
-    const { ANIMATION_MARK_OPEN: open, ANIMATION_MARK_CLOSE: close } = await import('/src/templates/lowerThirds/animPresets.ts');
-    const { ANIM_INTERPRETER_JS } = await import('/src/templates/shared/animRuntime.ts');
+    const { losslessAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { ANIMATION_MARK_OPEN: open, ANIMATION_MARK_CLOSE: close } = await __noacgImport('/src/templates/lowerThirds/animPresets.ts');
+    const { ANIM_INTERPRETER_JS } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     const surrounding = (js: string) => [js.slice(0, js.indexOf(open)), js.slice(js.indexOf(close) + close.length)];
     return {
       before: losslessAnimData(before), after: losslessAnimData(after),
       surroundingBefore: surrounding(before), surroundingAfter: surrounding(after),
       current: after.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n')),
     };
-  }, { before: initial.js, after: reopened.js });
+  }, { before: upgradeSvgFitRuntime(initial.js), after: reopened.js });
   expect(preserved.before).not.toBeNull();
   expect(preserved.after).toEqual(preserved.before);
   expect(preserved.surroundingAfter).toEqual(preserved.surroundingBefore);
   expect(preserved.current).toBe(true);
-  const root = await page.evaluate(async () => (await import('/src/blocks/baseEdits.ts')).creationParent((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
+  const root = await page.evaluate(async () => (await __noacgImport('/src/blocks/baseEdits.ts')).creationParent((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template));
   const relative = (element: Element, root: string) => {
     // In the OGraf package the root is inside the Graphic, read through its body.
     const graphic = element.ownerDocument.querySelector('edited-graphic');
@@ -498,8 +500,8 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
   const expected = await (await preview(page)).locator('#f0').evaluate(relative, root);
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async ({ target }) => {
-      const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
+      const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
     }, { target });
     const view = await page.context().newPage();
@@ -578,8 +580,8 @@ test('B01 optional Finish Edit consumes final catalog result and creates no prod
   await page.getByTestId('wz-finish-edit-artwork').click();
   await expect(page.getByTestId('editor-foundation')).toBeVisible(); await ready(page);
   expect((await source(page)).name).toBe('Refine artwork');
-  expect(await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().length)).toBe(0);
-  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics().length)).toBe(0);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/model/shows.ts')).loadShows().length)).toBe(0);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics().length)).toBe(0);
 });
 
 test('B01 direct production remains primary', async ({ page }) => {
@@ -607,8 +609,8 @@ test('B03 base scaling preserves an animated catalog line through reload', async
 test('D03 refuses competing flow constraints and independent transforms without rewriting source', async ({ page }) => {
   await seed(page);
   const result = await page.evaluate(async () => {
-    const original = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
+    const original = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
     return ['position:absolute;right:0', 'display:inline', 'scale:2'].map(rule => {
       const template = { ...original, css: original.css + '\n.lower-third-name { ' + rule + ' }' };
       try { applyOperations(template, [{ kind: 'base.set', selector: '#f0', values: { x: 40 } }]); return ''; }
@@ -621,13 +623,13 @@ test('D03 refuses competing flow constraints and independent transforms without 
 test('B03 refuses conflicting animated scale ownership without changing motion', async ({ page }) => {
   await seed(page);
   const refusal = await page.evaluate(async () => {
-    const original = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const original = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const animation = parseAnimData(original.js)!;
     animation.steps[0].layers['#f0'].scaleX = [{ time: 0, value: 0 }, { time: 1, value: 1 }];
     const template = { ...original, js: spliceAnimData(original.js, animation)! };
     try {
-      (await import('/src/blocks/baseEdits.ts')).editBase(template, '#f0', { scaleX: 1.5 });
+      (await __noacgImport('/src/blocks/baseEdits.ts')).editBase(template, '#f0', { scaleX: 1.5 });
       return '';
     } catch (error) { return String(error); }
   });

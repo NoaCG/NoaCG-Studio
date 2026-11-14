@@ -10,6 +10,10 @@ import { readFileSync } from 'node:fs';
 import { relayServe, routeOrigin } from './_relay';
 import { awaitDurableReady } from './_durable';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The LOCAL-CONTROL door (offline local control, no command line): the overlay package
 // bundles a localhost relay (two stdlib implementations of protocol v1) + double-click
@@ -85,6 +89,7 @@ test('the overlay package ships the local-control bundle, and panel drives graph
   // The operator side: the panel in "another browser" — a page with NO BroadcastChannel
   // reach (different Playwright context) so only the relay can carry the commands.
   const other = await context.browser()!.newContext();
+  await installDoor(other);
   const panel = await other.newPage();
   await panel.route('http://relay-host.local/**', serve);
   await panel.goto('http://relay-host.local/controlpanel.html', { waitUntil: 'load' });
@@ -113,10 +118,10 @@ test('the production controller: preview shows the cue without airing it, Take a
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const b64 = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const tpl = variantsFor('lower-third')[0].create({});
     const { doc } = createGraphic(tpl, { name: 'Anchor Strap' });
     const show = shows.createShowNamed('Controller Show');
@@ -245,11 +250,11 @@ test('an adjusted production over the relay: the bake, the Take\'s place and siz
   // The seed below writes through the model's mutators: the store must have hydrated first.
   await awaitDurableReady(page);
   const built = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
-    const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
+    const { measureExportAppearances } = await __noacgImport('/src/components/home/exportAppearances.ts');
     const [first, second] = variantsFor('lower-third');
     const placed = { ...first.create({}), name: 'Placed Strap' };
     const plain = { ...second.create({}), name: 'Plain Strap' };
@@ -448,10 +453,10 @@ async function cupTiePackage(page: Page, context: BrowserContext, origin: string
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const b64 = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const tpl = variantById('sb09')!.create({});      // House Match Board: 88-84, clock from 10:00
     const { doc } = createGraphic(tpl, { name: 'House Match Board' });
     const show = shows.createShowNamed('Cup Tie');
@@ -748,10 +753,10 @@ test('a scorebug over the relay: the stepper bumps the score on air, and the clo
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const b64 = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     // sb05 - the house scorebug: counts UP from 0:00, so a running clock is visibly moving
     // rather than merely being reported as running.
     const tpl = variantById('sb05').create({});
@@ -861,8 +866,8 @@ test('a scorebug over the relay: the stepper bumps the score on air, and the clo
 test('the exported panel and controller stamp an imported duration on Take, a running correction and Out (#1887)', async ({ page, context }) => {
   await page.goto('/');
   const pages = await page.evaluate(async () => {
-    const { renderControlPanelHtml, emitGraphic } = await import('/src/control/controlPanelHtml.ts');
-    const { renderProductionControllerHtml } = await import('/src/control/productionControllerHtml.ts');
+    const { renderControlPanelHtml, emitGraphic } = await __noacgImport('/src/control/controlPanelHtml.ts');
+    const { renderProductionControllerHtml } = await __noacgImport('/src/control/productionControllerHtml.ts');
     const fields = [
       { field: 'f1', ftype: 'textfield' as const, title: 'Home', value: 'HOME' },
       { field: 'f2', ftype: 'textfield' as const, title: 'Time', value: '0:30' },
@@ -1212,13 +1217,13 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
 test('an imported duration never taken: a time typed before a Reset is what the first Take counts, on the exported panel and controller (#2117)', async ({ page, context }) => {
   await page.goto('/');
   const built = await page.evaluate(async (markup) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const { svgSourceRevision } = await import('/src/ai/svgInterpretation/contract.ts');
-    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-    const { renderControlPanelHtml, emitGraphic } = await import('/src/control/controlPanelHtml.ts');
-    const { renderProductionControllerHtml } = await import('/src/control/productionControllerHtml.ts');
-    const { clockSpecFromHtml } = await import('/src/control/matchClockWire.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const { svgSourceRevision } = await __noacgImport('/src/ai/svgInterpretation/contract.ts');
+    const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+    const { renderControlPanelHtml, emitGraphic } = await __noacgImport('/src/control/controlPanelHtml.ts');
+    const { renderProductionControllerHtml } = await __noacgImport('/src/control/productionControllerHtml.ts');
+    const { clockSpecFromHtml } = await __noacgImport('/src/control/matchClockWire.ts');
     const draft = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
     const row = draft.svgFields.find((f) => f.on && f.clock)!;
     const svgClock = { candidateId: row.candidateId, mode: 'duration' as const, revision: svgSourceRevision(draft.designSvg!.markup) };

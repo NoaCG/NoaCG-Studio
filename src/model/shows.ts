@@ -32,13 +32,15 @@ import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
+import { sceneCopyRefusal, sceneSnapshot, separateSceneGraphics, type SceneCopyGuard, type SceneSnapshot } from './obsScenes';
 import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
 import { scrubHiddenWords } from './wordCues';
 import { planResultCue, readResultCues, type ResultPlan, type ResultTargetKey } from './resultCues';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
-import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
+import { loadGraphics, type GraphicDoc } from './library';
+import { settleGraphics } from './copySettle.ts';
 import { poolPlacement } from './poolIdentity.ts';
 import { accentColor, playoutSystem, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
@@ -175,6 +177,10 @@ export interface ShowFolder {
   slot?: { channel?: number; layer?: number };
   /** Its cues are hidden in the rundown. */
   collapsed?: boolean;
+  /** ADDITIVE OPTIONAL (docs/work-specs/obs-scenes/spec.md D1, OS1a R1): this folder is an OBS
+   *  scene, with its own output link `&scene=<folder id>`. Kept while the production's OBS scenes
+   *  switch (`Show.obsScenes`) is off, and read only while it is on. Absent = not a scene. */
+  obsScene?: true;
 }
 
 /** A fade's length as the operator picks it. Short is half a second and Long one second
@@ -370,6 +376,9 @@ export interface ExternalShowSource {
         lists?: Record<string, 'lines' | 'schedule' | 'credits'>;
         /** E5.1's recipe (productionData `SourceRecipe`); a later recipe `v` is kept, never evaluated. */
         mapping?: SourceRecipe | { v: number; [later: string]: unknown };
+        /** NoaCG reads the endpoint itself, every `everyMs` (obs-scenes OS5a, control/jsonSource.ts):
+         *  a public JSON address, read through the guarded fetch. Absent: only its agent reads it. */
+        read?: { everyMs: number };
       }
     | { v: number; [later: string]: unknown };
   /** Paused: the route applies nothing; the agent keeps its latest revision for Resume. */
@@ -386,9 +395,21 @@ export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource | 
 export type FieldShowSource = SheetShowSource | FeedShowSource | FileShowSource;
 export const fillsFields = (s: ShowSource): s is FieldShowSource => s.kind === 'sheet' || s.kind === 'feed' || s.kind === 'file';
 
+/** A connector source NoaCG reads itself (obs-scenes OS5a): a version 1 registration whose `read`
+ *  names an interval. Its agent never reads it (migration 0116). */
+export type NoacgReadSource = ExternalShowSource & { config: { v: 1; endpoint: string; configRevision: number; read: { everyMs: number } } };
+export const noacgReads = (s: ShowSource): s is NoacgReadSource => {
+  if (s.kind !== 'external' || s.config.v !== 1) return false;
+  const read = (s.config as { read?: unknown }).read;
+  return typeof read === 'object' && read !== null && typeof (read as { everyMs?: unknown }).everyMs === 'number' && Number.isFinite((read as { everyMs: number }).everyMs);
+};
+
+/** A source with a reader line in the data indicator: one a browser reader fills fields from. */
+export const hasReaderLine = (s: ShowSource): s is FieldShowSource | NoacgReadSource => fillsFields(s) || noacgReads(s);
+
 /** What a source is called on the surface. */
 export const sourceKindWord = (s: ShowSource): string =>
-  s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : s.kind === 'file' ? 'File' : s.kind === 'external' ? 'Connector' : 'YouTube';
+  s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : s.kind === 'file' ? 'File' : noacgReads(s) ? 'JSON' : s.kind === 'external' ? 'Connector' : 'YouTube';
 
 /**
  * A production-owned DATA TABLE (docs/INTERACTIVE_PLAYOUT_PLAN.md, D3): a quiz's question
@@ -452,6 +473,10 @@ export interface Show {
   /** The rundown's FOLDERS (ShowFolder). ADDITIVE OPTIONAL: an older build keeps the flat order and
    *  rewrites them untouched, and the published page, the export and a pack never carry them. */
   folders?: ShowFolder[];
+  /** THE OBS SCENES SWITCH (docs/work-specs/obs-scenes/spec.md D1, OS1a R2): folders may be OBS
+   *  scenes, and a publish carries them (control/hostedControl.ts `OutputPayload.scenes`).
+   *  ADDITIVE OPTIONAL: absent = off, and nothing about scenes shows or publishes. */
+  obsScenes?: true;
   /** The production's DATA TABLES (the Data workspace — docs/INTERACTIVE_PLAYOUT_PLAN.md D3).
    *  ADDITIVE OPTIONAL like cues; absent = none authored. */
   datasets?: ShowDataset[];
@@ -637,7 +662,7 @@ function saveAll(list: Show[]): string | null {
 }
 
 /** The read shape every stored list takes: the format stamp, and a stable sync timestamp. */
-function readShape(list: Show[]): Show[] {
+export function readShape(list: Show[]): Show[] {
   return list.map((s) => ({ ...s, version: 2 as const, updatedAt: s.updatedAt || BACKFILL_TS }));
 }
 
@@ -825,13 +850,18 @@ export function addGraphicToShow(
   }
   const template = place.name === added.name ? added : { ...added, name: place.name };
   const existing = place.replace;
+  // Adding again replaces the copy's design as it always has (an explicit act; the wizard's re-import
+  // review names what a new version does not carry over). It is a copy-truth design write, so it
+  // stamps (live-publishing G1, Terms). Update is the production page's door, which asks first.
+  const at = nowIso();
   const graphic: SavedGraphic = {
     // Replacing by name KEEPS the pool entry's id — cues reference it (ShowCue.sourceId), so
     // updating a graphic must never orphan the cues prepared against it.
     id: existing >= 0 ? show.graphics[existing].id : uuid(),
     name: template.name,
     type: template.type,
-    savedAt: nowIso(),
+    savedAt: at,
+    designAt: at,
     template,
     ...(existing >= 0 && show.graphics[existing].soundConfig ? { soundConfig: show.graphics[existing].soundConfig } : {}),
     // Its place and size in this production stay with it, as its layer does (playout adjustments).
@@ -994,44 +1024,105 @@ function writeAdjust(target: { adjust?: unknown }, patch: AdjustPatch | null): b
 }
 
 /**
- * PUBLISH REFRESHES THE PRODUCTION'S COPIES (docs/work-specs/publish-guard/spec.md G1). A pool
- * graphic whose library record this browser holds a NEWER edit of than the copy embedded here
- * takes that design, so a teammate's page, which builds from the copy, publishes it too rather
- * than reverting it. Name, id, layer and sounds stay: they are the production's. The copy takes
- * the record's edit time, never now, so the two read as the same edit. Only Publish calls it: an
- * edit reaches the production only through Publish.
+ * A PUBLISH RECORDS ITS STOPPED SHEET READERS (data-sources C6), in the write before it. A
+ * published graphic that this publish takes its own Sheet reader from (the payload the caller saw
+ * published, `publishedReaders`, has it and the copy no longer does) joins `ownReaderStops`: the
+ * output keeps an on-air graphic's old frame, reader included, until it is cleared, so no browser
+ * may bind its fields before then.
  *
- * A published graphic that this publish takes its own Sheet reader from (its copy loses it here,
- * the design's reader having been stopped in this production or another sharing it; or the payload
- * the caller saw published, `publishedReaders`, has it and the copy no longer does) is recorded in
- * `ownReaderStops` in the same write (data-sources C6): the output keeps an on-air graphic's old
- * frame, reader included, until it is cleared, so no browser may bind its fields before then.
+ * This was the second half of the publish's copy refresh. The first half, copying newer library
+ * designs into the copies, is gone: the production's copy is the only truth (live-publishing W2,
+ * designs/G1.md section 1), and a library design arrives only through Update.
  */
-export function refreshGraphicCopies(
+export function recordOwnReaderStops(
   showId: string,
-  newer: (graphic: SavedGraphic) => { template: SpxTemplate; updatedAt: string } | undefined,
   publishedReaders: ReadonlySet<string> = new Set(),
 ): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, show => {
+    if (!show.hostedSlug) return false;
+    const dropped = show.graphics.filter((g) => publishedReaders.has(g.name) && !hasLiveData(g.template.js ?? '')).map((g) => g.name);
+    const stops = [...new Set([...(show.ownReaderStops ?? []), ...dropped])];
+    if (stops.length <= (show.ownReaderStops ?? []).length) return false;
+    show.ownReaderStops = stops;
+    return true;
+  });
+}
+
+/** The fields a copy has, that `next` lacks, and that a cue of this graphic holds a value for or a
+ *  binding names: what an Update would stop showing. Their labels, in the copy's order. */
+export function droppedFields(show: Pick<Show, 'cues' | 'bindings'>, graphic: SavedGraphic, next: SpxTemplate): string[] {
+  const kept = new Set((next.fields ?? []).map((f) => f.field));
+  const cues = (show.cues ?? []).filter((c) => c.source !== 'playout' && c.sourceId === graphic.id);
+  const bound = show.bindings?.[graphic.name] ?? {};
+  return (graphic.template.fields ?? [])
+    .filter((f) => !kept.has(f.field) && (f.field in bound || cues.some((c) => (c.values?.[f.field] ?? '') !== '')))
+    .map((f) => f.title || f.field);
+}
+
+/**
+ * THE SEND-TIME SETTLE on a stored production (live-publishing G1 section 3): its copies settled
+ * against `base`, the server's copies of the same production (model/copySettle.ts). A write outside
+ * the undo history, made only when a copy changes. Answers whether one did.
+ */
+export function settleShowCopies(showId: string, base: readonly SavedGraphic[]): { shows: Show[]; error: string | null; changed: boolean } {
+  let changed = false;
+  const result = patchShowChecked(showId, (show, at) => {
+    const settled = settleGraphics(show.graphics, base, at);
+    if (!settled.changed) return false;
+    show.graphics = settled.graphics;
+    changed = true;
+    return true;
+  });
+  return { ...result, changed };
+}
+
+/**
+ * ADOPTION's write (live-publishing O5, designs/G1.md section 5; the plan is control/copyAdoption.ts):
+ * each planned copy, still unstamped and still at the `savedAt` the plan read, takes its planned
+ * design members and is stamped. The pool name stays the template's name. Outside the undo
+ * history; a write only when a copy changes.
+ */
+export function adoptShowCopies(
+  showId: string,
+  plan: Readonly<Record<string, { template: SpxTemplate; savedAt: string; graphicId?: string }>>,
+  read: Readonly<Record<string, string>>,
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
     let changed = false;
-    const dropped: string[] = [];
-    for (const graphic of show.graphics) {
-      const doc = newer(graphic);
-      const fresh = !!doc && Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt);
-      const read = publishedReaders.has(graphic.name) || hasLiveData(graphic.template.js ?? '');
-      if (fresh) {
-        graphic.template = doc.template;
-        graphic.savedAt = doc.updatedAt;
-        changed = true;
-      }
-      if (read && !hasLiveData(graphic.template.js ?? '')) dropped.push(graphic.name);
-    }
-    const stops = show.hostedSlug ? [...new Set([...(show.ownReaderStops ?? []), ...dropped])] : [];
-    if (stops.length > (show.ownReaderStops ?? []).length) {
-      show.ownReaderStops = stops;
+    show.graphics = show.graphics.map((g) => {
+      const design = plan[g.id];
+      if (!design || (g.designAt !== undefined && g.designAt === g.savedAt) || g.savedAt !== read[g.id]) return g;
       changed = true;
-    }
+      const next: SavedGraphic = { ...g, template: { ...design.template, name: g.name }, savedAt: design.savedAt, designAt: design.savedAt };
+      if (design.graphicId === undefined) delete next.graphicId;
+      else next.graphicId = design.graphicId;
+      return next;
+    });
     return changed;
+  });
+}
+
+/**
+ * UPDATE (live-publishing O4, designs/G1.md section 2): a copy takes its library record's newer
+ * design. Only the design members change (`template`, `savedAt` = the record's edit time,
+ * `designAt` the same); the id, pool name (the template's own name is set to it), layer, place in
+ * the pool, sounds, adjustments and link stay, and no cue is touched. Refused when the copy is no
+ * longer the one the caller saw (`expectedSavedAt`), so a teammate's change is never written over.
+ */
+export function updateCopyFromLibrary(
+  showId: string,
+  graphicId: string,
+  design: { template: SpxTemplate; updatedAt: string },
+  expectedSavedAt: string,
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const graphic = show.graphics.find((g) => g.id === graphicId);
+    if (!graphic) return 'This graphic is no longer in the production.';
+    if (graphic.savedAt !== expectedSavedAt) return 'The graphic changed elsewhere. Look again before you update.';
+    graphic.template = { ...design.template, name: graphic.name };
+    graphic.savedAt = design.updatedAt;
+    graphic.designAt = design.updatedAt;
+    return true;
   });
 }
 
@@ -1049,8 +1140,50 @@ export function setGraphicCopyScript(showId: string, graphicId: string, from: st
     graphic.template = { ...graphic.template, js: to };
     // A changed design: the monitors rebuild on it (ProgramStage's pool signature).
     graphic.savedAt = at;
+    graphic.designAt = at;
     return true;
   });
+}
+
+/** The cues each open production page has on air, by production id (obs-scenes OS1b C10): a write
+ *  never moves one of them to an OBS scene's copy. The page that holds air sets its reader; none is
+ *  the empty answer. */
+const sceneAirCues = new Map<string, () => ReadonlySet<string>>();
+export function setSceneAirCues(showId: string, read: (() => ReadonlySet<string>) | null): void {
+  if (read) sceneAirCues.set(showId, read);
+  else sceneAirCues.delete(showId);
+}
+
+/** The separation's ties to this build (OS1b C4, C10, C11): a copy's layer free among the
+ *  graphics and the server's templates, as a new template's is, and the refusal rule over the cues
+ *  the record's open page has on air, read only when a cue would move. */
+function separationDeps(show: Show): { freeLayer: (graphics: Show['graphics']) => number; guard: SceneCopyGuard } {
+  let air: ReadonlySet<string> | null = null;
+  return {
+    freeLayer: (graphics) => nextFreeLayer([...graphics, ...(show.playoutItems ?? []).filter((i) => i.kind === 'template')]),
+    guard: (cue) => {
+      air ??= sceneAirCues.get(show.id)?.() ?? new Set();
+      return sceneCopyRefusal(cue, air.has(cue.id));
+    },
+  };
+}
+
+/** OS1b C2 to C12 (docs/work-specs/obs-scenes/spec.md), run by the write envelope after a write's
+ *  own change on each record it changes, so the local and the rebased pass separate to the same
+ *  ids: every pool graphic in one OBS scene at most. With the switch off it changes nothing.
+ *  Answers the sentence of a refused write (C10, C11). */
+function separateAfterWrite(show: Show, before: SceneSnapshot): string | null {
+  const separated = separateSceneGraphics(show, before, separationDeps(show));
+  return typeof separated === 'string' ? separated : null;
+}
+
+/** C2 on a team production's merged document (backend/teamProductions.ts): two teammates can each
+ *  put a cue of one graphic in a different scene, and the merge joins them. Separated against the
+ *  teammate's saved document, as a write against the record before it. A held cue stays as it
+ *  is (nobody pressed anything to refuse) and is moved by the next write once it is free. */
+export function separateMergedScenes(doc: Show, base: Show): Show {
+  const next = structuredClone(doc);
+  return separateSceneGraphics(next, sceneSnapshot(base), { ...separationDeps(next), leaveHeld: true }) === true ? next : doc;
 }
 
 /** `patchShow`, answering too whether the write was refused on the spot (a full store, or a
@@ -1079,13 +1212,14 @@ function patchShowChecked(
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: visible(), error: null };
   const at = nowIso();
+  const scenes = sceneSnapshot(show);
   const kept = selectionKeep(show);
   const typed = typedKeep(show);
   const result = mutate(show, at);
   if (typeof result === 'string') return { shows: visible(), error: result };
   if (!result) return { shows: visible(), error: null };
   // The mutation ran on this read only: refused, the stored productions are read again.
-  const frozen = selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
+  const frozen = separateAfterWrite(show, scenes) ?? selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   scrubHiddenWords(show); // W11: this tab's copy too, before the rebased pass decides the stored one
@@ -1097,10 +1231,13 @@ function patchShowChecked(
     const list = readShape(raw);
     const fresh = list.find((s) => s.id === showId && !s.deleted);
     if (!fresh) return { refused: 'This production was removed in another tab.' };
+    const scenesFresh = sceneSnapshot(fresh);
     const keptFresh = selectionKeep(fresh);
     const typedFresh = typedKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
+    const separatedFresh = again ? separateAfterWrite(fresh, scenesFresh) : null;
+    if (separatedFresh) return { refused: separatedFresh };
     if (again) scrubHiddenWords(fresh); // W11, on the stored record this pass lands on
     const frozenFresh = again ? (selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite)) : null;
     if (frozenFresh) return { refused: frozenFresh };
@@ -2272,10 +2409,11 @@ function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean;
  * holds back for the published output (model/ownReaderHolds.ts): a frame that may still run the
  * reader after Publish.
  */
-export function ownSheetGraphics(show: Pick<Show, 'graphics' | 'hostedSlug' | 'ownReaderStops'>, library: GraphicDoc[]): Set<string> {
+export function ownSheetGraphics(show: Pick<Show, 'graphics' | 'hostedSlug' | 'ownReaderStops'>, _library?: GraphicDoc[]): Set<string> {
   const out = new Set<string>(publishedReaderStops(show));
+  // The copy is what plays (live-publishing G1 section 1), so only its script counts.
   for (const g of show.graphics) {
-    if (hasLiveData(g.template.js ?? '') || hasLiveData(resolveSavedGraphicDoc(g, library)?.template.js ?? '')) out.add(g.name);
+    if (hasLiveData(g.template.js ?? '')) out.add(g.name);
   }
   return out;
 }
@@ -2942,6 +3080,27 @@ export function purgeOldShowTombstones(beforeIso: string): void {
   const all = loadAllShows();
   const kept = all.filter((s) => !s.deleted || s.updatedAt >= beforeIso);
   if (kept.length !== all.length) saveAll(kept);
+}
+
+/** The OBS scenes switch (OS1a R2). Turning it off keeps every folder's scene flag. */
+export function setShowObsScenes(showId: string, on: boolean): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    if (!!show.obsScenes === on) return false;
+    if (on) show.obsScenes = true;
+    else delete show.obsScenes;
+    return true;
+  });
+}
+
+/** Make a folder an OBS scene, or a plain folder again (OS1a R1). Its id is the scene id. */
+export function setFolderObsScene(showId: string, folderId: string, on: boolean): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const folder = folderOf(show, folderId);
+    if (!folder || !!folder.obsScene === on) return false;
+    if (on) folder.obsScene = true;
+    else delete folder.obsScene;
+    return true;
+  });
 }
 
 /** Display metadata only. Callers reporting success await commitDurableWrites. */

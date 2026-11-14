@@ -58,6 +58,23 @@ test('runVerdict: complete green, red on any required failure, incomplete on a c
   assert.equal(runVerdict({ status: 'completed', conclusion: 'failure', jobs: [] }).verdict, 'incomplete');
 });
 
+test('runVerdict: a night covered by main\'s green full push run is complete without its own plan and shards', () => {
+  const covered = (coverConclusion, overrides = {}) => [
+    { name: "Covered by main's full run", conclusion: coverConclusion },
+    { name: 'Nightly shard plan', conclusion: 'skipped' },
+    { name: 'Nightly E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}', conclusion: 'skipped' },
+    ...['Catalog calibration tripwire', 'Type floor, overflow sweep and field coverage', 'Combined nightly report', 'Nightly verdict']
+      .map((name) => ({ name, conclusion: overrides[name] ?? 'success' })),
+  ];
+  assert.equal(runVerdict(run(1, 'a', '2026-10-01T05:00:00Z', 20, { jobs: covered('success') })).verdict, 'green');
+  assert.equal(runVerdict(run(2, 'a', '2026-10-01T05:00:00Z', 20, { jobs: covered('success', { 'Combined nightly report': 'failure' }) })).verdict, 'red');
+  // The covering job itself did not finish: the skipped plan and shards are missing, not carried.
+  assert.equal(runVerdict(run(3, 'a', '2026-10-01T05:00:00Z', 20, { jobs: covered('cancelled') })).verdict, 'incomplete');
+  // A covering job alongside a plan that ran: the shards are judged as always.
+  const ran = [{ name: "Covered by main's full run", conclusion: 'success' }, ...nightlyJobs(3, { 'Nightly E2E 2/3': 'cancelled' })];
+  assert.equal(runVerdict(run(4, 'a', '2026-10-01T05:00:00Z', 20, { jobs: ran })).verdict, 'incomplete');
+});
+
 test('runVerdict per contract: the catalog battery is judged on its own jobs, and a scoped pass is not the whole catalog', () => {
   const redE2E = run(1, 'a', '2026-10-01T05:00:00Z', 20, { jobs: nightlyJobs(3, { 'Nightly E2E 1/3': 'failure', 'Nightly verdict': 'failure' }) });
   const catalog = CONTRACTS['catalog battery (emit, calibration, four sweeps)'];

@@ -1,0 +1,25 @@
+=== j-0142 node e5c.local/program-paint.tmp.mjs
+=== cwd /workspace/noacg-editor-r1-5-e5c-build
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+ExpectError: settled operator glyph pixels match computed foreground
+
+expect(received).toBeGreaterThan(expected)
+
+Expected: > 0
+Received:   0
+    at captureRawStack (/workspace/NoaCG-Studio/node_modules/playwright-core/lib/coreBundle.js:3172:17)
+    at callMatcherAsStep (/workspace/NoaCG-Studio/node_modules/playwright/lib/matchers/expect.js:12877:57)
+    at Object.toBeGreaterThan (/workspace/NoaCG-Studio/node_modules/playwright/lib/matchers/expect.js:12867:23)
+    at painted (/workspace/noacg-editor-r1-5-e5c-build/e5c.local/program-paint.tmp.mjs:17:299)
+    at async file:///workspace/noacg-editor-r1-5-e5c-build/e5c.local/program-paint.tmp.mjs:19:46 {
+  matcherResult: {
+    message: 'expect(received).toBeGreaterThan(expected)\n\nExpected: > 0\nReceived:   0',
+    pass: false,
+    name: 'toBeGreaterThan'
+  }
+}
+
+Node.js v24.19.0

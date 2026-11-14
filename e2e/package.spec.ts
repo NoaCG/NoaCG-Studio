@@ -81,7 +81,7 @@ test('imported font: embedded, applied, and bundled into the export', async ({ p
   // The generated code carries the embedded font: its own @font-face naming the uploaded file
   // the way the export ships it, and the family applied to the graphic's text.
   const css = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.css;
   });
   expect(css).toContain('font-family: "My Brand Font"');
@@ -121,8 +121,8 @@ test('a saved brand carries its look to another variant', async ({ page }) => {
   await finishIntoNewEditor(page);
 
   await page.evaluate(async () => {
-    const { createLook, captureLookFromTemplate } = await import('/src/model/packets.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createLook, captureLookFromTemplate } = await __noacgImport('/src/model/packets.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     createLook('Channel green', captureLookFromTemplate(useTemplateStore.getState().template));
   });
   await settleDurableWrites(page);
@@ -148,7 +148,7 @@ test('info card: creates, binds, and plays', async ({ page }) => {
   await toVariantStep(page, 'Topic', 'Slab Card');
   const doc = await create(page);
   const name = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.name;
   });
   expect(name).toBe('Slab Card');
@@ -203,8 +203,8 @@ test('ticker: an endless marquee still honours its timed hold', async ({ page })
   // store copy alone would be overwritten by the next parse of the code. The document is
   // mounted from the template that carries it.
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { replaceDefinitionInHtml } = await __noacgImport('/src/model/spxDefinition.ts');
     const t = useTemplateStore.getState().template;
     const settings = { ...t.settings, out: '800' };
     useTemplateStore
@@ -215,8 +215,8 @@ test('ticker: an endless marquee still honours its timed hold', async ({ page })
   // exit, and in the studio the editor's simulator does, so this document is composed with the
   // simulator and played through its own command, the way the editor's Play drives it.
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     document.querySelectorAll('iframe.held-document').forEach((f) => f.remove());
     const f = document.createElement('iframe');
     f.className = 'held-document';
@@ -229,8 +229,8 @@ test('ticker: an endless marquee still honours its timed hold', async ({ page })
   });
   const strip = page.frameLocator('iframe.held-document').locator('.ticker');
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { postPreviewCmd } = await import('/src/preview/previewProtocol.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { postPreviewCmd } = await __noacgImport('/src/preview/previewProtocol.ts');
     const f = document.querySelector('iframe.held-document') as HTMLIFrameElement;
     const data = JSON.stringify(useTemplateStore.getState().sampleData ?? {});
     postPreviewCmd(f.contentWindow, { cmd: 'sim-play', data });

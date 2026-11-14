@@ -1,0 +1,16 @@
+=== j-0130 node e5c.local/f4.tmp.mjs
+=== cwd <owned-worktree>
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+frame.evaluate: TypeError: window.e5cStop is not a function
+    at eval (eval at evaluate (:303:30), <anonymous>:1:13)
+    at UtilityScript.evaluate (<anonymous>:305:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+    at sample (<owned-worktree>/e5c.local/f4.tmp.mjs:28:24)
+    at async file://<owned-worktree>/e5c.local/f4.tmp.mjs:35:3 {
+  log: []
+}
+
+Node.js v24.19.0

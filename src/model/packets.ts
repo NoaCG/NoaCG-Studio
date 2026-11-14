@@ -51,6 +51,13 @@ export interface SavedGraphic {
    */
   graphicId?: string;
   /**
+   * THE DESIGN STAMP (live-publishing G1): equal to `savedAt` when a build that treats the copy as
+   * the only truth set this copy's design (Update, add, own-reader removal, settle, adoption, an
+   * Undo or Redo of a design). An older build never writes it, so its design writes leave a copy
+   * unstamped. Additive and optional.
+   */
+  designAt?: string;
+  /**
    * The PLAYOUT LAYER this graphic airs on, inside a production pool (docs/PLAYOUT_DASHBOARD.md
    * §5). A number the operator types - CasparCG offers 1-100 - defaulting to `DEFAULT_PLAYOUT_LAYER`.
    * It is both the SPX/CasparCG playout layer an export declares and the browser output's paint
@@ -69,6 +76,10 @@ export interface SavedGraphic {
    *  place and size in this production, the default every cue of it inherits member by member.
    *  Meaningful only in a `Show.graphics` pool; read only through ./adjust.ts `readAdjust`. */
   adjust?: import('./adjust').AdjustRecord | { v: number; [later: string]: unknown };
+  /** ADDITIVE OPTIONAL (docs/work-specs/obs-scenes/spec.md OS1b C3): the pool id of the graphic this
+   *  one was copied from when a second OBS scene took it, so the next cue of that graphic added to
+   *  the same scene finds this copy. Meaningful only in a `Show.graphics` pool. */
+  sceneCopyOf?: string;
 }
 
 export interface Packet {

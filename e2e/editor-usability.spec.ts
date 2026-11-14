@@ -13,8 +13,8 @@ async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect(page.locator('.ef-stage-error')).toHaveCount(0);
 }
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
-async function selected(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
+async function selected(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts); }
 async function frames(page: Page, count = 12) {
   await page.evaluate(count => new Promise<void>(resolve => { let n = 0; function tick() { if (++n === count) resolve(); else requestAnimationFrame(tick); } requestAnimationFrame(tick); }), count);
 }
@@ -37,7 +37,8 @@ async function saveReopen(page: Page) {
   for (const key of ['html', 'css', 'js', 'fields', 'layers'] as const) expect(after[key]).toEqual(before[key]);
 }
 
-for (const name of ['Hairline', 'House Quiz']) for (const width of [1920, 1366, 1093]) {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const name of ['Hairline', 'House Quiz']) for (const width of [1093]) {
   test('B02 B04 B13 usable authoring ' + name + ' ' + width, async ({ page }, info) => {
     await page.setViewportSize({ width, height: width === 1920 ? 1080 : width === 1366 ? 768 : 614 });
     const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
@@ -194,13 +195,13 @@ test('B04 appearance drafts survive focus changes and refuse invalid/stale input
   await size.fill('2001'); await size.press('Tab'); expect(await source(page)).toEqual(initial);
   await size.fill('51');
   await page.evaluate(async () => {
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     s.applyTemplate({ ...s.template, css: s.template.css + '\n/* external revision */' });
   });
   await ready(page); await size.press('Enter');
   const external = await source(page); expect(external.css).toBe(initial.css + '\n/* external revision */');
   await size.fill('49');
-  await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSelectedParts(['#f1']));
+  await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().setSelectedParts(['#f1']));
   await frames(page); expect(await selected(page)).toEqual(['#f1']); expect(await source(page)).toEqual(external);
   await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
   await size.fill('47'); await page.locator('.ef-track[data-selector="#f1"] .ef-layer').click(); await ready(page);

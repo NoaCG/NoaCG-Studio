@@ -192,7 +192,7 @@ test.describe('anonymous visitor (open editor)', () => {
     // A production of its own, made the way the model makes one, and opened by a hash change
     // rather than a reload so no durable write can be lost in between (e2e/AGENTS.md).
     const id = await page.evaluate(async () => {
-      const { createShowNamed } = await import('/src/model/shows.ts');
+      const { createShowNamed } = await __noacgImport('/src/model/shows.ts');
       return createShowNamed('Logged Out Show').id;
     });
     await page.evaluate((showId) => { window.location.hash = `#/production/${showId}`; }, id);

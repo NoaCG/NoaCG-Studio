@@ -147,14 +147,16 @@ export function useLivePresence(
 }
 
 /** What the line reads off the outputs: who, on which engine and build, which roads, READY, the
- *  last ping answered, and the median the tooltip quotes (rounded, so latency jitter re-renders
- *  nothing). */
+ *  last ping answered, the median the tooltip quotes (rounded, so latency jitter re-renders
+ *  nothing), and a scene link's report. */
 function outputsKey(outputs: LiveEntry[]): string {
   return outputs
     .map((o) => {
       const lat = (o.stats as { lat?: Record<string, { p50?: number }> } | undefined)?.lat;
       const p50 = lat ? Object.values(lat).find((l) => typeof l?.p50 === 'number')?.p50 : undefined;
-      return `${o.id}|${o.engine}|${o.build}|${o.name ?? ''}|${o.log}|${o.cmd}|${p50 === undefined ? '' : Math.round(p50 / 50)}|${JSON.stringify(o.ready ?? null)}|${o.ack ? o.ack.id : '-'}`;
+      // A scene link's own word (where OBS has it, the OBS scenes it was seen in) is what its row
+      // shows (obs-scenes OS3 M3 to M5), so a change in it alone is a change worth rendering.
+      return `${o.id}|${o.engine}|${o.build}|${o.name ?? ''}|${o.log}|${o.cmd}|${p50 === undefined ? '' : Math.round(p50 / 50)}|${JSON.stringify(o.ready ?? null)}|${o.ack ? o.ack.id : '-'}|${JSON.stringify(o.scene ?? null)}`;
     })
     .sort()
     .join(',');

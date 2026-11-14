@@ -143,7 +143,106 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
 })();`;
 }
 
-function overlayReadme(template: SpxTemplate): string {
+/** The SETTLED autoplay block (docs/work-specs/obs-scenes/spec.md OS3 M11), for a graphic of an OBS
+ *  scene kept as an offline fallback: drawn at rest from load, never with an entrance, no automatic
+ *  Out, and deaf to OBS showing or hiding it. The settle is the output's own (src/preview/
+ *  composeDocument.ts `settleOnAir`, which a scene link runs on every Take), restated here because
+ *  this file has no output stage around it. */
+function settledAutoplayScript(baked: Record<string, string>): string {
+  return `// ── Settled autoplay for an OBS scene fallback ──────────────────────────────
+// This file is drawn AT REST from the moment it loads: its fields are filled with
+// the values below (baked in at export time; a field missing there falls back to
+// its default in the SPX definition), then it plays and is settled at once, so no
+// frame of an entrance is ever drawn. There is no automatic Out, and OBS showing or
+// hiding the source changes nothing: OBS's own cut, fade or stinger carries it.
+// A play from controlpanel.html or the relay is settled the same way.
+(function () {
+  // A stream-addressed instance (…?stream=program) is managed: it waits for commands, and its plays
+  // are settled like any other.
+  var managed = /[?&]stream=/.test(location.search);
+  var baked = ${JSON.stringify(baked, null, 2).replace(/\n/g, '\n  ')};
+  var lastData = null;
+  var update0 = null;
+  function startData() {
+    var data = {};
+    var def = window.SPXGCTemplateDefinition || {};
+    var fields = def.DataFields || [];
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      if (!f.field) continue;
+      data[f.field] = baked[f.field] !== undefined ? baked[f.field] : (f.value || '');
+    }
+    return data;
+  }
+  // The pose the play reached: a state machine is snapped to it with its timers armed, so a clock or
+  // a loop keeps running; otherwise every animation with an end is jumped to it.
+  function settle() {
+    try {
+      var state = typeof window.noacgSnap === 'function' && typeof window.noacgMachineState === 'function' ? window.noacgMachineState() : null;
+      if (state && state.groups) {
+        window.noacgSnap(state.groups, { timers: true });
+        // The snap clears the inline styles the data owns (a fitted size): the values go back on.
+        if (lastData != null && update0) update0(lastData);
+        return;
+      }
+      var gsap = window.gsap;
+      if (gsap && gsap.globalTimeline && gsap.globalTimeline.getChildren) {
+        var kids = gsap.globalTimeline.getChildren(false, true, true);
+        for (var i = 0; i < kids.length; i++) {
+          var kid = kids[i];
+          var total = kid.totalDuration();
+          if (isFinite(total) && total < 1e9) {
+            kid.totalProgress(1);
+          } else if (kid.getChildren) {
+            var end = 0;
+            var parts = kid.getChildren(false, true, true);
+            for (var j = 0; j < parts.length; j++) {
+              var part = parts[j].totalDuration();
+              if (isFinite(part) && part < 1e9) end = Math.max(end, parts[j].startTime() + part);
+            }
+            if (kid.time() < end) kid.time(end);
+          }
+        }
+      }
+      if (document.getAnimations) {
+        document.getAnimations().forEach(function (a) {
+          var end = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming().endTime : Infinity;
+          if (isFinite(end) && a.playState === 'running') a.finish();
+        });
+      }
+    } catch (e) {}
+  }
+  window.addEventListener('load', function () {
+    if (typeof window.update === 'function') {
+      update0 = window.update;
+      window.update = function (d) {
+        lastData = d;
+        return update0.apply(this, arguments);
+      };
+    }
+    if (typeof window.play === 'function') {
+      var play0 = window.play;
+      window.play = function () {
+        var out = play0.apply(this, arguments);
+        settle();
+        return out;
+      };
+    }
+    if (managed) return;
+    function ready() {
+      if (typeof window.update === 'function') window.update(JSON.stringify(startData()));
+      if (typeof window.play === 'function') window.play();
+    }
+    // Fonts first, so the settled pose is measured in the faces it airs in; sounds as the plain
+    // file waits for them.
+    var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    var sounds = typeof noacgSoundPrepare === 'function' ? noacgSoundPrepare() : Promise.resolve();
+    Promise.all([fonts, sounds]).then(ready, ready);
+  });
+})();`;
+}
+
+function overlayReadme(template: SpxTemplate, settled = false): string {
   const name = slug(template.name);
   return `# ${template.name} — HTML overlay (OBS / vMix / any browser source)
 
@@ -152,14 +251,20 @@ Generated by NoaCG Studio.
 One self-contained file: ${name}.html — CSS, JS, GSAP, fonts and images are all inlined.
 The background is transparent, so it composites straight over your video. On load it fills
 the fields with the exported values and plays automatically.
-
+${settled ? `
+**Settled.** This file is an OBS scene fallback: it is drawn at rest from load, with no entrance,
+no automatic Out, and OBS showing or hiding it changes nothing. Put it in a hidden group in its OBS
+scene and show the group when the network is gone (docs/OBS_SCENES.md in NoaCG Studio).
+` : ''}
 ## OBS Studio
 1. Sources → + → **Browser**.
 2. Tick **Local file** and pick ${name}.html.
 3. Width ${template.resolution.width}, Height ${template.resolution.height}.
 
-In OBS the entrance plays each time the source goes on program, and the graphic resets when it
-leaves, so cutting back to the scene plays it again. Everywhere else it plays on load.
+${settled
+    ? `It shows at rest as soon as it loads, in OBS and everywhere else; cuts never move it.`
+    : `In OBS the entrance plays each time the source goes on program, and the graphic resets when it
+leaves, so cutting back to the scene plays it again. Everywhere else it plays on load.`}
 To operate it from inside OBS with the panel as a Custom Browser Dock, start the launcher and
 point the source at the graphic's http address instead of ticking Local file (see Live control
 below): a Local file source cannot pair with a dock. Once the panel plays or stops it, cuts no
@@ -172,7 +277,7 @@ longer move it.
 
 ## Changing the text/data
 - Quick edit: open ${name}.html in a text editor — the values live in the marked
-  "Autoplay for browser sources" block at the bottom.
+  "${settled ? 'Settled autoplay for an OBS scene fallback' : 'Autoplay for browser sources'}" block at the bottom.
 - Live control, the easy way: double-click **"Start controller.cmd"** (Windows) or
   **"start-controller.command"** (macOS) — the bundled LOCAL RELAY serves this folder at
   http://localhost:<port>/, opens the panel, and relays commands into a graphic loaded by
@@ -213,6 +318,7 @@ export const htmlOverlayTarget: ExportTarget = {
     // along so the overlay leaves by itself — same behavior as the editor preview.
     const withReceiver = withControlReceiver(template);
     const outMs = /^\d+$/.test(template.settings.out ?? '') ? Number(template.settings.out) : null;
+    const baked = ctx?.sampleData ?? {};
     // Two receivers, two transports: the BroadcastChannel one (same-origin tabs) and the
     // LOCAL RELAY one (through the bundled localhost service, the route into a graphic loaded
     // by vMix's own browser engine, and into OBS from a panel outside it). Both are inert where
@@ -222,19 +328,20 @@ export const htmlOverlayTarget: ExportTarget = {
       await composeSelfContainedHtml(withReceiver, [
         ...bakeAppearance(ctx?.appearance),
         { id: 'noacg-local-receiver', js: localReceiverJs(template.name, { appearance: !!ctx?.appearance }) },
-        { id: 'noacg-overlay-autoplay', js: autoplayScript(ctx?.sampleData ?? {}, outMs) },
+        { id: 'noacg-overlay-autoplay', js: ctx?.settled ? settledAutoplayScript(baked) : autoplayScript(baked, outMs) },
       ]),
     );
     // This package is ONE graphic file: there is no images/ folder beside the panel, so its
     // picker sends the embedded bytes rather than a path that resolves at neither end.
     addControlPanel(root, template, { inlineAssets: true, entries: ctx?.entries });
-    root.file('README.md', overlayReadme(template));
+    root.file('README.md', overlayReadme(template, !!ctx?.settled));
     root.file(
       'FIELDS.md',
       fieldReferenceMd(
         template,
         'The bundled control panel shows these by name, so you never type an id here — the table ' +
           'is for anything that drives the graphic from outside (a CasparCG client, your own script).',
+        { inlineAssets: true },
       ),
     );
     // This flavour DOES bundle the relay + launchers below, so the guide may describe them.

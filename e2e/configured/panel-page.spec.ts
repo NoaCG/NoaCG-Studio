@@ -140,7 +140,7 @@ test('a production page pairs a panel, answers it, runs its presses, refuses rep
 async function commands(op: Page, slug: string, after = 0): Promise<{ id: number; graphic: string; kind: string }[]> {
   return op.evaluate(
     async ({ slug, after }) => {
-      const { hostedControlTail } = await import('/src/control/hostedControl.ts');
+      const { hostedControlTail } = await __noacgImport('/src/control/hostedControl.ts');
       return (await hostedControlTail(slug, after))
         .map((row) => ({ id: row.id, graphic: row.graphic, kind: (row.msg as { t: string }).t }))
         .filter((row) => row.kind !== 'staged' && row.kind !== 'live');

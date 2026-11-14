@@ -1,0 +1,41 @@
+import { start, chromium, expect, ready, frame, paint, json, out, base } from './common.tmp.mjs';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { executionProfile } from '../scripts/execution-profile.mjs';
+const hash=x=>createHash('sha256').update(x).digest('hex');
+const fixturePath='docs/research/editor-design-review-2026-09-17/f4-noacg.json';
+const bytes=await readFile(fixturePath), fixture=JSON.parse(bytes);
+const result={source:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),at:new Date().toISOString(),fixture:{path:fixturePath,sha256:hash(bytes)},resources:executionProfile(),debounceMs:350,targets:{selectionMs:100,visibleHz:30,freezeMs:100,pointerUpMs:150},viewports:[]};
+const stop=await start();let browser;
+try{
+ browser=await chromium.launch({headless:true});result.browser=browser.version();
+ for(const viewport of [{width:1366,height:768},{width:1920,height:1080}]){
+  const context=await browser.newContext({viewport,deviceScaleFactor:1});const page=await context.newPage();page.setDefaultTimeout(15000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const cold=Date.now();await page.goto(base+'/app?editor=foundation#/editor-foundation');await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await page.evaluate(async fixture=>{const S=(await import('/src/store/templateStore.ts')).useTemplateStore;S.getState().applyTemplate(fixture,{resetSampleData:true});S.getState().setSelectedParts([]);},fixture);await ready(page);const f=await frame(page);await expect(f.locator('.stress-layer')).toHaveCount(30);
+  const data=await page.evaluate(async()=>{const t=(await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;const d=(await import('/src/blocks/editorAnimation.ts')).animationSource(t);return {layers:Object.keys(d.steps[0].layers).length,keys:Object.values(d.steps[0].layers).reduce((n,l)=>n+Object.values(l).reduce((a,t)=>a+t.length,0),0),properties:[...new Set(Object.values(d.steps[0].layers).flatMap(l=>Object.keys(l)))]};});expect(data).toEqual({layers:30,keys:300,properties:['x','opacity']});
+  const v={viewport,coldLoadMs:Date.now()-cold,fixture:data,settings:await page.evaluate(()=>({innerWidth,innerHeight,dpr:devicePixelRatio,visualScale:visualViewport.scale,screen:{width:screen.width,height:screen.height},browserZoom:'100% headless context default; not native 125%'})),actions:[],errors};result.viewports.push(v);
+  await paint(page,out+'f4-'+viewport.width+'-initial.png');
+  await page.evaluate(()=>{window.e5cInputs=[];for(const kind of ['pointerdown','pointermove','pointerup','keydown'])document.addEventListener(kind,e=>window.e5cInputs.push({kind,at:performance.timeOrigin+performance.now(),x:e.clientX,y:e.clientY,key:e.key}),true);});
+  async function sample(name,action){
+   await page.evaluate(async()=>{(await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics().resetMetrics();window.e5cInputs=[];window.e5cRaf=[];let live=true;const tick=t=>{if(!live)return;const s=document.querySelector('.ef-selection rect');window.e5cRaf.push({at:performance.timeOrigin+t,selection:s?{x:s.getAttribute('x'),y:s.getAttribute('y'),w:s.getAttribute('width'),h:s.getAttribute('height')}:null,pending:document.querySelector('[data-testid=foundation-canvas]').getAttribute('data-pending')});requestAnimationFrame(tick);};window.e5cStop=()=>live=false;requestAnimationFrame(tick);});
+   await f.evaluate(()=>{window.e5cPoses=[];let live=true;const tick=t=>{if(!live)return;const e=document.querySelector('#stress-0'),r=e.getBoundingClientRect(),s=getComputedStyle(e);window.e5cPoses.push({at:performance.timeOrigin+t,x:r.x,y:r.y,w:r.width,h:r.height,opacity:s.opacity});requestAnimationFrame(tick);};window.e5cStop=()=>live=false;requestAnimationFrame(tick);});
+   const cdp=await context.newCDPSession(page),frames=[];cdp.on('Page.screencastFrame',event=>{frames.push({at:event.metadata.timestamp*1000,data:event.data,metadata:event.metadata});void cdp.send('Page.screencastFrameAck',{sessionId:event.sessionId});});
+   await cdp.send('Page.startScreencast',{format:'png',everyNthFrame:1});
+   const start=Date.now();await action();const up=Date.now();await ready(page);await paint(page,out+'f4-'+viewport.width+'-'+name+'.png');const settled=Date.now();await cdp.send('Page.stopScreencast');await cdp.detach();
+   const main=await page.evaluate(async()=>{window.e5cStop();return {events:window.e5cInputs,raf:window.e5cRaf,metrics:(await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics().metrics};});
+   const poses=await f.evaluate(()=>{window.e5cStop();return window.e5cPoses;});
+   const dir=out+'f4-'+viewport.width+'-'+name;await mkdir(dir,{recursive:true});
+   for(let i=0;i<frames.length;i++){await writeFile(dir+'/'+String(i).padStart(4,'0')+'.png',Buffer.from(frames[i].data,'base64'));frames[i].sha256=hash(Buffer.from(frames[i].data,'base64'));delete frames[i].data;}
+   const record={name,start,actionCompletedAt:up,settledCaptureAt:settled,artboard:await page.locator('.ef-artboard').boundingBox(),frames,poses,...main};v.actions.push(record);await json('f4-raw.json',result);
+  }
+  await sample('selections',async()=>{for(let i=0;i<30;i++){await page.locator('.ef-track[data-selector="#stress-'+(i%5)+'"] .ef-layer').first().click();await ready(page);}});
+  await page.locator('.ef-track[data-selector="#stress-0"] .ef-layer').first().click();await ready(page);
+  await sample('drags',async()=>{for(let i=0;i<10;i++){const r=await page.locator('.ef-selection rect').first().boundingBox();await page.mouse.move(r.x+r.width/2,r.y+r.height/2);await page.mouse.down();for(let k=1;k<=45;k++){await page.mouse.move(r.x+r.width/2+Math.sin(k/45*Math.PI/2)*45*(i%2?-1:1),r.y+r.height/2);await new Promise(r=>setTimeout(r,1000/60));}await page.mouse.up();await ready(page);}});
+  await sample('scrubs',async()=>{const r=await page.getByRole('slider',{name:'Playhead',exact:true}).boundingBox();for(let i=0;i<10;i++){await page.mouse.move(r.x+40,r.y+15);await page.mouse.down();for(let k=0;k<60;k++){await page.mouse.move(r.x+r.width*(.1+.7*(k<30?k/30:(60-k)/30)),r.y+15);await new Promise(r=>setTimeout(r,1000/60));}await page.mouse.up();await ready(page);}});
+  await sample('undo-redo',async()=>{for(let i=0;i<10;i++){await page.getByRole('button',{name:'Undo',exact:true}).click();await ready(page);await page.getByRole('button',{name:'Redo',exact:true}).click();await ready(page);}});
+  v.finalSource=await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);await json('f4-raw.json',result);await context.close();
+ }
+ result.result='MEASURED';await json('f4-raw.json',result);console.log('MEASURED F4 both viewports; raw event/pose/protocol/rendered screencast frames retained. Targets require separate analysis.');
+}catch(e){result.result='INCOMPLETE';result.error=String(e);await json('f4-raw.json',result);throw e;}finally{await browser?.close();await stop();}

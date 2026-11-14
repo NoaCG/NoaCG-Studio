@@ -39,6 +39,8 @@ import { fileRead, type FileFormat, type FileHandleLike } from '../../control/fi
 import { canPickFiles, pickFile, saveFileHandle, loadFileHandle, allowFile } from '../../control/fileHandles';
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
 import { columnsFor, connectorPlan, jsonOffers, LIST_CELLS, needsRepair, proposeConnector, readConnectorSample, type ConnectorSource } from '../../control/connectorReview';
+import { collectionReads, JSON_DEFAULT_EVERY_MS, jsonEveryMs } from '../../control/jsonSource';
+import { bracketReviewSample, bracketRowKeys, bracketRowPaths, bracketSectionKeys, bracketSectionPaths, FIELDS_FOR, PLAYER_FIELD_KEYS, readSourceAdapter, type BracketAdapter, type BracketFieldKey, type PlayerFieldKey } from '../../control/bracketAdapter';
 import { projectSource, type CollectionEntity } from '../../control/sourceMapping';
 import type { SelectionAir } from '../../control/selectionAir';
 import type { StorePart } from '../../control/storePart';
@@ -199,7 +201,7 @@ type ConnectRead =
   | { feed: string; rows: string[][] }
   | { file: { name: string; format: FileFormat; handle: FileHandleLike }; rows: string[][] }
   | { api: true }
-  | { json: string; sample: unknown }
+  | { json: string; sample: unknown; via?: 'agent' | 'hosted' }
   | { error: string; fix: string };
 
 /** A connector sample is waited on in steps of this (control/connectorReview `readConnectorSample`). */
@@ -277,8 +279,33 @@ function CueConnectReview({
   const byKey = new Map(fields.map((d) => [d.key, d]));
   const refuses = (fieldId: string) => preparedMessageField(show, poolGraphic.name, fieldId);
   const holds = (fieldId: string, text: string) => fieldValue(byKey.get(fieldId)!, text) !== null;
+  // A connector's sample is evaluated by the one shared evaluator, recipe and all, exactly as the
+  // route will evaluate the provider's answers once the mapping is saved; nothing is applied.
+  const reusedConnector = reuse?.kind === 'external' ? reuse : null;
+  // Read by NoaCG (obs-scenes OS5a, R2, R12 to R14): offered for an address read the public way,
+  // while the production's OBS scenes switch is on, or already set on the source; never for a source
+  // a collection recipe reads. A new source starts on at 30 s; a reused one keeps what it holds.
+  const storedEvery = reusedConnector?.config.read?.everyMs ?? null;
+  const offersRead = Boolean(json && json.via === 'hosted' && (show.obsScenes || storedEvery !== null) && !collectionReads(show.collections, id));
+  /** The operator's choice for this source (`text`: the seconds box as typed, until it loses focus). */
+  const [readEvery, setReadEvery] = useState<{ for: string; ms: number | null; text?: string } | null>(null);
+  const noacgEvery = !offersRead ? undefined : readEvery?.for === id ? readEvery.ms : reusedConnector ? storedEvery : JSON_DEFAULT_EVERY_MS;
+  // A bracket (obs-scenes OS5b, B1, B2): offered only beside Read by NoaCG; the sample the review
+  // offers and previews is then the adapter's shape, as each read will be.
+  const [bracketSetting, setBracketSetting] = useState<{ for: string; adapter: BracketAdapter | null } | null>(null);
+  const storedAdapter = reusedConnector?.config.adapter ?? null;
+  const bracket = noacgEvery === undefined || noacgEvery === null ? null : bracketSetting?.for === id ? bracketSetting.adapter : storedAdapter;
+  const reviewed = useMemo(() => {
+    if (!json) return null;
+    const read = bracket === null ? null : readSourceAdapter(bracket);
+    if (!read || read.status !== 'ok') return { sample: json.sample as unknown, problem: read && read.status !== 'none' ? (read.status === 'invalid' ? read.error : 'a later version') : null };
+    const r = bracketReviewSample(json.sample, read.adapter);
+    return 'problem' in r ? { sample: {} as unknown, problem: r.problem } : { sample: r.sample as unknown, problem: null as string | null };
+  }, [json, bracket]);
+  const bracketProblem = bracket ? (reviewed?.problem ?? null) : null;
   // A connector's sample: its values and its lists, a list field matched against the lists.
-  const offers = useMemo(() => (json ? jsonOffers(id, json.sample) : null), [id, json]);
+  // A bracket's shape is deeper and wider than a plain answer: its matches are offered in full.
+  const offers = useMemo(() => (reviewed ? jsonOffers(id, reviewed.sample, bracket ? BRACKET_OFFER_BOUNDS : {}) : null), [id, reviewed, bracket]);
   const adapters: Record<string, SourceListAdapter> = {};
   if (json) {
     for (const d of fields) {
@@ -295,7 +322,8 @@ function CueConnectReview({
       : [];
   // A bound leaf needs repair when the input the saved recipe reads for it is gone from the sample.
   const savedOutputs = reuse?.kind === 'external' ? (reuse.config.mapping?.outputs ?? {}) : {};
-  const repairs = offers ? needsRepair(bound, id, offers, savedOutputs) : new Set<string>();
+  // A bracket's paths are made by its adapter, not found in the answer: none is "gone" from it.
+  const repairs = offers && !bracket ? needsRepair(bound, id, offers, savedOutputs) : new Set<string>();
   /** What a row may pick: a list field the sample's lists, any other its values. */
   const optionsFor = (fieldId: string) => (offers && adapters[fieldId] ? offers.collections.map((c) => ({ path: c.path, label: c.label })) : offered);
   const chosen = (row: MappingRow): string | null => chosenPath(row, choices);
@@ -320,9 +348,6 @@ function CueConnectReview({
   // leave them, every field on the path, one form for all of them (sheetSource `pathValue`).
   const proposed = { ...(show.bindings ?? {}), [poolGraphic.name]: { ...bound, ...Object.fromEntries(entries.map((e) => [e.fieldId, e.path ?? ''])) } };
   const drawn = (g: string) => (g === poolGraphic.name ? descriptors : fieldsOf(g));
-  // A connector's sample is evaluated by the one shared evaluator, recipe and all, exactly as the
-  // route will evaluate the provider's answers once the mapping is saved; nothing is applied.
-  const reusedConnector = reuse?.kind === 'external' ? reuse : null;
   const plan = json
     ? connectorPlan({
         graphic: poolGraphic.name,
@@ -333,11 +358,14 @@ function CueConnectReview({
         collections: offers!.collections,
         adapters,
         columns,
+        // Not offered: whatever the source holds stays (R13).
+        ...(noacgEvery === undefined ? {} : { read: noacgEvery === null ? null : { everyMs: jsonEveryMs(noacgEvery) } }),
+        ...(bracketSetting?.for === id ? { adapter: bracketSetting.adapter } : {}),
       })
     : null;
   const projection =
     plan && !('error' in plan)
-      ? projectSource({ sourceId: id, payload: json!.sample, bindings: plan.bindings, fieldsOf: drawn, lists: plan.source.config.lists, mapping: plan.source.config.mapping, configRevision: plan.source.config.configRevision })
+      ? projectSource({ sourceId: id, payload: reviewed!.sample, bindings: plan.bindings, fieldsOf: drawn, lists: plan.source.config.lists, mapping: plan.source.config.mapping, configRevision: plan.source.config.configRevision })
       : null;
   const leafOf = (path: string) => path.slice(`external.${id}.`.length);
   /** A field already showing this source's value whose output the review changes: the database
@@ -461,7 +489,7 @@ function CueConnectReview({
     const answer = await readConnectorSample({ fetcher: (u, init) => fetch(u, init), endpoint, key, sourceId: registered, wait: waitMs, now: Date.now, signal: stop.signal });
     if (no !== readNo.current) return;
     setReading(false);
-    setRead(answer.ok ? { json: endpoint, sample: answer.sample } : { error: answer.error, fix: answer.fix });
+    setRead(answer.ok ? { json: endpoint, sample: answer.sample, via: answer.via } : { error: answer.error, fix: answer.fix });
   };
   /** Connect: one write, and the review closes only once storage has agreed to it, so a
    *  refused save leaves the review here to try again (components AGENTS.md, the save rule). */
@@ -470,6 +498,7 @@ function CueConnectReview({
     if ('api' in read) return finish(connectApiFields(show.id, entries), null);
     if ('json' in read) {
       if (!plan || 'error' in plan) return setSaveError(plan?.error ?? 'Nothing to connect.');
+      if (bracketProblem) return setSaveError(`The bracket cannot be read: ${bracketProblem}.`);
       return finish(connectConnectorSource(show.id, plan.source, plan.entries, plan.fence), null);
     }
     if (id === '') return;
@@ -694,6 +723,57 @@ function CueConnectReview({
             <span>Name</span>
             <input value={label} onChange={(e) => setLabel(e.target.value)} data-testid="cue-connect-label" />
           </label>
+          )}
+          {noacgEvery !== undefined && (
+            <label className="pd-field" data-testid="cue-connect-read-by-noacg">
+              <span>
+                <input
+                  type="checkbox"
+                  checked={noacgEvery !== null}
+                  onChange={(e) => {
+                    setReadEvery({ for: id, ms: e.target.checked ? (storedEvery ?? JSON_DEFAULT_EVERY_MS) : null });
+                    // The bracket's shape comes and goes with Read by NoaCG (B2): picks made against
+                    // one shape never carry over to the other.
+                    if (bracket || storedAdapter || bracketSetting?.adapter) setChoices({});
+                  }}
+                  data-testid="cue-connect-read-on"
+                />{' '}
+                Read by NoaCG every
+              </span>
+              <span className="row">
+                <input
+                  type="number"
+                  min={10}
+                  max={3600}
+                  step={1}
+                  disabled={noacgEvery === null}
+                  value={readEvery?.for === id && readEvery.text !== undefined ? readEvery.text : String(jsonEveryMs(noacgEvery ?? JSON_DEFAULT_EVERY_MS) / 1000)}
+                  onChange={(e) => {
+                    // The box keeps what is typed (an empty box too); a number in it is the interval.
+                    const text = e.target.value;
+                    const seconds = Number(text);
+                    const ms = text.trim() !== '' && Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : (noacgEvery ?? JSON_DEFAULT_EVERY_MS);
+                    setReadEvery({ for: id, ms, text });
+                  }}
+                  // Leaving it shows what is saved: 10 s at least and an hour at most.
+                  onBlur={() => setReadEvery((r) => (r && r.for === id ? { for: id, ms: r.ms } : r))}
+                  aria-label="Seconds between reads"
+                  data-testid="cue-connect-read-every"
+                />{' '}
+                s
+              </span>
+            </label>
+          )}
+          {noacgEvery !== undefined && noacgEvery !== null && json && (
+            <BracketSetting
+              sample={json.sample}
+              adapter={bracket}
+              problem={bracketProblem}
+              onChange={(adapter) => {
+                setBracketSetting({ for: id, adapter });
+                setChoices({});
+              }}
+            />
           )}
           {content && content.preview.length > 0 && (
             <ol className="hint" data-testid="cue-connect-preview">
@@ -1097,6 +1177,7 @@ export default function CueEditor({
   show,
   setShows,
   poolGraphic,
+  designUpdate = null,
   editingCue,
   draft,
   editingCueNo,
@@ -1112,6 +1193,7 @@ export default function CueEditor({
   editDraft,
   flushDraft,
   rundownHistory,
+  saveOnBlur,
   updateLive,
   hasUnsent,
   unsentFields,
@@ -1157,6 +1239,9 @@ export default function CueEditor({
   show: Show;
   setShows: (shows: Show[]) => void;
   poolGraphic: SavedGraphic;
+  /** The library holds a newer design of this graphic (live-publishing O4): what Update would drop,
+   *  in words, and the Update itself. Null when there is none. */
+  designUpdate?: { dropped: string | null; run: () => Promise<void> } | null;
   editingCue: ShowCue;
   /** The cue being typed, which the editor shows over the record. */
   draft: Pick<CueDraft, 'part'>;
@@ -1176,6 +1261,9 @@ export default function CueEditor({
   flushDraft: () => Promise<unknown>;
   /** The rundown history, whose group closes when focus leaves the editor. */
   rundownHistory: { closeGroup: () => Promise<boolean> };
+  /** Runs the save a blur owes, at once or, when a press that sends first took the focus, after
+   *  that press (control/cueDraft.ts `blurred`). */
+  saveOnBlur: (save: () => void) => void;
   updateLive: () => Promise<void>;
   hasUnsent: boolean;
   unsentFields: string[];
@@ -1341,7 +1429,7 @@ export default function CueEditor({
   };
   return (
     <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" data-renders={renders.current} inert={!authoringAllowed || !!candidate?.readOnly}
-      onBlurCapture={() => { void flushDraft(); void rundownHistory.closeGroup(); }}>
+      onBlurCapture={() => saveOnBlur(() => { void flushDraft(); void rundownHistory.closeGroup(); })}>
       <div className="pd-editor-head">
         {/* The cue's POSITION, not just its state. Two cues of the same graphic carry the
             same name and the same tally, so "EDITING ON-AIR CUE" over an editable title
@@ -1686,6 +1774,9 @@ export default function CueEditor({
           cannot be closed: two graphics on one layer replace each other on air, so the
           repair must never be one click away behind a closed disclosure. The rundown's
           clash badge lands here too (`openLayerRepair`). */}
+      {designUpdate && (
+        <DesignUpdate key={poolGraphic.id} update={designUpdate} disabled={!authoringAllowed} />
+      )}
       <div className={`pd-advanced${layerClash ? ' clash' : ''}`} data-testid="cue-advanced">
         <button
           type="button"
@@ -1727,6 +1818,7 @@ export default function CueEditor({
                 data-testid="graphic-layer"
               />
             </label>
+
             {/* THE DATA TEMPLATE (data-sources C1a, AC-13): every value of this graphic as
                 `Field ID,Label,Value`, keyed by id so a reordered row or a renamed label still
                 reaches its field. A spreadsheet coerces "007" and "=1+1" unless told not to. */}
@@ -1760,5 +1852,238 @@ export default function CueEditor({
       )}
       {sounds(editingView)}
     </div>
+  );
+}
+
+/** "Newer design in library" and its Update (live-publishing O4). A design that drops a field cues
+ *  use names it first: the first press arms, the second takes it. */
+function DesignUpdate({ update, disabled }: { update: { dropped: string | null; run: () => Promise<void> }; disabled: boolean }) {
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="pd-design-update hint" data-testid="newer-design">
+      <span>Newer design in library</span>{' '}
+      <button
+        type="button"
+        className={armed ? 'armed' : undefined}
+        disabled={disabled || busy}
+        onClick={() => {
+          if (update.dropped && !armed) { setArmed(true); return; }
+          setArmed(false);
+          setBusy(true);
+          void update.run().finally(() => setBusy(false));
+        }}
+        data-testid="design-update"
+      >
+        {armed && update.dropped ? `${update.dropped} Update?` : 'Update'}
+      </button>
+    </div>
+  );
+}
+
+/** How deep and how many of a bracket's paths the review offers (OS5b, B21). */
+const BRACKET_OFFER_BOUNDS = { depth: 12, max: 1000 };
+
+/** What each bracket field means, as the review names it. */
+const BRACKET_FIELD_WORDS: Record<BracketFieldKey, string> = {
+  bracket: 'Bracket',
+  bracketTitle: 'Bracket title',
+  stage: 'Stage',
+  round: 'Round',
+  roundName: 'Round name',
+  match: 'Match id',
+  status: 'Status',
+  aName: 'Player A',
+  aRace: 'A race',
+  aSeed: 'A seed',
+  aScore: 'A score',
+  aLeague: 'A league',
+  bName: 'Player B',
+  bRace: 'B race',
+  bSeed: 'B seed',
+  bScore: 'B score',
+  bLeague: 'B league',
+  name: 'Player',
+  race: 'Race',
+  seed: 'Seed',
+  score: 'Score',
+  league: 'League',
+};
+
+/** A select of a sample's keys, with "not mapped" first and a stored key kept in view. */
+function KeySelect({ value, keys, empty, onChange, label, testId }: { value: string | undefined; keys: string[]; empty: string; onChange: (path: string) => void; label: string; testId: string }) {
+  return (
+    <label className="row">
+      <span>{label}</span>
+      <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} data-testid={testId}>
+        <option value="">{empty}</option>
+        {(value && !keys.includes(value) ? [...keys, value] : keys).map((k) => (
+          <option key={k} value={k}>
+            {k}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * Read as a bracket (obs-scenes OS5b, B1, B17 to B20): where the rows are (through `*` for nested
+ * rows), whether a row is a whole match or one side, which field of a row means what, where the
+ * bracket comes from, and a players section to join. All picked from the sample; the source keeps
+ * it as its setting, and no site's field names are in code.
+ */
+function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample: unknown; adapter: BracketAdapter | null; problem: string | null; onChange: (adapter: BracketAdapter | null) => void }) {
+  const rowPaths = useMemo(() => bracketRowPaths(sample), [sample]);
+  const sectionPaths = useMemo(() => bracketSectionPaths(sample), [sample]);
+  const rows = stored && typeof stored.rows === 'string' ? stored.rows : null;
+  const rowKeys = useMemo(() => (rows === null ? [] : bracketRowKeys(sample, rows)), [sample, rows]);
+  const section = stored?.players && typeof stored.players.at === 'string' ? stored.players.at : null;
+  const sectionKeys = useMemo(() => (section === null ? [] : bracketSectionKeys(sample, section)), [sample, section]);
+  if (!stored && rowPaths.length === 0) return null;
+  // A setting this build cannot edit (a later version, or not the shape it writes) is shown with
+  // its problem and kept as it is; a later version cannot even be turned off here (B1).
+  const raw = stored as unknown as { rows?: unknown; fields?: unknown } | null;
+  const editable = raw !== null && typeof raw.rows === 'string' && typeof raw.fields === 'object' && raw.fields !== null && !Array.isArray(raw.fields);
+  const later = stored !== null && readSourceAdapter(stored).status === 'read-only';
+  const adapter = editable ? stored : null;
+
+  const set = (key: BracketFieldKey, path: string) => {
+    if (!adapter) return;
+    const fields = { ...adapter.fields } as Record<string, string>;
+    if (path === '') delete fields[key];
+    else fields[key] = path;
+    onChange({ ...adapter, fields: fields as BracketAdapter['fields'] });
+  };
+  const without = <K extends keyof BracketAdapter>(a: BracketAdapter, key: K): BracketAdapter => {
+    const { [key]: _gone, ...rest } = a;
+    return rest as BracketAdapter;
+  };
+  /** Each `*` of the rows path, by the path up to it: a level the bracket can come from (B19). */
+  const levels = adapter ? adapter.rows.split('.').flatMap((seg, i, all) => (seg === '*' ? [all.slice(0, i + 1).join('.')] : [])) : [];
+  const mode = adapter?.rowsAre === 'sides' ? 'sides' : 'matches';
+  return (
+    <fieldset className="pd-field" data-testid="cue-connect-bracket">
+      <label>
+        <input
+          type="checkbox"
+          checked={stored !== null}
+          disabled={later}
+          onChange={(e) => onChange(e.target.checked ? ({ v: 1, name: 'bracket', rows: rowPaths[0] ?? '', fields: {} } as unknown as BracketAdapter) : null)}
+          data-testid="cue-connect-bracket-on"
+        />{' '}
+        Read as a bracket
+      </label>
+      {adapter && (
+        <>
+          <label className="row">
+            <span>Rows</span>
+            <select
+              value={adapter.rows}
+              // Another place for the rows: its levels and its keys are another's too.
+              onChange={(e) => onChange({ ...without(adapter, 'bracketLevel'), rows: e.target.value })}
+              data-testid="cue-connect-bracket-rows"
+            >
+              {[...new Set([...rowPaths, adapter.rows])].map((p) => (
+                <option key={p} value={p}>
+                  {p === '' ? 'The whole answer' : p}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="row">
+            <span>Each row is</span>
+            <select
+              value={mode}
+              // A row's fields mean other things in the other mode: they start again.
+              onChange={(e) => onChange({ ...without(adapter, 'rowsAre'), ...(e.target.value === 'sides' ? { rowsAre: 'sides' as const } : {}), fields: {} })}
+              data-testid="cue-connect-bracket-rows-are"
+            >
+              <option value="matches">A whole match</option>
+              <option value="sides">One side of a match</option>
+            </select>
+          </label>
+          {levels.length > 0 && (
+            <label className="row">
+              <span>Bracket</span>
+              <select
+                value={adapter.bracketLevel ?? ''}
+                onChange={(e) => {
+                  const level = Number(e.target.value);
+                  if (!e.target.value) return onChange(without(adapter, 'bracketLevel'));
+                  const fields = { ...adapter.fields };
+                  delete fields.bracket;
+                  onChange({ ...adapter, fields, bracketLevel: level });
+                }}
+                data-testid="cue-connect-bracket-level"
+              >
+                <option value="">From a field</option>
+                {levels.map((path, i) => (
+                  <option key={path} value={i + 1}>
+                    Its place in {path}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="row">
+            <span>Round order</span>
+            <select
+              value={adapter.roundOrder ?? ''}
+              onChange={(e) => onChange(e.target.value ? { ...adapter, roundOrder: e.target.value as 'ascending' | 'descending' } : without(adapter, 'roundOrder'))}
+              data-testid="cue-connect-bracket-round-order"
+            >
+              <option value="">As the feed gives them</option>
+              <option value="descending">Highest round number first</option>
+              <option value="ascending">Lowest round number first</option>
+            </select>
+          </label>
+          {FIELDS_FOR[mode]
+            .filter((key) => !(key === 'bracket' && adapter.bracketLevel))
+            .map((key) => (
+              <KeySelect key={key} label={BRACKET_FIELD_WORDS[key]} value={adapter.fields[key]} keys={rowKeys} empty="Not in the rows" onChange={(path) => set(key, path)} testId={`cue-connect-bracket-${key}`} />
+            ))}
+          {(sectionPaths.length > 0 || adapter.players) && (
+            <label className="row">
+              <span>Players list</span>
+              <select
+                value={adapter.players?.at ?? ''}
+                onChange={(e) => (e.target.value ? onChange({ ...adapter, players: { at: e.target.value, fields: {} as { name: string } } }) : onChange(without(adapter, 'players')))}
+                data-testid="cue-connect-bracket-players"
+              >
+                <option value="">None</option>
+                {[...new Set([...sectionPaths, ...(adapter.players ? [adapter.players.at] : [])])].map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {adapter.players &&
+            PLAYER_FIELD_KEYS.map((key: PlayerFieldKey) => (
+              <KeySelect
+                key={key}
+                label={`Players list: ${BRACKET_FIELD_WORDS[key].toLowerCase()}`}
+                value={adapter.players!.fields[key]}
+                keys={sectionKeys}
+                empty="Not in the list"
+                onChange={(path) => {
+                  const fields = { ...adapter.players!.fields } as Record<string, string>;
+                  if (path === '') delete fields[key];
+                  else fields[key] = path;
+                  onChange({ ...adapter, players: { at: adapter.players!.at, fields: fields as { name: string } } });
+                }}
+                testId={`cue-connect-bracket-players-${key}`}
+              />
+            ))}
+        </>
+      )}
+      {stored && problem && (
+        <p className="status-warn" data-testid="cue-connect-bracket-problem">
+          {problem}
+        </p>
+      )}
+    </fieldset>
   );
 }

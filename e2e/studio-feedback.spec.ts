@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // covers: src/components/{AccountSaveNotice,SyncStatus,PlayoutSettingsDialog}.tsx
 // covers: src/components/playoutKeys.ts, src/components/home/{ProductionPage,CueRundown,RundownColors,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx
 // covers: src/components/home/CueEditor.tsx
@@ -19,8 +20,8 @@ async function production(page: Page, caspar = false) {
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
   const id = await page.evaluate(async caspar => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const m = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
     const show = m.createShowNamedChecked('Output rehearsal').show;
     const result = m.addGraphicToShow(show.id, variantsFor('lower-third')[0].create({}));
     if (result.error) throw new Error(result.error);
@@ -93,7 +94,7 @@ test('color picker previews every event and persists one settled edit', async ({
   const input = page.locator('[aria-label="Cue highlight color"]');
   await expect(input).toBeVisible();
   const counts = await input.evaluate(async el => {
-    const { durable } = await import('/src/model/durableStore.ts');
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
     const original = durable.setItem;
     let writes = 0;
     durable.setItem = function(key, value) { if (key === 'spx-gfx-shows') writes++; original.call(this, key, value); };
@@ -115,7 +116,7 @@ test('color picker previews every event and persists one settled edit', async ({
   expect(counts.writes).toBe(1);
   expect(counts.preview).toContain('#556677');
   await settleDurableWrites(page);
-  expect(await page.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!.cues![0].accentColor, id)).toBe('#556677');
+  expect(await page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!.cues![0].accentColor, id)).toBe('#556677');
   await page.reload();
   await expect(input).toHaveValue('#556677');
 });
@@ -123,7 +124,7 @@ test('color picker previews every event and persists one settled edit', async ({
 test('CasparCG setup can return to browser output without changing sources or links', async ({ page }) => {
   const id = await production(page, true);
   const before = await page.evaluate(async id => {
-    const m = await import('/src/model/shows.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
     m.setShowOutputSlug(id, 'rehearsal-output');
     return m.loadShows().find(s => s.id === id)!;
   }, id);
@@ -150,7 +151,7 @@ test('CasparCG setup can return to browser output without changing sources or li
   await expect(page.getByTestId('add-from-server')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await settleDurableWrites(page);
-  const after = await page.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, id);
+  const after = await page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, id);
   expect(after.cues).toEqual(before.cues);
   expect(after.graphics).toEqual(before.graphics);
   expect(after.outputSlug).toBe(before.outputSlug);

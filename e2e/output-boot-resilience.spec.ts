@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // THE /output RENDERER'S BOOT UNDER TWO FAULTS THAT USED TO REACH AIR (docs/PLAYOUT_ISOLATION_RESEARCH.md
 // §5.6, §16 item 3): the supabase-js chunk failing once while the page boots, and a production
 // that is not (or no longer) published. The page is the real /output shell with its real boot

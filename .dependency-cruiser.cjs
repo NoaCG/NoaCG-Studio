@@ -127,6 +127,13 @@ module.exports = {
       to: { path: '^src/feedback/' },
     },
     {
+      comment:
+        'Each page entry installs the door browser specs use to reach its modules ' +
+        '(src/app/e2eModules.ts, which imports nothing).',
+      from: { path: '^src/(output|join|ograf|bridge)/main\\.ts$' },
+      to: { path: '^src/app/e2eModules\\.ts$' },
+    },
+    {
       comment: 'The entry files at the src root (App.tsx, main.tsx) wire the app, and reach styles/',
       from: { path: '^src/[^/]+$' },
       to: { path: '^src/' },
@@ -369,6 +376,10 @@ module.exports = {
   options: {
     doNotFollow: { path: 'node_modules' },
     includeOnly: '^src/',
+    // The e2e build's module registry (scripts/e2e-module-registry.mjs) imports whatever the
+    // browser specs reach, bench-only pilots included, and only the e2e build ever loads it. It is
+    // test wiring outside the app's layering, the way e2e/ is.
+    exclude: { path: '^src/e2eRegistry\\.ts$' },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: 'tsconfig.json' },
   },

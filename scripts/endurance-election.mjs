@@ -11,6 +11,7 @@
 // minutes asked. After it: the verdict (scripts/endurance-judge.mjs) printed check by check and kept
 // in endurance-output/summary.json beside the whole record; any failed check fails the run.
 
+import { isLocalStackUrl, localStackEnv } from './configured-target.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -31,12 +32,13 @@ const status = run('supabase', ['status', '-o', 'json'], { cwd: ROOT });
 if (status.status !== 0) throw new Error(`no local Supabase stack (supabase status: ${status.stderr.trim()}); start it first, as endurance.yml does with local-supabase`);
 const stack = JSON.parse(status.stdout.slice(status.stdout.indexOf('{')));
 for (const name of ['API_URL', 'ANON_KEY', 'SERVICE_ROLE_KEY']) if (!stack[name]) throw new Error(`supabase status gave no ${name}`);
-if (!/^http:\/\/(127\.0\.0\.1|localhost):/.test(stack.API_URL)) throw new Error(`refusing a stack that is not on this machine: ${stack.API_URL}`);
+if (!isLocalStackUrl(stack.API_URL)) throw new Error(`refusing a stack that is not on this machine: ${stack.API_URL}`);
 const env = {
   ...process.env,
-  VITE_SUPABASE_URL: stack.API_URL,
-  VITE_SUPABASE_ANON_KEY: stack.ANON_KEY,
-  SUPABASE_SERVICE_ROLE_KEY: stack.SERVICE_ROLE_KEY,
+  // Every backend variable, not the two the browser reads: on a cloud worker the ambient
+  // environment names production and the api/ handlers the dev server mounts prefer SUPABASE_URL
+  // and SUPABASE_SECRET_KEY, so anything left unpinned stayed pointed there (issue #2495).
+  ...localStackEnv(stack),
   E2E_EMAIL: process.env.E2E_EMAIL ?? 'endurance@noacg.local',
   E2E_PASSWORD: process.env.E2E_PASSWORD ?? 'noacg-endurance-local-pw',
   ENDURANCE_MINUTES: String(minutes),

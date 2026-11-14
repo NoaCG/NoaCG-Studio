@@ -48,8 +48,8 @@ async function untilQuiet(page: Page, passes: ReturnType<typeof countPasses>, qu
 /** Make one library edit in `page` and wait until it is in IndexedDB (so the other tab adopts it). */
 async function addLook(page: Page, name: string): Promise<string> {
   return page.evaluate(async (lookName) => {
-    const { createLook } = await import('/src/model/packets.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { createLook } = await __noacgImport('/src/model/packets.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const look = createLook(lookName, {
       styleTag: 'minimal',
       palette: { id: 'captured', name: 'Captured', styleTags: ['minimal'], accent: '#22aa66', text: '#ffffff', textDim: 'rgba(255,255,255,0.7)', panel: 'rgba(12,14,18,0.92)' },
@@ -63,8 +63,8 @@ async function addLook(page: Page, name: string): Promise<string> {
 
 async function removeLook(page: Page, id: string): Promise<void> {
   await page.evaluate(async (lookId) => {
-    const { deleteLook } = await import('/src/model/packets.ts');
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { deleteLook } = await __noacgImport('/src/model/packets.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     deleteLook(lookId);
     await syncNow();
   }, id);
@@ -126,7 +126,7 @@ test('a tab that closes before its pass hands the pass to ONE of the tabs still 
 
     // The edit really reached the cloud, not only the open tabs' IndexedDB.
     const pushed = await b.evaluate(async (lookId) => {
-      const { SupabaseProvider } = await import('/src/backend/supabaseProvider.ts');
+      const { SupabaseProvider } = await __noacgImport('/src/backend/supabaseProvider.ts');
       const rows = await new SupabaseProvider().list('look');
       return rows.some((r) => r.id === lookId && !r.deleted);
     }, id);
@@ -140,8 +140,8 @@ test('a tab that closes before its pass hands the pass to ONE of the tabs still 
 /** Rename a look the way an edit does: a new name and a new `updatedAt`, written to IndexedDB. */
 async function renameLook(page: Page, id: string, name: string): Promise<void> {
   await page.evaluate(async ({ lookId, lookName }) => {
-    const { loadAllLooks, upsertLook } = await import('/src/model/packets.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { loadAllLooks, upsertLook } = await __noacgImport('/src/model/packets.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const look = loadAllLooks().find((l) => l.id === lookId);
     if (!look) throw new Error(`no look ${lookId} on this device`);
     upsertLook({ ...look, name: lookName, updatedAt: new Date().toISOString() });
@@ -152,14 +152,14 @@ async function renameLook(page: Page, id: string, name: string): Promise<void> {
 /** The live looks on this device whose name carries `mark`. */
 const looksNamed = (page: Page, mark: string): Promise<{ id: string; name: string }[]> =>
   page.evaluate(async (m) => {
-    const { loadLooks } = await import('/src/model/packets.ts');
+    const { loadLooks } = await __noacgImport('/src/model/packets.ts');
     return loadLooks().filter((l) => l.name.includes(m)).map((l) => ({ id: l.id, name: l.name }));
   }, mark);
 
 /** One pass that starts after this call (syncController's `waiting`); true when it read the cloud. */
 const syncOnce = (page: Page): Promise<boolean> =>
   page.evaluate(async () => {
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     return (await syncNow()).completed;
   });
 

@@ -270,7 +270,7 @@ export const MODEL_CALL_RETRY_DELAY_MS = 1500;
  *  grant or an instance-wide kill switch can withdraw, and without a discriminator those
  *  harnesses are indistinguishable from every other call on the same endpoint
  *  (docs/ADMIN.md, the enforcement table). */
-export type AiGatewaySurface = 'video' | 'pro' | 'spike';
+export type AiGatewaySurface = 'video' | 'pro' | 'spike' | 'editor';
 
 export interface AiGatewayRequestBody {
   request: ModelRequest;

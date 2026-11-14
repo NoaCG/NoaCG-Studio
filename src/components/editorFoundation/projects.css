@@ -1,0 +1,22 @@
+
+/* Authoring projects retain drafts; they use the same quiet surfaces as the asset list. */
+.ef-authoring-project { display: flex; flex-direction: column; gap: 8px; border-block: 1px solid var(--border); padding-block: 12px; }
+.ef-authoring-project label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.project-document-list { display: flex; flex-direction: column; gap: 4px; }
+.project-document-row { display: flex; align-items: center; gap: 6px; }
+.project-document-row button { flex: 1; min-width: 0; text-align: left; white-space: normal; }
+.project-document-row button[aria-current] { border-color: var(--accent); }
+.project-document-row small, .home-project-documents small { display: block; opacity: .65; font-size: 10px; }
+.project-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.project-installation { display: flex; gap: 6px; flex-wrap: wrap; padding-block: 8px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.project-starter-body { padding: 20px; overflow-y: auto; min-height: 0; }
+.project-starter-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-block: 16px; }
+.home-projects { margin-bottom: 20px; }
+.home-project { margin-block: 12px; }
+.home-project h3 { font-size: 13px; margin-bottom: 8px; }
+.home-project-documents { display: flex; gap: 8px; flex-wrap: wrap; }
+.home-project-documents button { min-width: 130px; text-align: left; padding: 10px 14px; }
+
+.wz-modal.project-starter { width: min(780px, 94vw); height: auto; max-height: 90vh; }
+
+.ef-project-error { color: var(--warn); max-width: 65%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

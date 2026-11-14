@@ -1,0 +1,1331 @@
+{
+  "recordedAt": "2026-11-13T15:47:15.750891+00:00",
+  "sourcePublicationCommit": "de563b599f175a60500ef288d0d59b3d624126c3",
+  "metadataRepairCommit": "c456f647eb8a30839473fd93467f447a181f2dc1",
+  "executionSource": "j0151 executed the working product diff based on notes head63edf29; de563 published those product inputs; c456 changes only one test guards comment. No execution is relabelled a final-head run.",
+  "sourceFile": {
+    "path": "receiving-source.json",
+    "bytes": 133194,
+    "sha256": "63b390fa57f711210a75c4577032ee77b7f671082914e20300f965aa271e8a11",
+    "canonicalSha256": "be0951b5ec71d24349fd7f8735199d55e5162136c3fe9ea2d6b0afdeee36fab1"
+  },
+  "zipEncoding": "JSZip shipped builders; entry dates fixed to 1980-01-01T00:00:00Z and DEFLATE default compression. No source or asset bytes changed.",
+  "gsap": {
+    "version": "3.15.0",
+    "bytes": 72927,
+    "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+    "noticeRetained": true
+  },
+  "packages": [
+    {
+      "target": "spx",
+      "file": "spx.zip",
+      "bytes": 207326,
+      "sha256": "a50f253f67f00e4b9bc42a188f0794d9e8d30b388c22a79124715819893e104c",
+      "files": [
+        {
+          "path": "e6c_receiving_fit/e6c_receiving_fit.html",
+          "bytes": 10939,
+          "sha256": "be1cf51a846dec5076f22d8157cb5bd692fc9ea54b28835ff0e78146f344db63"
+        },
+        {
+          "path": "e6c_receiving_fit/css/template.css",
+          "bytes": 12296,
+          "sha256": "1c8858b092a406bfa8e4addba3b01500aa65f622545fb100c19845719ed2a8d5"
+        },
+        {
+          "path": "e6c_receiving_fit/js/template.js",
+          "bytes": 109692,
+          "sha256": "de4cbc26ea6494dd57178cfb3dd04fd9fbb3332910bf84de58252a9f585bb1d0"
+        },
+        {
+          "path": "e6c_receiving_fit/README.md",
+          "bytes": 2138,
+          "sha256": "30789b99a45ea0558ef9858f7d9ff71ab428a0d25bca57256838b4c02b983a92"
+        },
+        {
+          "path": "e6c_receiving_fit/FIELDS.md",
+          "bytes": 2013,
+          "sha256": "0a43362d74f8c1599152dbc986002872e40661bb99ab59c6b6b85187484f4ac9"
+        },
+        {
+          "path": "e6c_receiving_fit/controlpanel.shtml",
+          "bytes": 57335,
+          "sha256": "19c4dde0ae8c478dbd868aa6f592744ee9c196828119a880944dfc5b676b0a49"
+        },
+        {
+          "path": "e6c_receiving_fit/js/gsap.min.js",
+          "bytes": 72927,
+          "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+        },
+        {
+          "path": "e6c_receiving_fit/js/flex-gap-shim.js",
+          "bytes": 19946,
+          "sha256": "689773b2bd0cb98e09698d44e5dee96cf2c07ebd160531540b3c82e8b3ca1a49"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/saira.woff2",
+          "bytes": 32888,
+          "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/saira-latin-ext.woff2",
+          "bytes": 25476,
+          "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/oswald.woff2",
+          "bytes": 21472,
+          "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/oswald-latin-ext.woff2",
+          "bytes": 19104,
+          "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/FONT_LICENSES.md",
+          "bytes": 6826,
+          "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de"
+        },
+        {
+          "path": "e6c_receiving_fit/images/harbour.svg",
+          "bytes": 203,
+          "sha256": "a0f5c6de3b469218f92a9d3278fa2821d4b5c2f664b28e6bca838d5860587da9"
+        },
+        {
+          "path": "e6c_receiving_fit/GETTING-ON-AIR.md",
+          "bytes": 4866,
+          "sha256": "91c9d596f5eaef33841635c6f50747a40daa04ebdc6e706af0e4872a6ee6a64b"
+        }
+      ],
+      "gsapExactBytesIn": [
+        "e6c_receiving_fit/js/gsap.min.js"
+      ],
+      "bundledFonts": {
+        "saira.woff2": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+        "saira-latin-ext.woff2": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+        "oswald.woff2": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+        "oswald-latin-ext.woff2": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+      },
+      "fontNoticePaths": [
+        "e6c_receiving_fit/fonts/FONT_LICENSES.md"
+      ],
+      "separateLogoPaths": [
+        "e6c_receiving_fit/images/harbour.svg"
+      ],
+      "agplTextMatches": [],
+      "executed": {
+        "target": "spx",
+        "at": "2026-11-13T15:28:43.967Z",
+        "browser": "149.0.7827.55",
+        "platform": "linux",
+        "bytes": 207326,
+        "sha256": "a50f253f67f00e4b9bc42a188f0794d9e8d30b388c22a79124715819893e104c",
+        "files": [
+          {
+            "path": "e6c_receiving_fit.html",
+            "bytes": 10939,
+            "sha256": "be1cf51a846dec5076f22d8157cb5bd692fc9ea54b28835ff0e78146f344db63"
+          },
+          {
+            "path": "css/template.css",
+            "bytes": 12296,
+            "sha256": "1c8858b092a406bfa8e4addba3b01500aa65f622545fb100c19845719ed2a8d5"
+          },
+          {
+            "path": "js/template.js",
+            "bytes": 109692,
+            "sha256": "de4cbc26ea6494dd57178cfb3dd04fd9fbb3332910bf84de58252a9f585bb1d0"
+          },
+          {
+            "path": "README.md",
+            "bytes": 2138,
+            "sha256": "30789b99a45ea0558ef9858f7d9ff71ab428a0d25bca57256838b4c02b983a92"
+          },
+          {
+            "path": "FIELDS.md",
+            "bytes": 2013,
+            "sha256": "0a43362d74f8c1599152dbc986002872e40661bb99ab59c6b6b85187484f4ac9"
+          },
+          {
+            "path": "controlpanel.shtml",
+            "bytes": 57335,
+            "sha256": "19c4dde0ae8c478dbd868aa6f592744ee9c196828119a880944dfc5b676b0a49"
+          },
+          {
+            "path": "js/gsap.min.js",
+            "bytes": 72927,
+            "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+          },
+          {
+            "path": "js/flex-gap-shim.js",
+            "bytes": 19946,
+            "sha256": "689773b2bd0cb98e09698d44e5dee96cf2c07ebd160531540b3c82e8b3ca1a49"
+          },
+          {
+            "path": "fonts/saira.woff2",
+            "bytes": 32888,
+            "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17"
+          },
+          {
+            "path": "fonts/saira-latin-ext.woff2",
+            "bytes": 25476,
+            "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1"
+          },
+          {
+            "path": "fonts/oswald.woff2",
+            "bytes": 21472,
+            "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed"
+          },
+          {
+            "path": "fonts/oswald-latin-ext.woff2",
+            "bytes": 19104,
+            "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+          },
+          {
+            "path": "fonts/FONT_LICENSES.md",
+            "bytes": 6826,
+            "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de"
+          },
+          {
+            "path": "images/harbour.svg",
+            "bytes": 203,
+            "sha256": "a0f5c6de3b469218f92a9d3278fa2821d4b5c2f664b28e6bca838d5860587da9"
+          },
+          {
+            "path": "GETTING-ON-AIR.md",
+            "bytes": 4866,
+            "sha256": "91c9d596f5eaef33841635c6f50747a40daa04ebdc6e706af0e4872a6ee6a64b"
+          }
+        ],
+        "data": {
+          "f0": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III",
+          "f1": "Cloud receiving step one",
+          "f2": "Cloud receiving step two"
+        },
+        "fit": {
+          "width": 1041.09375,
+          "room": 1043,
+          "font": "Oswald, sans-serif",
+          "size": "27.4455px",
+          "logo": 32
+        },
+        "responses": [],
+        "interrupted": [],
+        "errors": [],
+        "missing": [],
+        "states": [
+          "In held",
+          "Next",
+          "Out hidden",
+          "replay",
+          "Out interrupted by play",
+          "entry interrupted by Out",
+          "replay"
+        ],
+        "scope": "standalone browser package globals; not named-host acceptance"
+      }
+    },
+    {
+      "target": "html-overlay",
+      "file": "html-overlay.zip",
+      "bytes": 220790,
+      "sha256": "751b28347eb42200ffce5631a25a83d086ec5f96b9c2b05097bfd66286e6e84e",
+      "files": [
+        {
+          "path": "e6c_receiving_fit/e6c_receiving_fit.html",
+          "bytes": 382356,
+          "sha256": "c340663009f7df86fb0f15f08090dda61dcf56492d184a59f011712d8fb60d9e"
+        },
+        {
+          "path": "e6c_receiving_fit/controlpanel.html",
+          "bytes": 57615,
+          "sha256": "397bde067b4889f9af63e983cc8a0c41e492b6dcc6b2d81a1f342dacd4078915"
+        },
+        {
+          "path": "e6c_receiving_fit/README.md",
+          "bytes": 2679,
+          "sha256": "69f239fc966bef8472664749d5728f3a3dc0cee6dbb6030bcb73793f4116743e"
+        },
+        {
+          "path": "e6c_receiving_fit/FIELDS.md",
+          "bytes": 2078,
+          "sha256": "0e40a1bb7ff69e4bf7c388cd1db016ca0eabd02c8c54f9203fce8803c1576397"
+        },
+        {
+          "path": "e6c_receiving_fit/GETTING-ON-AIR.md",
+          "bytes": 5239,
+          "sha256": "4e36bfcf0416d91d6c1b2f895804978818207a306a21a2ab88fe8ed01ed90ba9"
+        },
+        {
+          "path": "e6c_receiving_fit/relay.ps1",
+          "bytes": 5959,
+          "sha256": "6993d3ab405e842d47c1b60481e7364f313c10d2bc372880e5e591e7f4288d92"
+        },
+        {
+          "path": "e6c_receiving_fit/relay.py",
+          "bytes": 6469,
+          "sha256": "62ecb4dc85fbf1d6d9c4b6eb98ae2fe2805e082c3a30b64e9ca5029481ab0003"
+        },
+        {
+          "path": "e6c_receiving_fit/Start controller.cmd",
+          "bytes": 324,
+          "sha256": "126c68bb41f6849de04a0f2001940e15cbf76e529999630d13ff23306ec14f54"
+        },
+        {
+          "path": "e6c_receiving_fit/start-controller.command",
+          "bytes": 213,
+          "sha256": "51cbedbac791149b93824bf4eefba9ae79311277c6f5a6e9bc930df1bfa9c997"
+        },
+        {
+          "path": "e6c_receiving_fit/start-controller.sh",
+          "bytes": 213,
+          "sha256": "51cbedbac791149b93824bf4eefba9ae79311277c6f5a6e9bc930df1bfa9c997"
+        },
+        {
+          "path": "e6c_receiving_fit/payload.json",
+          "bytes": 186,
+          "sha256": "51a70fdd350fca53b9bdc80710d73d4bd47ef8bd63095c327a51424676919efb"
+        }
+      ],
+      "gsapExactBytesIn": [
+        "e6c_receiving_fit/e6c_receiving_fit.html"
+      ],
+      "bundledFonts": {
+        "saira.woff2": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+        "saira-latin-ext.woff2": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+        "oswald.woff2": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+        "oswald-latin-ext.woff2": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+      },
+      "fontNoticePaths": [
+        "e6c_receiving_fit/e6c_receiving_fit.html"
+      ],
+      "separateLogoPaths": [],
+      "agplTextMatches": [],
+      "executed": {
+        "target": "html-overlay",
+        "at": "2026-11-13T15:28:52.676Z",
+        "browser": "149.0.7827.55",
+        "platform": "linux",
+        "bytes": 220790,
+        "sha256": "751b28347eb42200ffce5631a25a83d086ec5f96b9c2b05097bfd66286e6e84e",
+        "files": [
+          {
+            "path": "e6c_receiving_fit.html",
+            "bytes": 382356,
+            "sha256": "c340663009f7df86fb0f15f08090dda61dcf56492d184a59f011712d8fb60d9e"
+          },
+          {
+            "path": "controlpanel.html",
+            "bytes": 57615,
+            "sha256": "397bde067b4889f9af63e983cc8a0c41e492b6dcc6b2d81a1f342dacd4078915"
+          },
+          {
+            "path": "README.md",
+            "bytes": 2679,
+            "sha256": "69f239fc966bef8472664749d5728f3a3dc0cee6dbb6030bcb73793f4116743e"
+          },
+          {
+            "path": "FIELDS.md",
+            "bytes": 2078,
+            "sha256": "0e40a1bb7ff69e4bf7c388cd1db016ca0eabd02c8c54f9203fce8803c1576397"
+          },
+          {
+            "path": "GETTING-ON-AIR.md",
+            "bytes": 5239,
+            "sha256": "4e36bfcf0416d91d6c1b2f895804978818207a306a21a2ab88fe8ed01ed90ba9"
+          },
+          {
+            "path": "relay.ps1",
+            "bytes": 5959,
+            "sha256": "6993d3ab405e842d47c1b60481e7364f313c10d2bc372880e5e591e7f4288d92"
+          },
+          {
+            "path": "relay.py",
+            "bytes": 6469,
+            "sha256": "62ecb4dc85fbf1d6d9c4b6eb98ae2fe2805e082c3a30b64e9ca5029481ab0003"
+          },
+          {
+            "path": "Start controller.cmd",
+            "bytes": 324,
+            "sha256": "126c68bb41f6849de04a0f2001940e15cbf76e529999630d13ff23306ec14f54"
+          },
+          {
+            "path": "start-controller.command",
+            "bytes": 213,
+            "sha256": "51cbedbac791149b93824bf4eefba9ae79311277c6f5a6e9bc930df1bfa9c997"
+          },
+          {
+            "path": "start-controller.sh",
+            "bytes": 213,
+            "sha256": "51cbedbac791149b93824bf4eefba9ae79311277c6f5a6e9bc930df1bfa9c997"
+          },
+          {
+            "path": "payload.json",
+            "bytes": 186,
+            "sha256": "51a70fdd350fca53b9bdc80710d73d4bd47ef8bd63095c327a51424676919efb"
+          }
+        ],
+        "data": {
+          "f0": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III",
+          "f1": "Cloud receiving step one",
+          "f2": "Cloud receiving step two"
+        },
+        "fit": {
+          "width": 1041.09375,
+          "room": 1043,
+          "font": "Oswald, sans-serif",
+          "size": "27.4455px",
+          "logo": 32
+        },
+        "responses": [],
+        "interrupted": [],
+        "errors": [],
+        "missing": [],
+        "states": [
+          "In held",
+          "Next",
+          "Out hidden",
+          "replay",
+          "Out interrupted by play",
+          "entry interrupted by Out",
+          "replay"
+        ],
+        "scope": "standalone browser package globals; not named-host acceptance"
+      },
+      "imageUpdateEvidence": {
+        "scope": "derived from retained executed probe, not a new observation",
+        "probe": "output-probe.spec.ts.txt",
+        "probeSha256": "7a2f01f5ed32d7cc7b2e9ef6ef6ebd4f82e25b7fc24104a8628e2d0242bfa795",
+        "partialPayloadField": "f5",
+        "dataUriSha256": "ecc0a1e2f8f3106618eb0d45e4d9e9167cf7ebdaa205b3021035184a3d24dd4b",
+        "assertions": "embedded SVG data URL, update(JSON), naturalWidth 32 and unchanged f0; j0151 PASS"
+      }
+    },
+    {
+      "target": "h2r",
+      "file": "h2r.zip",
+      "bytes": 183427,
+      "sha256": "fd84dfe3bc794a0a0403a628628c70981aea9ba93ab01948aeccb92ee17df5cb",
+      "files": [
+        {
+          "path": "e6c_receiving_fit/e6c_receiving_fit.html",
+          "bytes": 359706,
+          "sha256": "e6c4173d6aedd0a0e147f4b74a52729feca3a7d5c9d25830d799a12f49d653cb"
+        },
+        {
+          "path": "e6c_receiving_fit/README.md",
+          "bytes": 1042,
+          "sha256": "b86abfaf8913b8f6b87901f976485dc4e5e340e03a10b60c5a6a109641365a4c"
+        },
+        {
+          "path": "e6c_receiving_fit/FIELDS.md",
+          "bytes": 2050,
+          "sha256": "bb7e7052c3f6431c40be7f308deab98a3c3e70d9d7e6324960ea5db99785d69c"
+        }
+      ],
+      "gsapExactBytesIn": [
+        "e6c_receiving_fit/e6c_receiving_fit.html"
+      ],
+      "bundledFonts": {
+        "saira.woff2": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+        "saira-latin-ext.woff2": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+        "oswald.woff2": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+        "oswald-latin-ext.woff2": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+      },
+      "fontNoticePaths": [
+        "e6c_receiving_fit/e6c_receiving_fit.html"
+      ],
+      "separateLogoPaths": [],
+      "agplTextMatches": [],
+      "executed": {
+        "target": "h2r",
+        "at": "2026-11-13T15:28:55.789Z",
+        "browser": "149.0.7827.55",
+        "platform": "linux",
+        "bytes": 183427,
+        "sha256": "fd84dfe3bc794a0a0403a628628c70981aea9ba93ab01948aeccb92ee17df5cb",
+        "files": [
+          {
+            "path": "e6c_receiving_fit.html",
+            "bytes": 359706,
+            "sha256": "e6c4173d6aedd0a0e147f4b74a52729feca3a7d5c9d25830d799a12f49d653cb"
+          },
+          {
+            "path": "README.md",
+            "bytes": 1042,
+            "sha256": "b86abfaf8913b8f6b87901f976485dc4e5e340e03a10b60c5a6a109641365a4c"
+          },
+          {
+            "path": "FIELDS.md",
+            "bytes": 2050,
+            "sha256": "bb7e7052c3f6431c40be7f308deab98a3c3e70d9d7e6324960ea5db99785d69c"
+          }
+        ],
+        "data": {
+          "f0": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III",
+          "f1": "Cloud receiving step one",
+          "f2": "Cloud receiving step two"
+        },
+        "fit": {
+          "width": 1041.09375,
+          "room": 1043,
+          "font": "Oswald, sans-serif",
+          "size": "27.4455px",
+          "logo": 32
+        },
+        "responses": [],
+        "interrupted": [],
+        "errors": [],
+        "missing": [],
+        "states": [
+          "In held",
+          "Next",
+          "Out hidden",
+          "replay",
+          "Out interrupted by play",
+          "entry interrupted by Out",
+          "replay"
+        ],
+        "scope": "standalone browser package globals; not named-host acceptance"
+      },
+      "imageUpdateEvidence": {
+        "scope": "derived from retained executed probe, not a new observation",
+        "probe": "output-probe.spec.ts.txt",
+        "probeSha256": "7a2f01f5ed32d7cc7b2e9ef6ef6ebd4f82e25b7fc24104a8628e2d0242bfa795",
+        "partialPayloadField": "f5",
+        "dataUriSha256": "ecc0a1e2f8f3106618eb0d45e4d9e9167cf7ebdaa205b3021035184a3d24dd4b",
+        "assertions": "embedded SVG data URL, update(JSON), naturalWidth 32 and unchanged f0; j0151 PASS"
+      }
+    },
+    {
+      "target": "casparcg",
+      "file": "casparcg.zip",
+      "bytes": 208296,
+      "sha256": "59bfc99887bdbec3d2367eeab8766a7b29bd67342a3c902d05028bac16edaa09",
+      "files": [
+        {
+          "path": "e6c_receiving_fit/e6c_receiving_fit.html",
+          "bytes": 365004,
+          "sha256": "fda751a2da0bfb90a404d1240526714bfec1ddadec5830f84ba7e89570e701fe"
+        },
+        {
+          "path": "e6c_receiving_fit/README.md",
+          "bytes": 986,
+          "sha256": "4877de25f2e0c2a9c654a5b585b1402a2852473f9d62f69bdb43f3b82328ec5e"
+        },
+        {
+          "path": "e6c_receiving_fit/FIELDS.md",
+          "bytes": 3392,
+          "sha256": "08ccb8a6edf021043f6ea580a6be908a8c15c0f51a8301773e0ebad052e103bc"
+        },
+        {
+          "path": "e6c_receiving_fit/controlpanel.html",
+          "bytes": 57615,
+          "sha256": "397bde067b4889f9af63e983cc8a0c41e492b6dcc6b2d81a1f342dacd4078915"
+        },
+        {
+          "path": "e6c_receiving_fit/GETTING-ON-AIR.md",
+          "bytes": 4862,
+          "sha256": "455a555a54ce48043be53470b8b7c1673433e111848242425a2e9ea2e439449f"
+        }
+      ],
+      "gsapExactBytesIn": [
+        "e6c_receiving_fit/e6c_receiving_fit.html"
+      ],
+      "bundledFonts": {
+        "saira.woff2": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+        "saira-latin-ext.woff2": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+        "oswald.woff2": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+        "oswald-latin-ext.woff2": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+      },
+      "fontNoticePaths": [
+        "e6c_receiving_fit/e6c_receiving_fit.html"
+      ],
+      "separateLogoPaths": [],
+      "agplTextMatches": [],
+      "executed": {
+        "target": "casparcg",
+        "at": "2026-11-13T15:29:03.544Z",
+        "browser": "149.0.7827.55",
+        "platform": "linux",
+        "bytes": 208296,
+        "sha256": "59bfc99887bdbec3d2367eeab8766a7b29bd67342a3c902d05028bac16edaa09",
+        "files": [
+          {
+            "path": "e6c_receiving_fit.html",
+            "bytes": 365004,
+            "sha256": "fda751a2da0bfb90a404d1240526714bfec1ddadec5830f84ba7e89570e701fe"
+          },
+          {
+            "path": "README.md",
+            "bytes": 986,
+            "sha256": "4877de25f2e0c2a9c654a5b585b1402a2852473f9d62f69bdb43f3b82328ec5e"
+          },
+          {
+            "path": "FIELDS.md",
+            "bytes": 3392,
+            "sha256": "08ccb8a6edf021043f6ea580a6be908a8c15c0f51a8301773e0ebad052e103bc"
+          },
+          {
+            "path": "controlpanel.html",
+            "bytes": 57615,
+            "sha256": "397bde067b4889f9af63e983cc8a0c41e492b6dcc6b2d81a1f342dacd4078915"
+          },
+          {
+            "path": "GETTING-ON-AIR.md",
+            "bytes": 4862,
+            "sha256": "455a555a54ce48043be53470b8b7c1673433e111848242425a2e9ea2e439449f"
+          }
+        ],
+        "data": {
+          "f0": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III",
+          "f1": "Cloud receiving step one",
+          "f2": "Cloud receiving step two"
+        },
+        "fit": {
+          "width": 1041.09375,
+          "room": 1043,
+          "font": "Oswald, sans-serif",
+          "size": "27.4455px",
+          "logo": 32
+        },
+        "responses": [],
+        "interrupted": [],
+        "errors": [],
+        "missing": [],
+        "states": [
+          "In held",
+          "Next",
+          "Out hidden",
+          "replay",
+          "Out interrupted by play",
+          "entry interrupted by Out",
+          "replay"
+        ],
+        "scope": "standalone browser package globals; not named-host acceptance"
+      },
+      "imageUpdateEvidence": {
+        "scope": "derived from retained executed probe, not a new observation",
+        "probe": "output-probe.spec.ts.txt",
+        "probeSha256": "7a2f01f5ed32d7cc7b2e9ef6ef6ebd4f82e25b7fc24104a8628e2d0242bfa795",
+        "partialPayloadField": "f5",
+        "dataUriSha256": "ecc0a1e2f8f3106618eb0d45e4d9e9167cf7ebdaa205b3021035184a3d24dd4b",
+        "assertions": "embedded SVG data URL, update(JSON), naturalWidth 32 and unchanged f0; j0151 PASS"
+      }
+    },
+    {
+      "target": "ograf",
+      "file": "ograf.zip",
+      "bytes": 237123,
+      "sha256": "906b2e6e86d07f173fe595e358e5a791e4e1ca185e62adc0d8187f396eae6c9b",
+      "files": [
+        {
+          "path": "e6c_receiving_fit/e6c_receiving_fit.ograf.json",
+          "bytes": 2798,
+          "sha256": "0b805893ec732096c4b0ca11ad46bfa90d1b8a0f318900201c40601a9527d10b"
+        },
+        {
+          "path": "e6c_receiving_fit/graphic.mjs",
+          "bytes": 320330,
+          "sha256": "813b320fba6b45e8a3df1f807c407a28ffcc2e6ea0ff12953dc7c8afebafa8ca"
+        },
+        {
+          "path": "e6c_receiving_fit/FIELDS.md",
+          "bytes": 2000,
+          "sha256": "9f93f82f542e8eaaa4e67823a127797d8c7f2caa446e0bc7bf61a2de6626caa6"
+        },
+        {
+          "path": "e6c_receiving_fit/lib/gsap.min.js",
+          "bytes": 72927,
+          "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+        },
+        {
+          "path": "e6c_receiving_fit/lib/flex-gap-shim.js",
+          "bytes": 19946,
+          "sha256": "689773b2bd0cb98e09698d44e5dee96cf2c07ebd160531540b3c82e8b3ca1a49"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/saira.woff2",
+          "bytes": 32888,
+          "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/saira-latin-ext.woff2",
+          "bytes": 25476,
+          "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/oswald.woff2",
+          "bytes": 21472,
+          "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/oswald-latin-ext.woff2",
+          "bytes": 19104,
+          "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/FONT_LICENSES.md",
+          "bytes": 6826,
+          "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de"
+        },
+        {
+          "path": "e6c_receiving_fit/images/harbour.svg",
+          "bytes": 203,
+          "sha256": "a0f5c6de3b469218f92a9d3278fa2821d4b5c2f664b28e6bca838d5860587da9"
+        },
+        {
+          "path": "e6c_receiving_fit/README.md",
+          "bytes": 872,
+          "sha256": "8e2e63fbc13d66d170b2f8fbae421e4de894eaf562ebf60f0b293341eeb1a057"
+        }
+      ],
+      "gsapExactBytesIn": [
+        "e6c_receiving_fit/lib/gsap.min.js"
+      ],
+      "bundledFonts": {
+        "saira.woff2": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+        "saira-latin-ext.woff2": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+        "oswald.woff2": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+        "oswald-latin-ext.woff2": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+      },
+      "fontNoticePaths": [
+        "e6c_receiving_fit/fonts/FONT_LICENSES.md"
+      ],
+      "separateLogoPaths": [
+        "e6c_receiving_fit/images/harbour.svg"
+      ],
+      "agplTextMatches": [],
+      "executed": {
+        "target": "ograf",
+        "at": "2026-11-13T15:29:06.362Z",
+        "browser": "149.0.7827.55",
+        "platform": "linux",
+        "bytes": 237123,
+        "sha256": "906b2e6e86d07f173fe595e358e5a791e4e1ca185e62adc0d8187f396eae6c9b",
+        "files": [
+          {
+            "path": "e6c_receiving_fit.ograf.json",
+            "bytes": 2798,
+            "sha256": "0b805893ec732096c4b0ca11ad46bfa90d1b8a0f318900201c40601a9527d10b"
+          },
+          {
+            "path": "graphic.mjs",
+            "bytes": 320330,
+            "sha256": "813b320fba6b45e8a3df1f807c407a28ffcc2e6ea0ff12953dc7c8afebafa8ca"
+          },
+          {
+            "path": "FIELDS.md",
+            "bytes": 2000,
+            "sha256": "9f93f82f542e8eaaa4e67823a127797d8c7f2caa446e0bc7bf61a2de6626caa6"
+          },
+          {
+            "path": "lib/gsap.min.js",
+            "bytes": 72927,
+            "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+          },
+          {
+            "path": "lib/flex-gap-shim.js",
+            "bytes": 19946,
+            "sha256": "689773b2bd0cb98e09698d44e5dee96cf2c07ebd160531540b3c82e8b3ca1a49"
+          },
+          {
+            "path": "fonts/saira.woff2",
+            "bytes": 32888,
+            "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17"
+          },
+          {
+            "path": "fonts/saira-latin-ext.woff2",
+            "bytes": 25476,
+            "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1"
+          },
+          {
+            "path": "fonts/oswald.woff2",
+            "bytes": 21472,
+            "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed"
+          },
+          {
+            "path": "fonts/oswald-latin-ext.woff2",
+            "bytes": 19104,
+            "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+          },
+          {
+            "path": "fonts/FONT_LICENSES.md",
+            "bytes": 6826,
+            "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de"
+          },
+          {
+            "path": "images/harbour.svg",
+            "bytes": 203,
+            "sha256": "a0f5c6de3b469218f92a9d3278fa2821d4b5c2f664b28e6bca838d5860587da9"
+          },
+          {
+            "path": "README.md",
+            "bytes": 872,
+            "sha256": "8e2e63fbc13d66d170b2f8fbae421e4de894eaf562ebf60f0b293341eeb1a057"
+          }
+        ],
+        "data": {
+          "f0": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III",
+          "f1": "Cloud receiving step one",
+          "f2": "Cloud receiving step two"
+        },
+        "fit": {
+          "width": 1041.09375,
+          "room": 1043,
+          "font": "Oswald, sans-serif",
+          "size": "27.4455px",
+          "logo": 32
+        },
+        "responses": [
+          {
+            "statusCode": 200
+          },
+          {
+            "verb": "update",
+            "payload": {
+              "statusCode": 200
+            }
+          },
+          {
+            "verb": "play",
+            "payload": {
+              "statusCode": 200,
+              "currentStep": 0
+            }
+          },
+          {
+            "verb": "play",
+            "payload": {
+              "statusCode": 200,
+              "currentStep": 1
+            }
+          },
+          {
+            "verb": "stop",
+            "payload": {
+              "statusCode": 200
+            }
+          },
+          {
+            "verb": "play",
+            "payload": {
+              "statusCode": 200,
+              "currentStep": 0
+            }
+          },
+          {
+            "verb": "stop",
+            "payload": {
+              "statusCode": 200
+            }
+          },
+          {
+            "verb": "play",
+            "payload": {
+              "statusCode": 200,
+              "currentStep": 0
+            }
+          }
+        ],
+        "interrupted": [
+          {
+            "statusCode": 200
+          },
+          {
+            "statusCode": 200,
+            "currentStep": 0
+          }
+        ],
+        "errors": [],
+        "missing": [],
+        "states": [
+          "In held",
+          "Next",
+          "Out hidden",
+          "replay",
+          "Out interrupted by play",
+          "entry interrupted by Out",
+          "replay"
+        ],
+        "scope": "NoaCG contained OGraf host; not official/named-host acceptance"
+      }
+    },
+    {
+      "target": "liveos",
+      "file": "liveos.zip",
+      "bytes": 237537,
+      "sha256": "880e3253d35c286c573022f2641a010b1aca3d0aeba1d93cdde7c76ee15af8eb",
+      "files": [
+        {
+          "path": "e6c_receiving_fit/e6c_receiving_fit.ograf.json",
+          "bytes": 2798,
+          "sha256": "0b805893ec732096c4b0ca11ad46bfa90d1b8a0f318900201c40601a9527d10b"
+        },
+        {
+          "path": "e6c_receiving_fit/graphic.mjs",
+          "bytes": 320330,
+          "sha256": "813b320fba6b45e8a3df1f807c407a28ffcc2e6ea0ff12953dc7c8afebafa8ca"
+        },
+        {
+          "path": "e6c_receiving_fit/FIELDS.md",
+          "bytes": 2000,
+          "sha256": "9f93f82f542e8eaaa4e67823a127797d8c7f2caa446e0bc7bf61a2de6626caa6"
+        },
+        {
+          "path": "e6c_receiving_fit/lib/gsap.min.js",
+          "bytes": 72927,
+          "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+        },
+        {
+          "path": "e6c_receiving_fit/lib/flex-gap-shim.js",
+          "bytes": 19946,
+          "sha256": "689773b2bd0cb98e09698d44e5dee96cf2c07ebd160531540b3c82e8b3ca1a49"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/saira.woff2",
+          "bytes": 32888,
+          "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/saira-latin-ext.woff2",
+          "bytes": 25476,
+          "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/oswald.woff2",
+          "bytes": 21472,
+          "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/oswald-latin-ext.woff2",
+          "bytes": 19104,
+          "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/FONT_LICENSES.md",
+          "bytes": 6826,
+          "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de"
+        },
+        {
+          "path": "e6c_receiving_fit/images/harbour.svg",
+          "bytes": 203,
+          "sha256": "a0f5c6de3b469218f92a9d3278fa2821d4b5c2f664b28e6bca838d5860587da9"
+        },
+        {
+          "path": "e6c_receiving_fit/README.md",
+          "bytes": 1762,
+          "sha256": "643f74aa2cfdf0c01215d1929ba0806ee960a3d04019bc5c11490c67b8697838"
+        }
+      ],
+      "gsapExactBytesIn": [
+        "e6c_receiving_fit/lib/gsap.min.js"
+      ],
+      "bundledFonts": {
+        "saira.woff2": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+        "saira-latin-ext.woff2": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+        "oswald.woff2": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+        "oswald-latin-ext.woff2": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+      },
+      "fontNoticePaths": [
+        "e6c_receiving_fit/fonts/FONT_LICENSES.md"
+      ],
+      "separateLogoPaths": [
+        "e6c_receiving_fit/images/harbour.svg"
+      ],
+      "agplTextMatches": [],
+      "executed": {
+        "target": "liveos",
+        "at": "2026-11-13T15:29:13.118Z",
+        "browser": "149.0.7827.55",
+        "platform": "linux",
+        "bytes": 237537,
+        "sha256": "880e3253d35c286c573022f2641a010b1aca3d0aeba1d93cdde7c76ee15af8eb",
+        "files": [
+          {
+            "path": "e6c_receiving_fit.ograf.json",
+            "bytes": 2798,
+            "sha256": "0b805893ec732096c4b0ca11ad46bfa90d1b8a0f318900201c40601a9527d10b"
+          },
+          {
+            "path": "graphic.mjs",
+            "bytes": 320330,
+            "sha256": "813b320fba6b45e8a3df1f807c407a28ffcc2e6ea0ff12953dc7c8afebafa8ca"
+          },
+          {
+            "path": "FIELDS.md",
+            "bytes": 2000,
+            "sha256": "9f93f82f542e8eaaa4e67823a127797d8c7f2caa446e0bc7bf61a2de6626caa6"
+          },
+          {
+            "path": "lib/gsap.min.js",
+            "bytes": 72927,
+            "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+          },
+          {
+            "path": "lib/flex-gap-shim.js",
+            "bytes": 19946,
+            "sha256": "689773b2bd0cb98e09698d44e5dee96cf2c07ebd160531540b3c82e8b3ca1a49"
+          },
+          {
+            "path": "fonts/saira.woff2",
+            "bytes": 32888,
+            "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17"
+          },
+          {
+            "path": "fonts/saira-latin-ext.woff2",
+            "bytes": 25476,
+            "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1"
+          },
+          {
+            "path": "fonts/oswald.woff2",
+            "bytes": 21472,
+            "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed"
+          },
+          {
+            "path": "fonts/oswald-latin-ext.woff2",
+            "bytes": 19104,
+            "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+          },
+          {
+            "path": "fonts/FONT_LICENSES.md",
+            "bytes": 6826,
+            "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de"
+          },
+          {
+            "path": "images/harbour.svg",
+            "bytes": 203,
+            "sha256": "a0f5c6de3b469218f92a9d3278fa2821d4b5c2f664b28e6bca838d5860587da9"
+          },
+          {
+            "path": "README.md",
+            "bytes": 1762,
+            "sha256": "643f74aa2cfdf0c01215d1929ba0806ee960a3d04019bc5c11490c67b8697838"
+          }
+        ],
+        "data": {
+          "f0": "Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III",
+          "f1": "Cloud receiving step one",
+          "f2": "Cloud receiving step two"
+        },
+        "fit": {
+          "width": 1041.09375,
+          "room": 1043,
+          "font": "Oswald, sans-serif",
+          "size": "27.4455px",
+          "logo": 32
+        },
+        "responses": [
+          {
+            "statusCode": 200
+          },
+          {
+            "verb": "update",
+            "payload": {
+              "statusCode": 200
+            }
+          },
+          {
+            "verb": "play",
+            "payload": {
+              "statusCode": 200,
+              "currentStep": 0
+            }
+          },
+          {
+            "verb": "play",
+            "payload": {
+              "statusCode": 200,
+              "currentStep": 1
+            }
+          },
+          {
+            "verb": "stop",
+            "payload": {
+              "statusCode": 200
+            }
+          },
+          {
+            "verb": "play",
+            "payload": {
+              "statusCode": 200,
+              "currentStep": 0
+            }
+          },
+          {
+            "verb": "stop",
+            "payload": {
+              "statusCode": 200
+            }
+          },
+          {
+            "verb": "play",
+            "payload": {
+              "statusCode": 200,
+              "currentStep": 0
+            }
+          }
+        ],
+        "interrupted": [
+          {
+            "statusCode": 200
+          },
+          {
+            "statusCode": 200,
+            "currentStep": 0
+          }
+        ],
+        "errors": [],
+        "missing": [],
+        "states": [
+          "In held",
+          "Next",
+          "Out hidden",
+          "replay",
+          "Out interrupted by play",
+          "entry interrupted by Out",
+          "replay"
+        ],
+        "scope": "NoaCG contained OGraf host; not official/named-host acceptance"
+      }
+    },
+    {
+      "target": "combined",
+      "file": "combined.zip",
+      "bytes": 304221,
+      "sha256": "296ce5a2f1c556633175a0dc9419aab996c897c168aae779633e8d92c6acfbc7",
+      "files": [
+        {
+          "path": "e6c_receiving_fit/e6c_receiving_fit.html",
+          "bytes": 10939,
+          "sha256": "c31a33d1c8710f5fa0c463c01a876c089c921f7223235051235631f801a7f595"
+        },
+        {
+          "path": "e6c_receiving_fit/css/template.css",
+          "bytes": 12296,
+          "sha256": "1c8858b092a406bfa8e4addba3b01500aa65f622545fb100c19845719ed2a8d5"
+        },
+        {
+          "path": "e6c_receiving_fit/js/template.js",
+          "bytes": 109692,
+          "sha256": "de4cbc26ea6494dd57178cfb3dd04fd9fbb3332910bf84de58252a9f585bb1d0"
+        },
+        {
+          "path": "e6c_receiving_fit/README.md",
+          "bytes": 2938,
+          "sha256": "f47e60f0aa0ac2618aec7cd505fc7df9c8e6eee9b7bf551733ad7a4515566173"
+        },
+        {
+          "path": "e6c_receiving_fit/FIELDS.md",
+          "bytes": 2000,
+          "sha256": "9f93f82f542e8eaaa4e67823a127797d8c7f2caa446e0bc7bf61a2de6626caa6"
+        },
+        {
+          "path": "e6c_receiving_fit/controlpanel.html",
+          "bytes": 57335,
+          "sha256": "19c4dde0ae8c478dbd868aa6f592744ee9c196828119a880944dfc5b676b0a49"
+        },
+        {
+          "path": "e6c_receiving_fit/js/gsap.min.js",
+          "bytes": 72927,
+          "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+        },
+        {
+          "path": "e6c_receiving_fit/js/flex-gap-shim.js",
+          "bytes": 19946,
+          "sha256": "689773b2bd0cb98e09698d44e5dee96cf2c07ebd160531540b3c82e8b3ca1a49"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/saira.woff2",
+          "bytes": 32888,
+          "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/saira-latin-ext.woff2",
+          "bytes": 25476,
+          "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/oswald.woff2",
+          "bytes": 21472,
+          "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/oswald-latin-ext.woff2",
+          "bytes": 19104,
+          "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+        },
+        {
+          "path": "e6c_receiving_fit/fonts/FONT_LICENSES.md",
+          "bytes": 6826,
+          "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de"
+        },
+        {
+          "path": "e6c_receiving_fit/images/harbour.svg",
+          "bytes": 203,
+          "sha256": "a0f5c6de3b469218f92a9d3278fa2821d4b5c2f664b28e6bca838d5860587da9"
+        },
+        {
+          "path": "e6c_receiving_fit/e6c_receiving_fit.ograf.json",
+          "bytes": 3084,
+          "sha256": "3dadf0a836c1b363bad1d79797e523fa34d7688caaf8b812a89f7e0e1eda794e"
+        },
+        {
+          "path": "e6c_receiving_fit/graphic.mjs",
+          "bytes": 320324,
+          "sha256": "27a5cc7d591b7258784b15c10207a0ede2cbf80106cf08a5104c684642a384dd"
+        },
+        {
+          "path": "e6c_receiving_fit/GETTING-ON-AIR.md",
+          "bytes": 4862,
+          "sha256": "455a555a54ce48043be53470b8b7c1673433e111848242425a2e9ea2e439449f"
+        }
+      ],
+      "gsapExactBytesIn": [
+        "e6c_receiving_fit/js/gsap.min.js"
+      ],
+      "bundledFonts": {
+        "saira.woff2": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+        "saira-latin-ext.woff2": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+        "oswald.woff2": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+        "oswald-latin-ext.woff2": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+      },
+      "fontNoticePaths": [
+        "e6c_receiving_fit/fonts/FONT_LICENSES.md"
+      ],
+      "separateLogoPaths": [
+        "e6c_receiving_fit/images/harbour.svg"
+      ],
+      "agplTextMatches": []
+    },
+    {
+      "target": "production-spx",
+      "file": "production-spx.zip",
+      "bytes": 233184,
+      "sha256": "0c5b8c7e42549153cc5dd1c60d57d486869eb962145e96b8f4427f9b05687027",
+      "files": [
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/e6c_receiving_fit.html",
+          "bytes": 10939,
+          "sha256": "1a753b0b6fd41731cbf079c9993b9afda0141b857ee32ff2129b1d71666aabb0"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/css/template.css",
+          "bytes": 12296,
+          "sha256": "1c8858b092a406bfa8e4addba3b01500aa65f622545fb100c19845719ed2a8d5"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/js/template.js",
+          "bytes": 109692,
+          "sha256": "de4cbc26ea6494dd57178cfb3dd04fd9fbb3332910bf84de58252a9f585bb1d0"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/README.md",
+          "bytes": 2138,
+          "sha256": "200adb4c17f9ed2f6f3c1d73edf475b481c760624f79b2c149f95b5b4827b6ed"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/FIELDS.md",
+          "bytes": 2013,
+          "sha256": "0a43362d74f8c1599152dbc986002872e40661bb99ab59c6b6b85187484f4ac9"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/controlpanel.shtml",
+          "bytes": 57335,
+          "sha256": "19c4dde0ae8c478dbd868aa6f592744ee9c196828119a880944dfc5b676b0a49"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/js/gsap.min.js",
+          "bytes": 72927,
+          "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/js/flex-gap-shim.js",
+          "bytes": 19946,
+          "sha256": "689773b2bd0cb98e09698d44e5dee96cf2c07ebd160531540b3c82e8b3ca1a49"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/fonts/saira.woff2",
+          "bytes": 32888,
+          "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/fonts/saira-latin-ext.woff2",
+          "bytes": 25476,
+          "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/fonts/oswald.woff2",
+          "bytes": 21472,
+          "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/fonts/oswald-latin-ext.woff2",
+          "bytes": 19104,
+          "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/fonts/FONT_LICENSES.md",
+          "bytes": 6826,
+          "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de"
+        },
+        {
+          "path": "e6c_receiving_production/e6c_receiving_fit/images/harbour.svg",
+          "bytes": 203,
+          "sha256": "a0f5c6de3b469218f92a9d3278fa2821d4b5c2f664b28e6bca838d5860587da9"
+        },
+        {
+          "path": "e6c_receiving_production/show_controlpanel.shtml",
+          "bytes": 57349,
+          "sha256": "75c6f1e9829647809163ce6248e0807b74a8d1ada860bf576b04a0b65bd546ab"
+        },
+        {
+          "path": "e6c_receiving_production/DATAROOT/e6c_receiving_production/profile.json",
+          "bytes": 1623,
+          "sha256": "73f152902a6b59994c64e9ad6f756c6d3e8d38e6447e1430edaac3a257cf63b4"
+        },
+        {
+          "path": "e6c_receiving_production/DATAROOT/e6c_receiving_production/data/rundown.json",
+          "bytes": 1656,
+          "sha256": "bcb6a5e3045e8ebaf0b5afeed18cc162bbcb696ee8aa3f3ecd791305295ae381"
+        },
+        {
+          "path": "e6c_receiving_production/GETTING-ON-AIR.md",
+          "bytes": 5039,
+          "sha256": "97edd8bf8e91d04d63089ddbd3fcaaa81b95efb4023790b01a42e262fae58b64"
+        },
+        {
+          "path": "e6c_receiving_production/FIELDS.md",
+          "bytes": 3802,
+          "sha256": "f336ff4d500491b016e5e02f2712198a8372706044f4ae8316a18dc3cd3690d9"
+        },
+        {
+          "path": "e6c_receiving_production/README.md",
+          "bytes": 2014,
+          "sha256": "9ba0e2b3998b226a388e3459ff2bd787744297fe3643f0fb35c49764fd1639f0"
+        }
+      ],
+      "gsapExactBytesIn": [
+        "e6c_receiving_production/e6c_receiving_fit/js/gsap.min.js"
+      ],
+      "bundledFonts": {
+        "saira.woff2": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+        "saira-latin-ext.woff2": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+        "oswald.woff2": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+        "oswald-latin-ext.woff2": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142"
+      },
+      "fontNoticePaths": [
+        "e6c_receiving_production/e6c_receiving_fit/fonts/FONT_LICENSES.md"
+      ],
+      "separateLogoPaths": [
+        "e6c_receiving_production/e6c_receiving_fit/images/harbour.svg"
+      ],
+      "agplTextMatches": []
+    }
+  ],
+  "bridgeProducer": "Actual browser bridgeApi.exportPackage output normalizes byte-equal to combined.zip; CLI/MCP delegate to that path. No new paired MCP/model session is claimed.",
+  "namedReceivers": "NOT RUN: all runtime receipts here are Cloud Chromium / NoaCG contained OGraf host. E6 remains required.",
+  "background": "Standalone browser screenshots use a white canvas; contained OGraf host uses dark color-scheme. Transparent artwork is composited by its host; these images do not establish pixel equality or real-host alpha acceptance."
+}

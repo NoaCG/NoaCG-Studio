@@ -8,7 +8,7 @@ async function setup(page: Page) {
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   await page.evaluate(async () => {
-    (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+    (await __noacgImport('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
   });
   await page.getByRole('button', { name: 'Assistant', exact: true }).click();
   await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Edit', exact: true }).click();
@@ -16,7 +16,7 @@ async function setup(page: Page) {
 async function propose(page: Page, prompt = 'Change the public text default to Reviewed default') {
   await page.getByRole('textbox', { name: 'Describe an edit', exact: true }).fill(prompt);
   const sent = page.waitForRequest('**/api/ai/generate');
-  const accepted = await page.evaluate(async () => (await import('/src/ai/consent.ts')).noticeAcceptedLocally());
+  const accepted = await page.evaluate(async () => (await __noacgImport('/src/ai/consent.ts')).noticeAcceptedLocally());
   await page.getByRole('button', { name: 'Propose edits', exact: true }).click();
   const consent = page.getByTestId('ai-consent-accept');
   // Fresh contexts require first-use consent; subsequent requests already accepted it.
@@ -24,7 +24,7 @@ async function propose(page: Page, prompt = 'Change the public text default to R
   await sent;
 }
 const snapshot = (page: Page) => page.evaluate(async () => {
-  const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
+  const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
   return { source: c.session.port.read(), view: c.session.port.view(), history: c.session.commandState().history };
 });
 
@@ -52,7 +52,7 @@ test('Cancel during response and review preserves manual work; a newer request o
   await page.route('**/api/ai/generate', route => new Promise<void>(resolve => replies.push(async () => { await route.fulfill({ json: response({ summary: 'Late reply', commands: [edit] }) }); resolve(); })));
   await setup(page); await propose(page); await expect.poll(() => replies.length).toBe(1);
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await page.evaluate(async () => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw Error(i.refusal.message); c.apply({ expected: i.expected, transactionId: 'manual', commands: [{ id: 'text.set', args: { targetId: 'f0', text: 'Manual edit' } }] }); await new Promise(resolve => setTimeout(resolve, 0)); });
+  await page.evaluate(async () => { const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw Error(i.refusal.message); c.apply({ expected: i.expected, transactionId: 'manual', commands: [{ id: 'text.set', args: { targetId: 'f0', text: 'Manual edit' } }] }); await new Promise(resolve => setTimeout(resolve, 0)); });
   const manual = await snapshot(page); await replies[0]();
   await expect(page.getByRole('button', { name: 'Apply edits', exact: true })).toHaveCount(0); expect(await snapshot(page)).toEqual(manual);
   await propose(page); await expect.poll(() => replies.length).toBe(2); await replies[1]();
@@ -76,8 +76,8 @@ for (const change of ['source', 'selection', 'sample', 'playhead', 'history', 'g
   await page.route('**/api/ai/generate', route => route.fulfill({ json: response({ summary: 'Default edit', commands: [edit] }) }));
   await setup(page); await propose(page); await expect(page.getByRole('button', { name: 'Apply edits', exact: true })).toBeVisible();
   await page.evaluate(async change => {
-    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), s = c.session;
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore;
+    const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), s = c.session;
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore;
     if (change === 'gesture') s.begin();
     else if (change === 'selection') { s.port.restore({ ...s.port.view(), selectedParts: ['#f1'] }); s.observeView(); }
     else if (change === 'playhead') { s.port.restore({ ...s.port.view(), time: .2 }); s.observeView(); }
@@ -88,14 +88,14 @@ for (const change of ['source', 'selection', 'sample', 'playhead', 'history', 'g
   }, change);
   const human = await snapshot(page); await page.getByRole('button', { name: 'Apply edits', exact: true }).click();
   await expect(page.locator('[data-testid=editor-proposals] [role=alert]')).toBeVisible(); expect(await snapshot(page)).toEqual(human);
-  if (change === 'gesture') expect(await page.evaluate(async () => (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().session.commandState().gestureActive)).toBe(true);
+  if (change === 'gesture') expect(await page.evaluate(async () => (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().session.commandState().gestureActive)).toBe(true);
 });
 
 test('delayed response refuses changed context and disappears on document remount', async ({ page }) => {
   let reply: (() => Promise<void>) | undefined;
   await page.route('**/api/ai/generate', route => new Promise<void>(resolve => { reply = async () => { await route.fulfill({ json: response({ summary: 'Delayed', commands: [edit] }) }); resolve(); }; }));
   await setup(page); await propose(page); await expect.poll(() => !!reply).toBe(true);
-  await page.evaluate(async () => { const s = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().session; s.port.restore({ ...s.port.view(), time: .2 }); s.observeView(); await new Promise(resolve => setTimeout(resolve, 0)); });
+  await page.evaluate(async () => { const s = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().session; s.port.restore({ ...s.port.view(), time: .2 }); s.observeView(); await new Promise(resolve => setTimeout(resolve, 0)); });
   const human = await snapshot(page); await reply!(); await expect(page.locator('[data-testid=editor-proposals] [role=alert]')).toBeVisible(); expect(await snapshot(page)).toEqual(human);
   reply = undefined; await propose(page); await expect.poll(() => !!reply).toBe(true);
   await page.evaluate(() => { location.hash = '#/home'; }); await expect(page.getByTestId('editor-foundation')).toHaveCount(0);
@@ -141,12 +141,20 @@ test('empty explanation has no Apply action and cannot write', async ({ page }) 
   await expect(page.getByRole('region', { name: 'Proposed edits' })).toHaveCount(0); expect(await snapshot(page)).toEqual(before);
 });
 
-test('unconfigured assistant leaves offline authoring available', async ({ page }) => {
+test('unavailable Studio assistant leaves offline authoring and source intact', async ({ page }) => {
   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [], keyStorageAvailable: false } }));
   await page.goto('/app?editor=foundation#/editor-foundation'); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   await page.getByRole('button', { name: 'Assistant', exact: true }).click();
-  await expect(page.getByText('Configure AI in New graphic → AI settings. Manual editing is available.', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeDisabled();
+  const before = await snapshot(page);
+  await page.getByRole('textbox', { name: 'Ask about this graphic', exact: true }).fill('How do I edit this graphic?');
+  await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeEnabled();
+  const refused = page.waitForResponse('**/api/ai/generate');
+  await page.getByRole('button', { name: 'Ask', exact: true }).click();
+  await page.getByTestId('ai-consent-accept').click();
+  expect((await refused).status()).toBe(412);
+  await expect(page.locator('[data-testid=editor-proposals] [role=alert]')).toHaveText('The Studio editor assistant is unavailable. Manual editing is available.');
+  expect(await snapshot(page)).toEqual(before);
+  await expect(page.getByRole('button', { name: 'Apply edits', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close assistant', exact: true }).click();
   await page.getByRole('button', { name: 'ellipse tool', exact: true }).click();
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-tool', 'ellipse');
@@ -180,7 +188,7 @@ async function askHelp(page: Page, question = 'How do I add an Out for the selec
   await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Help', exact: true }).click();
   await page.getByRole('textbox', { name: 'Ask about this graphic', exact: true }).fill(question);
   const sent = page.waitForRequest('**/api/ai/generate');
-  const accepted = await page.evaluate(async () => (await import('/src/ai/consent.ts')).noticeAcceptedLocally());
+  const accepted = await page.evaluate(async () => (await __noacgImport('/src/ai/consent.ts')).noticeAcceptedLocally());
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
   if (!accepted) await page.getByTestId('ai-consent-accept').click();
   await sent;
@@ -192,11 +200,11 @@ test('help is grounded in current controls and selection, read-only and rendered
   await page.route('**/api/ai/generate', route => { request = route.request().postDataJSON(); return route.fulfill({ json: response({ answer }) }); });
   await setup(page);
   await page.evaluate(async () => {
-    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
+    const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
     const i = c.inspect(); if (!i.ok) throw Error(i.refusal.message);
     const selected = c.view({ expected: i.expected, action: 'select', targetIds: ['f0'] });
     if (!selected.ok) throw Error(selected.refusal.message);
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue('f0', 'PRIVATE_REHEARSAL_SENTINEL');
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue('f0', 'PRIVATE_REHEARSAL_SENTINEL');
     await new Promise(resolve => setTimeout(resolve, 0));
   });
   const before = await snapshot(page);
@@ -257,8 +265,8 @@ for (const row of helpOracle) test('help ownership oracle: ' + row.event + ' →
   else if (row.event === 'mode') await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Edit', exact: true }).click();
   else if (row.event === 'close') await page.getByRole('button', { name: 'Close assistant', exact: true }).click();
   else if (row.event !== 'reply') await page.evaluate(async event => {
-    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), s = c.session;
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore;
+    const c = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), s = c.session;
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore;
     if (event === 'selection-away-back') { const v = s.port.view(); s.port.restore({ ...v, selectedParts: ['#f1'] }); s.observeView(); s.port.restore(v); s.observeView(); }
     else if (event === 'playhead') { s.port.restore({ ...s.port.view(), time: .2 }); s.observeView(); }
     else if (event === 'sample') store.getState().setSampleValue('f0', 'New rehearsal value');
@@ -291,4 +299,41 @@ for (const failure of ['rate_limited', 'timeout', 'network'] as const) test('hel
   await page.getByRole('button', { name: 'Close assistant', exact: true }).click();
   await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-tool', 'rectangle');
+});
+
+
+for (const personal of ['absent', 'conflicting'] as const) test('Studio assistant ignores personal AI configuration: ' + personal, async ({ page }) => {
+  const sent: { surface?: string; route?: unknown; fallbacks?: unknown; request: Record<string, unknown> }[] = [];
+  await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [], keyStorageAvailable: false } }));
+  await page.route('**/api/ai/generate', route => {
+    const body = route.request().postDataJSON(); sent.push(body);
+    return route.fulfill({ json: response(body.request.structuredOutput.name === 'editor_help'
+      ? { answer: 'Use Properties for the selected artwork.' } : { summary: 'Reviewed Studio edit', commands: [edit] }) });
+  });
+  await page.goto('/app?editor=foundation#/editor-foundation');
+  if (personal === 'conflicting') await page.evaluate(async () => {
+    (await __noacgImport('/src/ai/settings.ts')).saveAiSettings({ provider: 'huggingface', model: 'personal-model',
+      fallbacks: [{ provider: 'openai', model: 'personal-fallback' }], temperature: 1.7, seed: 12345, configuredProviders: [] });
+  });
+  await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Ask about this graphic', exact: true }).fill('How do I change the selected artwork?');
+  await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeEnabled();
+  const before = await snapshot(page);
+  await page.getByRole('button', { name: 'Ask', exact: true }).click();
+  await page.getByTestId('ai-consent-accept').click();
+  await expect(page.getByRole('region', { name: 'Editor help' })).toContainText('Use Properties');
+  expect(await snapshot(page)).toEqual(before);
+  await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Edit', exact: true }).click();
+  await propose(page);
+  await page.getByRole('button', { name: 'Apply edits', exact: true }).click();
+  await expect(page.getByTestId('proposal-commit-status')).toHaveText('Applied. Preview ready.');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  expect((await snapshot(page)).source).toEqual(before.source);
+  expect(sent).toHaveLength(2);
+  for (const body of sent) {
+    expect(body.surface).toBe('editor');
+    for (const key of ['route', 'fallbacks']) expect(body).not.toHaveProperty(key);
+    for (const key of ['temperature', 'seed', 'model', 'modelRole']) expect(body.request).not.toHaveProperty(key);
+  }
+  await expect(page.getByText('Configure AI in New graphic → AI settings.', { exact: false })).toHaveCount(0);
 });

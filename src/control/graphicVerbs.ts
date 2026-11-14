@@ -141,6 +141,9 @@ export interface GraphicPage {
   /** True for an imported OGraf package: only its output says whether a Take put it on air, so the
    *  note says it was sent, never a ✓ from the send alone. */
   answersOnOutput?: (graphic: string) => boolean;
+  /** The graphics of the production's OBS scenes (model/obsScenes.ts `sceneGraphicNames`): All out
+   *  leaves them as they are (obs-scenes OS1b C9). Empty with the switch off. */
+  sceneGraphics?: () => ReadonlySet<string>;
   /** The graphic layers that are up, and the server cues this page put up. */
   liveLayers: readonly { graphic: string }[];
   livePlayoutLayers: readonly { cue: ShowCue }[];
@@ -1009,6 +1012,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       heads: s.published ? io.headsSay(s.published) : null,
       all: p.graphics.map((g) => g.name),
       published: !!s.published,
+      keep: p.sceneGraphics?.(),
     });
     if (cleared.length === 0) return report();
     p.clearing(true);

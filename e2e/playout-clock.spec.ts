@@ -222,7 +222,7 @@ async function productionWithClips(page: Page): Promise<void> {
   await openProductionWithCurrent(page, 'Evening News');
   // evaluateInPage: the function ends in a store mutation, the window e2e/_evaluate.ts closes.
   await evaluateInPage(page, async () => {
-    const { loadShows, addPlayoutItem } = await import('/src/model/shows.ts');
+    const { loadShows, addPlayoutItem } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === 'Evening News')!;
     addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'OPENER', frames: 375, fps: 25, channel: 2 });
     addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'GIORNO', frames: 1500, fps: 25, channel: 2 });
@@ -614,15 +614,15 @@ async function importedClockProduction(page: Page, mode: 'count-up' | 'duration'
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   await page.evaluate(
     async ({ markup, mode, target }) => {
-      const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-      const D = await import('/src/components/wizard/import/draft.ts');
-      const { svgSourceRevision } = await import('/src/ai/svgInterpretation/contract.ts');
-      const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-      const { formatTemplate } = await import('/src/format/formatCode.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { useDocKindStore } = await import('/src/store/docKindStore.ts');
-      const { saveProject } = await import('/src/model/project.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+      const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+      const { svgSourceRevision } = await __noacgImport('/src/ai/svgInterpretation/contract.ts');
+      const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+      const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const { useDocKindStore } = await __noacgImport('/src/store/docKindStore.ts');
+      const { saveProject } = await __noacgImport('/src/model/project.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const draft = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
       const row = draft.svgFields.find((f) => f.on && f.clock)!;
       const svgClock = { candidateId: row.candidateId, mode, revision: svgSourceRevision(draft.designSvg!.markup), ...(target ? { target } : {}) };
@@ -755,8 +755,8 @@ test('an undated target that passes into a DST fold before Finish is asked there
   await exportDoor.click();
   await expect(page.getByTestId('export-window')).toBeVisible();
   const built = await evaluateInPage(page, async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { clockTargetStart } = await import('/src/templates/behaviours/clock.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { clockTargetStart } = await __noacgImport('/src/templates/behaviours/clock.ts');
     const doc = new DOMParser().parseFromString(useTemplateStore.getState().template.html, 'text/html');
     return { start: doc.querySelector('.imported-design-clock')?.getAttribute('data-start'), later: clockTargetStart('2026-10-25T03:30:00+02:00[Europe/Helsinki]') };
   });
@@ -822,8 +822,8 @@ for (const boundary of ['while Finish is open', 'at a door press']) {
     await page.getByTestId('wz-finish-export').click();
     await expect(page.getByTestId('export-window')).toBeVisible();
     const built = await evaluateInPage(page, async (target) => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { clockTargetStart } = await import('/src/templates/behaviours/clock.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const { clockTargetStart } = await __noacgImport('/src/templates/behaviours/clock.ts');
       const doc = new DOMParser().parseFromString(useTemplateStore.getState().template.html, 'text/html');
       return { start: doc.querySelector('.imported-design-clock')?.getAttribute('data-start'), expected: clockTargetStart(target) };
     }, expectedTarget);

@@ -201,7 +201,7 @@ test('editable inputs: the Content panel edits the composition live', async ({ p
 
   // The value lives on the project (so it rides into the render manifest too).
   const stored = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     return useVideoProjectStore.getState().project.inputs.find((i) => i.key === 'title')?.value;
   });
   expect(stored).toBe('PLAYOFFS');
@@ -243,7 +243,7 @@ test('image inputs: the Content panel picks an uploaded asset that renders in th
   // Upload a valid 1×1 fully opaque black RGBA PNG as the Assets panel does. Its logical name
   // comes from the file stem: images/brandlogo.png -> "brandlogo".
   await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     useVideoProjectStore.getState().addAsset({
       path: 'images/brandlogo.png',
       data:
@@ -273,7 +273,7 @@ test('image inputs: the Content panel picks an uploaded asset that renders in th
   // The stored value is the LOGICAL NAME (not a URL): it rides tiny into the render manifest,
   // resolving against inputProps.assets.
   const stored = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     return useVideoProjectStore.getState().project.inputs.find((i) => i.key === 'logo')?.value;
   });
   expect(stored).toBe('brandlogo');
@@ -290,7 +290,7 @@ test('manual code edits update the preview; broken code keeps the last good vers
   // Replace the module through the store (Monaco's editor surface is not reliably
   // driveable headless - the store IS what the editor writes to).
   await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     useVideoProjectStore.getState().setSource(`
 import { AbsoluteFill } from 'remotion';
 export default function Composition() {
@@ -307,7 +307,7 @@ export default function Composition() {
 
   // Break it: the error banner appears, the last good module keeps rendering.
   await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     useVideoProjectStore.getState().setSource('import { AbsoluteFill } from "remotion";\nexport default function C() { return <AbsoluteFill><');
   });
   await expect(page.getByTestId('video-code-error')).toBeVisible({ timeout: 5_000 });
@@ -319,7 +319,7 @@ test('chat refinement applies an undoable change', async ({ page }) => {
   await waitForGeneration(page);
 
   const before = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     return useVideoProjectStore.getState().project.tsx;
   });
 
@@ -329,7 +329,7 @@ test('chat refinement applies an undoable change', async ({ page }) => {
   await expect(page.getByTestId('video-chat')).toContainText('snappier', { timeout: 10_000 });
 
   const after = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     return useVideoProjectStore.getState().project.tsx;
   });
   expect(after).not.toBe(before);
@@ -337,7 +337,7 @@ test('chat refinement applies an undoable change', async ({ page }) => {
   // Undo reverts BOTH the code and the chat turn (one snapshot).
   await page.keyboard.press('Control+z');
   const reverted = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     const s = useVideoProjectStore.getState();
     return { tsx: s.project.tsx, chatLen: s.project.chat.length };
   });
@@ -424,7 +424,7 @@ test('the Remotion static rules read code, not comments', async ({ page }) => {
   // only that engine bans `repeat: -1`, but the defect was shared; this pins the fix here.
   await page.goto('/app');
   const results = await page.evaluate(async () => {
-    const { staticValidate } = await import('/src/video/compile.ts');
+    const { staticValidate } = await __noacgImport('/src/video/compile.ts');
     const rules = (tsx: string) => staticValidate(tsx, []).map((i) => i.rule);
     return {
       lineComment: rules('export default function C(){\n  // seeded, never Math.random()\n  return null;\n}'),
@@ -449,7 +449,7 @@ test('a declared input the module never reads is rejected as a control that woul
   // moment model behaviour drifts. The corpus spec guards the false-positive side.
   await page.goto('/app');
   const results = await page.evaluate(async () => {
-    const { staticValidate } = await import('/src/video/compile.ts');
+    const { staticValidate } = await __noacgImport('/src/video/compile.ts');
     const mod = (body: string) =>
       `export default function C({ fields = {} }: { fields?: Record<string, string | number> }) {\n  ${body}\n  return null;\n}`;
     const rules = (tsx: string, keys: string[]) =>
@@ -488,14 +488,14 @@ test('video: a modal takes the shortcuts - Ctrl+Z behind My videos leaves the pr
   // failed the nightly as a false navigation (#465).
   const state = () =>
     evaluateInPage(page, async () => {
-      const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+      const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
       const s = useVideoProjectStore.getState();
       return { fps: s.project.fps, depth: s.history.length };
     });
   const original = await state();
   expect(original.fps).not.toBe(50); // the premise: 50 is a real change, so undo has something to rewind
   await evaluateInPage(page, async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     useVideoProjectStore.getState().patchSettings({ fps: 50 });
   });
   const patched = await state();

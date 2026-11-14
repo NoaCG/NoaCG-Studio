@@ -9,6 +9,10 @@ import { settleDurableWrites } from './_durable';
 import { importProofCase, PROOF_TOTALS, PROOF_VOTES } from './_proofCase';
 import { appliedIn, receiverHost } from './_receiverHost';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // PUBLISHED CONTROL (docs/CONTROL_LAYER.md + docs/SAVED_CONTENT_MODEL.md §4): what a production
 // publishes for its operators and outputs, pinned offline. A show's published `panel` spec carries
@@ -57,8 +61,8 @@ test('a saved graphic carries its entries into the show it is added to', async (
   // The show's copy records WHICH library graphic it came from — the link the panel follows
   // (a name match would pass here by luck; this pins the id).
   const link = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { graphicById } = await import('/src/model/library.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { graphicById } = await __noacgImport('/src/model/library.ts');
     const id = loadShows()[0].graphics[0].graphicId ?? null;
     return { id, name: id ? graphicById(id)?.name : null };
   });
@@ -66,8 +70,8 @@ test('a saved graphic carries its entries into the show it is added to', async (
 
   // The published panel spec — what the hosted page renders from — carries both entries.
   const panel = await page.evaluate(async () => {
-    const { buildPanelSpec } = await import('/src/control/hostedControl.ts');
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { buildPanelSpec } = await __noacgImport('/src/control/hostedControl.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return buildPanelSpec(loadShows()[0]);
   });
   expect(panel).toHaveLength(1);
@@ -85,9 +89,9 @@ test('a production dataset publishes the rows its graphics can load', async ({ p
   await bootstrapGraphic(page, 'Hairline');
 
   const spec = await page.evaluate(async () => {
-    const { buildPanelSpec } = await import('/src/control/hostedControl.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { setFieldTitle } = await import('/src/blocks/edit.ts');
+    const { buildPanelSpec } = await __noacgImport('/src/control/hostedControl.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { setFieldTitle } = await __noacgImport('/src/blocks/edit.ts');
     // Name the first two fields so a table can bind to them by title.
     let template = useTemplateStore.getState().template;
     template = setFieldTitle(template, 'f0', 'Name');
@@ -130,9 +134,9 @@ test('entries resolve by library id, fall back to a unique name, and never guess
   await bootstrapGraphic(page, 'Hairline');
 
   const result = await page.evaluate(async () => {
-    const { createGraphic, newEntry } = await import('/src/model/library.ts');
-    const { buildPanelSpec } = await import('/src/control/hostedControl.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createGraphic, newEntry } = await __noacgImport('/src/model/library.ts');
+    const { buildPanelSpec } = await __noacgImport('/src/control/hostedControl.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const template = useTemplateStore.getState().template;
 
     const linked = createGraphic(template, {
@@ -193,7 +197,7 @@ async function receiverBlock(page: import('@playwright/test').Page): Promise<str
   await page.goto('/app');
   await page.keyboard.press('Escape');
   return page.evaluate(async () => {
-    const { hostedReceiverBlock } = await import('/src/control/hostedReceiver.ts');
+    const { hostedReceiverBlock } = await __noacgImport('/src/control/hostedReceiver.ts');
     return hostedReceiverBlock({ ref: 'bootref', key: 'anon-key', slug: 'cap-slug', graphic: 'Board' });
   });
 }
@@ -486,6 +490,11 @@ test('a hosted graphic whose channel never delivers a row still catches up from 
     route.fulfill({ status: 200, contentType: 'text/html', body: html }),
   );
 
+  // The poll's own interval, read from the block this receiver runs, and a page clock so the test
+  // moves time across it instead of waiting the 30 seconds out (the clock flows in real time
+  // until runFor below; the boot fill, the socket and its retries run as they would).
+  const pollMs = Number(html.match(/var POLL_MS = (\d+);/)![1]);
+  await graphic.clock.install();
   await graphic.goto('http://hosted-silent.local/board.html', { waitUntil: 'load' });
   // The boot fill has run and found an empty log - so whatever appears below arrived through
   // the poll, not through that one read.
@@ -498,8 +507,10 @@ test('a hosted graphic whose channel never delivers a row still catches up from 
     { id: 2, graphic: 'Board', msg: { t: 'play' } },
   );
 
+  // Move the page's time across one poll interval; the socket still says nothing.
+  await graphic.clock.runFor(pollMs);
   await expect
-    .poll(() => appliedIn(graphic), { timeout: 90_000 })
+    .poll(() => appliedIn(graphic), { timeout: 15_000 })
     .toEqual(['update:LATE', 'play']);
 
   await graphic.close();
@@ -625,9 +636,7 @@ test('a production carries its control profile canonically, and deleting it leav
   await bootstrapGraphic(page, 'Hairline');
 
   const stored = await page.evaluate(async () => {
-    const { createShowNamed, setShowProfile, deleteShowProfile, loadShows, upsertShow } = await import(
-      '/src/model/shows.ts'
-    );
+    const { createShowNamed, setShowProfile, deleteShowProfile, loadShows, upsertShow } = await __noacgImport('/src/model/shows.ts');
     const show = createShowNamed('Vote show');
     // Authored the way a surface would hand it over: keys in no particular order and a default
     // spelled out, plus the `combine` list a build from before 2026-10-02 still carries. All of
@@ -704,10 +713,10 @@ test('the published panel spec arranges from the PUBLISHED bytes, by the one rul
   await bootstrapGraphic(page, { name: 'Club Scorebug' });
 
   const arranged = await page.evaluate(async () => {
-    const { buildPanelSpec } = await import('/src/control/hostedControl.ts');
-    const { arrangeControls, arrangeFor, eventButtons } = await import('/src/control/controlModel.ts');
-    const { withGraphicArrange, readPublishedProfile } = await import('/src/model/profile.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { buildPanelSpec } = await __noacgImport('/src/control/hostedControl.ts');
+    const { arrangeControls, arrangeFor, eventButtons } = await __noacgImport('/src/control/controlModel.ts');
+    const { withGraphicArrange, readPublishedProfile } = await __noacgImport('/src/model/profile.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const template = useTemplateStore.getState().template;
     const show = {
       id: 'show-arrange-1',
@@ -792,10 +801,10 @@ test('a bound field in the published panel reads the tree, and a press moves the
   await importProofCase(page);
 
   const measured = await page.evaluate(async ({ VOTES, TOTALS }) => {
-    const shows = await import('/src/model/shows.ts');
-    const { buildPanelSpec, buildOutputPayload, hostedCueValues } = await import('/src/control/hostedControl.ts');
-    const { eventButtons, pressSend } = await import('/src/control/controlModel.ts');
-    const { resolveBindings } = await import('/src/model/productionData.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildPanelSpec, buildOutputPayload, hostedCueValues } = await __noacgImport('/src/control/hostedControl.ts');
+    const { eventButtons, pressSend } = await __noacgImport('/src/control/controlModel.ts');
+    const { resolveBindings } = await __noacgImport('/src/model/productionData.ts');
 
     const show = shows.loadShows().find((s) => s.graphics.some((g) => g.name === VOTES))!;
     const panel = buildPanelSpec(show);
@@ -867,8 +876,8 @@ test('the SPACE mode is one device preference: one key per browser, the default 
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const read = await page.evaluate(async () => {
-    const { loadPrefs, savePrefs } = await import('/src/model/prefs.ts');
-    const { asSpaceMode } = await import('/src/control/spaceMode.ts');
+    const { loadPrefs, savePrefs } = await __noacgImport('/src/model/prefs.ts');
+    const { asSpaceMode } = await __noacgImport('/src/control/spaceMode.ts');
     const unset = asSpaceMode(loadPrefs().spaceMode);
     savePrefs({ spaceMode: 'preview-then-take' });
     const set = asSpaceMode(loadPrefs().spaceMode);
@@ -893,7 +902,7 @@ test('canAdvance greys past the last waypoint, and movedStateNames names only a 
   await page.keyboard.press('Escape');
 
   const measured = await page.evaluate(async () => {
-    const { canAdvance, movedStateNames, machineStateNames } = await import('/src/control/controlModel.ts');
+    const { canAdvance, movedStateNames, machineStateNames } = await __noacgImport('/src/control/controlModel.ts');
 
     // A four-waypoint main group standing in for a quiz's walk - Question, Locked in, Reveal,
     // then the authored Out step (Exit). `ensureLifecycleEdges` fills a lifecycle `stop` edge
@@ -987,9 +996,9 @@ test('a published production lists server cues by their address, apart from the 
   });
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const published = await page.evaluate(async () => {
-    const { createShowNamed, addGraphicToShow, addPlayoutItem, loadShows, setCuePlayback } = await import('/src/model/shows.ts');
-    const { buildOutputPayload, readOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createShowNamed, addGraphicToShow, addPlayoutItem, loadShows, setCuePlayback } = await __noacgImport('/src/model/shows.ts');
+    const { buildOutputPayload, readOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const show = createShowNamed('Frozen Server Cues');
     addGraphicToShow(show.id, useTemplateStore.getState().template);
     const clip = addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'GIORNO', channel: 2, mediaKind: 'movie', frames: 1500, fps: 25 });

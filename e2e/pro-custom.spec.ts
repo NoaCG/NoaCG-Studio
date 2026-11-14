@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 
 test('the stop rule is fail-closed: findings at the budget refuse, and only clean delivers', async ({ page }) => {
   const verdicts = await page.evaluate(async () => {
-    const { loopVerdict } = await import('/src/ai/pro/custom/loop.ts');
+    const { loopVerdict } = await __noacgImport('/src/ai/pro/custom/loop.ts');
     return {
       cleanFirst: loopVerdict([], 1, 4),
       dirtyMid: loopVerdict(['legibility-contrast: too low'], 2, 4),
@@ -35,7 +35,7 @@ test('the stop rule is fail-closed: findings at the budget refuse, and only clea
 
 test('every validation error blocks, legibility findings block whatever their severity, bench chatter does not', async ({ page }) => {
   const blocked = await page.evaluate(async () => {
-    const { blockingFindings } = await import('/src/ai/pro/custom/loop.ts');
+    const { blockingFindings } = await __noacgImport('/src/ai/pro/custom/loop.ts');
     return blockingFindings({
       ok: false,
       errors: [{ rule: 'spx-definition', message: 'broken' }],
@@ -58,7 +58,7 @@ test('every validation error blocks, legibility findings block whatever their se
 
 test('the iteration message holds findings first, all three files, and an image only when a frame exists', async ({ page }) => {
   const shapes = await page.evaluate(async () => {
-    const { iterationMessage } = await import('/src/ai/pro/custom/loop.ts');
+    const { iterationMessage } = await __noacgImport('/src/ai/pro/custom/loop.ts');
     const template = { html: '<div>H</div>', css: '.x{}', js: 'var j=1;' };
     const bare = iterationMessage(['finding-one: detail'], template);
     const seen = iterationMessage(['finding-one: detail'], template,
@@ -83,7 +83,7 @@ test('the iteration message holds findings first, all three files, and an image 
 
 test('the first-round message carries the field contract, the no-logo rule, and the design rules', async ({ page }) => {
   const message = await page.evaluate(async () => {
-    const { customUserMessage } = await import('/src/ai/pro/custom/loop.ts');
+    const { customUserMessage } = await __noacgImport('/src/ai/pro/custom/loop.ts');
     const blocks = customUserMessage(
       {
         brief: 'A weather panel for a late bulletin.',

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // THE NIGHTLY'S SHARDS: the whole E2E suite, packed onto nightly.yml's runners by measured minutes.
 //
-//   node scripts/nightly-shards.mjs [--github-output] [<earlier nightly report.json> ...]
+//   node scripts/nightly-shards.mjs [--github-output] [--only <e2e/x.spec.ts> ...] [--dev-table <durations.json>] [<earlier nightly report.json> ...]
 //
 // The reports are merged Playwright JSON reports of earlier nightlies, NEWEST FIRST. Prints one
 // JSON object - { shardSpecs, matrix, predicted, weights } - and with --github-output also writes
@@ -98,6 +98,55 @@ export function nightlyMinutes(reports) {
 }
 
 /**
+ * A DEV_SERVER RUN'S WEIGHTS (the d2 selection guard's nightly). Its table is the last one recorded
+ * on the dev server, which lacks the specs ci.yml never timed (quarantined ones) and runs short for
+ * some it holds, while the nightly reports mostly come from the build, about 0.6 of dev-server
+ * minutes. So each file weighs the LARGEST of its table minutes and, from each of the newest
+ * `NIGHTS_PER_FILE` full reports that timed it whole, its minutes there times that report's own factor.
+ *
+ * The factor is table minutes over report minutes on the suite's files both hold that the report
+ * finished and passed, never below 1: near 1.6 for a build night, 1.1 for a dev_server one (which
+ * leaves its minutes slightly heavy, the safe side). A report sharing fewer than half of the
+ * suite's table files (a quarantine-only night) is too small to calibrate: it offers its unscaled
+ * minutes as a floor and does not take one of a file's nights. A file a report did not finish still
+ * offers the minutes it ran, as a floor; a failed file offers nothing, as in nightlyMinutes, since a
+ * broken night's timeouts would overweight it. Taking the largest can only add shards.
+ *
+ * @param {Record<string, number>} tableMinutes
+ * @param {object[]} reports newest first
+ * @param {string[]} suite the spec files on disk
+ * @returns {Record<string, number>}
+ */
+export function devServerWeights(tableMinutes, reports, suite) {
+  const weights = { ...tableMinutes };
+  const nights = {};
+  const tableFiles = suite.filter((f) => f in tableMinutes).length;
+  for (const report of reports) {
+    const minutes = minutesByFile(report);
+    const unfinished = unfinishedByFile(report);
+    const failed = failedFiles(report);
+    let shared = 0;
+    let table = 0;
+    let measured = 0;
+    for (const [file, m] of Object.entries(minutes)) {
+      if (!(file in tableMinutes) || !suite.includes(file) || unfinished.has(file) || failed.has(file)) continue;
+      shared += 1;
+      table += tableMinutes[file];
+      measured += m;
+    }
+    const full = shared * 2 >= tableFiles && measured > 0;
+    const factor = full ? Math.max(1, table / measured) : 1;
+    for (const [file, m] of Object.entries(minutes)) {
+      if (failed.has(file)) continue;
+      // Only a night that timed the file whole takes one of its nights, as in nightlyMinutes.
+      if (full && !unfinished.has(file) && (nights[file] = (nights[file] ?? 0) + 1) > NIGHTS_PER_FILE) continue;
+      weights[file] = Math.max(weights[file] ?? 0, m * factor);
+    }
+  }
+  return weights;
+}
+
+/**
  * THE SUITE ON AS MANY RUNNERS AS IT NEEDS: the fewest whose packed shards are all predicted at or
  * under `NIGHTLY_PLAN_LINE_MINUTES`, up to `NIGHTLY_MAX_SHARDS`. Starts from the arithmetic lower
  * bound and adds a runner while the packing leaves a shard over the line, and stops adding once a
@@ -147,9 +196,19 @@ export function planNightly({ suite, table, reports = [], shards }) {
   };
 }
 
+/**
+ * The files to plan: every spec on disk, or with `only` (repo paths such as `e2e/x.spec.ts`, the
+ * quarantine list nightly.yml reruns) just those of them that are on disk.
+ */
+export function suiteFor(onDisk, only = []) {
+  if (only.length === 0) return onDisk;
+  const wanted = new Set(only.map((f) => f.replace(/^e2e\//, '')));
+  return onDisk.filter((f) => wanted.has(f));
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values, positionals } = parseArgs({
-    options: { 'github-output': { type: 'boolean' } },
+    options: { 'github-output': { type: 'boolean' }, only: { type: 'string', multiple: true }, 'dev-table': { type: 'string' } },
     allowPositionals: true,
   });
   const reports = [];
@@ -162,7 +221,30 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       console.error(`nightly-shards: ignoring ${file} - ${error.message}`);
     }
   }
-  const plan = planNightly({ suite: specFilesOnDisk(), table: readTable(), reports });
+  const suite = suiteFor(specFilesOnDisk(), values.only);
+  if (suite.length === 0) {
+    // An empty plan would hand Playwright no filter, which runs EVERY test.
+    console.error(`nightly-shards: no spec file to plan${values.only ? ` - none of --only ${values.only.join(' ')} is on disk` : ''}.`);
+    process.exit(1);
+  }
+  const devTable = values['dev-table'];
+  const table = readTable(devTable);
+  if (devTable && Object.keys(table.minutes).length === 0) {
+    // readTable reads a missing file as an empty table; a named one has to have weights in it.
+    console.error(`nightly-shards: --dev-table ${devTable} has no measured minutes.`);
+    process.exit(1);
+  }
+  // A dev_server run: the reports raise its dev-server table (devServerWeights) instead of standing
+  // over it, so they are not handed to planNightly as well.
+  let plan;
+  if (devTable) {
+    const minutes = devServerWeights(table.minutes, reports, suite);
+    const raised = suite.filter((f) => (minutes[f] ?? 0) > (table.minutes[f] ?? 0)).length;
+    console.error(`nightly-shards: dev_server weights - ${raised} of ${suite.length} files raised over the dev table by ${reports.length} report(s).`);
+    plan = planNightly({ suite, table: { ...table, minutes } });
+  } else {
+    plan = planNightly({ suite, table, reports });
+  }
   const worst = Math.max(...plan.predicted);
   console.error(
     `nightly-shards: ${plan.shardSpecs.length} shards, predicted ${Math.min(...plan.predicted)}-${worst} min each; ` +

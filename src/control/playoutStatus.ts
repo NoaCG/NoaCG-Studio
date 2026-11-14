@@ -5,8 +5,10 @@
 //
 //   grey  (idle)  nothing is wrong and nothing is reporting yet: not published, not connected,
 //                 publishing, preparing, loading. A page opened before the studio is up is quiet.
-//   green (ok)    something this production airs through answers: "Connected" once published, or
-//                 "CasparCG ready" before the first publish when only native server cues can air.
+//   green (ok)    "Ready": every expected output has confirmed running every command this page knows
+//                 of (live-publishing E1, G2 section 6), or "CasparCG ready" before the first publish
+//                 when only native server cues can air. A prepared design waiting on air reads
+//                 "<graphic>: new design at next Take" (O3). Anything unconfirmed is never green.
 //   amber (warn)  attention, not broken: an output waiting for clear before it can update, commands
 //                 arriving slowly, a Bridge that needs an update.
 //   red   (bad)   something seen this session is gone or something that should work does not: a
@@ -21,6 +23,7 @@
 import type { PlayoutSettings, PlayoutState } from './playoutLink';
 import { bridgeAnswersLabel } from './prepareLive.ts';
 import { plural, type ReadySummary, type ReadyTone } from './readiness.ts';
+import type { ConfirmLine } from './runConfirm.ts';
 
 export function vmixPairing(settings: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>): string {
   return JSON.stringify([settings.agentUrl, settings.agentToken]);
@@ -39,7 +42,7 @@ export interface SlotReading {
 
 /** One line of the panel: what was checked, how it stands, and what to do when it is not fine. */
 export interface StatusCheck {
-  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'take' | 'files' | 'playback';
+  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'take' | 'files' | 'playback' | 'confirm' | 'publish' | 'switch';
   tone: StatusTone;
   label: string;
   /** The words on the header control when this check decides the status. */
@@ -80,6 +83,14 @@ export interface StatusFacts {
   noOutputTake?: boolean;
   fileCheck?: StatusCheck | null;
   playbackCheck?: StatusCheck | null;
+  /** What the outputs have not confirmed running (runConfirm.ts `confirmLines`), worst first. Empty:
+   *  every owed command is confirmed. */
+  confirm?: readonly ConfirmLine[] | null;
+  /** Automatic updates (control/autoPublish.ts, live-publishing G3 section 9): a save the outputs
+   *  do not have yet. Amber while it is being published, red "Saved, not on the outputs". */
+  autoPublish?: { tone: 'amber' | 'red'; line: string | null } | null;
+  /** Expected outputs opened before automatic updates (no `au` in their entry, G3 section 7). */
+  oldOutputs?: readonly string[] | null;
 }
 
 const RANK: Record<StatusTone, number> = { bad: 3, warn: 2, ok: 1, idle: 0 };
@@ -134,7 +145,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     const holds = f.slot.holds;
     if (holds === 'ours') {
       checks.push(reporting
-        ? { key: 'slot', tone: 'ok', label: `On air on ${at}`, short: 'Connected' }
+        ? { key: 'slot', tone: 'ok', label: `On air on ${at}`, short: 'Ready' }
         : { key: 'slot', tone: 'idle', label: `This production is on ${at} and still loading`, short: `Loading on ${at}` });
     } else if (holds === 'unreadable') {
       checks.push({ key: 'slot', tone: 'idle', label: `This NoaCG Bridge cannot say what ${at} shows`, short: 'Update NoaCG Bridge', advice: 'Update NoaCG Bridge to have this checked.' });
@@ -162,12 +173,28 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     // The header has room for READY's short form ("Waiting for clear: Scorebug"); the panel keeps the line.
     else if (ready.tone === 'warn') checks.push({ key: 'outputs', tone: 'warn', label: ready.lead ?? '', short: ready.leadShort ?? ready.lead ?? '' });
     else if (ready.preparing) checks.push({ key: 'outputs', tone: 'idle', label: ready.lead ?? 'Preparing', short: ready.lead ?? 'Preparing…' });
-    else if (ready.tone === 'ok') checks.push({ key: 'outputs', tone: 'ok', label: ready.lead ?? 'Ready', short: 'Connected' });
+    else if (ready.tone === 'ok') checks.push({ key: 'outputs', tone: 'ok', label: ready.lead ?? 'Ready', short: ready.lead && ready.lead.indexOf('new design at next Take') >= 0 ? ready.lead : 'Ready' });
     else checks.push({ key: 'outputs', tone: 'idle', label: ready.lead ?? 'Not connected', short: 'Not connected' });
   }
 
   if (f.started && f.noOutputTake) {
     checks.push({ key: 'take', tone: 'bad', label: 'The last Take reached no output', short: 'No output' });
+  }
+  if (f.started) for (const line of f.confirm ?? []) checks.push({ key: 'confirm', tone: line.tone, label: line.label, short: line.short });
+  if (f.started && f.autoPublish) {
+    checks.push(f.autoPublish.tone === 'red'
+      ? { key: 'publish', tone: 'bad', label: f.autoPublish.line ?? 'The newest save is not on the outputs yet.', short: 'Saved, not on the outputs' }
+      : { key: 'publish', tone: 'warn', label: f.autoPublish.line ?? 'Publishing your changes', short: 'Updating outputs' });
+  }
+  if (f.started) {
+    for (const name of f.oldOutputs ?? []) {
+      checks.push({
+        key: 'switch',
+        tone: 'warn',
+        label: `${name} was opened before automatic updates. It takes changes while this page is open, and switches over by itself the next time nothing is on air there.`,
+        short: `Reload ${name} when nothing is on air`,
+      });
+    }
   }
   if (f.fileCheck) checks.push(f.fileCheck);
   if (f.playbackCheck) checks.push(f.playbackCheck);
@@ -182,10 +209,13 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     return bridge?.tone === 'ok' ? { tone: 'ok', text: 'CasparCG ready', checks: sorted } : { tone: 'idle', text: bridge?.short && bridge.tone === 'idle' ? bridge.short : 'Not published', checks: sorted };
   }
   if (f.publishing) return { tone: 'idle', text: 'Publishing…', checks: sorted };
+  // UNKNOWN IS NEVER GREEN (E1): a command an output has not confirmed yet reads grey.
+  const confirming = sorted.find((c) => c.key === 'confirm' && c.tone === 'idle');
+  if (confirming) return { tone: 'idle', text: confirming.short, checks: sorted };
   // Green needs a renderer that answers: a browser renderer reporting, or this production's own
-  // renderer on its CasparCG slot reporting. The Bridge answering alone is not Connected.
-  const connected = checks.some((c) => (c.key === 'outputs' || c.key === 'slot') && c.tone === 'ok');
-  if (connected) return { tone: 'ok', text: 'Connected', checks: sorted };
+  // renderer on its CasparCG slot reporting. The Bridge answering alone is not Ready.
+  const connected = checks.find((c) => (c.key === 'outputs' || c.key === 'slot') && c.tone === 'ok');
+  if (connected) return { tone: 'ok', text: connected.key === 'outputs' ? connected.short : 'Ready', checks: sorted };
   const quiet = sorted.find((c) => c.tone === 'idle' && c.key !== 'production');
   if (quiet) return { tone: 'idle', text: quiet.short, checks: sorted };
   return { tone: 'idle', text: bridge?.tone === 'ok' ? 'Graphics not connected' : 'Not connected', checks: sorted };
@@ -203,7 +233,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
 // is confirmed on air.
 
 /** PROGRAM's account of the last graphic command this page sent. */
-export type AirState = 'local' | 'idle' | 'pending' | 'logged' | 'unknown' | 'stale';
+export type AirState = 'local' | 'idle' | 'pending' | 'logged' | 'ran' | 'unknown' | 'stale';
 
 export interface AirFacts {
   published: boolean;
@@ -216,9 +246,12 @@ export interface AirFacts {
   loggedAt: number | null;
   /** This page cannot reach the server: what PROGRAM shows is the last it knew. */
   lost: boolean;
+  /** Every expected output has confirmed running the last command this page sent (G2 section 6). */
+  ran?: boolean;
 }
 
-const hms = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+/** A time of day to the second, in this computer's locale. */
+export const hms = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 /** PROGRAM's status tag: its state, its words and its tooltip. Empty words show nothing. */
 export function programAir(f: AirFacts): { state: AirState; text: string; title: string } {
@@ -236,6 +269,13 @@ export function programAir(f: AirFacts): { state: AirState; text: string; title:
     return { state: 'unknown', text: 'not confirmed', title: 'A command that failed may still have reached the command log, so what the outputs show is unknown here.' };
   }
   if (f.loggedAt === null) return { state: 'idle', text: '', title: '' };
+  if (f.ran) {
+    return {
+      state: 'ran',
+      text: `ran ${hms(f.loggedAt)}`,
+      title: 'Every output reported running it. A browser cannot prove the broadcast picture.',
+    };
+  }
   return {
     // Named for what it is: the log took it. Never read it as a picture confirmed on air.
     state: 'logged',

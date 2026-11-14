@@ -25,7 +25,7 @@ async function resolveBrowseTarget(
   wanted: { name?: string; id?: string },
 ): Promise<string | null> {
   return page.evaluate(async (w) => {
-    const { GRAPHIC_CATEGORIES, CATEGORY_GROUPS, CATEGORY_GROUP_OF } = await import('/src/model/taxonomy.ts');
+    const { GRAPHIC_CATEGORIES, CATEGORY_GROUPS, CATEGORY_GROUP_OF } = await __noacgImport('/src/model/taxonomy.ts');
     const q = w.name?.toLowerCase();
     const cat = w.id
       ? GRAPHIC_CATEGORIES.find((c) => c.id === w.id)

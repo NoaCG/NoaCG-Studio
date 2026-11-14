@@ -1,4 +1,4 @@
-import { prepareOutRuntime } from '../blocks/animMigration';
+import { prepareOutRuntime, preparePlacedTextOutput } from '../blocks/animMigration';
 // Shared builder for SINGLE-FILE exports (CasparCG, H2R, HTML overlay): everything the graphic
 // needs — CSS, GSAP, template JS, images, fonts — inlined into one .html so the file is
 // plug-and-play with no sibling files at playout.
@@ -40,7 +40,7 @@ export async function composeSelfContainedHtml(
   template: SpxTemplate,
   extraBodyScripts: TargetScript[] = [],
 ): Promise<string> {
-  template = { ...template, js: prepareOutRuntime(template.js), css: upgradeFontCss(template.css) };
+  template = { ...template, js: preparePlacedTextOutput(prepareOutRuntime(template.js)), css: upgradeFontCss(template.css) };
   // Inline uploaded assets (images/foo.png -> data URL) in markup and styles.
   // `inset` becomes longhands: a CasparCG 2.3 loads this file into Chromium 71 (assets/cssCompat.ts).
   let html = expandInsetInMarkup(injectProjectFormatMeta(inlineAssetRefs(template.html, template.assets), template))

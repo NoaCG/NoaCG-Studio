@@ -38,9 +38,9 @@ async function seedLibrary(page: Page): Promise<SeededLibrary> {
   await page.goto('/app#/home/graphics');
   await expect(page.getByTestId('home-page')).toBeVisible();
   const seeded = await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { createGraphic, setGraphicsFolder } = await import('/src/model/library.ts');
-    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic, setGraphicsFolder } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
 
     const makeGraphic = (name: string, category: string) => {
       const variant = CATALOG[category]?.[0];
@@ -160,7 +160,7 @@ test('a filter the user can no longer see is a filter the user can no longer und
   await page.getByTestId('library-production').selectOption('none');
   await expect(page.locator('.lib-grid > .lib-row')).toHaveCount(1);
   await page.evaluate(async (ids: string[]) => {
-    const { deleteShow } = await import('/src/model/shows.ts');
+    const { deleteShow } = await __noacgImport('/src/model/shows.ts');
     for (const id of ids) deleteShow(id);
   }, [seeded.productionAId, seeded.productionBId]);
 
@@ -216,8 +216,8 @@ test('a library with no productions grows no filter and no column', async ({ pag
   await page.goto('/app#/home/graphics');
   await expect(page.getByTestId('home-page')).toBeVisible();
   await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const variant = CATALOG['lower-third']?.[0];
     if (!variant) throw new Error('The lower-third catalog fixture is missing.');
     const template = variant.create({});

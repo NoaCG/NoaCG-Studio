@@ -8,9 +8,13 @@
 // fit ladder. scripts/typography.test.mjs checks the pure parts in Node.
 
 import { test, expect, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { evaluateInPage } from './_evaluate';
 import { settleDurableWrites } from './_durable';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 type Template = { js: string; html: string; css: string; fps: number; fields: { field: string }[] };
 type Point = { x: number; y: number };
@@ -24,24 +28,24 @@ async function open(page: Page) {
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);
 }
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template) as Promise<Template>; }
-async function history(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template) as Promise<Template>; }
+async function history(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().history.length); }
 async function base(page: Page, selector: string): Promise<Base> {
-  return page.evaluate(async selector => (await import('/src/blocks/baseEdits.ts')).baseValues((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template as never, selector), selector) as Promise<Base>;
+  return page.evaluate(async selector => (await __noacgImport('/src/blocks/baseEdits.ts')).baseValues((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template as never, selector), selector) as Promise<Base>;
 }
 async function slot(page: Page, wrapper: string) {
-  return page.evaluate(async wrapper => (await import('/src/blocks/designLayout.ts')).slotSize((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.css, wrapper.slice(1)), wrapper);
+  return page.evaluate(async wrapper => (await __noacgImport('/src/blocks/designLayout.ts')).slotSize((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.css, wrapper.slice(1)), wrapper);
 }
 async function editorWith(page: Page, t: Template) {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await open(page);
   await evaluateInPage(page, async (t: unknown) => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
   }, t);
   await ready(page);
 }
@@ -50,8 +54,8 @@ async function editorWith(page: Page, t: Template) {
 async function withText(page: Page): Promise<Template & { point: string; box: string }> {
   await open(page);
   return page.evaluate(async () => {
-    const { createArtwork } = await import('/src/blocks/baseEdits.ts');
-    let template = (await import('/src/templates/catalog.ts')).variantById('lt01')!.create({}) as never as Parameters<typeof createArtwork>[0];
+    const { createArtwork } = await __noacgImport('/src/blocks/baseEdits.ts');
+    let template = (await __noacgImport('/src/templates/catalog.ts')).variantById('lt01')!.create({}) as never as Parameters<typeof createArtwork>[0];
     const a = createArtwork(template, { shape: 'text', x: 200, y: -640, width: 400, height: 80 }); template = a.template;
     const b = createArtwork(template, { shape: 'text', x: 900, y: -560, width: 400, height: 120, box: true });
     return { ...b.template, point: a.selector, box: b.selector };
@@ -109,7 +113,7 @@ async function setText(page: Page, text: string) {
 const near = (a: number, b: number, tolerance: number) => Math.abs(a - b) <= tolerance + 1e-9;
 const ruleOf = (css: string, selector: string) => (css.match(new RegExp(selector.replace(/[.#]/g, '\\$&') + '\\s*\\{[^}]*\\}', 'g')) ?? []).join('\n');
 const operate = (page: Page, t: Template, operations: unknown[]) => page.evaluate(async ({ t, operations }) => {
-  try { return { template: (await import('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template as never as Template }; }
+  try { return { template: (await __noacgImport('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template as never as Template }; }
   catch (error) { return { error: String((error as Error).message ?? error) }; }
 }, { t, operations }) as Promise<{ template?: Template; error?: string }>;
 const LONG = 'Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III';
@@ -139,7 +143,7 @@ test('weight lists the font’s own weights and writes the line’s rule; one un
   await expect(weight.locator('option')).toHaveText(['Regular']);
   // A weight the font does not draw, written elsewhere, still shows as it is.
   const heavy = await operate(page, original, [{ kind: 'style.set', selector: t.point, values: { weight: 900 } }]);
-  await evaluateInPage(page, async (t: unknown) => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never), heavy.template);
+  await evaluateInPage(page, async (t: unknown) => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never), heavy.template);
   await ready(page);
   await expect(weight).toHaveValue('900');
   await expect(weight.locator('option')).toHaveText(['Regular', 'Medium', 'Semibold', 'Bold', 'Extra bold', '900']);
@@ -213,12 +217,9 @@ test('long text: Shrink to fit, Wrap and Run on answer a 61-character value, eac
   await setText(page, LONG);
   const longLine = await rect(page, t.point);
   expect(longLine.width).toBeGreaterThan(900);
-  // Glyph widths differ by platform, so the slot is three quarters of this value's own width:
-  // above the fit's 55% floor everywhere, so Shrink to fit can always reach it. Linux Chromium's
-  // whole-pixel glyph sizes leave the design's three-pass fit up to about 5% past the slot (a
-  // recorded limit of templates/shared/textFit.ts), so the bound is the slot plus a tenth: a line
-  // that was not refitted stays at its full width, a third over.
-  const room = Math.round(longLine.width * .75), fitted = room * 1.1;
+  // The slot is above the 55% floor everywhere. The runtime must measure the actual
+  // rendered width after its proportional passes too (#775), with no overflow margin.
+  const room = Math.round(longLine.width * .75), fitted = room;
   const longText = inspector(page).getByRole('combobox', { name: 'Long text', exact: true });
   await expect(longText).toHaveValue('overflow');
   await expect(longText.locator('option')).toHaveText(['Shrink to fit', 'Wrap', 'Run on']);
@@ -327,8 +328,8 @@ test('a text box resizes from its sides without stretching its letters; its corn
 
   // A box whose text animates a raw transform cannot take a scale, but resizing is not scaling.
   const moving = await page.evaluate(async ({ t, layer }) => {
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { replaceRegionWithAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     const d = parseAnimData(t.js)!;
     d.steps[0].layers[layer] = { transform: [{ time: 0, value: 'translateX(0px)' }, { time: 1, value: 'translateX(40px)' }] };
     return { ...t, js: replaceRegionWithAnimData(t.js, d)! };
@@ -344,7 +345,7 @@ test('a text box resizes from its sides without stretching its letters; its corn
 
 test('catalog lines and SVG text take weight and spacing; alignment and fit stay with the design or the import', async ({ page }) => {
   await open(page);
-  const hairline = await page.evaluate(async () => (await import('/src/templates/catalog.ts')).variantById('lt01')!.create({})) as unknown as Template;
+  const hairline = await page.evaluate(async () => (await __noacgImport('/src/templates/catalog.ts')).variantById('lt01')!.create({})) as unknown as Template;
   await editorWith(page, hairline);
   await select(page, '#f0');
   await expect(inspector(page).getByRole('combobox', { name: 'Alignment', exact: true })).toHaveCount(0);
@@ -425,7 +426,7 @@ test('typed type survives save and reopen, and the simulator fits the long value
   await expect(inspector(page).getByRole('combobox', { name: 'Long text', exact: true })).toHaveValue('shrink');
   await expect(inspector(page).getByRole('spinbutton', { name: 'Width', exact: true })).toHaveValue(String(room));
 
-  const html = await page.evaluate(async t => (await import('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }), edited);
+  const html = await page.evaluate(async t => (await __noacgImport('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }), edited);
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 }); await output.setContent(html);
   await output.evaluate(async () => { await document.fonts.ready; window.dispatchEvent(new MessageEvent('message', { source: window, data: { type: 'spx-preview-cmd', cmd: 'sim-play', data: '{}' } })); await new Promise(r => setTimeout(r, 300)); });
@@ -438,4 +439,61 @@ test('typed type survives save and reopen, and the simulator fits the long value
   expect(parseFloat(simulated.size)).toBeLessThan(48);
   expect(parseFloat(simulated.size)).toBeGreaterThanOrEqual(48 * .55 - .01);
   expect(parseFloat(size)).toBeLessThan(48);
+});
+
+// Blank-page layout regression: the original Linux cases use real bundled glyphs,
+// independent of editor controls. The old emitted block is the immutable #775 control.
+test('bundled raster fonts fit the measured slot with bounded deterministic work and an unchanged floor', async ({ page }, info) => {
+  await page.goto('/app');
+  const runtime = await page.evaluate(async () => (await __noacgImport('/src/templates/shared/textFit.ts')).TEXT_FIT_RUNTIME_JS);
+  const old = readFileSync(new URL('./fixtures/editor-projects/placed-text-fit-v1.txt', import.meta.url), 'utf8');
+  const fonts = ['inter', 'oswald', 'saira'].map(name => ({ name,
+    data: readFileSync(new URL(`../public/fonts/${name}.woff2`, import.meta.url)).toString('base64') }));
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.setContent(`<style>body{margin:20px;background:#111;color:white}.slot{white-space:nowrap;margin-bottom:8px}.line{display:inline-block;white-space:nowrap}${fonts.map(f => `@font-face{font-family:${f.name};src:url(data:font/woff2;base64,${f.data});font-weight:100 900}`).join('')}</style><main></main>`);
+  const result = await page.evaluate(async ({ runtime, old, text }) => {
+    const lines: { el: HTMLSpanElement; slot: HTMLDivElement; impossible: boolean; reads: number }[] = [];
+    for (const family of ['inter', 'oswald', 'saira']) for (const weight of [400, 700]) for (const room of [800, 1043, 1090]) {
+      const slot = document.createElement('div'), el = document.createElement('span');
+      slot.className = 'slot'; slot.style.width = room + 'px'; slot.style.fontSize = '48px';
+      el.className = 'line'; el.dataset.fit = 'shrink'; el.style.fontFamily = family; el.style.fontWeight = String(weight); el.textContent = text;
+      slot.append(el); document.querySelector('main')!.append(slot);
+      lines.push({ el, slot, impossible: false, reads: 0 });
+    }
+    for (const family of ['inter', 'oswald']) {
+      const slot = document.createElement('div'), el = document.createElement('span');
+      slot.className = 'slot'; slot.style.width = '100px'; slot.style.fontSize = '48px';
+      el.className = 'line'; el.dataset.fit = 'shrink'; el.style.fontFamily = family; el.textContent = text;
+      slot.append(el); document.querySelector('main')!.append(slot); lines.push({ el, slot, impossible: true, reads: 0 });
+    }
+    await document.fonts.ready;
+    const inject = (js: string) => { const script = document.createElement('script'); script.textContent = js; document.body.append(script); };
+    type FitWindow = Window & typeof globalThis & { fitOnePlacedLine(el: HTMLElement): void };
+    const fitWindow = window as FitWindow;
+    const measure = () => lines.map(line => {
+      line.reads = 0; fitWindow.fitOnePlacedLine(line.el); const reads = line.reads;
+      const range = document.createRange(); range.selectNodeContents(line.el);
+      return { family: getComputedStyle(line.el).fontFamily, weight: getComputedStyle(line.el).fontWeight,
+        room: line.slot.getBoundingClientRect().width, width: line.el.getBoundingClientRect().width,
+        glyphWidth: range.getBoundingClientRect().width, fontSize: parseFloat(getComputedStyle(line.el).fontSize),
+        fontReady: document.fonts.check(`${getComputedStyle(line.el).fontWeight} 48px ${getComputedStyle(line.el).fontFamily}`),
+        floor: 48 * .55, impossible: line.impossible, reads };
+    });
+    for (const line of lines) for (const element of [line.slot, line.el]) {
+      const rect = element.getBoundingClientRect.bind(element);
+      element.getBoundingClientRect = () => { line.reads++; return rect(); };
+    }
+    inject(old); const before = measure(); inject(runtime); const after = measure(), again = measure();
+    return { before, after, again, userAgent: navigator.userAgent };
+  }, { runtime, old, text: LONG });
+  writeFileSync(info.outputPath('placed-text-fit.json'), JSON.stringify(result, null, 2) + '\n');
+  await page.screenshot({ path: info.outputPath('placed-text-fit.png'), fullPage: true });
+  expect(result.after.filter(r => !r.impossible)).toHaveLength(18);
+  for (const row of result.after) {
+    expect(row.fontReady).toBe(true); expect(row.reads).toBeLessThanOrEqual(18);
+    expect(row.fontSize).toBeGreaterThanOrEqual(row.floor - .0001); expect(row.fontSize).toBeLessThanOrEqual(48);
+    if (row.impossible) { expect(row.width).toBeGreaterThan(row.room); expect(row.fontSize).toBeCloseTo(row.floor, 4); }
+    else { expect(row.width, JSON.stringify(row)).toBeLessThanOrEqual(row.room); expect(row.glyphWidth).toBeLessThanOrEqual(row.room); }
+  }
+  expect(result.again).toEqual(result.after);
 });

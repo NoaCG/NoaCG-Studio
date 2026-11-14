@@ -21,6 +21,10 @@ import { fileURLToPath } from 'node:url';
 import { installGraphicBody } from './_graphicBody';
 import { graphicTemplate, ografFiles, type GraphicSource } from './_ografBuild';
 import { dropSvg, intoProduction } from './_svg-import';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ORIGIN = 'http://ograf-lifecycle.local';
 const START = new Date('2026-10-11T12:00:00Z');
@@ -302,7 +306,7 @@ async function imported(page: Page, svg: string, name: string, choose: () => Pro
   await choose();
   await intoProduction(page, name, `${name} Show`);
   return page.evaluate(async (name) => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().find((g) => g.name === name)!.template;
   }, name);
 }
@@ -417,8 +421,9 @@ test('imported credits made by the import road roll, take a new list on the next
   expect(await top(), 'the roll moves up').toBeLessThan(early - 10);
   expect(await act(page, 'roll', 'updateAction', { data: { [listField('roll')]: 'Director:\nAlex Rivera\nProducer:\nSam Chen' } })).toMatchObject({ statusCode: 200 });
   await page.clock.runFor(2_000);
-  // A roll on air keeps the list it took (row 24); the new one rolls from the next Take.
-  const taken = ['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss'];
+  // A roll on air keeps the list it took (row 24); the new one rolls from the next Take. The list
+  // it took is the drawn one, which starts with the drawn show title.
+  const taken = ['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss'];
   expect(await rows('roll'), 'a list sent on air waits for the next Take').toEqual(taken);
   expect(await act(page, 'roll', 'stopAction')).toMatchObject({ statusCode: 200 });
   await page.clock.runFor(2_000);

@@ -35,6 +35,10 @@ import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, openSecondProductionPage, signIn, wipeMyGraphics } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // ONE PRESS, ONE ENTRANCE - on every surface, with the verb travelling TWO roads.
 //
@@ -80,13 +84,13 @@ test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec')
  *  production would still hold its reserved addresses on the next run (migration 0040). */
 async function clearPublishedShows(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     for (const s of loadShows()) {
       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
       deleteShow(s.id);
     }
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
 }
@@ -134,7 +138,7 @@ test('one press is one entrance on the sender, on another operator, and on air',
   await expect(links).toBeHidden();
 
   const slugs = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.name === name);
     return { output: s?.outputSlug ?? null };
   }, showName);

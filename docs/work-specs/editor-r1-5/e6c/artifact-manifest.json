@@ -1,0 +1,121 @@
+{
+  "source": "c456f647eb8a30839473fd93467f447a181f2dc1",
+  "scope": "E6C evidence/kit files, separate from the native candidate app ZIP. No raw consumer native archive readback is claimed.",
+  "files": [
+    {
+      "path": "casparcg.zip",
+      "bytes": 208296,
+      "sha256": "59bfc99887bdbec3d2367eeab8766a7b29bd67342a3c902d05028bac16edaa09"
+    },
+    {
+      "path": "cli-closure.json",
+      "bytes": 68073,
+      "sha256": "d064a08281985fc65692f35d31506aeb377d237e1063413b9243f7d920ed6c3b"
+    },
+    {
+      "path": "combined.zip",
+      "bytes": 304221,
+      "sha256": "296ce5a2f1c556633175a0dc9419aab996c897c168aae779633e8d92c6acfbc7"
+    },
+    {
+      "path": "g07.json",
+      "bytes": 5275,
+      "sha256": "9495dd87aec9a1755d3fb794a16b01f9dc95a5906e189be784fb4d03bd078ce9"
+    },
+    {
+      "path": "gsap-upstream-readme.md",
+      "bytes": 6199,
+      "sha256": "66a79667b0538b19634b5a000a9a3debe588c98d390424e73e5d4de847270828"
+    },
+    {
+      "path": "h2r.zip",
+      "bytes": 183427,
+      "sha256": "fd84dfe3bc794a0a0403a628628c70981aea9ba93ab01948aeccb92ee17df5cb"
+    },
+    {
+      "path": "html-overlay.zip",
+      "bytes": 220790,
+      "sha256": "751b28347eb42200ffce5631a25a83d086ec5f96b9c2b05097bfd66286e6e84e"
+    },
+    {
+      "path": "linux-fit-baseline.json",
+      "bytes": 6803,
+      "sha256": "b83220fc932fdfd42bb2454dc77127906c6934bb286c64f7af0ab1acd8348e07"
+    },
+    {
+      "path": "linux-fit.json",
+      "bytes": 15633,
+      "sha256": "26f16a37b44b7da2861b7335d99c518794b26442aeee6865c246ce48f494d243"
+    },
+    {
+      "path": "liveos.zip",
+      "bytes": 237537,
+      "sha256": "880e3253d35c286c573022f2641a010b1aca3d0aeba1d93cdde7c76ee15af8eb"
+    },
+    {
+      "path": "native-producer.json",
+      "bytes": 5842,
+      "sha256": "97cc371840419d11aca46887c6beffb62c5cf65b51b5e995ca40dfbf7a500e34"
+    },
+    {
+      "path": "ograf.zip",
+      "bytes": 237123,
+      "sha256": "906b2e6e86d07f173fe595e358e5a791e4e1ca185e62adc0d8187f396eae6c9b"
+    },
+    {
+      "path": "operator-data.json",
+      "bytes": 146,
+      "sha256": "121fad1d96ec49f28ea27340e76ec4ec231471631dcc0e7413e0a3213aa7d85d"
+    },
+    {
+      "path": "output-preparation.json",
+      "bytes": 851,
+      "sha256": "70f4bb1711c3a8792485f2074b6ddc00e3b42d9cfbeb55ab825c0716bbc34d90"
+    },
+    {
+      "path": "output-probe.spec.ts.txt",
+      "bytes": 11106,
+      "sha256": "7a2f01f5ed32d7cc7b2e9ef6ef6ebd4f82e25b7fc24104a8628e2d0242bfa795"
+    },
+    {
+      "path": "production-spx.zip",
+      "bytes": 233184,
+      "sha256": "0c5b8c7e42549153cc5dd1c60d57d486869eb962145e96b8f4427f9b05687027"
+    },
+    {
+      "path": "receiving-form.csv",
+      "bytes": 307,
+      "sha256": "3e2c29a5cfbbb570265e418554a23cc45d3452aa023bf7c5f2e691c270f765fb"
+    },
+    {
+      "path": "receiving-manifest.json",
+      "bytes": 48124,
+      "sha256": "cb19a30835461c9d6ac23ee6662bc38d6c9205aee15081b38af1fcf55f8980a1"
+    },
+    {
+      "path": "receiving-source.json",
+      "bytes": 133194,
+      "sha256": "63b390fa57f711210a75c4577032ee77b7f671082914e20300f965aa271e8a11"
+    },
+    {
+      "path": "rendered-captures.json",
+      "bytes": 6197,
+      "sha256": "324250c1b34dfe41dcba8ef885b2b081f10e67e81131bdfa8e5bca91691e9196"
+    },
+    {
+      "path": "rules-first.md",
+      "bytes": 2497,
+      "sha256": "a23627c53ed341e2d2392932613c4323923ab8ea7348a967dfdcf14326a7a221"
+    },
+    {
+      "path": "spx.zip",
+      "bytes": 207326,
+      "sha256": "a50f253f67f00e4b9bc42a188f0794d9e8d30b388c22a79124715819893e104c"
+    },
+    {
+      "path": "verification.json",
+      "bytes": 3705,
+      "sha256": "9dfc6bc8542fc17ad30bdfad9705dd3768705ca68c4e097d58f6d5aabc2c63da"
+    }
+  ]
+}

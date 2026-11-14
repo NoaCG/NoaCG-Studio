@@ -186,6 +186,10 @@ export interface DesignSvgCredits {
   advance?: number;
   /** The drawn role and name layers the style is read from, in reading order. */
   anchors: DesignSvgCreditsAnchor[];
+  /** The drawn SHOW TITLE above the roles, in a look of its own: the list's first line, when it
+   *  is not a role, is painted in this layer's look where it was drawn (owner walk 2026-11-10:
+   *  "First line of the list is the topic/name of the show"). Absent = no title look. */
+  title?: string;
 }
 
 export type CreditsLayout = (typeof CREDITS_LAYOUTS)[number];

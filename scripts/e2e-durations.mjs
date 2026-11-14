@@ -7,7 +7,7 @@
 //
 //   node scripts/e2e-durations.mjs --check                 # report drift, change nothing
 //   npm run record:e2e-durations                           # re-record from the newest green full run
-//   npm run record:e2e-durations -- <run-id>               # ...or from one you name
+//   npm run record:e2e-durations -- <run-id> [<run-id>...] # ...or from the runs you name
 //   node scripts/e2e-durations.mjs --refresh [run-id]      # re-record, then keep it only if it MATTERS
 //   node scripts/e2e-durations.mjs <merged-report.json>    # rewrite the table from a report you merged
 //
@@ -113,9 +113,9 @@ const E2E_DIR = fileURLToPath(new URL('../e2e/', import.meta.url));
 export const DEFAULT_OVERHEAD = { jobMinutes: 1, testFactor: 1.05, medianJobMinutes: 1, samples: 0 };
 
 /** The table as `{ source, minutes, overhead }`, or a usable empty one if it has been removed. */
-export function readTable() {
+export function readTable(file = TABLE) {
   try {
-    const raw = JSON.parse(readFileSync(TABLE, 'utf8'));
+    const raw = JSON.parse(readFileSync(file, 'utf8'));
     const overhead = { ...DEFAULT_OVERHEAD, ...(raw.overhead ?? {}) };
     // Normalize on read, the way every other versioned format here does, so nothing downstream
     // has to defend itself: a `testFactor` below 1 would SHRINK every prediction, and it cannot
@@ -657,17 +657,29 @@ function measureRun(runId, work) {
   return minutesByFile(JSON.parse(readFileSync(report, 'utf8')));
 }
 
+/** The run ids named after `--record`: numeric arguments only, each once. */
+export function recordRunIds(args) {
+  return [...new Set(args.filter((a) => /^\d+$/.test(a)))];
+}
+
 /** Download recent runs' shard reports and rewrite the table from what they measured. */
-function record(runId) {
+function record(runIds) {
   let targets;
-  if (runId) {
-    const view = JSON.parse(run('gh', ['run', 'view', String(runId), '--json', 'jobs,headSha']));
-    const refusal = fullRunRefusal(view.jobs);
-    if (refusal) {
-      console.error(`e2e-durations: run ${runId} is not a whole full suite - ${refusal}. Refusing to record it.`);
-      return 1;
+  if (runIds.length) {
+    // Named runs, each checked whole. Several are named when only some recent runs measure what
+    // the table should (the suite moved to the e2e build in #2530: older runs timed the dev server).
+    targets = [];
+    for (const runId of runIds) {
+      const view = JSON.parse(run('gh', ['run', 'view', String(runId), '--json', 'jobs,headSha']));
+      const refusal = fullRunRefusal(view.jobs);
+      if (refusal) {
+        console.error(`e2e-durations: run ${runId} is not a whole full suite - ${refusal}. Refusing to record it.`);
+        return 1;
+      }
+      targets.push({ id: String(runId), sha: view.headSha });
     }
-    targets = [{ id: String(runId), sha: view.headSha }];
+    // Newest first, as newestFullRuns gives them: the table's source and overhead come from targets[0].
+    targets.sort((a, b) => Number(b.id) - Number(a.id));
   } else {
     targets = newestFullRuns(RECORD_RUNS);
     if (targets.length < MIN_RECORD_RUNS) {
@@ -759,7 +771,7 @@ async function refresh(runId, bodyPath) {
   // in whatever state it reached: the contract above is that this leaves one of two files on disk,
   // and a failure that leaves a third is the one nobody would think to look for.
   try {
-    const recorded = record(runId);
+    const recorded = record(runId ? [runId] : []);
     if (recorded !== 0) {
       writeFileSync(TABLE, held);
       return recorded;
@@ -867,11 +879,11 @@ async function main() {
 
   if (args.includes('--refresh')) return refresh(positional, bodyPath);
 
-  if (args.includes('--record')) return record(positional);
+  if (args.includes('--record')) return record(recordRunIds(args));
 
   if (!positional) {
     console.error(
-      'usage: node scripts/e2e-durations.mjs [--check | --record [run-id] | --refresh [run-id] [--body <path>] | <merged-report.json>]',
+      'usage: node scripts/e2e-durations.mjs [--check | --record [run-id...] | --refresh [run-id] [--body <path>] | <merged-report.json>]',
     );
     return 1;
   }

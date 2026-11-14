@@ -68,7 +68,7 @@ test('an operator page waits out a database outage instead of calling the produc
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.keyboard.press('Escape');
   const slug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((x) => x.name === name)?.hostedSlug ?? null;
   }, showName);
   // The follow resolves the production by this slug, so without one there is nothing to wait out.
@@ -127,7 +127,7 @@ test('an old control link opens its production, waits out an outage, and says so
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.keyboard.press('Escape');
   const slug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((x) => x.name === name)?.hostedSlug ?? null;
   }, showName);
   expect(slug, 'publishing must mint the slug an old control link carries').toBeTruthy();

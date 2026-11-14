@@ -20,12 +20,12 @@ async function mountStyled(
 ): Promise<{ doc: FrameLocator; js: string; deleteRefused: boolean }> {
   const result = await page.evaluate(
     async ([id, list]) => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
-      const { setTransitionStyle, removeTransition } = await import('/src/blocks/machineEdit.ts');
-      const { deriveMachine } = await import('/src/blocks/animMachine.ts');
-      const { writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
-      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+      const { setTransitionStyle, removeTransition } = await __noacgImport('/src/blocks/machineEdit.ts');
+      const { deriveMachine } = await __noacgImport('/src/blocks/animMachine.ts');
+      const { writeAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+      const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
       const tpl = variantById(id)!.create({});
       let data = parseAnimData(tpl.js)!;
       // The mutators materialize a derived machine on the first edit, in this same order.
@@ -104,11 +104,11 @@ test('a style write under a pre-styles interpreter re-emits the region (the pair
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { setTransitionStyle } = await import('/src/blocks/machineEdit.ts');
-    const { writeAnimData, hasTransitionStyleRuntime } = await import('/src/templates/shared/animRuntime.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { setTransitionStyle } = await __noacgImport('/src/blocks/machineEdit.ts');
+    const { writeAnimData, hasTransitionStyleRuntime } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     const tpl = variantById('qz01')!.create({});
     // Simulate a saved template whose frozen interpreter predates transition styles.
     const oldJs = tpl.js.replace(/function noacgStyleTimeline/g, 'function noacgFrozenStyleTimeline');
@@ -176,11 +176,11 @@ test('the stop edge and its style survive step inserts and deletes (rehoming)', 
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData, serializeAnimData } = await import('/src/blocks/animData.ts');
-    const { removeTransition, setTransitionStyle, setTransitionTrigger } = await import('/src/blocks/machineEdit.ts');
-    const { addStep, deleteStep } = await import('/src/blocks/animEdit.ts');
-    const { lifecyclePair } = await import('/src/blocks/animMachine.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData, serializeAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { removeTransition, setTransitionStyle, setTransitionTrigger } = await __noacgImport('/src/blocks/machineEdit.ts');
+    const { addStep, deleteStep } = await __noacgImport('/src/blocks/animEdit.ts');
+    const { lifecyclePair } = await __noacgImport('/src/blocks/animMachine.ts');
     type Data = NonNullable<ReturnType<typeof parseAnimData>>;
     const stopOf = (d: Data) =>
       d.machine!.groups[0].transitions.find((t) => t.trigger === 'lifecycle' && t.event === 'stop');
@@ -227,10 +227,10 @@ test('structural step edits carry the walk\'s arrows: a timer survives a delete,
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { setTransitionEvent, setTransitionTrigger } = await import('/src/blocks/machineEdit.ts');
-    const { addStep, deleteStep, duplicateStep } = await import('/src/blocks/animEdit.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { setTransitionEvent, setTransitionTrigger } = await __noacgImport('/src/blocks/machineEdit.ts');
+    const { addStep, deleteStep, duplicateStep } = await __noacgImport('/src/blocks/animEdit.ts');
     type Data = NonNullable<ReturnType<typeof parseAnimData>>;
     const arrows = (d: Data) => d.machine!.groups[0].transitions;
     const tpl = variantById('lt01')!.create({});
@@ -293,11 +293,11 @@ test('a styled lifecycle edge under an older interpreter re-emits the region (th
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-    const { setTransitionStyle } = await import('/src/blocks/machineEdit.ts');
-    const { writeAnimData, hasLifecycleStyleRuntime } = await import('/src/templates/shared/animRuntime.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { setTransitionStyle } = await __noacgImport('/src/blocks/machineEdit.ts');
+    const { writeAnimData, hasLifecycleStyleRuntime } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     const tpl = variantById('lt01')!.create({});
     // Simulate a saved template whose frozen interpreter has styles but predates the
     // materialised play/stop edges (its play()/stop() never consult them).

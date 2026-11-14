@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { publishedRecordDigest, recordChangedSincePublish } = await import('../src/model/publishedRecord.ts');
+const { publishedRecordDigest, legacyRecordDigest, clearRecordDigestCache, recordChangedSincePublish } = await import('../src/model/publishedRecord.ts');
 
 const PUBLISHED_AT = '2026-10-12T10:00:00.000Z';
 /** Every write of a pool copy's template stamps a new save time (addGraphicToShow, refreshGraphicCopies). */
@@ -113,13 +113,45 @@ test('re-adding the same design does not count; what the publish reads from the 
   assert.equal(recordChangedSincePublish(write(live, (s) => { s.name = 'Saturday quiz'; })), true);
   // A linked graphic's copy is what a teammate without its library record would publish.
   assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].template.html = '<p></p>'; s.graphics[0].savedAt = LATER; })), true);
-  // An unlinked graphic's render is compared by content elsewhere, so only its fields count here.
+  // An unlinked graphic's copy is what publishes too (live-publishing W2): its template counts.
   const own = published(show({ graphics: [{ ...show().graphics[0], graphicId: undefined }] }));
-  assert.equal(recordChangedSincePublish(write(own, (s) => { s.graphics[0].template.html = '<p></p>'; s.graphics[0].savedAt = LATER; })), false);
+  assert.equal(recordChangedSincePublish(write(own, (s) => { s.graphics[0].template.html = '<p></p>'; s.graphics[0].savedAt = LATER; })), true);
   assert.equal(recordChangedSincePublish(write(live, (s) => { s.cues.push({ id: 'cue-2', sourceId: 'pool-1', label: 'Guest', values: {} }); })), true);
 });
 
 test('a production that is not published is never unpublished', () => {
   assert.equal(recordChangedSincePublish(null), false);
   assert.equal(recordChangedSincePublish(write(show(), (s) => { s.name = 'x'; })), false);
+});
+
+// live-publishing W2 (designs/G1.md section 1, R11).
+
+test('stamping or adopting a copy whose design is unchanged never reads as a change', () => {
+  const live = published(show());
+  assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].designAt = s.graphics[0].savedAt; })), false);
+  const adopted = '2026-10-12T10:07:00.000Z';
+  assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].savedAt = adopted; s.graphics[0].designAt = adopted; })), false);
+  assert.ok(live.publishedRecord.startsWith('2:'), 'the new digest carries its format tag');
+});
+
+test('an untagged digest is read by the formula it was written with, until the next publish', () => {
+  // A production holding an unlinked copy, published by a build before W2: its stored digest left
+  // the unlinked template out. Under the new formula it would differ with no edit at all.
+  const record = show({ graphics: [{ ...show().graphics[0], graphicId: undefined }] });
+  const old = { ...record, publishedAt: PUBLISHED_AT, hostedSlug: 'abc', outputSlug: 'out', publishedRecord: legacyRecordDigest(record) };
+  assert.notEqual(old.publishedRecord, publishedRecordDigest(record), 'the formulas differ for an unlinked copy');
+  assert.equal(recordChangedSincePublish(old), false, 'no edit reads as no change');
+  assert.equal(recordChangedSincePublish(write(old, (s) => { s.cues[0].values.f0 = 'Grace'; })), true);
+  // A stamp added by the new build on such a record is no change either.
+  assert.equal(recordChangedSincePublish(write(old, (s) => { s.graphics[0].designAt = s.graphics[0].savedAt; })), false);
+});
+
+test('a picture graphic renamed in place, published, then read on a fresh page, reads as unchanged', () => {
+  const record = show({ graphics: [{ ...show().graphics[0], graphicId: undefined, name: 'Picture', template: { ...show().graphics[0].template, name: 'Picture' } }] });
+  // Digested before the rename, so the per-template cache holds the hash taken under the old name.
+  publishedRecordDigest(record);
+  const renamed = write(record, (s) => { s.graphics[0].name = 'Picture 2'; s.graphics[0].template.name = 'Picture 2'; });
+  const live = published(renamed);
+  clearRecordDigestCache();
+  assert.equal(recordChangedSincePublish(structuredClone(live)), false);
 });

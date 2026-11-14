@@ -52,8 +52,8 @@ async function seed(
   await page.goto('/app#/home');
   await awaitDurableReady(page);
   const id = await page.evaluate(async (o) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const S = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
     const show = S.createShowNamed('Rail width');
     const designs = [variantsFor('lower-third')[0], variantsFor('lower-third')[1], variantsFor('quiz')[0]];
     for (const v of designs) S.addGraphicToShow(show.id, v.create({}));
@@ -87,7 +87,7 @@ async function open(page: Page, id: string): Promise<void> {
 
 const railWidth = (page: Page) => page.locator('.pd-rail').evaluate((el) => Math.round(el.getBoundingClientRect().width));
 const storedWidth = (page: Page) =>
-  page.evaluate(async () => (await import('/src/model/prefs.ts')).loadPrefs().rundownWidth);
+  page.evaluate(async () => (await __noacgImport('/src/model/prefs.ts')).loadPrefs().rundownWidth);
 
 /** Drag the handle by `dx` pixels (negative = left = a WIDER rundown). */
 async function dragHandle(page: Page, dx: number): Promise<void> {
@@ -241,7 +241,7 @@ for (const size of [
       ['default', null],
       ['widest', 99999],
     ] as const) {
-      await page.evaluate(async (width) => (await import('/src/model/prefs.ts')).savePrefs({ rundownWidth: width }), w);
+      await page.evaluate(async (width) => (await __noacgImport('/src/model/prefs.ts')).savePrefs({ rundownWidth: width }), w);
       await page.reload();
       // A reload selects the first cue again, so the scorebug is picked once more, and taken, so
       // PROGRAM's header carries a name and a layer badge as well as its label.
@@ -284,7 +284,7 @@ test('a one-line row keeps its number, its kind in words, its note, its slot, th
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
   await expect(rows).toHaveCount(4);
   const names = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === 'Rail width')!;
     return show.graphics.map((g) => ({ name: g.name, type: g.type }));
   });

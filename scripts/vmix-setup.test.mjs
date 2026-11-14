@@ -1541,3 +1541,31 @@ test('an older positive vMix health reply cannot authorize a Take after a newer 
   assert.equal((await waiting).state, 'bridge');
   assert.deepEqual(paths, ['/health', '/health', '/status']);
 });
+
+
+test('a vMix media action keeps automatic publishing waiting until its wire reply', async t => {
+  const { sendsIdle } = await import('../src/control/sendsInFlight.ts');
+  const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59997' };
+  const held = Promise.withResolvers();
+  const sent = Promise.withResolvers();
+  t.mock.method(globalThis, 'fetch', async url => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return Response.json({ ...health, features: ['vmix-media'] });
+    assert.equal(path, '/act');
+    sent.resolve();
+    await held.promise;
+    return Response.json(acted);
+  });
+  const pending = actVmixMedia(pairing, { verb: 'out', slot: { adapter: 'vmix', player: 'clips' } }, () => true);
+  try {
+    await sent.promise;
+    let idle = false;
+    void sendsIdle().then(() => { idle = true; });
+    await Promise.resolve();
+    assert.equal(idle, false);
+  } finally {
+    held.resolve();
+  }
+  assert.equal((await pending).state, 'ok');
+  await sendsIdle();
+});

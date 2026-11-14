@@ -17,11 +17,12 @@
 // which modules had a function run, and on the same three specs svg.ts ran in exactly the two that
 // import SVGs.
 //
-// How it is recorded: the nightly sets NOACG_E2E_TRACE, and playwright.config.ts then maps the
-// specs' Playwright import to e2e/_trace.ts (an auto fixture reading coverage from every page of
-// the test) and adds scripts/e2e-trace-reporter.mjs, which writes one trace per shard. The
-// report job merges the shards with the committed map (`mergeTraces`) and queues the result as a
-// bot pull request (`queueTracedMap`). What it cannot see is what a spec reads from Node
+// How it is recorded: main's push run and the nightly set NOACG_E2E_TRACE, and
+// playwright.config.ts then maps the specs' Playwright import to e2e/_trace.ts (an auto fixture
+// reading coverage from every page of the test) and adds scripts/e2e-trace-reporter.mjs, which
+// writes one trace per shard. The nightly's report job merges the shards, its own or those of
+// main's green push run on the same commit, with the committed map (`mergeTraces`) and queues the
+// result as a bot pull request (`queueTracedMap`). What it cannot see is what a spec reads from Node
 // (`readFileSync` of a fixture or baseline), what the dev server's own handlers run, and pages a
 // spec opens in a browser context of its own: the curated headers keep carrying those.
 //

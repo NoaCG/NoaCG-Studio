@@ -1,3 +1,4 @@
+// runs on: dev server - swaps the /output boot script for a harness that imports /src modules
 // A FONT HOST THAT NEVER ANSWERS CANNOT KEEP A GRAPHIC OFF AIR (docs/PLAYOUT_ISOLATION_RESEARCH.md
 // §5.2, §16 item 12). The stage releases a frame whose `load` a font request holds back, and the
 // output's debug line says what it is waiting for.

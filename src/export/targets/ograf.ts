@@ -1,7 +1,7 @@
 import { scriptKind } from '../../model/scriptKind';
 import { APPEARANCE_RUNTIME_JS } from '../../control/appearanceRuntime';
 import { isIdentity, type AppliedAppearance } from '../../control/cueAdjust';
-import { hasLoopRuntime, prepareOutRuntime } from '../../blocks/animMigration';
+import { hasLoopRuntime, prepareOutRuntime, preparePlacedTextOutput } from '../../blocks/animMigration';
 import { authoredCueEnd } from '../../blocks/animLoopTiming';
 import { lifecyclePair } from '../../blocks/animMachine';
 import { upgradeFontCss } from '../../model/fonts';
@@ -2268,7 +2268,7 @@ export async function addOgrafPackage(
   usage: GraphicUsage = 'live',
   opts: OgrafPackageOptions = {},
 ): Promise<Record<string, unknown>> {
-  template = { ...template, js: prepareOutRuntime(template.js), css: upgradeFontCss(template.css) };
+  template = { ...template, js: preparePlacedTextOutput(prepareOutRuntime(template.js)), css: upgradeFontCss(template.css) };
   if (usage !== 'live') {
     const compatibility = validateOgrafOfflineCompatibility(template);
     if (!compatibility.compatible) {

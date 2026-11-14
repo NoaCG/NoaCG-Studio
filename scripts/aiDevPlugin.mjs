@@ -4,6 +4,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { apiFunctionTable, resolveApiRoute } from './apiRouteTable.mjs';
+import { previewApiHost } from './previewApiHost.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -12,14 +13,19 @@ export function aiApiPlugin() {
   // Read once at server start, like the tree it describes: adding a function under api/ is a
   // file the dev server has to restart to load anyway.
   const table = apiFunctionTable(repoRoot, 'api/ai');
-  return {
+  const plugin = {
     name: 'noacg-ai-api',
     configureServer(server) {
       server.middlewares.use('/api/ai', (req, res) => {
         void handle(server, table, req, res);
       });
     },
+    // The same routes on `vite preview`, for the e2e build (scripts/previewApiHost.mjs).
+    configurePreviewServer(preview) {
+      plugin.configureServer(previewApiHost(preview));
+    },
   };
+  return plugin;
 }
 
 // ── THERE IS NO ROUTE LIST HERE ANY MORE ─────────────────────────────────────────────────

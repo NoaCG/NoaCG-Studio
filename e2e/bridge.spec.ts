@@ -228,7 +228,7 @@ test('normalize re-derives the SPX steps from a default path an author grew by h
   // the OGraf stepCount then told a playout server there was no Continue to press.
   const result = await page.evaluate(async () => {
     const b = window.noacgBridge;
-    const ad = await import('/src/blocks/animData.ts');
+    const ad = await __noacgImport('/src/blocks/animData.ts');
     const { template } = await b.scaffold({ fields: [{ label: 'A', kind: 'text' }, { label: 'B', kind: 'text' }], name: 'Grown path' });
     const data = ad.parseAnimData(template.js)!;
     const [first, last] = [data.steps[0], data.steps[data.steps.length - 1]];

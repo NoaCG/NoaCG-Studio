@@ -11,6 +11,10 @@
 import { test, expect } from '@playwright/test';
 import { awaitDurableReady } from './_durable';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] } });
 
 // Independent PCM fixture; this session does not edit the health session's fixtures.
@@ -22,15 +26,15 @@ function wave(frequency=440) {
 }
 
 const HARNESS = `
- const { createBlankTemplate } = await import('/src/templates/blank.ts');
- const { createPictureTemplate } = await import('/src/templates/picture.ts');
- const { runtimeJs } = await import('/src/templates/shared/base.ts');
- const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
- const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
- const { rememberSound } = await import('/src/assets/soundAssets.ts');
- const { setProductionSound } = await import('/src/blocks/productionSoundEdit.ts');
- const { withProductionSounds } = await import('/src/assets/productionSounds.ts');
- const { createOutputStage } = await import('/src/output/stage.ts');
+ const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
+ const { createPictureTemplate } = await __noacgImport('/src/templates/picture.ts');
+ const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
+ const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+ const { replaceDefinitionInHtml } = await __noacgImport('/src/model/spxDefinition.ts');
+ const { rememberSound } = await __noacgImport('/src/assets/soundAssets.ts');
+ const { setProductionSound } = await __noacgImport('/src/blocks/productionSoundEdit.ts');
+ const { withProductionSounds } = await __noacgImport('/src/assets/productionSounds.ts');
+ const { createOutputStage } = await __noacgImport('/src/output/stage.ts');
  const step = name => ({name,duration:.05,ease:'none',layers:{'#box':{opacity:[{time:0,value:1}]}}});
  function linear(quiz=false) {
    const t=createBlankTemplate(); t.name=quiz?'Quiz':'Linear'; t.type=quiz?'quiz':'blank';
@@ -85,7 +89,7 @@ test('shared references prepare and execute PNG, linear and accepted quiz sounds
 test('countdown loops follow actual pause, resume, reset, finish, interruption and clearing',async({page})=>{
   await page.goto('/app'); await awaitDurableReady(page);
   await page.evaluate(`(async(b64)=>{ ${HARNESS}
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     const t=CATALOG['game-timer'][0].create({});
     let c={v:1,assets:[],visuals:{}};
     for(const key of ['countdown-running','countdown-paused','countdown-expired','out']) c=setProductionSound(t,c,'graphic',key,{id:key,asset:'assets/sound-'+ref.hash+'.wav',enabled:true,mode:key==='countdown-running'?'loop':'one-shot',levelDb:-6},ref);
@@ -139,8 +143,8 @@ test('removing the last shared binding suppresses inherited sounds and permits r
 test('PNG single-file packaging preserves independent image selectors and invalid WAV bytes cannot report Ready',async({page})=>{
   await page.goto('/app');await awaitDurableReady(page);
   const html=await page.evaluate(`(async(b64)=>{ ${HARNESS}
-    const { materializeSoundAssets } = await import('/src/assets/soundAssets.ts');
-    const { composeSelfContainedHtml } = await import('/src/export/selfContained.ts');
+    const { materializeSoundAssets } = await __noacgImport('/src/assets/soundAssets.ts');
+    const { composeSelfContainedHtml } = await __noacgImport('/src/export/selfContained.ts');
     const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j4XcAAAAASUVORK5CYII=';
     const t=createPictureTemplate('images/one.png');t.assets=[{path:'images/one.png',data:png}];
     const html=await composeSelfContainedHtml(await materializeSoundAssets(attach(t,['in','out'],'picture:images/one.png')));
@@ -161,7 +165,7 @@ test('PNG single-file packaging preserves independent image selectors and invali
 test('missing or corrupt preparation fails visibly, retries, and never delays a visual or replays its missed In',async({page})=>{
   await page.goto('/app');await awaitDurableReady(page);
   const first=await page.evaluate(`(async(b64)=>{ ${HARNESS}
-    const { writeAudioBlob } = await import('/src/model/durableStore.ts');
+    const { writeAudioBlob } = await __noacgImport('/src/model/durableStore.ts');
     await writeAudioBlob(ref.hash,new Blob(['corrupt']));
     const t=attach(linear(),['in']);const root=document.createElement('div');document.body.appendChild(root);
     window.downloadAllowed=false;window.requests=0;
@@ -186,7 +190,7 @@ test('compact shared Sounds preserves substantial quiz fields and actions, swaps
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
   page.on('requestfailed',r=>failures.push(r.url()));
   await page.setViewportSize({width:1440,height:1000});
-  await page.goto('/app'); const name=await page.evaluate(async()=> (await import('/src/templates/catalog.ts')).variantById('qz15')!.name);
+  await page.goto('/app'); const name=await page.evaluate(async()=> (await __noacgImport('/src/templates/catalog.ts')).variantById('qz15')!.name);
   await bootstrapGraphic(page,name);const id=await openProductionWithCurrent(page,'Shared quiz sounds');
   const sounds=page.getByTestId('production-sounds'), actions=page.getByTestId('cue-actions');
   await expect(sounds.locator('summary')).toHaveText('Sounds · None'); await expect(sounds).not.toHaveAttribute('open','');
@@ -221,7 +225,7 @@ test('compact shared Sounds preserves substantial quiz fields and actions, swaps
   await sounds.locator('summary').click();await page.screenshot({path: test.info().outputPath('quiz-collapsed.png'),fullPage:true});
   await page.reload();await awaitDurableReady(page);await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('production-sounds').locator('summary')).toHaveText('Sounds · 2 attached');
-  const config=await page.evaluate(async sid=>{const {loadShows}=await import('/src/model/shows.ts');return loadShows().find(s=>s.id===sid)!.graphics[0].soundConfig!;},id);
+  const config=await page.evaluate(async sid=>{const {loadShows}=await __noacgImport('/src/model/shows.ts');return loadShows().find(s=>s.id===sid)!.graphics[0].soundConfig!;},id);
   expect(config.assets).toHaveLength(2);expect(Object.keys(config.visuals.graphic.bindings)).toHaveLength(2);
   await page.setViewportSize({width:1093,height:768});await page.getByTestId('production-sounds').locator('summary').click();await expect(actions).toBeVisible();
   await expect(sounds.locator('.sound-attachment').first()).toBeVisible();
@@ -234,15 +238,15 @@ test('compact shared Sounds preserves substantial quiz fields and actions, swaps
   await sounds.getByRole('button',{name:'Add sound',exact:true}).click();
   await expect(sounds.getByLabel('Choose sound').locator('option')).toHaveText(['Choose an existing sound…','intro.wav','correct.wav']);
   await sounds.getByRole('button',{name:'Close settings'}).click();
-  await page.evaluate(async({sid,config})=>{const {loadShows,setGraphicSounds}=await import('/src/model/shows.ts');const s=loadShows().find(s=>s.id===sid)!;const result=setGraphicSounds(sid,s.graphics[0].id,config,JSON.stringify(s.graphics[0].soundConfig));if(result.error)throw Error(result.error);await (await import('/src/model/durableStore.ts')).commitDurableWrites();},{sid:id,config});
+  await page.evaluate(async({sid,config})=>{const {loadShows,setGraphicSounds}=await __noacgImport('/src/model/shows.ts');const s=loadShows().find(s=>s.id===sid)!;const result=setGraphicSounds(sid,s.graphics[0].id,config,JSON.stringify(s.graphics[0].soundConfig));if(result.error)throw Error(result.error);await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();},{sid:id,config});
   expect(errors).toEqual([]);expect(failures).toEqual([]);
   const packaged=await page.evaluate(async sid=>{
-    const {loadShows,setShowCues,setGraphicSounds}=await import('/src/model/shows.ts'); const {loadGraphics}=await import('/src/model/library.ts');
-    const {commitDurableWrites}=await import('/src/model/durableStore.ts');
-    const {buildPack,parsePack,installPack}=await import('/src/packs/graphicsPack.ts');
-    const {buildOutputPayload}=await import('/src/control/hostedControl.ts');
-    const {buildShowZipFor}=await import('/src/export/showExport.ts');
-    const {externalizeAssets}=await import('/src/backend/assets.ts');
+    const {loadShows,setShowCues,setGraphicSounds}=await __noacgImport('/src/model/shows.ts'); const {loadGraphics}=await __noacgImport('/src/model/library.ts');
+    const {commitDurableWrites}=await __noacgImport('/src/model/durableStore.ts');
+    const {buildPack,parsePack,installPack}=await __noacgImport('/src/packs/graphicsPack.ts');
+    const {buildOutputPayload}=await __noacgImport('/src/control/hostedControl.ts');
+    const {buildShowZipFor}=await __noacgImport('/src/export/showExport.ts');
+    const {externalizeAssets}=await __noacgImport('/src/backend/assets.ts');
     let s=loadShows().find(s=>s.id===sid)!;
     setShowCues(sid,Array.from({length:200},(_,i)=>({sourceId:s.graphics[0].id,label:'Question '+i,values:{}})));await commitDurableWrites();
     s=loadShows().find(s=>s.id===sid)!;
@@ -274,9 +278,9 @@ test('compact shared Sounds preserves substantial quiz fields and actions, swaps
 test('stalled preparation retries and restores the current countdown loop once without replaying its missed In',async({page})=>{
   await page.goto('/app');await awaitDurableReady(page);await page.clock.install();
   await page.evaluate(`(async(b64)=>{ ${HARNESS}
-    const { writeAudioBlob } = await import('/src/model/durableStore.ts');
+    const { writeAudioBlob } = await __noacgImport('/src/model/durableStore.ts');
     await writeAudioBlob(ref.hash,new Blob(['corrupt']));
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     const original=CATALOG['game-timer'][0].create({});
     let c=setProductionSound(original,{v:1,assets:[],visuals:{}},'graphic','in',{id:'in',asset:'assets/sound-'+ref.hash+'.wav',enabled:true,mode:'one-shot',levelDb:0},ref);
     c=setProductionSound(original,c,'graphic','countdown-running',{id:'tick',asset:'assets/sound-'+ref.hash+'.wav',enabled:true,mode:'loop',levelDb:0},ref);
@@ -302,9 +306,8 @@ test('stalled preparation retries and restores the current countdown loop once w
 test('single-file sound data stays inert through the HTML parser', async ({ page }) => {
   await page.goto('/app');
   const fixture = await page.evaluate(async () => {
-    const exportModule = '/src/export/selfContained.ts', templateModule = '/src/templates/blank.ts';
-    const { composeSelfContainedHtml } = await import(exportModule);
-    const { createBlankTemplate } = await import(templateModule);
+    const { composeSelfContainedHtml } = await __noacgImport('/src/export/selfContained.ts');
+    const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
     const payload = '</ScRiPt><script id="injected">window.injected=true</script><!--<script>';
     const key = 'sounds/' + payload + '.wav', value = 'data:audio/wav;base64,' + payload;
     const imagePath = 'images/picture.png', image = 'data:image/png;base64,' + payload;

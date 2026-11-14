@@ -1,0 +1,39 @@
+{
+  "assertions": {
+    "preview": {
+      "current": true,
+      "old": false
+    },
+    "render": {
+      "current": true,
+      "old": false
+    },
+    "self": {
+      "current": true,
+      "old": false
+    },
+    "spx": {
+      "current": true,
+      "old": false
+    },
+    "ograf": {
+      "current": true,
+      "old": false
+    }
+  },
+  "inputPreserved": true,
+  "statePreserved": true,
+  "sourceSha256": "be0951b5ec71d24349fd7f8735199d55e5162136c3fe9ea2d6b0afdeee36fab1",
+  "combined": {
+    "sha256": "296ce5a2f1c556633175a0dc9419aab996c897c168aae779633e8d92c6acfbc7",
+    "bytes": 304221
+  },
+  "bridge": {
+    "sha256": "296ce5a2f1c556633175a0dc9419aab996c897c168aae779633e8d92c6acfbc7",
+    "bytes": 304221
+  },
+  "production": {
+    "sha256": "0c5b8c7e42549153cc5dd1c60d57d486869eb962145e96b8f4427f9b05687027",
+    "bytes": 233184
+  }
+}
