@@ -3430,7 +3430,7 @@
     "contractClarification": "Coordinator extraction bug produced four first-line rubric labels in E5F admission. Do not shorten the actual contract: ALL four full Acceptance paragraphs at the pinned phase.spec24d7 are binding through the spec, including guard/credential/stale/undo/source/export/keyboard/access/limit requirements. Preserve admitted labels/history without resetting allowance. Builder notified before any code; independent evidence must address every clause of those full paragraphs."
   },
   "e5fCheckpoint": {
-    "status": "PR2552_CI_RED_CONSOLIDATED_DIAGNOSIS_NO_STAMP_NO_QUEUE",
+    "status": "CI_ROUND1_REPAIR_ACTIVE_REVIEWED_LAYOUT_AND_SOURCECONTROL_EVIDENCE",
     "actor": "/root/editor_e5f_cloud_builder",
     "thread": "6af8403d-0d00-8191-804b-4923b3338071",
     "source": "4751981d1202c8127739e21e95c979f4af01711b",
@@ -3597,13 +3597,25 @@
       "admission": "one E2E bundle per exact committed source; no normal production build/checks; earlier admissions retained",
       "pins": "playwright.config.ts webServer.env offline empty backend/managed credentials; NOACG_E2E_SERVER1",
       "scope": "unchanged original production-sounds165 journey; no retries or threshold changes",
-      "status": "ADMITTED_ONCE_PER_SOURCE_NOT_YET_RUN",
+      "status": "TWO_ORIGINAL_ADMISSIONS_EXECUTED_PAIR_BASEPASS_FEATUREFAIL",
       "recordedAt": "2026-11-14T14:32:28.247Z",
       "basis": "ExistingboundedCIreproduction ofnewBlankentrypoint/dependency/bundle/timing risk; CIproduction-sounds165 failedrequests3vs2 inbuiltE2E1worker. No usablebuiltE2Eartifactisuploaded(normalCIreports/tracesonly). build:e2eONLYvitebuild--modee2e, notfullnormalbuild/suite orpaidmodelcampaign.",
       "rootChecks": "RootactualfullHEAD/cleanstatusandexactlockSHAreadbothownedtrees; controlport5286/feature5216 distinct. Workeractualseparateinodeownnode_modules/.vite/.vite-temp/dist-e2e/e5f.local IO PASS; no dependencylink/productioncredentials.",
       "sequence": "Runcontrol5c118ONCEviaexistingqueue--cap5, readentireoutcome/log beforefeature9f70ONCE. This ispairedsource diagnostic n1each, notfailure-rateestimation orstatisticalnoncausality. No automaticrepeat, source/test/limit/oracle change, service reuse ordevfallback. Any infrastructure/buildincomplete/error remains originalfailedadmission; stop/reconcilebeforemore.",
       "counts": "Two namedfirstE2Ebundle admissions inE5F, oneperexactsource, no broaderselection/fullnormalbuild. AlloldE4/E5C/E6C admissions/failedattempts untouched. Root/workerrecordreturnedactualjobIDs/results withoutreset.",
-      "layout": "Freshreadonly /root/editor_e5f_cloud_builder/e5f_ci_layout_model_review stillpending on9f70/base5c118; no productpatchbeforeconsolidatedverdict. OldwizardTab/Starterdefault expectations qualifiedasdocumentednewdoorfixtureadaptations, originalguardsretained."
+      "layout": "Freshreadonly /root/editor_e5f_cloud_builder/e5f_ci_layout_model_review stillpending on9f70/base5c118; no productpatchbeforeconsolidatedverdict. OldwizardTab/Starterdefault expectations qualifiedasdocumentednewdoorfixtureadaptations, originalguardsretained.",
+      "result": "j199exact5c118built1/1PASS14.3s; j200exact9f70built1/1FAIL originalrequests3vs2 at184. RootbothWHOLElogsread; same1worker/offlinepins/lock/ownpaths,no repeat. Largechunkwarningsboth; baseextra@remotion/player dependency-scanwarning disclosed/teststillPASS. Frozenbuiltartifacts retained. n1each diagnostic, notfailure-rate comparison.",
+      "mechanism": "Workeractualtrace/source implicatesnewNeutralBlankInter@fontface delays: auto noacgSoundPrepare failure maysettlebeforefirstexplicitstagewarm, allowingextraofflineattempt thenrepair. Need bounded instrumentation/documentedauto-vs-explicitPreparecontract beforefix; no source/test soundpatch/no unrelated-or-flakeclaim yet. ExistingcreateBlankTemplatehasrealconsumers; assess preservinglegacyhelpercontract/newauthoringfactory ONLYafterevidence ratherthan strippingfixturefonts orchangingrequest2."
+    },
+    "ciLayoutReassessment": {
+      "actor": "/root/editor_e5f_cloud_builder/e5f_ci_layout_model_review",
+      "head": "9f70b9835777e3815b4336654fe06bb80198ef7c",
+      "base": "5c118f5b02c3b6266d8286cc24f797438774eedb",
+      "verdict": "AGREE WITH CORRECTIONS; all6decodedlogs/7geometrywitnessesread; rootreadFULLfinalverdict; no E4attribution.",
+      "model": "OuterWORKSPACE_MIN200 omitsactualdrawableviewport+innerchrome, desktoppreferredtimelineoverridescompact180/group220, dockedProjectcausesunboundedwrap. Correctactualviewport180+measuredinnerchrome, observeshell/canvas/viewport/childchrome, compacteffective180withoutretainedwrites, horizontalscrollarrangement. Keep240widthbaseline,180timeline/prefsreadonly/cancellation/sourcehistory.",
+      "proofLimit": "Earlierouterbox/native125capturesdonotqualifydrawablemin; afterfixverifyunchanged7witnesses, viewport/dividerextremes andaffectedactualnative125. SVGcausationneedsactualmappingmeasure, notolddefaultrestoreonly.",
+      "svgControl": "IgnoredsamebaseconfigSHA1f618a75ac6b26ae021604510fd16d58ddc1fdde1f8ba2c014f5c5146400335e rootBOTHread; onlyslicesbuildprefix, keepsallguards/onBuild/preview. OriginalSVG757once5c118j201PASS8.2s vs9f70j202FAIL5.4s exactsamecornerdrift0.796234/0.105408 above.6. No duplicatebundle/rerun; n1diagnostic/sourcebound.",
+      "handling": "Standalonepuretestfirstmistakencombinedchromefalsegreen andcorrected4/5redretained; temporarilykeptignoredthenrestoredtrackedtest. Rootcleanwordingclarified: freezeactualruntimeandselectedwitness; unrelatedmodeltestdidnotinvalidateartifact. No owedrepeat. Samebuildernowmayimplementreviewedlayout; no root/parallelproductedit."
     }
   }
 }
