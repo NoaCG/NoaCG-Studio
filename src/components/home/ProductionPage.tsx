@@ -146,6 +146,9 @@ import { designEditedAt, libraryStoreText, loadGraphics, newerLibraryDesign, tem
 import { describeProductionGate, productionGateFailures } from '../../validation/productionGate';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
+import { keepGeometry, publishBox } from '../../control/keptGeometry';
+import { stampKey, storedBoxes } from '../../control/publishParts';
+import { LIVE_BUILD } from '../../control/livePath';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
@@ -209,6 +212,7 @@ import {
   libraryGraphicDigests,
   sendsInOrder,
   sentHere,
+  copyDigest,
   verbAired,
   verbStale,
   verbsLanded,
@@ -1128,7 +1132,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   // AUTOMATIC UPDATES (live-publishing designs/G3.md): once the server's guard is installed and its
   // switch is on, every save of this published production is published with no press, and each
   // publish asks every output to prepare at once, old ones included.
-  const appearanceForRef = useRef<((s: Show) => Promise<CuePublished | undefined>) | undefined>(undefined);
+  const appearanceForRef = useRef<((s: Show, base?: PayloadVersion | null) => Promise<CuePublished | undefined>) | undefined>(undefined);
   /** The scene-join step after any publish, a press's or an automatic one (set below, once the
    *  verbs it takes with exist). */
   const sceneJoinRef = useRef<((published: { version: PayloadVersion; scenes: { before: ObsScene[]; after: ObsScene[] } }) => void) | null>(null);
@@ -2588,27 +2592,77 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         if (!everyGraphic || seen.has(g.id)) return [];
         seen.add(g.id);
       }
-      const values = airedValuesOf(cue);
-      const state = adjustStateOf(cue, record, lib);
-      const styleId = state?.measureStyleId ?? '';
+      const { id, values, state } = identityOf(cue, g, record, lib);
       const input: MeasureInput = { template: templateForSavedGraphic(g, lib), values, style: previewStyleOf(state) };
-      return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, styleId), input }];
+      return [{ cueId: cue.id, graphicId: g.id, id, input }];
     });
   };
-  // With saves and publishes in parts (live-publishing G4), every graphic as Publish asks, measured
-  // in the background from the moment the page opens, so the first publish after a reload has each
-  // box and does not drop one it published before (a cue resent for nothing). Otherwise only the
-  // adjusted cues, as before.
-  const [boxesAhead, setBoxesAhead] = useState(false);
+  /** A graphic cue's measurement identity: what a Take of it airs, in the style it airs in. */
+  const identityOf = (cue: ShowCue, g: SavedGraphic, record: Show, lib = library) => {
+    const values = airedValuesOf(cue);
+    const state = adjustStateOf(cue, record, lib);
+    return { id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, state?.measureStyleId ?? ''), values, state };
+  };
+  // Saves and publishes in parts (live-publishing G4): measuring ahead and keeping boxes follow it.
+  // Null until the switch is read: the background measurer waits for it, so a box measured anew
+  // never wins over a kept one for the same identity (a Take or Publish measures on its own).
+  const [boxesAhead, setBoxesAhead] = useState<boolean | null>(null);
   useEffect(() => {
     let live = true;
     void partialWritesOn().then((on) => { if (live) setBoxesAhead(on); });
     return () => { live = false; };
   }, []);
+  /** What this page measured, kept in this browser across a reload (control/keptGeometry.ts, #2532):
+   *  a reopened page takes a cue's kept box when its identity is unchanged, so the first publish after
+   *  a reload carries the boxes the last one did rather than resending cues nobody changed. */
+  const keptBoxes = useMemo(
+    () =>
+      keepGeometry(
+        session.geometry,
+        id,
+        () => new Map((latestShow.current?.cues ?? []).filter((c) => c.source !== 'playout').map((c) => [c.id, c.sourceId] as const)),
+        {
+          getItem: (k) => localStorage.getItem(k),
+          setItem: (k, v) => localStorage.setItem(k, v),
+          setTimeout: (run, ms) => setTimeout(run, ms),
+          clearTimeout: (t) => clearTimeout(t as ReturnType<typeof setTimeout>),
+          build: LIVE_BUILD,
+        },
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session],
+  );
+  useEffect(() => {
+    if (!boxesAhead) return;
+    const stop = keptBoxes.watch();
+    // A reload or a closed tab runs no cleanup: the write a measurement owes goes as the page leaves.
+    window.addEventListener('pagehide', keptBoxes.flush);
+    return () => {
+      window.removeEventListener('pagehide', keptBoxes.flush);
+      stop();
+    };
+  }, [keptBoxes, boxesAhead]);
+  /** Takes the kept boxes of `record`'s graphic cues this session has not measured yet, with saves
+   *  and publishes in parts on (`boxesAhead`): with them off nothing is kept or taken, as before. */
+  const adoptKeptBoxes = (record: Show, lib = library) =>
+    boxesAhead === true &&
+    keptBoxes.adopt((owed) =>
+      (record.cues ?? []).flatMap((cue) => {
+        const g = owed.has(cue.id) ? record.graphics.find((x) => x.id === cue.sourceId) : undefined;
+        if (!g || cue.source === 'playout' || isForeignGraphic(g.template)) return [];
+        return [{ cueId: cue.id, graphicId: g.id, id: identityOf(cue, g, record, lib).id }];
+      }),
+    );
+  // With saves and publishes in parts (live-publishing G4), every graphic as Publish asks, measured
+  // in the background from the moment the page opens, so the first publish after a reload has each
+  // box and does not drop one it published before (a cue resent for nothing). Otherwise only the
+  // adjusted cues, as before.
   // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
   // the identity a cue's box was measured for.
   useEffect(() => {
-    if (show) measurer.want(measureJobs(show, library, boxesAhead));
+    if (!show || boxesAhead === null) return;
+    adoptKeptBoxes(show);
+    measurer.want(measureJobs(show, library, boxesAhead));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, library, stage, measurer, resolved, boxesAhead]);
 
@@ -2947,18 +3001,46 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       // Every graphic cue carries its records (none, for a graphic nobody adjusted) and the box this
       // page measured (one cue of an unadjusted graphic is measured here for it), so the hosted page's Adjust block can start from any of them; only an
       // adjusted cue carries an appearance.
-      appearanceFor: appearanceForRef.current = async (latest) => {
+      appearanceFor: appearanceForRef.current = async (latest: Show, base?: PayloadVersion | null) => {
         const lib = loadGraphics();
-        await Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
+        adoptKeptBoxes(latest, lib);
+        // The stored boxes (a cue not measured yet keeps its published one, #2532) are waited for
+        // beside the measurements, within the same cap.
+        const capped = <T,>(p: Promise<T>) => Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), PUBLISH_MEASURE_CAP_MS))]);
+        const [snapshot] = await Promise.all([
+          // Only a publish that names the stored stamp it builds on carries from it (a press does not).
+          boxesAhead === true && base !== undefined ? capped(storedBoxes(latest.id)) : null,
+          Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS))),
+        ]);
         const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
         const ctx = styleCtxOf(latest, templates);
-        return (cue) => {
+        // A stored box is the box the publication holds only while that publication is the one this
+        // publish builds on (#2532): the snapshot's stamp is the base's.
+        const stored = snapshot && snapshot.ver === stampKey(base) ? snapshot.boxes : null;
+        // The design digest a stored box is checked against, for each graphic one of whose cues has
+        // a stored box (the stamp's `ver.g`, memoized: the publish computes the same right after).
+        const digests = new Map<string, string>();
+        if (stored) {
+          for (const [i, g] of latest.graphics.entries()) {
+            if ((latest.cues ?? []).some((c) => c.sourceId === g.id && stored.has(c.id))) digests.set(g.id, await copyDigest(latest, i, g.template));
+          }
+        }
+        // Marked with the stamp it carried from once it carries a box, so a publish that then finds
+        // the stamp moved builds again (control/publishParts.ts `carriedFrom`).
+        const of: CuePublished & { carriedFrom?: string } = (cue) => {
           const g = latest.graphics.find((x) => x.id === cue.sourceId);
           const state = adjustStateOf(cue, latest, lib, ctx);
           if (!g || !state) return undefined;
-          const adjust = publishedAdjustOf(g, cue, ctx.lookFor?.(g.id), state.m, frameOf(g, lib), stage);
+          // A cue the page has not measured keeps the box the stored publication carries (#2532).
+          const frame = frameOf(g, lib);
+          const look = ctx.lookFor?.(g.id);
+          const rest = publishedAdjustOf(g, cue, look, null, frame, stage);
+          const box = stored ? publishBox(state.m, stored.get(cue.id), { values: cue.values, rest, digest: digests.get(g.id) ?? null }) : state.m;
+          if (box && box !== state.m && snapshot) of.carriedFrom = snapshot.ver;
+          const adjust = publishedAdjustOf(g, cue, look, box, frame, stage);
           return { ...(state.send ? { appearance: state.send } : {}), adjust };
         };
+        return of;
       },
       // REHEARSAL ENDS AT THE FIRST PUBLISH: the live map and PROGRAM stay this page's.
       onFirstPublish: (rehearsed) => {

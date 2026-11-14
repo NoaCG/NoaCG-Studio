@@ -198,3 +198,125 @@ within about a day), and the account-wide `control_may_publish` search in the im
 #2532 (boxes across a reload), #2533 (stop writing the inline output), #2534 (pull only changed
 units), #2535 (a local order dependence of the AC-2 test, on `main` too); #2502 covers the team
 production's automatic publish, which did not run in the AC-5 team step.
+
+## Repair 1: boxes kept across a reload (check 7-c-c035 on f1556db9)
+
+**The failure.** The first cue edit after a reload counted 20.3 to 23.7 kB on the large fixture
+because the publish resent every cue whose measured `adjust.box` went missing after the reload
+(#2532).
+
+**The cause.** The page kept measured boxes in memory only. After a reload the publish's measure
+wait (8 s for the whole production, one document at a time) ran out before every box was measured
+again, so the cues without one were published without it, and the next publish put them back.
+
+**The fix.** `src/control/keptGeometry.ts`: each cue's last measurement is kept in this browser
+(`spx-gfx-measured`, the newest 8 productions), with a hash of its measure identity (`measureId`) and
+the build that measured it. A reopened page takes a kept box only for a cue it has not measured
+since it opened, whose identity hashes the same, from the same build, in the order the boxes were
+measured (so a graphic's newest box, which its unmeasured cues read, is the same). A cue so taken
+is not measured again. What a Take airs and what a publish stores for the same input are unchanged:
+the box is the one the page measured for exactly that cue. No migration. (Route (b) below then
+changed the publish's box choice; R23 rests on both paths taking the one `publishedOf` answer, and
+the configured check below runs both.)
+
+**Method.** Local stack (127.0.0.1:54421, every migration applied), `partial_writes` and
+`auto_publish` on, large fixture (60 graphics, 21 MB stored), production bundles built with
+`VITE_MEASURE_HOOKS=1` from `main` (f1556db9) and from this branch, test `parts` in
+`baseline.measure.ts` in a scratch copy (not committed) that switches to the bundle after the
+fixture is built, as the checker's did. `MEASURE_KINDS=cue-edit,reopened`, 2 rounds per job,
+`MEASURE_URLS=1`. Each round 0 `cue-edit` is the production's first publish in parts (every graphic
+as a part, 27.9 MB) and is left out on both sides.
+
+| Job | Build | Cue edit (round 1) | First edit after a reload | Cues whose `adjust` changed |
+|---|---|---|---|---|
+| j-0003 | `main` | not run | 19,064 B | 11 (box dropped) |
+| j-0004 | `main` | 22,294 B (15 cues: boxes back) | 16,659 / 21,255 B | 6 / 15 (box dropped) |
+| j-0007 | `main` | 23,547 B (17 cues: boxes back) | 16,904 / 23,289 B | 6 / 19 (box dropped) |
+| j-0006 | fix | 13,874 B (1 cue) | 13,827 / 14,397 B | 0 / 0 |
+| j-0008 | fix | 13,875 B (1 cue) | 20,036 / 14,434 B | 12 (box gained) / 0 |
+| j-0009 | fix, final code (915f549) | 13,839 B (1 cue) | 14,397 / 14,433 B | 0 / 0 |
+
+On `main` every reload drops boxes the last publish carried (sample: `box` present before, absent
+after) and the next edit adds them back. With the fix, five of six reload edits and every cue
+edit send the one edited cue (j-0006 and j-0008 ran on 3e59c3c, before the switch gate; j-0009 on the
+final code). The sixth (j-0008 round 0, 20.0 kB) is the first reload after the
+production's first publish in parts, whose 8 s measure wait had not reached 12 cues: those cues
+gain a box they never had (absent before, present after), a one-time catch-up that lands on
+whichever edit comes next, reload or not; round 1 of the same job sends one cue. It is the case the
+"first publish after the fixture's own press" row above already describes, reported here rather
+than left out.
+
+**Route (b): a publish keeps the stored box of a cue the page has not measured.** The full `/so` on
+8e2c6b22 (B) found the cold case still failing: a new build, a new browser, a teammate or cleared
+storage keeps nothing, so the first edit behaved like `main`. The coordinator chose route (b) on
+#2361. When the production opens (parts on), the page reads the stored cues once
+(`control_shows?select=cues:output->cues, g:output->ver->g`) and a publish carries, for a cue it
+has not measured (none of its own, none of its graphic's), the box the stored publication carries
+for it, only while the stored cue is that cue as it is now: the same values, adjust records, look,
+frame and stage, and the same design digest in the stored stamp (`keptGeometry.ts` `publishBox`,
+rule K9, after the second full review found a stale box could be written over a teammate's newer
+one). The choice is made in the one
+`publishedOf` call both publish paths take their payload from.
+
+Final code, same method; `MEASURE_COLD=1` clears `spx-gfx-measured` before each reload:
+
+| Job | Case | Cue edit (round 1) | First edit after a reload | Cues whose `adjust` changed |
+|---|---|---|---|---|
+| j-0013 | cold (nothing kept) | 14,373 B (1 cue; 1 box measured anew, `paint` null before) | 14,433 / 14,434 B | 0 / 0 |
+| j-0014 | warm | 13,843 B (1 cue) | 19,524 / 14,394 B | 10 (box gained) / 0 |
+| j-0017 | cold, with the cue-currency check (K9) | 14,380 B (1 cue; 1 box measured anew) | 14,438 / 13,926 B | 0 / 0 |
+| j-0027 | cold, final code (4fa18fb, K10) | 14,381 B (1 cue; 1 box measured anew) | 14,438 / 14,438 B | 0 / 0 |
+
+Every edit is under 20 kB. The 19.5 kB row is the catch-up described above (the fixture's first
+publish in parts had not waited for 10 boxes; they are gained once, absent before and present after).
+
+**The read when the production opens** (G4 section 11: read when the production opens, not counted):
+the stored cues, 31.5 to 38.8 kB per open on the large fixture (42 cues, one carrying 2 kB of text),
+both ways with headers, six opens in j-0013 and j-0014; with the stamp's design digests added for
+K9, 33.5 to 40.7 kB (three opens in j-0017); with the whole stamp for K10, 35.8 to 43.2 kB (three
+opens in j-0027, final code).
+
+**Tied to the publication a publish builds on (rule K10).** The third full review (B at 5d37c550)
+found that a teammate's box-only republish could still be overwritten by the page-open snapshot.
+After three confirmed rounds of one family, a read-only reassessment of the rule model graded it
+sound with three changes, all made: the snapshot carries the stored stamp's number and time (an
+unpublish restarts the number), read in the same request as the boxes; this page's own landings
+(automatic and press) replace it with what they wrote; an automatic publish passes the stamp it
+builds on and carries only from a snapshot of that stamp, and one that carried and then finds the
+stamp moved builds again once (a second move answers as a retry later). A press carries nothing.
+
+`e2e/configured/publish-guard.spec.ts` now also has the teammate case: after a cold reload, a
+Publish press moves one stored box by 7 px (made from the writer page, whose records of the store
+are then put back, since a second writer page of one browser is refused), then this page edits; the
+stored box is not the page-open one. Passes (j-0024). With the stamp tie removed it fails (j-0025:
+the publish carries, finds the stamp moved, and builds again without end, so the edit never
+publishes). The restart is now bounded to once (a second move answers as a retry later); j-0026 is
+the unmutated check passing on that bounded code, and the mutation was not re-run against it. `scripts/publish-parts.test.mjs` adds the
+stamp identity, a landing replacing a read in flight, and a stamp-less read not kept.
+
+**The stored boxes' read.** Read afresh at every opening of the production; a publish waits for it
+beside its measurements within the same 8 s cap, or reads itself when the opening did not; a failed
+read is not kept (`scripts/publish-parts.test.mjs`, 3 tests; mutations: keeping the first read fails
+the reopened test, keeping a failed read fails the retry test).
+
+**Both publish paths.** `e2e/configured/publish-guard.spec.ts`, the AC-5 check, now also reloads the
+page with nothing kept and the background measurer held (its frames' answers dropped), edits a cue,
+and, without waiting for the stored boxes' read, checks the stored boxes are those before the reload: once in parts (the publish sends the edited
+cue alone) and once on the whole path (the parts function answering 503, so the publish falls back
+and writes whole), then the row against the whole path (R23). Passes (j-0011; j-0015 without waiting for the read;
+j-0016 with K9). With `publishBox`
+returning only what was measured, it fails at "in parts: every stored box kept" (j-0012).
+
+**Regression test.** `scripts/kept-geometry.test.mjs` (9 tests): a reload over the same storage
+publishes every box the last publish did and measures nothing again; a moved identity or another
+build is measured again; a measurement the reopened page makes itself wins; a removed cue is
+forgotten and refused storage changes nothing; a graphic's unmeasured cue reads the same newest box.
+Mutations: `adopt` made a no-op fails 2 tests; the measured-order tracking removed fails the
+newest-box test; `flush` made a no-op fails the leave-within-a-second test; `publishBox` returning
+only what was measured fails the cold-page test; dropping its values-and-records check, or its
+design-digest check, fails the never-onto-another-cue test (own edit, teammate, design, adjust,
+stage).
+
+**Other checks.** `npm run gates -- run --changed origin/main` passes; `tsc` and `eslint` on the
+changed files pass; `check-e2e-protection` OK (12 to 12 tests); `e2e/playout-adjust.spec.ts` (the measurement and the stage's frame, offline,
+so `partial_writes` off) 17 passed (j-0010).

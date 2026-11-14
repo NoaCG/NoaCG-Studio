@@ -543,4 +543,54 @@ Filled in by each phase's pull request.
   A job chained with `--after` fails when the job before it fails. The AC-2 test of
   `publish-guard.spec.ts` fails locally when run after the tests before it in that file, on this
   branch and on `main` alike; alone it passes, and CI runs it green.
+- Repair 1 (check 7-c-c035 on f1556db9 failed it, AC-5: the first cue edit after a reload counted
+  20.3 to 23.7 kB): the page kept its measured boxes in memory only, so after a reload a publish ran
+  before every box was measured again and resent each cue whose `adjust.box` went missing (#2532).
+  Two parts, both in `control/keptGeometry.ts`:
+  - Each cue's last measurement is kept in this browser (key `spx-gfx-measured`) with a hash of the
+    identity it was measured for and the build that measured it; a reopened page takes it for a cue
+    it has not measured yet.
+  - The coordinator's route (b) on #2361, after the full `/so` found the cold case (a new build, a
+    new browser, a teammate) still failing: a publish keeps the box the stored publication carries
+    for a cue the page has not measured, read once when the production opens
+    (`publishParts.ts` `prefetchPublishedBoxes`). A box changes in the publication only when the page
+    has measured one, so a measurement result never rides on an edit unless it is new.
+  What the page's own Take airs is unchanged; the hosted page's Adjust block resolves presets against
+  the published box, which a carry keeps equal to the stored one. Both publish paths
+  take their payload from the one `publishedOf` call, so they write the same record (R23). No
+  migration. Rules (a Risky row: reload state). K1 to K7 were written after the first code, K8 after
+  the first full `/so`, K9 after the second and K10 after the third and its reassessment, so none
+  was challenged before coding; each is pinned by a test:
+  - K1 With `partial_writes` off, nothing is kept, taken, read or carried: Takes and publishes are as
+    on `main`. Only the background measurer differs: it starts once the switch is read.
+  - K2 With it on, a reopened page takes a kept box for a cue only when it has not measured that cue
+    since it opened, the cue is still of the same graphic, its measure identity hashes the same, and
+    the same build measured it.
+  - K3 A taken box counts as measured for that identity: neither the background measurer nor a
+    publish's wait measures it again, and a Take or a publish uses it.
+  - K4 A measurement made since the page opened always wins over a kept or a published one.
+  - K5 Kept boxes are taken in the order they were measured, so each graphic's newest box (read by
+    its unmeasured cues) is the one it was before the reload.
+  - K6 Nothing kept is lost: the write a measurement owes goes as the page leaves (`pagehide`); a cue
+    the production no longer has is dropped at the next write; at most 8 productions are kept;
+    storage that refuses a read or write changes nothing but the saving.
+  - K7 The background measurer starts once the switch is read, so a box measured anew never races
+    a kept one.
+  - K8 The rule: a publish never writes a box into the publication other than the box the stored
+    publication it builds on holds for that exact cue, unless the page measured it itself. A cue
+    with no measurement since the page opened (none of its own, none of its graphic's) carries the
+    stored box only then; otherwise none, exactly as on `main`.
+  - K9 "That exact cue": the stored cue is the cue as it is now (the same values, adjust records,
+    look, frame and stage, and its graphic's design digest in the stored stamp).
+  - K10 "The publication it builds on": the page keeps a snapshot of the stored stamp (its number
+    and time, since an unpublish restarts the number) and its cue boxes, read in one request at each
+    opening and replaced by what this page's own publish wrote when it lands, the press included. An
+    automatic publish passes the stamp it builds on and carries only from a snapshot of that stamp; a
+    publish that carried and then finds the stamp moved builds again from the stamp as it is now
+    (carrying nothing). A press measures before it reads the stamp, so it carries nothing. A failed
+    read is not kept. Every write of the cues moves the stamp, so a teammate's or another tab's
+    publish always ends the carry. Found by the reassessment after the third full review, which
+    graded the model sound with these changes.
+  A box kept in this browser and taken after a reload (K2, K3) counts as this page's own
+  measurement: like a fresh measurement on `main`, it may replace a teammate's box.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.

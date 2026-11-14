@@ -20,7 +20,7 @@ import type { ObsScene } from '../../model/obsScenes';
 import { laterTask, partialWritesOn, setUnitPace } from '../../backend/partialWrites';
 import { prefetchRecordBase } from '../../backend/supabaseProvider';
 import { prefetchTeamBase } from '../../backend/teamProductions';
-import { prefetchPublishedBase } from '../../control/publishParts';
+import { prefetchPublishedBase, prefetchPublishedBoxes } from '../../control/publishParts';
 import { sendsIdle } from '../../control/sendsInFlight';
 
 /** Whether the server has the guard installed and the switch on; null while unknown. */
@@ -97,7 +97,7 @@ export function useAutoPublish(o: {
   /** The signed-in account: another account starts a fresh publisher (a refusal for the old one no
    *  longer holds). */
   account: string | null;
-  appearanceFor: { readonly current: ((show: Show) => Promise<CuePublished | undefined>) | undefined };
+  appearanceFor: { readonly current: ((show: Show, base?: PayloadVersion | null) => Promise<CuePublished | undefined>) | undefined };
   /** A full publish landed: the stamp it wrote, the OBS scenes it replaced and now holds, and the
    *  record it was built from, for the page's after-publish steps (the same a press's publish runs). */
   onPublished: (published: AutoPublished) => void;
@@ -126,6 +126,7 @@ export function useAutoPublish(o: {
       else await prefetchRecordBase(showId);
       const sb = published ? await getSupabase() : null;
       if (sb) await prefetchPublishedBase(sb, showId);
+      if (sb) await prefetchPublishedBoxes(sb, showId);
       const show = loadShows().find((x) => x.id === showId);
       if (sb && show) await prefetchPublication(sb, show, loadGraphics());
     })().catch(() => undefined);
@@ -256,7 +257,7 @@ export function useAutoPublish(o: {
         const measure = latest.current.appearanceFor.current;
         const t0 = performance.timeOrigin + performance.now();
         const from = publishStepMs.length;
-        const outcome = await publishRevision(held, rev, measure ? () => measure(held) : undefined);
+        const outcome = await publishRevision(held, rev, measure ? (base) => measure(held, base) : undefined);
         if (outcome.kind === 'published' && outcome.ver) latest.current.onPublished({ version: outcome.ver, scenes: outcome.scenes, record: held });
         // THE MEASURE HARNESS ONLY: with its edit loop on, each automatic publish's window and steps.
         if (MEASURE_HOOKS && editLoopMeasured()) {
@@ -291,7 +292,7 @@ export function useAutoPublish(o: {
             const from = publishStepMs.length;
             w.__noacgPublishRunning = t0;
             const measure = latest.current.appearanceFor.current;
-            const outcome = await publishRevision(show, answer.rev, measure ? () => measure(show) : undefined, true);
+            const outcome = await publishRevision(show, answer.rev, measure ? (base) => measure(show, base) : undefined, true);
             w.__noacgPublishRunning = null;
             const longest = Math.max(0, ...publishStepMs.slice(from));
             (w.__noacgPublishWindows ??= []).push([t0, performance.timeOrigin + performance.now(), outcome.kind, longest]);

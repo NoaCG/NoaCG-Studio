@@ -15,6 +15,7 @@ import { contentName } from '../backend/assets';
 import { canonicalJson, diff, digest128, storedMap, type PatchOp, type UnitMap } from '../backend/unitPatch';
 import type { OutputGraphicSpec, OutputPayload, PanelGraphicSpec } from './hostedControl';
 import type { PayloadVersion } from './payloadVersion';
+import { publishedBoxesOf, type PublishedBox } from './keptGeometry.ts';
 
 type Sb = NonNullable<Awaited<ReturnType<typeof getSupabase>>>;
 
@@ -239,6 +240,66 @@ export async function prefetchPublishedBase(sb: Sb, showId: string): Promise<voi
   held.set(showId, { n, head: stored.head, panel: stored.panel, refs: stored.refs, title: '', profile: '' });
 }
 
+/** A stored publication's cue boxes and the stamp they were read at, or written with. */
+export interface BoxSnapshot {
+  /** The stamp's identity (`stampKey`): a carried box is the stored one only while the stamp a
+   *  publish builds on is this one (an unpublish restarts `n`, so `n` alone is not enough). */
+  ver: string;
+  boxes: Map<string, PublishedBox>;
+}
+
+/** A stamp's identity: its number and the time it was written. */
+export const stampKey = (ver: { n?: unknown; at?: unknown } | null | undefined): string | null =>
+  ver && typeof ver.n === 'number' && typeof ver.at === 'string' ? `${ver.n}|${ver.at}` : null;
+
+/** Each production's stored cue boxes: the read made when it last opened, or what this page's own
+ *  last publish wrote, whichever came later. A read that failed is not kept, so the next publish
+ *  reads again. */
+const publishedBoxes = new Map<string, Promise<BoxSnapshot | null>>();
+
+/** Read the stored publication's stamp and cue boxes in one request (null: the read failed). */
+export function readPublishedBoxes(sb: Sb, showId: string): Promise<BoxSnapshot | null> {
+  const read = (async (): Promise<BoxSnapshot | null> => {
+    const { data, error } = await sb.from('control_shows').select('cues:output->cues, ver:output->ver').eq('id', showId).maybeSingle();
+    const row = data as { cues?: unknown; ver?: { n?: unknown; at?: unknown; g?: unknown } | null } | null;
+    const ver = stampKey(row?.ver);
+    return error || !ver ? null : { ver, boxes: publishedBoxesOf(row?.cues, row?.ver?.g) };
+  })().catch(() => null);
+  publishedBoxes.set(showId, read);
+  void read.then((snap) => {
+    if (!snap && publishedBoxes.get(showId) === read) publishedBoxes.delete(showId);
+  });
+  return read;
+}
+
+/** This page's own publish landed: what it wrote is the stored publication now, so it replaces the
+ *  snapshot (a read still in flight was started before it and no longer stands for the store). */
+export function notePublishedBoxes(showId: string, ver: PayloadVersion, cues: unknown): void {
+  const key = stampKey(ver);
+  if (key) publishedBoxes.set(showId, Promise.resolve({ ver: key, boxes: publishedBoxesOf(cues, ver.g) }));
+}
+
+/** With parts on, when the production opens: the stored boxes read afresh (a publication made since
+ *  an earlier visit of this page load is then the one read), so a publish before the page has
+ *  measured a cue keeps its box (keptGeometry.ts `publishBox`). */
+export function prefetchPublishedBoxes(sb: Sb, showId: string): Promise<void> {
+  return readPublishedBoxes(sb, showId).then(() => undefined);
+}
+
+/** The stored boxes a publish builds with: the snapshot, waited for, or a read of its own when there
+ *  is none (null: none could be read; the publish then carries only what the page measured). */
+export async function storedBoxes(showId: string, sbOf: () => Promise<Sb | null> = getSupabase): Promise<BoxSnapshot | null> {
+  const known = publishedBoxes.get(showId);
+  if (known) return known;
+  const sb = await sbOf();
+  return sb ? readPublishedBoxes(sb, showId) : null;
+}
+
+/** The stamp a publish's boxes were carried from (`appearanceFor` marks the function it answers when
+ *  it carried any), so a publish that finds the stored stamp moved builds again rather than land a
+ *  carried box on another publication. */
+export const carriedFrom = (publishedOf: unknown): string | undefined => (publishedOf as { carriedFrom?: string } | undefined)?.carriedFrom;
+
 /** What this page's own last publish of each production wrote: the stamp, the revision, the OBS
  *  scenes and the panel (until this page publishes, the publication as read when the production
  *  opened, `prefetchPublication`). While the stored stamp is that one, a publish uses it instead of
@@ -268,4 +329,5 @@ export function forgetPublishedParts(): void {
   ownPublishes.clear();
   held.clear();
   partMemo.clear();
+  publishedBoxes.clear();
 }
