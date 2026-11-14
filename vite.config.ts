@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { claimDevPorts, reservesPorts, writeLaunchConfig } from './scripts/dev-port.mjs';
+import { assertConfiguredTarget } from './scripts/configured-target.mjs';
 import { panelBackendPlugin } from './scripts/panelBackendPlugin.mjs';
 import { catalogIndexPlugin } from './scripts/catalogIndexPlugin.mjs';
 import { skewProtectionPlugin } from './scripts/skewProtectionPlugin.mjs';
@@ -126,6 +127,17 @@ export default defineConfig(({ command, mode }) => {
     for (const [key, value] of Object.entries(loadEnv(mode, process.cwd(), ''))) {
       if (!(key in process.env)) process.env[key] = value;
     }
+  }
+  // A TEST OR A MEASUREMENT NEVER BUILDS OR SERVES AGAINST A BACKEND IT MAY NOT DESTROY (#2508).
+  // A server a Playwright config starts sets NOACG_E2E_SERVER, a measurement build sets
+  // VITE_MEASURE_HOOKS=1 and the browser suite's build is `--mode e2e`; each is judged by the rule
+  // every configured run uses, on what this build will actually see (the shell over the .env
+  // files, as Vite merges them). The site's own builds set none of the three and are untouched.
+  if (process.env.NOACG_E2E_SERVER || process.env.VITE_MEASURE_HOOKS === '1' || mode === 'e2e') {
+    const seen: Record<string, string | undefined> = { ...loadEnv(mode, process.cwd(), ''), ...process.env };
+    // A bundle inlines only the browser's half; the api/ handlers run only under a server.
+    if (command === 'build') seen.SUPABASE_URL = '';
+    assertConfiguredTarget(seen, `this ${command === 'build' ? 'build' : 'server'} for a test or a measurement`);
   }
   // THE E2E BUILD (`npm run build:e2e`, served to the browser suite): the app's bundle with
   // function and class names kept (below), the source-module registry specs reach through

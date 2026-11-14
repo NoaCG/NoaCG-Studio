@@ -48,16 +48,17 @@
 // recorded as #2504: the seam that removes it hands the key out through an accessor, so the check
 // runs where a spec writes rather than where its file is parsed.
 //
-// ONE PLACE THIS DOES NOT REACH, AND IT IS AN OPEN HOLE: #2508. `e2e/configured/measure/
-// measure.config.ts` with MEASURE_BUILD=prod puts a switch in front of two servers, and the
-// served-backend probe reads the development one, because the switch starts in `dev` and only a
-// spec flips it. The bundled half's backend was fixed when `vite build` ran, out of whatever
-// environment was there then, and `measure.config.ts` checks only that MEASURE_DIST is set, not
-// what it was built against - so a dist built earlier against another project is judged by
-// neither leg, and the measurement specs publish. It is read OUT OF THE BUILD, not at run time
-// (vite inlines VITE_* as literals), which is why the fix belongs in that harness and is its own
-// issue rather than another entry point here.
+// THE MEASUREMENT BUILD (#2508). `e2e/configured/measure/measure.config.ts` with MEASURE_BUILD=prod
+// puts a switch in front of two servers, and the served-backend probe reads the development one,
+// because the switch starts in `dev` and only a spec flips it. The bundled half's backend was fixed
+// when `vite build` ran (vite inlines VITE_* as literals), so it is judged OUT OF THE BUILD:
+// `distBackendRefusal` below reads the hosted Supabase URLs in MEASURE_DIST's scripts and judges
+// each by this rule, and the harness refuses before any server starts. vite.config.ts asks the same
+// rule when a test or a measurement makes or serves a build (NOACG_E2E_SERVER, VITE_MEASURE_HOOKS=1
+// or `--mode e2e`), so such a dist is refused when it is made, not only when it is used.
 
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { stagingRef } from './supabase-projects.mjs';
 
 /** Every variable a configured run or `api/` can take a backend from (api/_lib/*: SUPABASE_URL wins). */
@@ -274,4 +275,34 @@ export function assertConfiguredTarget(env = process.env, what = 'this run') {
   const target = configuredTarget(env);
   if (target.kind === 'refused') throw new Error(`Refusing to start ${what}. ${target.reason}`);
   return target;
+}
+
+/**
+ * A hosted Supabase URL as `vite build` inlines it: a whole literal, `https://<ref>.supabase.co`.
+ * The app's own code builds such URLs from a ref at run time ('https://' + ref + '.supabase.co'),
+ * which never appears whole, so what this finds is what the build was given.
+ */
+const BUNDLED_HOST = /https?:\/\/[a-z0-9-]+\.supabase\.co(?![a-z0-9.-])/gi;
+
+/**
+ * Why a built app in `dist` may not be served to a run in this environment, or null.
+ *
+ * Every hosted Supabase URL in the build's scripts is judged as if a server served it
+ * (`servedTarget`), so the build's backend gets the same answer the run's own would: production
+ * never, staging only when declared. A build against the local stack inlines a local URL, which is
+ * not a hosted one, and passes. A build made against a self-hosted backend on another domain is not
+ * recognised here; vite.config.ts refuses such a build when a measurement makes it.
+ */
+export function distBackendRefusal(dist, env = process.env) {
+  const assets = join(dist, 'assets');
+  const hosts = new Set();
+  for (const file of readdirSync(assets)) {
+    if (!/\.m?js$/.test(file)) continue;
+    for (const [url] of readFileSync(join(assets, file), 'utf8').matchAll(BUNDLED_HOST)) hosts.add(url.toLowerCase());
+  }
+  for (const url of hosts) {
+    const target = servedTarget(url, env);
+    if (target.kind === 'refused') return `The build in ${dist} was made against ${host(url)}, and a run may not reach it. ${target.reason}`;
+  }
+  return null;
 }

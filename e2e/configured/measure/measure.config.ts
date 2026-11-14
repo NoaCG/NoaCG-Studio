@@ -2,6 +2,7 @@ import base from '../../../playwright.live.config';
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { readdirSync, readFileSync } from 'node:fs';
+import { distBackendRefusal } from '../../../scripts/configured-target.mjs';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 
@@ -40,6 +41,10 @@ function prodServers() {
   const assets = `${dist}/assets`;
   const hooked = readdirSync(assets).some((f) => f.endsWith('.js') && readFileSync(`${assets}/${f}`, 'utf8').includes('noacg-measure-edit-loop'));
   if (!hooked) throw new Error(`MEASURE_DIST ${dist} was built without VITE_MEASURE_HOOKS=1, so it has no measurement loops: rebuild it with that variable set`);
+  // The bundle's backend was fixed when it was built, and the run's guard probes only the dev
+  // server, so the build is judged here, before anything starts (#2508).
+  const refusal = distBackendRefusal(dist);
+  if (refusal) throw new Error(`Refusing MEASURE_BUILD=prod. ${refusal}`);
   const port = PROD_PORT;
   const dev = port + 1, prod = port + 2;
   // DEV_PORT: the ports sit outside the reserved range on purpose, beside the harness's own.
