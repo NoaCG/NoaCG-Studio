@@ -188,6 +188,9 @@ export default defineConfig(({ command, mode }) => {
       // in 2026-08 - and `scripts/check-preview-serialization.mjs` cannot see it, because the
       // source would still be correct.
       outDir: e2e ? 'dist-e2e' : 'dist',
+      // Source maps on the e2e build only: the traced spec map reads which source file each bundled
+      // function came from (scripts/e2e-build-sources.mjs, e2e/_trace.ts).
+      ...(e2e ? { sourcemap: true } : {}),
       // The e2e build's manifest tells e2e/_door.ts where the registry chunk landed, for documents
       // the app does not boot.
       ...(e2e ? { manifest: true } : {}),

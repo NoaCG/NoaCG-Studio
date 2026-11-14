@@ -7,8 +7,10 @@ sweeps) are in its "Running the suite: traps".
 ## Gotchas when writing a spec
 
 - **Offline mode and a reused server.** The offline and catalog suites pin offline mode via
-  `webServer.env`, but `reuseExistingServer: true` adopts a dev server already running on THIS
-  checkout's port, with the real `.env`. Kill that server first. Other worktrees' servers are
+  `webServer.env`, but on the dev server (the local default) `reuseExistingServer: true` adopts a
+  dev server already running on THIS checkout's port, with the real `.env`. Kill that server first.
+  On the build nothing is reused, and the dev project's server takes the checkout's second port, so
+  it cannot run beside a configured-suite run in the same checkout. Other worktrees' servers are
   harmless. The CONFIGURED suite does not adopt one (issue #2495): an adopted server decides where
   the run writes, through the api/ handlers it mounts as well as the page, so a busy live port
   stops that suite dead instead of misleading it.

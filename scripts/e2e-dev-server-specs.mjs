@@ -14,7 +14,7 @@
 // spec would pass without exercising its condition. Those specs run in the "dev" project instead,
 // on a dev server, with every assertion unchanged.
 //
-// A spec says so in its own header, with the reason:
+// A spec says so on its first line, with the reason:
 //
 //   // runs on: dev server - <why the build cannot serve it>
 //
@@ -31,7 +31,10 @@ import { fileURLToPath } from 'node:url';
 import { measured } from './measured.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-export const MARKER = /^\/\/ runs on: dev server - (\S.{9,})$/m;
+/** The header, on a spec's FIRST line. */
+export const MARKER = /^\/\/ runs on: dev server - (\S.{9,})$/;
+/** Anything that looks like an attempt at it, anywhere: a typo must not silently mean "the build". */
+const NEAR = /^\s*\/\/\s*runs[\s-]*on\b/im;
 const URL_PATH = /(['"`*]|\$\{[^}]*\}|https?:\/\/[^/'"`\s]*)\/(src|benchmarks)\//;
 
 /** Line numbers (1-based) where a text names a URL-style /src/ or /benchmarks/ path outside the
@@ -54,7 +57,8 @@ export function classify(entries) {
   const specs = [];
   const problems = [];
   for (const [file, text] of entries) {
-    const marked = MARKER.test(text);
+    const marked = MARKER.test(text.split('\n', 1)[0]);
+    const near = !marked && NEAR.test(text);
     const hits = devServerPaths(text);
     const isSpec = file.endsWith('.spec.ts');
     if (marked && isSpec) specs.push(file);
@@ -66,6 +70,7 @@ export function classify(entries) {
       );
     }
     if (marked && !isSpec) problems.push(`${file} carries the dev-server header but is not a spec`);
+    if (near) problems.push(`${file} has a "runs on" line that is not the header: write \`// runs on: dev server - <why>\` as its first line`);
   }
   return { specs: specs.sort(), problems };
 }

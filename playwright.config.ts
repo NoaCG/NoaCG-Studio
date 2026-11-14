@@ -3,8 +3,9 @@ import { devPort, livePort } from './scripts/dev-port.mjs';
 import { devServerSpecs } from './scripts/e2e-dev-server-specs.mjs';
 import { localWorkers, validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 
-// End-to-end UI-flow tests. These drive the real dev server, so they verify the app the way a
-// user experiences it. Run with `npm run test:e2e`.
+// End-to-end UI-flow tests. These drive the real app, so they verify it the way a user experiences
+// it: the dev server by default, the e2e build when NOACG_E2E_ON_BUILD=1 (CI). Run with
+// `npm run test:e2e`.
 // The port comes from scripts/dev-port.mjs (5174 in the main checkout, a stable per-worktree
 // port in a linked worktree), so parallel worktrees never reuse each other's servers.
 const base = `http://127.0.0.1:${devPort()}`;
@@ -25,6 +26,8 @@ const devSpecPatterns = devSpecs.map(specPattern);
 const expected = process.env.NOACG_E2E_EXPECTED_SPECS?.split(/\s+/).filter(Boolean).map((f) => (f.startsWith('e2e/') ? f : `e2e/${f}`));
 const needsDevServer = devSpecs.length > 0 && (!expected || expected.some((f) => devSpecs.includes(f)));
 const devBase = `http://127.0.0.1:${livePort()}`;
+// The offline guard (globalSetup) checks that server only when this run starts it.
+if (needsDevServer) process.env.NOACG_E2E_DEV_SERVER = '1';
 
 // THE BLOB FILE MUST BE UNIQUE PER SHARD, and only Playwright's own `--shard=i/n` makes it so on
 // its own - it suffixes the zip with the shard number. Without sharding every runner writes

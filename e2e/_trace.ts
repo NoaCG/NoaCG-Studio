@@ -15,10 +15,14 @@
 import { test as base, type CDPSession, type Page } from 'playwright/test';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { sourcesOf } from '../scripts/e2e-build-sources.mjs';
 
 export * from 'playwright/test';
 
 const dir = process.env.NOACG_E2E_TRACE;
+const ON_BUILD = process.env.NOACG_E2E_ON_BUILD === '1';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 async function startCoverage(page: Page): Promise<CDPSession> {
   const session = await page.context().newCDPSession(page);
@@ -27,12 +31,24 @@ async function startCoverage(page: Page): Promise<CDPSession> {
   return session;
 }
 
-/** Script URLs with at least one function, beyond the module body itself, that ran. */
+/** Script URLs with at least one function, beyond the module body itself, that ran. On the e2e
+ *  build a script is a chunk of many modules, so for a chunk this answers the source files of the
+ *  functions that ran instead, as URLs of the same origin (scripts/e2e-build-sources.mjs). */
 async function executedUrls(session: CDPSession): Promise<string[]> {
   const { result } = await session.send('Profiler.takePreciseCoverage');
-  return result
-    .filter((script) => script.url && script.functions.some((fn, i) => i > 0 && fn.ranges.some((r) => r.count > 0)))
-    .map((script) => script.url);
+  const urls: string[] = [];
+  for (const script of result) {
+    if (!script.url) continue;
+    const ran = script.functions.filter((fn, i) => i > 0 && fn.ranges.some((r) => r.count > 0));
+    if (ran.length === 0) continue;
+    const chunk = ON_BUILD ? /^(https?:\/\/[^/]+)\/(assets\/[^?#]+\.js)(?:[?#].*)?$/.exec(script.url) : null;
+    if (!chunk) {
+      urls.push(script.url);
+      continue;
+    }
+    for (const file of sourcesOf(ROOT, 'dist-e2e', chunk[2], ran.map((fn) => fn.ranges[0].startOffset))) urls.push(`${chunk[1]}/${file}`);
+  }
+  return urls;
 }
 
 export const test = base.extend<{ noacgTrace: void }>({

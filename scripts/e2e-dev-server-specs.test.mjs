@@ -31,8 +31,20 @@ test('a spec that needs the dev server must say so, and a helper may not need it
     ['e2e/e.spec.ts', '// runs on: dev server - \nawait page.route(\'**/src/x.ts\', r => r.abort());'],
   ]);
   assert.deepEqual(specs, ['e2e/b.spec.ts', 'e2e/c.spec.ts']);
-  assert.equal(problems.length, 3);
+  assert.equal(problems.length, 4);
   assert.match(problems[0], /^e2e\/a\.spec\.ts:1 needs the dev server/);
   assert.match(problems[1], /^e2e\/_h\.ts:1 is a helper/);
   assert.match(problems[2], /^e2e\/e\.spec\.ts:2 needs the dev server/, 'a header with no reason does not count');
+  assert.match(problems[3], /^e2e\/e\.spec\.ts has a "runs on" line/);
+});
+
+test('the header counts only on the first line, and a misspelt one is refused', () => {
+  const { specs, problems } = classify([
+    ['e2e/a.spec.ts', 'import x;\n' + MARK],
+    ['e2e/b.spec.ts', '// runs on: dev-server - reads the per-file source stylesheets\n'],
+  ]);
+  assert.deepEqual(specs, []);
+  assert.equal(problems.length, 2);
+  assert.match(problems[0], /^e2e\/a\.spec\.ts has a "runs on" line/);
+  assert.match(problems[1], /^e2e\/b\.spec\.ts has a "runs on" line/);
 });

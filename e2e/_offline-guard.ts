@@ -120,10 +120,10 @@ export default async function offlineGuard(): Promise<void> {
   await waitForOtherRuns();
   await guardServer(`http://127.0.0.1:${devPort()}`);
   // On the build, the "dev" project's dev server listens on the second port when this run holds
-  // a spec that needs it (playwright.config.ts). It gets the same check, and the page load is also
+  // a spec that needs it (playwright.config.ts sets NOACG_E2E_DEV_SERVER then). It gets the same check, and the page load is also
   // what settles its dependency pre-bundling before a test opens the app: a cold dev server
   // re-bundles on the first load and answers that page's stale dependency with a 504.
-  if (process.env.NOACG_E2E_ON_BUILD === '1') await guardServer(`http://127.0.0.1:${livePort()}`);
+  if (process.env.NOACG_E2E_DEV_SERVER === '1') await guardServer(`http://127.0.0.1:${livePort()}`);
 }
 
 async function guardServer(base: string): Promise<void> {

@@ -26,7 +26,7 @@ export async function withSsrServer(fn) {
     // production, and would otherwise pre-bundle React for production into the cache the dev
     // server reads: a dev server beside the build (the e2e suite's dev project) then loads two
     // Reacts and the app never mounts.
-    cacheDir: path.join(projectRoot, 'node_modules/.vite-ssr'),
+    cacheDir: path.join(projectRoot, 'node_modules/.vite-catalog-index'),
     server: { middlewareMode: true },
     appType: 'custom',
     logLevel: 'warn',

@@ -28,7 +28,7 @@ export function previewApiHost(preview) {
       configFile: false,
       // Not the dev server's dependency cache: this runs under `vite preview` (NODE_ENV production)
       // beside the e2e suite's dev server (scripts/catalogIndexPlugin.mjs says why that matters).
-      cacheDir: path.join(repoRoot, 'node_modules/.vite-ssr'),
+      cacheDir: path.join(repoRoot, 'node_modules/.vite-preview-api'),
       appType: 'custom',
       logLevel: 'error',
       server: { middlewareMode: true, hmr: false, watch: null },
