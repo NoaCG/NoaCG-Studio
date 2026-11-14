@@ -103,7 +103,24 @@ the same, never measured here.
 
 ### 10 and 15 pages
 
-RESULTS_MORE
+The same ten-minute run with more people, on the same scene and machine: the extra people are
+editors, each typing into a cue of their own on every tick (the first reloads, the second goes
+offline, as above). Reported as tested numbers, not judged (AC-6).
+
+| Pages | Job | Takes (lost) | Press to ran p50 / p95 / max | Goals / score | Messages / cues | Editors whose last text stood |
+|---|---|---|---|---|---|---|
+| 5 | j-0022 | 476 (0) | 31.9 / 62.3 / 116 ms | 199 / 199 | 39 / 39 | 2 of 2 |
+| 10 | j-0029 | 216 (0) | 86.2 / 185.7 / 371 ms | 199 / 199 | 39 / 39 | 4 of 7 |
+RESULTS_15
+
+**A lost edit at 10 pages (#2565).** Three of the seven editors' last texts were missing on every
+page, their own included, 90 s after the run: the record held `#148` or `#147` where `#149` was
+typed. Cause, read from the code: `refreshOnce` in `src/backend/teamProductions.ts` takes the set of
+productions with an edit on its way up before it awaits the teammates' documents, then applies the
+fetched record over an edit made during that await. More editors mean more fetches, so it shows
+with seven editors and not with two. It is not #2562 (one account on two devices) and is outside
+this phase's scope; filed as #2565 (P1) and reported to the coordinator. No conflicted copy, no
+Goal or message lost, no Take lost.
 
 ### The configured spec
 
