@@ -35,8 +35,9 @@ function ordered(value: unknown): unknown {
 export const sliceKey = (slice: RundownSlice): string => JSON.stringify(ordered(slice));
 export const sameRundown = (a: RundownSlice, b: RundownSlice): boolean => sliceKey(a) === sliceKey(b);
 
-/** A cue's TEXT as the cue draft writes it (control/cueDraft.ts `fieldsOf`): label, note, values. */
-const cueText = (slice: RundownSlice, cueId: string): string | null => {
+/** A cue's TEXT as the cue draft writes it (control/cueDraft.ts `fieldsOf`): label, note and values,
+ *  as one comparable key; null when the slice has no such cue (#2572). */
+export const cueTextKey = (slice: RundownSlice, cueId: string): string | null => {
   const cue = slice.cues.find((c) => c.id === cueId);
   return cue ? JSON.stringify(ordered({ label: cue.label, note: cue.note || null, values: cue.values ?? {} })) : null;
 };
@@ -44,8 +45,8 @@ const cueText = (slice: RundownSlice, cueId: string): string | null => {
  *  cue still there (#2572, D1). A move, a folder change or any other cue is elsewhere; its label,
  *  note, any of its values or its removal is not (D3). */
 export const typedCueUnchanged = (cueId: string, now: RundownSlice, expected: RundownSlice): boolean => {
-  const was = cueText(expected, cueId);
-  return was !== null && cueText(now, cueId) === was;
+  const was = cueTextKey(expected, cueId);
+  return was !== null && cueTextKey(now, cueId) === was;
 };
 
 export interface RundownLiveState { cues: ReadonlySet<string>; sources: ReadonlySet<string>; folders: ReadonlySet<string>; unidentifiedServer: boolean }

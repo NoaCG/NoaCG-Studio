@@ -222,6 +222,24 @@ test('a teammate\'s save to another cue, adopted while a cue is typed, keeps bot
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
+test('after a change elsewhere kept the typing, a change to the typed cue itself still wins (#2572, D1 then D3)', async ({ page }) => {
+  const ids = await seed(page);
+  await select(page, 'Alpha'); const input = page.getByTestId('cue-label');
+  await input.fill('Typed here');
+  // Before the idle save: first a different cue, then the typed cue itself, renamed elsewhere.
+  await page.evaluate(async ids => {
+    const m = await __noacgImport('/src/model/shows.ts');
+    m.updateShowCue(ids.show, ids.cues[1], { label: 'Renamed elsewhere' });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    m.updateShowCue(ids.show, ids.cues[0], { label: 'Theirs' });
+  }, ids);
+  await expect(row(page, 'Theirs')).toBeVisible();
+  await expect(input).toHaveValue('Theirs');
+  await page.waitForTimeout(700);
+  await settleDurableWrites(page);
+  expect(await page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!.cues!.map(c => c.label), ids.show)).toEqual(['Theirs', 'Renamed elsewhere', 'Gamma']);
+});
+
 test('typing queued behind a held team save survives a teammate\'s change to another cue (#2572, D5)', async ({ page }) => {
   const { ids, state, advance } = await teamBackend(page);
   await select(page, 'Alpha'); const input = page.getByTestId('cue-label');
