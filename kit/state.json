@@ -43,8 +43,8 @@
   "inFlight": [],
   "owner": [
     {
-      "what": "OS7: rehearsal with the 17-row checklist in evidence/phase-OS6.md; row 15 (2 h memory run, #2475) can run first, agent-assisted; rows 3, 4, 14 need the stinger, event graphics and bracket source",
-      "where": "hand-over posted on #2445 (comment 6863626723); receipt to the coordinator chat, lands as evidence/phase-OS7.md"
+      "what": "OS7: rehearsal, 17-row checklist in evidence/phase-OS6.md. Row 15 done 2026-11-14 (memory levels off at ~2.5 GB over 2h30, private receipt 2cedb2a; #2475 closed). Rows 3, 4, 14 need the stinger, event graphics and bracket source. Watch #2559 (blank source at load) in rows 8 and 11.",
+      "where": "hand-over on #2445; receipt to the coordinator chat, lands as evidence/phase-OS7.md"
     }
   ],
   "fixes": [
@@ -69,6 +69,11 @@
       "issue": 2489,
       "what": "adding a graphic to a scene takes it (spec Scenes behaviour, deferred by OS1a to OS1b, not in AC-2/AC-3)",
       "when": "landed 2026-11-13T14:35Z as 1178ac8e8b1c3cabef036e57a1a50c74576ebf93 (PR 2493)"
+    },
+    {
+      "issue": 2559,
+      "what": "scene link sometimes loads blank until refreshed or shown (seen in OS2 and OS7 row 15)",
+      "when": "observe in OS7 rows 8 and 11; fix before the freeze if it reproduces"
     }
   ],
   "triggers": [
