@@ -78,7 +78,7 @@
       "source": "7f6e58966fed605b876e2deddb8f91e3cce71f6a",
       "deliveryBranch": "codex/plan-editor-r1-5-e5f-quiz-edit",
       "deliverySource": "41cde4da44e8101018e7bea20872deae82ca1165",
-      "note": "ONE recursive-noscript repair underway; R9docspushalso publishedpriorproductWIP7f6 (knownAminus/noPR/noActions). No furtherpushuntilcoherentnewfullSOA. Allhistory/SVG2552stop retained; no phasePASS.",
+      "note": "Boundednoscript correction55browserPASS;31negative0writes/literalseditable, mutationdetected/exact7013restore. Finalnewcommit/check/NEWfullSO pending; remote7f6knownAminusWIP/noPR. Allhistory/SVG2552stop/fullphasepending.",
       "monitorOwner": "root active sole repair owner through new PR queue, exact merge checks and deployment; no durable wake claimed"
     }
   ],
@@ -4104,7 +4104,11 @@
         "instances": "leaf,definition,nestedtemplate/end-template modes; escapedliteraldataeligible",
         "disposition": "ONE boundedrepairwithinexistingallowance admitted; warninggrantsno attempt; implementationunverified/41cdAminusretained",
         "brief": "briefs/e5f-qualifier-noscript-repair-20261114.txt",
-        "sha256": "fe540d29f7a4f4efb2eef9265740c569ce50a2c5dbeb36411b08de0b18de558c"
+        "sha256": "fe540d29f7a4f4efb2eef9265740c569ce50a2c5dbeb36411b08de0b18de558c",
+        "native": "6af8dd46-5900-8191-8796-d498fd28b048",
+        "receipt": "quiz-repeated-family-so-20261114.md",
+        "receiptSha256": "ebaa621ac7f90c232b026ea4e699d89a2ed3ce127ef20dd6d9a15c12aa807978",
+        "receiptSource": "Actualverbatim4117B terminalfinal_answer extractedfromnative read_thread, notsummary"
       },
       "knownWipPublication": {
         "at": "2026-11-14T22:22Z",
@@ -4113,6 +4117,17 @@
         "status": "KnownAminus featureWIPcheckpoint, NOTreadycandidate/approval/landing",
         "root": "Independentlylsremote+RESTopenPRs[]+branchActionsruns[]; no PR/CIrequest/queue/deployment. Rootacknowledgedambiguousdocs-onlypushinstructiontoowner",
         "disposition": "Preservepublishedhistory/no forcerewind; no furtherpushuntilcoherentcorrectedcheck+NEWfullSOA, thenonePR/delivery. Original41cdAminusretained"
+      },
+      "noscriptRepair": {
+        "rulesCheckpoint": "7f6e58966fed605b876e2deddb8f91e3cce71f6a",
+        "helperSha256": "701364017698efa3f00d53f6708472fa9b5c2c18b4c69c6839f15b474cd64cc0",
+        "change": "Tinyhelper-local recursiveHTMLtemplate.content noscript exclusion atinitial+freshoutput; oldwriter/byte/nodeguards unchanged",
+        "red": "j225original6720:boundaryFAIL all4noscshapeswronglyeligible/writes1; independent script-enabledpositive+3modewitnessesPASS; wholelogread",
+        "focusedGreen": "j2262PASS11.4s; rootparsedraw31negativesallunsupported/preparefalse/applyfalse/0writes/unchanged; all3literalsfirst+secondedit+captrue",
+        "mutation": "j227declaredonlynewguardremoved intentionalRED; persistedgoodbackup/finallyrestore; rootwholelogread+actual7013andbackuphashverified",
+        "coherentGreen": "j22855/55PASS1.5m/2workers/cap5; oldordinaryquiz/runtime/Undo/durable+4exports/Help/stalecasespreserved",
+        "checks": "TS+ESLintPASS; delta9cheapchecks+2affectedfiles12scripttestsPASS; unchangedpreviousotherscriptproofsretained",
+        "next": "Coherentcommit/finalcurrentmaincheck/stamp/capacity +NEWfreshfullSOA/Aplus; no furtherpush/PRuntilthen"
       }
     }
   },
