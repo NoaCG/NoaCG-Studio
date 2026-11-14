@@ -268,9 +268,14 @@ publish in parts had not waited for 10 boxes; they are gained once, absent befor
 the stored cues, 31.5 to 38.8 kB per open on the large fixture (42 cues, one carrying 2 kB of text),
 both ways with headers, six opens in j-0013 and j-0014.
 
+**The stored boxes' read.** Read afresh at every opening of the production; a publish waits for it
+beside its measurements within the same 8 s cap, or reads itself when the opening did not; a failed
+read is not kept (`scripts/publish-parts.test.mjs`, 3 tests; mutations: keeping the first read fails
+the reopened test, keeping a failed read fails the retry test).
+
 **Both publish paths.** `e2e/configured/publish-guard.spec.ts`, the AC-5 check, now also reloads the
 page with nothing kept and the background measurer held (its frames' answers dropped), edits a cue,
-and checks the stored boxes are those before the reload: once in parts (the publish sends the edited
+and, without waiting for the stored boxes' read, checks the stored boxes are those before the reload: once in parts (the publish sends the edited
 cue alone) and once on the whole path (the parts function answering 503, so the publish falls back
 and writes whole), then the row against the whole path (R23). Passes (j-0011). With `publishBox`
 returning only what was measured, it fails at "in parts: every stored box kept" (j-0012).

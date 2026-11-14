@@ -578,4 +578,7 @@ Filled in by each phase's pull request.
     publishes the box the stored publication carries for it, when that box is of the same graphic
     and was measured against the same frame and stage; otherwise none, as before. Whole and parts
     publishes carry the same box (`publish-guard.spec.ts`, AC-5 check, cold reload on both paths).
+    The stored boxes are read afresh each time the production opens; a publish waits for that read
+    within its measure cap (or reads itself when there is none), and a failed read is not kept, so
+    the next publish reads again (found in review of 07a7279).
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.
