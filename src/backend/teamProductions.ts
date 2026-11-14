@@ -647,8 +647,12 @@ async function refreshOnce(): Promise<void> {
     loadError: null,
     teams: teamsAnswer.teams,
     members: membersAnswer.members,
-    // A head this tab's own save moved during the read is newer than the one the read listed.
-    heads: Object.fromEntries(heads.map((h) => [h.id, moved.has(h.id) && state.heads[h.id] ? state.heads[h.id] : h])),
+    // A head this tab's own save recorded during the read is newer than the one the read listed: kept
+    // while it is the head of the base this tab holds (a refused save moves the base, not the head).
+    heads: Object.fromEntries(heads.map((h) => {
+      const mine = state.heads[h.id];
+      return [h.id, moved.has(h.id) && mine && mine.updatedAt === server.get(h.id)?.token ? mine : h];
+    })),
   });
   // A save that failed on a dropped connection is retried on the next good read.
   for (const id of dirty) if (!timers.has(id) && !inflight.has(id)) scheduleSave(id);

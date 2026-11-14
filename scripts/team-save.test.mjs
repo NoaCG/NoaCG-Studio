@@ -366,6 +366,7 @@ function readHarness() {
     }
     export function editForTest(id: string) { scheduleSave(id); }
     export function serverForTest(id: string) { const k = server.get(id); return k ? JSON.stringify({ token: k.token, name: k.doc.name }) : null; }
+    export function seedHeadForTest(id: string, updatedAt: string, updatedBy: string) { setState({ heads: { ...state.heads, [id]: { id, teamId: 'team', updatedAt, updatedBy } } }); }
     export function headForTest(id: string) { const h = state.heads[id]; return h ? JSON.stringify({ updatedAt: h.updatedAt, updatedBy: h.updatedBy }) : null; }
   `;
   const compiled = ts.transpileModule(source + setup, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -452,4 +453,25 @@ test('a save refused and then accepted while the team read is out keeps its newe
   assert.ok(h.kept.at(-1).includes('show'));
   assert.equal(h.controller.headForTest('show'), JSON.stringify({ updatedAt: 'mine', updatedBy: 'owner' }), 'F7: and the head this tab\'s save moved');
   assert.equal(h.saves.length, 2, 'nothing is saved again');
+});
+
+test('a save refused inside the team read, its retry still out, takes the head the read listed (#2565, F7)', async () => {
+  const h = readHarness();
+  h.controller.seedHeadForTest('show', 'base', 'owner');
+  const reading = h.controller.refreshTeams();
+  await h.reachTheFetch();
+  h.edit('show', 'My edit');
+  // Refused against the teammate's save; the merged retry never answers before the read does.
+  h.answers.push(
+    { data: { saved: false, updated_at: 'teammate', updated_by: 'mate', doc: { id: 'show', version: 2, graphics: [], name: 'Teammate' } }, error: null },
+    new Promise(() => {}),
+  );
+  void h.controller.flushTeamProduction('show');
+  for (let i = 0; i < 50 && h.saves.length < 2; i++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(h.saves.length, 2, 'the merged retry is out');
+  h.answerRead();
+  await reading;
+  assert.equal(h.controller.serverForTest('show'), h.base('teammate', 'Teammate'), 'the base the refusal moved to is kept');
+  assert.equal(h.store.get('show').name, 'My edit', 'and the page keeps the merged record');
+  assert.equal(h.controller.headForTest('show'), JSON.stringify({ updatedAt: 'teammate', updatedBy: 'mate' }), 'the head is the read\'s, not the older one this tab held');
 });
