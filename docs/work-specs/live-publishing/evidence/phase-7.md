@@ -215,8 +215,9 @@ the build that measured it. A reopened page takes a kept box only for a cue it h
 since it opened, whose identity hashes the same, from the same build, in the order the boxes were
 measured (so a graphic's newest box, which its unmeasured cues read, is the same). A cue so taken
 is not measured again. What a Take airs and what a publish stores for the same input are unchanged:
-the box is the one the page measured for exactly that cue. No migration; the publish code is
-untouched, so R23 holds as before.
+the box is the one the page measured for exactly that cue. No migration. (Route (b) below then
+changed the publish's box choice; R23 rests on both paths taking the one `publishedOf` answer, and
+the configured check below runs both.)
 
 **Method.** Local stack (127.0.0.1:54421, every migration applied), `partial_writes` and
 `auto_publish` on, large fixture (60 graphics, 21 MB stored), production bundles built with
@@ -249,9 +250,12 @@ than left out.
 8e2c6b22 (B) found the cold case still failing: a new build, a new browser, a teammate or cleared
 storage keeps nothing, so the first edit behaved like `main`. The coordinator chose route (b) on
 #2361. When the production opens (parts on), the page reads the stored cues once
-(`control_shows?select=cues:output->cues`) and a publish carries, for a cue it has not measured
-(none of its own, none of its graphic's), the box the stored publication carries for it, when of
-the same graphic, frame and stage (`keptGeometry.ts` `publishBox`). The choice is made in the one
+(`control_shows?select=cues:output->cues, g:output->ver->g`) and a publish carries, for a cue it
+has not measured (none of its own, none of its graphic's), the box the stored publication carries
+for it, only while the stored cue is that cue as it is now: the same values, adjust records, look,
+frame and stage, and the same design digest in the stored stamp (`keptGeometry.ts` `publishBox`,
+rule K9, after the second full review found a stale box could be written over a teammate's newer
+one). The choice is made in the one
 `publishedOf` call both publish paths take their payload from.
 
 Final code, same method; `MEASURE_COLD=1` clears `spx-gfx-measured` before each reload:
@@ -286,7 +290,9 @@ build is measured again; a measurement the reopened page makes itself wins; a re
 forgotten and refused storage changes nothing; a graphic's unmeasured cue reads the same newest box.
 Mutations: `adopt` made a no-op fails 2 tests; the measured-order tracking removed fails the
 newest-box test; `flush` made a no-op fails the leave-within-a-second test; `publishBox` returning
-only what was measured fails the cold-page and the frame-and-stage tests.
+only what was measured fails the cold-page test; dropping its values-and-records check, or its
+design-digest check, fails the never-onto-another-cue test (own edit, teammate, design, adjust,
+stage).
 
 **Other checks.** `npm run gates -- run --changed origin/main` passes; `tsc` and `eslint` on the
 changed files pass; `check-e2e-protection` OK (12 to 12 tests); `e2e/playout-adjust.spec.ts` (the measurement and the stage's frame, offline,
