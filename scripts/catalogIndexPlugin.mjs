@@ -22,6 +22,11 @@ export async function withSsrServer(fn) {
   const server = await createServer({
     root: projectRoot,
     configFile: path.join(projectRoot, 'vite.config.ts'),
+    // Its own dependency cache. This server starts inside `vite build`, where NODE_ENV is
+    // production, and would otherwise pre-bundle React for production into the cache the dev
+    // server reads: a dev server beside the build (the e2e suite's dev project) then loads two
+    // Reacts and the app never mounts.
+    cacheDir: path.join(projectRoot, 'node_modules/.vite-ssr'),
     server: { middlewareMode: true },
     appType: 'custom',
     logLevel: 'warn',
