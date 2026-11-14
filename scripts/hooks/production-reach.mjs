@@ -90,7 +90,9 @@ const TESTS = new Set(['test', '[', '[[']);
 
 /** Any of these in the text is needed for any reason below; without one, nothing is parsed. */
 const MAY_REACH = /[$`]|supabase|\.(?:[cm]?[jt]s|py|sh)\b|\b(?:node|tsx|ts-node|bun|deno|python3?|bash|sh|zsh)\b/i;
-/** Interpreter flags that run code other than the file it is given: inline code, or a preload. */
+/** Interpreter flags whose argument is code itself, not a file. */
+const INLINE_CODE = /^(?:-e|--eval|-p|--print|-c)$/;
+/** Interpreter flags that run code other than the file it is given: inline code, or a preloaded file. */
 const RUNS_OTHER_CODE = /^(?:-e|--eval|-p|--print|-c|-r|--require|--import|--loader|--experimental-loader)(?:=|$)/;
 const ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const TOOL_FILES = new Set(PRODUCTION_TOOLS.map((path) => path.split('/').pop()));
@@ -283,9 +285,10 @@ function scriptsRun(words, dir) {
   const at = runnerAt(words);
   // After an interpreter, any file it is given may be the program, extension or not; a file run
   // directly is judged by its extension, since every word of every command would otherwise be read.
-  // The argument of an inline-code flag is code, not a file name.
+  // The argument of an inline-code flag is code, not a file name; a preloaded file is a file.
   const candidates = at >= 0
-    ? words.slice(at + 1).filter((w, i, rest) => !w.startsWith('-') && !(i > 0 && RUNS_OTHER_CODE.test(rest[i - 1])))
+    ? words.slice(at + 1).flatMap((w) => (/^--(?:require|import|loader|experimental-loader)=/.test(w) ? [w.slice(w.indexOf('=') + 1)] : [w]))
+        .filter((w, i, rest) => !w.startsWith('-') && !(i > 0 && INLINE_CODE.test(rest[i - 1])))
     : commandWords(words).slice(0, 1).filter((w) => SCRIPT.test(w));
   const files = [];
   for (const word of candidates) {

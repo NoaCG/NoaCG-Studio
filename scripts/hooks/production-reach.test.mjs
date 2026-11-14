@@ -149,6 +149,9 @@ test('a one-off script file that reads the key is refused; the same script witho
     [`timeout -s KILL 60 npx tsx ${oneoff}`, process.cwd()],
     [`node --import tsx ${oneoff}`, process.cwd()],
     [`node ${join(dir, 'oneoff')}`, process.cwd()],
+    // A preloaded file runs too, in either spelling.
+    [`node --require ${oneoff} -e ''`, process.cwd()],
+    [`node --import=${oneoff} -e ''`, process.cwd()],
     [`cd ${dir} && node oneoff.mjs`, process.cwd()],
     [`node oneoff.mjs; node ${join(process.cwd(), 'scripts/db-push.mjs')} --help`, dir],
   ]) {
