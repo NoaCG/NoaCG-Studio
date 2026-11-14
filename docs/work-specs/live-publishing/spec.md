@@ -545,26 +545,37 @@ Filled in by each phase's pull request.
   branch and on `main` alike; alone it passes, and CI runs it green.
 - Repair 1 (check 7-c-c035 on f1556db9 failed it, AC-5: the first cue edit after a reload counted
   20.3 to 23.7 kB): the page kept its measured boxes in memory only, so after a reload a publish ran
-  before every box was measured again and resent each cue whose `adjust.box` went missing or moved
-  by a pixel (#2532). The page now keeps each cue's last measurement in this browser
-  (`control/keptGeometry.ts`, key `spx-gfx-measured`), with a hash of the identity it was measured
-  for and the build that measured it, and a reopened page takes it only for a cue it has not
-  measured yet, with the same identity, from the same build, in the order the boxes were measured.
-  What a Take airs and what a publish stores are unchanged for the same input: the box is the one
-  this page measured for exactly that cue. No migration. Rules (a Risky row: reload state; written
-  after the code, so each is pinned by the Node test or the measurement):
-  - K1 With `partial_writes` off, nothing is kept or taken: measuring, Takes and publishes are as on
-    `main`.
+  before every box was measured again and resent each cue whose `adjust.box` went missing (#2532).
+  Two parts, both in `control/keptGeometry.ts`:
+  - Each cue's last measurement is kept in this browser (key `spx-gfx-measured`) with a hash of the
+    identity it was measured for and the build that measured it; a reopened page takes it for a cue
+    it has not measured yet.
+  - The coordinator's route (b) on #2361, after the full `/so` found the cold case (a new build, a
+    new browser, a teammate) still failing: a publish keeps the box the stored publication carries
+    for a cue the page has not measured, read once when the production opens
+    (`publishParts.ts` `prefetchPublishedBoxes`). A box changes in the publication only when the page
+    has measured one, so a measurement result never rides on an edit unless it is new.
+  What a Take airs is unchanged: the published box is not what a Take places by. Both publish paths
+  take their payload from the one `publishedOf` call, so they write the same record (R23). No
+  migration. Rules (a Risky row: reload state). K1 to K7 were written after the first code and K8
+  after the full `/so`, so none was challenged before coding; each is pinned by a test:
+  - K1 With `partial_writes` off, nothing is kept, taken, read or carried: Takes and publishes are as
+    on `main`. Only the background measurer differs: it starts once the switch is read.
   - K2 With it on, a reopened page takes a kept box for a cue only when it has not measured that cue
     since it opened, the cue is still of the same graphic, its measure identity hashes the same, and
     the same build measured it.
   - K3 A taken box counts as measured for that identity: neither the background measurer nor a
     publish's wait measures it again, and a Take or a publish uses it.
-  - K4 A measurement made since the page opened always wins over a kept one.
+  - K4 A measurement made since the page opened always wins over a kept or a published one.
   - K5 Kept boxes are taken in the order they were measured, so each graphic's newest box (read by
     its unmeasured cues) is the one it was before the reload.
-  - K6 A cue the production no longer has is dropped at the next write; at most 8 productions are
-    kept; storage that refuses a read or write changes nothing but the saving.
+  - K6 Nothing kept is lost: the write a measurement owes goes as the page leaves (`pagehide`); a cue
+    the production no longer has is dropped at the next write; at most 8 productions are kept;
+    storage that refuses a read or write changes nothing but the saving.
   - K7 The background measurer starts once the switch is read, so a box measured anew never races
     a kept one.
+  - K8 A cue with no measurement since the page opened (none of its own, none of its graphic's)
+    publishes the box the stored publication carries for it, when that box is of the same graphic
+    and was measured against the same frame and stage; otherwise none, as before. Whole and parts
+    publishes carry the same box (`publish-guard.spec.ts`, AC-5 check, cold reload on both paths).
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.
