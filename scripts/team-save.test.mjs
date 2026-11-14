@@ -305,14 +305,16 @@ test('a settle whose outbox write throws fails the save and never leaves it in f
   assert.equal(await second, null);
 });
 
-// #2565: refreshOnce reads teammates' documents. An edit made while that read is out must keep its
-// local record and its base; the read must not replace either. A skipped production is read again.
+// #2565: refreshOnce reads teammates' documents. An edit made while that read is out, on the
+// production being read or any other, keeps its local record and its base; a skipped production is
+// read again on a later pass.
 function refreshHarness() {
   const docs = [];
   const fetched = [];
   const answers = [];
-  let heads = [];
-  let local = { id: 'show', teamId: 'team', version: 2, name: 'First', graphics: [] };
+  const shows = new Map(['show', 'other'].map(id => [id, { id, teamId: 'team', version: 2, name: 'First', graphics: [] }]));
+  const head = (id, token) => ({ id, team_id: 'team', updated_at: token, updated_by: 'mate' });
+  let heads = [head('show', 'base'), head('other', 'base')];
   const sb = {
     from: () => ({
       select: (cols) => cols.includes('doc')
@@ -330,9 +332,9 @@ function refreshHarness() {
     './unitPatch': {},
     '../model/shows': {},
     '../model/teamShows': {
-      loadTeamShows: () => [local],
-      applyServerTeamShow: doc => { local = doc; },
-      applyServerTeamShows: (list, keep) => { for (const s of list) if (s.id === local.id && !keep.has(s.id)) local = s; },
+      loadTeamShows: () => [...shows.values()],
+      applyServerTeamShow: doc => { shows.set(doc.id, doc); },
+      applyServerTeamShows: (list, keep) => { for (const s of list) if (!keep.has(s.id)) shows.set(s.id, s); },
       setTeamShowsStatus: () => {},
     },
     '../model/rundownHistory': history,
@@ -356,15 +358,16 @@ function refreshHarness() {
     assert.ok(name in stubs, `unexpected dependency: ${name}`);
     return stubs[name];
   }, setTimeout: () => 1, clearTimeout: () => {} });
-  exports.seedForTest(local);
-  const settle = () => new Promise(resolve => setImmediate(resolve));
+  for (const show of shows.values()) exports.seedForTest(show);
   return {
-    controller: exports, docs, fetched, answers, settle,
-    local: () => local,
-    edit(name) { local = { ...local, name }; exports.editForTest(local.id); },
+    controller: exports, docs, fetched, answers,
+    settle: () => new Promise(resolve => setImmediate(resolve)),
+    name: id => shows.get(id).name,
+    edit(id, name) { shows.set(id, { ...shows.get(id), name }); exports.editForTest(id); },
+    /** A teammate saved `show`: its head moves, and this is the row the read answers with. */
     teammateSaved(token, name) {
-      heads = [{ id: 'show', team_id: 'team', updated_at: token, updated_by: 'mate' }];
-      return { id: 'show', team_id: 'team', updated_at: token, updated_by: 'mate', doc: { id: 'show', version: 2, name, graphics: [] } };
+      heads = [head('show', token), heads[1]];
+      return { ...head('show', token), doc: { id: 'show', version: 2, name, graphics: [] } };
     },
   };
 }
@@ -375,10 +378,12 @@ test('an edit made while teammates\' documents are read keeps its text and base,
   const pass = h.controller.refreshForTest();
   while (h.docs.length === 0) await h.settle();
   assert.deepEqual(h.fetched[0], ['show']);
-  h.edit('Mine'); // typed while the read is out
+  h.edit('show', 'Mine'); // typed while the read is out, on the production being read
+  h.edit('other', 'Mine too'); // and on one that is not being read
   h.docs[0].resolve({ data: [row], error: null });
   await pass;
-  assert.equal(h.local().name, 'Mine', 'the typed text stays on the page');
+  assert.equal(h.name('show'), 'Mine', 'the typed text stays on the page');
+  assert.equal(h.name('other'), 'Mine too', 'an edit to a production not being read stays too');
   assert.equal(h.controller.knownForTest('show').token, 'base', 'the save still carries the token its edit started from');
   assert.equal(h.controller.knownForTest('show').doc.name, 'First');
 
@@ -392,7 +397,7 @@ test('an edit made while teammates\' documents are read keeps its text and base,
   assert.deepEqual(h.fetched[1], ['show']);
   h.docs[1].resolve({ data: [later], error: null });
   await next;
-  assert.equal(h.local().name, 'Theirs again');
+  assert.equal(h.name('show'), 'Theirs again');
   assert.equal(h.controller.knownForTest('show').token, 't4');
 });
 
@@ -401,11 +406,25 @@ test('a save confirmed while teammates\' documents are read is not undone by the
   const row = h.teammateSaved('t2', 'Theirs');
   const pass = h.controller.refreshForTest();
   while (h.docs.length === 0) await h.settle();
-  h.edit('Mine');
+  h.edit('show', 'Mine');
   h.answers.push({ data: { saved: true, updated_at: 't3', updated_by: 'owner' }, error: null });
   assert.equal(await h.controller.flushTeamProduction('show'), null);
   h.docs[0].resolve({ data: [row], error: null });
   await pass;
-  assert.equal(h.local().name, 'Mine');
+  assert.equal(h.name('show'), 'Mine');
+  assert.equal(h.controller.knownForTest('show').token, 't3');
+});
+
+test('a rundown undo saved while teammates\' documents are read is not undone by the older read (#2565)', async () => {
+  const h = refreshHarness();
+  const row = h.teammateSaved('t2', 'Theirs');
+  const pass = h.controller.refreshForTest();
+  while (h.docs.length === 0) await h.settle();
+  const expected = history.rundownSlice({ id: 'show', graphics: [] });
+  h.answers.push({ data: { saved: true, updated_at: 't3', updated_by: 'owner' }, error: null });
+  assert.equal((await h.controller.restoreTeamRundown('show', expected, expected, () => true)).status, 'saved');
+  h.docs[0].resolve({ data: [row], error: null });
+  await pass;
+  assert.equal(h.name('show'), 'First');
   assert.equal(h.controller.knownForTest('show').token, 't3');
 });

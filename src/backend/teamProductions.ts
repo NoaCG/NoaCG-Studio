@@ -607,7 +607,7 @@ async function refreshOnce(): Promise<void> {
   // base is how a teammate's cue quietly disappears.
   const keep = new Set([...dirty, ...inflight]);
   const stale = heads.filter((h) => !keep.has(h.id) && server.get(h.id)?.token !== h.updatedAt).map((h) => h.id);
-  const asked = new Map(stale.map((id) => [id, server.get(id)]));
+  const before = new Map(server);
   const docs = await fetchTeamProductionDocs(stale);
   if (running !== owner) return;
   if (docs.error) {
@@ -616,10 +616,11 @@ async function refreshOnce(): Promise<void> {
     return;
   }
   noteRead(false);
-  // #2565: the operator may type, or a save may be confirmed, while that read is out. Such a
-  // production keeps its base, token and local record; the next pass reads it again.
+  // #2565: the operator may type, or this tab may save, restore, move or delete, while that read is
+  // out, on a fetched production or any other. Such a production keeps its base, token and local
+  // record; the next pass reads it again.
   for (const id of [...dirty, ...inflight]) keep.add(id);
-  for (const [id, known] of asked) if (server.get(id) !== known) keep.add(id);
+  for (const id of new Set([...before.keys(), ...server.keys()])) if (server.get(id) !== before.get(id)) keep.add(id);
   for (const row of docs.rows) {
     if (keep.has(row.id)) continue;
     server.set(row.id, {
