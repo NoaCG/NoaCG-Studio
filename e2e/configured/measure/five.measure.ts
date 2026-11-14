@@ -27,8 +27,9 @@ test.beforeAll(() => {
   if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('five people writes switches and accounts: run it only against a local stack');
 });
 
-// MEASURE_BUILD=prod: the whole scene, set-up included, runs on the bundled build (MEASURE_DIST, made
-// with VITE_MEASURE_HOOKS=1); the app's modules are reached through the door either way.
+// MEASURE_BUILD=prod: the whole scene, set-up included, runs on the bundled build. MEASURE_DIST must be
+// the e2e build (`vite build --mode e2e` with VITE_MEASURE_HOOKS=1 and the stack's variables): only
+// that mode installs the door (`__noacgImport`) the set-up reaches the app's modules through.
 test.beforeEach(async ({ page }) => {
   if (BUILD !== 'prod') return;
   const answer = await page.request.get('/__measure/build?to=prod');
