@@ -286,7 +286,7 @@ const APP_SHELL = /^app\.html$/;
 // What the DEV SERVER loads is not listed here: it is read off vite.config.ts's imports
 // (`devServerModules`, #957) and passes IGNORE the same way.
 const SUITE_CRITICAL_SCRIPTS =
-  'build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|execution-profile|e2e-affected|e2e-lists|e2e-trace|build-news-pack|build-production-pack|packs/';
+  'build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|execution-profile|e2e-affected|e2e-lists|e2e-trace|e2e-dev-server-specs|e2e-build-sources|build-news-pack|build-production-pack|packs/';
 // `.env.example` is a template a human copies; nothing loads it. Vite and the dev-server middleware
 // read `.env`, and a spec drives a dev server that has never opened the example - so escalating on
 // it ran 53 specs to prove nothing. It already has a real gate in `npm run build`:

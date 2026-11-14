@@ -1,9 +1,11 @@
 import { defineConfig, devices, type ReporterDescription } from '@playwright/test';
-import { devPort } from './scripts/dev-port.mjs';
+import { devPort, livePort } from './scripts/dev-port.mjs';
+import { devServerSpecs } from './scripts/e2e-dev-server-specs.mjs';
 import { localWorkers, validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 
-// End-to-end UI-flow tests. These drive the real dev server, so they verify the app the way a
-// user experiences it. Run with `npm run test:e2e`.
+// End-to-end UI-flow tests. These drive the real app, so they verify it the way a user experiences
+// it: the dev server by default, the e2e build when NOACG_E2E_ON_BUILD=1 (CI). Run with
+// `npm run test:e2e`.
 // The port comes from scripts/dev-port.mjs (5174 in the main checkout, a stable per-worktree
 // port in a linked worktree), so parallel worktrees never reuse each other's servers.
 const base = `http://127.0.0.1:${devPort()}`;
@@ -13,6 +15,19 @@ const isCi = Boolean(process.env.CI);
 // server. A fresh context boots it in about a third of the time. Specs reach app modules through
 // `__noacgImport` (src/app/e2eModules.ts), which the build answers from its registry.
 const onBuild = process.env.NOACG_E2E_ON_BUILD === '1';
+// A few specs test what only the dev server has (a source module swapped over the network, a fresh
+// module copy). Each says so in its header, `// runs on: dev server - <why>`
+// (scripts/e2e-dev-server-specs.mjs). On the build they run in the "dev" project, against a dev
+// server on this checkout's second port, unchanged. The server starts only when this run holds one
+// of them: CI names each shard's files in NOACG_E2E_EXPECTED_SPECS.
+const devSpecs = onBuild ? devServerSpecs() : [];
+const specPattern = (file: string) => new RegExp(`[\\\\/]e2e[\\\\/]${file.slice('e2e/'.length).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+const devSpecPatterns = devSpecs.map(specPattern);
+const expected = process.env.NOACG_E2E_EXPECTED_SPECS?.split(/\s+/).filter(Boolean).map((f) => (f.startsWith('e2e/') ? f : `e2e/${f}`));
+const needsDevServer = devSpecs.length > 0 && (!expected || expected.some((f) => devSpecs.includes(f)));
+const devBase = `http://127.0.0.1:${livePort()}`;
+// The offline guard (globalSetup) checks that server only when this run starts it.
+if (needsDevServer) process.env.NOACG_E2E_DEV_SERVER = '1';
 
 // THE BLOB FILE MUST BE UNIQUE PER SHARD, and only Playwright's own `--shard=i/n` makes it so on
 // its own - it suffixes the zip with the shard number. Without sharding every runner writes
@@ -26,6 +41,83 @@ const blobReporter: ReporterDescription = process.env.NOACG_BLOB_NAME
   ? ['blob', { fileName: process.env.NOACG_BLOB_NAME }]
   : ['blob'];
 const cloudLimits = validateCloudWorkerRequest();
+
+/** The offline pins every server this suite starts gets (why: the notes on appServer below). */
+const serverEnv = {
+  VITE_PREVIEW_DEBOUNCE_MS: '50',
+  // No file watching (vite.config.ts, `watch`), so a mid-run edit cannot split a module (#1897).
+  NOACG_E2E_SERVER: '1',
+  VITE_SUPABASE_URL: '',
+  VITE_SUPABASE_ANON_KEY: '',
+  // THE SERVER'S OWN HALF (issue #2495). The two above are the BROWSER's; the api/ handlers
+  // this server mounts prefer these, and Playwright merges webServer.env over the shell
+  // rather than replacing it, so without them a shell that names production hands the
+  // offline suite's own dev server a production backend and an admin key - and
+  // `e2e/admin.spec.ts` calls a handler that reads `system_settings` with it. CI never set
+  // them; a developer's shell does.
+  SUPABASE_URL: '',
+  SUPABASE_ANON_KEY: '',
+  SUPABASE_SECRET_KEY: '',
+  SUPABASE_SERVICE_ROLE_KEY: '',
+  VITE_RENDER_API: '1',
+  VITE_AI_PROVIDER: '',
+  VITE_AI_MODEL: '',
+  VITE_AI_PROXY_URL: '',
+  ANTHROPIC_API_KEY: '',
+  OPENAI_API_KEY: '',
+  GOOGLE_API_KEY: '',
+  GEMINI_API_KEY: '',
+  AI_GATEWAY_API_KEY: '',
+  VERCEL_OIDC_TOKEN: '',
+  HF_TOKEN: '',
+  HUGGINGFACE_TOKEN: '',
+  HUGGINGFACE_API_KEY: '',
+  AI_KEY_ENCRYPTION_SECRET: '',
+  // Hosted Pro is pinned OFF for the same reason every key above is pinned empty: the dev
+  // server now mounts the pro-* routes (scripts/aiDevPlugin.mjs), so a developer whose .env
+  // switches the tier on would have this suite answering /api/ai/pro-status from their real
+  // configuration. e2e/pro.spec.ts pins the ABSENCE of the door and stubs the status itself,
+  // and a spec that asserts an absence must not be the thing deciding whether it holds.
+  AI_PRO_ENABLED: '',
+};
+
+const appServer = {
+  // The port is passed, not left to vite.config.ts: the server then reserves exactly the number
+  // this config is waiting on, or fails loudly (scripts/dev-port.mjs, "asking never reserves").
+  command: onBuild
+    ? `npm run build:e2e && npx vite preview --outDir dist-e2e --host 127.0.0.1 --port ${devPort()} --strictPort`
+    : `npm run dev -- --host 127.0.0.1 --port ${devPort()} --strictPort`,
+  url: base,
+  reuseExistingServer: !onBuild,
+  timeout: onBuild ? 240_000 : 60_000,
+  // Pin the suite to OFFLINE mode regardless of the developer's local .env (which may hold real
+  // Supabase creds for live testing). Env vars set here take priority over .env files in Vite,
+  // so these empty values win and the app behaves as the no-backend tool the specs assume.
+  // Auth/sync live paths are verified separately (supabase/README.md checklist).
+  // VITE_RENDER_API is pinned ON: the render section is part of the offline surface the
+  // suite covers (the local executor renders with zero backend — the self-host mode).
+  // Render specs stub /api/render/* with page.route, so no real render runs in CI.
+  // Every managed AI key is pinned EMPTY so AI-adjacent specs exercise the offline
+  // stub providers deterministically. Gateway-backed specs mock /api/ai/generate.
+  // NOTE: none of this applies when reuseExistingServer adopts a server someone else
+  // already started - that path is guarded by globalSetup above, not by this env block.
+  // The preview's rebuild debounce is 350 ms for authoring (it stops a rebuild per keystroke
+  // in the code editor) and 50 ms here. Every spec waits on the iframe's `data-doc-rev`
+  // stamp rather than sleeping, so this shortens the WAIT without changing what any spec
+  // observes - and 300 ms per rebuild across 591 tests is minutes of wall clock. Kept above
+  // zero so a genuine burst of changes still coalesces into one rebuild the way it does in
+  // the product.
+  env: serverEnv,
+};
+
+/** The dev server the "dev" project runs on, when the suite runs on the build. */
+const devServer = {
+  command: `npm run dev -- --host 127.0.0.1 --port ${livePort()} --strictPort`,
+  url: devBase,
+  reuseExistingServer: false,
+  timeout: 60_000,
+  env: serverEnv,
+};
 
 export default defineConfig({
   ...cloudLimits,
@@ -127,69 +219,11 @@ export default defineConfig({
     trace: { mode: isCi ? 'retain-on-failure' : 'off', snapshots: false },
     screenshot: 'only-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
-    // The port is passed, not left to vite.config.ts: the server then reserves exactly the number
-    // this config is waiting on, or fails loudly (scripts/dev-port.mjs, "asking never reserves").
-    command: onBuild
-      ? `npm run build:e2e && npx vite preview --outDir dist-e2e --host 127.0.0.1 --port ${devPort()} --strictPort`
-      : `npm run dev -- --host 127.0.0.1 --port ${devPort()} --strictPort`,
-    url: base,
-    reuseExistingServer: !onBuild,
-    timeout: onBuild ? 240_000 : 60_000,
-    // Pin the suite to OFFLINE mode regardless of the developer's local .env (which may hold real
-    // Supabase creds for live testing). Env vars set here take priority over .env files in Vite,
-    // so these empty values win and the app behaves as the no-backend tool the specs assume.
-    // Auth/sync live paths are verified separately (supabase/README.md checklist).
-    // VITE_RENDER_API is pinned ON: the render section is part of the offline surface the
-    // suite covers (the local executor renders with zero backend — the self-host mode).
-    // Render specs stub /api/render/* with page.route, so no real render runs in CI.
-    // Every managed AI key is pinned EMPTY so AI-adjacent specs exercise the offline
-    // stub providers deterministically. Gateway-backed specs mock /api/ai/generate.
-    // NOTE: none of this applies when reuseExistingServer adopts a server someone else
-    // already started - that path is guarded by globalSetup above, not by this env block.
-    // The preview's rebuild debounce is 350 ms for authoring (it stops a rebuild per keystroke
-    // in the code editor) and 50 ms here. Every spec waits on the iframe's `data-doc-rev`
-    // stamp rather than sleeping, so this shortens the WAIT without changing what any spec
-    // observes - and 300 ms per rebuild across 591 tests is minutes of wall clock. Kept above
-    // zero so a genuine burst of changes still coalesces into one rebuild the way it does in
-    // the product.
-    env: {
-      VITE_PREVIEW_DEBOUNCE_MS: '50',
-      // No file watching (vite.config.ts, `watch`), so a mid-run edit cannot split a module (#1897).
-      NOACG_E2E_SERVER: '1',
-      VITE_SUPABASE_URL: '',
-      VITE_SUPABASE_ANON_KEY: '',
-      // THE SERVER'S OWN HALF (issue #2495). The two above are the BROWSER's; the api/ handlers
-      // this server mounts prefer these, and Playwright merges webServer.env over the shell
-      // rather than replacing it, so without them a shell that names production hands the
-      // offline suite's own dev server a production backend and an admin key - and
-      // `e2e/admin.spec.ts` calls a handler that reads `system_settings` with it. CI never set
-      // them; a developer's shell does.
-      SUPABASE_URL: '',
-      SUPABASE_ANON_KEY: '',
-      SUPABASE_SECRET_KEY: '',
-      SUPABASE_SERVICE_ROLE_KEY: '',
-      VITE_RENDER_API: '1',
-      VITE_AI_PROVIDER: '',
-      VITE_AI_MODEL: '',
-      VITE_AI_PROXY_URL: '',
-      ANTHROPIC_API_KEY: '',
-      OPENAI_API_KEY: '',
-      GOOGLE_API_KEY: '',
-      GEMINI_API_KEY: '',
-      AI_GATEWAY_API_KEY: '',
-      VERCEL_OIDC_TOKEN: '',
-      HF_TOKEN: '',
-      HUGGINGFACE_TOKEN: '',
-      HUGGINGFACE_API_KEY: '',
-      AI_KEY_ENCRYPTION_SECRET: '',
-      // Hosted Pro is pinned OFF for the same reason every key above is pinned empty: the dev
-      // server now mounts the pro-* routes (scripts/aiDevPlugin.mjs), so a developer whose .env
-      // switches the tier on would have this suite answering /api/ai/pro-status from their real
-      // configuration. e2e/pro.spec.ts pins the ABSENCE of the door and stubs the status itself,
-      // and a spec that asserts an absence must not be the thing deciding whether it holds.
-      AI_PRO_ENABLED: '',
-    },
-  },
+  projects: onBuild
+    ? [
+        { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: ['**/configured/**', '**/catalog/**', ...devSpecPatterns] },
+        { name: 'dev', use: { ...devices['Desktop Chrome'], baseURL: devBase }, testMatch: devSpecPatterns },
+      ]
+    : [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  webServer: [appServer, ...(needsDevServer ? [devServer] : [])],
 });

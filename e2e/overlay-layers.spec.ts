@@ -1,3 +1,4 @@
+// runs on: dev server - reads the layer scale from Vite's per-file source stylesheets, which the build bundles
 // covers: none - its subject, the layer scale in src/styles/base.css, is CORE: a change there runs
 // the full suite, or the focus set this spec is in
 //

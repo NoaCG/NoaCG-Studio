@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // covers: src/components/home/{ProductionPage,useRundownHistory,CueRundown}.ts*, src/components/playoutKeys.ts
 // covers: src/components/home/CueEditor.tsx
 // covers: src/model/{rundownHistory,shows,durableStore}.ts, src/backend/teamProductions.ts

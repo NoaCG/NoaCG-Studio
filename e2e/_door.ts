@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { BrowserContext } from '@playwright/test';
 import { E2E_REGISTRY_URL } from '../src/app/e2eModules';
+import { livePort } from '../scripts/dev-port.mjs';
 
 // THE DOOR IN A DOCUMENT NO PAGE ENTRY BOOTED. Specs reach app modules through
 // `__noacgImport('/src/…ts')`, which every page entry installs as it boots
@@ -14,12 +15,13 @@ import { E2E_REGISTRY_URL } from '../src/app/e2eModules';
 // - On the dev server the fallback is the browser's own `import()` of the same URL, exactly what
 //   those specs did before.
 // - On the e2e build (NOACG_E2E_ON_BUILD=1) no /src URL exists, so the fallback answers from the
-//   build's registry entry, as the page entries' own door does.
+//   build's registry entry, as the page entries' own door does. A document on the "dev" project's
+//   dev server (playwright.config.ts, the checkout's second port) gets the dev-server fallback.
 export function installDoor(context: BrowserContext): Promise<void> {
-  return context.addInitScript((registryUrl) => {
+  return context.addInitScript(({ registryUrl, devOrigin }) => {
     const w = window as unknown as { __noacgImport?: (path: string) => Promise<unknown> };
     if (w.__noacgImport) return;
-    w.__noacgImport = registryUrl
+    w.__noacgImport = registryUrl && location.origin !== devOrigin
       ? async (path) => {
           const { MODULES, LAZY } = (await import(registryUrl)) as {
             MODULES?: Record<string, unknown>;
@@ -31,7 +33,7 @@ export function installDoor(context: BrowserContext): Promise<void> {
           throw new Error(`${path} is not in the e2e build's module registry (scripts/e2e-module-registry.mjs)`);
         }
       : (path) => import(path);
-  }, registryUrl());
+  }, { registryUrl: registryUrl(), devOrigin: `http://127.0.0.1:${livePort()}` });
 }
 
 let checked: string | null | undefined;

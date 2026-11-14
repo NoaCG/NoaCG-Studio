@@ -1,3 +1,4 @@
+// runs on: dev server - reads source modules by their /src URL
 // Relevant Bridge health and operator words with a locally published fixture. The configured
 // sibling proves real Presence/publishing; this one always runs without backend credentials.
 // covers: src/control/{playoutStatus,prepareLive,prepareBridge,readiness}.ts, src/model/{readyMemory,outputSetup}.ts

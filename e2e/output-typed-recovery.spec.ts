@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // TYPED OGRAF DATA THROUGH AN OUTPUT'S RELOAD (docs/work-specs/playout-ograf-contract/spec.md,
 // E1.2b: AC-2's output replay, baseline and renderer part, AC-3's mixed-version output part). The
 // real /output shell with its real boot, stage and graphic documents on the numbered log

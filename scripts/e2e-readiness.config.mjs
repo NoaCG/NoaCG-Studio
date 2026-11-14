@@ -17,7 +17,8 @@ export default {
   globalTimeout: 45_000,
   reporter: 'list',
   webServer: {
-    ...config.webServer,
+    // The app's server: the offline config's first entry (playwright.config.ts).
+    ...[config.webServer].flat()[0],
     cwd: fileURLToPath(new URL('..', import.meta.url)),
     command: `node scripts/e2e-readiness-fixture.mjs ${mode}`,
     stdout: 'pipe',

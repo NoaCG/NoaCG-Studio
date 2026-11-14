@@ -98,6 +98,8 @@ jobs:
       - name: Re-record
         env:
           SPEC: ${{ steps.spec.outputs.spec }}
+          # The same build the suite compares against (ci.yml E2E shard, playwright.config.ts).
+          NOACG_E2E_ON_BUILD: '1'
           # TMPDIR off the /tmp tmpfs, where Chromium's shared memory would otherwise live (ci.yml).
           TMPDIR: ${{ runner.temp }}
         run: |

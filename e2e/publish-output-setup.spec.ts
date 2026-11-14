@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts over the network to stand in a backend
 // covers: src/model/{outputSetup,shows,cueClipboard}.ts, src/backend/auth.ts
 // covers: src/components/{DefaultOutputPreference,SettingsDialog,PlayoutSettingsDialog}.tsx, src/components/control/PrepareForLive.tsx
 // covers: src/components/home/{RundownColors,ProductionPage,ProductionLinks,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu,ServerCueEditor,CueRundown,sections/ProductionsSection}.tsx

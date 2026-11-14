@@ -1,3 +1,4 @@
+// runs on: dev server - swaps src/backend/config.ts to stand in a backend, and reads a source module by its /src URL
 // covers: src/components/home/CueShortcutDialog.tsx, src/components/playoutKeys.ts, src/components/home/ProductionPage.tsx, src/components/home/CueRundown.tsx, src/components/home/ServerDiagnostics.tsx, src/model/cueShortcuts.ts, src/model/teamOutbox.ts, src/model/durableStore.ts, src/store/templateStore.ts, src/assets/svgImport.ts, src/control/productionAdmission.ts, src/output/prepare.ts, src/components/AccountAuthoringGate.tsx
 // covers: src/components/home/CueEditor.tsx
 // covers: src/components/AccountSaveNotice.tsx, src/components/SyncStatus.tsx, src/backend/{auth,accountLibrary,syncController,sync,supabaseProvider,teamProductions}.ts
