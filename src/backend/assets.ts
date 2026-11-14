@@ -55,7 +55,24 @@ export type Downloader = (key: string) => Promise<string | null>;
 
 /** Return a deep copy of `body` with every base64 data-URL asset uploaded and replaced by a
  *  Storage reference. Non-base64 data-URLs (e.g. inline SVG) are left inline. */
-export async function externalizeAssets(body: unknown, uid: string, upload: Uploader, soundsOnly = false): Promise<unknown> {
+/** An image's CONTENT NAME (live-publishing G4 Terms): SHA-256 over the data URL's UTF-8 bytes, 64
+ *  lowercase hex characters, as the server's `control_asset_put` computes it. */
+export async function contentName(data: string): Promise<string> {
+  const subtle = (globalThis as { crypto?: { subtle?: SubtleCrypto } }).crypto?.subtle;
+  if (!subtle) throw new Error('No Web Crypto: an image cannot be named');
+  const bytes = new Uint8Array(await subtle.digest('SHA-256', new TextEncoder().encode(data)));
+  let hex = '';
+  for (const b of bytes) hex += b.toString(16).padStart(2, '0');
+  return hex;
+}
+
+/** The Storage key of a file, under `folder`: the content name when `strong` (an upload is skipped
+ *  when the key exists, so the key alone must name the content, G4 R20), else today's key. */
+async function fileKey(folder: string, data: string, strong: boolean, legacy: () => string): Promise<string> {
+  return strong ? `${folder}/s256-${await contentName(data)}` : legacy();
+}
+
+export async function externalizeAssets(body: unknown, uid: string, upload: Uploader, soundsOnly = false, strongKeys = false): Promise<unknown> {
   const clone = JSON.parse(JSON.stringify(body ?? null));
   const nodes: AssetNode[] = [];
   collectAssetNodes(clone, nodes);
@@ -70,7 +87,7 @@ export async function externalizeAssets(body: unknown, uid: string, upload: Uplo
     if (soundsOnly) continue;
     const data = node.data;
     if (typeof data !== 'string' || !data.startsWith('data:') || !data.includes(';base64,')) continue;
-    const key = `${uid}/${contentHash(data)}`;
+    const key = await fileKey(uid, data, strongKeys, () => `${uid}/${contentHash(data)}`);
     await upload(key, data);
     node.data = STORAGE_SENTINEL + key;
   }
@@ -92,6 +109,7 @@ export async function externalizeSharedAssets(
   body: unknown,
   folder: string,
   upload: (key: string, dataUrl: string) => Promise<boolean>,
+  strongKeys = false,
 ): Promise<unknown> {
   const clone = JSON.parse(JSON.stringify(body ?? null));
   const nodes: AssetNode[] = [];
@@ -99,7 +117,7 @@ export async function externalizeSharedAssets(
   for (const node of nodes) {
     const data = node.data;
     if (!data.startsWith('data:') || !data.includes(';base64,')) continue;
-    const key = sharedAssetKey(folder, data);
+    const key = await fileKey(folder, data, strongKeys, () => sharedAssetKey(folder, data));
     if (await upload(key, data)) node.data = STORAGE_SENTINEL + key;
   }
   return clone;

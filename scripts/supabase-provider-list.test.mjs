@@ -19,6 +19,9 @@ function provider(answers) {
     './storage': { isSingleton: () => false, markPutDenied: () => {}, toStoredRecord },
     './assets': {},
     '../model/id': {},
+    // Saves in parts (live-publishing G4) are off here: the per-kind listing these tests pin.
+    './partialWrites': { partialWritesOn: async () => false, unitPace: async () => {}, noteWritten: () => {} },
+    './unitPatch': {},
   };
   const exports = {};
   const compiled = ts.transpileModule(readFileSync(new URL('../src/backend/supabaseProvider.ts', import.meta.url), 'utf8'), {

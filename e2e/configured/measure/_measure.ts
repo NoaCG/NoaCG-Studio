@@ -177,7 +177,7 @@ export async function throttle(page: Page, net: Net): Promise<CDPSession> {
 
 // ── BYTES: every request and response body and header of a page, from DevTools' own counts. ──
 
-export interface ByteMeter { reset(): void; total(): { requests: number; up: number; down: number; byName: Record<string, { n: number; up: number; down: number }> } }
+export interface ByteMeter { reset(): void; total(): { requests: number; up: number; down: number; byName: Record<string, { n: number; up: number; down: number }>; urls?: string[] } }
 
 /** Count bytes on the wire for one page (and its frames): request bodies plus headers up,
  *  encoded response bytes down (`Network.loadingFinished.encodedDataLength`, headers included),
@@ -188,6 +188,9 @@ export async function meterBytes(page: Page, cdp?: CDPSession): Promise<ByteMete
   const names = new Map<string, string>();
   let byName: Record<string, { n: number; up: number; down: number }> = {};
   let requests = 0;
+  // MEASURE_URLS=1: each request's method and URL too, to say which request a family's bytes are.
+  const listUrls = process.env.MEASURE_URLS === '1';
+  let urls: string[] = [];
   const bucket = (name: string) => (byName[name] ??= { n: 0, up: 0, down: 0 });
   const nameOf = (url: string) => {
     const rpc = /\/rpc\/([a-z_0-9]+)/.exec(url);
@@ -204,6 +207,7 @@ export async function meterBytes(page: Page, cdp?: CDPSession): Promise<ByteMete
     if (name === 'data-url') return;
     names.set(e.requestId, name);
     requests += 1;
+    if (listUrls) urls.push(`${e.request.method} ${e.type ?? ''} ${e.request.url.replace(/^https?:\/\/[^/]+/, '').slice(0, 200)}`);
     const headers = Object.entries(e.request.headers).reduce((n, [k, v]) => n + k.length + String(v).length + 4, 0);
     const body = e.request.postData ? Buffer.byteLength(e.request.postData) : 0;
     const b = bucket(name);
@@ -217,11 +221,11 @@ export async function meterBytes(page: Page, cdp?: CDPSession): Promise<ByteMete
   session.on('Network.webSocketFrameSent', (e) => { bucket('websocket').up += Buffer.byteLength(e.response.payloadData); });
   session.on('Network.webSocketFrameReceived', (e) => { bucket('websocket').down += Buffer.byteLength(e.response.payloadData); });
   return {
-    reset() { byName = {}; requests = 0; },
+    reset() { byName = {}; requests = 0; urls = []; },
     total() {
       let up = 0, down = 0;
       for (const b of Object.values(byName)) { up += b.up; down += b.down; }
-      return { requests, up, down, byName: JSON.parse(JSON.stringify(byName)) };
+      return { requests, up, down, byName: JSON.parse(JSON.stringify(byName)), ...(listUrls ? { urls: [...urls] } : {}) };
     },
   };
 }

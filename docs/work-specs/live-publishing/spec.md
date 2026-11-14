@@ -508,3 +508,24 @@ Filled in by each phase's pull request.
   of each run's publishes were new versions and the rest revision-only updates. Slow Takes 43
   against 21 and the longer tail are recorded and carried to phase 7 with D1. The only code change is that harness
   pace setting, which normal builds leave out. The evidence's +2 is replaced by both tables.
+
+### Phase 7: Only what changed, each image once
+
+- Design: `designs/G4.md`, graded by independent `/so` reviews (see the design's pull request for the
+  rounds and the final grade), landed as its own pull request before this one.
+- Previous verified `main`: b1e06209e029731e92a4d903bdedfeb7e77fe254 (the build's branch point;
+  later `main` merged in before landing).
+- Revert: `git revert -m 1 <this pull request's merge commit>` brings back whole saves, whole
+  publishes and whole output reads. Turn the `partial_writes` switch off first (delete the
+  `system_settings` row or set `"on"` to false): with it off every page saves and publishes whole and
+  every output reads whole at once, so the revert changes nothing anyone sees. Migrations 0119 and
+  0120 stay applied and are inert for older code: `body_units`, `doc_units`, `published_head` and
+  `published_units` are columns nothing older reads, the new tables are reached only through the new
+  functions, and `output` is always written whole.
+- Rules: G4 section 8, R1 to R24 (R23, the parts path leaves everything as the whole path would, was
+  added by the round-cap reassessment of the design).
+- Migrations: `0119_record_patches.sql` (ordinary), `0120_publication_parts.sql` (live-path; applies in
+  a quiet window). Turning `partial_writes` on is a separate step, after the app is live and
+  `partial_writes_state()` reports `installed: true` on production (G4 section 7). `auto_publish`
+  stays off.
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.

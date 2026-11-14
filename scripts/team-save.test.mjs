@@ -34,6 +34,9 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     './teams': {},
     './assets': assets,
     './pacing': pacing,
+    // Saves in parts (live-publishing G4) are off here: the whole save these tests pin.
+    './partialWrites': { partialWritesOn: async () => false, unitPace: async () => {}, noteWritten: () => {} },
+    './unitPatch': {},
     '../model/shows': {},
     '../model/teamShows': { loadTeamShows: () => [local], applyServerTeamShow: doc => { local = doc; } },
     '../model/rundownHistory': history,

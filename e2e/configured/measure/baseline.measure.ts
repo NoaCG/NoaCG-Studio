@@ -180,13 +180,13 @@ async function opPage(page: Page) {
   await instrument(page.context());
 }
 
-async function openOutput(browser: Browser, slug: string, size = { width: 1280, height: 720 }) {
+async function openOutput(browser: Browser, slug: string, size = { width: 1280, height: 720 }, extra = '') {
   const ctx = await browser.newContext({ viewport: size });
   await instrument(ctx);
   await ctx.addInitScript(FRAME_LOADS);
   const out = await ctx.newPage();
   await throttle(out, NET);
-  await out.goto(`/output?production=${encodeURIComponent(slug)}`);
+  await out.goto(`/output?production=${encodeURIComponent(slug)}${extra}`);
   return out;
 }
 
@@ -877,7 +877,7 @@ test('autopublish', async ({ page, browser }) => {
   // The switch is a service-role write: only ever against a local stack.
   if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('autopublish writes a switch: run it only against a local stack');
   const loop = process.env.MEASURE_LOOP === '1';
-  const editMode = ['cues', 'add', 'design'].includes(process.env.MEASURE_EDIT ?? '') ? process.env.MEASURE_EDIT! : null;
+  const editMode = ['cues', 'labels', 'add', 'design'].includes(process.env.MEASURE_EDIT ?? '') ? process.env.MEASURE_EDIT! : null;
   const autoOn = process.env.MEASURE_AUTO !== '0';
   const setAuto = (on: boolean) =>
     fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
@@ -885,6 +885,14 @@ test('autopublish', async ({ page, browser }) => {
       headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
       body: JSON.stringify({ key: 'auto_publish', value: { on } }),
     });
+  // MEASURE_PARTS=1: saves and publishes in parts (live-publishing G4), before the fixture is built.
+  const setParts = (on: boolean) =>
+    fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
+      method: 'POST',
+      headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key: 'partial_writes', value: { on } }),
+    });
+  await setParts(process.env.MEASURE_PARTS === '1');
   await opPage(page);
   const fx = await buildFixture(page, FIXTURE);
   const labels = await page.evaluate(async ({ id, cues }) => {
@@ -970,5 +978,162 @@ test('autopublish', async ({ page, browser }) => {
   } finally {
     await page.evaluate(() => { sessionStorage.removeItem('noacg-measure-publish-loop'); sessionStorage.removeItem('noacg-measure-edit-loop'); sessionStorage.removeItem('noacg-measure-edit-ms'); }).catch(() => undefined);
     await setAuto(false).catch(() => undefined);
+    await setParts(false).catch(() => undefined);
+  }
+});
+
+// ONLY WHAT CHANGED (live-publishing designs/G4.md section 11, AC-5). With the `partial_writes`
+// switch and automatic updates on, on the development build (the edits are module writes): each
+// round edits one cue's text (2 kB), updates one graphic's design, adds a graphic with an image,
+// adds another with the same image, and removes both. Bytes are every request and response of the
+// production page and of each output, both ways with headers, WebSocket frames included, from the
+// edit until the publication names the save and the output holds it, then 4 s quiet. A new output
+// reads in parts; MEASURE_WHOLE=1 adds an output that reads every version whole (`&wholeread=1`,
+// an output built before phase 7), reported only. Judged (AC-5, G4 section 11): a cue edit's save
+// and publish requests by family, preflights included, under 20 kB; the rest of the page's traffic
+// is reported beside it.
+test('parts', async ({ page, browser }) => {
+  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('parts writes switches: run it only against a local stack');
+  const setSwitch = (key: string, on: boolean) =>
+    fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
+      method: 'POST',
+      headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key, value: { on } }),
+    });
+  const read = async (path: string) => ((await (await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } })).json()) as Record<string, number | null>[])[0] ?? {};
+  await setSwitch('partial_writes', true);
+  try {
+    await opPage(page);
+    const fx = await buildFixture(page, FIXTURE);
+    log('built', fx.graphics, fx.storedOutputBytes);
+    const stateOf = async () => {
+      const [row, doc] = await Promise.all([read(`control_shows?id=eq.${fx.showId}&select=n:output->ver->n,published_rev`), read(`documents?id=eq.${fx.showId}&select=rev`)]);
+      return { n: row.n ?? 0, publishedRev: row.published_rev ?? null, rev: doc.rev ?? 0 };
+    };
+    await setSwitch('auto_publish', true);
+    await page.reload();
+    await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+    await throttle(page, NET);
+    const slug = await outputSlugOf(page, fx.showId);
+    const out = await openOutput(browser, slug);
+    await healthyOutput(out, fx.graphics);
+    const whole = process.env.MEASURE_WHOLE === '1' ? await openOutput(browser, slug, undefined, '&wholeread=1') : null;
+    if (whole) await healthyOutput(whole, fx.graphics);
+    const opMeter = await meterBytes(page);
+    const outMeter = await meterBytes(out);
+    const wholeMeter = whole ? await meterBytes(whole) : null;
+    /** What each patch sent, by unit: which members, how many list elements, how many bytes. */
+    let sent: { fn: string; units: [string, number, number][] }[] = [];
+    page.on('request', (r) => {
+      const fn = /\/rpc\/(control_publish_parts|documents_show_patch)$/.exec(r.url())?.[1];
+      if (!fn || r.method() !== 'POST') return;
+      try {
+        const body = JSON.parse(r.postData() ?? '{}') as { p_ops?: unknown[]; p_head?: { ops?: unknown[]; whole?: unknown }; p_panel?: { ops?: unknown[]; whole?: unknown } | null; p_parts?: unknown[] };
+        const ops = [...(body.p_ops ?? []), ...(body.p_head?.ops ?? []), ...((body.p_panel?.ops ?? []) as unknown[]).map((o) => ({ ...(o as object), m: `panel:${(o as { m: string }).m}` }))] as { m: string; put?: unknown[] }[];
+        const units: [string, number, number][] = ops.map((o) => [o.m, o.put?.length ?? -1, JSON.stringify(o).length]);
+        if (body.p_head?.whole) units.push(['head:whole', -1, JSON.stringify(body.p_head.whole).length]);
+        if (body.p_parts?.length) units.push(['parts', body.p_parts.length, JSON.stringify(body.p_parts).length]);
+        sent.push({ fn, units });
+      } catch { /* not JSON */ }
+    });
+    const holds = async (o: Page) => { const r = await readyOf(o); return r && r.n === r.of ? (r.v?.n ?? 0) : 0; };
+    const image = (i: number) => page.evaluate(({ i, bytes }) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = Math.max(1, Math.round(bytes / (256 * 3)));
+      const ctx = canvas.getContext('2d')!;
+      const img = ctx.createImageData(canvas.width, canvas.height);
+      let seed = 0x2468 + i;
+      for (let k = 0; k < img.data.length; k += 4) {
+        for (let c = 0; c < 3; c++) img.data[k + c] = ((seed = (seed * 1664525 + 1013904223) >>> 0) >>> 24);
+        img.data[k + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      return canvas.toDataURL('image/png');
+    }, { i, bytes: Math.floor(fx.imageFileBytes / fx.graphics) });
+    // MEASURE_KINDS (comma-separated) narrows a run, so a large fixture fits one five-minute job.
+    const all = ['warm', 'cue-edit', 'design-update', 'graphic-add', 'graphic-add-same-image', 'graphic-remove'] as const;
+    const wanted = process.env.MEASURE_KINDS ? new Set(process.env.MEASURE_KINDS.split(',')) : null;
+    const kinds = all.filter((k) => !wanted || wanted.has(k));
+    const rounds = Number(process.env.MEASURE_ROUNDS ?? 1);
+    const rows: Record<string, unknown>[] = [];
+    for (let round = 0; round < rounds; round++) {
+      const pic = await image(round);
+      for (const kind of kinds) {
+        await settle(page, 4_000, 60_000);
+        const before = await stateOf();
+        opMeter.reset();
+        outMeter.reset();
+        wholeMeter?.reset();
+        sent = [];
+        const t0 = await nowOn(page);
+        if (kind === 'warm' || kind === 'cue-edit') {
+          await select(page, 'LP2 Stepped');
+          const field = page.getByTestId('cue-field-f0');
+          await field.fill(kind === 'warm' ? `Warm ${round}` : `${round} `.padEnd(2048, 'x'));
+          await field.blur();
+        } else {
+          await page.evaluate(async ({ id, kind, round, pic }) => {
+            const m = await import('/src/model/shows.ts');
+            const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+            const s = m.loadShows().find((x) => x.id === id)!;
+            let error: string | null = null;
+            if (kind === 'design-update') {
+              const g = s.graphics.find((x) => x.name === 'LP2 G03')!;
+              error = m.addGraphicToShow(id, { ...g.template, css: `${g.template.css}\n/* parts design update ${round} */` }, {}).error ?? null;
+            } else if (kind === 'graphic-add' || kind === 'graphic-add-same-image') {
+              const g = s.graphics.find((x) => x.name === 'LP2 G03')!;
+              const name = kind === 'graphic-add' ? 'LP2 Parts A' : 'LP2 Parts B';
+              error = m.addGraphicToShow(id, { ...g.template, name, assets: [...g.template.assets, { path: 'assets/parts.png', data: pic }] }, {}).error ?? null;
+            } else {
+              for (const name of ['LP2 Parts A', 'LP2 Parts B']) {
+                const g = m.loadShows().find((x) => x.id === id)!.graphics.find((x) => x.name === name);
+                if (g) error = error ?? m.removeShowGraphicChecked(id, g.id).error ?? null;
+              }
+            }
+            const failure = error ?? (await commitDurableWrites());
+            if (failure) throw new Error(failure);
+          }, { id: fx.showId, kind, round, pic });
+        }
+        let tPublished = NaN, tReady = NaN, tWhole = NaN;
+        try {
+          await expect.poll(async () => { const now = await stateOf(); return now.rev > before.rev && now.publishedRev === now.rev; }, { timeout: 120_000, intervals: [50] }).toBe(true);
+          tPublished = await nowOn(page);
+          const n = (await stateOf()).n;
+          await expect.poll(() => holds(out), { timeout: 120_000, intervals: [50] }).toBe(n);
+          tReady = await nowOn(out);
+          if (whole) {
+            await expect.poll(() => holds(whole), { timeout: 120_000, intervals: [50] }).toBe(n);
+            tWhole = await nowOn(whole);
+          }
+        } catch { /* recorded as a failure below */ }
+        await settle(page, 4_000, 60_000);
+        const op = opMeter.total();
+        // G4 section 11: the save's and the publish's own requests, by family (preflights included,
+        // the meter counts each OPTIONS as the request it precedes); the page's WebSocket frames
+        // sent (its prepare request). Everything else is reported, not counted.
+        const counted = (name: string) => /^rest:(documents|control_shows)$|^rpc:(control_publish_parts|control_asset_put|control_assets_missing|documents_show_\w+|team_production_\w+|audience_set_join)$|^storage$|^auth$/.test(name);
+        const judged = Object.entries(op.byName).reduce((n, [name, b]) => n + (counted(name) ? b.up + b.down : name === 'websocket' ? b.up : 0), 0);
+        rows.push({
+          kind,
+          round,
+          editToPublished: tPublished - t0,
+          editToOutputHolds: tReady - t0,
+          editToWholeOutputHolds: tWhole - t0,
+          failed: Number.isNaN(tReady),
+          pageBytesJudged: judged,
+          pageBytesAll: op.up + op.down,
+          sent,
+          op,
+          output: outMeter.total(),
+          wholeOutput: wholeMeter?.total(),
+        });
+        log(kind, round, rows[rows.length - 1].pageBytesJudged, (rows[rows.length - 1].output as { down: number }).down);
+      }
+    }
+    writeResult(`parts-${tag}`, { fixture: FIXTURE, net: NET, at: new Date().toISOString(), fixtureFacts: fx, rows });
+  } finally {
+    await setSwitch('auto_publish', false).catch(() => undefined);
+    await setSwitch('partial_writes', false).catch(() => undefined);
   }
 });

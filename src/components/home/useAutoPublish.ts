@@ -16,6 +16,20 @@ import { publishRevision, publishStepMs } from '../../control/publishRevision';
 import type { CuePublished } from '../../control/hostedControl';
 import type { PayloadVersion } from '../../control/payloadVersion';
 import type { ObsScene } from '../../model/obsScenes';
+import { partialWritesOn, setUnitPace } from '../../backend/partialWrites';
+import { prefetchRecordBase } from '../../backend/supabaseProvider';
+import { prefetchTeamBase } from '../../backend/teamProductions';
+import { prefetchPublishedBase } from '../../control/publishParts';
+import { sendsIdle } from '../../control/sendsInFlight';
+
+/** Resolves on a later task, so a click queued meanwhile runs first. */
+function laterTask(): Promise<void> {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => resolve();
+    channel.port2.postMessage(null);
+  });
+}
 
 /** Whether the server has the guard installed and the switch on; null while unknown. */
 async function readSwitch(): Promise<boolean> {
@@ -91,10 +105,30 @@ export function useAutoPublish(o: {
 }): AutoPublishState {
   const [switchOn, setSwitchOn] = useState(false);
   const [view, setView] = useState<AutoPublishView | null>(null);
+  // A save's unit digests wait for this page's sends, as the publish's own steps do (G4 R18).
+  useEffect(() => {
+    setUnitPace(async () => {
+      await sendsIdle();
+      await laterTask();
+      await sendsIdle();
+    });
+  }, []);
   const showId = o.show?.id ?? null;
   const teamId = o.show?.teamId ?? null;
   const published = !!o.show?.hostedSlug;
   const enabled = !!showId && published && o.mayPublish;
+  // The stored maps are read when the production opens (G4 section 1), so a first edit's save and
+  // publish read nothing more inside the edit.
+  useEffect(() => {
+    if (!showId || !o.mayPublish) return;
+    void (async () => {
+      if (!(await partialWritesOn())) return;
+      if (teamId) await prefetchTeamBase(showId);
+      else await prefetchRecordBase(showId);
+      const sb = published ? await getSupabase() : null;
+      if (sb) await prefetchPublishedBase(sb, showId);
+    })().catch(() => undefined);
+  }, [showId, teamId, published, o.mayPublish]);
   const latest = useRef(o);
   latest.current = o;
 
@@ -131,7 +165,8 @@ export function useAutoPublish(o: {
   // harness sets makes this page edit the production at a set pace (`noacg-measure-edit-ms`, default
   // 5 s), with automatic updates on or off. A publish follows a pass that ends synced, so AC-4 is
   // judged at a pace where each pass ends before the next edit (5 s, owner 2026-11-13).
-  // `cues`: the last cue's text, then its field values. `add`: a graphic added, then removed.
+  // `cues`: the last cue's text, then its field values. `labels`: a graphic cue's label every time
+  // (every edit changes content). `add`: a graphic added, then removed.
   // `design`: the last graphic's stylesheet changed (a design update).
   useEffect(() => {
     if (!MEASURE_HOOKS || !enabled || !showId) return;
@@ -143,7 +178,7 @@ export function useAutoPublish(o: {
     } catch {
       mode = null;
     }
-    if (mode !== 'cues' && mode !== 'add' && mode !== 'design') return;
+    if (mode !== 'cues' && mode !== 'labels' && mode !== 'add' && mode !== 'design') return;
     let tick = 0;
     const timer = setInterval(() => {
       const show = loadShows().find((s) => s.id === showId);
@@ -151,6 +186,12 @@ export function useAutoPublish(o: {
       tick += 1;
       const w = window as unknown as { __noacgEdits?: number };
       w.__noacgEdits = (w.__noacgEdits ?? 0) + 1;
+      if (mode === 'labels') {
+        // Every edit changes what the outputs show: a graphic cue's label, each time a new one.
+        const cue = [...(show.cues ?? [])].reverse().find((c) => c.source !== 'playout');
+        if (cue) updateShowCue(showId, cue.id, { label: `Edited ${tick}` });
+        return;
+      }
       if (mode === 'cues') {
         const cue = (show.cues ?? [])[(show.cues ?? []).length - 1];
         if (!cue) return;

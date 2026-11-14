@@ -17,6 +17,7 @@ import { getSupabase } from './supabase';
 import { refreshTeams, teamConfirmedToken, teamEditOwed } from './teamProductions';
 import { syncNow } from './syncController';
 import type { Show } from '../model/shows';
+import { partialWritesOn, writtenRevision } from './partialWrites';
 
 /** Whether this tab's record is a stored revision, and which; null when it cannot be known. */
 export type ConfirmedRevision = { rev: number } | { wait: 'local' | 'server' } | null;
@@ -47,6 +48,13 @@ export async function confirmedRevision(show: Show): Promise<ConfirmedRevision> 
   // The team token is the store's, not this object's: read it with `show` (same tick) and again
   // after the read, so a record adopted meanwhile is never confirmed as the newer revision.
   const before = show.teamId ? teamConfirmedToken(show.id) : show.updatedAt;
+  // With parts on, a write of this page answered the revision it stored and its identity (G4
+  // section 11): when this record still carries that identity, that is its revision, unread.
+  const own = writtenRevision(show.id);
+  if (own && before !== null && sameIdentity(before, own.identity, !!show.teamId) && (await partialWritesOn())) {
+    const now = show.teamId ? teamConfirmedToken(show.id) : show.updatedAt;
+    if (now === before) return { rev: own.rev };
+  }
   const stored = await storedRevision(show);
   if (!stored) return null;
   const mine = show.teamId ? teamConfirmedToken(show.id) : show.updatedAt;

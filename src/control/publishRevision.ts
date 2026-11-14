@@ -29,6 +29,9 @@ import { designEditedAt } from '../model/library';
 import { classifyFailure, DENIED, type PublishOutcome } from './autoPublish';
 import type { ObsScene } from '../model/obsScenes';
 import { sendsIdle } from './sendsInFlight';
+import type { AudienceBrand } from '../audience/audienceBrand';
+import { partialWritesOn } from '../backend/partialWrites';
+import { forgetOwnPublish, noteOwnPublish, ownPublish, pruneDue, publishInParts } from './publishParts';
 
 /** Resolves on a later task: a click queued meanwhile runs first. */
 function yieldToInput(): Promise<void> {
@@ -75,21 +78,38 @@ interface StoredStamp {
 }
 
 export async function readStamp(sb: Sb, id: string): Promise<StoredStamp> {
-  const { data, error } = await sb.from('control_shows').select('published_ver, published_rev, scenes:output->scenes').eq('id', id).maybeSingle();
+  // The scenes from the head when it is the publication's (live-publishing G4): reading one key of
+  // `output` makes the server open the whole payload.
+  const head = await partialWritesOn();
+  const { data, error } = await sb.from('control_shows').select(head ? 'published_ver, published_rev, hscenes:published_head->scenes, hn:published_head->ver->n' : 'published_ver, published_rev, scenes:output->scenes').eq('id', id).maybeSingle();
   if (error) throw Object.assign(new Error(error.message), { code: error.code });
   if (!data) return { exists: false, ver: null, rev: null, scenes: [] };
-  const row = data as { published_ver?: unknown; published_rev?: unknown; scenes?: unknown };
+  const row = data as { published_ver?: unknown; published_rev?: unknown; scenes?: unknown; hscenes?: unknown; hn?: unknown };
+  if (head) {
+    const v = readPayloadVersion(row.published_ver);
+    if (v && row.hn === v.n) row.scenes = row.hscenes;
+    else {
+      const whole = await sb.from('control_shows').select('scenes:output->scenes').eq('id', id).maybeSingle();
+      if (whole.error) throw Object.assign(new Error(whole.error.message), { code: whole.error.code });
+      row.scenes = (whole.data as { scenes?: unknown } | null)?.scenes;
+    }
+  }
   return { exists: true, ver: readPayloadVersion(row.published_ver), rev: typeof row.published_rev === 'number' ? row.published_rev : null, scenes: readScenes(row.scenes) ?? [] };
 }
 
 /** The panel entries as published, read only when this publisher's library lacks a graphic's record
  *  (its saved entries live in its author's library, issue #779). */
-async function heldPanelIfNeeded(sb: Sb, show: Show, library: GraphicDoc[]): Promise<PanelGraphicSpec[]> {
+async function heldPanelIfNeeded(sb: Sb, show: Show, library: GraphicDoc[], stored: PayloadVersion | null): Promise<PanelGraphicSpec[]> {
   if (show.graphics.every((g) => resolveSavedGraphicDoc(g, library))) return [];
+  // The panel this page last published is the stored one while the stamp is still that publish's:
+  // its entries are already known, so the whole panel is not read again (live-publishing G4).
+  const mine = ownPublish(show.id);
+  if (mine && stored && mine.ver.n === stored.n) return mine.panel;
   const { data, error } = await sb.from('control_shows').select('panel').eq('id', show.id).maybeSingle();
   if (error) throw Object.assign(new Error(error.message), { code: error.code });
   return readPanel((data as { panel?: unknown } | null)?.panel);
 }
+
 
 /** A failure, in the publisher's classes (G3 section 3): a check a graphic fails here, the rest
  *  as the server answered (`classifyFailure`). */
@@ -176,8 +196,11 @@ export async function publishRevision(
     if (!sb) return { kind: 'gone' };
     const library = loadGraphics();
     // The cheap exits first: a production unpublished meanwhile, or a revision already shown.
-    const [firstStamp, heldPanel] = await Promise.all([readStamp(sb, show.id), heldPanelIfNeeded(sb, show, library)]);
-    let stored = firstStamp;
+    // With parts on, the stamp this page's own last publish wrote stands in for a read: the server
+    // writes only over the `n` named, so a stale one answers `moved` and is read below.
+    const mine = (await partialWritesOn()) && !force ? ownPublish(show.id) : null;
+    let stored: StoredStamp = mine ? { exists: true, ver: mine.ver, rev: mine.rev, scenes: mine.scenes as ObsScene[] } : await readStamp(sb, show.id);
+    const heldPanel = stored.exists ? await heldPanelIfNeeded(sb, show, library, stored.ver) : [];
     if (!stored.exists) return { kind: 'gone' };
     if (!force && stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
     for (const g of show.graphics) await timed(() => assertProductionGate([g], library, 'publish'));
@@ -200,6 +223,8 @@ export async function publishRevision(
       ...dataSources,
       profile: profileForPublish(show.profile),
     };
+    // A team production's row belongs to its team, as a press's publish writes it (G4 section 4).
+    const partsColumns = { ...columns, ...(show.teamId ? { team_id: show.teamId } : {}) };
     const { graphics: _bodies, ...meta } = raw;
     const c = await timed(() =>
       digestText(JSON.stringify([g, meta, { title: show.name, profile: columns.profile }, panel.map(({ js: _js, ...entry }) => entry)])),
@@ -207,7 +232,12 @@ export async function publishRevision(
     if (!force && stored.ver?.c === c) {
       // Nothing on the outputs would change: the row learns the revision, with the source columns.
       const landed = await patchRow(show.id, `published_ver->>c=eq.${encodeURIComponent(c)}`, JSON.stringify({ published_rev: rev, ...dataSources }));
-      if (landed > 0) return { kind: 'published', rev };
+      if (landed > 0) {
+        const own = ownPublish(show.id);
+        if (own) noteOwnPublish(show.id, { ...own, rev });
+        return { kind: 'published', rev };
+      }
+      forgetOwnPublish(show.id);
       stored = await readStamp(sb, show.id);
       if (stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
       // The content is still the one named and the revision is behind, yet nothing matched.
@@ -216,16 +246,37 @@ export async function publishRevision(
     // Sounds are uploaded only for a full publish (a revision-only update sends nothing).
     const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
     const edited = Object.fromEntries(show.graphics.map((x) => [x.name, designEditedAt(x, library)]));
-    const body = await bodyBuilder(built, columns, panel);
+    // ONLY WHAT CHANGED (live-publishing G4 section 4): with parts on, the difference from the stored
+    // publication; a path that cannot be used falls back once to the whole write below.
+    let inParts = await partialWritesOn();
+    let body: ((ver: PayloadVersion) => Promise<Blob>) | null = null;
+    /** The join page's brand as stored, from a publish in parts' answer (undefined: read it). */
+    let brand: unknown = undefined;
     for (let tries = 0; ; tries++) {
       const named = stored.ver ? stored.ver.n : null;
       const filter = named !== null ? `published_ver->>n=eq.${named}` : 'published_ver=is.null';
       const ver: PayloadVersion = { ...(await stampFromDigests(g, built.resolution, stored.ver, new Date(), edited)), r: rev, c };
-      const landed = await patchRow(show.id, filter, await body(ver));
+      let landed = 0;
+      if (inParts) {
+        const got = await publishInParts(sb, show.id, built, panel, ver, stored.ver, partsColumns, step);
+        if (got.kind === 'gone') return { kind: 'gone' };
+        if (got.kind === 'landed') {
+          landed = 1;
+          brand = got.brand;
+        }
+        if (got.kind === 'fallback') inParts = false;
+      }
+      if (!inParts) {
+        body ??= await bodyBuilder(built, columns, panel);
+        landed = await patchRow(show.id, filter, await body(ver));
+      }
       if (landed > 0) {
-        afterFullPublish(sb, show);
+        if (inParts) noteOwnPublish(show.id, { ver, rev, scenes: built.scenes ?? [], panel });
+        else forgetOwnPublish(show.id);
+        afterFullPublish(sb, show, brand);
         return { kind: 'published', rev, ver, scenes: { before: stored.scenes, after: built.scenes ?? [] } };
       }
+      forgetOwnPublish(show.id);
       stored = await readStamp(sb, show.id);
       if (!stored.exists) return { kind: 'gone' };
       if (!force && stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
@@ -241,7 +292,9 @@ export async function publishRevision(
 /** What a full publish does after it lands, as `publishControlShow` does: log rows older than
  *  7 days pruned, and the brand sent to the join page. Neither decides the outcome, so neither is
  *  waited for. */
-function afterFullPublish(sb: Sb, show: Show): void {
-  void pruneControlEvents(sb, show.id);
-  if (show.hostedSlug && show.joinSlug) void sendJoinBrand(show, show.hostedSlug).catch(() => {});
+function afterFullPublish(sb: Sb, show: Show, brand?: unknown): void {
+  // Rows older than 7 days: at most hourly from one page, as a publish now follows every save.
+  if (pruneDue(show.id)) void pruneControlEvents(sb, show.id);
+  // The brand as stored comes with a publish in parts' answer: compared, and sent only when it differs.
+  if (show.hostedSlug && show.joinSlug) void sendJoinBrand(show, show.hostedSlug, brand as AudienceBrand | null | undefined).catch(() => {});
 }
