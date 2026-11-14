@@ -1183,12 +1183,12 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       const teammatePage = await page.context().newPage();
       await teammatePage.goto('/');
       const teammateOutcome = await teammatePage.evaluate(async ({ id, cueId }) => {
-        const { publishRevision } = await __noacgImport('/src/control/publishRevision.ts');
+        const { publishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
         const { loadShows } = await __noacgImport('/src/model/shows.ts');
         const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
         const sb = (await getSupabase())!;
-        const { data } = await sb.from('control_shows').select('published_rev, output').eq('id', id).single();
-        const row = data as { published_rev: number; output: { cues: { id: string; appearance?: unknown; adjust?: { box?: { info: { x: number } | null; paint: { x: number } | null } } }[] } };
+        const { data } = await sb.from('control_shows').select('output').eq('id', id).single();
+        const row = data as { output: { cues: { id: string; appearance?: unknown; adjust?: { box?: { info: { x: number } | null; paint: { x: number } | null } } }[] } };
         const shift = (r: { x: number } | null) => (r ? { ...r, x: r.x + 7 } : r);
         // The same cues as stored, one box measured a few pixels apart.
         const of = (cue: { id: string }) => {
@@ -1198,7 +1198,13 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
           return { ...(c.appearance ? { appearance: c.appearance } : {}), adjust: { ...c.adjust, box } };
         };
         const show = loadShows().find((x) => x.id === id)!;
-        return (await publishRevision(show, row.published_rev, async () => of as never, true)).kind;
+        // A teammate's Publish press, with their own measurement of the one box.
+        try {
+          await publishControlShow(show, of as never);
+          return 'published';
+        } catch (e) {
+          return String(e);
+        }
       }, { id: showId, cueId: target });
       expect(teammateOutcome, 'the teammate republished').toBe('published');
       await teammatePage.close();
