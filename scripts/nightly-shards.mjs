@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // THE NIGHTLY'S SHARDS: the whole E2E suite, packed onto nightly.yml's runners by measured minutes.
 //
-//   node scripts/nightly-shards.mjs [--github-output] [--only <e2e/x.spec.ts> ...] [<earlier nightly report.json> ...]
+//   node scripts/nightly-shards.mjs [--github-output] [--only <e2e/x.spec.ts> ...] [--table <durations.json>] [<earlier nightly report.json> ...]
 //
 // The reports are merged Playwright JSON reports of earlier nightlies, NEWEST FIRST. Prints one
 // JSON object - { shardSpecs, matrix, predicted, weights } - and with --github-output also writes
@@ -159,7 +159,7 @@ export function suiteFor(onDisk, only = []) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values, positionals } = parseArgs({
-    options: { 'github-output': { type: 'boolean' }, only: { type: 'string', multiple: true } },
+    options: { 'github-output': { type: 'boolean' }, only: { type: 'string', multiple: true }, table: { type: 'string' } },
     allowPositionals: true,
   });
   const reports = [];
@@ -178,7 +178,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error(`nightly-shards: no spec file to plan${values.only ? ` - none of --only ${values.only.join(' ')} is on disk` : ''}.`);
     process.exit(1);
   }
-  const plan = planNightly({ suite, table: readTable(), reports });
+  const table = readTable(values.table);
+  if (values.table && Object.keys(table.minutes).length === 0) {
+    // readTable reads a missing file as an empty table; a named one has to have weights in it.
+    console.error(`nightly-shards: --table ${values.table} has no measured minutes.`);
+    process.exit(1);
+  }
+  const plan = planNightly({ suite, table, reports });
   const worst = Math.max(...plan.predicted);
   console.error(
     `nightly-shards: ${plan.shardSpecs.length} shards, predicted ${Math.min(...plan.predicted)}-${worst} min each; ` +

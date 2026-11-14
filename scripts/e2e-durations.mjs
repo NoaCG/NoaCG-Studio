@@ -113,9 +113,9 @@ const E2E_DIR = fileURLToPath(new URL('../e2e/', import.meta.url));
 export const DEFAULT_OVERHEAD = { jobMinutes: 1, testFactor: 1.05, medianJobMinutes: 1, samples: 0 };
 
 /** The table as `{ source, minutes, overhead }`, or a usable empty one if it has been removed. */
-export function readTable() {
+export function readTable(file = TABLE) {
   try {
-    const raw = JSON.parse(readFileSync(TABLE, 'utf8'));
+    const raw = JSON.parse(readFileSync(file, 'utf8'));
     const overhead = { ...DEFAULT_OVERHEAD, ...(raw.overhead ?? {}) };
     // Normalize on read, the way every other versioned format here does, so nothing downstream
     // has to defend itself: a `testFactor` below 1 would SHRINK every prediction, and it cannot
