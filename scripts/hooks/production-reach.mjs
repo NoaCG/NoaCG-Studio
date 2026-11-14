@@ -7,28 +7,30 @@
 // 2026-11-13 a worker's one-off script fell back to them and sent two admin "create user" requests
 // to production. Nothing stood between a one-off and the key.
 //
-// This decides, from the command text and nothing on the network, whether a command would use one
-// of those credentials while they point at a project the session does not own. Each simple command
-// in the line is judged on its own, in order, so a `cd` or an `unset` counts for what follows it and
-// a production tool in one part allows that part only.
+// THE RULE FAILS CLOSED. Proving that a command does NOT use a credential means understanding all
+// of shell, and every construct a parser misreads (a line continuation, a heredoc fed to `bash`, a
+// subshell) lets a use through; three review rounds found one after another. So the question asked
+// here is the other way round: a command that NAMES an armed credential is refused, unless every
+// simple command in it that names one is plain text work (a search, a commit message, a file
+// written with `cat <<'EOF'`) or sets the credential itself. What the parser does not understand is
+// refused.
 //
 //   ARMED      the environment holds the service-role key and its backend URL is not a local
 //              stack, or it holds the access token (which opens the management API for every
 //              project), or the command loads an env file (`--env-file`, dotenv, `source .env`),
 //              whose contents a hook cannot see.
-//   USES       the shell expands a credential (`$NAME` outside single quotes, an unquoted heredoc),
-//              code handed to an interpreter reads it (`node -e`, `python -c`, a heredoc fed to
-//              one), a script file run here that is not tracked in git reads it, or a Supabase
-//              CLI command acts on a hosted project (the CLI sends the access token unasked).
-//              Naming the management API's host is not a use: without the token it opens nothing.
-//   ALLOWED    that simple command runs one of PRODUCTION_TOOLS, or the credential was set or
-//              unset for it (`NAME=local-value cmd`, `env -u NAME cmd`, an earlier `unset NAME`).
-//              Setting a credential to itself (`NAME=$NAME`) is not setting it.
+//   REFUSED    a simple command, or a heredoc it is fed, names an armed credential, and either it
+//              is not a text tool (TEXT_TOOLS, without the flags that run code), or the shell
+//              expands the credential in it (`$NAME`, an unquoted heredoc; `test`/`[` excepted).
+//              Also: a script file it runs that is not tracked in git reads an armed credential,
+//              or a Supabase CLI command acts on a hosted project (the CLI sends the token unasked).
+//   ALLOWED    that simple command runs one of PRODUCTION_TOOLS, or sets or unsets the credentials
+//              it names for itself (`env -u NAME cmd`, `NAME=local-value cmd`; `NAME=$NAME` is not
+//              setting it). An `unset` in one command does not cover another.
 //
-// A tracked file was reviewed and is not read here; a one-off was not. Naming a variable without
-// using it (`grep -rn "process.env.SUPABASE_SERVICE_ROLE_KEY" scripts`, a quoted commit message) is
-// not a use. It is a seatbelt against an accident, not a wall against someone set on getting
-// through: a name built at run time, or a tracked file edited to call production, is not seen.
+// A tracked file was reviewed and is not read here; a one-off was not. It is a seatbelt against an
+// accident, not a wall against someone set on getting through: a name built at run time, or a
+// tracked file edited to call production, is not seen.
 
 import { readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -64,37 +66,40 @@ export const PRODUCTION_TOOLS = [
 
 const CREDENTIALS = [...KEY_VARS, ACCESS_TOKEN];
 const SCRIPT = /\.(?:[cm]?[jt]s|py|sh)$/i;
-/** Interpreters: a script file among their words is run, and an -e/-c argument is code. */
+/** Interpreters: a script file among their words is run. */
 const RUNNERS = new Set(['node', 'tsx', 'ts-node', 'bun', 'deno', 'python', 'python3', 'bash', 'sh', 'zsh']);
-const CODE_FLAGS = new Set(['-e', '--eval', '-p', '--print', '-c', 'eval']);
 /** Loads an env file the hook cannot read. */
 const ENV_FILE = /--env-file\b|\bdotenv\b|(?:^|[\s;&|(])(?:source|\.)\s+[^\s;&|]*\.env\b/;
 /** Code reads its environment. */
 const READS_ENV = /process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|\$\{?[A-Z_]+|\$env:/;
+/**
+ * Commands that only handle text: naming a credential in one is not using it. Each with the
+ * arguments that would make it run code instead, which turn it back into an ordinary command.
+ */
+const TEXT_TOOLS = new Map([
+  ...['grep', 'egrep', 'fgrep', 'echo', 'printf', 'cat', 'head', 'tail', 'ls', 'wc', 'diff', 'jq', 'sort', 'uniq', 'cut', 'tr', 'tee', 'cd', 'pwd', 'mkdir', 'touch', 'true', 'false', 'test', '[', '[['].map((t) => [t, null]),
+  ['rg', /^--pre\b/],
+  ['find', /^-(?:exec|execdir|ok|okdir)$/],
+  ['git', /^(?:-c|--exec\b|-x$|--upload-pack\b|--receive-pack\b|bisect$|filter-branch$)/],
+  ['gh', /^(?:extension|alias)$/],
+]);
+/** Shell keywords that can stand before a command, and the closing ones that stand alone. */
+const SHELL_WORDS = new Set(['{', '}', '!', 'if', 'then', 'else', 'elif', 'fi', 'do', 'done', 'while', 'until', 'time']);
+/** Commands in which an expansion only tests that a variable is set. */
+const TESTS = new Set(['test', '[', '[[']);
 
 /** Any of these in the text is needed for any reason below; without one, nothing is parsed. */
 const MAY_REACH = /[$`]|supabase|\.(?:[cm]?[jt]s|py|sh)\b/i;
 const ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const TOOL_FILES = new Set(PRODUCTION_TOOLS.map((path) => path.split('/').pop()));
 
-const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const base = (word) => word.split(/[\\/]/).pop();
 const isShell = (word) => /^(?:ba|z)?sh$/.test(base(word));
 /** The words that are not leading `NAME=value` assignments. */
 const commandWords = (words) => words.filter((w) => !ASSIGN.test(w));
-
-/** Per credential: code reads it as an env property, an env lookup, or a destructured env. */
-const CODE_READS = Object.fromEntries(
-  CREDENTIALS.map((name) => {
-    const n = esc(name);
-    return [
-      name,
-      new RegExp(
-        `\\benv\\.${n}\\b|\\benv\\[\\s*['"\`]${n}['"\`]|environ(?:\\.get\\(|\\[)\\s*['"]${n}['"]|getenv\\(\\s*['"]${n}['"]|env\\.get\\(\\s*['"]${n}['"]|\\{[^}]*\\b${n}\\b[^}]*\\}\\s*=\\s*(?:process\\.env|import\\.meta\\.env|Deno\\.env)`,
-      ),
-    ];
-  }),
-);
+const NAMES = new RegExp(`\\b(${CREDENTIALS.join('|')})\\b`, 'g');
+/** The credentials a stretch of text names. */
+const namedIn = (text) => [...new Set([...text.matchAll(NAMES)].map((m) => m[1]))];
 
 /** Shell expansions in a stretch of text the shell expands (`$NAME`, `${NAME}`, `$env:NAME`). */
 function expansionsIn(text) {
@@ -284,13 +289,6 @@ function scriptsRun(words, dir) {
   return files;
 }
 
-/** Code a simple command hands an interpreter in its arguments (`node -e '<code>'`). */
-function inlineCode(words) {
-  const at = runnerAt(words);
-  if (at < 0 || isShell(words[at])) return [];
-  return words.slice(at + 1).filter((w, i, rest) => i > 0 && CODE_FLAGS.has(rest[i - 1]));
-}
-
 /** The repository-relative path of a tracked file, or null for a one-off (untracked, or outside any repository). One git call. */
 function trackedPath(file) {
   const listed = gitOutput(dirname(file), ['ls-files', '--full-name', '--error-unmatch', '--', base(file)]);
@@ -334,44 +332,35 @@ export function productionReachRefusal(command, { env = process.env, cwd = proce
   const envFile = armed === CREDENTIALS && ENV_FILE.test(command);
 
   const reasons = [];
-  // What `cd`, `unset` and `export` changed, per shell scope. A subshell starts from its parent's
-  // state when it first runs, and what it changes stays inside it.
-  const states = new Map([['0', { dir: cwd, unset: new Set() }]]);
-  const stateOf = (scope) => {
-    if (!states.has(scope)) {
-      const parent = stateOf(scope.slice(0, scope.lastIndexOf('/')));
-      states.set(scope, { dir: parent.dir, unset: new Set(parent.unset) });
-    }
-    return states.get(scope);
+  // Where each shell scope stands after its `cd`s: a subshell starts from its parent's directory,
+  // and its own `cd` stays inside it. Used only to find the script files a command runs.
+  const dirs = new Map([['0', cwd]]);
+  const dirOf = (scope) => {
+    if (!dirs.has(scope)) dirs.set(scope, dirOf(scope.slice(0, scope.lastIndexOf('/'))));
+    return dirs.get(scope);
   };
-  for (const { words, expands, heredocs, scope } of commandsOf(command)) {
-    const state = stateOf(scope);
-    const { unset } = state;
+  // Bash joins a backslash-newline before it reads anything, so this does too.
+  for (const cmd of commandsOf(command.replace(/\\\r?\n/g, ''))) {
+    const { expands, heredocs, scope } = cmd;
+    // The words a shell reads before the command itself (`{ cmd; }`, `if cmd`, `do cmd`, `! cmd`).
+    const lead = cmd.words.findIndex((w) => !SHELL_WORDS.has(w));
+    if (lead < 0) continue;
+    const words = cmd.words.slice(lead);
     const [head, arg] = words;
     if (head === 'cd' || head === 'pushd') {
-      if (!arg || arg === '~') state.dir = homedir();
-      else if (!arg.includes('$') && arg !== '-') state.dir = resolve(state.dir, arg.replace(/^~(?=[\\/])/, homedir()));
-      continue;
-    }
-    const { dir } = state;
-    if (head === 'unset' || head === 'export') {
-      for (const w of words.slice(1)) {
-        const name = w.split('=')[0];
-        if (head === 'unset') unset.add(name);
-        else if (w.includes('=') && !expandsCredential(w)) unset.add(name);
-      }
+      if (!arg || arg === '~') dirs.set(scope, homedir());
+      else if (!arg.includes('$') && arg !== '-') dirs.set(scope, resolve(dirOf(scope), arg.replace(/^~(?=[\\/])/, homedir())));
       continue;
     }
 
-    // The shell expands `$NAME` before any prefix assignment of this command applies.
-    const shellLive = armed.filter((name) => envFile || !unset.has(name));
-    const own = envFile ? new Set() : new Set([...unset, ...prefixOverrides(words)]);
+    const own = envFile ? new Set() : prefixOverrides(words);
     const live = armed.filter((name) => !own.has(name));
+    if (live.length === 0) continue;
 
-    // A production tool allows this simple command and nothing else in the line.
-    // Each file is read once; git is asked only about a possible tool or a one-off that reads a
-    // live credential, so an ordinary `node x.mjs` costs one read and no git call.
-    const files = scriptsRun(words, dir).map((file) => {
+    // A production tool allows this simple command, and nothing else in the line. Each file is
+    // read once; git is asked only about a possible tool or a one-off that reads a live
+    // credential, so an ordinary `node x.mjs` costs one read and no git call.
+    const files = scriptsRun(words, dirOf(scope)).map((file) => {
       const text = safeRead(file);
       const named = live.filter((name) => text.includes(name));
       const tool = TOOL_FILES.has(base(file)) && CREDENTIALS.some((name) => text.includes(name));
@@ -380,18 +369,17 @@ export function productionReachRefusal(command, { env = process.env, cwd = proce
     });
     if (files.some(({ rel }) => rel && PRODUCTION_TOOLS.includes(rel))) continue;
 
-    // A heredoc fed to an interpreter that runs no file is the code it runs (`node <<'EOF'`).
-    const fed = runnerAt(words) >= 0 && files.length === 0 ? heredocs.map((doc) => doc.body) : [];
-    const code = [...inlineCode(words), ...fed];
     const name = commandWords(words)[0] ?? words[0];
-    const expanded = [...expands, ...heredocs.filter((doc) => !doc.quoted).flatMap((doc) => expansionsIn(doc.body))];
-    const usedByShell = shellLive.filter((cred) => expanded.includes(cred));
-    const usedByCode = live.filter((cred) => code.some((text) => text.includes(cred) && CODE_READS[cred].test(text)));
-    const used = [...new Set([...usedByShell, ...usedByCode])];
-    if (used.length > 0) reasons.push(`\`${name}\` uses ${used.join(' and ')}`);
+    // What this command names: its words, and every heredoc its line feeds it. A text tool may
+    // name a credential; anything else that names one is treated as using it.
+    const named = namedIn([...words, ...heredocs.map((doc) => doc.body)].join('\n')).filter((cred) => live.includes(cred));
+    const expanded = [...expands, ...heredocs.filter((doc) => !doc.quoted).flatMap((doc) => expansionsIn(doc.body))].filter((cred) => live.includes(cred));
+    const text = TEXT_TOOLS.has(name) && !(TEXT_TOOLS.get(name) && words.some((w) => TEXT_TOOLS.get(name).test(w)));
+    if (named.length > 0 && !text) reasons.push(`\`${name}\` names ${named.join(' and ')} and is not plain text work`);
+    else if (expanded.length > 0 && !TESTS.has(name)) reasons.push(`\`${name}\` expands ${[...new Set(expanded)].join(' and ')}`);
 
-    for (const { file, named, oneOff, rel } of files) {
-      if (oneOff && !rel) reasons.push(`${relative(cwd, file) || file} is a script not in the repository, and it reads ${named.join(' and ')}`);
+    for (const { file, named: reads, oneOff, rel } of files) {
+      if (oneOff && !rel) reasons.push(`${relative(cwd, file) || file} is a script not in the repository, and it reads ${reads.join(' and ')}`);
     }
     // The CLI is the one tool that sends the access token without being handed it.
     if (live.includes(ACCESS_TOKEN) && hostedSupabaseCli(words)) {
@@ -404,9 +392,10 @@ export function productionReachRefusal(command, { env = process.env, cwd = proce
     `Blocked: this command could reach a hosted Supabase project with the admin key or the access token in this session's environment (#2560): ${[...new Set(reasons)].join('; ')}.\n` +
     'Those credentials point at PRODUCTION here. They stay in the environment for the deliberate production tools, and a one-off command or script may not use them: on 2026-11-13 one sent admin requests to production.\n' +
     'What to do:\n' +
-    '  - Local work: start the local stack (supabase start) and set its values in the command itself, for example ' +
-    '`SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=<from supabase status> node my-script.mjs`, ' +
-    'or unset them for it (`env -u SUPABASE_SERVICE_ROLE_KEY -u SUPABASE_SECRET_KEY -u SUPABASE_ACCESS_TOKEN ...`).\n' +
+    '  - Local work: start the local stack (supabase start) and give the command its own values, for example ' +
+    '`env -u SUPABASE_SERVICE_ROLE_KEY -u SUPABASE_SECRET_KEY -u SUPABASE_ACCESS_TOKEN SUPABASE_URL=http://127.0.0.1:54321 node my-script.mjs` ' +
+    '(the unset or the value goes on the same command that runs the program; one in an earlier command does not count).\n' +
+    '  - Searching or writing text that names a credential: keep it in its own command (grep, git commit, cat <<\'EOF\'), apart from a command that runs a program.\n' +
     `  - Deliberate production work: run the tool made for it (${PRODUCTION_TOOLS.map((p) => p.replace(/^scripts\//, '')).join(', ')} in scripts/), or ask the owner.`
   );
 }
