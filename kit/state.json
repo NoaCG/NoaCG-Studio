@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Resumed same project. j-5242 reaped without verdict. Current-main conflicts resolved on 5b7300b6. Local Chromium j-5251 active; exact review and normal CI 43638046576 pending.",
       "pr": 2378,
+      "head": "5b7300b6bfd452da0504e1199fc69351d18c1021",
+      "note": "Windows Chromium reported 24 passed on the reconciled head; queue wrapper lost exit, complete Playwright report retained. 454 Studio and 36 Bridge fake tests passed. Exact reviews and CI 43638046576 remain.",
       "session": "windows:j-5251",
       "step": "build",
-      "phase": "v4",
-      "head": "5b7300b6bfd452da0504e1199fc69351d18c1021"
+      "phase": "v4"
     }
   ],
   "owner": [],
