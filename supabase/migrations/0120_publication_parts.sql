@@ -420,6 +420,25 @@ end $$;
 revoke all on function public.control_output_assets(text, text[]) from public, anon, authenticated;
 grant execute on function public.control_output_assets(text, text[]) to anon, authenticated;
 
+-- The saved entries of the named graphics in the stored panel, for a publisher whose library lacks
+-- those graphics' records (their entries live in their author's library, issue #779): only those,
+-- not the whole panel, which carries every graphic's script. Invoker: the row policies decide whose
+-- row it reads, as for a read of `panel`.
+create or replace function public.control_panel_entries(p_show uuid, p_names text[])
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object('name', e->>'name', 'entries', coalesce(e->'entries', '[]'::jsonb))), '[]'::jsonb)
+    from public.control_shows s
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(s.panel) = 'array' then s.panel else '[]'::jsonb end) e
+   where s.id = p_show and e->>'name' = any(coalesce(p_names, '{}'));
+$$;
+revoke all on function public.control_panel_entries(uuid, text[]) from public, anon, authenticated;
+grant execute on function public.control_panel_entries(uuid, text[]) to authenticated;
+
 -- The daily prune. Parts no landed head has named for an hour, locked and deleted in one statement
 -- (a publish holds KEY SHARE on the parts its head names, so those are skipped, and a part a publish
 -- named meanwhile has its left_at cleared, which the lock re-reads). Then images no part names,
@@ -488,7 +507,9 @@ begin
      or has_function_privilege('anon', 'public.control_asset_put(uuid, text)', 'EXECUTE')
      or not has_function_privilege('anon', 'public.control_output_head(text)', 'EXECUTE')
      or not has_function_privilege('anon', 'public.control_output_parts(text, text[])', 'EXECUTE')
-     or not has_function_privilege('anon', 'public.control_output_assets(text, text[])', 'EXECUTE') then
+     or not has_function_privilege('anon', 'public.control_output_assets(text, text[])', 'EXECUTE')
+     or has_function_privilege('anon', 'public.control_panel_entries(uuid, text[])', 'EXECUTE')
+     or not has_function_privilege('authenticated', 'public.control_panel_entries(uuid, text[])', 'EXECUTE') then
     raise exception '0120: EXECUTE on a parts function is wrong for a client role';
   end if;
 
@@ -526,6 +547,11 @@ begin
        or (public.control_output_parts(v_slug, array['pA'])->'pA'->'assets'->0->>'h') <> v_hash
        or (public.control_output_assets(v_slug, array[v_hash])->'assets'->>v_hash) <> 'data:image/png;base64,AAAA' then
       raise exception '0120: a whole head answered % or composed wrong', v_got;
+    end if;
+    -- The panel's entries of one named graphic, and only that one.
+    update public.control_shows set panel = '[{"name":"A","js":"x","entries":[{"id":"e"}]},{"name":"B","entries":[]}]' where id = v_show;
+    if public.control_panel_entries(v_show, array['A']) <> '[{"name":"A","entries":[{"id":"e"}]}]'::jsonb then
+      raise exception '0120: the panel entries of A answered %', public.control_panel_entries(v_show, array['A']);
     end if;
     -- A patch over it: only the cue moves; the graphics stay.
     v_got := public.control_publish_parts(v_show, 2, '{"n":3,"h":"h2","at":"t"}',

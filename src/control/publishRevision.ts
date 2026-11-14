@@ -23,7 +23,7 @@ import type { Show } from '../model/shows';
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
 import { publishAudio } from '../backend/productionAudio';
 import { profileForPublish } from '../model/profile';
-import { buildOutputPayload, buildPanelSpec, copyDigest, pruneControlEvents, readPanel, readScenes, sendJoinBrand, type CuePublished, type OutputPayload, type PanelGraphicSpec } from './hostedControl';
+import { buildOutputPayload, buildPanelSpec, copyDigest, publishedPanelEntries, pruneControlEvents, readPanel, readScenes, sendJoinBrand, type CuePublished, type OutputPayload, type PanelGraphicSpec } from './hostedControl';
 import { digestText, readPayloadVersion, stampFromDigests, type PayloadVersion } from './payloadVersion';
 import { designEditedAt } from '../model/library';
 import { classifyFailure, DENIED, type PublishOutcome } from './autoPublish';
@@ -105,11 +105,25 @@ async function heldPanelIfNeeded(sb: Sb, show: Show, library: GraphicDoc[], stor
   // its entries are already known, so the whole panel is not read again (live-publishing G4).
   const mine = ownPublish(show.id);
   if (mine && stored && mine.ver.n === stored.n) return mine.panel;
+  // With parts on, only the entries of the graphics this library lacks (migration 0120).
+  if (await partialWritesOn()) return publishedPanelEntries(sb, show.id, show.graphics.filter((g) => !resolveSavedGraphicDoc(g, library)).map((g) => g.name));
   const { data, error } = await sb.from('control_shows').select('panel').eq('id', show.id).maybeSingle();
   if (error) throw Object.assign(new Error(error.message), { code: error.code });
   return readPanel((data as { panel?: unknown } | null)?.panel);
 }
 
+
+/** With parts on, when the production opens (G4 section 1, as the maps are): the stored stamp, its
+ *  scenes and the panel entries a publish needs, held as this page's own last publish until it
+ *  publishes. The first publish after a reload then reads nothing; a stamp that moved meanwhile
+ *  answers `moved`, and the publish forgets it and reads (R1). */
+export async function prefetchPublication(sb: Sb, show: Show, library: GraphicDoc[]): Promise<void> {
+  if (ownPublish(show.id) || !(await partialWritesOn())) return;
+  const stored = await readStamp(sb, show.id);
+  if (!stored.exists || !stored.ver) return;
+  const panel = await heldPanelIfNeeded(sb, show, library, stored.ver);
+  if (!ownPublish(show.id)) noteOwnPublish(show.id, { ver: stored.ver, rev: stored.rev, scenes: stored.scenes, panel });
+}
 
 /** A failure, in the publisher's classes (G3 section 3): a check a graphic fails here, the rest
  *  as the server answered (`classifyFailure`). */

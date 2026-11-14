@@ -58,3 +58,69 @@ test('any other failure fails the list, and the expensive read is not tried', as
   await assert.rejects(p.list(), /Cloud list\(graphic\) failed: canceling statement/);
   assert.equal(p.selects.length, 1);
 });
+
+/** With parts on (live-publishing G4 section 11): the provider over a client whose listing answers
+ *  `answer(since)`, `since` being the `gte('updated_at', …)` bound or null for a full listing. */
+function partsProvider(answer) {
+  const asked = [];
+  const listing = (since) => ({
+    gte: (column, value) => { assert.equal(column, 'updated_at'); return listing(value); },
+    then: (resolve, reject) => { asked.push(since); return Promise.resolve(answer(since)).then(resolve, reject); },
+  });
+  const client = {
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'me' } } } }) },
+    from: (table) => ({ select: (columns) => {
+      assert.equal(table, 'documents');
+      // The per-kind listing, which a failed listing of every kind falls back to.
+      if (!/at:updated_at/.test(columns)) return { eq: async () => { asked.push('per kind'); return { data: [], error: null }; } };
+      return listing(null);
+    } }),
+  };
+  const toStoredRecord = (kind, id, body) => ({ kind, id, updatedAt: body.updatedAt, deleted: Boolean(body.deleted), body });
+  const stubs = {
+    './supabase': { getSupabase: async () => client },
+    './storage': { isSingleton: () => false, markPutDenied: () => {}, toStoredRecord },
+    './assets': {},
+    '../model/id': {},
+    './partialWrites': { partialWritesOn: async () => true, unitPace: async () => {}, noteWritten: () => {} },
+    './unitPatch': {},
+  };
+  const exports = {};
+  const compiled = ts.transpileModule(readFileSync(new URL('../src/backend/supabaseProvider.ts', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  vm.runInNewContext(compiled, { exports, require: (name) => stubs[name], Date, Map, Promise });
+  const p = new exports.SupabaseProvider();
+  return { p, asked };
+}
+
+test('with parts on, a pass after a full listing reads only what changed since, with an overlap', async () => {
+  const at = '2026-11-14T01:00:00.000000+00:00';
+  const { p, asked } = partsProvider((since) => since === null
+    ? { data: [
+      { id: 'g1', kind: 'graphic', deleted: false, updatedAt: 'v1', at: '2026-11-14T00:59:00.000000+00:00' },
+      { id: 's1', kind: 'show', deleted: false, updatedAt: 'v1', at },
+    ], error: null }
+    : { data: [{ id: 's1', kind: 'show', deleted: false, updatedAt: 'v2', at: '2026-11-14T01:00:05.000000+00:00' }], error: null });
+  const plain = (x) => JSON.parse(JSON.stringify(x));
+  const first = plain(await Promise.all([p.list('graphic'), p.list('show')]));
+  assert.deepEqual(asked, [null], 'one listing for every kind of one pass');
+  assert.deepEqual(first.map((rows) => rows.map((r) => r.id)), [['g1'], ['s1']]);
+  const second = plain(await Promise.all([p.list('graphic'), p.list('show')]));
+  assert.equal(asked.length, 2);
+  assert.equal(asked[1], new Date(Date.parse(at) - 60_000).toISOString(), 'from a minute before the newest row seen');
+  assert.deepEqual(second[0].map((r) => [r.id, r.updatedAt]), [['g1', 'v1']], 'a row the server did not change is kept');
+  assert.deepEqual(second[1].map((r) => [r.id, r.updatedAt]), [['s1', 'v2']], 'a changed row is taken');
+});
+
+test('with parts on, a failed listing falls back to the per-kind listing and the next one reads in full', async () => {
+  let fail = false;
+  const { p, asked } = partsProvider(() => (fail ? { data: null, error: { code: '57014', message: 'timeout' } } : { data: [{ id: 'g1', kind: 'graphic', deleted: false, updatedAt: 'v1', at: '2026-11-14T01:00:00+00:00' }], error: null }));
+  await p.list('graphic');
+  fail = true;
+  await p.list('graphic');
+  assert.deepEqual(asked.slice(-2), ['2026-11-14T00:59:00.000Z', 'per kind'], 'an incremental listing failed, then the per-kind one');
+  fail = false;
+  await p.list('graphic');
+  assert.equal(asked[asked.length - 1], null, 'a full listing after the failure');
+});

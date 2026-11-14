@@ -12,7 +12,8 @@ import { onSyncState } from '../../backend/syncController';
 import { subscribeTeamState, getTeamState } from '../../backend/teamProductions';
 import { addGraphicToShow, loadShows, removeShowGraphic, updateShowCue, type Show } from '../../model/shows';
 import { createAutoPublisher, CHECK_EVERY_MS, type AutoPublishView } from '../../control/autoPublish';
-import { publishRevision, publishStepMs } from '../../control/publishRevision';
+import { prefetchPublication, publishRevision, publishStepMs } from '../../control/publishRevision';
+import { loadGraphics } from '../../model/library';
 import type { CuePublished } from '../../control/hostedControl';
 import type { PayloadVersion } from '../../control/payloadVersion';
 import type { ObsScene } from '../../model/obsScenes';
@@ -45,8 +46,15 @@ async function readSwitch(): Promise<boolean> {
 async function readRevisions(show: Pick<Show, 'id' | 'teamId'>): Promise<{ rev: number; published: number | null } | null> {
   const sb = await getSupabase();
   if (!sb) return null;
+  // The publisher's 30 s check (a fixed-period read, live-publishing G4 section 11): a personal
+  // record's revision alone, in a shape of its own; a team record's as `storedRevision` reads it.
+  const revisionOnly = async () => {
+    const { data, error } = await sb.from('documents').select('rev').eq('id', show.id).eq('kind', 'show').maybeSingle();
+    const rev = (data as { rev?: unknown } | null)?.rev;
+    return error || typeof rev !== 'number' ? null : { rev };
+  };
   const [record, row] = await Promise.all([
-    storedRevision(show),
+    show.teamId ? storedRevision(show) : revisionOnly(),
     sb.from('control_shows').select('published_rev').eq('id', show.id).maybeSingle(),
   ]);
   if (!record || row.error) return null;
@@ -127,6 +135,8 @@ export function useAutoPublish(o: {
       else await prefetchRecordBase(showId);
       const sb = published ? await getSupabase() : null;
       if (sb) await prefetchPublishedBase(sb, showId);
+      const show = loadShows().find((x) => x.id === showId);
+      if (sb && show) await prefetchPublication(sb, show, loadGraphics());
     })().catch(() => undefined);
   }, [showId, teamId, published, o.mayPublish]);
   const latest = useRef(o);

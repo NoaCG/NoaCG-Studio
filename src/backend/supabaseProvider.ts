@@ -59,6 +59,10 @@ export interface SupabaseProviderOptions {
 
 const recordBases = new Map<string, { rev: number; map: UnitMap }>();
 
+/** The incremental listing's full re-read and its overlap (see `list`). */
+const LISTING_FULL_EVERY_MS = 10 * 60_000;
+const LISTING_OVERLAP_MS = 60_000;
+
 /** Read a production record's stored map when its page opens (G4 section 1), so its first save is a
  *  patch without a read inside the edit. A map that is not for the row's revision is no base. */
 export async function prefetchRecordBase(id: string): Promise<void> {
@@ -105,21 +109,44 @@ export class SupabaseProvider implements StorageProvider {
     return isNotAnswered(error);
   }
 
-  /** One listing of every kind, shared by the lists of one sync pass while it is in flight, and
-   *  never kept once it has answered (live-publishing G4 section 11: a pass listed each kind in its
-   *  own request; every pass still reads the server afresh). */
+  /** One listing of every kind, shared by the lists of one sync pass while it is in flight
+   *  (live-publishing G4 section 11: a pass listed each kind in its own request). With parts on it
+   *  is also incremental: after a full listing, a pass reads only the rows the server changed since
+   *  (`updated_at`, set by the server on every write, with a minute's overlap for a write that
+   *  committed late), and merges them into the rows it holds. A full listing again every ten
+   *  minutes, and after a purge, drops a row deleted outright and any row written with an old
+   *  `updated_at`. */
   private listing: Promise<(SummaryRow & { kind: SyncKind })[] | null> | null = null;
+  private known: { rows: Map<string, SummaryRow & { kind: SyncKind }>; since: string | null; fullAt: number; uid: string } | null = null;
+
+  private async listAll(sb: SupabaseClient): Promise<(SummaryRow & { kind: SyncKind })[] | null> {
+    type Row = SummaryRow & { kind: SyncKind; at?: string };
+    const uid = await this.uid(sb);
+    const held = this.known && this.known.uid === uid && Date.now() - this.known.fullAt < LISTING_FULL_EVERY_MS ? this.known : null;
+    const from = held?.since ? new Date(Date.parse(held.since) - LISTING_OVERLAP_MS).toISOString() : null;
+    let query = sb.from(TABLE).select('id, kind, deleted, updatedAt:body_updated_at, at:updated_at');
+    if (held && from) query = query.gte('updated_at', from);
+    const { data, error } = await query;
+    if (error) return null;
+    const rows = held ? held.rows : new Map<string, Row>();
+    let since = held?.since ?? null;
+    for (const row of (data ?? []) as unknown as Row[]) {
+      const { at, ...summary } = row;
+      rows.set(summary.id, summary);
+      if (typeof at === 'string' && (since === null || Date.parse(at) > Date.parse(since))) since = at;
+    }
+    this.known = { rows, since, fullAt: held ? held.fullAt : Date.now(), uid };
+    return [...rows.values()];
+  }
 
   async list(kind: SyncKind): Promise<StoredRecord[]> {
     const sb = await this.client();
     if (await partialWritesOn()) {
       if (!this.listing) {
-        const rows: Promise<(SummaryRow & { kind: SyncKind })[] | null> = Promise.resolve(sb.from(TABLE).select('id, kind, deleted, updatedAt:body_updated_at'))
-          .then(({ data, error }) => (error ? null : ((data ?? []) as unknown as (SummaryRow & { kind: SyncKind })[])))
-          .finally(() => {
-            // The lists of this pass have all asked by now (they start together): the next pass reads afresh.
-            if (this.listing === rows) this.listing = null;
-          });
+        const rows = this.listAll(sb).finally(() => {
+          // The lists of this pass have all asked by now (they start together): the next pass reads.
+          if (this.listing === rows) this.listing = null;
+        });
         this.listing = rows;
       }
       const all = await this.listing;
@@ -129,6 +156,7 @@ export class SupabaseProvider implements StorageProvider {
           .map((row) => ({ ...toStoredRecord(kind, row.id, { updatedAt: row.updatedAt, deleted: row.deleted }), summary: true as const }));
       }
       this.listing = null;
+      this.known = null;
     }
     // RLS scopes this to the signed-in user's rows. Tombstones (deleted=true) are included so the
     // sync engine can propagate remote deletes.
@@ -292,6 +320,8 @@ export class SupabaseProvider implements StorageProvider {
     if (await partialWritesOn()) {
       if (Date.now() - this.purgedAt < 3_600_000) return 0;
       this.purgedAt = Date.now();
+      // A purged row leaves no trace an incremental listing can see: the next one reads in full.
+      this.known = null;
     }
     const sb = await this.client();
     const { data, error } = await sb
@@ -307,6 +337,7 @@ export class SupabaseProvider implements StorageProvider {
   async remove(kind: SyncKind, id: string): Promise<void> {
     // Direct removal (not used by the sync engine, which propagates deletes as tombstone puts).
     const sb = await this.client();
+    this.known = null; // a row gone outright: the next listing reads in full
     const { error } = await sb.from(TABLE).delete().eq('kind', kind).eq('id', id);
     if (error) throw new Error(`Cloud remove(${kind}) failed: ${error.message}`);
   }

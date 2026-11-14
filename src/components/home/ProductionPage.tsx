@@ -2595,9 +2595,11 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     });
   };
   // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
-  // the identity a cue's box was measured for.
+  // the identity a cue's box was measured for. Every graphic, as Publish asks: measured in the
+  // background from the moment the page opens, so the first publish after a reload has each box
+  // and does not drop one it published before (live-publishing G4: a cue resent for nothing).
   useEffect(() => {
-    if (show) measurer.want(measureJobs(show));
+    if (show) measurer.want(measureJobs(show, library, true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, library, stage, measurer, resolved]);
 

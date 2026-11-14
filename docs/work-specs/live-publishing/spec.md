@@ -513,8 +513,8 @@ Filled in by each phase's pull request.
 
 - Design: `designs/G4.md`, graded by independent `/so` reviews (see the design's pull request for the
   rounds and the final grade), landed as its own pull request before this one.
-- Previous verified `main`: b1e06209e029731e92a4d903bdedfeb7e77fe254 (the build's branch point;
-  later `main` merged in before landing).
+- Previous verified `main`: 88c94f959920db642c9b3c79cb82f74b72010c95 (the design's landing, merged
+  into the build branch).
 - Revert: `git revert -m 1 <this pull request's merge commit>` brings back whole saves, whole
   publishes and whole output reads. Turn the `partial_writes` switch off first (delete the
   `system_settings` row or set `"on"` to false): with it off every page saves and publishes whole and
@@ -528,4 +528,19 @@ Filled in by each phase's pull request.
   a quiet window). Turning `partial_writes` on is a separate step, after the app is live and
   `partial_writes_state()` reports `installed: true` on production (G4 section 7). `auto_publish`
   stays off.
+- Departures from G4's wording, each for its intent:
+  - The sync listing is incremental with parts on: after a full listing, a pass reads only the rows
+    the server changed since (`updated_at`, with a minute's overlap), and reads in full again every
+    ten minutes and after a purge or removal. G4 said no result is kept after the listing answers;
+    on the large fixture the full listing alone was 12.7 kB of a 23.7 kB cue edit. The coordinator
+    was told before it was built.
+  - A press that names no saved revision reads the stored stamp instead of using this page's own
+    last publish: its older-design check (G3) is judged against what is stored.
+  - The publisher's 30 s revision check reads a personal record's `rev` in a query of its own, so
+    the count can tell that poll from a save's own read (G4 section 11 reports fixed-period reads).
+- Traps: a large-fixture measure on the development server crashed the browser while building the
+  fixture (int3, typical fixture fine); on the production build, where AC-5 is measured, it runs.
+  A job chained with `--after` fails when the job before it fails. The AC-2 test of
+  `publish-guard.spec.ts` fails locally when run after the tests before it in that file, on this
+  branch and on `main` alike; alone it passes, and CI runs it green.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.

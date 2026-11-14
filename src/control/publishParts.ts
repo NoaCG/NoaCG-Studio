@@ -231,8 +231,9 @@ export async function prefetchPublishedBase(sb: Sb, showId: string): Promise<voi
 }
 
 /** What this page's own last publish of each production wrote: the stamp, the revision, the OBS
- *  scenes and the panel. While the stored stamp is that one, a publish uses it instead of reading
- *  it (G4 section 11); a stale one answers `moved`, and the caller forgets it and reads. */
+ *  scenes and the panel (until this page publishes, the publication as read when the production
+ *  opened, `prefetchPublication`). While the stored stamp is that one, a publish uses it instead of
+ *  reading it (G4 section 11); a stale one answers `moved`, and the caller forgets it and reads. */
 export interface OwnPublish {
   ver: PayloadVersion;
   rev: number | null;

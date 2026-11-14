@@ -387,6 +387,18 @@ export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(
   });
 }
 
+/** The stored panel's saved entries of the graphics whose records this library lacks (issue #779),
+ *  and only theirs (live-publishing G4: the whole panel carries every graphic's script). An instance
+ *  without migration 0120 reads the whole panel, as before. */
+export async function publishedPanelEntries(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>, showId: string, names: string[]): Promise<PanelGraphicSpec[]> {
+  const { data, error } = await sb.rpc('control_panel_entries', { p_show: showId, p_names: names });
+  if (!error) return readPanel(data);
+  if (error.code !== 'PGRST202') throw Object.assign(new Error(error.message), { code: error.code });
+  const whole = await sb.from('control_shows').select('panel').eq('id', showId).maybeSingle();
+  if (whole.error) throw Object.assign(new Error(whole.error.message), { code: whole.error.code });
+  return readPanel((whole.data as { panel?: unknown } | null)?.panel);
+}
+
 /** Normalize a stored panel row to the current shape (additive fields defaulted, never a crash). */
 export function readPanel(panel: unknown): PanelGraphicSpec[] {
   if (!Array.isArray(panel)) return [];
@@ -792,12 +804,8 @@ async function smallPublishedRead(sb: NonNullable<Awaited<ReturnType<typeof getS
     if (whole.error) throw new Error(whole.error.message);
     scenes = (whole.data as { scenes?: unknown } | null)?.scenes;
   }
-  let panel: unknown = [];
-  if (!show.graphics.every((g) => resolveSavedGraphicDoc(g, library))) {
-    const held = await sb.from('control_shows').select('panel').eq('id', show.id).maybeSingle();
-    if (held.error) throw new Error(held.error.message);
-    panel = (held.data as { panel?: unknown } | null)?.panel;
-  }
+  const missing = show.graphics.filter((g) => !resolveSavedGraphicDoc(g, library)).map((g) => g.name);
+  const panel: unknown = missing.length ? await publishedPanelEntries(sb, show.id, missing) : [];
   return { ver: row.ver, scenes, panel };
 }
 

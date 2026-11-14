@@ -1112,11 +1112,13 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       await caught();
       pageSeen.stop();
       outSeen.stop();
-      const each = await Promise.all(pageSeen.seen.map(async (x) => ({ what: `${x.method} ${x.url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]}`, bytes: await x.bytes })));
+      const each = await Promise.all(pageSeen.seen.map(async (x) => ({ what: `${x.method} ${x.url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]}`, url: x.url, bytes: await x.bytes })));
       // The page's fixed-period polls run whether or not anyone edits (G4 section 11): reported, not
-      // counted. This is a personal production, so the team refresh is one of them.
+      // counted. This is a personal production, so the team refresh is one of them; so are the
+      // renderer heartbeat and the publisher's revision check, each by its own shape.
       const polls = /\/rest\/v1\/(teams|team_members|team_productions)$|\/rpc\/audience_list$/;
-      const bytes = each.filter((x) => !polls.test(x.what)).reduce((a, b) => a + b.bytes, 0);
+      const shaped = /\/rest\/v1\/control_shows\?select=(output_seen_at|published_rev)&|\/rest\/v1\/documents\?select=rev&/;
+      const bytes = each.filter((x) => !polls.test(x.what) && !shaped.test(x.url)).reduce((a, b) => a + b.bytes, 0);
       test.info().annotations.push({ type: 'cue-edit-bytes', description: `${bytes} over ${each.length} requests: ${each.sort((a, b) => b.bytes - a.bytes).slice(0, 12).map((x) => `${x.what} ${x.bytes}`).join('; ')}` });
       console.log('cue-edit-bytes', bytes, JSON.stringify(each.slice(0, 20)));
       expect(rpcs(pageSeen.seen, 'documents_show_patch').length, 'the save went as a patch').toBeGreaterThan(0);
@@ -1217,8 +1219,14 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
           if (failure) throw new Error(failure);
         }, showId);
       }
-      // The team's publish, in parts (G4 section 11): its bytes reported, every team read counted.
-      await expect.poll(async () => (await server(showId)).labels.includes('Team two'), { timeout: 60_000, message: 'the team edit published' }).toBe(true);
+      // The team's publish, in parts (G4 section 11), as a press sends it: its bytes reported, every
+      // team read counted.
+      await page.evaluate(async (id) => {
+        const { publishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        await publishControlShow(loadShows().find((x) => x.id === id)!);
+      }, showId);
+      await expect.poll(async () => (await server(showId)).labels.includes('Team two'), { timeout: 30_000, message: 'the team edit published' }).toBe(true);
       teamSaves.stop();
       expect(rpcs(teamSaves.seen, 'team_production_patch').length, 'a team save went as a patch').toBeGreaterThan(0);
       expect(rpcs(teamSaves.seen, 'control_publish_parts').length, 'a team publish went in parts').toBeGreaterThan(0);

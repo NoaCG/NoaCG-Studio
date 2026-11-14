@@ -1052,7 +1052,9 @@ test('parts', async ({ page, browser }) => {
       return canvas.toDataURL('image/png');
     }, { i, bytes: Math.floor(fx.imageFileBytes / fx.graphics) });
     // MEASURE_KINDS (comma-separated) narrows a run, so a large fixture fits one five-minute job.
-    const all = ['warm', 'cue-edit', 'design-update', 'graphic-add', 'graphic-add-same-image', 'graphic-remove'] as const;
+    // `reopened`: the page reloads first, so this is the first edit after the page opens (G4 section
+    // 11); what the page reads as it opens is before the count starts.
+    const all = ['warm', 'cue-edit', 'reopened', 'design-update', 'graphic-add', 'graphic-add-same-image', 'graphic-remove'] as const;
     const wanted = process.env.MEASURE_KINDS ? new Set(process.env.MEASURE_KINDS.split(',')) : null;
     const kinds = all.filter((k) => !wanted || wanted.has(k));
     const rounds = Number(process.env.MEASURE_ROUNDS ?? 1);
@@ -1060,17 +1062,24 @@ test('parts', async ({ page, browser }) => {
     for (let round = 0; round < rounds; round++) {
       const pic = await image(round);
       for (const kind of kinds) {
+        if (kind === 'reopened') {
+          await page.reload();
+          await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
+        }
         await settle(page, 4_000, 60_000);
         const before = await stateOf();
+        // MEASURE_URLS=1 also says which fields of which published cues the edit changed.
+        const cuesNow = async () => process.env.MEASURE_URLS === '1' ? ((await read(`control_shows?id=eq.${fx.showId}&select=cues:output->cues`)) as unknown as { cues?: Record<string, unknown>[] }).cues ?? [] : [];
+        const cuesBefore = await cuesNow();
         opMeter.reset();
         outMeter.reset();
         wholeMeter?.reset();
         sent = [];
         const t0 = await nowOn(page);
-        if (kind === 'warm' || kind === 'cue-edit') {
+        if (kind === 'warm' || kind === 'cue-edit' || kind === 'reopened') {
           await select(page, 'LP2 Stepped');
           const field = page.getByTestId('cue-field-f0');
-          await field.fill(kind === 'warm' ? `Warm ${round}` : `${round} `.padEnd(2048, 'x'));
+          await field.fill(kind === 'warm' ? `Warm ${round}` : `${kind === 'reopened' ? 'r' : ''}${round} `.padEnd(2048, 'x'));
           await field.blur();
         } else {
           await page.evaluate(async ({ id, kind, round, pic }) => {
@@ -1127,6 +1136,15 @@ test('parts', async ({ page, browser }) => {
           op,
           output: outMeter.total(),
           wholeOutput: wholeMeter?.total(),
+          ...(process.env.MEASURE_URLS === '1' ? { cueFields: await cuesNow().then((after) => {
+            const changed: Record<string, number> = {};
+            after.forEach((c, i) => {
+              const was = cuesBefore[i] ?? {};
+              for (const k of new Set([...Object.keys(c), ...Object.keys(was)])) if (JSON.stringify(c[k]) !== JSON.stringify(was[k])) changed[k] = (changed[k] ?? 0) + 1;
+            });
+            const i = after.findIndex((c, k) => JSON.stringify(c.adjust) !== JSON.stringify((cuesBefore[k] ?? {}).adjust) && JSON.stringify(c.values) === JSON.stringify((cuesBefore[k] ?? {}).values));
+            return { changed, sample: i < 0 ? '' : JSON.stringify([cuesBefore[i]?.adjust, after[i]?.adjust]).slice(0, 600) };
+          }) } : {}),
         });
         log(kind, round, rows[rows.length - 1].pageBytesJudged, (rows[rows.length - 1].output as { down: number }).down);
       }

@@ -193,6 +193,10 @@ export async function meterBytes(page: Page, cdp?: CDPSession): Promise<ByteMete
   let urls: string[] = [];
   const bucket = (name: string) => (byName[name] ??= { n: 0, up: 0, down: 0 });
   const nameOf = (url: string) => {
+    // The page's fixed-period reads in families the AC-5 count names (live-publishing G4 section 11):
+    // the renderer heartbeat (30 s) and the publisher's revision check (30 s), each by its own shape.
+    const poll = /\/rest\/v1\/(control_shows)\?select=(output_seen_at|published_rev)&|\/rest\/v1\/(documents)\?select=rev&/.exec(url);
+    if (poll) return `poll:${poll[1] ?? poll[3]}`;
     const rpc = /\/rpc\/([a-z_0-9]+)/.exec(url);
     if (rpc) return `rpc:${rpc[1]}`;
     const rest = /\/rest\/v1\/([a-z_0-9]+)/.exec(url);
