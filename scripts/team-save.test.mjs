@@ -317,6 +317,7 @@ function refreshHarness() {
   let heads = [head('show', 'base'), head('other', 'base')];
   // Once the pass under test is reading, a pass started meanwhile (a move asks for one) waits.
   const reads = { held: false, headsHeld: false };
+  const outbox = {};
   const headReads = [];
   const sb = {
     from: () => ({
@@ -353,7 +354,7 @@ function refreshHarness() {
     '../model/teamShowMerge': {},
     '../model/copySettle': { settleGraphics: (graphics) => ({ graphics, changed: false }) },
     '../model/durableStore': { canAuthorAccount: () => true, libraryInUse: () => 'owner', commitDurableWrites: async () => null },
-    '../model/teamOutbox': { retainTeamEdit: () => {}, acknowledgeTeamEdit: () => {}, pendingTeamEdits: () => ({}) },
+    '../model/teamOutbox': { retainTeamEdit: () => {}, acknowledgeTeamEdit: () => {}, pendingTeamEdits: () => outbox },
   };
   const setup = `
     export function seedForTest(doc: Show) {
@@ -372,7 +373,7 @@ function refreshHarness() {
   }, setTimeout: () => 1, clearTimeout: () => {} });
   for (const show of shows.values()) exports.seedForTest(show);
   return {
-    controller: exports, docs, fetched, answers, reads, headReads,
+    controller: exports, docs, fetched, answers, reads, headReads, outbox,
     heads: () => heads,
     settle: () => new Promise(resolve => setImmediate(resolve)),
     name: id => shows.get(id)?.name,
@@ -484,4 +485,17 @@ test('a move or a save made while the heads are read is not undone by that older
   assert.equal(h.controller.knownForTest('moved').token, 'moved');
   assert.equal(h.name('show'), 'Mine');
   assert.equal(h.controller.getTeamState().heads.show.updatedAt, 't3', 'the shown head is the confirmed one');
+});
+
+test('an edit the pass restores from the outbox shows the head the server just listed (#2565 /so delta)', async () => {
+  const h = refreshHarness();
+  await h.controller.refreshForTest();
+  assert.equal(h.controller.getTeamState().heads.show.updatedAt, 'base');
+  h.teammateSaved('t2', 'Theirs');
+  const first = { id: 'show', teamId: 'team', version: 2, name: 'First', graphics: [] };
+  h.outbox.show = { token: 'base', base: first, local: { ...first, name: 'Mine' }, teamId: 'team', updatedBy: 'owner' };
+  await h.controller.refreshForTest();
+  assert.equal(h.name('show'), 'Mine');
+  assert.equal(h.controller.knownForTest('show').token, 'base', 'the restored edit keeps its base, so its save merges');
+  assert.equal(h.controller.getTeamState().heads.show.updatedAt, 't2');
 });

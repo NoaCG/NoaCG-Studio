@@ -594,6 +594,7 @@ async function refreshOnce(): Promise<void> {
         continue;
       }
       server.set(id, { token: edit.token, doc: edit.base, teamId: edit.teamId, updatedBy: edit.updatedBy });
+      before.set(id, server.get(id)!); // the pass's own restore is not a change made meanwhile
       applyServerTeamShow(edit.local);
       dirty.add(id);
       setSaving(id, 'pending');
