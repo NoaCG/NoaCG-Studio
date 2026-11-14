@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuthState } from '../../auth/useAuthState';
 import { useAuthUi } from '../../auth/authUi';
+import { useAuthoringProjects } from '../../../store/authoringProjects';
 import { Svg } from '../../icons';
 import { preloadCatalog } from '../../catalogOnDemand';
 import { loadGraphics } from '../../../model/library';
@@ -9,6 +10,7 @@ import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/v
 
 interface Props {
   onTemplates: () => void;
+  onBlankGraphic: () => void;
   onImportGraphic: () => void;
   onAi: () => void;
   onVideo: () => void;
@@ -38,13 +40,13 @@ interface Props {
  *    docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18, 2026-07-23);
  *  - a card ACTS ON CLICK; the reference draws radio dots and a Continue button, which is a
  *    second press for a choice that has already been made unambiguously;
- *  - there is no Blank card. Blank's only outcome was the old code editor, which no door opens
- *    any more (owner, 2026-09-24).
+ *  - blank authoring is a separate editor door, without adding another start card.
  *
  * "Import graphics" is deliberately its own card and a MANUAL path — no AI anywhere in it.
  */
 export default function EntryStep({
   onTemplates,
+  onBlankGraphic,
   onImportGraphic,
   onAi,
   onVideo,
@@ -53,6 +55,7 @@ export default function EntryStep({
   onNewProduction,
 }: Props) {
   const { needsSignIn } = useAuthState();
+  const creatingBlank = useAuthoringProjects(s => s.busy), blankError = useAuthoringProjects(s => s.error);
   const openSignIn = useAuthUi((s) => s.openSignIn);
   /** Is there anything to continue? Home holds graphics, productions and videos, so any of
    *  them counts. On a first-ever visit there is nothing, and offering the loudest card on
@@ -99,9 +102,11 @@ export default function EntryStep({
         </h1>
         {/* A normal link opts into the alpha on a fresh boot and is bookmarkable on any host.
             It opens the current graphic; it never creates or replaces a document. */}
+        <div className="wz-editor-doors"><button onClick={onBlankGraphic} disabled={creatingBlank}>Blank graphic</button>
         <a className="wz-editor-alpha" href="/app?editor=foundation#/editor-foundation">
           Open editor <span className="wz-beta-tag">Alpha</span>
-        </a>
+        </a></div>
+        {blankError && <p role="alert">{blankError}</p>}
         {/* THE INTRO IS THE OWNER'S, VERBATIM (2026-09-28): the product flow in reading order -
             make graphics first (the three ways the cards below offer), then use them however
             the production works. It names EVERY route to air - the browser source NoaCG plays

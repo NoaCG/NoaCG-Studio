@@ -18,6 +18,7 @@ import BrandLogo from '../BrandLogo';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import AuthStatus from '../auth/AuthStatus';
 import EntryStep from './steps/EntryStep';
+import { startBlankGraphic } from '../editorFoundation/startBlankGraphic';
 import {
   ImportStep,
   ImportDesignStep,
@@ -979,6 +980,7 @@ export default function CreationWizard() {
             {needsCatalog && !catalog ? <CatalogLoading /> : <>
             {stepId === 'start' && (
               <EntryStep
+                onBlankGraphic={() => startBlankGraphic(closeGallery)}
                 onTemplates={() => dispatch({ type: 'walk', mode: 'template', step: 1 })}
                 onImportGraphic={() => {
                   // Entering the flow again starts it: a template file left over from a
@@ -997,8 +999,6 @@ export default function CreationWizard() {
                   useRouter.getState().navigate({ view: 'home', section });
                 }}
                 onOpenPlayout={(productionId) => {
-                  // EntryStep picks the production (the one it names on the card), so the
-                  // press opens exactly what the card said it would.
                   closeGallery();
                   useRouter.getState().navigate(
                     productionId ? { view: 'production', id: productionId } : { view: 'home', section: 'productions' },

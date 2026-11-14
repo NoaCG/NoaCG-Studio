@@ -209,3 +209,5 @@
   .wz-hero { grid-template-columns: minmax(0, 1fr); }
   .wz-editor-alpha { justify-self: start; margin-bottom: 8px; }
 }
+
+.wz-editor-doors { display: flex; align-items: center; gap: 12px; }
