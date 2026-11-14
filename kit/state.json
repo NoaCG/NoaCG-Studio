@@ -72,7 +72,7 @@
       "actor": "/root/editor_e5f_cloud_builder",
       "thread": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
-      "status": "Assistant712cb389 + blank805c070f verified locally; now panels, then whole graphic",
+      "status": "Assistant712cb389/blank805c070f/panelsad350f051 verified locally; whole-graphic capability/export work active",
       "source": "4751981d1202c8127739e21e95c979f4af01711b"
     }
   ],
@@ -3430,7 +3430,7 @@
     "contractClarification": "Coordinator extraction bug produced four first-line rubric labels in E5F admission. Do not shorten the actual contract: ALL four full Acceptance paragraphs at the pinned phase.spec24d7 are binding through the spec, including guard/credential/stale/undo/source/export/keyboard/access/limit requirements. Preserve admitted labels/history without resetting allowance. Builder notified before any code; independent evidence must address every clause of those full paragraphs."
   },
   "e5fCheckpoint": {
-    "status": "TWO_ENGINEERING_MILESTONES_COMMITTED_PANELS_NEXT_NOT_DEPLOYED",
+    "status": "THREE_ENGINEERING_MILESTONES_COMMITTED_WHOLE_GRAPHIC_ACTIVE_NOT_DEPLOYED",
     "actor": "/root/editor_e5f_cloud_builder",
     "thread": "6af8403d-0d00-8191-804b-4923b3338071",
     "source": "4751981d1202c8127739e21e95c979f4af01711b",
@@ -3458,6 +3458,14 @@
       "evidence": "j157 original missing-doorFAIL; j158drawingPASS; j1593PASS/1faultySave-locatorFAIL, includes namedblankdurability andquota-refusalpreservation; j161extendedguard/draw/save/reload/independentidentity/reopenPASS; j162newdecorativeframeaccessible-nameFAIL fixedproductmarkup; j164purpose/design/exactpreview/paintedfieldPASS; j163Entryfit2/2PASS. TargetedgatesPASS incl20/20script; tsc/eslint/filebudgetsPASS; catalogemit539/539PASS. Copybaselinegeneratedreduction1to0 only; no increases/exceptions.",
       "reference": "j160 actual officialLinuxStudio0.17.0 binarySHA9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681, manifests a1e977 source, required3142 correspondence priorreceipt onlyreleaseworkflowdifference: actualblank/textauthor/save/independentscene/reopenPASS, nopageerrors. Same-machine functional scope only.",
       "rootRead": "Exact commit/source/notes read; no root rerun or independent acceptance claim."
+    },
+    "panels": {
+      "commit": "ad350f0517881d87c6499fc07c7fa6d25959adf7",
+      "behavior": "Bounded draggable/keyboard project+inspector widths and timeline height, retained preferences/reset, no artwork/history/source changes.",
+      "checks": "Purelayout3/3PASS; changedgates17testsPASS; j1672/2desktoplayoutsPASS afternewj166 responsiveintegrationfailure corrected; existingj1703/3PASS; tsc/lint/diffPASS. j165 missing-separator red retained; testheaderbrace guardfailure corrected withsame4explicit guardedpaths.",
+      "nativeZoom": "j168pref-fileunqualified; j171realChromeUI1.25partial thennewexact-float expectationFAIL retained; onlynewprobeCSSgeometrybound<0.0005px; j172geometryPASS butPlaywrightcapturecropped; annotatednotrelabeled. j174realChrome settingsUI1.25/CDPbrowserZoom1.25/CSSzoom1/pinch1/viewportnullPASS and full compositorPNG1366x681/1920x993 withinouterwindows1366x768/1920x1080. Rootviewedbothfullpagecaptures. Cloudbrowseronly, notphysicaldesktopframe/namedWindows/F4qualification.",
+      "reference": "j173/j175fixturelocator failuresretained; DOM-observedhandles j176actualvertical+horizontalreferencepane dragandcompletenativeprojectJSONequalityPASS, nopageerrors; no more repeatedreferencechecks.",
+      "rootRead": "Exactcommitstat/source/notesread; fullnative125imagesviewed. Independentacceptance remains."
     }
   }
 }
