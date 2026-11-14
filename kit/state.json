@@ -72,7 +72,7 @@
       "actor": "/root/editor_e5f_cloud_builder",
       "thread": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
-      "status": "FocusedPR2555open/unqueued exact52ae; root soleactiveowner ACKed; originalCI/Codex inprogress",
+      "status": "Assistant52ae allproductgatesgreen; queueintentprepared, rootsoleowner; Reviewedlatestamprecoveryowed.",
       "source": "4751981d1202c8127739e21e95c979f4af01711b",
       "deliveryBranch": "codex/plan-editor-r1-5-e5f-assistant",
       "deliverySource": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84"
@@ -3741,16 +3741,52 @@
         "ci": {
           "run": 43616109745,
           "attempt": 1,
-          "status": "in_progress",
-          "head": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84"
+          "status": "completed",
+          "head": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84",
+          "conclusion": "failure ONLY Reviewed late stamp",
+          "gate": 132515429117,
+          "gateConclusion": "success",
+          "configuredVerdict": 132515311639,
+          "configuredConclusion": "success",
+          "offline": "15/15SUCCESS+combined132513232265SUCCESS",
+          "configured": "all62active on4isolatedstacks/4SUCCESS; original3quarantines unchanged",
+          "planJob": 132511402673,
+          "planRootRead": "141offline/15shards, modelproposal included, existingeditorprojectsquarantineexcluded; actualall62on4 notice read; no selectionexception",
+          "reviewed": {
+            "job": 132511403035,
+            "conclusion": "failure",
+            "reason": "missingnoacg/reviewed149s/29polls; rootwhole13391charlogread",
+            "recovery": "notyetrequested; onlyReviewedjobonce afterstamp"
+          },
+          "build": 132511402909,
+          "factory": 132511402951,
+          "retries": "skipped; no testjobretry executed"
         },
         "codex": {
           "summaryComment": 6880714411,
           "requestedAt": "2026-11-14T16:32:00.860743Z",
           "trigger": "PR opened; soleinitialrequest,no manualduplicate",
-          "status": "running"
+          "status": "completed",
+          "completedAt": "2026-11-14T16:33:54.517516Z",
+          "hasAnyFindings": false,
+          "hasUnresolvedFindings": false,
+          "rootRead": "actualsummary6880714411 hiddenstate/fullbody exact52ae"
         },
-        "limits": "No actualhostedHelp/EditUndo; normalmain-onlypreviewignoredexpected. AllfourE5Fcriteria independentfinalacceptance pending."
+        "limits": "No actualhostedHelp/EditUndo; normalmain-onlypreviewignoredexpected. AllfourE5Fcriteria independentfinalacceptance pending.",
+        "sideEnds": {
+          "head": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84",
+          "base": "5c118f5b02c3b6266d8286cc24f797438774eedb",
+          "fileCount": 12,
+          "ends": {},
+          "why": [],
+          "source": "Canonicalphase-cf03-baseline.mjs function actual12file finaldiff; rootexecuted"
+        },
+        "queueIntent": {
+          "head": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84",
+          "sourceVerified": "Freshfetchmain5c118 ancestor52ae; actualgeneratedstamp52ae/base5c118PASS; clean12paths; SOA+Codexclean+exactCIgate/configuredSUCCESS rootread",
+          "sequence": "postexactnoacg/reviewed+land; confirmhead; enableautoimmediately; confirmhead; recoveronlyReviewedjobonce; observeactualqueueevent/group/merge/postland/deploy",
+          "status": "prepared; noexternalstamp/label/auto/recoveryyet"
+        }
       }
     }
   }
