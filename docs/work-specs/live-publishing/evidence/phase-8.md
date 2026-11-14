@@ -124,7 +124,10 @@ Goal or message lost, no Take lost.
 
 ### The configured spec
 
-RESULTS_SPEC
+`npx playwright test --config=playwright.live.config.ts e2e/configured/five-people.spec.ts
+--repeat-each 2` on the local stack (job j-0004): 2 passed, 1.1 and 1.2 minutes. The CI run on the
+pull request's head runs it in the configured selection. Its two editors can in principle meet
+#2565; in every five-page run here (ten minutes, twelve pairs, five shorter runs) they never did.
 
 ## #2562 and #2557
 

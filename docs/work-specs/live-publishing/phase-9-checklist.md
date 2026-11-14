@@ -96,6 +96,9 @@ each goes on only once `auto_publish_state()` or `partial_writes_state()` report
   unpublish. Close it before `partial_writes` goes on.
 - #2562: on one account, an edit after another device's edit can go to a conflicted copy and never
   publish. Phase 8's five accounts did not meet it (it needs the same account on two devices).
+- #2565: on a team production, an edit made while the page reads teammates' changes can be lost.
+  Phase 8 met it with seven people editing (10 pages), not with two (5 pages). It is not about the
+  switches, but it decides how many people can safely edit one production at once.
 
 Then judge the recorded gaps: AC-4 on the large fixture (+125 ms pooled p95 during publishing,
 against 50 ms) and D1 (step 3). Decide: switch on, switch on for some productions first, or keep off.

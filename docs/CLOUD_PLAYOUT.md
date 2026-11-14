@@ -935,6 +935,25 @@ connections, 500 messages/s, 500 channel joins/s):
 Order of concern if the target ever becomes real: (1) audience poll volume vs compute size,
 (2) Realtime connection count vs the 500 cap, (3) payload size vs time-to-first-frame.
 
+## People on one production (tested numbers, not limits)
+
+Live-publishing AC-6, measured 2026-11-14 on one cloud machine (4 CPUs) against a local backend,
+every page and one output in one browser run, automatic updates and partial writes on, the bundled
+build. One team production, ten minutes, every person a signed-in account: one takes and outs,
+one adds messages, one presses a quick button, the rest edit a cue of their own every 4 s; one page
+reloads, one goes offline for 20 s. Evidence: `work-specs/live-publishing/evidence/phase-8.md`.
+
+| Pages | Takes lost | Press to ran p95 | Goals counted | Messages made cues | Editors whose last text stood |
+|---|---|---|---|---|---|
+| 1 (the taker alone) | 0 | 30 ms | | | |
+| 5 | 0 | 62 ms (66 ms in the interleaved pairs) | all | all | 2 of 2 |
+| 10 | 0 | 186 ms | all | all | 4 of 7 (#2565) |
+PEOPLE_15
+
+These are what was tested, not a limit: a hosted backend, the studio network and people on separate
+computers were not part of it, and every page shared one machine's CPUs. The lost edits at 10 pages
+are a defect (#2565), not a capacity limit.
+
 ## Publication lifecycle (what staying published costs, and when a publication ends)
 
 **Decided 2026-09-23: a publication stays until its owner unpublishes it or deletes the
