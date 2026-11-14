@@ -22,9 +22,10 @@ export function installDoor(context: BrowserContext): Promise<void> {
     w.__noacgImport = registryUrl
       ? async (path) => {
           const { MODULES, LAZY } = (await import(registryUrl)) as {
-            MODULES: Record<string, unknown>;
-            LAZY: Record<string, () => Promise<unknown>>;
+            MODULES?: Record<string, unknown>;
+            LAZY?: Record<string, () => Promise<unknown>>;
           };
+          if (!MODULES || !LAZY) throw new Error(`${registryUrl} exports no registry: the e2e build must keep entry signatures strict`);
           if (path in MODULES) return MODULES[path];
           if (path in LAZY) return LAZY[path]();
           throw new Error(`${path} is not in the e2e build's module registry (scripts/e2e-module-registry.mjs)`);
