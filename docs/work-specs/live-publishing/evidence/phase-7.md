@@ -264,13 +264,15 @@ Final code, same method; `MEASURE_COLD=1` clears `spx-gfx-measured` before each 
 |---|---|---|---|---|
 | j-0013 | cold (nothing kept) | 14,373 B (1 cue; 1 box measured anew, `paint` null before) | 14,433 / 14,434 B | 0 / 0 |
 | j-0014 | warm | 13,843 B (1 cue) | 19,524 / 14,394 B | 10 (box gained) / 0 |
+| j-0017 | cold, with the cue-currency check (K9) | 14,380 B (1 cue; 1 box measured anew) | 14,438 / 13,926 B | 0 / 0 |
 
 Every edit is under 20 kB. The 19.5 kB row is the catch-up described above (the fixture's first
 publish in parts had not waited for 10 boxes; they are gained once, absent before and present after).
 
 **The read when the production opens** (G4 section 11: read when the production opens, not counted):
 the stored cues, 31.5 to 38.8 kB per open on the large fixture (42 cues, one carrying 2 kB of text),
-both ways with headers, six opens in j-0013 and j-0014.
+both ways with headers, six opens in j-0013 and j-0014; with the stamp's design digests added for
+K9, 33.5 to 40.7 kB (three opens in j-0017).
 
 **The stored boxes' read.** Read afresh at every opening of the production; a publish waits for it
 beside its measurements within the same 8 s cap, or reads itself when the opening did not; a failed
@@ -281,7 +283,8 @@ the reopened test, keeping a failed read fails the retry test).
 page with nothing kept and the background measurer held (its frames' answers dropped), edits a cue,
 and, without waiting for the stored boxes' read, checks the stored boxes are those before the reload: once in parts (the publish sends the edited
 cue alone) and once on the whole path (the parts function answering 503, so the publish falls back
-and writes whole), then the row against the whole path (R23). Passes (j-0011). With `publishBox`
+and writes whole), then the row against the whole path (R23). Passes (j-0011; j-0015 without waiting for the read;
+j-0016 with K9). With `publishBox`
 returning only what was measured, it fails at "in parts: every stored box kept" (j-0012).
 
 **Regression test.** `scripts/kept-geometry.test.mjs` (9 tests): a reload over the same storage
