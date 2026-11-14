@@ -42,8 +42,8 @@
  ],
  "inFlight": {
   "phase": 7,
-  "step": "build PR after G4 landed",
-  "asOf": "2026-11-14T01:30Z"
+  "step": "check 7-c-c035 on f1556db9",
+  "asOf": "2026-11-14T05:17Z"
  },
  "owner": [
   {
@@ -318,9 +318,13 @@
   "source": "b1e06209e029731e92a4d903bdedfeb7e77fe254",
   "design": "88c94f959920db642c9b3c79cb82f74b72010c95 (PR 2525, G4, /so A at 3e792978 after 7 rounds)",
   "buildPR": "2531 draft at a4ad37b1",
-  "interim": "large AC-4 +125 ms pooled p95 over 10 pairs at 5 s (phase 6 +334); AC-5 large: cue edit 14.3 kB, first after reload 15.5 kB, graphic removal 9.5 kB"
+  "interim": "large AC-4 +125 ms pooled p95 over 10 pairs at 5 s (phase 6 +334); AC-5 large: cue edit 14.3 kB, first after reload 15.5 kB, graphic removal 9.5 kB",
+  "landed": "f1556db90a294a6809d05aa92ae6d70bb8d24ac2 (PR 2531)",
+  "checker": "session_017SdbwMWzRRqirTF7wp4KKr nonce 7-c-c035",
+  "reported": "large AC-4 +125 ms (10 pairs), D1 7.6 s throttled parts output, press path 20.4 kB, team edit 302 kB, content loop +48 ms"
  },
  "morningItems": [
-  "Third time a worker reached production through the cloud environment's own production URL and service key (10:43Z settings write, 18:05Z read-only build, 23:58Z two admin user creates answered 422/400). Ask owner: rename or remove VITE_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in env_017nuiDZBW9smUNLdWVQK8cf so workers cannot reach production by default (coordinator keeps a separately named key for the switch), and whether he wants to check production auth for e2e-s1@noacg.local / e2e-s2@noacg.local (coordinator's read-only check was denied)."
+  "Third time a worker reached production through the cloud environment's own production URL and service key (10:43Z settings write, 18:05Z read-only build, 23:58Z two admin user creates answered 422/400). Ask owner: rename or remove VITE_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in env_017nuiDZBW9smUNLdWVQK8cf so workers cannot reach production by default (coordinator keeps a separately named key for the switch), and whether he wants to check production auth for e2e-s1@noacg.local / e2e-s2@noacg.local (coordinator's read-only check was denied).",
+  "End of phase 7 deferred judgements: large AC-4 +125 ms p95 (limit 50; phase 6 +334); D1 7.6 s throttled (limit 5 s; phase 6 30-33 s). Recommend: keep both as recorded gaps with automatic updates off in production, go on to phase 8; any output-path change only with owner approval. Also: team edit 302 kB (whole save after a move, #2502) and press path 20.4 kB."
  ]
 }
