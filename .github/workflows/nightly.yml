@@ -204,6 +204,9 @@ jobs:
           TMPDIR: ${{ runner.temp }}
           SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
           SHARD_INDEX: ${{ matrix.shardIndex }}
+          # The suite runs on the e2e build (playwright.config.ts); the specs that need the dev
+          # server say so in their header and run there (scripts/e2e-dev-server-specs.mjs).
+          NOACG_E2E_ON_BUILD: '1'
           # One blob name per shard, so the report job can tell which shard sent none.
           NOACG_BLOB_NAME: report-${{ matrix.shardIndex }}.zip
           # Record which source each spec EXECUTED, for the traced spec map the report job builds

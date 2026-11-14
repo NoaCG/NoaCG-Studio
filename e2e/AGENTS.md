@@ -28,6 +28,11 @@ sweeps) are in its "Running the suite: traps".
   (`e2e/_door.ts`), and for a context it makes by hand. The path MUST
   carry the `.ts` extension: an extensionless URL resolves a second instance (a "ghost store")
   that nobody drove, and the symptom is a plausible empty answer, not an error.
+- **The suite runs on the e2e build, not the dev server** (`NOACG_E2E_ON_BUILD=1` in CI,
+  playwright.config.ts). A spec that needs what only the dev server has (a `/src` module swapped
+  with `page.route`, a `?t=` fresh copy, a source file read by its URL) starts with
+  `// runs on: dev server - <why>` and runs in the `dev` project; `npm run check:e2e-dev-server`
+  refuses one that does not say so. Prefer the door and a stand-in that works on the build.
 - **Headless limits.** Monaco is not fully interactive headless, and GSAP does not visibly tick
   (rAF). Assert on DOM or state there.
 - **Never clear localStorage via `addInitScript`.** It also runs in the same-origin srcdoc preview
