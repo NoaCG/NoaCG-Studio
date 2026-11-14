@@ -275,8 +275,12 @@ export async function publishRevision(
     for (let tries = 0; ; tries++) {
       // A box carried from one stored publication never lands on another (#2532): the stamp moved
       // since the measure step, so the publish builds again from the stamp as it is now.
+      // Once only: a publish built afresh carries only from the stamp it read, so a second move ends
+      // as a retry later, never as a loop.
       const carried = carriedFrom(publishedOf);
-      if (carried !== undefined && carried !== stampKey(stored.ver)) return publishRevision(show, rev, measure, force, true);
+      if (carried !== undefined && carried !== stampKey(stored.ver)) {
+        return fresh ? { kind: 'transient', reason: 'other pages published at the same moment' } : publishRevision(show, rev, measure, force, true);
+      }
       const named = stored.ver ? stored.ver.n : null;
       const filter = named !== null ? `published_ver->>n=eq.${named}` : 'published_ver=is.null';
       const ver: PayloadVersion = { ...(await stampFromDigests(g, built.resolution, stored.ver, new Date(), edited)), r: rev, c };
