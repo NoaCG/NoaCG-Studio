@@ -75,10 +75,10 @@
       "thread": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
       "status": "Quizfield Rules-firstfocusA; narrowimplementation+targetedregressions admitted on newownedquizbranch; actualEditUndo/phasePASS stillpending",
-      "source": "4751981d1202c8127739e21e95c979f4af01711b",
-      "deliveryBranch": "codex/plan-editor-r1-5-e5f-assistant",
-      "deliverySource": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84",
-      "note": "Quiz helper-only guardcorrection admitted after SAME focusedSOA; targeted RED/GREEN next. Previous task/guards/exportPASS scoped oldhelper. Retained2552/SVGstop; no phasePASS.",
+      "source": "a9c84700956a8fb3dd1441fa058dfae37017cc50",
+      "deliveryBranch": "codex/plan-editor-r1-5-e5f-quiz-edit",
+      "deliverySource": "a9c84700956a8fb3dd1441fa058dfae37017cc50",
+      "note": "Quiz correction54focusedPASS; mutationdetected/exactrestoreguardPASS; cleancurrentmainintegration a9c. Finalcheck/fullSOpending, no productpush/PRyet. Retained2552/SVGstop; no phasePASS.",
       "monitorOwner": "root active sole repair owner through new PR queue, exact merge checks and deployment; no durable wake claimed"
     }
   ],
@@ -4029,6 +4029,18 @@
           "status": "1PASS12.4s;actualreviewedHelsinki save/reopen, SPX/CasparCG/HTMLoverlay/OGraf executeddefault/update/defaultrestore;no pageerrors",
           "root": "Wholejoblog+maintainedtestread and capturedPNG visuallyinspected",
           "limits": "Cloud/browserexport, notrealprovider/receivinghost"
+        },
+        "correctedVerification": {
+          "rulesCheckpoint": "d8735cff475278da9bb3209049cd9bdda0efecd1",
+          "implementation": "c35275ee0b7501ef4d3ed5ad6749892db41bb7cf",
+          "integration": "a9c84700956a8fb3dd1441fa058dfae37017cc50",
+          "main": "1b7e067c537d567e119c5f886b22f521b2a80503",
+          "helperSha256": "6720d53405a77bcb1193818db5d0fff68d303d8f0c0f3701ba8c135e7beee752",
+          "red": "j220preexecutionduplicatefixturevariableSyntaxError retained; j221executedguardRED inertleaf/bracketinline wronglyallowed +literaldatafuturecapabilityfalse; no helperchangebeforeRED",
+          "green": "j22254/54PASS1.8m/exit0, complete2specs/2workers/cap5; expectedmetadata acceptswhitespaceORcomma actualimplementation+unitproofread; no invocationfailure/repeatneeded",
+          "mutation": "j223deliberatebadsourceFAIL classconfirmed comment/inertaliases; good6720/mutantdecc distincthashes; persistedignoredbackup existedbeforeinjection,finally exactrestorerootverified; j224restoredguard1PASS11.2s",
+          "static": "helper/specESLint +rootTS PASS; finalreview/simplify/gates/capacity/stamp/fullSO pending",
+          "root": "Readcompletej222/j223 logs +j224terminal, actualgoodhash/backups and canonicalmetadatahelper; no realprovider/hostedproof"
         }
       },
       "restart": {
