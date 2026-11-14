@@ -23,7 +23,7 @@ for (let unit = 0; unit < UNITS; unit++) {
     test.setTimeout(240_000);
     await page.goto('/app');
     const firsts = await page.evaluate(async () => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
       return Object.values(CATALOG).map((variants) => variants?.[0]?.id).filter((id): id is string => !!id);
     });
     const all: ParitySource[] = [

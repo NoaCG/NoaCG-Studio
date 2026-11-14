@@ -52,8 +52,8 @@ async function openControlPage(page: Page, category: string, name: string): Prom
   await page.goto('/app');
   await expect(page.locator('.topbar')).toBeVisible();
   const id = await page.evaluate(async ([cat, gname]) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const { doc, error } = createGraphic(variantsFor(cat)[0].create({}), { name: gname });
     if (error) throw new Error(error);
     return doc.id;
@@ -67,8 +67,8 @@ async function openControlPage(page: Page, category: string, name: string): Prom
 /** The saved graphic's animation data, read from the LIBRARY record (what the page persisted). */
 async function savedAnim(page: Page, id: string) {
   return page.evaluate(async (gid) => {
-    const { graphicById } = await import('/src/model/library.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { graphicById } = await __noacgImport('/src/model/library.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const doc = graphicById(gid);
     if (!doc) throw new Error('graphic gone');
     const d = parseAnimData(doc.template.js);
@@ -158,11 +158,11 @@ test('engine: a motion rewrite keeps lifecycle calls, ambient loops and layers o
   await page.goto('/app');
   await expect(page.locator('.topbar')).toBeVisible();
   const r = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { applyMotionPreset, currentMotionPreset, motionTargets, MOTION_PRESETS } = await import('/src/blocks/motionPresets.ts');
-    const { deriveMachine } = await import('/src/blocks/animMachine.ts');
-    const { emitAnimRegion, writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { applyMotionPreset, currentMotionPreset, motionTargets, MOTION_PRESETS } = await __noacgImport('/src/blocks/motionPresets.ts');
+    const { deriveMachine } = await __noacgImport('/src/blocks/animMachine.ts');
+    const { emitAnimRegion, writeAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
 
     // A clock: its entrance fires startClock and breathes an ambient layer; both are behaviour,
     // not the entrance motion, so they ride through a Fade untouched.
@@ -294,7 +294,7 @@ test('wizard: an imported SVG picks from the same ten motions on its Animation s
   await settleDurableWrites(page);
 
   const id = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     const g = loadGraphics().find((x) => x.name === 'Slid scorebug');
     if (!g) throw new Error('graphic not saved');
     return g.id;
@@ -304,8 +304,8 @@ test('wizard: an imported SVG picks from the same ten motions on its Animation s
   // One engine: what the wizard wrote is what this page reads back.
   await expect(page.getByTestId('control-motion-summary')).toContainText('In: Slide left · Out: Slide left');
   const unit = await page.evaluate(async (gid) => {
-    const { graphicById } = await import('/src/model/library.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { graphicById } = await __noacgImport('/src/model/library.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const d = parseAnimData(graphicById(gid)!.template.js)!;
     return { inLayers: Object.keys(d.steps[0].layers), x: d.steps[0].layers['.imported-design-box']?.x?.map((k) => k.value) };
   }, id);
@@ -337,8 +337,8 @@ test('wizard: the layer stagger spends its beats on what is visible, and the wor
   await settleDurableWrites(page);
 
   const beats = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const g = loadGraphics().find((x) => x.name === 'Staggered quiz');
     if (!g) throw new Error('graphic not saved');
     const step = parseAnimData(g.template.js)!.steps[0];
@@ -380,8 +380,8 @@ test('wizard: the layer stagger spends its beats on what is visible, and the wor
   // first and then the artwork, each in the opposite order to its entrance. An emitter that kept
   // the entrance offsets but left in file order would pass everything above.
   const order = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const g = loadGraphics().find((x) => x.name === 'Staggered quiz')!;
     const steps = parseAnimData(g.template.js)!.steps;
     const byStart = (step: { layers: Record<string, Record<string, { time: number }[]>> }) =>
@@ -448,8 +448,8 @@ test('control page: the operator can change the curve after creation, and it lan
   /** The ease STRING each phase's unit tracks actually carry — the code, not the control. */
   const savedEases = (gid: string) =>
     page.evaluate(async (g) => {
-      const { graphicById } = await import('/src/model/library.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { graphicById } = await __noacgImport('/src/model/library.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
       const d = parseAnimData(graphicById(g)!.template.js)!;
       const eases = (i: number) => [
         ...new Set(

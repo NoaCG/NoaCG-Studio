@@ -12,8 +12,8 @@ test('the pasteboard pad never enters persisted state; export stays clipped to t
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 
   const probe = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const tpl = useTemplateStore.getState().template;
     // The composer's own style tags, read apart from the template CSS: Hairline clips in its own
     // CSS too, so only these tags show what the composer adds.

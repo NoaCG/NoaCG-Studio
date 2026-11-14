@@ -31,7 +31,7 @@ async function pickFormat(
 
 async function templateFacts(page: Page) {
   return page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const template = useTemplateStore.getState().template;
     return {
       width: template.resolution.width,
@@ -144,8 +144,8 @@ test('video AI uses the shared selected project format', async ({ page }) => {
   await expect(page.locator('.ai-msg.assistant').first()).toBeVisible({ timeout: 30_000 });
 
   const project = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
-    const { settingsDrift } = await import('/src/model/videoTypes.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
+    const { settingsDrift } = await __noacgImport('/src/model/videoTypes.ts');
     const value = useVideoProjectStore.getState().project;
     return {
       width: value.width,
@@ -258,12 +258,12 @@ test('Create with AI receives and produces the selected 4K60 format', async ({ p
 test('save, reopen, and package exports preserve authored dimensions and timing', async ({ page }) => {
   await page.goto('/app');
   const facts = await page.evaluate(async () => {
-    const { createBlankTemplate } = await import('/src/templates/blank.ts');
-    const { projectFormatById } = await import('/src/model/projectFormat.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { saveGraphicAs, openGraphicDoc } = await import('/src/store/saveActions.ts');
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+    const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
+    const { projectFormatById } = await __noacgImport('/src/model/projectFormat.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { saveGraphicAs, openGraphicDoc } = await __noacgImport('/src/store/saveActions.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
 
     const resolution = projectFormatById('landscape-2160p')!;
     const authored = createBlankTemplate(resolution, 60);
@@ -305,9 +305,9 @@ test('save, reopen, and package exports preserve authored dimensions and timing'
 test('render output settings are explicit scaling from the authored canvas', async ({ page }) => {
   await page.goto('/app');
   await page.evaluate(async () => {
-    const { createBlankTemplate } = await import('/src/templates/blank.ts');
-    const { projectFormatById } = await import('/src/model/projectFormat.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
+    const { projectFormatById } = await __noacgImport('/src/model/projectFormat.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const template = createBlankTemplate(projectFormatById('landscape-2160p')!, 60);
     useTemplateStore.getState().applyTemplate(template, { resetSampleData: true });
     useTemplateStore.getState().closeGallery();
@@ -329,9 +329,9 @@ test('render output settings are explicit scaling from the authored canvas', asy
 test('animation seconds remain equal at 25, 50, and 60 fps', async ({ page }) => {
   await page.goto('/app');
   const durations = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { projectFormatById } = await import('/src/model/projectFormat.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { projectFormatById } = await __noacgImport('/src/model/projectFormat.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const variant = variantById('lt01')!;
     const resolution = projectFormatById('landscape-1080p')!;
     const output: Array<{ fps: number; enter: number; exit: number }> = [];
@@ -368,9 +368,9 @@ test('native 4K capture is not downsampled and a deliberate 1px hairline stays o
   await page.setViewportSize({ width: 3840, height: 2160 });
   await page.goto('/app');
   const measurements = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { projectFormatById } = await import('/src/model/projectFormat.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { projectFormatById } = await __noacgImport('/src/model/projectFormat.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const variant = variantById('lt01')!;
 
     const mount = async (id: string, resolutionId: string) => {
@@ -433,8 +433,8 @@ test('native 4K capture is not downsampled and a deliberate 1px hairline stays o
  *  a supported format and the assertion would fail as if the feature were broken. */
 async function seedUnsupportedFormat(page: Page): Promise<void> {
   await page.evaluate(`(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { saveProject } = await import('/src/model/project.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { saveProject } = await __noacgImport('/src/model/project.ts');
     const s = useTemplateStore.getState();
     const template = { ...s.template, resolution: { width: 1920, height: 1880, label: '1920×1880' } };
     s.applyTemplate(template);
@@ -451,7 +451,7 @@ test('a restored graphic whose format the catalogue does not offer is marked, no
   // Loading must warn before any save, without changing the authored format.
   await openWorkingGraphicInEditor(page);
   const format = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { width: t.resolution.width, height: t.resolution.height, fps: t.fps };
   });
@@ -506,7 +506,7 @@ test('a save carrying an unsupported format lands and says so instead of "Saved"
   // (store/templateStore.ts only resets `saved` when resetSampleData is set), so the next press
   // is saveCurrentGraphic rather than a second Save As.
   await page.evaluate(`(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const s = useTemplateStore.getState();
     s.applyTemplate({ ...s.template, resolution: { width: 1920, height: 1880, label: '1920×1880' } });
   })()`);
@@ -518,7 +518,7 @@ test('a save carrying an unsupported format lands and says so instead of "Saved"
   // is on the title at every width. Assert the flag and the title here, then widen for the words.
   // The saved record's validation is independent of the loaded-document notice.
   await expect.poll(() => page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().saved.formatIssues;
   })).toEqual(['Unsupported project resolution 1920×1880.']);
   await expect(page.getByTestId('save-status')).toHaveAttribute('data-format-unsupported', 'true');
@@ -544,7 +544,7 @@ test('a save carrying an unsupported format lands and says so instead of "Saved"
   await expect(page.getByTestId('save-dialog')).toBeHidden();
   // The saved record's validation is independent of the loaded-document notice.
   await expect.poll(() => page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().saved.formatIssues;
   })).toEqual(['Unsupported project resolution 1920×1880.']);
   await expect(page.getByTestId('save-status')).toHaveAttribute('data-format-unsupported', 'true');
@@ -563,7 +563,7 @@ test('a save carrying an unsupported format lands and says so instead of "Saved"
   // Both records LANDED - the saves were announced, never refused.
   await settleDurableWrites(page);
   const stored = await page.evaluate(`(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     const size = (name) => {
       const doc = loadGraphics().find((g) => g.name === name);
       return doc ? doc.template.resolution.width + 'x' + doc.template.resolution.height : null;

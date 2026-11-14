@@ -122,7 +122,7 @@ test('a field written by hand into the code becomes editable in the Content pane
   // (Through the store - Monaco isn't reliably driveable headless, and the store is what it
   // writes to.)
   await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     useVideoProjectStore.getState().setSource(`
 import { AbsoluteFill } from 'remotion';
 
@@ -151,7 +151,7 @@ export default function Composition({ fields = {} }: { fields?: Record<string, s
   await subtitle.fill('Kickoff 20:00');
   await expect(player(page).getByText('Kickoff 20:00')).toBeVisible({ timeout: 10_000 });
   const adopted = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     return useVideoProjectStore.getState().project.inputs.map((i) => `${i.key}=${i.value}`);
   });
   expect(adopted).toContain('subtitle=Kickoff 20:00');

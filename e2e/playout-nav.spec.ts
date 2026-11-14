@@ -38,9 +38,9 @@ async function seededProduction(page: Page): Promise<string> {
   // that is not yet the list (e2e/AGENTS.md, "must WAIT for the disk").
   await awaitDurableReady(page);
   const id = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
     const template = variantsFor('lower-third')[0].create({});
     const { doc, error } = createGraphic(template, { name: 'Guest Strap', packageId: null });
     if (error || !doc) throw new Error(error ?? 'seed failed');

@@ -27,7 +27,7 @@ test('deep link: a valid variant id opens the wizard preselected on Fields', asy
   // written to the library — only Finish's doors create anything.
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   const savedCount = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().length;
   });
   expect(savedCount).toBe(0);
@@ -57,7 +57,7 @@ test('deep link: an unknown variant id falls back to the ordinary Entry step', a
   await expect(page.locator('[data-entry="template"]')).toBeVisible();
 
   const savedCount = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().length;
   });
   expect(savedCount).toBe(0);

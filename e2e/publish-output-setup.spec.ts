@@ -68,20 +68,20 @@ async function seed(page:Page,legacy=false) {
   // A fresh mock account first reloads onto its isolated library. Allow that cold boot to
   // finish before seeding; the short interaction timeout was measuring Vite/auth startup.
   await page.goto('/app#/home'); await expect(page.getByTestId('home-page')).toBeVisible({timeout:30_000}); await awaitDurableReady(page);
-  const owner=await page.evaluate(async()=>{const sb=await (await import('/src/backend/supabase.ts')).getSupabase();return sb ? (await sb.auth.getSession()).data.session?.user.id : null;});
-  if(owner) await expect.poll(()=>page.evaluate(async()=> (await import('/src/model/durableStore.ts')).libraryInUse())).toBe(owner);
+  const owner=await page.evaluate(async()=>{const sb=await (await __noacgImport('/src/backend/supabase.ts')).getSupabase();return sb ? (await sb.auth.getSession()).data.session?.user.id : null;});
+  if(owner) await expect.poll(()=>page.evaluate(async()=> (await __noacgImport('/src/model/durableStore.ts')).libraryInUse())).toBe(owner);
   const id=await page.evaluate(async old=>{
-    const S=await import('/src/model/shows.ts'); const {variantsFor}=await import('/src/templates/catalog.ts');
+    const S=await __noacgImport('/src/model/shows.ts'); const {variantsFor}=await __noacgImport('/src/templates/catalog.ts');
     const show=S.createShowNamed('Output proof'); S.addGraphicToShow(show.id,variantsFor('lower-third')[0].create({}));
     if(old){const copy=S.loadShows().find(s=>s.id===show.id)!;delete copy.outputSetup;S.upsertShow(copy);}
-    await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
     return show.id;
   },legacy);
   // Finish persistence and return the ID before mounting the production's renderers.
   await page.goto('/app#/production/'+id);
   await expect(page.getByTestId('production-page')).toBeVisible();return id;
 }
-async function record(page:Page,id:string){ return page.evaluate(async key=>(await import('/src/model/shows.ts')).loadShows().find(s=>s.id===key)!,id); }
+async function record(page:Page,id:string){ return page.evaluate(async key=>(await __noacgImport('/src/model/shows.ts')).loadShows().find(s=>s.id===key)!,id); }
 async function openSettings(page:Page){await page.getByTestId('production-setup').click();await page.getByTestId('setup-playout-settings').click();const dialog=page.getByTestId('playout-settings');await expect(dialog).toBeVisible();return dialog;}
 
 for (const chosen of [true, false]) {
@@ -173,7 +173,7 @@ test('Publish asks nothing, the account default starts the CasparCG switch, and 
   // Unpaired, Publish says the one step it could not take instead of failing silently.
   await expect(page.getByTestId('production-note')).toContainText('Pair NoaCG Bridge to load the output on 1-20');
   const first=await record(page,id);
-  await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');const current=S.loadShows().find(s=>s.id===key)!;S.upsertShow({...current,name:'Output proof again',updatedAt:new Date(Date.now()+1).toISOString()});},id);
+  await page.evaluate(async key=>{const S=await __noacgImport('/src/model/shows.ts');const current=S.loadShows().find(s=>s.id===key)!;S.upsertShow({...current,name:'Output proof again',updatedAt:new Date(Date.now()+1).toISOString()});},id);
   // The first publish opened the panel; a press on the status would close it again.
   if(!(await panel.isVisible()))await page.getByTestId('production-status').click();
   await expect(panel.getByTestId('panel-publish-changes')).toBeVisible();
@@ -213,7 +213,7 @@ test('legacy productions open and publish unchanged, and a duplicate keeps its s
   const before=await record(page,id);
   await publishProduction(page);
   const published=await record(page,id);expect(published.outputSetup).toBeUndefined();expect(published.cues).toEqual(before.cues);expect(published.graphics).toEqual(before.graphics);
-  const copy=await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');const copy=S.duplicateShowChecked(key).show!;await (await import('/src/model/durableStore.ts')).commitDurableWrites();return copy;},id);
+  const copy=await page.evaluate(async key=>{const S=await __noacgImport('/src/model/shows.ts');const copy=S.duplicateShowChecked(key).show!;await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();return copy;},id);
   expect(copy.outputSetup).toBeUndefined();expect(copy.outputSlug).toBeUndefined();expect(copy.cues).toEqual(published.cues);
 });
 
@@ -250,14 +250,14 @@ test('Setup and All out keep their place while the status and its action change'
     await publishProduction(page);
     expect(await places(),`${width}: publishing moved Setup or All out`).toEqual(unpublished);
     await allOutOnScreen(width,'once published');
-    await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');const {variantsFor}=await import('/src/templates/catalog.ts');S.addGraphicToShow(key.id,variantsFor('lower-third')[key.pass+1].create({}));await (await import('/src/model/durableStore.ts')).commitDurableWrites();},{id,pass});
+    await page.evaluate(async key=>{const S=await __noacgImport('/src/model/shows.ts');const {variantsFor}=await __noacgImport('/src/templates/catalog.ts');S.addGraphicToShow(key.id,variantsFor('lower-third')[key.pass+1].create({}));await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();},{id,pass});
     await expect(page.getByTestId('production-publish-changes')).toBeVisible();
     expect(await places(),`${width}: Publish changes moved Setup or All out`).toEqual(unpublished);
     await allOutOnScreen(width,'with Publish changes due');
     await page.getByTestId('production-publish-changes').click();
     await expect(page.getByTestId('production-publish-changes')).toHaveCount(0,{timeout:30_000});
     // Back to a never-published copy for the next width.
-    await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');S.setShowHostedSlug(key,undefined);S.setShowOutputSlug(key,undefined);await (await import('/src/model/durableStore.ts')).commitDurableWrites();},id);
+    await page.evaluate(async key=>{const S=await __noacgImport('/src/model/shows.ts');S.setShowHostedSlug(key,undefined);S.setShowOutputSlug(key,undefined);await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();},id);
     await page.reload();await expect(page.getByTestId('production-page')).toBeVisible();
   }
 });
@@ -275,7 +275,7 @@ test('Settings: "Use CasparCG in new productions" is one checkbox on the account
 
 test('shared route confirmation, highlights and palette remain independent of playback and folder routing',async({page})=>{
   await seedSettings(page);const bridge=await fakeBridge(page);const id=await seed(page);
-  const refs=await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');const {defaultChannelFor,loadPlayoutSettings}=await import('/src/control/playoutLink.ts');const settings=loadPlayoutSettings();const add=S.addPlayoutItem(key,{adapter:'casparcg',kind:'media',mediaKind:'still',name:'POSTER',channel:defaultChannelFor(settings,'media')});const cue=S.loadShows().find(s=>s.id===key)!.cues!.find(c=>c.id===add.cueId)!;S.addShowCue(key,cue.sourceId);await (await import('/src/model/durableStore.ts')).commitDurableWrites();return {cue:cue.id,item:cue.sourceId};},id);
+  const refs=await page.evaluate(async key=>{const S=await __noacgImport('/src/model/shows.ts');const {defaultChannelFor,loadPlayoutSettings}=await __noacgImport('/src/control/playoutLink.ts');const settings=loadPlayoutSettings();const add=S.addPlayoutItem(key,{adapter:'casparcg',kind:'media',mediaKind:'still',name:'POSTER',channel:defaultChannelFor(settings,'media')});const cue=S.loadShows().find(s=>s.id===key)!.cues!.find(c=>c.id===add.cueId)!;S.addShowCue(key,cue.sourceId);await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();return {cue:cue.id,item:cue.sourceId};},id);
   await page.reload();await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
   const cue=page.getByTestId('cue-'+refs.cue);await cue.getByTestId('select-cue').click();await expect(page.getByTestId('shared-file-route')).toContainText('Shared file route: 2 cues');await expect(cue.getByTestId('cue-type-text')).toHaveText('Server image');await expect(cue.getByTestId('cue-layer')).toHaveText('2-10');
   await page.getByTestId('playout-channel').selectOption('1');await expect(page.getByTestId('shared-route-confirm')).toContainText('Change route for all 2 cues?');await page.getByRole('button',{name:'Cancel',exact:true}).click();expect((await record(page,id)).playoutItems![0].channel).toBe(2);
@@ -287,7 +287,7 @@ test('shared route confirmation, highlights and palette remain independent of pl
   await cue.getByTestId('cue-menu').click();await page.getByTestId('cue-actions-menu').getByRole('menuitem',{name:/Duplicate/}).first().click();
   const current=await record(page,id);expect(current.cues!.filter(c=>c.accentColor==='#aabbcc')).toHaveLength(2);
   await page.getByTestId('control-area').getByRole('button',{name:'Reset to default',exact:true}).click();
-  const fresh=await page.evaluate(async({id,item})=>(await import('/src/model/shows.ts')).addShowCue(id,item).cueId!,{id,item:refs.item});expect((await record(page,id)).cues!.find(c=>c.id===fresh)?.accentColor).toBeUndefined();
+  const fresh=await page.evaluate(async({id,item})=>(await __noacgImport('/src/model/shows.ts')).addShowCue(id,item).cueId!,{id,item:refs.item});expect((await record(page,id)).cues!.find(c=>c.id===fresh)?.accentColor).toBeUndefined();
   const settings=await openSettings(page);await settings.getByTestId('rundown-colors').getByLabel('Channel 1 color').fill('#123456');await settings.getByTestId('playout-settings-close').click();expect(bridge.actions).toEqual([]);
   for(const theme of ['dark','light']){await page.emulateMedia({colorScheme:theme as 'dark'|'light'});await page.setViewportSize({width:1024,height:768});await page.screenshot({path:test.info().outputPath(`rundown-${theme}.png`)});}
 });
@@ -295,8 +295,8 @@ test('shared route confirmation, highlights and palette remain independent of pl
 
 test('cue highlight survives copy and reorder while a fresh reference uses its route color',async({page})=>{
   const id=await seed(page);const result=await page.evaluate(async key=>{
-    const S=await import('/src/model/shows.ts');const {copyClip}=await import('/src/model/cueClipboard.ts');const show=S.loadShows().find(s=>s.id===key)!;const cue=show.cues![0];S.setCueAccentColor(key,cue.id,'#123456');
-    const clip=copyClip(S.loadShows().find(s=>s.id===key)!,[cue.id])!;const pasted=S.pasteInRundown(key,clip,{end:true});if(pasted.error||pasted.refused)throw Error(pasted.error??pasted.refused!);S.moveShowCue(key,pasted.cueIds[0],-1);const fresh=S.addShowCue(key,cue.sourceId).cueId;await (await import('/src/model/durableStore.ts')).commitDurableWrites();return {show:S.loadShows().find(s=>s.id===key)!,fresh};
+    const S=await __noacgImport('/src/model/shows.ts');const {copyClip}=await __noacgImport('/src/model/cueClipboard.ts');const show=S.loadShows().find(s=>s.id===key)!;const cue=show.cues![0];S.setCueAccentColor(key,cue.id,'#123456');
+    const clip=copyClip(S.loadShows().find(s=>s.id===key)!,[cue.id])!;const pasted=S.pasteInRundown(key,clip,{end:true});if(pasted.error||pasted.refused)throw Error(pasted.error??pasted.refused!);S.moveShowCue(key,pasted.cueIds[0],-1);const fresh=S.addShowCue(key,cue.sourceId).cueId;await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();return {show:S.loadShows().find(s=>s.id===key)!,fresh};
   },id);
   expect(result.show.cues!.filter(c=>c.accentColor==='#123456')).toHaveLength(2);expect(result.show.cues!.find(c=>c.id===result.fresh)?.accentColor).toBeUndefined();
   await page.reload();await expect(page.getByTestId('cue-type-text').first()).toHaveText('Graphic');
@@ -332,7 +332,7 @@ test('before the first publish a graphic Take is rehearsal, and the first publis
 test('native CasparCG cues take, update, next and clear before any publish',async({page})=>{
   await seedSettings(page);const bridge=await fakeBridge(page);
   const b=backend();await account(page,b);const id=await seed(page);
-  const cueId=await page.evaluate(async showId=>(await import('/src/model/shows.ts')).addPlayoutItem(showId,{adapter:'casparcg',kind:'template',name:'HOUSE_STRAP/HOUSE_STRAP',channel:1,layer:21}).cueId,id);
+  const cueId=await page.evaluate(async showId=>(await __noacgImport('/src/model/shows.ts')).addPlayoutItem(showId,{adapter:'casparcg',kind:'template',name:'HOUSE_STRAP/HOUSE_STRAP',channel:1,layer:21}).cueId,id);
   const cue=page.getByTestId(`cue-${cueId}`);
   await cue.getByTestId('select-cue').click();
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','false');
@@ -363,7 +363,7 @@ test('the rundown badge reads the layer, with the CasparCG slot only when Caspar
   await setCasparSwitch(page,true);
   await expect(graphic).toHaveText(/^1-20 · G\d+$/);
   expect((await page.locator('.pd-cue').first().boundingBox())!.height).toBe(before!.height);
-  const cueId=await page.evaluate(async showId=>(await import('/src/model/shows.ts')).addPlayoutItem(showId,{adapter:'casparcg',kind:'media',name:'OPENER',channel:2,layer:10}).cueId,id);
+  const cueId=await page.evaluate(async showId=>(await __noacgImport('/src/model/shows.ts')).addPlayoutItem(showId,{adapter:'casparcg',kind:'media',name:'OPENER',channel:2,layer:10}).cueId,id);
   const clip=page.getByTestId(`cue-${cueId}`);
   await expect(clip.getByTestId('cue-layer')).toHaveText('2-10');
   await expect(clip.getByTestId('cue-caspar-off')).toHaveCount(0);
@@ -384,7 +384,7 @@ test('the rundown badge reads the layer, with the CasparCG slot only when Caspar
 test('a native cue Take goes to the Bridge while the save of its edit still hangs',async({page})=>{
   await seedSettings(page);const bridge=await fakeBridge(page);
   const b=backend();await account(page,b);const id=await seed(page);
-  const cueId=await page.evaluate(async showId=>(await import('/src/model/shows.ts')).addPlayoutItem(showId,{adapter:'casparcg',kind:'template',name:'HOUSE_STRAP/HOUSE_STRAP',channel:1,layer:21}).cueId,id);
+  const cueId=await page.evaluate(async showId=>(await __noacgImport('/src/model/shows.ts')).addPlayoutItem(showId,{adapter:'casparcg',kind:'template',name:'HOUSE_STRAP/HOUSE_STRAP',channel:1,layer:21}).cueId,id);
   const cue=page.getByTestId(`cue-${cueId}`);
   await cue.getByTestId('select-cue').click();
   await page.evaluate(()=>new Promise<void>((resolve,reject)=>{
@@ -405,12 +405,12 @@ test('a native cue Take goes to the Bridge while the save of its edit still hang
   // The save is still held: the Take did not wait for it. Nothing promises the save has started
   // when the Bridge sees the Take (it starts once the answer is handled, #2392), so wait until the
   // edit's own write is handed to the store and still unsettled before checking that it is held.
-  await expect.poll(()=>page.evaluate(async label=>(await import('/src/model/durableStore.ts')).unsettledWrites('spx-gfx-shows').some(w=>w.value?.includes(label)),'Strap typed before the Take'),{message:'the edit is being saved'}).toBe(true);
+  await expect.poll(()=>page.evaluate(async label=>(await __noacgImport('/src/model/durableStore.ts')).unsettledWrites('spx-gfx-shows').some(w=>w.value?.includes(label)),'Strap typed before the Take'),{message:'the edit is being saved'}).toBe(true);
   expect(await page.evaluate(()=>(window as unknown as {__hold:boolean}).__hold)).toBe(true);
-  expect(await page.evaluate(async()=>{const {commitDurableWrites}=await import('/src/model/durableStore.ts');return Promise.race([commitDurableWrites().then(()=>'landed'),new Promise(r=>setTimeout(()=>r('pending'),300))]);}),'the edit has not reached the disk yet').toBe('pending');
+  expect(await page.evaluate(async()=>{const {commitDurableWrites}=await __noacgImport('/src/model/durableStore.ts');return Promise.race([commitDurableWrites().then(()=>'landed'),new Promise(r=>setTimeout(()=>r('pending'),300))]);}),'the edit has not reached the disk yet').toBe('pending');
   // Released, the edit lands behind the Take, and nothing reports a failure.
   await page.evaluate(()=>{(window as unknown as {__hold:boolean}).__hold=false;});
-  await expect.poll(()=>page.evaluate(async([showId,cid])=>{const {commitDurableWrites}=await import('/src/model/durableStore.ts');await commitDurableWrites();return (await import('/src/model/shows.ts')).loadShows().find(s=>s.id===showId)?.cues?.find(c=>c.id===cid)?.label??null;},[id,cueId] as const),{timeout:15_000}).toBe('Strap typed before the Take');
+  await expect.poll(()=>page.evaluate(async([showId,cid])=>{const {commitDurableWrites}=await __noacgImport('/src/model/durableStore.ts');await commitDurableWrites();return (await __noacgImport('/src/model/shows.ts')).loadShows().find(s=>s.id===showId)?.cues?.find(c=>c.id===cid)?.label??null;},[id,cueId] as const),{timeout:15_000}).toBe('Strap typed before the Take');
   await expect(page.getByTestId('production-note').filter({hasText:/not saved|failed/i})).toHaveCount(0);
   await page.unrouteAll({behavior:'ignoreErrors'});
 });

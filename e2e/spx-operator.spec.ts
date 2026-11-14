@@ -5,6 +5,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { lowerThirdPng } from './_png';
 import { dropSvg, intoProduction } from './_svg-import';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // What an SPX operator meets with a NoaCG package, pinned from the real-server walk
 // (docs/SPX_ON_A_REAL_SERVER.md §2): the layer each graphic lands on, which files SPX's template
@@ -38,9 +42,9 @@ test('the SPX export puts each kind of graphic on its own layer inside SPX Solo\
   // Hairline, Clean Quiz and House Scorebug all declared 7, so SPX 1.2 imported them all at 7 and
   // SPX 1.4 Solo (five layers, anything higher capped to 5) at 5: each Play evicted the last.
   const layers = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
-    const { slug } = await import('/src/model/slug.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { spxTarget } = await __noacgImport('/src/export/targets/spxStarter.ts');
+    const { slug } = await __noacgImport('/src/model/slug.ts');
     const layerOf = async (template: ReturnType<NonNullable<ReturnType<typeof variantById>>['create']>) => {
       const zip = await spxTarget.build(template);
       const name = slug(template.name);
@@ -76,7 +80,7 @@ test('the SPX export puts each kind of graphic on its own layer inside SPX Solo\
 
 test('the production package maps the operator\'s layer order onto SPX\'s range', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { spxShowLayers } = await import('/src/export/showExport.ts');
+    const { spxShowLayers } = await __noacgImport('/src/export/showExport.ts');
     const at = (...layers: number[]) => spxShowLayers(layers.map((layer) => ({ layer })));
     return {
       defaults: at(20, 21, 22),
@@ -100,9 +104,9 @@ test('SPX\'s template browser finds only graphics in the single and the producti
   // it then refuses to serve. controlpanel.html sat beside every graphic, and choosing it failed
   // with SPX's "template definition missing". A CasparCG server lists .html the same way.
   const result = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
-    const { buildShowZip } = await import('/src/export/showExport.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { spxTarget } = await __noacgImport('/src/export/targets/spxStarter.ts');
+    const { buildShowZip } = await __noacgImport('/src/export/showExport.ts');
     const listed = (names: string[]) =>
       names.filter((n) => /\.html?$/i.test(n) && !n.split('/').some((part) => part.startsWith('.')));
     const hairline = variantById('lt01')!.create({});
@@ -154,9 +158,9 @@ test('one Continue past the last step takes the graphic out, as SPX\'s rundown s
   // The dual NoaCG package is the same SPX layout and its README gives the same SPX rules, so it
   // carries the guard too (issue #900); its files are under `dual/` here.
   const files = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
-    const { buildGraphicPackage } = await import('/src/export/noacgPackage.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { spxTarget } = await __noacgImport('/src/export/targets/spxStarter.ts');
+    const { buildGraphicPackage } = await __noacgImport('/src/export/noacgPackage.ts');
     const out: Record<string, string> = {};
     for (const id of ['qz04', 'lt01']) {
       const template = variantById(id)!.create({});
@@ -206,10 +210,10 @@ test('one Continue past the last step takes the graphic out, as SPX\'s rundown s
   // The guard is packaging, not the graphic: importing either package back leaves it out. The
   // dual package hashes its sources as written, guard included, so its OGraf half reads fresh.
   const imported = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
-    const { buildGraphicPackage } = await import('/src/export/noacgPackage.ts');
-    const { importZipTemplate } = await import('/src/model/importTemplate.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { spxTarget } = await __noacgImport('/src/export/targets/spxStarter.ts');
+    const { buildGraphicPackage } = await __noacgImport('/src/export/noacgPackage.ts');
+    const { importZipTemplate } = await __noacgImport('/src/model/importTemplate.ts');
     const template = variantById('qz04')!.create({});
     const out: { code: string; stale?: boolean }[] = [];
     for (const zip of [await spxTarget.build(template), await buildGraphicPackage(template)]) {
@@ -230,8 +234,8 @@ test('a value SPX hands over HTML-escaped goes on air as typed', async ({ page, 
   // docs/SPX_ON_A_REAL_SERVER.md §11): `Anna O'Brien & Sons` aired as `Anna O&#039;Brien &amp; Sons`
   // and the News Strip's items were joined by a literal `&lt;br&gt;` (issue #788).
   const files = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { spxTarget } = await __noacgImport('/src/export/targets/spxStarter.ts');
     const out: Record<string, string> = {};
     for (const id of ['lt01', 'tk01']) {
       const zip = await spxTarget.build(variantById(id)!.create({}));
@@ -266,9 +270,9 @@ test('a value SPX hands over HTML-escaped goes on air as typed', async ({ page, 
 
   // The script is packaging, not the graphic: importing the package back leaves it out.
   const imported = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
-    const { importZipTemplate } = await import('/src/model/importTemplate.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { spxTarget } = await __noacgImport('/src/export/targets/spxStarter.ts');
+    const { importZipTemplate } = await __noacgImport('/src/model/importTemplate.ts');
     const zip = await spxTarget.build(variantById('lt01')!.create({}));
     const result = await importZipTemplate('hairline.zip', await zip.generateAsync({ type: 'arraybuffer' }));
     return `${result.template.html}\n${result.template.js}`;
@@ -283,11 +287,11 @@ test('a Picture and a CasparCG single file played from SPX show what was picked 
   // single file, whose guide says how to play it from SPX, carried no script at all. A filelist
   // path is now decoded in any template.
   const built = await page.evaluate(async () => {
-    const { createPictureTemplate } = await import('/src/templates/picture.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
-    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
-    const { importZipTemplate } = await import('/src/model/importTemplate.ts');
+    const { createPictureTemplate } = await __noacgImport('/src/templates/picture.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { spxTarget } = await __noacgImport('/src/export/targets/spxStarter.ts');
+    const { casparTarget } = await __noacgImport('/src/export/targets/casparcg.ts');
+    const { importZipTemplate } = await __noacgImport('/src/model/importTemplate.ts');
     const out: Record<string, string> = {};
     const picture = await spxTarget.build(createPictureTemplate());
     // Imported back from its SPX package, a Picture is a plain graphic that keeps its filelist field.
@@ -338,8 +342,8 @@ test('a Picture and a CasparCG single file played from SPX show what was picked 
   // Imported and exported again, the single file carries the script once, so SPX's escaping is
   // undone once: a typed `AT&amp;T` still reads `AT&amp;T`.
   const again = await page.evaluate(async (html) => {
-    const { importHtmlTemplate } = await import('/src/model/importTemplate.ts');
-    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
+    const { importHtmlTemplate } = await __noacgImport('/src/model/importTemplate.ts');
+    const { casparTarget } = await __noacgImport('/src/export/targets/casparcg.ts');
     const { template } = importHtmlTemplate('hairline.html', html);
     const zip = await casparTarget.build(template);
     return {
@@ -384,8 +388,8 @@ async function importedSpx(page: Page, svg: string, name: string, choose: () => 
   await choose();
   await intoProduction(page, name, `${name} Show`);
   return page.evaluate(async (name) => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { spxTarget } = await __noacgImport('/src/export/targets/spxStarter.ts');
     const zip = await spxTarget.build(loadGraphics().find((g) => g.name === name)!.template);
     const out: Record<string, string> = {};
     for (const n of Object.keys(zip.files)) {

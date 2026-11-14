@@ -34,6 +34,10 @@ import { differing } from './_ografParity';
 import { awaitDurableReady } from './_durable';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 import { bakeAppearance } from '../src/control/appearanceRuntime';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ORIGIN = 'http://adjust-docs.local';
 const GROUND = [10, 20, 30];
@@ -77,6 +81,7 @@ interface Served {
 
 async function openRenderer(browser: Browser, served: Served): Promise<Page> {
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await installDoor(context);
   const page = await context.newPage();
   await page.route(`${ORIGIN}/**`, (route) => {
     const path = decodeURIComponent(new URL(route.request().url()).pathname).replace(/^\//, '');
@@ -233,8 +238,8 @@ test('the sweep: every viewport-unit design paints the same with the transform o
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const swept = await page.evaluate(async ({ controls, look }) => {
-    const { CATALOG, variantById } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { CATALOG, variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const units = /\b\d*\.?\d+(?:vw|vh|vmin|vmax|[sld]v[wh])\b|\binner(?:Width|Height)\b|position\s*:\s*fixed/;
     const listed = Object.values(CATALOG).flat().filter((v) => {
       const t = v!.create({} as never);
@@ -284,11 +289,11 @@ test('each target bakes the graphic\'s place and size into its files, painting w
   await awaitDurableReady(page);
   const TARGETS = ['html-overlay', 'casparcg', 'spx', 'ograf', 'h2r'];
   const built = await page.evaluate(async (targets) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
-    const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
+    const { measureExportAppearances } = await __noacgImport('/src/components/home/exportAppearances.ts');
     const show = shows.createShowNamed('Placed Show');
     // lt01 to the other side and 10 % smaller: a preset against its measured box, a size about it.
     // Two designs that hold still once landed: a target is compared on its landed frame, and a
@@ -350,10 +355,10 @@ test('an export measures a placed graphic in the face its fold sets, so a narrow
   await page.keyboard.press('Escape');
   await awaitDurableReady(page);
   const frames = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { measureExportAppearances } = await __noacgImport('/src/components/home/exportAppearances.ts');
     const frameFor = async (adjust: unknown) => {
       const show = shows.createShowNamed('Placed Show');
       const tpl = variantById('lt01')!.create({} as never);
@@ -384,13 +389,13 @@ test('each target bakes the graphic\'s type and colour, painting what the design
     sb14: { font: { fontId: 'oswald' }, vars: { accent: '#22cc66' } },
   } as const;
   const built = await page.evaluate(async ({ targets, style }) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
-    const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
-    const A = await import('/src/control/cueAdjust.ts');
-    const St = await import('/src/control/cueStyle.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
+    const { measureExportAppearances } = await __noacgImport('/src/components/home/exportAppearances.ts');
+    const A = await __noacgImport('/src/control/cueAdjust.ts');
+    const St = await __noacgImport('/src/control/cueStyle.ts');
     const styled = shows.createShowNamed('Styled Show');
     const rewritten = shows.createShowNamed('Rewritten Show');
     for (const id of ['lt01', 'sb14'] as const) {

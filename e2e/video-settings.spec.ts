@@ -102,7 +102,7 @@ test('a project of unknown provenance warns about nothing', async ({ page }) => 
   await mockClaude(page, [moduleFor('Unknown')]);
   await createVideoProject(page);
   await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     const store = useVideoProjectStore.getState();
     store.loadProject({ ...store.project, authoredFor: null });
   });
@@ -168,7 +168,7 @@ test('offers live gateway models that satisfy the full video contract', async ({
     });
   });
   await page.evaluate(async () => {
-    const { saveAiSettings } = await import('/src/ai/settings.ts');
+    const { saveAiSettings } = await __noacgImport('/src/ai/settings.ts');
     saveAiSettings({
       provider: 'vercel',
       model: 'vendor/video-coder',

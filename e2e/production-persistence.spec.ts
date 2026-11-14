@@ -18,9 +18,9 @@ import { settleDurableWrites } from './_durable';
 async function seedProduction(page: Page, name = 'Class Show'): Promise<string> {
   await page.goto('/app');
   const id = await page.evaluate(async (showName) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
     const template = variantsFor('lower-third')[0].create({});
     const { doc, error } = createGraphic(template, { name: 'Guest Strap', packageId: null });
     if (error || !doc) throw new Error(error ?? 'seed failed');
@@ -120,7 +120,7 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
   // Simulate a published production (the RPC half is backend-gated; the RECORD contract -
   // slugs survive edits, publishedAt vs updatedAt drives the hint - is local and pinned here).
   await page.evaluate(async (showId) => {
-    const { setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const { setShowHostedSlug, setShowOutputSlug } = await __noacgImport('/src/model/shows.ts');
     // Output LAST: it stamps publishedAt, so the record starts CLEAN (published == updated).
     setShowHostedSlug(showId, 'test-hosted-slug');
     setShowOutputSlug(showId, 'test-output-slug');
@@ -137,7 +137,7 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
   // milliseconds that the boundary is crossed, which is what makes this assertion able to fail
   // at all (verified by putting the second `nowIso()` back and watching it go red).
   const stamps = await page.evaluate(async (showId) => {
-    const { loadShows, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const { loadShows, setShowOutputSlug } = await __noacgImport('/src/model/shows.ts');
     let divergent = 0;
     for (let i = 0; i < 400; i++) {
       setShowOutputSlug(showId, `slug-${i}`);
@@ -179,7 +179,7 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
 
   // ...and the slugs survive the edit (URLs are persistent by contract).
   const after = await page.evaluate(async (showId) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === showId);
     return { hosted: s?.hostedSlug, output: s?.outputSlug };
   }, id);
@@ -189,7 +189,7 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
 test('Escape closes the playout panel before the next toggle reopens it', async ({ page }) => {
   const id = await seedProduction(page, 'Links Escape Probe');
   await page.evaluate(async (showId) => {
-    const { setShowHostedSlug } = await import('/src/model/shows.ts');
+    const { setShowHostedSlug } = await __noacgImport('/src/model/shows.ts');
     setShowHostedSlug(showId, 'test-hosted-slug');
   }, id);
   await settleDurableWrites(page);
@@ -232,7 +232,7 @@ test('the audience and presenter links are offered separately, and only once the
   const links = page.getByTestId('production-links');
 
   await page.evaluate(async (showId) => {
-    const { setShowHostedSlug, setShowAudienceSlugs } = await import('/src/model/shows.ts');
+    const { setShowHostedSlug, setShowAudienceSlugs } = await __noacgImport('/src/model/shows.ts');
     setShowHostedSlug(showId, 'test-hosted-slug');
     setShowAudienceSlugs(showId, { joinSlug: 'friday-night-live', presenterSlug: 'pv-test-slug' });
   }, id);
@@ -273,7 +273,7 @@ test('the panel holds the browser source in one row, and Links… holds one row 
   const id = await seedProduction(page, 'Link Density');
   await page.goto(`/app#/production/${id}`);
   await page.evaluate(async (showId) => {
-    const { setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const { setShowHostedSlug, setShowOutputSlug } = await __noacgImport('/src/model/shows.ts');
     setShowOutputSlug(showId, 'test-output-slug');
     setShowHostedSlug(showId, 'test-hosted-slug');
   }, id);
@@ -321,7 +321,7 @@ test('the audience link is the short /j/ link, and its name is changed in Intera
   const id = await seedProduction(page, 'Readable Name');
   await page.goto(`/app#/production/${id}`);
   await page.evaluate(async (showId) => {
-    const { setShowHostedSlug, setShowAudienceSlugs } = await import('/src/model/shows.ts');
+    const { setShowHostedSlug, setShowAudienceSlugs } = await __noacgImport('/src/model/shows.ts');
     setShowHostedSlug(showId, 'test-hosted-slug');
     setShowAudienceSlugs(showId, { joinSlug: 'aB3xK9zQ', presenterSlug: 'pv-test-slug' });
   }, id);

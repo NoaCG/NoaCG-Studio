@@ -39,8 +39,8 @@ async function conflicted(page: Page) {
   const other = await delayedLibraryTab(page);
   await other.evaluate(() => { (window as unknown as { check10Hold: boolean }).check10Hold = true; });
   const pass = await page.evaluate(async gamma => {
-    const { runSync } = await import('/src/backend/sync.ts');
-    const { LocalStorageProvider } = await import('/src/backend/storage.ts');
+    const { runSync } = await __noacgImport('/src/backend/sync.ts');
+    const { LocalStorageProvider } = await __noacgImport('/src/backend/storage.ts');
     localStorage.setItem('spx-gfx-sync', JSON.stringify({ lastSyncedAt: new Date(Date.now() - 60_000).toISOString(), pendingPush: [], pendingConflict: [] }));
     const at = new Date(Date.now() + 1000).toISOString();
     const winner = { ...gamma, name: 'Remote winner', template: { ...gamma.template, name: 'Remote winner', css: gamma.template.css + '\n/* remote winner */' }, updatedAt: at };
@@ -86,8 +86,8 @@ for (const duringWait of ['unedited', 'edited', 'chained'] as const) {
     }
     if (duringWait === 'chained') {
       target = await page.evaluate(async gamma => {
-        const { upsertGraphic } = await import('/src/model/library.ts');
-        const { graphicSuperseded } = await import('/src/model/project.ts');
+        const { upsertGraphic } = await __noacgImport('/src/model/library.ts');
+        const { graphicSuperseded } = await __noacgImport('/src/model/project.ts');
         // Sync renames the record, preserving its saved template byte-for-byte. A first-Save
         // builder would also rename template.name, manufacturing a source difference here.
         const doc = { ...gamma, id: crypto.randomUUID(), name: 'Second (conflicted copy)' };

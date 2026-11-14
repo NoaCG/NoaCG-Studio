@@ -45,9 +45,9 @@ async function seedBrand(page: Page, opts: { logo: boolean; name?: string }): Pr
   // question.
   await awaitDurableReady(page);
   return page.evaluate(async ({ logo, accent, name, fontId, data }) => {
-    const { createLook } = await import('/src/model/packets.ts');
-    const { setDefaultBrand } = await import('/src/model/brand.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { createLook } = await __noacgImport('/src/model/packets.ts');
+    const { setDefaultBrand } = await __noacgImport('/src/model/brand.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const look = createLook(name, {
       styleTag: 'minimal',
       // A CAPTURED palette id, which is the shape a brand made from a real graphic has - and the
@@ -67,7 +67,7 @@ async function seedBrand(page: Page, opts: { logo: boolean; name?: string }): Pr
 /** The document the wizard just created, read out of the store. */
 async function createdTemplate(page: Page) {
   return page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { html: t.html, css: t.css, fields: t.fields, assets: t.assets.map((a) => a.path) };
   });
@@ -168,7 +168,7 @@ test('creating a graphic writes no brand record', async ({ page }) => {
   // answer is an honest, wrong, empty list.
   await awaitDurableReady(page);
   const after = await page.evaluate(async () => {
-    const { loadLooks } = await import('/src/model/packets.ts');
+    const { loadLooks } = await __noacgImport('/src/model/packets.ts');
     return {
       looks: loadLooks().map((l) => l.name),
       legacy: localStorage.getItem('spx-gfx-brand'),
@@ -184,9 +184,9 @@ test('applying a brand fills an existing logo slot and leaves a slotless graphic
   await seedBrand(page, { logo: true });
 
   const result = await page.evaluate(async ({ accent, data }) => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const { applyLookToTemplate, loadBrand } = await import('/src/model/packets.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const { applyLookToTemplate, loadBrand } = await __noacgImport('/src/model/packets.ts');
 
     const all = Object.values(CATALOG).flat();
     const build = (variantId: string, logoEnabled: boolean | null) => {
@@ -265,10 +265,10 @@ test('a design that cannot show the mark never bundles it', async ({ page }) => 
   await seedBrand(page, { logo: true });
 
   const result = await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const { brandPatch } = await import('/src/components/wizard/draft.ts');
-    const { loadBrand } = await import('/src/model/packets.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const { brandPatch } = await __noacgImport('/src/components/wizard/draft.ts');
+    const { loadBrand } = await __noacgImport('/src/model/packets.ts');
 
     const all = Object.values(CATALOG).flat();
     const brand = loadBrand()!;

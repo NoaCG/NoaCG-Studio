@@ -91,8 +91,8 @@ async function measure(page: Page, html: string): Promise<{ spacing: Spacing; pa
     await new Promise((resolve) => { frame.onload = resolve; });
     const inner = frame.contentDocument as Document;
     await inner.fonts.ready;
-    const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts');
-    const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts');
+    const { measureSpacing } = await __noacgImport('/src/ai/spike/spacingCheck.ts');
+    const { measureProportion } = await __noacgImport('/src/ai/spike/proportionCheck.ts');
     const spacing = measureSpacing(inner);
     const proportion = measureProportion(inner);
     frame.remove();
@@ -125,7 +125,7 @@ test.describe('a single-ink mark and a coloured one separate by their ink spread
 
   test('one ink measures near zero, several measure far above the floor', async ({ page }) => {
     const measured = await page.evaluate(async ([single, coloured]) => {
-      const { probeMark } = await import('/src/assets/assetInfo.ts');
+      const { probeMark } = await __noacgImport('/src/assets/assetInfo.ts');
       const probe = async (svg: string) =>
         probeMark({ path: 'images/mark.svg', data: `data:image/svg+xml;base64,${btoa(svg)}` });
       return {
@@ -157,10 +157,10 @@ test.describe('the platform seats a mark against the words, not against empty gr
   // taller than its content.
   test('the seated control is centred on its own content', async ({ page }) => {
     const measured = await page.evaluate(async (svg) => {
-      const { seatedMarkControlAnchor } = await import('/src/ai/spike/anchors.ts');
-      const { probeMark } = await import('/src/assets/assetInfo.ts');
-      const { composeDocument } = await import('/src/preview/composeDocument.ts');
-      const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts');
+      const { seatedMarkControlAnchor } = await __noacgImport('/src/ai/spike/anchors.ts');
+      const { probeMark } = await __noacgImport('/src/assets/assetInfo.ts');
+      const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+      const { measureSpacing } = await __noacgImport('/src/ai/spike/spacingCheck.ts');
       const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
       const probe = await probeMark({ path: 'images/mark.svg', data: dataUrl });
       if (!probe) return { error: 'the mark did not probe' };
@@ -252,7 +252,7 @@ test.describe('a docked mark is measured by its INK, not by the well it sits in'
       await new Promise((resolve) => { frame.onload = resolve; });
       const inner = frame.contentDocument as Document;
       await inner.fonts.ready;
-      const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts');
+      const { measureSpacing } = await __noacgImport('/src/ai/spike/spacingCheck.ts');
       // Read BEFORE the frame leaves the DOM: a live CSSStyleDeclaration empties the moment its
       // iframe is detached, and every length then parses as 0 - an inset of nothing, reported as
       // a measurement.

@@ -45,8 +45,8 @@ async function inFrame<T>(
 ): Promise<T> {
   return (await page.evaluate(
     async ([id, dataJson, readFn, pressCount]) => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
       const variant = variantById(id as string);
       if (!variant) throw new Error(`no variant ${id}`);
       const tpl = variant.create({});
@@ -84,8 +84,8 @@ test('every design in the pack creates, validates clean, and maps every field to
   await page.keyboard.press('Escape');
 
   const report = await page.evaluate(async (ids: string[]) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     const problems: string[] = [];
     for (const id of ids) {
       const variant = variantById(id);
@@ -229,7 +229,7 @@ test('the process card is created stepped: one SPX Continue reveals one step', a
   // Created with NO options at all — the design's own `defaultSteps` is what makes it stepped,
   // which is the whole claim (a process shown all at once is a list).
   const steps = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const tpl = variantById('card26')!.create({});
     return tpl.settings.steps;
   });
@@ -290,7 +290,7 @@ test('the notice’s level events reach the generated control page', async ({ pa
   // The generated control page is the saved graphic's own route, so the graphic is saved first,
   // through the same save the editor's header runs.
   const id = await page.evaluate(async () => {
-    const { saveGraphicAs } = await import('/src/store/saveActions.ts');
+    const { saveGraphicAs } = await __noacgImport('/src/store/saveActions.ts');
     const { ok, error, graphicId } = await saveGraphicAs('Public advisory', { kind: 'standalone' });
     if (!ok || !graphicId) throw new Error(error ?? 'the save did not land');
     return graphicId;
@@ -310,7 +310,7 @@ test('a pack graphic survives save, reload and reopen unchanged', async ({ page 
   await openWorkingGraphicInEditor(page);
 
   const before = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.js;
   });
 
@@ -326,7 +326,7 @@ test('a pack graphic survives save, reload and reopen unchanged', async ({ page 
   await awaitDurableReady(page);
 
   const after = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const tpl = useTemplateStore.getState().template;
     return { js: tpl.js, steps: tpl.settings.steps };
   });

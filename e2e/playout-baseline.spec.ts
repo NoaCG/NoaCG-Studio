@@ -126,8 +126,8 @@ async function seedProduction(page: Page, mixed: boolean): Promise<string> {
   await page.goto('/app#/home');
   await awaitDurableReady(page);
   const id = await page.evaluate(async (withServer) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createShowNamed, addGraphicToShow, addPlayoutItem, updateShowCue, loadShows } = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createShowNamed, addGraphicToShow, addPlayoutItem, updateShowCue, loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = createShowNamed(withServer ? 'Evening News' : 'Friday Quiz');
     const designs = withServer
       ? [variantsFor('lower-third')[0], variantsFor('scoreboard')[0]]
@@ -221,8 +221,8 @@ for (const size of SIZES) {
     await page.goto('/app#/home');
     await awaitDurableReady(page);
     const id = await page.evaluate(async () => {
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const m = await import('/src/model/shows.ts');
+      const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
       const show = m.createShowNamed('Late Edition');
       m.addGraphicToShow(show.id, variantsFor('lower-third')[0].create({}));
       for (const name of ['ALPHA', 'BRAVO', 'CHARLIE']) {

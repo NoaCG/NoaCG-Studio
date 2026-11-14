@@ -29,8 +29,8 @@ import { toApp } from './_bench';
 const HARNESS = `
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   async function boot(id) {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     let variant = null;
     for (const list of Object.values(CATALOG)) {
       const hit = (list || []).find((v) => v.id === id);
@@ -58,7 +58,7 @@ const BOARD_IDS = [
 test('the sports pack ships five types, every one carrying designs, and fills every family cell', async ({ page }) => {
   await toApp(page);
   const report = await page.evaluate(`(async () => {
-    const { TYPES } = await import('/src/templates/types/registry.ts');
+    const { TYPES } = await __noacgImport('/src/templates/types/registry.ts');
     const SPORTS = ['scorebug','match-board','match-status','match-event','fixtures'];
     const FAMILIES = ['noacg','sport','glass','minimal'];
     const rows = [];
@@ -626,9 +626,9 @@ test('every sports graphic exports through every target', async ({ page }) => {
   // graphic. Every target, every design — including the ones carrying a state machine, whose
   // interpreter has to travel with them.
   const report = await page.evaluate(`(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     const ids = ${JSON.stringify([...SCOREBOARD_IDS, ...BOARD_IDS])};
     const byId = {};
     for (const list of Object.values(CATALOG)) for (const v of (list || [])) byId[v.id] = v;
@@ -664,10 +664,10 @@ test('every sports design keeps its state machine paired with a machine-aware in
   // THE PAIRING RULE (src/templates/CLAUDE.md): machine-bearing data must never land under an
   // interpreter that predates the engine, or the graphic's buttons would silently do nothing.
   const report = await page.evaluate(`(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { validateMachine, spxSteps } = await import('/src/blocks/animMachine.ts');
-    const { hasMachineRuntime } = await import('/src/templates/shared/animRuntime.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { validateMachine, spxSteps } = await __noacgImport('/src/blocks/animMachine.ts');
+    const { hasMachineRuntime } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     const ids = ${JSON.stringify(SCOREBOARD_IDS)};
     const byId = {};
     for (const list of Object.values(CATALOG)) for (const v of (list || [])) byId[v.id] = v;

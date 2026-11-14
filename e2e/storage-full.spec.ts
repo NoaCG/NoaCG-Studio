@@ -75,7 +75,7 @@ test('a full quota never parks the user in the canvas silently: add-to-productio
 
   // Nothing half-built was left behind: no production was created for a graphic that never saved.
   const shows = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().map((s) => s.name);
   });
   expect(shows).not.toContain('Friday Show');
@@ -104,8 +104,8 @@ test('a full quota never parks the user in the canvas silently: Home’s + Produ
   // takes the race out.
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.evaluate(async () => {
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createDefaultTemplate } = await import('/src/templates/defaultTemplate.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createDefaultTemplate } = await __noacgImport('/src/templates/defaultTemplate.ts');
     createGraphic(createDefaultTemplate(), { name: 'Match Board' });
     window.location.hash = '#/home/graphics';
   });

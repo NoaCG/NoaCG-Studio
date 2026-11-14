@@ -13,8 +13,8 @@ import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 /** Parse the live template's animation data in the page (null when not a data block). */
 async function animData(page: Page) {
   return page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     return parseAnimData(useTemplateStore.getState().template.js);
   });
 }
@@ -29,7 +29,7 @@ test('v2: scoreboards create as data blocks — the score pop keeps working arou
   // score — the pop scales the mask up briefly, exactly as before the flip.
   const frame = await mountWorkingDocument(page);
   const sample = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().sampleData as Record<string, string>;
   });
   await updateWorkingDocument(frame, sample);

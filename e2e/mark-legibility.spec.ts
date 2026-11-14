@@ -54,8 +54,8 @@ async function benchRules(
   args: { variantId: string; svg: string; palette: typeof LIGHT_PACKAGE | null },
 ): Promise<string[]> {
   return page.evaluate(async ({ variantId, svg, palette }) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const bench = await import('/src/validation/runtimeBench.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const bench = await __noacgImport('/src/validation/runtimeBench.ts');
     const variant = variantById(variantId);
     if (!variant) return ['NO VARIANT'];
     const template = variant.create({

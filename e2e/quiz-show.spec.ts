@@ -23,6 +23,10 @@
 import { test, expect, type Page } from '@playwright/test';
 import { finishIntoNewEditor } from './_create';
 import { chooseType, pickDesign } from './_browse';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE QUIZ SHOW SET: a quiz board whose answer count is a FIELD, a two-player score, and the
 // three game-show looks they ship in (sticker, showtime, arcade).
@@ -45,9 +49,9 @@ async function drive(
 ) {
   return page.evaluate(
     async ({ id, options, events }) => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const { composeDocument } = await import('/src/preview/composeDocument.ts');
-      const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+      const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
       const template = variantById(id)!.create(options);
       const frame = document.createElement('iframe');
       frame.style.cssText = 'position:absolute;left:-9999px;width:1920px;height:1080px';
@@ -152,8 +156,8 @@ for (const id of QUIZ_DESIGNS) {
     // panel; and a row hidden with display:none has no box to measure, so two answers -> four
     // fitted the returning answers into nothing and shipped them small.
     const sizes = await page.evaluate(async (id) => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
       const frame = document.createElement('iframe');
       frame.style.cssText = 'position:absolute;left:-9999px;width:1920px;height:1080px';
       document.body.appendChild(frame);
@@ -243,7 +247,7 @@ test('the wizard offers the answer count and the correct answer, and not the con
   await finishIntoNewEditor(page);
   await expect(page.locator('.wz-modal')).toBeHidden();
   const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return Object.fromEntries(useTemplateStore.getState().template.fields.map((f) => [f.title, f.value]));
   });
   expect(fields['Answers shown']).toBe('2');
@@ -251,9 +255,9 @@ test('the wizard offers the answer count and the correct answer, and not the con
 
 test('each game-show look is its own quiz kit, a whole show in that one Style', async ({ page }) => {
   const kits = await page.evaluate(async () => {
-    const { packById, resolvePack } = await import('/src/templates/packs.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { packById, resolvePack } = await __noacgImport('/src/templates/packs.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     const out: Record<string, { family: string; designs: string[]; starter: number; problems: string[] }> = {};
     for (const id of ['sticker-quiz', 'showtime-quiz', 'arcade-quiz']) {
       const pack = packById(id)!;
@@ -285,7 +289,7 @@ test('each game-show look is its own quiz kit, a whole show in that one Style', 
 
 test('each game-show family holds the eight graphics of the kit', async ({ page }) => {
   const families = await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     const all = Object.values(CATALOG).flat();
     return Object.fromEntries(
       ['sticker', 'showtime', 'arcade'].map((family) => [
