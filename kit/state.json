@@ -8,7 +8,7 @@
     "return": "Return native receipts to /root in this active Codex Cloud chat",
     "environment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
     "session": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
-    "status": "Same run restored to a0e9aa58; reconciled no pending/active worker, renewed block11; admitting owner-receipted E5F. Active mode, no durable wake claim."
+    "status": "Same active Cloud coordinator, block11 through2026-11-15T10:59:50.629Z; E5F builder startup handshake pending; no qualified durable wake."
   },
   "authorization": {
     "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
@@ -69,7 +69,10 @@
     {
       "phase": "E5F",
       "step": "build",
-      "status": "preparing exact native intent; no worker dispatched"
+      "actor": "/root/editor_e5f_cloud_builder",
+      "actionId": "plan-editor-r1-5-2026-11-08:13",
+      "status": "native spawn accepted; startup handshake pending",
+      "source": "4751981d1202c8127739e21e95c979f4af01711b"
     }
   ],
   "owner": [
@@ -3407,7 +3410,7 @@
     "resume": "Same run #2295: finish/land the docs-only feedback owner-decision branch through queue-merge, then clear obsolete participant wait with explicit current owner decision and admit E5F using that main receipt/current block. Start hosted assistant correction first. Do not launch E5 against the stale recruitment/local-build handoff; preserve all historical criteria/attempts and inherited model/effort. No product correction has started or landed."
   },
   "hostedFeedbackAmendment": {
-    "status": "ADMITTED_E5F",
+    "status": "E5F_ADMITTED_BUILD_ACTION13_DISPATCHED",
     "branch": "codex/editor-r1-5-feedback-plan-20261113",
     "worktree": "/workspace/noacg-editor-r1-5-feedback-plan",
     "commit": "a6b98af5a",
@@ -3422,6 +3425,7 @@
     ],
     "verification": "Docs-only targeted gates PASS; review inline0/0; simplify inline; verify inline; exact commit stamp PASS. No product fix, no PR, no queue or E5F actor.",
     "merge": "24d7ddcec05d476833d463511590b9277e960bf3",
-    "pr": 2541
+    "pr": 2541,
+    "contractClarification": "Coordinator extraction bug produced four first-line rubric labels in E5F admission. Do not shorten the actual contract: ALL four full Acceptance paragraphs at the pinned phase.spec24d7 are binding through the spec, including guard/credential/stale/undo/source/export/keyboard/access/limit requirements. Preserve admitted labels/history without resetting allowance. Builder notified before any code; independent evidence must address every clause of those full paragraphs."
   }
 }
