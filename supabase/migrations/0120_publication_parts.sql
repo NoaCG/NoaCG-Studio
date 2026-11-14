@@ -137,8 +137,12 @@ begin
   if not public.control_may_publish(p_show) then
     raise exception 'This account cannot publish this production' using errcode = '42501';
   end if;
-  select coalesce(array_agg(distinct h), '{}') into v_named
-    from jsonb_array_elements(coalesce(p_parts, '[]'::jsonb)) p, jsonb_array_elements_text(coalesce(p->'assets', '[]'::jsonb)) h;
+  -- The images a part names are read from its body here (every `{h}` it holds), never taken from
+  -- the caller's list, so a part cannot name an image without the checks below.
+  select coalesce(array_agg(distinct a->>'h'), '{}') into v_named
+    from jsonb_array_elements(coalesce(p_parts, '[]'::jsonb)) p,
+         jsonb_array_elements(case when jsonb_typeof(p->'body'->'assets') = 'array' then p->'body'->'assets' else '[]'::jsonb end) a
+   where jsonb_typeof(a->'h') = 'string';
   -- An image counts as stored only when a part of a production the caller may publish names it (a
   -- put leaves one), as in control_assets_missing: an image only another account stored is
   -- answered missing, so this never says what other accounts stored.
@@ -162,7 +166,11 @@ begin
   perform 1 from public.control_parts c where c.show_id = p_show and c.digest = any(coalesce(p_named, '{}')) for key share;
   -- Stored as not named yet: a part no landed head ever names is pruned like one that left.
   insert into public.control_parts (show_id, digest, body, assets, left_at)
-  select p_show, p->>'d', p->'body', coalesce(array(select jsonb_array_elements_text(coalesce(p->'assets', '[]'::jsonb))), '{}'), now()
+  select p_show, p->>'d', p->'body',
+         coalesce(array(select distinct a->>'h'
+                          from jsonb_array_elements(case when jsonb_typeof(p->'body'->'assets') = 'array' then p->'body'->'assets' else '[]'::jsonb end) a
+                         where jsonb_typeof(a->'h') = 'string'), '{}'),
+         now()
     from jsonb_array_elements(coalesce(p_parts, '[]'::jsonb)) p
    where jsonb_typeof(p->'d') = 'string' and jsonb_typeof(p->'body') = 'object'
   on conflict (show_id, digest) do nothing;
@@ -510,6 +518,8 @@ declare
   v_part  jsonb;
   v_got   jsonb;
   v_n     int;
+  v_user  uuid;
+  v_team  uuid := '00000000-0120-4000-8000-000000000002';
 begin
   if has_table_privilege('anon', 'public.control_parts', 'select') or has_table_privilege('authenticated', 'public.control_parts', 'select')
      or has_table_privilege('authenticated', 'public.control_parts', 'insert')
@@ -530,9 +540,17 @@ begin
     raise exception '0120: EXECUTE on a parts function is wrong for a client role';
   end if;
 
-  select id into v_owner from auth.users limit 1;
+  -- The first account that may publish at all (not suspended, hosted control not denied), so the
+  -- check never fails on whichever account happens to come first.
+  for v_user in select u.id from auth.users u order by u.created_at limit 50 loop
+    perform set_config('request.jwt.claims', jsonb_build_object('sub', v_user, 'role', 'authenticated')::text, true);
+    if not public.is_suspended() and not public.feature_denied('control.hosted') then
+      v_owner := v_user;
+      exit;
+    end if;
+  end loop;
   if v_owner is null then
-    raise notice '0120 self-check skipped: no account on this instance';
+    raise notice '0120 self-check skipped: no account here may publish';
     return;
   end if;
   begin
@@ -541,6 +559,26 @@ begin
     on conflict (key) do update set value = excluded.value;
     insert into public.control_shows (id, owner_id, title, output) values (v_show, v_owner, '0120 self-check', '{"v":1,"ver":{"n":1,"h":"h1"}}');
     select s.output_slug into v_slug from public.control_shows s where s.id = v_show;
+    -- control_may_publish answers as the row policy's expression does: the owner may, a stranger may
+    -- not; on a team's row, a member may and a stranger may not.
+    if not public.control_may_publish(v_show) then
+      raise exception '0120: the owner may not publish their own production';
+    end if;
+    perform set_config('request.jwt.claims', jsonb_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
+    if public.control_may_publish(v_show) then
+      raise exception '0120: a stranger may publish another account''s production';
+    end if;
+    insert into public.teams (id, name, owner_id) values (v_team, '0120 self-check', v_owner);
+    insert into public.team_members (team_id, user_id, display_name, role) values (v_team, v_owner, 'self-check', 'owner') on conflict do nothing;
+    update public.control_shows set team_id = v_team where id = v_show;
+    if public.control_may_publish(v_show) then
+      raise exception '0120: a stranger may publish a team''s production';
+    end if;
+    perform set_config('request.jwt.claims', jsonb_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
+    if not public.control_may_publish(v_show) then
+      raise exception '0120: a member may not publish their team''s production';
+    end if;
+    update public.control_shows set team_id = null where id = v_show;
     -- An image, stored once under the name the server computes.
     v_hash := public.control_asset_put(v_show, 'data:image/png;base64,AAAA');
     if v_hash <> encode(extensions.digest(convert_to('data:image/png;base64,AAAA', 'UTF8'), 'sha256'), 'hex')
@@ -601,7 +639,8 @@ begin
     end if;
     -- An image only another production's put stored is missing to this one (nothing is learnt).
     insert into public.control_assets (hash, data, bytes) values ('0120-other', 'data:x;base64,A', 1);
-    if public.control_parts_put(v_show, '[{"d":"pY","body":{},"assets":["0120-other"]}]') <> array['0120-other'] then
+    -- A part whose body names it, whatever list the caller sends, is answered missing too.
+    if public.control_parts_put(v_show, '[{"d":"pY","body":{"assets":[{"path":"x.png","h":"0120-other"}]},"assets":[]}]') <> array['0120-other'] then
       raise exception '0120: an image no part of this account names was not answered missing';
     end if;
     -- The prune: a part no head named for two hours and an image only it named, two days old, go;

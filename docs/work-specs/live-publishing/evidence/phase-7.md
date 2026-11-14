@@ -73,7 +73,7 @@ panel, which carries every graphic's script). See "Departures" below.
 
 ### Configured check (`e2e/configured/publish-guard.spec.ts`, "only what changed is sent, each image once")
 
-Passes (jobs j-0097, j-0130, j-0139, j-0146). On a smaller personal production:
+Passes (jobs j-0097, j-0130, j-0139, j-0146, and j-0161 with the final review's repairs). On a smaller personal production:
 
 - a 2 kB cue edit, save and publish together: 13.3 kB counted, under 20 kB; the save is
   `documents_show_patch`, the publish `control_publish_parts`; the new output reads the head and no
@@ -82,13 +82,18 @@ Passes (jobs j-0097, j-0130, j-0139, j-0146). On a smaller personal production:
   no image;
 - a design update: the save carries that graphic only; the publish one part; the output reads that
   part and only its new image;
-- R23 after every step: the row equals what the whole path writes (stamp included), the stored
-  record equals the page's after rehydration, and the new output's payload equals
-  `control_output_resolve`'s;
+- R23 after the first publish, the cue edit, the same image again, the design update and the press:
+  the row equals what the whole path writes (stamp included), the stored record equals the page's
+  after rehydration, and the new output's payload, composed by the test from the head, parts and
+  images, equals `control_output_resolve`'s (the reader's own composition is covered by
+  `scripts/output-parts.test.mjs`); for the team production, the record only;
+- issue #779 with parts on: a teammate publishes new saved entries for a graphic this page's library
+  does not hold; this page's next automatic publish, whose own last publish is now stale, keeps
+  theirs (with the restart removed, the step fails: job j-0162);
 - a stale head written by an older page, then a Publish press: the press goes in parts and `output` is
   recomposed from the parts;
 - a team production: saves go as `team_production_patch`, the record equals the page's, a publish
-  goes in parts; two edits and a publish counted 302 kB over 21 requests with every team read included (reported): 257 kB of it is one whole `team_production_save`, the first save after the production moved to the team, which has no unit map yet; the edits after it go as patches.
+  (pressed) goes in parts; two edits and a publish counted 302 kB over 21 requests with every team read included (reported): 257 kB of it is one whole `team_production_save`, the first save after the production moved to the team, which has no unit map yet; the edits after it go as patches.
 
 ### The press path (reported)
 
@@ -151,6 +156,25 @@ Rules fixed before results, as above.
   j-0142), and passed in every run after (j-0139, j-0143 to j-0146); `main` passed it in the same
   window (j-0140). With it on, the race test that intercepts the whole-path `PATCH` sees no such write, by
   design; the parts path's race is covered by the AC-5 check.
+
+## The final review's repairs (independent /so, B at 9ed8fd93)
+
+- A part's images are read from its body on the server (`control_parts_put`), never from the
+  caller's list: a part could otherwise name another account's image by its hash and read it through
+  composition, and the prune could delete an image a body names. The self-check tries it.
+- `control_parts` and `control_assets` are in the advisor baseline (deny-all, reached only through
+  the functions).
+- A publish whose stand-in (this page's own last publish) turned out stale starts again from a fresh
+  read, so a teammate's newer saved entries are not replaced by this page's old copy (#779).
+- The listing is read in pages of 1000 (the server's `max_rows`), so a large account loses no
+  summary; a test runs 2100 rows.
+- The 0120 self-check runs as the first account that may publish, and checks `control_may_publish`
+  against the row policy's rule for an owner, a stranger and a team member.
+- A whole save with parts off reads its body back exactly as before this phase (CI found a mocked
+  backend that answered only `body`).
+
+Not changed: a size cap on part bodies (images stay capped at 40 MB a put; an unnamed part is pruned
+within about a day), and the account-wide `control_may_publish` search in the image checks.
 
 ## Departures from G4's wording
 

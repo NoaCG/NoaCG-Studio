@@ -848,6 +848,16 @@
       "level": "INFO",
       "detail": "Table \\`public.control_data_ticks\\` has RLS enabled, but no policies exist"
     },
+    "rls_enabled_no_policy_public_control_assets": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.control_assets\\` has RLS enabled, but no policies exist"
+    },
+    "rls_enabled_no_policy_public_control_parts": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.control_parts\\` has RLS enabled, but no policies exist"
+    },
     "rls_enabled_no_policy_public_control_heads": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",

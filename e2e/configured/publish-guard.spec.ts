@@ -1037,9 +1037,13 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
         expect(diff, `${what}: the row equals the whole path's`).toEqual([]);
       };
 
-      /** R23, the record: the stored body read back with its files equals the page's record. */
+      /** R23, the record: once this page's saves have landed, the stored body read back with its files
+       *  equals the page's record. */
       const recordSame = async (what: string, team: string | null) => {
-        const differs = await page.evaluate(async ({ id, team }) => {
+        await expect.poll(() => recordDiffers(team), { timeout: 30_000, message: `${what}: the stored record equals the page's` }).toEqual([]);
+      };
+      const recordDiffers = async (team: string | null) => {
+        return page.evaluate(async ({ id, team }) => {
           const { loadShows } = await __noacgImport('/src/model/shows.ts');
           const { canonicalJson } = await __noacgImport('/src/backend/unitPatch.ts');
           const { rehydrateAssets, rehydrateSharedAssets, blobToDataUrl } = await __noacgImport('/src/backend/assets.ts');
@@ -1062,7 +1066,6 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
           const mine = JSON.parse(JSON.stringify(local)) as Record<string, unknown>;
           return Object.keys({ ...mine, ...(stored as Record<string, unknown>) }).filter((k) => canonicalJson((stored as Record<string, unknown>)[k]) !== canonicalJson(mine[k]));
         }, { id: showId, team });
-        expect(differs, `${what}: the stored record equals the page's`).toEqual([]);
       };
 
       /** R23, a new output: the payload composed from the head, the parts and the images, as the
@@ -1165,6 +1168,31 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       const patches = rpcs(update.seen, 'documents_show_patch').map((x) => JSON.parse(x.body) as { p_ops: { m: string; put?: unknown[] }[] });
       expect(patches.length).toBeGreaterThan(0);
       expect(patches.every((p) => p.p_ops.every((op) => op.m !== 'graphics' || (op.put ?? []).length === 1)), 'the save carries that graphic only').toBe(true);
+      await sameAsWhole('the design update');
+      await recordSame('the design update', null);
+      await caught();
+      await outputSame('the design update');
+
+      // Issue #779 with parts on: a graphic whose record is not in this page's library keeps the saved
+      // entries as published. A teammate publishes new ones; this page's next automatic publish,
+      // whose own last publish is now stale, must publish over theirs, not its old copy.
+      const foreign = await page.evaluate(async (id) => {
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        const { loadGraphics, resolveSavedGraphicDoc } = await __noacgImport('/src/model/library.ts');
+        const lib = loadGraphics();
+        return loadShows().find((x) => x.id === id)!.graphics.filter((g) => !resolveSavedGraphicDoc(g, lib)).map((g) => g.name);
+      }, showId);
+      expect(foreign.length, 'a graphic whose record this library does not hold').toBeGreaterThan(0);
+      const teammate = (await (await service(`control_shows?id=eq.${showId}&select=output,panel`)).json())[0] as { output: { ver: { n: number; r?: number } }; panel: { name: string; entries: unknown[] }[] };
+      teammate.output.ver = { ...teammate.output.ver, n: teammate.output.ver.n + 1 };
+      const theirs = { id: 'from-a-teammate', label: 'From a teammate', values: {} };
+      teammate.panel = teammate.panel.map((g) => (g.name === foreign[0] ? { ...g, entries: [theirs] } : g));
+      const theirWrite = await service(`control_shows?id=eq.${showId}`, { method: 'PATCH', body: { output: teammate.output, panel: teammate.panel } });
+      expect(theirWrite.status, await theirWrite.text()).toBeLessThan(300);
+      await edit(page, showId, 'label', 'After a teammate');
+      await settled('the publish after a teammate');
+      const panelNow = (await (await service(`control_shows?id=eq.${showId}&select=panel`)).json())[0].panel as { name: string; entries: { id: string }[] }[];
+      expect(panelNow.find((g) => g.name === foreign[0])!.entries.map((e) => e.id), 'the teammate\'s saved entries survive this page\'s publish').toEqual(['from-a-teammate']);
 
       // An old page's whole publish leaves the head stale (R14); the next publish in parts names the
       // same graphics, and output is recomposed from them, not kept (R11).
@@ -1192,6 +1220,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       const after = await (await service(`control_shows?id=eq.${showId}&select=output`)).json();
       expect(JSON.stringify(after[0].output.graphics), 'output recomposed from the parts').not.toContain('an old page wrote this');
       await sameAsWhole('the press after a stale head');
+      await recordSame('the press after a stale head', null);
       await caught();
       await outputSame('the press after a stale head');
 

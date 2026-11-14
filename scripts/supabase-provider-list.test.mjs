@@ -65,6 +65,8 @@ function partsProvider(answer) {
   const asked = [];
   const listing = (since) => ({
     gte: (column, value) => { assert.equal(column, 'updated_at'); return listing(value); },
+    order: () => listing(since),
+    range: () => listing(since),
     then: (resolve, reject) => { asked.push(since); return Promise.resolve(answer(since)).then(resolve, reject); },
   });
   const client = {
@@ -133,12 +135,17 @@ function overTable() {
   let serverTime = Date.parse('2026-11-14T01:00:00.000Z');
   const write = (row) => { serverTime += 1_000; table.set(row.id, { ...row, at: new Date(serverTime).toISOString() }); };
   const asked = [];
-  const listing = (since) => ({
-    gte: (column, value) => listing(value),
+  /** PostgREST as configured: at most `maxRows` rows an answer, a page chosen with `range`. */
+  const maxRows = 1000;
+  const listing = (since, from = 0, to = Infinity) => ({
+    gte: (column, value) => listing(value, from, to),
+    order: () => listing(since, from, to),
+    range: (a, b) => listing(since, a, b),
     then: (resolve) => {
       asked.push(since);
-      const rows = [...table.values()].filter((r) => since === null || Date.parse(r.at) >= Date.parse(since));
-      return Promise.resolve({ data: rows.map((r) => ({ ...r })), error: null }).then(resolve);
+      const rows = [...table.values()].filter((r) => since === null || Date.parse(r.at) >= Date.parse(since)).sort((x, y) => (x.id < y.id ? -1 : 1));
+      const page = rows.slice(from, Math.min(to + 1, from + maxRows));
+      return Promise.resolve({ data: page.map((r) => ({ ...r })), error: null }).then(resolve);
     },
   });
   const client = {
@@ -189,4 +196,25 @@ test('with parts on, a row another page deleted outright is gone by the next ful
   t.clock.now += 61_000;
   assert.deepEqual((await t.pass()).map((r) => r[0]), ['b'], 'gone at the full listing');
   assert.equal(t.asked[t.asked.length - 1], null, 'that pass read in full');
+});
+
+test('with parts on, a listing longer than the server answers at once is read in pages, every row kept', async () => {
+  const t = overTable();
+  for (let i = 0; i < 2100; i += 1) t.write({ id: `r${String(i).padStart(5, '0')}`, kind: 'show', deleted: false, updatedAt: 'v1' });
+  const rows = await t.pass();
+  assert.equal(rows.length, 2100);
+  assert.equal(t.asked.length, 3, 'three pages of at most 1000');
+});
+
+test('with parts on, a write that committed late shows within the overlap, and an older one at the full listing', async () => {
+  const t = overTable();
+  t.write({ id: 'a', kind: 'show', deleted: false, updatedAt: 'a1' });
+  await t.pass();
+  const newest = Date.parse([...t.table.values()][0].at);
+  // Committed after the pass, stamped with an earlier transaction start.
+  t.table.set('late', { id: 'late', kind: 'show', deleted: false, updatedAt: 'l1', at: new Date(newest - 30_000).toISOString() });
+  t.table.set('later', { id: 'later', kind: 'show', deleted: false, updatedAt: 'l1', at: new Date(newest - 120_000).toISOString() });
+  assert.deepEqual((await t.pass()).map((r) => r[0]), ['a', 'late'], 'inside the minute of overlap');
+  t.clock.now += 10 * 60_000 + 1;
+  assert.deepEqual((await t.pass()).map((r) => r[0]).sort(), ['a', 'late', 'later'], 'the full listing has it');
 });

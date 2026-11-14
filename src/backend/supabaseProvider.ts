@@ -62,6 +62,8 @@ const recordBases = new Map<string, { rev: number; map: UnitMap }>();
 /** The incremental listing's full re-read and its overlap (see `list`). */
 const LISTING_FULL_EVERY_MS = 10 * 60_000;
 const LISTING_OVERLAP_MS = 60_000;
+/** Rows one listing request asks for: the server's `max_rows` (supabase/config.toml, hosted default). */
+const LISTING_PAGE = 1000;
 
 /** Read a production record's stored map when its page opens (G4 section 1), so its first save is a
  *  patch without a read inside the edit. A map that is not for the row's revision is no base. */
@@ -130,13 +132,21 @@ export class SupabaseProvider implements StorageProvider {
     const uid = await this.uid(sb);
     const held = this.known && this.known.uid === uid && Date.now() - this.known.fullAt < LISTING_FULL_EVERY_MS ? this.known : null;
     const from = held?.since ? new Date(Date.parse(held.since) - LISTING_OVERLAP_MS).toISOString() : null;
-    let query = sb.from(TABLE).select('id, kind, deleted, updatedAt:body_updated_at, at:updated_at');
-    if (held && from) query = query.gte('updated_at', from);
-    const { data, error } = await query;
-    if (error) return null;
+    // Read in pages, as the server answers at most LISTING_PAGE rows a request (`max_rows`): a row
+    // left off a page would read as one the server does not hold.
+    const read: Row[] = [];
+    for (let start = 0; ; start += LISTING_PAGE) {
+      let query = sb.from(TABLE).select('id, kind, deleted, updatedAt:body_updated_at, at:updated_at');
+      if (held && from) query = query.gte('updated_at', from);
+      const { data, error } = await query.order('id').range(start, start + LISTING_PAGE - 1);
+      if (error) return null;
+      const page = (data ?? []) as unknown as Row[];
+      read.push(...page);
+      if (page.length < LISTING_PAGE) break;
+    }
     const rows = held ? held.rows : new Map<string, Row>();
     let since = held?.since ?? null;
-    for (const row of (data ?? []) as unknown as Row[]) {
+    for (const row of read) {
       const { at, ...summary } = row;
       rows.set(summary.id, summary);
       if (typeof at === 'string' && (since === null || Date.parse(at) > Date.parse(since))) since = at;

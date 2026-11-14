@@ -204,6 +204,8 @@ export async function publishRevision(
   measure?: () => Promise<CuePublished | undefined>,
   /** The measure harness only (G3 section 13): write the whole payload again even when nothing changed. */
   force = false,
+  /** Read the stored stamp and panel even when this page's own last publish could stand in. */
+  fresh = false,
 ): Promise<PublishOutcome> {
   try {
     const sb = await getSupabase();
@@ -212,7 +214,7 @@ export async function publishRevision(
     // The cheap exits first: a production unpublished meanwhile, or a revision already shown.
     // With parts on, the stamp this page's own last publish wrote stands in for a read: the server
     // writes only over the `n` named, so a stale one answers `moved` and is read below.
-    const mine = (await partialWritesOn()) && !force ? ownPublish(show.id) : null;
+    const mine = (await partialWritesOn()) && !force && !fresh ? ownPublish(show.id) : null;
     let stored: StoredStamp = mine ? { exists: true, ver: mine.ver, rev: mine.rev, scenes: mine.scenes as ObsScene[] } : await readStamp(sb, show.id);
     const heldPanel = stored.exists ? await heldPanelIfNeeded(sb, show, library, stored.ver) : [];
     if (!stored.exists) return { kind: 'gone' };
@@ -252,6 +254,9 @@ export async function publishRevision(
         return { kind: 'published', rev };
       }
       forgetOwnPublish(show.id);
+      // The stand-in was stale (another page published): start again from what is stored now, so
+      // the panel entries and the content digest are not this page's old ones (issue #779).
+      if (mine) return publishRevision(show, rev, measure, force, true);
       stored = await readStamp(sb, show.id);
       if (stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
       // The content is still the one named and the revision is behind, yet nothing matched.
@@ -291,6 +296,7 @@ export async function publishRevision(
         return { kind: 'published', rev, ver, scenes: { before: stored.scenes, after: built.scenes ?? [] } };
       }
       forgetOwnPublish(show.id);
+      if (mine) return publishRevision(show, rev, measure, force, true);
       stored = await readStamp(sb, show.id);
       if (!stored.exists) return { kind: 'gone' };
       if (!force && stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
