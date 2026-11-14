@@ -44,11 +44,11 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "step": "build",
-      "session": "/root/v5_builder",
-      "note": "Native timing gap and guarded optional item repaired together. Local Windows j-5261 46/46, 195 focused App Node and 182 Bridge suites, app/API types and lint passed. Exact CI 43653464697, Codex and fresh independent full review pending. Latest main e3bd018e only adds an unrelated quarantine entry; V5 changes none.",
-      "pr": 2564,
+      "session": "github:2564",
       "head": "94bf48096c99656adfe664d4e02ddb5c627f04db",
+      "note": "Independent Risky A, exact GitHub Codex clean, local Windows 46 browser and 377 focused Node/Bridge checks, app/API types and scoped lint, Build and all selected CI gate/configured checks green. normal merge queue admission observed. Waiting exact merge then fresh independent acceptance and Windows Bridge 0.12.0 release/download.",
+      "pr": 2564,
+      "step": "build",
       "phase": "v5"
     }
   ],
