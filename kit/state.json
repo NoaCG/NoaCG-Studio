@@ -3963,6 +3963,14 @@
       "brief": {
         "file": "briefs/e5f-quiz-target-assessment-20261114.txt",
         "sha256": "6f4148b976005fccc9e64cfcd2327f658fec3ac0c866f39c8a951c61d5f2b8fb"
+      },
+      "diagnosticSetup": {
+        "job": 214,
+        "status": "FAIL BEFOREbrowser/testexecution; no functionalverdict/PASS or result.json",
+        "reason": "Ignoredconfig spread arraybase.webServer intoobjectwithoutcommand; listonly didnotvalidateservercommandshape",
+        "rootEvidence": "Readmaintainedplaywright.config.ts228webServerarray and actualignored e5f-quiz-target.config.tmp.mjs",
+        "authorization": "CorrectONLYignoredconfigarray normalization/map reuseExistingServerfalse, preserveallcommand/env/url/timeout/offlinepins/2workermax/cap5and exactspec3614e9864907b87505c8626fb935b47298e8c9535c220cdd23b2437ee036d083. Validate nonemptycommands/ownedports+newhash. StillONE actualapplicationdiagnostic; no source/oracle/limit changes or automaticretry.",
+        "otherSetup": "Devportjson EROFS and jobslist landed.jsonl EROFS retained aspermissionsetup, not test/productfailures"
       }
     }
   },
