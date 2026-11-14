@@ -198,11 +198,20 @@ export default defineConfig(({ command, mode }) => {
       // File names do not survive: a match on one (`saveActions.ts` in e2e/_saveMatrix.ts) must
       // move to a function name before the suite runs on this build.
       rollupOptions: {
-        ...(e2e ? { output: { minify: { mangle: { keepNames: KEEP_NAMES }, compress: { keepNames: KEEP_NAMES } } } } : {}),
-        // Strict entry signatures keep every shared module out of the page entry chunks, so the
-        // registry never imports an entry: a door call on a page the app did not boot (the landing
-        // page, /output) must not run app.html's boot as a side effect (e2e/_door.ts checks this).
-        ...(e2e ? { preserveEntrySignatures: 'strict' as const } : {}),
+        // The e2e build adds the spec registry (src/e2eRegistry.ts) as its own entry at a fixed URL,
+        // which every page's door loads (E2E_REGISTRY_URL, src/app/e2eModules.ts). Strict entry
+        // signatures keep every shared module out of the page entry chunks, so loading the registry
+        // never runs a page's boot (app.html's, say, on /output) as a side effect; e2e/_door.ts
+        // refuses a build where it would.
+        ...(e2e
+          ? {
+              output: {
+                minify: { mangle: { keepNames: KEEP_NAMES }, compress: { keepNames: KEEP_NAMES } },
+                entryFileNames: (chunk: { name: string }) => (chunk.name === 'e2eRegistry' ? 'assets/e2eRegistry.js' : 'assets/[name]-[hash].js'),
+              },
+              preserveEntrySignatures: 'strict' as const,
+            }
+          : {}),
         input: {
           landing: 'index.html',
           docs: 'docs.html',
@@ -216,6 +225,7 @@ export default defineConfig(({ command, mode }) => {
           downloads: 'downloads.html',
           whatsNew: 'whats-new.html',
           roadmap: 'roadmap.html',
+          ...(e2e ? { e2eRegistry: 'src/e2eRegistry.ts' } : {}),
         },
       },
     },

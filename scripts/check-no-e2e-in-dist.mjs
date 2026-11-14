@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // gate: after-build
-// guards: src/app/e2eModules.ts, src/e2eRegistry.ts, src/main.tsx, src/vite-env.d.ts, src/audience/chatIntake.ts, src/components/home/ProductionPage.tsx, src/output/main.ts, vite.config.ts
+// guards: src/**, vite.config.ts
 //
 // THE PRODUCTION BUNDLE CARRIES NO E2E MACHINERY.
 //
@@ -28,6 +28,9 @@ export const MARKERS = [
   ["is not in the e2e build's module registry", 'the spec door (src/app/e2eModules.ts)'],
   ['__noacgChatIntake', 'the chat intake seam (src/audience/chatIntake.ts)'],
   ['__noacgWithholdPrep', 'the withheld prep seam (src/components/home/ProductionPage.tsx)'],
+  // The output's command hook has no word of its own; it sits under the same switch, in the same
+  // file, as this one.
+  ['oldbuild', 'the output old-build seam (src/output/main.ts)'],
   ['__NOACG_E2E__', 'an unreplaced e2e switch (vite.config.ts define)'],
 ];
 
@@ -47,7 +50,7 @@ function scripts(dir) {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const dist = resolve(root, process.argv[2] ?? 'dist');
   if (!existsSync(dist)) {
     console.error(`check-no-e2e-in-dist: ${relative(root, dist)} does not exist - build first`);

@@ -53,13 +53,18 @@ export function specImports(texts) {
   return [...found].sort();
 }
 
-/** Literal in-page `import('/src/….ts')` calls left in the specs, as `file:line`. The built app
- *  serves no /src URLs, so a spec reaches a module through `__noacgImport` instead; a type
- *  position (`typeof import(...)`) is not a call and is allowed. */
+/** In-page `import('/src/…')` calls left in the specs, in any form (`as string`, a variable
+ *  suffix), as `file:line`. The built app serves no /src URLs, so a spec reaches a module through
+ *  `__noacgImport` instead. Allowed: a type position (`typeof import(...)`), and a deliberate fresh
+ *  copy (`?t=` in the literal, or a suffix appended with `+`), which only the dev server can serve
+ *  and which the spec therefore runs there, and a mention in a comment. */
 export function plainImports(entries) {
   const found = [];
   for (const [file, text] of entries) {
-    for (const m of text.matchAll(/(?<!typeof\s+)\bimport\(\s*['"`]\/src\/[\w./-]+\.tsx?['"`]\s*\)/g)) {
+    for (const m of text.matchAll(/(?<!typeof\s+)\bimport\(\s*(['"`])(\/src\/[^'"`]*)\1(\s*\+)?/g)) {
+      if (m[2].includes('?t=') || m[3]) continue;
+      const lineStart = text.lastIndexOf('\n', m.index) + 1;
+      if (/^\s*(\/\/|\*)|\/\//.test(text.slice(lineStart, m.index))) continue; // a comment
       found.push(`${file}:${text.slice(0, m.index).split('\n').length}`);
     }
   }

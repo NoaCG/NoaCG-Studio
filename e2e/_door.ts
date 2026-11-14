@@ -1,20 +1,20 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { BrowserContext } from '@playwright/test';
+import { E2E_REGISTRY_URL } from '../src/app/e2eModules';
 
-// THE DOOR IN A DOCUMENT THE APP DID NOT BOOT. Specs reach app modules through
-// `__noacgImport('/src/…ts')`, which src/app/e2eModules.ts installs when an app page boots. A spec
-// that serves its own HTML (a blank probe page, `setContent`, a harness standing in for an entry)
-// or visits a page that installs no door (the landing page, docs) has no app boot, so the door is
-// missing there. This puts a fallback door in every document of the context first; an app page
-// then installs its own over it as it boots, as it would without this.
+// THE DOOR IN A DOCUMENT NO PAGE ENTRY BOOTED. Specs reach app modules through
+// `__noacgImport('/src/…ts')`, which every page entry installs as it boots
+// (src/app/e2eModules.ts). A spec that serves its own HTML (a blank probe page, `setContent`, a
+// harness standing in for an entry) or visits a page with no entry script (the landing page, docs)
+// has no boot, so the door is missing there. This puts a fallback door in every document of the
+// context first; a page entry then installs its own over it, as it would without this.
 //
 // - On the dev server the fallback is the browser's own `import()` of the same URL, exactly what
 //   those specs did before.
-// - On the e2e build (NOACG_E2E_ON_BUILD=1) no /src URL exists. The fallback loads the app's own
-//   registry chunk (src/e2eRegistry.ts, found through the build manifest) with a plain
-//   `import()`, so it shares the page's chunks and module instances and, unlike the app's own
-//   lazy load, injects no stylesheet.
+// - On the e2e build (NOACG_E2E_ON_BUILD=1) no /src URL exists, so the fallback answers from the
+//   build's registry entry, as the page entries' own door does.
 export function installDoor(context: BrowserContext): Promise<void> {
   return context.addInitScript((registryUrl) => {
     const w = window as unknown as { __noacgImport?: (path: string) => Promise<unknown> };
@@ -33,17 +33,20 @@ export function installDoor(context: BrowserContext): Promise<void> {
   }, registryUrl());
 }
 
-let cached: string | null | undefined;
+let checked: string | null | undefined;
 
-/** The built registry chunk's URL on the e2e build, null on the dev server. */
+/** The registry entry's URL on the e2e build, null on the dev server. The first call reads the
+ *  build manifest and refuses a build where loading the registry would boot a page entry. */
 export function registryUrl(): string | null {
-  if (cached !== undefined) return cached;
-  if (process.env.NOACG_E2E_ON_BUILD !== '1') return (cached = null);
+  if (checked !== undefined) return checked;
+  if (process.env.NOACG_E2E_ON_BUILD !== '1') return (checked = null);
   type Chunk = { file: string; isEntry?: boolean; imports?: string[] };
-  const manifest = JSON.parse(readFileSync(join(process.cwd(), 'dist-e2e/.vite/manifest.json'), 'utf8')) as Record<string, Chunk>;
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const manifest = JSON.parse(readFileSync(join(root, 'dist-e2e/.vite/manifest.json'), 'utf8')) as Record<string, Chunk>;
   const entry = manifest['src/e2eRegistry.ts'];
-  if (!entry) throw new Error('dist-e2e has no src/e2eRegistry.ts chunk: run `npm run build:e2e`');
-  // Loading the registry must not boot a page: none of its static imports may be an entry chunk.
+  if (entry?.file !== E2E_REGISTRY_URL.slice(1)) {
+    throw new Error(`dist-e2e has no registry at ${E2E_REGISTRY_URL} (found ${entry?.file ?? 'none'}): run \`npm run build:e2e\``);
+  }
   const seen = new Set<string>();
   const walk = (key: string): void => {
     if (seen.has(key)) return;
@@ -53,5 +56,5 @@ export function registryUrl(): string | null {
     for (const next of chunk?.imports ?? []) walk(next);
   };
   for (const next of entry.imports ?? []) walk(next);
-  return (cached = `/${entry.file}`);
+  return (checked = E2E_REGISTRY_URL);
 }

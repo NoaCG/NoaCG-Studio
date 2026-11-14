@@ -94,7 +94,7 @@ import { bootGap, heldActions, heldSteps, ografRestore, readPastGate, UNKNOWN_AC
 import { installE2eModules } from '../app/e2eModules';
 
 // Browser specs reach this page's modules through window.__noacgImport (src/app/e2eModules.ts).
-installE2eModules(null);
+installE2eModules();
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
