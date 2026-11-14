@@ -12,6 +12,11 @@
       "count": 3,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43449608414/job/131968256880"
     },
+    "e2e/configured/publish-guard.spec.ts": {
+      "since": "2026-11-14",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43583442187"
+    },
     "e2e/editor-projects.spec.ts": {
       "since": "2026-11-13",
       "count": 1,
