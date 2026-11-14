@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { aiConfigured, refreshAiConfiguration } from '../../ai/settings';
 import { useAiConsent } from '../AiConsentDialog';
 import { useAuthState } from '../auth/useAuthState';
 import SignInPrompt from '../auth/SignInPrompt';
@@ -32,7 +31,6 @@ export default function ProposalPanel({ close }: { close(): void }) {
   const [error, setError] = useState('');
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [previewStatus, setPreviewStatus] = useState('');
-  const [configured, setConfigured] = useState(aiConfigured);
   const requestGeneration = useRef(0);
   const input = useRef<HTMLTextAreaElement>(null);
   const invalidateRequest = useCallback(() => { requestGeneration.current++; }, []);
@@ -40,10 +38,7 @@ export default function ProposalPanel({ close }: { close(): void }) {
   const { ensureAiConsent, consentDialog } = useAiConsent();
   useEffect(() => {
     input.current?.focus();
-    let alive = true;
-    void refreshAiConfiguration()
-      .then(() => { if (alive) setConfigured(aiConfigured()); }).catch(() => undefined);
-    return () => { alive = false; invalidateRequest(); };
+    return invalidateRequest;
   }, [invalidateRequest]);
   useEffect(() => {
     if (!receipt) return;
@@ -103,8 +98,7 @@ export default function ProposalPanel({ close }: { close(): void }) {
       </div>
       <label className="ef-proposal-input">{mode === 'help' ? 'Ask about this graphic' : 'Describe an edit'}<textarea ref={input} value={prompt} maxLength={4000} rows={3}
         onChange={event => setPrompt(event.target.value)} placeholder={mode === 'help' ? 'How do I add an Out?' : 'Change the selected text'} /></label>
-      {!configured && <p className="ef-muted">Configure AI in New graphic → AI settings. Manual editing is available.</p>}
-      <div className="ef-edit-actions"><button disabled={busy || !configured || !prompt.trim()} onClick={() => void propose()}>{mode === 'help' ? 'Ask' : 'Propose edits'}</button>
+      <div className="ef-edit-actions"><button disabled={busy || !prompt.trim()} onClick={() => void propose()}>{mode === 'help' ? 'Ask' : 'Propose edits'}</button>
         {(busy || pending || answer) && <button onClick={cancel}>Cancel</button>}</div>
       {busy && <p role="status">{mode === 'help' ? 'Preparing answer…' : 'Preparing proposal…'}</p>}
       {error && <p role="alert">{error}</p>}
