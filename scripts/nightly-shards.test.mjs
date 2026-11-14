@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { NIGHTLY_MAX_SHARDS, NIGHTLY_PLAN_LINE_MINUTES, nightlyMinutes, planNightly, suiteFor } from './nightly-shards.mjs';
+import { NIGHTLY_MAX_SHARDS, NIGHTLY_PLAN_LINE_MINUTES, nightlyMinutes, planNightly, suiteFor, devServerWeights } from './nightly-shards.mjs';
 
 const done = (ms) => ({ status: 'expected', expectedStatus: 'passed', results: [{ duration: ms }] });
 const unreached = { status: 'skipped', expectedStatus: 'passed', results: [] };
@@ -90,4 +90,43 @@ test('--only plans just the named specs that are on disk', () => {
   assert.deepEqual(suiteFor(onDisk), onDisk);
   assert.deepEqual(suiteFor(onDisk, ['e2e/c.spec.ts', 'e2e/a.spec.ts', 'e2e/gone.spec.ts']), ['a.spec.ts', 'c.spec.ts']);
   assert.deepEqual(suiteFor(onDisk, ['e2e/gone.spec.ts']), []);
+});
+
+/** A Playwright JSON report: { file: [minutes, status, unfinished?] }. */
+function report(files) {
+  return {
+    suites: Object.entries(files).map(([file, [minutes, status = 'passed']]) => ({
+      file,
+      specs: [{ file, ok: status === 'passed', tests: [{ status: status === 'passed' ? 'expected' : 'unexpected', results: [{ duration: minutes * 60_000, status }] }] }],
+    })),
+  };
+}
+
+test('a dev_server run weighs each file by the larger of its table and its calibrated reports', () => {
+  const table = { 'a.spec.ts': 2, 'b.spec.ts': 1, 'c.spec.ts': 1 };
+  // A build night at half the dev minutes: factor 2. b grew past its table; d is not in the table.
+  const build = report({ 'a.spec.ts': [1], 'b.spec.ts': [1], 'c.spec.ts': [0.5], 'd.spec.ts': [2] });
+  const w = devServerWeights(table, [build]);
+  assert.equal(w['a.spec.ts'], 2); // table 2, report 1 x factor (4/2.5 = 1.6) = 1.6: the table wins
+  assert.equal(w['b.spec.ts'], 1.6); // grew: 1 x 1.6
+  assert.equal(w['d.spec.ts'], 3.2); // a gap, filled at the calibrated minutes, never the median
+  assert.equal(w['c.spec.ts'], 1); // 0.5 x 1.6 = 0.8 under the table
+});
+
+test('the factor skips failed files and small reports, and is never below 1', () => {
+  const table = { 'a.spec.ts': 2, 'b.spec.ts': 2 };
+  // b failed early: left out of the factor (2/1 = 2), but its minutes still count as a floor.
+  const failedEarly = report({ 'a.spec.ts': [1], 'b.spec.ts': [0.1, 'failed'], 'g.spec.ts': [1] });
+  assert.equal(devServerWeights(table, [failedEarly])['g.spec.ts'], 2);
+  // A report sharing under half the table's files keeps factor 1 (a floor only).
+  const big = { 'a.spec.ts': 1, 'b.spec.ts': 1, 'c.spec.ts': 1, 'd.spec.ts': 1, 'e.spec.ts': 1 };
+  assert.equal(devServerWeights(big, [report({ 'a.spec.ts': [0.2], 'z.spec.ts': [3] })])['z.spec.ts'], 3);
+  // A slower night than the table never scales minutes down.
+  assert.equal(devServerWeights(table, [report({ 'a.spec.ts': [4], 'b.spec.ts': [4] })])['a.spec.ts'], 4);
+});
+
+test('each file reads only the newest three reports that timed it', () => {
+  const table = { 'a.spec.ts': 1 };
+  const reports = [5, 1, 1, 9].map((m) => report({ 'a.spec.ts': [1], 'x.spec.ts': [m] }));
+  assert.equal(devServerWeights(table, reports)['x.spec.ts'], 5); // the fourth night's 9 is not read
 });

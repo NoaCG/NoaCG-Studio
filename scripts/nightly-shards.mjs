@@ -98,6 +98,49 @@ export function nightlyMinutes(reports) {
 }
 
 /**
+ * A DEV_SERVER RUN'S WEIGHTS (the d2 selection guard's nightly). Its table is the last one recorded
+ * on the dev server, which lacks the specs ci.yml never timed (quarantined ones) and runs short for
+ * some it holds, while the nightly reports mostly come from the build, about 0.6 of dev-server
+ * minutes. So each file weighs the LARGEST of its table minutes and, from each of the newest
+ * `NIGHTS_PER_FILE` reports that timed it, its minutes there times that report's own factor.
+ *
+ * The factor is table minutes over report minutes on the files both hold that the report finished
+ * and passed, never below 1: near 1.6 for a build night, 1.1 for a dev_server one. A report sharing
+ * fewer than half the table's files (a quarantine-only night) is too small a sample, so its factor
+ * is 1. A file a report did not finish, or failed, still offers the minutes it ran, as a floor.
+ * Taking the largest can only add shards.
+ *
+ * @param {Record<string, number>} tableMinutes
+ * @param {object[]} reports newest first
+ * @returns {Record<string, number>}
+ */
+export function devServerWeights(tableMinutes, reports) {
+  const weights = { ...tableMinutes };
+  const nights = {};
+  const tableFiles = Object.keys(tableMinutes).length;
+  for (const report of reports) {
+    const minutes = minutesByFile(report);
+    const unfinished = unfinishedByFile(report);
+    const failed = failedFiles(report);
+    let shared = 0;
+    let table = 0;
+    let measured = 0;
+    for (const [file, m] of Object.entries(minutes)) {
+      if (!(file in tableMinutes) || unfinished.has(file) || failed.has(file)) continue;
+      shared += 1;
+      table += tableMinutes[file];
+      measured += m;
+    }
+    const factor = shared * 2 >= tableFiles && measured > 0 ? Math.max(1, table / measured) : 1;
+    for (const [file, m] of Object.entries(minutes)) {
+      if ((nights[file] = (nights[file] ?? 0) + 1) > NIGHTS_PER_FILE) continue;
+      weights[file] = Math.max(weights[file] ?? 0, m * factor);
+    }
+  }
+  return weights;
+}
+
+/**
  * THE SUITE ON AS MANY RUNNERS AS IT NEEDS: the fewest whose packed shards are all predicted at or
  * under `NIGHTLY_PLAN_LINE_MINUTES`, up to `NIGHTLY_MAX_SHARDS`. Starts from the arithmetic lower
  * bound and adds a runner while the packing leaves a shard over the line, and stops adding once a
@@ -184,7 +227,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error(`nightly-shards: --table ${values.table} has no measured minutes.`);
     process.exit(1);
   }
-  const plan = planNightly({ suite, table, reports });
+  // A named table is a dev_server run's: the reports adjust its minutes (devServerWeights) instead
+  // of standing over them.
+  const plan = values.table
+    ? planNightly({ suite, table: { ...table, minutes: devServerWeights(table.minutes, reports) } })
+    : planNightly({ suite, table, reports });
   const worst = Math.max(...plan.predicted);
   console.error(
     `nightly-shards: ${plan.shardSpecs.length} shards, predicted ${Math.min(...plan.predicted)}-${worst} min each; ` +

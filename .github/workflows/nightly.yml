@@ -176,15 +176,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -uo pipefail
-          # A dev_server run (the d2 selection guard) weighs its files by dev-server minutes: the last
-          # table recorded on the dev server (da87aaaa8, run 42627967617), and no earlier nightly, as
-          # those run on the build. Build minutes planned 9 shards where the dev server needs 13.
-          if [ -n "$DEV_SERVER" ]; then
-            gh api "repos/${GH_REPO}/contents/scripts/e2e-durations.json?ref=da87aaaa88a569c463c152e6d32e93b5e753afe7" \
-              --jq '.content' | base64 -d > "$RUNNER_TEMP/dev-server-durations.json" || exit 1
-            node scripts/nightly-shards.mjs --github-output --table "$RUNNER_TEMP/dev-server-durations.json"
-            exit $?
-          fi
           REPORTS=""
           for id in $(gh run list --workflow nightly.yml --status completed --limit 6 \
             --json databaseId --jq ".[] | select(.databaseId != ${RUN_ID}) | .databaseId" | head -5); do
@@ -194,6 +185,17 @@ jobs:
               echo "Nightly run $id has no usable report - its files fall back to an older night or the table."
             fi
           done
+          # A dev_server run (the d2 selection guard) weighs its files by dev-server minutes: the last
+          # table recorded on the dev server (da87aaaa8, run 42627967617), raised file by file to these
+          # reports' minutes scaled by each report's own build-to-dev factor (devServerWeights in
+          # nightly-shards.mjs). The table alone missed the specs ci.yml never timed: editor-projects
+          # planned at 0.42 min ran 4.9 and put a shard over its cap (run 43587039825).
+          if [ -n "$DEV_SERVER" ]; then
+            gh api "repos/${GH_REPO}/contents/scripts/e2e-durations.json?ref=da87aaaa88a569c463c152e6d32e93b5e753afe7" \
+              --jq '.content' | base64 -d > "$RUNNER_TEMP/dev-server-durations.json" || exit 1
+            node scripts/nightly-shards.mjs --github-output --table "$RUNNER_TEMP/dev-server-durations.json" $REPORTS
+            exit $?
+          fi
           # With a quarantine list, just those specs, packed by the same weights.
           ONLY="$(jq -r '.[]? | "--only " + .' <<< "${QUARANTINE:-[]}")"
           # Newest first, as `gh run list` gives them. Unquoted on purpose: one argument per file.
