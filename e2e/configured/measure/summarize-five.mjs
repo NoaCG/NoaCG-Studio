@@ -17,6 +17,7 @@ const arg = (name, fallback) => {
 const dir = arg('dir', process.env.MEASURE_OUT ?? '/tmp/noacg-measure');
 const pages = Number(arg('pages', '5'));
 const net = arg('net', 'fast');
+const build = arg('build', 'prod');
 
 export function pct(values, p) {
   const v = values.filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
@@ -46,7 +47,7 @@ export function bootstrap(pairs, rounds = 2000) {
 }
 
 if (process.argv[1] && process.argv[1].endsWith('summarize-five.mjs')) {
-  const files = readdirSync(dir).filter((f) => f.startsWith(`five-pair-${pages}-${net}-`) && f.endsWith('.json'));
+  const files = readdirSync(dir).filter((f) => f.startsWith(`five-pair-${pages}-${net}${build === 'prod' ? '-prod' : ''}-part`) && f.endsWith('.json'));
   const pairs = [];
   let lost = 0;
   const errors = [];

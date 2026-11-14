@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { SUPABASE_URL } from '../_helpers';
 import { log, pageCues, run, serverState, setSwitch, setUp, tearDown, type RunReport, type Scene } from '../_five';
-import { NET, pct, summary, writeResult } from './_measure';
+import { BUILD, NET, pct, summary, writeResult } from './_measure';
 
 // FIVE PEOPLE AT ONCE, MEASURED (docs/work-specs/live-publishing/spec.md, AC-6). The scene is
 // e2e/configured/_five.ts; this file runs it long and times it. Local stack only: the switches and
@@ -21,9 +21,18 @@ test.skip(!process.env.E2E_EMAIL, 'configured measurement: needs the local stack
 
 const PAGES = Number(process.env.MEASURE_PAGES ?? 5);
 const PART = process.env.MEASURE_PART ?? '1';
+const TAG = `${PAGES}-${NET}${BUILD === 'prod' ? '-prod' : ''}`;
 
 test.beforeAll(() => {
   if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('five people writes switches and accounts: run it only against a local stack');
+});
+
+// MEASURE_BUILD=prod: the whole scene, set-up included, runs on the bundled build (MEASURE_DIST, made
+// with VITE_MEASURE_HOOKS=1); the app's modules are reached through the door either way.
+test.beforeEach(async ({ page }) => {
+  if (BUILD !== 'prod') return;
+  const answer = await page.request.get('/__measure/build?to=prod');
+  if ((await answer.text()) !== 'prod') throw new Error('the build switch did not move to prod');
 });
 
 let scene: Scene | null = null;
@@ -66,7 +75,7 @@ test('soak', async ({ page, browser }) => {
   log('run over; settling');
   const settled = await settle(scene, report);
   const lost = report.takes.filter((t) => t.ranAt === null).length;
-  writeResult(`five-soak-${PAGES}-${NET}-part${PART}`, {
+  writeResult(`five-soak-${TAG}-part${PART}`, {
     pages: PAGES,
     at: new Date().toISOString(),
     report,
@@ -98,5 +107,5 @@ test('pair', async ({ page, browser }) => {
       log(`round ${r} ${mode}: n ${samples.length} p95 ${pct(samples, 95)} errors ${report.errors.length}`);
     }
   }
-  writeResult(`five-pair-${PAGES}-${NET}-part${PART}`, { pages: PAGES, at: new Date().toISOString(), rounds: out });
+  writeResult(`five-pair-${TAG}-part${PART}`, { pages: PAGES, at: new Date().toISOString(), rounds: out });
 });
