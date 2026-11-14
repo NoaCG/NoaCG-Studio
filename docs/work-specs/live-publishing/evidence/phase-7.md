@@ -265,6 +265,7 @@ Final code, same method; `MEASURE_COLD=1` clears `spx-gfx-measured` before each 
 | j-0013 | cold (nothing kept) | 14,373 B (1 cue; 1 box measured anew, `paint` null before) | 14,433 / 14,434 B | 0 / 0 |
 | j-0014 | warm | 13,843 B (1 cue) | 19,524 / 14,394 B | 10 (box gained) / 0 |
 | j-0017 | cold, with the cue-currency check (K9) | 14,380 B (1 cue; 1 box measured anew) | 14,438 / 13,926 B | 0 / 0 |
+| j-0027 | cold, final code (4fa18fb, K10) | 14,381 B (1 cue; 1 box measured anew) | 14,438 / 14,438 B | 0 / 0 |
 
 Every edit is under 20 kB. The 19.5 kB row is the catch-up described above (the fixture's first
 publish in parts had not waited for 10 boxes; they are gained once, absent before and present after).
@@ -272,7 +273,8 @@ publish in parts had not waited for 10 boxes; they are gained once, absent befor
 **The read when the production opens** (G4 section 11: read when the production opens, not counted):
 the stored cues, 31.5 to 38.8 kB per open on the large fixture (42 cues, one carrying 2 kB of text),
 both ways with headers, six opens in j-0013 and j-0014; with the stamp's design digests added for
-K9, 33.5 to 40.7 kB (three opens in j-0017).
+K9, 33.5 to 40.7 kB (three opens in j-0017); with the whole stamp for K10, 35.8 to 43.2 kB (three
+opens in j-0027, final code).
 
 **Tied to the publication a publish builds on (rule K10).** The third full review (B at 5d37c550)
 found that a teammate's box-only republish could still be overwritten by the page-open snapshot.
@@ -288,7 +290,8 @@ Publish press moves one stored box by 7 px (made from the writer page, whose rec
 are then put back, since a second writer page of one browser is refused), then this page edits; the
 stored box is not the page-open one. Passes (j-0024). With the stamp tie removed it fails (j-0025:
 the publish carries, finds the stamp moved, and builds again without end, so the edit never
-publishes; the restart is now bounded to once, j-0026). `scripts/publish-parts.test.mjs` adds the
+publishes). The restart is now bounded to once (a second move answers as a retry later); j-0026 is
+the unmutated check passing on that bounded code, and the mutation was not re-run against it. `scripts/publish-parts.test.mjs` adds the
 stamp identity, a landing replacing a read in flight, and a stamp-less read not kept.
 
 **The stored boxes' read.** Read afresh at every opening of the production; a publish waits for it
