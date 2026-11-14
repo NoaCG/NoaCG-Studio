@@ -1,15 +1,15 @@
-// guards: src/components/editorFoundation/panelLayout.ts, src/components/editorFoundation/usePanelLayout.ts, src/components/editorFoundation/PanelDivider.tsx, src/components/editorFoundation/EditorFoundation.tsx
+// guards: src/model/editorPanelLayout.ts, src/components/editorFoundation/panelLayout.ts, src/components/editorFoundation/usePanelLayout.ts, src/components/editorFoundation/PanelDivider.tsx, src/components/editorFoundation/EditorFoundation.tsx
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rolldown } from 'rolldown';
 const bundle = await rolldown({ input: 'src/components/editorFoundation/panelLayout.ts', platform: 'neutral', logLevel: 'silent' });
 const { output } = await bundle.generate({ format: 'esm', codeSplitting: false }); await bundle.close();
-const { parsePanelLayout, defaultPanelLayout, fitPanelLayout } = await import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
+const { readPanelLayout, encodePanelLayout, defaultPanelLayout, fitPanelLayout } = await import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
 
-test('invalid/unknown persisted layout cannot hide a panel or block authoring', () => {
-  for (const raw of [null, '', '{', '{}', '{"v":2,"sizes":{"project":230,"inspector":280,"timeline":240}}', '{"v":1,"sizes":{"project":0,"inspector":280,"timeline":240}}', '{"v":1,"sizes":{"project":230,"inspector":"wide","timeline":240}}']) assert.deepEqual(parsePanelLayout(raw, 768), defaultPanelLayout(768));
+test('missing or corrupt current preferences cannot hide a panel or block authoring', () => {
+  for (const raw of [null, '', '{', '{}', '{"v":1,"sizes":{"project":0,"inspector":280,"timeline":240}}', '{"v":1,"sizes":{"project":230,"inspector":"wide","timeline":240}}']) assert.deepEqual(readPanelLayout(raw, 768), { sizes: defaultPanelLayout(768), writable: true });
   const sizes = { project: 600, inspector: 500, timeline: 500 };
-  assert.deepEqual(parsePanelLayout(JSON.stringify({ v: 1, sizes }), 768), sizes);
+  assert.deepEqual(readPanelLayout(JSON.stringify({ v: 1, sizes }), 768), { sizes, writable: true });
 });
 test('viewport bounds reserve an actual canvas and workspace at the declared minimums', () => {
   const large = { project: 10000, inspector: 10000, timeline: 10000 }, before = JSON.stringify(large);
@@ -28,4 +28,19 @@ test('small preferences clamp visibly; a later larger window can recover the ret
   const small=fitPanelLayout(preferred,1093,614,114,true).sizes;
   const large=fitPanelLayout(preferred,1920,1080,114,true).sizes;
   assert.ok(small.project<preferred.project && small.timeline<preferred.timeline); assert.deepEqual(large,preferred);
+});
+
+
+test('unknown versions remain read-only for every serialization attempt', () => {
+  const sizes = { project: 310, inspector: 330, timeline: 270 };
+  for (const v of [2, 0, 'future', null]) {
+    const raw = ' ' + JSON.stringify({ v, sizes, futureOnly: { keep: 'exact' } }) + '\n';
+    assert.deepEqual(readPanelLayout(raw, 768), { sizes: defaultPanelLayout(768), writable: false });
+    assert.equal(encodePanelLayout(raw, sizes), null); assert.equal(encodePanelLayout(raw, defaultPanelLayout(768)), null);
+  }
+});
+test('supported writes keep additive fields and the current version', () => {
+  const raw = JSON.stringify({ v: 1, sizes: { project: 230, inspector: 280, timeline: 240, futurePanel: 777 }, extra: { keep: true } });
+  const encoded = JSON.parse(encodePanelLayout(raw, { project: 230, inspector: 330, timeline: 240 }));
+  assert.deepEqual(encoded, { v: 1, sizes: { project: 230, inspector: 330, timeline: 240, futurePanel: 777 }, extra: { keep: true } });
 });

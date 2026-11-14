@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { defaultPanelLayout, fitPanelLayout, PANEL_LAYOUT_KEY, parsePanelLayout, type PanelLayout, type PanelSize } from './panelLayout';
+import { defaultPanelLayout, readPanelLayout, encodePanelLayout, PANEL_LAYOUT_KEY, type PanelLayout } from '../../model/editorPanelLayout';
+import { fitPanelLayout, type PanelSize } from './panelLayout';
 
 export function usePanelLayout(projectOpen: boolean) {
   const root = useRef<HTMLElement>(null);
   const [retained, setRetained] = useState(() => {
-    try { return parsePanelLayout(localStorage.getItem(PANEL_LAYOUT_KEY), window.innerHeight); }
+    try { return readPanelLayout(localStorage.getItem(PANEL_LAYOUT_KEY), window.innerHeight).sizes; }
     catch { return defaultPanelLayout(window.innerHeight); }
   });
   const [draft, setDraft] = useState<PanelLayout | null>(null);
@@ -21,7 +22,10 @@ export function usePanelLayout(projectOpen: boolean) {
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
-    try { localStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify({ v: 1, sizes: retained })); }
+    try {
+      const raw = localStorage.getItem(PANEL_LAYOUT_KEY), encoded = encodePanelLayout(raw, retained);
+      if (encoded !== null && encoded !== raw) localStorage.setItem(PANEL_LAYOUT_KEY, encoded);
+    }
     catch { /* Storage refusal leaves the current layout usable. */ }
   }, [retained]);
   const resize = (key: PanelSize, value: number, commit: boolean) => {

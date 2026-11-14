@@ -1,3 +1,4 @@
+// covers: src/model/editorPanelLayout.ts
 // covers: src/components/editorFoundation/**, src/app/router.ts, src/App.tsx, src/templates/**
 
 import { test, expect, type Page } from '@playwright/test';
@@ -462,4 +463,25 @@ for (const [width, height] of [[1366, 768], [1920, 1080]] as const) test(`panel 
   await page.getByRole('button', { name: 'Reset layout', exact: true }).click();
   await expect.poll(async () => (await page.locator('.ef-inspector').boundingBox())!.width).toBe(280);
   expect(await snapshot()).toEqual(before); await page.screenshot({ path: info.outputPath('reachable-layout.png') });
+});
+
+for (const arrival of ['before mount', 'after mount'] as const) test('unknown panel layout bytes survive mount, transient resize and reset: ' + arrival, async ({ page }) => {
+  const key = 'spx-gfx-editor-layout';
+  const future = ' {"v":2,"sizes":{"project":343,"inspector":333,"timeline":290},"futureOnly":{"keep":"exact"}}\n';
+  await page.addInitScript(({ key, initial }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, initial); }, { key, initial: arrival === 'before mount' ? future : JSON.stringify({ v: 1, sizes: { project: 230, inspector: 280, timeline: 240 } }) });
+  await open(page); await ready(page);
+  const stored = () => page.evaluate(key => localStorage.getItem(key), key);
+  if (arrival === 'after mount') await page.evaluate(({ key, future }) => localStorage.setItem(key, future), { key, future });
+  expect(await stored()).toBe(future);
+  const before = await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { source: s.template, history: s.history, future: s.future }; });
+  const inspector = page.getByRole('separator', { name: 'Inspector panel width', exact: true });
+  const initial = Number(await inspector.getAttribute('aria-valuenow'));
+  await inspector.focus(); await inspector.press('ArrowLeft');
+  await expect(inspector).toHaveAttribute('aria-valuenow', String(initial + 10)); expect(await stored()).toBe(future);
+  const timeline = page.getByRole('separator', { name: 'Timeline height', exact: true });
+  await timeline.focus(); await timeline.press('ArrowUp'); expect(await stored()).toBe(future);
+  await page.getByRole('button', { name: 'Reset layout', exact: true }).click();
+  await expect(inspector).toHaveAttribute('aria-valuenow', '280'); expect(await stored()).toBe(future);
+  await page.reload(); await ready(page); expect(await stored()).toBe(future);
+  expect(await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { source: s.template, history: s.history, future: s.future }; })).toEqual(before);
 });
