@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { NIGHTLY_MAX_SHARDS, NIGHTLY_PLAN_LINE_MINUTES, nightlyMinutes, planNightly } from './nightly-shards.mjs';
+import { NIGHTLY_MAX_SHARDS, NIGHTLY_PLAN_LINE_MINUTES, nightlyMinutes, planNightly, suiteFor } from './nightly-shards.mjs';
 
 const done = (ms) => ({ status: 'expected', expectedStatus: 'passed', results: [{ duration: ms }] });
 const unreached = { status: 'skipped', expectedStatus: 'passed', results: [] };
@@ -83,4 +83,11 @@ test('a small suite asks for few runners, and a huge one stops at the ceiling', 
   const minutes = Object.fromEntries(Array.from({ length: 400 }, (_, i) => [`s${i}.spec.ts`, 2]));
   const huge = planNightly({ suite: Object.keys(minutes), table: { minutes } });
   assert.equal(huge.shardSpecs.length, NIGHTLY_MAX_SHARDS);
+});
+
+test('--only plans just the named specs that are on disk', () => {
+  const onDisk = ['a.spec.ts', 'b.spec.ts', 'c.spec.ts'];
+  assert.deepEqual(suiteFor(onDisk), onDisk);
+  assert.deepEqual(suiteFor(onDisk, ['e2e/c.spec.ts', 'e2e/a.spec.ts', 'e2e/gone.spec.ts']), ['a.spec.ts', 'c.spec.ts']);
+  assert.deepEqual(suiteFor(onDisk, ['e2e/gone.spec.ts']), []);
 });

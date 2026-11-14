@@ -18,6 +18,7 @@ import yaml
 WORKFLOW = sys.argv[1] if len(sys.argv) > 1 else '.github/workflows/nightly.yml'
 with open(WORKFLOW) as f:
     jobs = yaml.safe_load(f)['jobs']
+TRIAGE = next(s for s in jobs['report']['steps'] if s.get('name', '').startswith('Triage failures'))['run']
 COVERED = next(s for s in jobs['covered']['steps'] if s.get('id') == 'find')['run']
 VERDICT = next(s for s in jobs['verdict']['steps'] if s.get('id') == 'verdict')['run']
 
@@ -35,6 +36,7 @@ case "$path" in
   *actions/runs/*/jobs*) key=jobs ;;
   *actions/runs/*/artifacts*) key=artifacts ;;
   *contents/e2e/quarantine.json*) key=quarantine_json ;;
+  *contents/e2e\?*) key=on_disk ;;
   *commits/*/status*) key=statuses ;;
 esac
 [ -f "$GH_FAKE/$key.json" ] || exit 1
@@ -56,6 +58,7 @@ def base(**over):
         'artifacts': {'artifacts': arts},
         'quarantine_json': {'content': base64.b64encode(json.dumps(
             {'version': 1, 'specs': {q: {} for q in QUARANTINED}}).encode()).decode()},
+        'on_disk': [{'path': q} for q in QUARANTINED if not q.startswith('e2e/configured/')] + [{'path': 'e2e/other.spec.ts'}],
         'statuses': {'total_count': len(green), 'statuses': [
             {'state': 'success', 'context': f'noacg/quarantine/{q}'} for q in green]},
     }
@@ -95,6 +98,14 @@ SCENARIOS = [
         statuses=red_status(EDITOR)), {'run': None, 'quarantine': None}),
     ('statuses unreadable (over 100): full shards', base(statuses=lambda st: {**st, 'total_count': 101}),
      {'run': None, 'quarantine': None}),
+    ('red quarantined spec deleted from disk: shards skipped',
+     base(on_disk=lambda d: [x for x in d if x['path'] != EDITOR], statuses=red_status(EDITOR)),
+     {'run': '111', 'quarantine': None}),
+    ('quarantined status pending: only it runs', base(statuses=lambda st: {**st, 'statuses': [
+        {**s, 'state': 'pending'} if EDITOR in s['context'] else s for s in st['statuses']]}),
+     {'run': '111', 'quarantine': json.dumps([EDITOR], separators=(',', ':'))}),
+    ('e2e listing unreadable + quarantined red: full shards',
+     base(on_disk=lambda d: {'message': 'Not Found'}, statuses=red_status(EDITOR)), {'run': None, 'quarantine': None}),
     ('quarantine.json unreadable: full shards', base(quarantine_json=lambda q: {'content': 'not base64 json'}),
      {'run': None, 'quarantine': None}),
 ]
@@ -162,5 +173,37 @@ for name, e2e, run, quarantine, want in VERDICTS:
     ok = got == want
     bad += not ok
     print(f"{'ok  ' if ok else 'FAIL'} verdict: {name} -> green={got}")
+
+
+
+def run_triage(covered_shards, quarantine, planned, blobs):
+    """The report job's triage step, in a scratch dir; returns the shards it names as missing."""
+    repo = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmp:
+        os.makedirs(os.path.join(tmp, 'all-blob-reports'))
+        for b in blobs:
+            open(os.path.join(tmp, 'all-blob-reports', b), 'w').close()
+        with open(os.path.join(tmp, 'nightly-report.json'), 'w') as f:
+            json.dump({'suites': [], 'errors': [], 'stats': {}}, f)
+        env = {**os.environ, 'MATRIX': json.dumps({'shardIndex': list(range(1, planned + 1)), 'shardTotal': [planned]}),
+               'COVERED_SHARDS': covered_shards, 'QUARANTINE': quarantine}
+        # The script's own entry check compares real paths, so it is named by its real path here.
+        step = TRIAGE.replace('node scripts/', f"node {os.path.join(repo, 'scripts')}/")
+        subprocess.run(['bash', '-c', step], env=env, cwd=tmp, check=True, capture_output=True)
+        with open(os.path.join(tmp, 'nightly-triage.json')) as f:
+            return json.load(f).get('missingShards')
+
+
+TRIAGES = [
+    ('covered, quarantine shard sent no report', '3', '["e2e/a.spec.ts"]', 1, ['report-1.zip', 'report-2.zip', 'report-3.zip'], [4]),
+    ('covered, quarantine shard reported', '3', '["e2e/a.spec.ts"]', 1, ['report-1.zip', 'report-2.zip', 'report-3.zip', 'report-4.zip'], []),
+    ('covered, no quarantine list', '3', '', 0, ['report-1.zip', 'report-2.zip', 'report-3.zip'], []),
+    ('not covered, shard 2 sent none', '', '', 3, ['report-1.zip', 'report-3.zip'], [2]),
+]
+for name, covered_shards, quarantine, planned, blobs, want in TRIAGES:
+    got = run_triage(covered_shards, quarantine, planned, blobs)
+    ok = got == want
+    bad += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} triage: {name} -> missing={got}")
 
 sys.exit(1 if bad else 0)
