@@ -594,3 +594,22 @@ Filled in by each phase's pull request.
   A box kept in this browser and taken after a reload (K2, K3) counts as this page's own
   measurement: like a fresh measurement on `main`, it may replace a teammate's box.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.
+
+### Phase 8: Five people at once
+
+- Previous verified `main`: d2d35f4a7cfd44d61f0807bfe35d7323aacfd3bf.
+- Revert: `git revert -m 1 <this pull request's merge commit>` removes the scene, its configured
+  spec, its measurement, the evidence, the checklist and the tested numbers in
+  `docs/CLOUD_PLAYOUT.md`; no product file and nothing persisted changed, so no data step goes with it.
+- Decisions: five people are five accounts on a team production (one production, five accounts
+  needs a team): the suite's own account, its teammate and three minted on the local stack only,
+  deleted after each run, the way `teams.spec.ts` mints its third. Set-up reaches the app through the
+  test door; every role acts through the page as a person would. The configured spec runs the scene
+  for 30 s to fit the suite's 120 s per-test ceiling and judges correctness only; the ten-minute run
+  and the timing use the same scene from `e2e/configured/measure/five.measure.ts` on the bundled e2e
+  build, as phases 6 and 7 judged timing. "A single page" is the taker's page with every other
+  person's page closed, alternated with everyone working, in rounds whose order alternates.
+  #2562 and #2557 were not met (see the evidence), so no product change was needed.
+- Traps: in the evidence, "Traps met".
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-8.md`; the owner's final check:
+  `docs/work-specs/live-publishing/phase-9-checklist.md`.
