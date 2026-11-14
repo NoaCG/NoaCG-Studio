@@ -948,11 +948,12 @@ reloads, one goes offline for 20 s. Evidence: `work-specs/live-publishing/eviden
 | 1 (the taker alone) | 0 | 30 ms | | | |
 | 5 | 0 | 62 ms (66 ms in the interleaved pairs) | all | all | 2 of 2 |
 | 10 | 0 | 186 ms | all | all | 4 of 7 (#2565) |
-PEOPLE_15
+| 15 | 0 of 91 (the test machine stalled after 6.5 min) | 560 ms | not run | 38 of 39 | 2 of 12 |
 
 These are what was tested, not a limit: a hosted backend, the studio network and people on separate
-computers were not part of it, and every page shared one machine's CPUs. The lost edits at 10 pages
-are a defect (#2565), not a capacity limit.
+computers were not part of it, and every page shared one machine's CPUs (at 15 pages that machine,
+not the product, was the limit). The lost edits at 10 pages are a defect (#2565), not a capacity
+limit.
 
 ## Publication lifecycle (what staying published costs, and when a publication ends)
 

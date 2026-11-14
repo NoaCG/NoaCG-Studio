@@ -37,7 +37,9 @@ From the coordinator's brief (#2361), before any timing was read:
   - **quick**: the score goes on air once, then its Goal button is pressed on every tick.
   - **editors**: each types a new text into its own cue on the same tick. The first editor's page
     reloads part way through; the second editor's browser goes offline for a while and back.
-- `e2e/configured/five-people.spec.ts`: the configured spec (AC-6's layer). A 30-second run with
+- `e2e/configured/teams.spec.ts`, describe "five accounts at once": the configured spec (AC-6's
+  layer), in the team flow's maintained file rather than a new one (root rule: one journey spec per
+  flow, extended in its file; a new configured file is also priced as backend-tier growth). A 30-second run with
   everything above, judged on correctness: every Take ran on the output, the score moved once per
   Goal, every message became a cue, each editor's last text is in the team's record, in the
   publication and on every page, the taker's and the score's cues keep their text, and no
@@ -113,7 +115,15 @@ offline, as above). Reported as tested numbers, not judged (AC-6).
 |---|---|---|---|---|---|---|
 | 5 | j-0022 | 476 (0) | 31.9 / 62.3 / 116 ms | 199 / 199 | 39 / 39 | 2 of 2 |
 | 10 | j-0029 | 216 (0) | 86.2 / 185.7 / 371 ms | 199 / 199 | 39 / 39 | 4 of 7 |
-RESULTS_15
+| 15 | j-0032 | 91 (0) | 161.8 / 560.1 / 874 ms | see below | 39 / 38 | 2 of 12 |
+
+**15 pages overran the test machine.** Sixteen browser pages and the servers on one 4-CPU machine:
+after about 6.5 minutes every role's clicks and typing timed out (the taker stopped after 91 Takes,
+all of which ran; the editors after 99 or 100 of their 149 ticks; the quick button never pressed,
+because its set-up Take timed out on that commit). The record then held each editor's last text
+for 2 of the 12, and one prepared message had no cue. Both are what #2565 does, but with the pages
+stalled the run cannot separate it from texts that never left a frozen page, so the 15-page row
+says what this machine carries, not what the product does with 15 people.
 
 **A lost edit at 10 pages (#2565).** Three of the seven editors' last texts were missing on every
 page, their own included, 90 s after the run: the record held `#148` or `#147` where `#149` was
@@ -126,8 +136,9 @@ Goal or message lost, no Take lost.
 
 ### The configured spec
 
-`npx playwright test --config=playwright.live.config.ts e2e/configured/five-people.spec.ts
---repeat-each 2` on the local stack (job j-0004): 2 passed, 1.1 and 1.2 minutes. The CI run on the
+The test, run alone with `--repeat-each 2` on the local stack: 2 passed (j-0004, 1.1 and 1.2
+minutes), 2 passed again on the scene after the review fixes (j-0033, 1.3 and 1.2 minutes), both
+when it was its own file, on the development server; then RESULTS_TEAMS. The CI run on the
 pull request's head runs it in the configured selection. Its two editors can in principle meet
 #2565; in every five-page run here (ten minutes, twelve pairs, five shorter runs) they never did.
 

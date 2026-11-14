@@ -17,7 +17,7 @@ import { FRAME_LOADS, framePlays, instrument, NET, nowOn, readLpm, throttle } fr
 //
 // One editor's page reloads part way through and the other loses its connection for a while and
 // gets it back. The run then waits for everything to settle and reports what it finds, so the same
-// scene serves the configured spec (e2e/configured/five-people.spec.ts, a short run judged on
+// scene serves the configured spec (e2e/configured/teams.spec.ts, "five accounts at once", a short run judged on
 // correctness) and the measurement (e2e/configured/measure/five.measure.ts: ten minutes, press to
 // ran against a single page, and 10 and 15 pages). The judgement belongs to the caller.
 
