@@ -29,6 +29,7 @@ import {
   playbackNeeds,
   segmentSeconds,
   takePlayback,
+  vmixMediaBlocker,
   type ClipEnd,
   type MemberProblem,
   type PlaybackAbility,
@@ -129,12 +130,12 @@ export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, va
       // A looping clip is CasparCG's own `PLAY … LOOP`: the server repeats it until Out.
       ...(media.loop ? { loop: true } : {}),
       ...(cueId ? { cueId } : {}),
-      ...(item.kind === 'media' && item.mediaKind === 'still' && cue?.imageFit !== 'stretch' ? { imageFit: 'fit' as const } : {}),
+      ...(slot.adapter !== 'vmix' && item.kind === 'media' && item.mediaKind === 'still' && cue?.imageFit !== 'stretch' ? { imageFit: 'fit' as const } : {}),
       ...('playback' in media && media.playback ? { playback: media.playback } : {}),
     };
   }
   if (verb === 'update') return { verb, slot, data: values };
-  const fade = verb === 'out' && item.kind === 'media' ? outFade(cue) : undefined;
+  const fade = verb === 'out' && slot.adapter !== 'vmix' && item.kind === 'media' ? outFade(cue) : undefined;
   return { verb, slot, item: itemRef, ...(fade !== undefined ? { fadeOut: fade } : {}) } as PlayoutAction;
 }
 
@@ -185,7 +186,7 @@ export function playNextTarget(
       continue;
     }
     const there = addressOf(it);
-    if (there !== address) {
+    if ((it.adapter ?? 'casparcg') !== (item.adapter ?? 'casparcg') || there !== address) {
       elsewhere.push({ label: c.label, address: there });
       continue;
     }
@@ -269,20 +270,26 @@ export function takeBlocker(
   ability: PlaybackAbility | null,
   folders: readonly ShowFolder[] = [],
   graphicOf: FolderRundown['graphicOf'] = () => null,
+  serverOff?: FolderRundown['serverOff'],
 ): string | null {
   // A folder by what it lacks: every cue names its source, and no folder does. Its mode cannot tell
   // them apart, since a folder record from another build may have none.
   if (!('sourceId' in target)) {
     const blockerOf = (c: ShowCue) => takeBlocker(c, cues, items, addressOf, ability, folders, graphicOf);
-    return folderTakeBlocker(target, folderMembers(cues, folders, target.id), { items, addressOf, graphicOf, ability, blockerOf });
+    return folderTakeBlocker(target, folderMembers(cues, folders, target.id), { items, addressOf, graphicOf, ability, blockerOf, serverOff });
   }
   const cue = target;
   const item = cue.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
+  if (item?.adapter === 'vmix') {
+    const blocked = vmixMediaBlocker(ability);
+    if (blocked) return blocked;
+    if (item.kind !== 'media') return 'vMix cues play media files.';
+  }
   if (item?.kind !== 'media') return null;
   // A clip of a Play-through folder plays by the folder's rules: from itself to the folder's end.
   const through = throughFolderOf(cue, cues, items, folders);
   if (through) return folderRunBlocker(folderRun(through, cues, items, cue.id), ability);
-  if (item.mediaKind === 'still' && cue.imageFit !== 'stretch' && (cue.playback?.trimIn !== undefined || cue.playback?.trimOut !== undefined || effectiveEnd(cue, item) === 'loop')) {
+  if (item.adapter !== 'vmix' && item.mediaKind === 'still' && cue.imageFit !== 'stretch' && (cue.playback?.trimIn !== undefined || cue.playback?.trimOut !== undefined || effectiveEnd(cue, item) === 'loop')) {
     return 'Picture Fit holds until Out. Clear its trim and Loop setting, or choose Stretch.';
   }
   const own = playbackBlocker(playbackNeeds(cue, item), ability);
@@ -507,6 +514,8 @@ export interface FolderRundown {
   ability: PlaybackAbility | null;
   /** The page's own Take check for one cue (takeBlocker), Play next's folder limit included. */
   blockerOf: (cue: ShowCue) => string | null;
+  /** Disabled members are reported by the send path and occupy no slot in the plan. */
+  serverOff?: (cue: ShowCue) => string | null;
 }
 
 export type TogetherPlan =
@@ -548,11 +557,12 @@ export function togetherPlan(members: readonly ShowCue[], r: FolderRundown): Tog
       graphics.push({ cue, graphic: g.name, layer: g.layer });
     }
   }
-  const addresses = server.map((m) => r.addressOf(m.item));
-  const sameSlot = firstPair(server, (i, j) => addresses[i] === addresses[j]);
+  const enabled = server.filter(m => !r.serverOff?.(m.cue));
+  const addresses = enabled.map((m) => r.addressOf(m.item));
+  const sameSlot = firstPair(enabled, (i, j) => addresses[i] === addresses[j]);
   if (sameSlot) {
     const [a, b] = sameSlot;
-    return { ok: false, reason: `${server[a].cue.label} and ${server[b].cue.label} both play on ${addresses[a]}, which holds one thing at a time. Move one of them to another layer to take this folder.` };
+    return { ok: false, reason: `${enabled[a].cue.label} and ${enabled[b].cue.label} both play on ${addresses[a]}, which holds one thing at a time. Move one of them to another layer to take this folder.` };
   }
   const sameGraphic = firstPair(graphics, (i, j) => graphics[i].graphic === graphics[j].graphic);
   if (sameGraphic) {
@@ -564,9 +574,9 @@ export function togetherPlan(members: readonly ShowCue[], r: FolderRundown): Tog
     const [a, b] = sameLayer.map((i) => graphics[i]);
     return { ok: false, reason: `${a.cue.label} and ${b.cue.label} both air on layer ${a.layer}. Give one of their graphics another layer to take this folder.` };
   }
-  const gate = bridgeGate(server[0]?.cue, r.ability);
+  const gate = bridgeGate(enabled[0]?.cue, r.ability);
   if (gate) return { ok: false, reason: gate };
-  for (const m of server) {
+  for (const m of enabled) {
     const blocked = r.blockerOf(m.cue);
     if (blocked) return { ok: false, reason: `${m.cue.label}: ${blocked}` };
     // Never sent as a Hold: every cue of this folder starts at once, so there is nothing to play next.

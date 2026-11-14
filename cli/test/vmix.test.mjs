@@ -1790,6 +1790,36 @@ test('AC-8: Take configures one keyed player and its full list, then replaces wi
   assert.equal(fake.connections, 1);
 });
 
+test('vMix guarded All out refuses a later Take of the same file before sending a mixer function', async t => {
+  const { adapter, fake, target, player, take } = await playerFixture(t);
+  const first = await take('clip A.mp4');
+  assert.equal(first.ok, true);
+  const replacement = take('clip A.mp4');
+  const staleCut = adapter.act(target, readAction({ action: {
+    verb: 'out-player-instance', slot: player(), expectedPlayerInstance: first.instance,
+  } }));
+  const second = await replacement;
+  assert.equal(second.ok, true);
+  assert.notEqual(second.instance, first.instance);
+  const refused = await staleCut;
+  assert.equal(refused.ok, false);
+  assert.match(refused.error.detail, /no longer holds the playback instance/);
+  assert.equal(fake.functions.some(fn => fn.name === 'Pause' || fn.name === 'ListRemoveAll'), false);
+  const current = (await adapter.overlays(target)).value.players.find(slot => slot.player === 'clips');
+  assert.equal(current.instance, second.instance);
+
+  assert.throws(() => readAction({ action: { verb: 'out', slot: player(), expectedPlayerInstance: second.instance } }), /expected playback instance/);
+  assert.throws(() => readAction({ action: { verb: 'out-player-instance', slot: player() } }), /expected playback instance/);
+  assert.throws(() => readAction({ action: {
+    verb: 'out-player-instance', slot: { adapter: 'vmix', overlay: 1 }, expectedPlayerInstance: second.instance,
+  } }), /expected playback instance/);
+  const cut = await adapter.act(target, readAction({ action: {
+    verb: 'out-player-instance', slot: player(), expectedPlayerInstance: second.instance,
+  } }));
+  assert.equal(cut.ok, true);
+  assert.deepEqual(fake.functions.slice(-2).map(fn => fn.name), ['Pause', 'ListRemoveAll']);
+});
+
 test('AC-8: same-path retake observes the appended occurrence and uses a new instance', async t => {
   const { fake, take, root } = await playerFixture(t, { selectDelayMs: 200 });
   const first = await take('clip A.mp4');
