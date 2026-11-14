@@ -15,7 +15,7 @@
 // origin/main) exactly as the nightly merges them. Then every src/ file changed by the merges into
 // origin/main since `--since` is planned alone with each map. A file whose build-map plan leaves
 // out a spec its dev-map plan selects is printed, and the exit code is 1: an alarm for the owner and
-// a revert candidate for #2530.
+// a revert candidate for #2530. Exit 2: a run traced too few specs fresh to be judged; run it again.
 //
 // WHY THE SAME COMMIT. The dev map is not stable night to night, and it follows code changes:
 // between two consecutive dev nightlies (c46c222a and c92910f4, both before #2530) 5 of 136
@@ -26,7 +26,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { planFor } from '../../../../scripts/e2e-affected.mjs';
-import { mergeTraces, tracedFrom } from '../../../../scripts/e2e-traced.mjs';
+import { mergeRefusal, mergeTraces, tracedFrom } from '../../../../scripts/e2e-traced.mjs';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -54,7 +54,18 @@ function shards(dir) {
 const previous = JSON.parse(git('show', `${arg('previous', 'origin/main')}:scripts/e2e-traced.json`));
 const specsOnDisk = readdirSync('e2e').filter((f) => f.endsWith('.spec.ts'));
 const tracedAt = new Date().toISOString();
-const mapOf = (dir, sha) => tracedFrom(mergeTraces(shards(dir), previous, { sha, tracedAt, specsOnDisk }));
+/** A run's merged map, refused (exit 2) when too few specs were traced to completion that night:
+ *  carried-over entries from the previous map would answer for it, and the result would be stale. */
+const mapOf = (dir, sha) => {
+  const map = mergeTraces(shards(dir), previous, { sha, tracedAt, specsOnDisk });
+  const refusal = mergeRefusal(map, specsOnDisk);
+  console.log(`${sha} map: ${map.fresh} of ${specsOnDisk.length} spec(s) traced fresh`);
+  if (refusal) {
+    console.error(`d2 selection guard: the ${sha} run cannot be judged: ${refusal}`);
+    process.exit(2);
+  }
+  return tracedFrom(map);
+};
 const build = mapOf(arg('build-traces'), 'build');
 const dev = mapOf(arg('dev-traces'), 'dev');
 

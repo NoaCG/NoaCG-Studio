@@ -27,6 +27,8 @@ fixes in c7d2d19, and 1 failed on dev.
 | build run against dev run, same code | 13 | 29 | 215 | 6,613 |
 | dev run against main's dev map, one night apart | 19 | 222 | - | - |
 
+(a) holds in total: 29 files in 13 specs against 222 files in 19 specs. It does not hold spec by spec. For 12 of the 13 specs that lose files on the build, the same spec loses nothing dev against dev. Examples: pasteboard loses 4, production-chat-intake 5, production-pack 4. The dev-against-dev baseline also compares two different nights, so code changes are mixed into its drift, which is why the guard compares one commit only. Those losses are in classes the dev runs show on other specs: the per-worker cache, timing, and late calls. Condition (c) explains each one. This total reading is what the coordinator accepted.
+
 Specs with any loss: build-run losses against the dev run, and dev-run losses against main's map.
 
 | Spec | Build vs dev | Dev vs dev |
@@ -69,7 +71,7 @@ Specs with any loss: build-run losses against the dev run, and dev-run losses ag
 | --- | --- | --- |
 | src/components/wizard/draft/{template,format}.ts, src/format/formatCode.ts, src/templates/catalog.ts | 20 | The per-worker template cache in e2e/_create.ts. The first test in a worker builds the template through the wizard code, and later tests reuse it, so which spec "runs" these files depends on worker order. The dev-against-dev comparison loses the same files. |
 | src/preview/previewProtocol.ts | 3 | Timing. The dev-against-dev comparison loses it too. |
-| src/validation/markLegibility.ts, src/templates/audience/{audiencePresets,familyCss}.ts | 3 | The minifier inlined these small functions into their callers. Fixed: the e2e build has no compress pass (ebf900f). A local re-trace of flows and production-chat-intake no longer loses them. |
+| src/validation/markLegibility.ts, src/templates/audience/{audiencePresets,familyCss}.ts | 3 | The minifier inlined these small functions into their callers. Fixed: the e2e build has no compress pass (ff4d266). A local re-trace of flows and production-chat-intake no longer loses them. |
 | src/model/types.ts (graphicKindLabel), src/model/deviceIds.ts, src/preview/frameGraphic.ts | 3 | A late background call that had not run when the test ended, on a faster build. Re-traced locally after the compress fix: the source map attributes each function correctly, and they did not run before the test ended. |
 
 The build map also counts every component (.tsx) in a chunk the page loaded. The dev server

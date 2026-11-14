@@ -74,7 +74,8 @@ jobs:
     steps:
       - name: Find a green full push run on this commit
         id: find
-        if: ${{ (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && !inputs.full_e2e }}
+        # A dev_server run (the d2 selection guard) always runs its own suite: main's push run is on the build.
+        if: ${{ (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && !inputs.full_e2e && !inputs.dev_server }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -557,7 +558,8 @@ jobs:
       # continue-on-error: a refresh that stops landing makes every plan escalate within
       # MAX_AGE_DAYS, so it has to turn the night red rather than fail quietly.
       - name: Queue the traced spec map
-        if: ${{ !cancelled() && steps.traced.outcome == 'success' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
+        # Never a dev_server run's map: the guard compares it, and main's map stays the build's.
+        if: ${{ !cancelled() && steps.traced.outcome == 'success' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && !inputs.dev_server }}
         env:
           GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
           NOACG_BOT_TOKEN: ${{ steps.bot.outputs.token != '' && 'app' || 'workflow' }}
