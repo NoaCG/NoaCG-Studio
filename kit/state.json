@@ -5,10 +5,10 @@
   "spec": "docs/work-specs/editor-r1-5/spec.md",
   "issue": 2295,
   "coordinator": {
-    "return": "Return native final receipt to /root in active Cloud chat 6af455f4-b1c8-8191-86b2-8bfdfc619075",
+    "return": "Return native receipts to /root in this active Codex Cloud chat",
     "environment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
     "session": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
-    "status": "Same active coordinator; no in-flight workers or queued PR. Six original phases accepted. Hosted feedback amendment prepared; no product correction admitted. No durable wake claim."
+    "status": "Same run restored to a0e9aa58; reconciled no pending/active worker, renewed block11; admitting owner-receipted E5F. Active mode, no durable wake claim."
   },
   "authorization": {
     "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
@@ -62,7 +62,7 @@
     }
   },
   "brief": {
-    "read": "Future phases use the reviewed Cloud-first spec/phases and owner-decision-2026-11-11-cloud-first.md at 3a56a966c4c03fa47f53b4d1ecb09ed882d12ef0 with git show. Product work starts on current main in its own worktree. Completed E1-E3 retain original plan source f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 and their exact tested-source/environment receipts. Read docs/EDITOR_PLAN.md, the acceptance register, October single-device closure and latest relevant issues; historical evidence is reused only with current source/environment applicability. For completed E2 bulky receipts moved from the current kit, read archived-evidence.json: every byte is verified in its immutable published checkpoint plus retained local archive; do not treat a missing old local path as lost evidence.",
+    "read": "Read current hosted feedback owner-decision at24d7ddcec05d476833d463511590b9277e960bf3 and phase notes. Old E1–E4/E5C/E6C receipts retain exact-source scopes; original failed evidence/allowances remain. The accepted source E6C705 is historical; build new scope on exact current-main source supplied in this brief.",
     "rules": "Same run and supervisor, immutable acceptance/history/attempts. Read current Cloud-first spec/phases and owner receipts, actual tested-source evidence and current quarantine on your exact checkout. E1-E4 and E5C are independently PASS at their recorded merge/source/environment; never upgrade historical scope or relabel failures. E1/E2 causal hold is settled independently NOT CAUSED; retain its reports/issues/real owners/dates and standard automated-release history. Treat workflow code HEAD separately from target/tested SHA, and whole-main spec totals separately from PR selection. An unrelated helper at the same main SHA is not this run's verification.\nE4 product model: owned editor graphics and independently installed production copies; no automatic propagation between editor/productions or across productions, and no simultaneous collaborative graphic editing. Necessary stale/newer-write protection stays. Narrow correction succeeded; no new-production-only restriction was implemented. E4 ordinary3/3, old ownerextra1/1 and new narrow1/1 remain spent. ANY confirmed E4-attributable defect, including timing/data effects, stops for owner reassessment before edits; do not relabel it another phase to obtain an allowance.\nOrder: Cloud E4/E5C/E6C, then final local E5/E6, then OW1/E7. Current phase E6C may prepare/verify software without human/device/host/vendor availability. Real participants/moderator, named desktop/laptop/native125% and named receiving hosts/operator cannot be passed by emulation. Written GSAP disposition and explicit candidate-specific owner approval remain OW1/E7 gates. Owner sends the finished GSAP request: NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. No licence/engine/release-posture change.\nNo new paid model round or E3 allowance reset, provider/model/funding/service-account/credential change, or production data. Disposable isolated test users only within existing fixture/backend policy. Inherit Codex model/effort without overrides. Qualify executing worker resources/network/permissions in its own exact-source feature worktree; preserve original owner binding separately from observed current environment and qualify CLI mapping rather than invent it. Per-command scoped grants do not change persistent policy.\nBefore browser admission qualify both existing node_modules/.vite-temp and node_modules/.vite through the exact-lock dependency symlink on the ACTUAL executing runner, plus owned outputs; a later runner does not inherit an old grant. Resolve scratch config guard/reporter/server paths and list its intended selection before admission. Preserve source-pinned broader/build history, including failed/pretest attempts; no duplicate/reset/guard workaround. Existing small5min/onebroader12min/build5min limits and actual derived workers stay; full suites/builds remain Actions. No waits/retries/skips or test/check/limit weakening as a fix.\nE5C packaging3/3 remains spent with final43431229460 PASS; artifact/source/producer receipts and unverified raw consumer readback remain distinct. DEV F4 measurements are diagnostic, not production timing or causal E4 clearance. No automatic new E5C benchmark/packaging repair. E6C must reconcile final candidate inputs and prepare exact export/receiving/technical-audit evidence within its actual scope and existing bounds.\nBefore product edits reproduce and state the observable gap/rules. Apply current Rules-first/FULL/qualified-Delta review requirements; no repeated full review for a small eligible delta. Use current folder rules and check canonical sideEnds on exact candidate paths including package versions. No invented owner. Root alone admits phases, stamps, enables the merge queue and acknowledges exactly one repair owner per PR before worker ends. Worker returns actual final-head CI/configured selection/gate, real Codex result and required review, never self-approval. All created PRs attach through root if child tool unavailable.\nActive Cloud mode only: root retains ownership through actual merge, terminal exact-merge checks and fresh independent acceptance. No native wake/after-session recovery claim. Stop/checkpoint on pause or current block boundary; only supported root renewal changes it. Preserve all failed WIP, unknowns and valuable ignored evidence, existing8MiB/two-folder-level kit bound and immutable archive references. No later-phase launch before predecessor PASS. Written rights/owner release approval cannot be inferred from engineering passes."
   },
   "inFlight": [],
@@ -1477,11 +1477,7 @@
     },
     "currentPublicUpdate": 6831775749
   },
-  "waitingOn": {
-    "kind": "dependency",
-    "what": "Verified owner-decision receipt must land on main before supported E5F admission. Owner has declined recruitment and uses hosted Studio; no participant/local-build prerequisite is requested.",
-    "eta": null
-  },
+  "waitingOn": null,
   "completedCausalityReviews": [
     {
       "id": "6af4b05b-8a1c-8191-b931-182efca3b062",
@@ -3405,7 +3401,7 @@
     "resume": "Same run #2295: finish/land the docs-only feedback owner-decision branch through queue-merge, then clear obsolete participant wait with explicit current owner decision and admit E5F using that main receipt/current block. Start hosted assistant correction first. Do not launch E5 against the stale recruitment/local-build handoff; preserve all historical criteria/attempts and inherited model/effort. No product correction has started or landed."
   },
   "hostedFeedbackAmendment": {
-    "status": "DOCS_REVIEWED_COMMITTED_NOT_ON_MAIN_NOT_ADMITTED_NO_PRODUCT_EDITS",
+    "status": "LANDED_MAIN_RECEIPT_ADMITTING_E5F",
     "branch": "codex/editor-r1-5-feedback-plan-20261113",
     "worktree": "/workspace/noacg-editor-r1-5-feedback-plan",
     "commit": "a6b98af5a",
@@ -3418,6 +3414,8 @@
       "resizable panels",
       "whole-graphic transforms"
     ],
-    "verification": "Docs-only targeted gates PASS; review inline0/0; simplify inline; verify inline; exact commit stamp PASS. No product fix, no PR, no queue or E5F actor."
+    "verification": "Docs-only targeted gates PASS; review inline0/0; simplify inline; verify inline; exact commit stamp PASS. No product fix, no PR, no queue or E5F actor.",
+    "merge": "24d7ddcec05d476833d463511590b9277e960bf3",
+    "pr": 2541
   }
 }
