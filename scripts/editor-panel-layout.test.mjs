@@ -11,13 +11,14 @@ test('missing or corrupt current preferences cannot hide a panel or block author
   const sizes = { project: 600, inspector: 500, timeline: 500 };
   assert.deepEqual(readPanelLayout(JSON.stringify({ v: 1, sizes }), 768), { sizes, writable: true });
 });
-test('viewport bounds reserve an actual canvas and workspace at the declared minimums', () => {
+test('drawable viewport stays above 180 after the measured shell and canvas chrome', () => {
   const large = { project: 10000, inspector: 10000, timeline: 10000 }, before = JSON.stringify(large);
-  assert.deepEqual(fitPanelLayout(large, 1366, 768, 114, true).sizes, { project: 180, inspector: 934, timeline: 454 });
-  for (const [width, height] of [[1366,768], [1920,1080], [1093,614]]) for (const project of [false,true]) {
-    const { sizes } = fitPanelLayout(large, width, height, 114, project);
+  const cases = [[1366,768,114,99], [1920,1080,114,99], [1093,614,114,99], [1093,545,102,73], [901,540,102,73]];
+  for (const [width, height, chrome, canvasChrome] of cases) for (const project of [false,true]) {
+    const { sizes } = fitPanelLayout(large, width, height, chrome, project, canvasChrome);
     assert.ok(width - sizes.inspector - (project ? sizes.project + 12 : 6) >= 240);
-    assert.ok(height - 114 - sizes.timeline >= 200);
+    assert.ok(height - chrome - canvasChrome - sizes.timeline >= 180, JSON.stringify({width,height,chrome,canvasChrome,sizes}));
+    if (height <= 600) assert.equal(sizes.timeline, 180, 'desktop preferences must preserve compact timeline allocation');
     assert.ok(sizes.project >= 180 && sizes.inspector >= 240 && sizes.timeline >= 180);
   }
   assert.equal(JSON.stringify(large), before, 'fitting a small window must not destroy retained preferences');

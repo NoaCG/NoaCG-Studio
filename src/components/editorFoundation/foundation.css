@@ -218,10 +218,10 @@
 .ef-segment-targets { margin: 0 0 10px; padding-left: 18px; color: var(--ef-muted); font-size: 12px; }
 @media (max-width: 1150px) { .ef-transport > .ef-muted { display: none; } }
 
-.ef-arrangement { background: var(--bg-panel); border-bottom: 1px solid var(--ef-border); padding: 4px 10px; }
+.ef-arrangement { overflow-x: auto; background: var(--bg-panel); border-bottom: 1px solid var(--ef-border); padding: 4px 10px; }
 .ef-arrangement-row, .ef-arrangement-row label, .ef-arrangement-row [role=group] { display: flex; align-items: center; gap: 4px; }
 .ef-arrangement-row label { white-space: nowrap; }
-.ef-arrangement-row { flex-wrap: wrap; gap: 8px 14px; }
+.ef-arrangement-row { flex-wrap: nowrap; width: max-content; min-width: 100%; gap: 8px 14px; }
 .ef-arrangement-row label, .ef-arrangement-row [role=group] > span { color: var(--text-dim); font-size: 10px; }
 .ef-arrangement-row button, .ef-arrangement-row select { padding: 3px 6px; min-height: 26px; font-size: 10px; }
 .ef-arrangement-error { color: var(--warn); padding: 4px 0 2px; overflow-wrap: anywhere; }

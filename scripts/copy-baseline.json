@@ -121,6 +121,9 @@
     "src/templates/audience/viewerQuestion.ts": {
       "em-dash": 5
     },
+    "src/templates/blank.ts": {
+      "em-dash": 1
+    },
     "src/templates/competition/compMotion.ts": {
       "em-dash": 4
     },

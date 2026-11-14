@@ -1,6 +1,6 @@
 import './projects.css';
 import { useMemo, useState } from 'react';
-import { createBlankTemplate } from '../../templates/blank';
+import { createAuthoringBlankTemplate } from '../../templates/blank';
 import MiniPreview from '../wizard/MiniPreview';
 import { PACKS } from '../../templates/packs';
 import { kitItems, kitSelection } from '../../templates/kit';
@@ -31,7 +31,7 @@ export default function ProjectStarter({ close }: { close: () => void }) {
       const draft = mergeDraft(initialDraft(), { category: variant.category, variantId: variant.id,
         lines: variant.suggestedLines.map(line => ({ ...line })), paletteId, ...(look ? brandPatch(look.brand) : {}) });
       return buildDraftTemplate(variant, draft);
-    }) : [createBlankTemplate()];
+    }) : [createAuthoringBlankTemplate()];
     useSaveUi.getState().requestSwitch(() => {
       void createAuthoringProject(name.trim() || pack?.name || 'Untitled project', look ? templates.map(t => applyDocumentBrand(t, look)) : templates).then(ok => {
         if (ok) { close(); openNewEditor(); }

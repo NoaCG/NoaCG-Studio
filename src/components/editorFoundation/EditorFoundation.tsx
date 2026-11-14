@@ -66,7 +66,7 @@ export default function EditorFoundation() {
   const groupPath = groupLocation.document === authoringId ? groupLocation.path.filter(selector => hierarchy.groups.has(selector)) : [];
   const groupScope = groupPath[groupPath.length - 1] ?? null;
   const [projectOpen, setProjectOpen] = useState(false);
-  const panels = usePanelLayout(projectOpen);
+  const panels = usePanelLayout(projectOpen, authoringId);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const assistantButton = useRef<HTMLButtonElement>(null);
   const [linked, setLinked] = useState(true);

@@ -448,11 +448,22 @@ for (const [width, height] of [[1366, 768], [1920, 1080]] as const) test(`panel 
   const project = page.getByRole('separator', { name: 'Project panel width', exact: true }); await project.focus(); await page.keyboard.press('Home');
   await expect.poll(async () => (await page.locator('.ef-project').boundingBox())!.width).toBe(180);
   await page.keyboard.press('End'); expect((await page.locator('.ef-canvas').boundingBox())!.width).toBeGreaterThanOrEqual(239);
-  await page.keyboard.press('Home');
+  const drawable = page.getByTestId('foundation-canvas');
+  expect((await drawable.boundingBox())!.height).toBeGreaterThanOrEqual(180);
+  const panAtMinimum = async () => {
+    const box = (await drawable.boundingBox())!, beforePan = await page.locator('.ef-artboard').getAttribute('style');
+    await drawable.focus(); await page.keyboard.down('Space');
+    await page.mouse.move(box.x + 14, box.y + 14); await page.mouse.down(); await page.mouse.move(box.x + 24, box.y + 24); await page.mouse.up(); await page.keyboard.up('Space');
+    expect(await page.locator('.ef-artboard').getAttribute('style')).not.toBe(beforePan);
+    await page.getByRole('button', { name: 'Fit', exact: true }).click();
+  };
+  await panAtMinimum();
+  await project.focus(); await page.keyboard.press('Home');
   const timeline = page.getByRole('separator', { name: 'Timeline height', exact: true }); await timeline.focus();
   const oldHeight = (await page.locator('.ef-timeline').boundingBox())!.height; await page.keyboard.press('ArrowUp');
   await expect.poll(async () => (await page.locator('.ef-timeline').boundingBox())!.height).toBeGreaterThan(oldHeight);
-  await page.keyboard.press('End'); expect((await page.locator('.ef-workspace').boundingBox())!.height).toBeGreaterThanOrEqual(199);
+  await page.keyboard.press('End'); expect((await page.locator('.ef-viewport').boundingBox())!.height).toBeGreaterThanOrEqual(180);
+  await panAtMinimum(); await timeline.focus();
   await page.keyboard.press('Home');
   const retainedWidth = (await page.locator('.ef-inspector').boundingBox())!.width, retainedHeight = (await page.locator('.ef-timeline').boundingBox())!.height;
   const retained = await page.evaluate(() => localStorage.getItem('spx-gfx-editor-layout'));
@@ -463,6 +474,18 @@ for (const [width, height] of [[1366, 768], [1920, 1080]] as const) test(`panel 
   await page.getByRole('button', { name: 'Reset layout', exact: true }).click();
   await expect.poll(async () => (await page.locator('.ef-inspector').boundingBox())!.width).toBe(280);
   expect(await snapshot()).toEqual(before); await page.screenshot({ path: info.outputPath('reachable-layout.png') });
+  const retiredCanvas = (await page.locator('.ef-canvas').elementHandle())!;
+  await page.evaluate(async () => { const S = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore; const s = S.getState(); s.applyTemplate({ ...s.template, name: 'Observer lifetime' }, { resetSampleData: true }); });
+  await ready(page); expect(await retiredCanvas.evaluate(element => element.isConnected)).toBe(false);
+  const remounted = await snapshot(); await timeline.focus(); await timeline.press('End');
+  const priorTimeline = (await page.locator('.ef-timeline').boundingBox())!.height;
+  // A new error/font row changes chrome without resizing the shell. Its new Canvas must be observed.
+  await page.locator('.ef-arrangement').evaluate(element => { const row = document.createElement('div'); row.id = 'observer-chrome-probe'; row.style.height = '24px'; element.appendChild(row); });
+  await expect.poll(async () => (await drawable.boundingBox())!.height).toBeGreaterThanOrEqual(180);
+  expect((await page.locator('.ef-timeline').boundingBox())!.height).toBeLessThan(priorTimeline);
+  await page.locator('#observer-chrome-probe').evaluate(element => element.remove());
+  await expect.poll(async () => (await page.locator('.ef-timeline').boundingBox())!.height).toBe(priorTimeline);
+  expect(await snapshot()).toEqual(remounted);
 });
 
 for (const arrival of ['before mount', 'after mount'] as const) test('unknown panel layout bytes survive mount, transient resize and reset: ' + arrival, async ({ page }) => {

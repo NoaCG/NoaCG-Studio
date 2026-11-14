@@ -661,6 +661,7 @@ test('refused external retention and cancelled Home/starter switches keep the un
   await page.getByRole('button', { name: /^Project/ }).first().click();
   await page.getByRole('button', { name: 'New project', exact: true }).click();
   await expect(page.getByTestId('project-starter')).toBeVisible();
+  await page.getByLabel('Starter collection', { exact: true }).selectOption({ index: 1 });
   await page.getByTestId('project-starter').getByRole('button', { name: /^Create project/ }).click();
   await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await page.getByTestId('switch-cancel').click();
@@ -1691,6 +1692,12 @@ test('new project defaults to a durable blank graphic', async ({ page }) => {
     return { id: s.documentId, source: s.template, project: w.projects.find(p => p.name === 'Empty show') };
   });
   expect(state.project?.documents).toEqual([state.id]); expect(state.source.fields).toEqual([]);
+  await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
+  const position = page.getByRole('textbox', { name: 'Graphic position X', exact: true });
+  await position.fill('24'); await position.press('Enter');
+  await expect.poll(() => page.evaluate(async () => (await __noacgImport('/src/blocks/compositionEdits.ts')).compositionValues((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template).x)).toBe(24);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(state.source);
   await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(state.source);
 });
