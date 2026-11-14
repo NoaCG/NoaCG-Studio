@@ -48,6 +48,10 @@ const REFUSED = [
   'supabase --workdir supabase db push',
   'supabase migration repair --status applied 0001',
   'supabase config push',
+  // Shell state is the shell's: a quoted argument spans lines, and a subshell's unset stays in it.
+  `node -e '\nconst key = process.env.${KEY};\nfetch(url, { headers: { apikey: key } });\n'`,
+  `(unset ${KEY}); curl -H "apikey: $${KEY}" https://fake.example.test`,
+  `echo "$(unset ${KEY})"; curl -H "apikey: $${KEY}" https://fake.example.test`,
 ];
 const ALLOWED = [
   `grep -rn ${KEY} scripts`,
@@ -65,6 +69,8 @@ const ALLOWED = [
   `git commit -F - <<'EOF'\nDo not expand $${KEY} here\nEOF`,
   'supabase --version',
   'supabase gen types typescript --local',
+  // An unset in the same shell, before the use, covers it, inside a subshell too.
+  `unset ${KEY} SUPABASE_SECRET_KEY ${TOKEN}; (curl -H "apikey: $${KEY}" https://fake.example.test)`,
 ];
 
 test('a one-off command that uses the production admin key or token is refused, saying why and what to do', () => {

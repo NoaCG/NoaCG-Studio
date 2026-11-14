@@ -113,8 +113,9 @@ export function armedCredentials(env, command = '') {
 }
 
 /**
- * Heredoc bodies taken out of the text, each kept with the line that opened it: `{ lines, docs }`,
- * where `docs[i]` lists `{ body, quoted }` for `lines[i]`. A quoted tag (`<<'EOF'`) is not expanded.
+ * Heredoc bodies taken out of the text, each kept with the line that opened it: `{ text, docs }`,
+ * where `docs[i]` lists `{ body, quoted }` for line i of `text`. A quoted tag (`<<'EOF'`) is not
+ * expanded.
  */
 function takeHeredocs(command) {
   const all = command.split('\n');
@@ -131,17 +132,25 @@ function takeHeredocs(command) {
       mine.push({ body: body.join('\n'), quoted: quote !== '' });
     }
   }
-  return { lines, docs };
+  return { text: lines.join('\n'), docs };
 }
 
 /**
- * The simple commands of one shell text, in order. Each is `{ words, expands, nested }`: its words
- * with quotes removed, the variables the shell expands in it (single quotes excepted), and the
- * shell text inside `$(...)` or backticks, which is judged as commands of its own.
+ * The simple commands of one shell text, in order, read as the shell reads it: a quoted argument
+ * may span lines. Each is `{ words, expands, nested, scope, heredocs }`: its words with quotes
+ * removed, the variables the shell expands in it (single quotes excepted), the shell text inside
+ * `$(...)` or backticks (judged as commands of their own), the subshell it runs in, and the
+ * heredocs opened on the lines it spans.
+ *
+ * `scope` is a path: `( ... )` opens a child of the scope it is in, so what an `unset` or `cd`
+ * changes inside a subshell does not reach the commands after it.
  */
-function simpleCommands(text) {
+function simpleCommands(text, docs = [], root = '0') {
   const out = [];
-  let cur = { words: [], expands: [], nested: [] };
+  const scopes = [root];
+  let opened = 0;
+  let line = 0;
+  let cur = { words: [], expands: [], nested: [], from: 0 };
   let word = null;
   let quote = null;
   const endWord = () => {
@@ -150,11 +159,16 @@ function simpleCommands(text) {
   };
   const endCommand = () => {
     endWord();
-    if (cur.words.length > 0) out.push(cur);
-    cur = { words: [], expands: [], nested: [] };
+    if (cur.words.length > 0) {
+      cur.scope = scopes.at(-1);
+      cur.heredocs = docs.slice(cur.from, line + 1).flat();
+      out.push(cur);
+    }
+    cur = { words: [], expands: [], nested: [], from: line };
   };
   for (let i = 0; i < text.length; i += 1) {
     const c = text[i];
+    if (c === '\n') line += 1;
     if (quote === "'") {
       if (c === "'") quote = null;
       else word += c;
@@ -170,6 +184,7 @@ function simpleCommands(text) {
       }
       cur.nested.push(text.slice(i + 2, j));
       word = (word ?? '') + text.slice(i, j + 1);
+      line += (text.slice(i + 1, j + 1).match(/\n/g) ?? []).length;
       i = j;
       continue;
     }
@@ -178,6 +193,7 @@ function simpleCommands(text) {
       const end = j < 0 ? text.length : j;
       cur.nested.push(text.slice(i + 1, end));
       word = (word ?? '') + text.slice(i, end + 1);
+      line += (text.slice(i + 1, end + 1).match(/\n/g) ?? []).length;
       i = end;
       continue;
     }
@@ -191,7 +207,13 @@ function simpleCommands(text) {
     } else if (c === '"' || c === "'") {
       quote = c;
       word = word ?? '';
-    } else if (/[;|&\n()]/.test(c)) {
+    } else if (c === '(') {
+      endCommand();
+      scopes.push(`${scopes.at(-1)}/${(opened += 1)}`);
+    } else if (c === ')') {
+      endCommand();
+      if (scopes.length > 1) scopes.pop();
+    } else if (/[;|&\n]/.test(c)) {
       endCommand();
     } else if (/\s/.test(c)) {
       endWord();
@@ -203,21 +225,22 @@ function simpleCommands(text) {
   return out;
 }
 
-/** Every simple command in the line, nested ones included, each with the heredocs of its line. */
+/** Every simple command in the text, nested ones included; a nested one runs in a child scope. */
 function commandsOf(command) {
-  const { lines, docs } = takeHeredocs(command);
+  const { text, docs } = takeHeredocs(command);
   const all = [];
-  const visit = (text, heredocs, depth) => {
-    for (const cmd of simpleCommands(text)) {
-      cmd.heredocs = heredocs;
+  let nests = 0;
+  const visit = (shell, heredocs, scope, depth) => {
+    for (const cmd of simpleCommands(shell, heredocs, scope)) {
       all.push(cmd);
       if (depth > 2) continue;
-      for (const inner of cmd.nested) visit(inner, [], depth + 1);
+      const inner = [...cmd.nested];
       const at = cmd.words.findIndex((w) => w === '-c');
-      if (at > 0 && isShell(cmd.words[at - 1]) && cmd.words[at + 1]) visit(cmd.words[at + 1], [], depth + 1);
+      if (at > 0 && isShell(cmd.words[at - 1]) && cmd.words[at + 1]) inner.push(cmd.words[at + 1]);
+      for (const nested of inner) visit(nested, [], `${cmd.scope}/n${(nests += 1)}`, depth + 1);
     }
   };
-  lines.forEach((line, i) => visit(line, docs[i], 0));
+  visit(text, docs, '0', 0);
   return all;
 }
 
@@ -311,15 +334,26 @@ export function productionReachRefusal(command, { env = process.env, cwd = proce
   const envFile = armed === CREDENTIALS && ENV_FILE.test(command);
 
   const reasons = [];
-  const unset = new Set();
-  let dir = cwd;
-  for (const { words, expands, heredocs } of commandsOf(command)) {
+  // What `cd`, `unset` and `export` changed, per shell scope. A subshell starts from its parent's
+  // state when it first runs, and what it changes stays inside it.
+  const states = new Map([['0', { dir: cwd, unset: new Set() }]]);
+  const stateOf = (scope) => {
+    if (!states.has(scope)) {
+      const parent = stateOf(scope.slice(0, scope.lastIndexOf('/')));
+      states.set(scope, { dir: parent.dir, unset: new Set(parent.unset) });
+    }
+    return states.get(scope);
+  };
+  for (const { words, expands, heredocs, scope } of commandsOf(command)) {
+    const state = stateOf(scope);
+    const { unset } = state;
     const [head, arg] = words;
     if (head === 'cd' || head === 'pushd') {
-      if (!arg || arg === '~') dir = homedir();
-      else if (!arg.includes('$') && arg !== '-') dir = resolve(dir, arg.replace(/^~(?=[\\/])/, homedir()));
+      if (!arg || arg === '~') state.dir = homedir();
+      else if (!arg.includes('$') && arg !== '-') state.dir = resolve(state.dir, arg.replace(/^~(?=[\\/])/, homedir()));
       continue;
     }
+    const { dir } = state;
     if (head === 'unset' || head === 'export') {
       for (const w of words.slice(1)) {
         const name = w.split('=')[0];
