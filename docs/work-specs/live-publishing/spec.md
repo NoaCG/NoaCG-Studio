@@ -551,5 +551,20 @@ Filled in by each phase's pull request.
   for and the build that measured it, and a reopened page takes it only for a cue it has not
   measured yet, with the same identity, from the same build, in the order the boxes were measured.
   What a Take airs and what a publish stores are unchanged for the same input: the box is the one
-  this page measured for exactly that cue. No migration.
+  this page measured for exactly that cue. No migration. Rules (a Risky row: reload state; written
+  after the code, so each is pinned by the Node test or the measurement):
+  - K1 With `partial_writes` off, nothing is kept or taken: measuring, Takes and publishes are as on
+    `main`.
+  - K2 With it on, a reopened page takes a kept box for a cue only when it has not measured that cue
+    since it opened, the cue is still of the same graphic, its measure identity hashes the same, and
+    the same build measured it.
+  - K3 A taken box counts as measured for that identity: neither the background measurer nor a
+    publish's wait measures it again, and a Take or a publish uses it.
+  - K4 A measurement made since the page opened always wins over a kept one.
+  - K5 Kept boxes are taken in the order they were measured, so each graphic's newest box (read by
+    its unmeasured cues) is the one it was before the reload.
+  - K6 A cue the production no longer has is dropped at the next write; at most 8 productions are
+    kept; storage that refuses a read or write changes nothing but the saving.
+  - K7 The background measurer starts once the switch is read, so a box measured anew never races
+    a kept one.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.
