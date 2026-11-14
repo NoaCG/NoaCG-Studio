@@ -9,7 +9,8 @@ import { BUILD, NET, pct, summary, writeResult } from './_measure';
 //
 //   soak   MEASURE_PAGES people (default 5) for MEASURE_SOAK_MS (default ten minutes), automatic
 //          updates and partial writes on; one editor reloads at 40%, another is offline from 60%
-//          for 20 s. Reports every press, the settled server state and each page's own copy.
+//          for 20 s. Reports every press, the settled server state and each page's own copy, read
+//          once everything holds each editor's last text or MEASURE_SETTLE_MS (default 90 s) ends.
 //   pair   press to ran with everyone working against the taker's page alone, interleaved:
 //          MEASURE_ROUNDS rounds of MEASURE_ROUND_MS each way, the order alternating per round.
 //
@@ -74,7 +75,7 @@ test('soak', async ({ page, browser }) => {
   scene = await setUp(browser, page, PAGES);
   const report = await run(scene, { ms, reloadAt: 0.4, offlineAt: 0.6, offlineMs: 20_000, messageEveryMs: Number(process.env.MEASURE_MESSAGE_MS ?? 15_000) });
   log('run over; settling');
-  const settled = await settle(scene, report);
+  const settled = await settle(scene, report, Number(process.env.MEASURE_SETTLE_MS ?? 90_000));
   const lost = report.takes.filter((t) => t.ranAt === null).length;
   writeResult(`five-soak-${TAG}-part${PART}`, {
     pages: PAGES,
