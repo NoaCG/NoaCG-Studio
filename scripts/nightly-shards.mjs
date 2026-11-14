@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // THE NIGHTLY'S SHARDS: the whole E2E suite, packed onto nightly.yml's runners by measured minutes.
 //
-//   node scripts/nightly-shards.mjs [--github-output] [<earlier nightly report.json> ...]
+//   node scripts/nightly-shards.mjs [--github-output] [--only <e2e/x.spec.ts> ...] [<earlier nightly report.json> ...]
 //
 // The reports are merged Playwright JSON reports of earlier nightlies, NEWEST FIRST. Prints one
 // JSON object - { shardSpecs, matrix, predicted, weights } - and with --github-output also writes
@@ -147,9 +147,19 @@ export function planNightly({ suite, table, reports = [], shards }) {
   };
 }
 
+/**
+ * The files to plan: every spec on disk, or with `only` (repo paths such as `e2e/x.spec.ts`, the
+ * quarantine list nightly.yml reruns) just those of them that are on disk.
+ */
+export function suiteFor(onDisk, only = []) {
+  if (only.length === 0) return onDisk;
+  const wanted = new Set(only.map((f) => f.replace(/^e2e\//, '')));
+  return onDisk.filter((f) => wanted.has(f));
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values, positionals } = parseArgs({
-    options: { 'github-output': { type: 'boolean' } },
+    options: { 'github-output': { type: 'boolean' }, only: { type: 'string', multiple: true } },
     allowPositionals: true,
   });
   const reports = [];
@@ -162,7 +172,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       console.error(`nightly-shards: ignoring ${file} - ${error.message}`);
     }
   }
-  const plan = planNightly({ suite: specFilesOnDisk(), table: readTable(), reports });
+  const suite = suiteFor(specFilesOnDisk(), values.only);
+  if (suite.length === 0) {
+    // An empty plan would hand Playwright no filter, which runs EVERY test.
+    console.error(`nightly-shards: no spec file to plan${values.only ? ` - none of --only ${values.only.join(' ')} is on disk` : ''}.`);
+    process.exit(1);
+  }
+  const plan = planNightly({ suite, table: readTable(), reports });
   const worst = Math.max(...plan.predicted);
   console.error(
     `nightly-shards: ${plan.shardSpecs.length} shards, predicted ${Math.min(...plan.predicted)}-${worst} min each; ` +
