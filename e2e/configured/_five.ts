@@ -259,7 +259,7 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
   log('everyone is on the production page');
   const { slug, key } = await owner.evaluate(async (id) => {
     const { loadShows } = await __noacgImport('/src/model/shows.ts');
-    const { productionDataKey, patchProductionData } = await __noacgImport('/src/control/productionDataApi.ts');
+    const { productionDataKey } = await __noacgImport('/src/control/productionDataApi.ts');
     const s = loadShows().find((x) => x.id === id)!;
     const key = await productionDataKey(id);
     return { slug: s.outputSlug ?? '', key: key ?? '' };
