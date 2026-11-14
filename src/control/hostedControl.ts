@@ -42,6 +42,8 @@ import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFai
 import { noteSend, withSender } from './livePath';
 import { counted } from './sendsInFlight';
 import { obsScenesOf, SCENE_ID, type ObsScene } from '../model/obsScenes';
+import { partialWritesOn } from '../backend/partialWrites';
+import { forgetOwnPublish, noteOwnPublish, ownPublish, pruneDue, publishInParts } from './publishParts';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
 import { uuid } from '../model/id';
@@ -645,9 +647,21 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
   // publisher does not hold stay as published (`buildPanelSpec`).
   // …and its OBS scenes, as small as the stamp: what this publish replaces, for the page that
   // takes a graphic that joins a scene (#2489, `PublishedCapabilities.scenes`).
-  const previous = await sb.from('control_shows').select('ver:output->ver, scenes:output->scenes, panel').eq('id', show.id).maybeSingle();
-  if (previous.error) throw new Error(previous.error.message);
-  const prev = previous.data as { ver?: unknown; scenes?: unknown; panel?: unknown } | null;
+  // With parts on (live-publishing G4 section 4), this page's own last publish stands in for the
+  // read while the stored stamp is still that one (a stale one answers `moved`), and a read names
+  // small columns: the stamp, the head's scenes, the panel only when a graphic's record is in
+  // another library.
+  const inParts = await partialWritesOn();
+  const own = inParts ? ownPublish(show.id) : null;
+  const prev = own
+    ? { ver: own.ver, scenes: own.scenes, panel: own.panel }
+    : inParts
+      ? await smallPublishedRead(sb, show, library)
+      : await (async () => {
+          const previous = await sb.from('control_shows').select('ver:output->ver, scenes:output->scenes, panel').eq('id', show.id).maybeSingle();
+          if (previous.error) throw new Error(previous.error.message);
+          return previous.data as { ver?: unknown; scenes?: unknown; panel?: unknown } | null;
+        })();
   const held = readPayloadVersion(prev?.ver);
   const heldPanel = readPanel(prev?.panel);
   const scenes = { before: readScenes(prev?.scenes) ?? [], after: built.scenes ?? [] };
@@ -667,7 +681,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
     const updatable = show.graphics.some((g) => older.includes(g.name) && newerLibraryDesign(g, library));
     throw new PublishBehind(`${older.join(', ')} on air ${one ? 'is' : 'are'} newer than this production's copy.${updatable ? ' Update it from the library first.' : ''}`);
   }
-  const expected: ExpectedVersion = { exists: !!previous.data, n: held?.n ?? null };
+  const expected: ExpectedVersion = { exists: !!prev, n: held?.n ?? null };
   const output: OutputPayload = { ...built, ver: version };
   // The upsert names only the columns it owns, which is what keeps `audience_state` (0035) —
   // open/mode/prompt/round/rev, all of it live operator state — from being reset by a
@@ -714,6 +728,28 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
   // the SET makes Postgres lock the existing row FOR UPDATE, which blocks every Take's KEY SHARE on
   // it for the whole multi-megabyte write. An update that leaves `id` out of the SET takes FOR NO
   // KEY UPDATE, which a Take passes (migration 0071, review finding ordering:F1).
+  // ONLY WHAT CHANGED (live-publishing G4 section 4, R21): over an existing row, with the switch on,
+  // the press sends the difference from the stored publication, as an automatic publish does. The
+  // first Publish (an insert) and a path that falls back write whole, below.
+  if (expected.exists && (await partialWritesOn())) {
+    const got = await publishInParts(sb, show.id, built, published.panel, version, held, {
+      title: published.title,
+      bindings: published.bindings,
+      sources: published.sources,
+      collections: published.collections,
+      profile: published.profile,
+      ...(show.teamId ? { team_id: show.teamId } : {}),
+    });
+    if (got.kind === 'moved') {
+      forgetOwnPublish(show.id);
+      throw new PublishBehind(RACED);
+    }
+    if (got.kind === 'landed') {
+      noteOwnPublish(show.id, { ver: version, rev: rev ?? null, scenes: scenes.after, panel: published.panel });
+      return afterPublishWrite(sb, show, version, scenes, got.answer);
+    }
+    forgetOwnPublish(show.id);
+  }
   const error = await writeControlShow(sb, published, expected);
   // AN INSTANCE THAT HAS NOT RUN 0058 (or 0097, for `sources`) MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
   // upsert when one named column is not in its schema cache, so naming `profile` unconditionally
@@ -738,15 +774,65 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
     // is the one that describes what is actually wrong.
     if (retry) throw new Error(error.message);
   }
+  return afterPublishWrite(sb, show, version, scenes);
+}
+
+/** The publication as a press needs it, from small columns (G4 section 4): the stamp, the scenes
+ *  from the head when it is current (else from the payload), the panel only when a graphic's record
+ *  is in another library. Null: no row. */
+async function smallPublishedRead(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>, show: Show, library: GraphicDoc[]): Promise<{ ver?: unknown; scenes?: unknown; panel?: unknown } | null> {
+  const { data, error } = await sb.from('control_shows').select('ver:published_ver, hver:published_head->ver, hscenes:published_head->scenes').eq('id', show.id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const row = data as { ver?: unknown; hver?: unknown; hscenes?: unknown };
+  let scenes = row.hscenes;
+  if (JSON.stringify(row.hver ?? null) !== JSON.stringify(row.ver ?? null) || row.ver == null) {
+    const whole = await sb.from('control_shows').select('scenes:output->scenes').eq('id', show.id).maybeSingle();
+    if (whole.error) throw new Error(whole.error.message);
+    scenes = (whole.data as { scenes?: unknown } | null)?.scenes;
+  }
+  let panel: unknown = [];
+  if (!show.graphics.every((g) => resolveSavedGraphicDoc(g, library))) {
+    const held = await sb.from('control_shows').select('panel').eq('id', show.id).maybeSingle();
+    if (held.error) throw new Error(held.error.message);
+    panel = (held.data as { panel?: unknown } | null)?.panel;
+  }
+  return { ver: row.ver, scenes, panel };
+}
+
+/** What a press's publish does once its write landed, whole or in parts: the prune, the slugs read
+ *  back, the join page's brand and its readable name. */
+async function afterPublishWrite(
+  sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
+  show: Show,
+  version: PayloadVersion,
+  scenes: { before: ObsScene[]; after: ObsScene[] },
+  /** A publish in parts' answer: the slugs, whether phones have a page and their brand (G4). */
+  answer?: Record<string, unknown>,
+): Promise<PublishedCapabilities> {
   // The prune result is deliberately unread (best-effort retention; the 0029 owner DELETE
-  // policy may not exist on an older instance) — run it beside the slug read-back.
+  // policy may not exist on an older instance) — run it beside the slug read-back. A publish in
+  // parts prunes at most hourly from one page and reads nothing back: its answer says it.
+  const fromAnswer = answer && typeof answer.slug === 'string'
+    ? {
+        data: {
+          slug: answer.slug,
+          outputSlug: (answer.output_slug as string | null) ?? null,
+          joinSlug: (answer.join_slug as string | null) ?? null,
+          presenterSlug: (answer.presenter_slug as string | null) ?? null,
+          audience_state: answer.audience === true ? {} : null,
+        },
+        error: null,
+      }
+    : null;
   const [, readBack] = await Promise.all([
-    pruneControlEvents(sb, show.id),
-    sb
-      .from('control_shows')
-      .select('slug, outputSlug:output_slug, joinSlug:join_slug, presenterSlug:presenter_slug, audience_state')
-      .eq('id', show.id)
-      .single(),
+    fromAnswer && !pruneDue(show.id) ? Promise.resolve() : pruneControlEvents(sb, show.id),
+    fromAnswer ??
+      sb
+        .from('control_shows')
+        .select('slug, outputSlug:output_slug, joinSlug:join_slug, presenterSlug:presenter_slug, audience_state')
+        .eq('id', show.id)
+        .single(),
   ]);
   // A server WITHOUT 0035 answers the audience columns with an error rather than with nulls,
   // so the fallback re-reads the two columns that have always existed. Publishing a production
@@ -774,7 +860,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
   // P5 (control/joinPageSync.ts): the page goes through the same one-at-a-time queue as
   // Interaction's sync, which reads the production as saved when this turn runs, so a title
   // changed during a long publish (or a slow logo upload) is what phones end on.
-  if (row.audience_state) await sendJoinBrand(show, row.slug);
+  if (row.audience_state) await sendJoinBrand(show, row.slug, fromAnswer ? ((answer!.brand ?? null) as AudienceBrand | null) : undefined);
   // A production that has never had an audience slug gets a READABLE one derived from its name,
   // here, on its first publish - so a link an operator can read out exists without anyone typing
   // an ending. Only on the first publish: after that the name is a shared URL, and republishing
@@ -797,11 +883,18 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
 /** The production's brand to its join page, merged into the audience state by the server (P4, P5;
  *  see the comment at its use in `publishControlShow`). Also after an automatic publish
  *  (control/publishRevision.ts). */
-export async function sendJoinBrand(show: Show, slug: string): Promise<void> {
+export async function sendJoinBrand(show: Show, slug: string, known?: AudienceBrand | null): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  // A failed read throws, so it is never mistaken for "phones have no page yet" (P4).
+  // A failed read throws, so it is never mistaken for "phones have no page yet" (P4). A brand the
+  // caller already read with its publish (live-publishing G4) is used once instead of asking again.
+  let given = known;
   const read = async () => {
+    if (given !== undefined) {
+      const brand = given;
+      given = undefined;
+      return brand;
+    }
     const { data, error } = await sb.rpc('audience_set_join', { p_slug: slug, p_patch: {} });
     if (error) throw new Error(error.message);
     return ((data ?? null) as { brand?: AudienceBrand } | null)?.brand ?? null;

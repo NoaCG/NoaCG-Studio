@@ -57,184 +57,185 @@ import * as m53 from './backend/sync.ts';
 import * as m54 from './backend/syncController.ts';
 import * as m55 from './backend/teamProductions.ts';
 import * as m56 from './backend/teams.ts';
-import * as m57 from './blocks/animData.ts';
-import * as m58 from './blocks/animEdit.ts';
-import * as m59 from './blocks/animEval.ts';
-import * as m60 from './blocks/animImport.ts';
-import * as m61 from './blocks/animMachine.ts';
-import * as m62 from './blocks/animMigration.ts';
-import * as m63 from './blocks/baseEdits.ts';
-import * as m64 from './blocks/behaviourLook.ts';
-import * as m65 from './blocks/designLayout.ts';
-import * as m66 from './blocks/edit.ts';
-import * as m67 from './blocks/editorAnimation.ts';
-import * as m68 from './blocks/editorImages.ts';
-import * as m69 from './blocks/editorLoops.ts';
-import * as m70 from './blocks/editorOut.ts';
-import * as m71 from './blocks/editorPaths.ts';
-import * as m72 from './blocks/lottieInsert.ts';
-import * as m73 from './blocks/machineEdit.ts';
-import * as m74 from './blocks/motionPresets.ts';
-import * as m75 from './blocks/presetRegistry.ts';
-import * as m76 from './blocks/productionSoundEdit.ts';
-import * as m77 from './blocks/svgIdentity.ts';
-import * as m78 from './bridge/bridgeApi.ts';
-import * as m79 from './community/packChecks.ts';
-import * as m80 from './community/packSources.ts';
-import * as m81 from './community/packStamp.ts';
-import * as m82 from './community/packs.ts';
-import * as m83 from './components/ExportWindow.tsx';
-import * as m84 from './components/editorFoundation/Canvas.tsx';
-import * as m85 from './components/editorFoundation/PreviewController.ts';
-import * as m86 from './components/editorFoundation/animationAuthoring.ts';
-import * as m87 from './components/editorFoundation/commandAdapter.ts';
-import * as m88 from './components/editorFoundation/commands.ts';
-import * as m89 from './components/editorFoundation/documentAdapter.ts';
-import * as m90 from './components/editorFoundation/openNewEditor.ts';
-import * as m91 from './components/editorFoundation/operations.ts';
-import * as m92 from './components/editorFoundation/protocol.ts';
-import * as m93 from './components/editorFoundation/session.ts';
-import * as m94 from './components/editorFoundation/timelineView.ts';
-import * as m95 from './components/editorFoundation/useArtworkGesture.ts';
-import * as m96 from './components/home/exportAppearances.ts';
-import * as m97 from './components/home/measureCue.ts';
-import * as m98 from './components/playoutKeys.ts';
-import * as m99 from './components/wizard/draft.ts';
-import * as m100 from './components/wizard/draft/core.ts';
-import * as m101 from './components/wizard/draft/template.ts';
-import * as m102 from './components/wizard/import/draft.ts';
-import * as m103 from './components/wizard/template/kitPlan.ts';
-import * as m104 from './control/controlModel.ts';
-import * as m105 from './control/controlPanelHtml.ts';
-import * as m106 from './control/cueAdjust.ts';
-import * as m107 from './control/cueFieldGroups.ts';
-import * as m108 from './control/cueStyle.ts';
-import * as m109 from './control/eventLog.ts';
-import * as m110 from './control/hostedControl.ts';
-import * as m111 from './control/hostedReceiver.ts';
-import * as m112 from './control/liveData.ts';
-import * as m113 from './control/livePath.ts';
-import * as m114 from './control/matchClockWire.ts';
-import * as m115 from './control/ografContract.ts';
-import * as m116 from './control/outputRecovery.ts';
-import * as m117 from './control/payloadVersion.ts';
-import * as m118 from './control/playoutLink.ts';
-import * as m119 from './control/productionControllerHtml.ts';
-import * as m120 from './control/productionDataApi.ts';
-import * as m121 from './control/projectInstallation.ts';
-import * as m122 from './control/resultStaging.ts';
-import * as m123 from './control/sourceMapping.ts';
-import * as m124 from './control/spaceMode.ts';
-import * as m125 from './editor/commentVisibility.ts';
-import * as m126 from './export/noacgPackage.ts';
-import * as m127 from './export/registry.ts';
-import * as m128 from './export/selfContained.ts';
-import * as m129 from './export/showExport.ts';
-import * as m130 from './export/targets/casparcg.ts';
-import * as m131 from './export/targets/h2r.ts';
-import * as m132 from './export/targets/htmlOverlay.ts';
-import * as m133 from './export/targets/ograf.ts';
-import * as m134 from './export/targets/ografForeign.ts';
-import * as m135 from './export/targets/ografImport.ts';
-import * as m136 from './export/targets/ografSchema.ts';
-import * as m137 from './export/targets/spxStarter.ts';
-import * as m138 from './format/formatCode.ts';
-import * as m139 from './model/brand.ts';
-import * as m140 from './model/contentHash.ts';
-import * as m141 from './model/cssVars.ts';
-import * as m142 from './model/cueClipboard.ts';
-import * as m143 from './model/durableStore.ts';
-import * as m144 from './model/editorOrganization.ts';
-import * as m145 from './model/fonts.ts';
-import * as m146 from './model/foreignPackage.ts';
-import * as m147 from './model/generationSpec.ts';
-import * as m148 from './model/graphicDoc.ts';
-import * as m149 from './model/importTemplate.ts';
-import * as m150 from './model/library.ts';
-import * as m151 from './model/outputSetup.ts';
-import * as m152 from './model/ownReaderHolds.ts';
-import * as m153 from './model/packets.ts';
-import * as m154 from './model/prefs.ts';
-import * as m155 from './model/productionData.ts';
-import * as m156 from './model/productionState.ts';
-import * as m157 from './model/profile.ts';
-import * as m158 from './model/project.ts';
-import * as m159 from './model/projectFormat.ts';
-import * as m160 from './model/projectInstallation.ts';
-import * as m161 from './model/readyMemory.ts';
-import * as m162 from './model/rundownHistory.ts';
-import * as m163 from './model/shows.ts';
-import * as m164 from './model/slug.ts';
-import * as m165 from './model/spxDefinition.ts';
-import * as m166 from './model/structure.ts';
-import * as m167 from './model/svgGroupTransform.ts';
-import * as m168 from './model/taxonomy.ts';
-import * as m169 from './model/teamOutbox.ts';
-import * as m170 from './model/teamShows.ts';
-import * as m171 from './model/types.ts';
-import * as m172 from './model/videoTypes.ts';
-import * as m173 from './model/wizard.ts';
-import * as m174 from './ograf/starters.ts';
-import * as m175 from './output/foreignOgraf.ts';
-import * as m176 from './output/prepare.ts';
-import * as m177 from './output/stage.ts';
-import * as m178 from './packs/graphicsPack.ts';
-import * as m179 from './preview/composeDocument.ts';
-import * as m180 from './preview/previewProtocol.ts';
-import * as m181 from './render/limits.ts';
-import * as m182 from './render/schedule.ts';
-import * as m183 from './showchat/chatGraphicBlock.ts';
-import * as m184 from './store/docKindStore.ts';
-import * as m185 from './store/saveActions.ts';
-import * as m186 from './store/templateStore.ts';
-import * as m187 from './store/videoProjectStore.ts';
-import * as m188 from './templates/behaviours/clock.ts';
-import * as m189 from './templates/behaviours/registry.ts';
-import * as m190 from './templates/blank.ts';
-import * as m191 from './templates/catalog.ts';
-import * as m192 from './templates/cornerBug/index.ts';
-import * as m193 from './templates/defaultTemplate.ts';
-import * as m194 from './templates/gameTimers/index.ts';
-import * as m195 from './templates/importedDesign/creditsRoll.ts';
-import * as m196 from './templates/importedDesign/reimport.ts';
-import * as m197 from './templates/importedDesign/stretch.ts';
-import * as m198 from './templates/importedDesign/svg.ts';
-import * as m199 from './templates/infoCards/index.ts';
-import * as m200 from './templates/infographics/index.ts';
-import * as m201 from './templates/kit.ts';
-import * as m202 from './templates/lowerThirds/animPresets.ts';
-import * as m203 from './templates/lowerThirds/index.ts';
-import * as m204 from './templates/lowerThirds/lt01.ts';
-import * as m205 from './templates/packs.ts';
-import * as m206 from './templates/picture.ts';
-import * as m207 from './templates/quiz/index.ts';
-import * as m208 from './templates/scoreboards/index.ts';
-import * as m209 from './templates/search.ts';
-import * as m210 from './templates/shared/animRuntime.ts';
-import * as m211 from './templates/shared/animRuntimeLegacy.ts';
-import * as m212 from './templates/shared/base.ts';
-import * as m213 from './templates/shared/clock.ts';
-import * as m214 from './templates/shared/easeRuntime.ts';
-import * as m215 from './templates/shared/textFit.ts';
-import * as m216 from './templates/startingSoon/index.ts';
-import * as m217 from './templates/structuralAnchor.ts';
-import * as m218 from './templates/templateMeta.ts';
-import * as m219 from './templates/tickers/index.ts';
-import * as m220 from './templates/types/graphicType.ts';
-import * as m221 from './templates/types/recipeTemplate.ts';
-import * as m222 from './templates/types/registry.ts';
-import * as m223 from './validation/designRulesWarnings.ts';
-import * as m224 from './validation/fieldPaint.ts';
-import * as m225 from './validation/productionGate.ts';
-import * as m226 from './validation/publishGate.ts';
-import * as m227 from './validation/runtimeBench.ts';
-import * as m228 from './validation/structuralIntentCheck.ts';
-import * as m229 from './validation/templateBench.ts';
-import * as m230 from './validation/validateTemplate.ts';
-import * as m231 from './video/bridgeRegistry.ts';
-import * as m232 from './video/compile.ts';
-import * as m233 from './video/hyperframes/bridge.ts';
-import * as m234 from './video/hyperframes/validate.ts';
+import * as m57 from './backend/unitPatch.ts';
+import * as m58 from './blocks/animData.ts';
+import * as m59 from './blocks/animEdit.ts';
+import * as m60 from './blocks/animEval.ts';
+import * as m61 from './blocks/animImport.ts';
+import * as m62 from './blocks/animMachine.ts';
+import * as m63 from './blocks/animMigration.ts';
+import * as m64 from './blocks/baseEdits.ts';
+import * as m65 from './blocks/behaviourLook.ts';
+import * as m66 from './blocks/designLayout.ts';
+import * as m67 from './blocks/edit.ts';
+import * as m68 from './blocks/editorAnimation.ts';
+import * as m69 from './blocks/editorImages.ts';
+import * as m70 from './blocks/editorLoops.ts';
+import * as m71 from './blocks/editorOut.ts';
+import * as m72 from './blocks/editorPaths.ts';
+import * as m73 from './blocks/lottieInsert.ts';
+import * as m74 from './blocks/machineEdit.ts';
+import * as m75 from './blocks/motionPresets.ts';
+import * as m76 from './blocks/presetRegistry.ts';
+import * as m77 from './blocks/productionSoundEdit.ts';
+import * as m78 from './blocks/svgIdentity.ts';
+import * as m79 from './bridge/bridgeApi.ts';
+import * as m80 from './community/packChecks.ts';
+import * as m81 from './community/packSources.ts';
+import * as m82 from './community/packStamp.ts';
+import * as m83 from './community/packs.ts';
+import * as m84 from './components/ExportWindow.tsx';
+import * as m85 from './components/editorFoundation/Canvas.tsx';
+import * as m86 from './components/editorFoundation/PreviewController.ts';
+import * as m87 from './components/editorFoundation/animationAuthoring.ts';
+import * as m88 from './components/editorFoundation/commandAdapter.ts';
+import * as m89 from './components/editorFoundation/commands.ts';
+import * as m90 from './components/editorFoundation/documentAdapter.ts';
+import * as m91 from './components/editorFoundation/openNewEditor.ts';
+import * as m92 from './components/editorFoundation/operations.ts';
+import * as m93 from './components/editorFoundation/protocol.ts';
+import * as m94 from './components/editorFoundation/session.ts';
+import * as m95 from './components/editorFoundation/timelineView.ts';
+import * as m96 from './components/editorFoundation/useArtworkGesture.ts';
+import * as m97 from './components/home/exportAppearances.ts';
+import * as m98 from './components/home/measureCue.ts';
+import * as m99 from './components/playoutKeys.ts';
+import * as m100 from './components/wizard/draft.ts';
+import * as m101 from './components/wizard/draft/core.ts';
+import * as m102 from './components/wizard/draft/template.ts';
+import * as m103 from './components/wizard/import/draft.ts';
+import * as m104 from './components/wizard/template/kitPlan.ts';
+import * as m105 from './control/controlModel.ts';
+import * as m106 from './control/controlPanelHtml.ts';
+import * as m107 from './control/cueAdjust.ts';
+import * as m108 from './control/cueFieldGroups.ts';
+import * as m109 from './control/cueStyle.ts';
+import * as m110 from './control/eventLog.ts';
+import * as m111 from './control/hostedControl.ts';
+import * as m112 from './control/hostedReceiver.ts';
+import * as m113 from './control/liveData.ts';
+import * as m114 from './control/livePath.ts';
+import * as m115 from './control/matchClockWire.ts';
+import * as m116 from './control/ografContract.ts';
+import * as m117 from './control/outputRecovery.ts';
+import * as m118 from './control/payloadVersion.ts';
+import * as m119 from './control/playoutLink.ts';
+import * as m120 from './control/productionControllerHtml.ts';
+import * as m121 from './control/productionDataApi.ts';
+import * as m122 from './control/projectInstallation.ts';
+import * as m123 from './control/resultStaging.ts';
+import * as m124 from './control/sourceMapping.ts';
+import * as m125 from './control/spaceMode.ts';
+import * as m126 from './editor/commentVisibility.ts';
+import * as m127 from './export/noacgPackage.ts';
+import * as m128 from './export/registry.ts';
+import * as m129 from './export/selfContained.ts';
+import * as m130 from './export/showExport.ts';
+import * as m131 from './export/targets/casparcg.ts';
+import * as m132 from './export/targets/h2r.ts';
+import * as m133 from './export/targets/htmlOverlay.ts';
+import * as m134 from './export/targets/ograf.ts';
+import * as m135 from './export/targets/ografForeign.ts';
+import * as m136 from './export/targets/ografImport.ts';
+import * as m137 from './export/targets/ografSchema.ts';
+import * as m138 from './export/targets/spxStarter.ts';
+import * as m139 from './format/formatCode.ts';
+import * as m140 from './model/brand.ts';
+import * as m141 from './model/contentHash.ts';
+import * as m142 from './model/cssVars.ts';
+import * as m143 from './model/cueClipboard.ts';
+import * as m144 from './model/durableStore.ts';
+import * as m145 from './model/editorOrganization.ts';
+import * as m146 from './model/fonts.ts';
+import * as m147 from './model/foreignPackage.ts';
+import * as m148 from './model/generationSpec.ts';
+import * as m149 from './model/graphicDoc.ts';
+import * as m150 from './model/importTemplate.ts';
+import * as m151 from './model/library.ts';
+import * as m152 from './model/outputSetup.ts';
+import * as m153 from './model/ownReaderHolds.ts';
+import * as m154 from './model/packets.ts';
+import * as m155 from './model/prefs.ts';
+import * as m156 from './model/productionData.ts';
+import * as m157 from './model/productionState.ts';
+import * as m158 from './model/profile.ts';
+import * as m159 from './model/project.ts';
+import * as m160 from './model/projectFormat.ts';
+import * as m161 from './model/projectInstallation.ts';
+import * as m162 from './model/readyMemory.ts';
+import * as m163 from './model/rundownHistory.ts';
+import * as m164 from './model/shows.ts';
+import * as m165 from './model/slug.ts';
+import * as m166 from './model/spxDefinition.ts';
+import * as m167 from './model/structure.ts';
+import * as m168 from './model/svgGroupTransform.ts';
+import * as m169 from './model/taxonomy.ts';
+import * as m170 from './model/teamOutbox.ts';
+import * as m171 from './model/teamShows.ts';
+import * as m172 from './model/types.ts';
+import * as m173 from './model/videoTypes.ts';
+import * as m174 from './model/wizard.ts';
+import * as m175 from './ograf/starters.ts';
+import * as m176 from './output/foreignOgraf.ts';
+import * as m177 from './output/prepare.ts';
+import * as m178 from './output/stage.ts';
+import * as m179 from './packs/graphicsPack.ts';
+import * as m180 from './preview/composeDocument.ts';
+import * as m181 from './preview/previewProtocol.ts';
+import * as m182 from './render/limits.ts';
+import * as m183 from './render/schedule.ts';
+import * as m184 from './showchat/chatGraphicBlock.ts';
+import * as m185 from './store/docKindStore.ts';
+import * as m186 from './store/saveActions.ts';
+import * as m187 from './store/templateStore.ts';
+import * as m188 from './store/videoProjectStore.ts';
+import * as m189 from './templates/behaviours/clock.ts';
+import * as m190 from './templates/behaviours/registry.ts';
+import * as m191 from './templates/blank.ts';
+import * as m192 from './templates/catalog.ts';
+import * as m193 from './templates/cornerBug/index.ts';
+import * as m194 from './templates/defaultTemplate.ts';
+import * as m195 from './templates/gameTimers/index.ts';
+import * as m196 from './templates/importedDesign/creditsRoll.ts';
+import * as m197 from './templates/importedDesign/reimport.ts';
+import * as m198 from './templates/importedDesign/stretch.ts';
+import * as m199 from './templates/importedDesign/svg.ts';
+import * as m200 from './templates/infoCards/index.ts';
+import * as m201 from './templates/infographics/index.ts';
+import * as m202 from './templates/kit.ts';
+import * as m203 from './templates/lowerThirds/animPresets.ts';
+import * as m204 from './templates/lowerThirds/index.ts';
+import * as m205 from './templates/lowerThirds/lt01.ts';
+import * as m206 from './templates/packs.ts';
+import * as m207 from './templates/picture.ts';
+import * as m208 from './templates/quiz/index.ts';
+import * as m209 from './templates/scoreboards/index.ts';
+import * as m210 from './templates/search.ts';
+import * as m211 from './templates/shared/animRuntime.ts';
+import * as m212 from './templates/shared/animRuntimeLegacy.ts';
+import * as m213 from './templates/shared/base.ts';
+import * as m214 from './templates/shared/clock.ts';
+import * as m215 from './templates/shared/easeRuntime.ts';
+import * as m216 from './templates/shared/textFit.ts';
+import * as m217 from './templates/startingSoon/index.ts';
+import * as m218 from './templates/structuralAnchor.ts';
+import * as m219 from './templates/templateMeta.ts';
+import * as m220 from './templates/tickers/index.ts';
+import * as m221 from './templates/types/graphicType.ts';
+import * as m222 from './templates/types/recipeTemplate.ts';
+import * as m223 from './templates/types/registry.ts';
+import * as m224 from './validation/designRulesWarnings.ts';
+import * as m225 from './validation/fieldPaint.ts';
+import * as m226 from './validation/productionGate.ts';
+import * as m227 from './validation/publishGate.ts';
+import * as m228 from './validation/runtimeBench.ts';
+import * as m229 from './validation/structuralIntentCheck.ts';
+import * as m230 from './validation/templateBench.ts';
+import * as m231 from './validation/validateTemplate.ts';
+import * as m232 from './video/bridgeRegistry.ts';
+import * as m233 from './video/compile.ts';
+import * as m234 from './video/hyperframes/bridge.ts';
+import * as m235 from './video/hyperframes/validate.ts';
 
 export const MODULES: Record<string, unknown> = {
   '/src/ai/assetIntegrity.ts': m0,
@@ -294,184 +295,185 @@ export const MODULES: Record<string, unknown> = {
   '/src/backend/syncController.ts': m54,
   '/src/backend/teamProductions.ts': m55,
   '/src/backend/teams.ts': m56,
-  '/src/blocks/animData.ts': m57,
-  '/src/blocks/animEdit.ts': m58,
-  '/src/blocks/animEval.ts': m59,
-  '/src/blocks/animImport.ts': m60,
-  '/src/blocks/animMachine.ts': m61,
-  '/src/blocks/animMigration.ts': m62,
-  '/src/blocks/baseEdits.ts': m63,
-  '/src/blocks/behaviourLook.ts': m64,
-  '/src/blocks/designLayout.ts': m65,
-  '/src/blocks/edit.ts': m66,
-  '/src/blocks/editorAnimation.ts': m67,
-  '/src/blocks/editorImages.ts': m68,
-  '/src/blocks/editorLoops.ts': m69,
-  '/src/blocks/editorOut.ts': m70,
-  '/src/blocks/editorPaths.ts': m71,
-  '/src/blocks/lottieInsert.ts': m72,
-  '/src/blocks/machineEdit.ts': m73,
-  '/src/blocks/motionPresets.ts': m74,
-  '/src/blocks/presetRegistry.ts': m75,
-  '/src/blocks/productionSoundEdit.ts': m76,
-  '/src/blocks/svgIdentity.ts': m77,
-  '/src/bridge/bridgeApi.ts': m78,
-  '/src/community/packChecks.ts': m79,
-  '/src/community/packSources.ts': m80,
-  '/src/community/packStamp.ts': m81,
-  '/src/community/packs.ts': m82,
-  '/src/components/ExportWindow.tsx': m83,
-  '/src/components/editorFoundation/Canvas.tsx': m84,
-  '/src/components/editorFoundation/PreviewController.ts': m85,
-  '/src/components/editorFoundation/animationAuthoring.ts': m86,
-  '/src/components/editorFoundation/commandAdapter.ts': m87,
-  '/src/components/editorFoundation/commands.ts': m88,
-  '/src/components/editorFoundation/documentAdapter.ts': m89,
-  '/src/components/editorFoundation/openNewEditor.ts': m90,
-  '/src/components/editorFoundation/operations.ts': m91,
-  '/src/components/editorFoundation/protocol.ts': m92,
-  '/src/components/editorFoundation/session.ts': m93,
-  '/src/components/editorFoundation/timelineView.ts': m94,
-  '/src/components/editorFoundation/useArtworkGesture.ts': m95,
-  '/src/components/home/exportAppearances.ts': m96,
-  '/src/components/home/measureCue.ts': m97,
-  '/src/components/playoutKeys.ts': m98,
-  '/src/components/wizard/draft.ts': m99,
-  '/src/components/wizard/draft/core.ts': m100,
-  '/src/components/wizard/draft/template.ts': m101,
-  '/src/components/wizard/import/draft.ts': m102,
-  '/src/components/wizard/template/kitPlan.ts': m103,
-  '/src/control/controlModel.ts': m104,
-  '/src/control/controlPanelHtml.ts': m105,
-  '/src/control/cueAdjust.ts': m106,
-  '/src/control/cueFieldGroups.ts': m107,
-  '/src/control/cueStyle.ts': m108,
-  '/src/control/eventLog.ts': m109,
-  '/src/control/hostedControl.ts': m110,
-  '/src/control/hostedReceiver.ts': m111,
-  '/src/control/liveData.ts': m112,
-  '/src/control/livePath.ts': m113,
-  '/src/control/matchClockWire.ts': m114,
-  '/src/control/ografContract.ts': m115,
-  '/src/control/outputRecovery.ts': m116,
-  '/src/control/payloadVersion.ts': m117,
-  '/src/control/playoutLink.ts': m118,
-  '/src/control/productionControllerHtml.ts': m119,
-  '/src/control/productionDataApi.ts': m120,
-  '/src/control/projectInstallation.ts': m121,
-  '/src/control/resultStaging.ts': m122,
-  '/src/control/sourceMapping.ts': m123,
-  '/src/control/spaceMode.ts': m124,
-  '/src/editor/commentVisibility.ts': m125,
-  '/src/export/noacgPackage.ts': m126,
-  '/src/export/registry.ts': m127,
-  '/src/export/selfContained.ts': m128,
-  '/src/export/showExport.ts': m129,
-  '/src/export/targets/casparcg.ts': m130,
-  '/src/export/targets/h2r.ts': m131,
-  '/src/export/targets/htmlOverlay.ts': m132,
-  '/src/export/targets/ograf.ts': m133,
-  '/src/export/targets/ografForeign.ts': m134,
-  '/src/export/targets/ografImport.ts': m135,
-  '/src/export/targets/ografSchema.ts': m136,
-  '/src/export/targets/spxStarter.ts': m137,
-  '/src/format/formatCode.ts': m138,
-  '/src/model/brand.ts': m139,
-  '/src/model/contentHash.ts': m140,
-  '/src/model/cssVars.ts': m141,
-  '/src/model/cueClipboard.ts': m142,
-  '/src/model/durableStore.ts': m143,
-  '/src/model/editorOrganization.ts': m144,
-  '/src/model/fonts.ts': m145,
-  '/src/model/foreignPackage.ts': m146,
-  '/src/model/generationSpec.ts': m147,
-  '/src/model/graphicDoc.ts': m148,
-  '/src/model/importTemplate.ts': m149,
-  '/src/model/library.ts': m150,
-  '/src/model/outputSetup.ts': m151,
-  '/src/model/ownReaderHolds.ts': m152,
-  '/src/model/packets.ts': m153,
-  '/src/model/prefs.ts': m154,
-  '/src/model/productionData.ts': m155,
-  '/src/model/productionState.ts': m156,
-  '/src/model/profile.ts': m157,
-  '/src/model/project.ts': m158,
-  '/src/model/projectFormat.ts': m159,
-  '/src/model/projectInstallation.ts': m160,
-  '/src/model/readyMemory.ts': m161,
-  '/src/model/rundownHistory.ts': m162,
-  '/src/model/shows.ts': m163,
-  '/src/model/slug.ts': m164,
-  '/src/model/spxDefinition.ts': m165,
-  '/src/model/structure.ts': m166,
-  '/src/model/svgGroupTransform.ts': m167,
-  '/src/model/taxonomy.ts': m168,
-  '/src/model/teamOutbox.ts': m169,
-  '/src/model/teamShows.ts': m170,
-  '/src/model/types.ts': m171,
-  '/src/model/videoTypes.ts': m172,
-  '/src/model/wizard.ts': m173,
-  '/src/ograf/starters.ts': m174,
-  '/src/output/foreignOgraf.ts': m175,
-  '/src/output/prepare.ts': m176,
-  '/src/output/stage.ts': m177,
-  '/src/packs/graphicsPack.ts': m178,
-  '/src/preview/composeDocument.ts': m179,
-  '/src/preview/previewProtocol.ts': m180,
-  '/src/render/limits.ts': m181,
-  '/src/render/schedule.ts': m182,
-  '/src/showchat/chatGraphicBlock.ts': m183,
-  '/src/store/docKindStore.ts': m184,
-  '/src/store/saveActions.ts': m185,
-  '/src/store/templateStore.ts': m186,
-  '/src/store/videoProjectStore.ts': m187,
-  '/src/templates/behaviours/clock.ts': m188,
-  '/src/templates/behaviours/registry.ts': m189,
-  '/src/templates/blank.ts': m190,
-  '/src/templates/catalog.ts': m191,
-  '/src/templates/cornerBug/index.ts': m192,
-  '/src/templates/defaultTemplate.ts': m193,
-  '/src/templates/gameTimers/index.ts': m194,
-  '/src/templates/importedDesign/creditsRoll.ts': m195,
-  '/src/templates/importedDesign/reimport.ts': m196,
-  '/src/templates/importedDesign/stretch.ts': m197,
-  '/src/templates/importedDesign/svg.ts': m198,
-  '/src/templates/infoCards/index.ts': m199,
-  '/src/templates/infographics/index.ts': m200,
-  '/src/templates/kit.ts': m201,
-  '/src/templates/lowerThirds/animPresets.ts': m202,
-  '/src/templates/lowerThirds/index.ts': m203,
-  '/src/templates/lowerThirds/lt01.ts': m204,
-  '/src/templates/packs.ts': m205,
-  '/src/templates/picture.ts': m206,
-  '/src/templates/quiz/index.ts': m207,
-  '/src/templates/scoreboards/index.ts': m208,
-  '/src/templates/search.ts': m209,
-  '/src/templates/shared/animRuntime.ts': m210,
-  '/src/templates/shared/animRuntimeLegacy.ts': m211,
-  '/src/templates/shared/base.ts': m212,
-  '/src/templates/shared/clock.ts': m213,
-  '/src/templates/shared/easeRuntime.ts': m214,
-  '/src/templates/shared/textFit.ts': m215,
-  '/src/templates/startingSoon/index.ts': m216,
-  '/src/templates/structuralAnchor.ts': m217,
-  '/src/templates/templateMeta.ts': m218,
-  '/src/templates/tickers/index.ts': m219,
-  '/src/templates/types/graphicType.ts': m220,
-  '/src/templates/types/recipeTemplate.ts': m221,
-  '/src/templates/types/registry.ts': m222,
-  '/src/validation/designRulesWarnings.ts': m223,
-  '/src/validation/fieldPaint.ts': m224,
-  '/src/validation/productionGate.ts': m225,
-  '/src/validation/publishGate.ts': m226,
-  '/src/validation/runtimeBench.ts': m227,
-  '/src/validation/structuralIntentCheck.ts': m228,
-  '/src/validation/templateBench.ts': m229,
-  '/src/validation/validateTemplate.ts': m230,
-  '/src/video/bridgeRegistry.ts': m231,
-  '/src/video/compile.ts': m232,
-  '/src/video/hyperframes/bridge.ts': m233,
-  '/src/video/hyperframes/validate.ts': m234,
+  '/src/backend/unitPatch.ts': m57,
+  '/src/blocks/animData.ts': m58,
+  '/src/blocks/animEdit.ts': m59,
+  '/src/blocks/animEval.ts': m60,
+  '/src/blocks/animImport.ts': m61,
+  '/src/blocks/animMachine.ts': m62,
+  '/src/blocks/animMigration.ts': m63,
+  '/src/blocks/baseEdits.ts': m64,
+  '/src/blocks/behaviourLook.ts': m65,
+  '/src/blocks/designLayout.ts': m66,
+  '/src/blocks/edit.ts': m67,
+  '/src/blocks/editorAnimation.ts': m68,
+  '/src/blocks/editorImages.ts': m69,
+  '/src/blocks/editorLoops.ts': m70,
+  '/src/blocks/editorOut.ts': m71,
+  '/src/blocks/editorPaths.ts': m72,
+  '/src/blocks/lottieInsert.ts': m73,
+  '/src/blocks/machineEdit.ts': m74,
+  '/src/blocks/motionPresets.ts': m75,
+  '/src/blocks/presetRegistry.ts': m76,
+  '/src/blocks/productionSoundEdit.ts': m77,
+  '/src/blocks/svgIdentity.ts': m78,
+  '/src/bridge/bridgeApi.ts': m79,
+  '/src/community/packChecks.ts': m80,
+  '/src/community/packSources.ts': m81,
+  '/src/community/packStamp.ts': m82,
+  '/src/community/packs.ts': m83,
+  '/src/components/ExportWindow.tsx': m84,
+  '/src/components/editorFoundation/Canvas.tsx': m85,
+  '/src/components/editorFoundation/PreviewController.ts': m86,
+  '/src/components/editorFoundation/animationAuthoring.ts': m87,
+  '/src/components/editorFoundation/commandAdapter.ts': m88,
+  '/src/components/editorFoundation/commands.ts': m89,
+  '/src/components/editorFoundation/documentAdapter.ts': m90,
+  '/src/components/editorFoundation/openNewEditor.ts': m91,
+  '/src/components/editorFoundation/operations.ts': m92,
+  '/src/components/editorFoundation/protocol.ts': m93,
+  '/src/components/editorFoundation/session.ts': m94,
+  '/src/components/editorFoundation/timelineView.ts': m95,
+  '/src/components/editorFoundation/useArtworkGesture.ts': m96,
+  '/src/components/home/exportAppearances.ts': m97,
+  '/src/components/home/measureCue.ts': m98,
+  '/src/components/playoutKeys.ts': m99,
+  '/src/components/wizard/draft.ts': m100,
+  '/src/components/wizard/draft/core.ts': m101,
+  '/src/components/wizard/draft/template.ts': m102,
+  '/src/components/wizard/import/draft.ts': m103,
+  '/src/components/wizard/template/kitPlan.ts': m104,
+  '/src/control/controlModel.ts': m105,
+  '/src/control/controlPanelHtml.ts': m106,
+  '/src/control/cueAdjust.ts': m107,
+  '/src/control/cueFieldGroups.ts': m108,
+  '/src/control/cueStyle.ts': m109,
+  '/src/control/eventLog.ts': m110,
+  '/src/control/hostedControl.ts': m111,
+  '/src/control/hostedReceiver.ts': m112,
+  '/src/control/liveData.ts': m113,
+  '/src/control/livePath.ts': m114,
+  '/src/control/matchClockWire.ts': m115,
+  '/src/control/ografContract.ts': m116,
+  '/src/control/outputRecovery.ts': m117,
+  '/src/control/payloadVersion.ts': m118,
+  '/src/control/playoutLink.ts': m119,
+  '/src/control/productionControllerHtml.ts': m120,
+  '/src/control/productionDataApi.ts': m121,
+  '/src/control/projectInstallation.ts': m122,
+  '/src/control/resultStaging.ts': m123,
+  '/src/control/sourceMapping.ts': m124,
+  '/src/control/spaceMode.ts': m125,
+  '/src/editor/commentVisibility.ts': m126,
+  '/src/export/noacgPackage.ts': m127,
+  '/src/export/registry.ts': m128,
+  '/src/export/selfContained.ts': m129,
+  '/src/export/showExport.ts': m130,
+  '/src/export/targets/casparcg.ts': m131,
+  '/src/export/targets/h2r.ts': m132,
+  '/src/export/targets/htmlOverlay.ts': m133,
+  '/src/export/targets/ograf.ts': m134,
+  '/src/export/targets/ografForeign.ts': m135,
+  '/src/export/targets/ografImport.ts': m136,
+  '/src/export/targets/ografSchema.ts': m137,
+  '/src/export/targets/spxStarter.ts': m138,
+  '/src/format/formatCode.ts': m139,
+  '/src/model/brand.ts': m140,
+  '/src/model/contentHash.ts': m141,
+  '/src/model/cssVars.ts': m142,
+  '/src/model/cueClipboard.ts': m143,
+  '/src/model/durableStore.ts': m144,
+  '/src/model/editorOrganization.ts': m145,
+  '/src/model/fonts.ts': m146,
+  '/src/model/foreignPackage.ts': m147,
+  '/src/model/generationSpec.ts': m148,
+  '/src/model/graphicDoc.ts': m149,
+  '/src/model/importTemplate.ts': m150,
+  '/src/model/library.ts': m151,
+  '/src/model/outputSetup.ts': m152,
+  '/src/model/ownReaderHolds.ts': m153,
+  '/src/model/packets.ts': m154,
+  '/src/model/prefs.ts': m155,
+  '/src/model/productionData.ts': m156,
+  '/src/model/productionState.ts': m157,
+  '/src/model/profile.ts': m158,
+  '/src/model/project.ts': m159,
+  '/src/model/projectFormat.ts': m160,
+  '/src/model/projectInstallation.ts': m161,
+  '/src/model/readyMemory.ts': m162,
+  '/src/model/rundownHistory.ts': m163,
+  '/src/model/shows.ts': m164,
+  '/src/model/slug.ts': m165,
+  '/src/model/spxDefinition.ts': m166,
+  '/src/model/structure.ts': m167,
+  '/src/model/svgGroupTransform.ts': m168,
+  '/src/model/taxonomy.ts': m169,
+  '/src/model/teamOutbox.ts': m170,
+  '/src/model/teamShows.ts': m171,
+  '/src/model/types.ts': m172,
+  '/src/model/videoTypes.ts': m173,
+  '/src/model/wizard.ts': m174,
+  '/src/ograf/starters.ts': m175,
+  '/src/output/foreignOgraf.ts': m176,
+  '/src/output/prepare.ts': m177,
+  '/src/output/stage.ts': m178,
+  '/src/packs/graphicsPack.ts': m179,
+  '/src/preview/composeDocument.ts': m180,
+  '/src/preview/previewProtocol.ts': m181,
+  '/src/render/limits.ts': m182,
+  '/src/render/schedule.ts': m183,
+  '/src/showchat/chatGraphicBlock.ts': m184,
+  '/src/store/docKindStore.ts': m185,
+  '/src/store/saveActions.ts': m186,
+  '/src/store/templateStore.ts': m187,
+  '/src/store/videoProjectStore.ts': m188,
+  '/src/templates/behaviours/clock.ts': m189,
+  '/src/templates/behaviours/registry.ts': m190,
+  '/src/templates/blank.ts': m191,
+  '/src/templates/catalog.ts': m192,
+  '/src/templates/cornerBug/index.ts': m193,
+  '/src/templates/defaultTemplate.ts': m194,
+  '/src/templates/gameTimers/index.ts': m195,
+  '/src/templates/importedDesign/creditsRoll.ts': m196,
+  '/src/templates/importedDesign/reimport.ts': m197,
+  '/src/templates/importedDesign/stretch.ts': m198,
+  '/src/templates/importedDesign/svg.ts': m199,
+  '/src/templates/infoCards/index.ts': m200,
+  '/src/templates/infographics/index.ts': m201,
+  '/src/templates/kit.ts': m202,
+  '/src/templates/lowerThirds/animPresets.ts': m203,
+  '/src/templates/lowerThirds/index.ts': m204,
+  '/src/templates/lowerThirds/lt01.ts': m205,
+  '/src/templates/packs.ts': m206,
+  '/src/templates/picture.ts': m207,
+  '/src/templates/quiz/index.ts': m208,
+  '/src/templates/scoreboards/index.ts': m209,
+  '/src/templates/search.ts': m210,
+  '/src/templates/shared/animRuntime.ts': m211,
+  '/src/templates/shared/animRuntimeLegacy.ts': m212,
+  '/src/templates/shared/base.ts': m213,
+  '/src/templates/shared/clock.ts': m214,
+  '/src/templates/shared/easeRuntime.ts': m215,
+  '/src/templates/shared/textFit.ts': m216,
+  '/src/templates/startingSoon/index.ts': m217,
+  '/src/templates/structuralAnchor.ts': m218,
+  '/src/templates/templateMeta.ts': m219,
+  '/src/templates/tickers/index.ts': m220,
+  '/src/templates/types/graphicType.ts': m221,
+  '/src/templates/types/recipeTemplate.ts': m222,
+  '/src/templates/types/registry.ts': m223,
+  '/src/validation/designRulesWarnings.ts': m224,
+  '/src/validation/fieldPaint.ts': m225,
+  '/src/validation/productionGate.ts': m226,
+  '/src/validation/publishGate.ts': m227,
+  '/src/validation/runtimeBench.ts': m228,
+  '/src/validation/structuralIntentCheck.ts': m229,
+  '/src/validation/templateBench.ts': m230,
+  '/src/validation/validateTemplate.ts': m231,
+  '/src/video/bridgeRegistry.ts': m232,
+  '/src/video/compile.ts': m233,
+  '/src/video/hyperframes/bridge.ts': m234,
+  '/src/video/hyperframes/validate.ts': m235,
 };
 
 export const LAZY: Record<string, () => Promise<unknown>> = {
