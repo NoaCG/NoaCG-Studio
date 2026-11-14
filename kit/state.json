@@ -3430,7 +3430,7 @@
     "contractClarification": "Coordinator extraction bug produced four first-line rubric labels in E5F admission. Do not shorten the actual contract: ALL four full Acceptance paragraphs at the pinned phase.spec24d7 are binding through the spec, including guard/credential/stale/undo/source/export/keyboard/access/limit requirements. Preserve admitted labels/history without resetting allowance. Builder notified before any code; independent evidence must address every clause of those full paragraphs."
   },
   "e5fCheckpoint": {
-    "status": "CI_ROUND1_UNAFFECTED_FIXES_VERIFIED_SVG_PAINT_QUALIFICATION_PENDING_NO_PUSH",
+    "status": "LOCAL6BCC_VERIFIED_UNAFFECTED_CORRECTION_SVG_CONTRACT_REASSESSMENT_BEFORE_MORE_IMPLEMENTATION",
     "actor": "/root/editor_e5f_cloud_builder",
     "thread": "6af8403d-0d00-8191-804b-4923b3338071",
     "source": "4751981d1202c8127739e21e95c979f4af01711b",
@@ -3632,7 +3632,21 @@
       "evidence": "j206DEVcurrentallocationWIP2FAIL1PASS34.2s acrossdefault/timelineHome/InspectorEnd, .6unchanged. ParentCTMunchanged. Actualbbox316x47.5becomes316.67569x48.010555/default,315.182556x47.666496/timelineHome,314.126282x47.720634/InspectorEnd. Acceptedreplymatchesrawbbox. SourceaffineCTMafter×BEFOREboxholds corners<.0024compositionpx; no mappingpatchjustified. Do notreinterpret asimmutablebuilt9f70.",
       "hypothesis": "j209ONEignoredsame-sourceGPprobe3/3PASS37.8s/all3pane layouts/original.6/fontArchivo retainedloadedidentity(asset8f704806...4967)/exacthtml-js-fields-assets. Before+after315.999572754x48at80,92 stable; screendrift<.001343/.000855. ORIGINALautobox316x47.5at80,91.5 meansinitialglyphboxchanges0.5; no paint-neutral assumption.",
       "artifactLimit": "Passingtestinfo.attach PNGbuffers discarded; j209 original/newpaint NOTpersistentreviewable. Rawsource/fullmetrics e5f.local/svg-precision-hypothesis/measurements.json retained. No pixel/exportparityPASS.",
-      "next": "Rootrecommendationgivenbeforeimplementation: ONEnewfocusedmissingpaint/exportqualificationonly, existingall3greenmetricsneednotrepeat. RetainedEXACToriginalSVG/font/source AUTO vsGP before/afteredit atdefaultFit/programresolution, actual4exporter pairedcomposers/pausedpose; cap5/1worker/no newbuild. PersistPNGsJSONhashesoutsidePlaywrightdisposableoutput+readback. Original.6/Undo/source/assets/animation/existingpaintbounds unchanged, rawpixeldata/no inventedtolerance. No productpolicyadmitted; proposednarrowestsharedSVGscope must preserveauthored/inherited/inline/custompolicies andavoid unqualifiedHTMLtextchanges. IfunsafeunstableSTOPitemforrootrecommendation."
+      "next": "Rootexplainedrecommendationtowner beforeimplementation: avoidglobalfontpolicyunlessnecessary; independentlyreconcile originalfailedtest withDOCUMENTEDresize/fixed-side/source/export rule first. Freshfork-none inheritedread-only reviewer on6bc/base5c118 getsfullstrictusercontract/original.6/livebbox+affineproof/paintlimits. ReturnVALIDPRODUCTDEFECT/WRONGTESTEXPECTATION/UNRESOLVED with exactdoc+fileline evidence. Correctaffinepointalone doesnotdefeat visiblecornerrule; no convenienceoraclechange, no tests/build/probes/edits. Rootdecides afterverdict.",
+      "paint": {
+        "job": 212,
+        "status": "ONE_DIAGNOSTIC_COMPLETED5/5_31.4s_NOT_ACCEPTANCE",
+        "artifacts": "20PNG+10JSON+artifact-manifestpersisted/readback under e5f.local/svg-precision-paint outsidePlaywrightdisposableoutput, hashesretained. Fouractualexporterssameconditionbitidentical.",
+        "raw": "All4AUTOvsGPBEFOREprogram0changedpixels at1920x1080. AFTEReach345changed/maxchannel255/bounds197..301by924..960; authoringBEFORE0/AFTER202max91. RawdifferencesnotnewPASSbound.",
+        "limits": "AuthoringFit826px/.4302ratherthanoriginalfailing993.78/.51759 becauseinitialopenbefore1920editorWithomitted (timeline335vs240). AUTOvsGPAFTER editedsourcesalso differ tinygesturevalues(xoffset-27.695314596vs-27.695357169;scale1.073657752vs1.073657949)plushypothesisCSS, soNOT exact-edited-source isolation. Initialbboxgeometryalso changes.5. No actualoriginalFitpaint/exportequivalence or authored/inherited/custom-policy preservationproved.",
+        "disposition": "Worker/rootagree doNOTimplementsharedGPpolicy fromthisproof. No rerun/additionalqualification/render/sourcepolicy chosen. Boundedtoplevelcaptureadmissionpreservedwithallsetup/isolationlimits."
+      }
+    },
+    "localRepairCheckpoint": {
+      "sha": "6bcce0057951aa7f721e6292e71c431a94400f4e",
+      "state": "CleanLOCALonly13paths; remotePR2552still9f70. No push/stamp/status/newCI/Codex. Verifiedallocation+observerlifetime/legacyblankcompat/newfactory/ownerworkflowtestadaptations/rawnotes; SVGexplicitpending.",
+      "checks": "Model5/5, j2056/7(SVGFAILretained), j20710/10,j208native1252/2,j210observerred2/2FAIL156<180→j211remountgreen2/2PASS16.5s; targetedeslint/appTS/copy/diffPASS. RootreadactualauthoringIdcaller/effectbinding and bothnewfullnativecompositorimages. No broadF4repeat.",
+      "next": "No productSVG/gesture/render/testoracle edit; rootrequestednewfreshreadonly contractreassessment beforeimplementation, exact6bc/base5c118. No extraallowance/phase reset."
     }
   }
 }
