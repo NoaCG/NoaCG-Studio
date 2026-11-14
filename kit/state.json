@@ -3581,6 +3581,29 @@
         "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2552#discussion_r4573888509"
       }
     },
-    "independentContextDraft": "wave.kit/briefs/e5f-check-extra-notes-20261114.txt6844bytes preparedonly; all4fullparagraphs/limits/startuphandshake. No checkerbrief/intent/launch before observedactualmerge."
+    "independentContextDraft": "wave.kit/briefs/e5f-check-extra-notes-20261114.txt6844bytes preparedonly; all4fullparagraphs/limits/startuphandshake. No checkerbrief/intent/launch before observedactualmerge.",
+    "ciSoundControlAdmission": {
+      "source": "9f70b9835777e3815b4336654fe06bb80198ef7c",
+      "control": "5c118f5b02c3b6266d8286cc24f797438774eedb",
+      "controlTree": "/workspace/noacg-editor-r1-5-e5f-sound-control",
+      "lockSha256": "57df8e4dba1185c08d3b584ec05b555fee041e978ceff8e2fd42a15aaf15dcda",
+      "dependencyCopy": "distinct-inode own exact-lock tree; no symlink",
+      "capMinutes": 5,
+      "workerCount": 1,
+      "commands": [
+        "NOACG_E2E_ON_BUILD=1 NOACG_E2E_EXPECTED_SPECS=e2e/production-sounds.spec.ts npm run test:e2e -- e2e/production-sounds.spec.ts --project=chromium --workers=1 --grep='missing or corrupt preparation fails visibly' --trace=retain-on-failure --output=e5f.local/sound-built-control",
+        "NOACG_E2E_ON_BUILD=1 NOACG_E2E_EXPECTED_SPECS=e2e/production-sounds.spec.ts npm run test:e2e -- e2e/production-sounds.spec.ts --project=chromium --workers=1 --grep='missing or corrupt preparation fails visibly' --trace=retain-on-failure --output=e5f.local/sound-built-feature"
+      ],
+      "admission": "one E2E bundle per exact committed source; no normal production build/checks; earlier admissions retained",
+      "pins": "playwright.config.ts webServer.env offline empty backend/managed credentials; NOACG_E2E_SERVER1",
+      "scope": "unchanged original production-sounds165 journey; no retries or threshold changes",
+      "status": "ADMITTED_ONCE_PER_SOURCE_NOT_YET_RUN",
+      "recordedAt": "2026-11-14T14:32:28.247Z",
+      "basis": "ExistingboundedCIreproduction ofnewBlankentrypoint/dependency/bundle/timing risk; CIproduction-sounds165 failedrequests3vs2 inbuiltE2E1worker. No usablebuiltE2Eartifactisuploaded(normalCIreports/tracesonly). build:e2eONLYvitebuild--modee2e, notfullnormalbuild/suite orpaidmodelcampaign.",
+      "rootChecks": "RootactualfullHEAD/cleanstatusandexactlockSHAreadbothownedtrees; controlport5286/feature5216 distinct. Workeractualseparateinodeownnode_modules/.vite/.vite-temp/dist-e2e/e5f.local IO PASS; no dependencylink/productioncredentials.",
+      "sequence": "Runcontrol5c118ONCEviaexistingqueue--cap5, readentireoutcome/log beforefeature9f70ONCE. This ispairedsource diagnostic n1each, notfailure-rateestimation orstatisticalnoncausality. No automaticrepeat, source/test/limit/oracle change, service reuse ordevfallback. Any infrastructure/buildincomplete/error remains originalfailedadmission; stop/reconcilebeforemore.",
+      "counts": "Two namedfirstE2Ebundle admissions inE5F, oneperexactsource, no broaderselection/fullnormalbuild. AlloldE4/E5C/E6C admissions/failedattempts untouched. Root/workerrecordreturnedactualjobIDs/results withoutreset.",
+      "layout": "Freshreadonly /root/editor_e5f_cloud_builder/e5f_ci_layout_model_review stillpending on9f70/base5c118; no productpatchbeforeconsolidatedverdict. OldwizardTab/Starterdefault expectations qualifiedasdocumentednewdoorfixtureadaptations, originalguardsretained."
+    }
   }
 }
