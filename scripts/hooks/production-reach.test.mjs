@@ -69,6 +69,8 @@ const ALLOWED = [
   `git commit -F - <<'EOF'\nDo not expand $${KEY} here\nEOF`,
   'supabase --version',
   'supabase gen types typescript --local',
+  // The management API's host without the token opens nothing.
+  'curl -s https://api.supabase.com/v1/health',
   // An unset in the same shell, before the use, covers it, inside a subshell too.
   `unset ${KEY} SUPABASE_SECRET_KEY ${TOKEN}; (curl -H "apikey: $${KEY}" https://fake.example.test)`,
 ];

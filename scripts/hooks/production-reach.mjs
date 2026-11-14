@@ -18,8 +18,9 @@
 //              whose contents a hook cannot see.
 //   USES       the shell expands a credential (`$NAME` outside single quotes, an unquoted heredoc),
 //              code handed to an interpreter reads it (`node -e`, `python -c`, a heredoc fed to
-//              one), a script file run here that is not tracked in git reads it, the command names
-//              the management API host, or a Supabase CLI command acts on a hosted project.
+//              one), a script file run here that is not tracked in git reads it, or a Supabase
+//              CLI command acts on a hosted project (the CLI sends the access token unasked).
+//              Naming the management API's host is not a use: without the token it opens nothing.
 //   ALLOWED    that simple command runs one of PRODUCTION_TOOLS, or the credential was set or
 //              unset for it (`NAME=local-value cmd`, `env -u NAME cmd`, an earlier `unset NAME`).
 //              Setting a credential to itself (`NAME=$NAME`) is not setting it.
@@ -36,7 +37,6 @@ import { KEY_VARS, URL_VARS, isLocalStackUrl } from '../configured-target.mjs';
 import { gitOutput } from './lib.mjs';
 
 export const ACCESS_TOKEN = 'SUPABASE_ACCESS_TOKEN';
-export const MANAGEMENT_HOST = 'api.supabase.com';
 
 /**
  * The deliberate production tools: every tracked script in scripts/ that reads one of these
@@ -393,9 +393,9 @@ export function productionReachRefusal(command, { env = process.env, cwd = proce
     for (const { file, named, oneOff, rel } of files) {
       if (oneOff && !rel) reasons.push(`${relative(cwd, file) || file} is a script not in the repository, and it reads ${named.join(' and ')}`);
     }
-    if (live.includes(ACCESS_TOKEN)) {
-      if (words.some((w) => w.toLowerCase().includes(MANAGEMENT_HOST))) reasons.push(`\`${name}\` calls the Supabase management API (${MANAGEMENT_HOST})`);
-      if (hostedSupabaseCli(words)) reasons.push(`\`${commandWords(words).join(' ').slice(0, 60)}\` is a Supabase CLI command that acts on a hosted project`);
+    // The CLI is the one tool that sends the access token without being handed it.
+    if (live.includes(ACCESS_TOKEN) && hostedSupabaseCli(words)) {
+      reasons.push(`\`${commandWords(words).join(' ').slice(0, 60)}\` is a Supabase CLI command that acts on a hosted project`);
     }
   }
   if (reasons.length === 0) return null;
