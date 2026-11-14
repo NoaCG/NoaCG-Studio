@@ -29,11 +29,11 @@
 // not a use. It is a seatbelt against an accident, not a wall against someone set on getting
 // through: a name built at run time, or a tracked file edited to call production, is not seen.
 
-import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { KEY_VARS, URL_VARS, isLocalStackUrl } from '../configured-target.mjs';
+import { gitOutput } from './lib.mjs';
 
 export const ACCESS_TOKEN = 'SUPABASE_ACCESS_TOKEN';
 export const MANAGEMENT_HOST = 'api.supabase.com';
@@ -72,56 +72,66 @@ const ENV_FILE = /--env-file\b|\bdotenv\b|(?:^|[\s;&|(])(?:source|\.)\s+[^\s;&|]
 /** Code reads its environment. */
 const READS_ENV = /process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|\$\{?[A-Z_]+|\$env:/;
 
+/** Any of these in the text is needed for any reason below; without one, nothing is parsed. */
+const MAY_REACH = /[$`]|supabase|\.(?:[cm]?[jt]s|py|sh)\b/i;
+const ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/;
+const TOOL_FILES = new Set(PRODUCTION_TOOLS.map((path) => path.split('/').pop()));
+
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const base = (word) => word.split(/[\\/]/).pop();
+const isShell = (word) => /^(?:ba|z)?sh$/.test(base(word));
+/** The words that are not leading `NAME=value` assignments. */
+const commandWords = (words) => words.filter((w) => !ASSIGN.test(w));
 
-/** Code that names `name` reads it: as an env property, an env lookup, or a destructured env. */
-function codeReads(text, name) {
-  if (!text.includes(name)) return false;
-  const n = esc(name);
-  return new RegExp(
-    `\\benv\\.${n}\\b|\\benv\\[\\s*['"\`]${n}['"\`]|environ(?:\\.get\\(|\\[)\\s*['"]${n}['"]|getenv\\(\\s*['"]${n}['"]|env\\.get\\(\\s*['"]${n}['"]|\\{[^}]*\\b${n}\\b[^}]*\\}\\s*=\\s*(?:process\\.env|import\\.meta\\.env|Deno\\.env)`,
-  ).test(text);
-}
+/** Per credential: code reads it as an env property, an env lookup, or a destructured env. */
+const CODE_READS = Object.fromEntries(
+  CREDENTIALS.map((name) => {
+    const n = esc(name);
+    return [
+      name,
+      new RegExp(
+        `\\benv\\.${n}\\b|\\benv\\[\\s*['"\`]${n}['"\`]|environ(?:\\.get\\(|\\[)\\s*['"]${n}['"]|getenv\\(\\s*['"]${n}['"]|env\\.get\\(\\s*['"]${n}['"]|\\{[^}]*\\b${n}\\b[^}]*\\}\\s*=\\s*(?:process\\.env|import\\.meta\\.env|Deno\\.env)`,
+      ),
+    ];
+  }),
+);
 
 /** Shell expansions in a stretch of text the shell expands (`$NAME`, `${NAME}`, `$env:NAME`). */
 function expansionsIn(text) {
   return [...text.matchAll(/\$(?:env:)?\{?([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]);
 }
+const expandsCredential = (text) => expansionsIn(text).some((name) => CREDENTIALS.includes(name));
 
 /** Which credentials this environment arms, or [] when nothing points anywhere it should not. */
 export function armedCredentials(env, command = '') {
   if (ENV_FILE.test(command)) return CREDENTIALS;
-  const armed = [];
-  const urls = URL_VARS.map((name) => (env[name] ?? '').trim()).filter(Boolean);
+  const has = (name) => (env[name] ?? '').trim() !== '';
+  const urls = URL_VARS.filter(has).map((name) => env[name].trim());
   // An admin key with no URL beside it is still a key to somewhere; only a local stack disarms it.
   const remote = urls.length === 0 || urls.some((url) => !isLocalStackUrl(url));
-  if (remote) armed.push(...KEY_VARS.filter((name) => (env[name] ?? '').trim() !== ''));
-  if ((env[ACCESS_TOKEN] ?? '').trim() !== '') armed.push(ACCESS_TOKEN);
-  return armed;
+  return [...(remote ? KEY_VARS.filter(has) : []), ...(has(ACCESS_TOKEN) ? [ACCESS_TOKEN] : [])];
 }
 
 /**
- * Heredoc bodies taken out of the text, each kept with the line that opened it: `{ text, docs }`,
- * where `docs[i]` lists `{ body, quoted }` for line i. A quoted tag (`<<'EOF'`) is not expanded.
+ * Heredoc bodies taken out of the text, each kept with the line that opened it: `{ lines, docs }`,
+ * where `docs[i]` lists `{ body, quoted }` for `lines[i]`. A quoted tag (`<<'EOF'`) is not expanded.
  */
 function takeHeredocs(command) {
-  const lines = command.split('\n');
-  const kept = [];
+  const all = command.split('\n');
+  const lines = [];
   const docs = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    const opened = [...line.matchAll(/<<-?\s*(['"]?)([A-Za-z_]\w*)\1/g)];
-    kept.push(line);
-    docs.push([]);
-    for (const [, quote, tag] of opened) {
+  for (let i = 0; i < all.length; i += 1) {
+    const mine = [];
+    lines.push(all[i]);
+    docs.push(mine);
+    for (const [, quote, tag] of all[i].matchAll(/<<-?\s*(['"]?)([A-Za-z_]\w*)\1/g)) {
       const body = [];
-      while (i + 1 < lines.length && lines[i + 1].trim() !== tag) body.push(lines[(i += 1)]);
+      while (i + 1 < all.length && all[i + 1].trim() !== tag) body.push(all[(i += 1)]);
       i += 1; // the terminator
-      docs[kept.length - 1].push({ body: body.join('\n'), quoted: quote !== '' });
+      mine.push({ body: body.join('\n'), quoted: quote !== '' });
     }
   }
-  return { lines: kept, docs };
+  return { lines, docs };
 }
 
 /**
@@ -204,7 +214,7 @@ function commandsOf(command) {
       if (depth > 2) continue;
       for (const inner of cmd.nested) visit(inner, [], depth + 1);
       const at = cmd.words.findIndex((w) => w === '-c');
-      if (at > 0 && /^(?:ba|z)?sh$/.test(base(cmd.words[at - 1])) && cmd.words[at + 1]) visit(cmd.words[at + 1], [], depth + 1);
+      if (at > 0 && isShell(cmd.words[at - 1]) && cmd.words[at + 1]) visit(cmd.words[at + 1], [], depth + 1);
     }
   };
   lines.forEach((line, i) => visit(line, docs[i], 0));
@@ -224,7 +234,7 @@ function prefixOverrides(words) {
     const w = words[i];
     const assign = w.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/s);
     if (assign) {
-      if (!expansionsIn(assign[2]).some((name) => CREDENTIALS.includes(name))) own.add(assign[1]);
+      if (!expandsCredential(assign[2])) own.add(assign[1]);
     } else if (w === '-u' || w === '--unset') {
       own.add(words[(i += 1)]);
     } else if (w.startsWith('--unset=')) {
@@ -241,13 +251,12 @@ function prefixOverrides(words) {
 /** Script files a simple command runs: any script word after an interpreter, or the command itself. */
 function scriptsRun(words, dir) {
   const at = runnerAt(words);
-  const first = words.find((w) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(w));
-  const candidates = at >= 0 ? words.slice(at + 1) : first ? [first] : [];
+  const candidates = at >= 0 ? words.slice(at + 1) : commandWords(words).slice(0, 1);
   const files = [];
   for (const word of candidates) {
     if (!SCRIPT.test(word)) continue;
     const file = isAbsolute(word) ? word : resolve(dir, word);
-    if (existsSync(file) && statSync(file).isFile()) files.push(file);
+    if (statSync(file, { throwIfNoEntry: false })?.isFile()) files.push(file);
   }
   return files;
 }
@@ -255,23 +264,19 @@ function scriptsRun(words, dir) {
 /** Code a simple command hands an interpreter in its arguments (`node -e '<code>'`). */
 function inlineCode(words) {
   const at = runnerAt(words);
-  if (at < 0 || /^(?:ba|z)?sh$/.test(base(words[at]))) return [];
+  if (at < 0 || isShell(words[at])) return [];
   return words.slice(at + 1).filter((w, i, rest) => i > 0 && CODE_FLAGS.has(rest[i - 1]));
 }
 
-/** The repository-relative path of a tracked file, or null for a one-off (untracked, or outside any repository). */
+/** The repository-relative path of a tracked file, or null for a one-off (untracked, or outside any repository). One git call. */
 function trackedPath(file) {
-  const top = spawnSync('git', ['-C', dirname(file), 'rev-parse', '--show-toplevel'], { encoding: 'utf8', windowsHide: true });
-  if (top.status !== 0) return null;
-  const root = top.stdout.trim();
-  const rel = relative(root, file).split('\\').join('/');
-  const listed = spawnSync('git', ['-C', root, 'ls-files', '--error-unmatch', '--', rel], { encoding: 'utf8', windowsHide: true });
-  return listed.status === 0 ? rel : null;
+  const listed = gitOutput(dirname(file), ['ls-files', '--full-name', '--error-unmatch', '--', base(file)]);
+  return listed ? listed.trim() : null;
 }
 
 /** Supabase CLI commands that act only on this machine; any other acts on a hosted project. */
-const LOCAL_CLI = new Set(['start', 'stop', 'status', 'init', 'help', 'completion', 'login', 'logout', 'services', 'test', 'seed', 'db', 'migration', 'functions', 'gen', 'bootstrap']);
 const LOCAL_DEFAULT = { db: ['reset', 'diff', 'lint', 'start'], migration: ['new', 'up', 'down', 'squash'], functions: ['new', 'serve'], gen: ['types', 'signing-key', 'keys'] };
+const LOCAL_CLI = new Set(['start', 'stop', 'status', 'init', 'help', 'completion', 'login', 'logout', 'services', 'test', 'seed', 'bootstrap', ...Object.keys(LOCAL_DEFAULT)]);
 const CLI_VALUE_FLAGS = new Set(['--workdir', '--profile', '--output', '-o', '--network-id', '--dns-resolver']);
 
 /** Does this simple command run the Supabase CLI against a hosted project? */
@@ -296,11 +301,14 @@ function hostedSupabaseCli(words) {
  * Tests pass a fake environment and fake files, so nothing here ever reaches a network.
  */
 export function productionReachRefusal(command, { env = process.env, cwd = process.cwd() } = {}) {
+  // Cheapest first: in a cloud session the credentials are always armed, so `ls` and `git status`
+  // end at the text test rather than in the parser.
+  if (!MAY_REACH.test(command)) return null;
   const armed = armedCredentials(env, command);
   if (armed.length === 0) return null;
   // An env file loads the credentials after any `env -u` or assignment, so with one nothing a
   // command sets itself counts.
-  const envFile = ENV_FILE.test(command);
+  const envFile = armed === CREDENTIALS && ENV_FILE.test(command);
 
   const reasons = [];
   const unset = new Set();
@@ -315,7 +323,8 @@ export function productionReachRefusal(command, { env = process.env, cwd = proce
     if (head === 'unset' || head === 'export') {
       for (const w of words.slice(1)) {
         const name = w.split('=')[0];
-        if (head === 'unset' || (w.includes('=') && !expansionsIn(w).some((n) => CREDENTIALS.includes(n)))) unset.add(name);
+        if (head === 'unset') unset.add(name);
+        else if (w.includes('=') && !expandsCredential(w)) unset.add(name);
       }
       continue;
     }
@@ -326,28 +335,33 @@ export function productionReachRefusal(command, { env = process.env, cwd = proce
     const live = armed.filter((name) => !own.has(name));
 
     // A production tool allows this simple command and nothing else in the line.
-    const files = scriptsRun(words, dir).map((file) => ({ file, text: safeRead(file) }));
-    const named = (text) => live.filter((name) => text.includes(name));
-    // Git is asked only about a file that names a credential, so an ordinary `node x.mjs` costs one read.
-    const tracked = files.filter(({ text }) => CREDENTIALS.some((name) => text.includes(name))).map((f) => ({ ...f, rel: trackedPath(f.file) }));
-    if (tracked.some(({ rel }) => rel && PRODUCTION_TOOLS.includes(rel))) continue;
+    // Each file is read once; git is asked only about a possible tool or a one-off that reads a
+    // live credential, so an ordinary `node x.mjs` costs one read and no git call.
+    const files = scriptsRun(words, dir).map((file) => {
+      const text = safeRead(file);
+      const named = live.filter((name) => text.includes(name));
+      const tool = TOOL_FILES.has(base(file)) && CREDENTIALS.some((name) => text.includes(name));
+      const oneOff = named.length > 0 && READS_ENV.test(text);
+      return { file, named, oneOff, rel: tool || oneOff ? trackedPath(file) : null };
+    });
+    if (files.some(({ rel }) => rel && PRODUCTION_TOOLS.includes(rel))) continue;
 
     // A heredoc fed to an interpreter that runs no file is the code it runs (`node <<'EOF'`).
     const fed = runnerAt(words) >= 0 && files.length === 0 ? heredocs.map((doc) => doc.body) : [];
-    const name = words.find((w) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(w)) ?? words[0];
+    const code = [...inlineCode(words), ...fed];
+    const name = commandWords(words)[0] ?? words[0];
     const expanded = [...expands, ...heredocs.filter((doc) => !doc.quoted).flatMap((doc) => expansionsIn(doc.body))];
-    const usedByShell = shellLive.filter((name) => expanded.includes(name));
-    const usedByCode = live.filter((name) => [...inlineCode(words), ...fed].some((code) => codeReads(code, name)));
+    const usedByShell = shellLive.filter((cred) => expanded.includes(cred));
+    const usedByCode = live.filter((cred) => code.some((text) => text.includes(cred) && CODE_READS[cred].test(text)));
     const used = [...new Set([...usedByShell, ...usedByCode])];
     if (used.length > 0) reasons.push(`\`${name}\` uses ${used.join(' and ')}`);
 
-    for (const { file, text, rel } of tracked) {
-      if (rel || named(text).length === 0 || !READS_ENV.test(text)) continue;
-      reasons.push(`${relative(cwd, file) || file} is a script not in the repository, and it reads ${named(text).join(' and ')}`);
+    for (const { file, named, oneOff, rel } of files) {
+      if (oneOff && !rel) reasons.push(`${relative(cwd, file) || file} is a script not in the repository, and it reads ${named.join(' and ')}`);
     }
     if (live.includes(ACCESS_TOKEN)) {
       if (words.some((w) => w.toLowerCase().includes(MANAGEMENT_HOST))) reasons.push(`\`${name}\` calls the Supabase management API (${MANAGEMENT_HOST})`);
-      if (hostedSupabaseCli(words)) reasons.push(`\`${words.filter((w) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(w)).join(' ').slice(0, 60)}\` is a Supabase CLI command that acts on a hosted project`);
+      if (hostedSupabaseCli(words)) reasons.push(`\`${commandWords(words).join(' ').slice(0, 60)}\` is a Supabase CLI command that acts on a hosted project`);
     }
   }
   if (reasons.length === 0) return null;

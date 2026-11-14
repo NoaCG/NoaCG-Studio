@@ -133,7 +133,11 @@ test('the Codex guard refuses the same command', () => {
   assert.equal(JSON.parse(run.stdout).hookSpecificOutput.permissionDecision, 'deny');
 });
 
-test('every allow-listed production tool exists, so a rename cannot quietly drop one', () => {
+test('the allow list is every tracked script in scripts/ that names a credential, so a new tool is listed on purpose', () => {
   for (const path of PRODUCTION_TOOLS) assert.ok(existsSync(new URL(`../../${path}`, import.meta.url)), path);
+  const named = spawnSync('git', ['grep', '-lE', `${KEY}|SUPABASE_SECRET_KEY|${TOKEN}`, '--', 'scripts/*.mjs', ':!scripts/*/**', ':!*.test.mjs'], { encoding: 'utf8', windowsHide: true });
+  // configured-target.mjs names them to judge a run's target; it is a library, never run as a tool.
+  const tools = named.stdout.split('\n').filter((p) => p && p !== 'scripts/configured-target.mjs');
+  assert.deepEqual(tools.sort(), [...PRODUCTION_TOOLS].sort(), 'add a new deliberate production tool to PRODUCTION_TOOLS, or stop it naming the credential');
   assert.equal(productionReachRefusal('ls', { env: HOSTED }), null);
 });
