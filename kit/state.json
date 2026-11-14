@@ -42,8 +42,8 @@
  ],
  "inFlight": {
   "phase": 7,
-  "step": "repair 7-r-c2c5",
-  "asOf": "2026-11-14T05:47Z"
+  "step": "second check 7-c-1644 on 470d6984",
+  "asOf": "2026-11-14T19:32Z"
  },
  "owner": [
   {
@@ -198,7 +198,9 @@
   "2026-11-13 B A A B: phase 6 AC-4 large gap judged at end of phase 7, auto updates off in production until then; #2494 fixed in run before phase 8; #2495 guard fixed in run; leftovers stay.",
   "2026-11-13 phase 6: A, auto updates publish after editing pauses; AC-4 measured at 5 s pace, 10 pairs.",
   "Coordinator (delegated) 2026-11-13T20:46Z: phase 6 AC-4 typical judged on pooled p95 difference over 20 interleaved pairs at 5 s edits, pass at <= 50 ms; bootstrap range and per-pair values reported. First 10 pairs: +38 ms (90% +24..+56).",
-  "2026-11-14 owner: workers use the existing check accounts, never create test accounts."
+  "2026-11-14 owner: workers use the existing check accounts, never create test accounts.",
+  "2026-11-14 owner A: large AC-4 gap (+125 ms) and D1 (7.6 s) recorded as known gaps; auto updates stay off in production; phase 8 goes ahead; owner judges in phase 9.",
+  "2026-11-14 owner: the production keys (Supabase access token, service key) stay in the environment; find a way to keep them but prevent misuse."
  ],
  "phase2": {
   "builderCostUSD": "about 50",
@@ -326,10 +328,12 @@
   "reported": "large AC-4 +125 ms (10 pairs), D1 7.6 s throttled parts output, press path 20.4 kB, team edit 302 kB, content loop +48 ms",
   "check1": "FAIL product 2026-11-14T05:45Z: first cue edit after reload 20.3-23.7 kB (#2532)",
   "repairer": "session_017SdbwN7Nss4i2KtcyngQtY nonce 7-r-c2c5",
-  "migrations": "0119, 0120 applied in production (quiet window)"
+  "migrations": "0119, 0120 applied in production (quiet window)",
+  "repairLanded": "470d6984fb3ca4f4a6141c7f04c5cc233da40dbb (PR 2537, closes #2532)",
+  "checker2": "session_017SdbwQCsKwxXuptimJyHEL nonce 7-c-1644",
+  "followups2": [
+   "#2557"
+  ]
  },
- "morningItems": [
-  "Third time a worker reached production through the cloud environment's own production URL and service key (10:43Z settings write, 18:05Z read-only build, 23:58Z two admin user creates answered 422/400). Ask owner: rename or remove VITE_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in env_017nuiDZBW9smUNLdWVQK8cf so workers cannot reach production by default (coordinator keeps a separately named key for the switch), and whether he wants to check production auth for e2e-s1@noacg.local / e2e-s2@noacg.local (coordinator's read-only check was denied).",
-  "End of phase 7 deferred judgements: large AC-4 +125 ms p95 (limit 50; phase 6 +334); D1 7.6 s throttled (limit 5 s; phase 6 30-33 s). Recommend: keep both as recorded gaps with automatic updates off in production, go on to phase 8; any output-path change only with owner approval. Also: team edit 302 kB (whole save after a move, #2502) and press path 20.4 kB."
- ]
+ "morningItems": []
 }
