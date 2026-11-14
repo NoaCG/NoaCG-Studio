@@ -124,3 +124,69 @@ test('with parts on, a failed listing falls back to the per-kind listing and the
   await p.list('graphic');
   assert.equal(asked[asked.length - 1], null, 'a full listing after the failure');
 });
+
+/** The provider with parts on over a table of rows that another page changes between passes. Each
+ *  row carries the server's `at` (updated_at); the listing honours `gte('updated_at', …)` as
+ *  PostgREST does. `clock` is the page's time, moved by the test. */
+function overTable() {
+  const table = new Map();
+  let serverTime = Date.parse('2026-11-14T01:00:00.000Z');
+  const write = (row) => { serverTime += 1_000; table.set(row.id, { ...row, at: new Date(serverTime).toISOString() }); };
+  const asked = [];
+  const listing = (since) => ({
+    gte: (column, value) => listing(value),
+    then: (resolve) => {
+      asked.push(since);
+      const rows = [...table.values()].filter((r) => since === null || Date.parse(r.at) >= Date.parse(since));
+      return Promise.resolve({ data: rows.map((r) => ({ ...r })), error: null }).then(resolve);
+    },
+  });
+  const client = {
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'me' } } } }) },
+    from: () => ({ select: () => listing(null) }),
+  };
+  const clock = { now: Date.parse('2026-11-14T01:00:00.000Z') };
+  class PageDate extends Date { static now() { return clock.now; } }
+  const toStoredRecord = (kind, id, body) => ({ kind, id, updatedAt: body.updatedAt, deleted: Boolean(body.deleted), body });
+  const stubs = {
+    './supabase': { getSupabase: async () => client },
+    './storage': { isSingleton: () => false, markPutDenied: () => {}, toStoredRecord },
+    './assets': {},
+    '../model/id': {},
+    './partialWrites': { partialWritesOn: async () => true, unitPace: async () => {}, noteWritten: () => {} },
+    './unitPatch': {},
+  };
+  const exports = {};
+  const compiled = ts.transpileModule(readFileSync(new URL('../src/backend/supabaseProvider.ts', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  vm.runInNewContext(compiled, { exports, require: (name) => stubs[name], Date: PageDate, Map, Promise });
+  const p = new exports.SupabaseProvider();
+  const pass = async () => JSON.parse(JSON.stringify(await p.list('show'))).map((r) => [r.id, r.updatedAt, r.deleted]);
+  return { table, write, asked, clock, pass };
+}
+
+test('with parts on, another page\'s edit, rename and soft delete show on the next pass', async () => {
+  const t = overTable();
+  t.write({ id: 'a', kind: 'show', deleted: false, updatedAt: 'a1' });
+  t.write({ id: 'b', kind: 'show', deleted: false, updatedAt: 'b1' });
+  assert.deepEqual(await t.pass(), [['a', 'a1', false], ['b', 'b1', false]]);
+  t.write({ id: 'a', kind: 'show', deleted: false, updatedAt: 'a2' }); // an edit or a rename: a new save of the body
+  t.write({ id: 'b', kind: 'show', deleted: true, updatedAt: 'b2' }); // a soft delete: a tombstone save
+  t.write({ id: 'c', kind: 'show', deleted: false, updatedAt: 'c1' }); // a new record
+  assert.deepEqual(await t.pass(), [['a', 'a2', false], ['b', 'b2', true], ['c', 'c1', false]]);
+  assert.notEqual(t.asked[1], null, 'the second pass read only what changed');
+});
+
+test('with parts on, a row another page deleted outright is gone by the next full listing, ten minutes on', async () => {
+  const t = overTable();
+  t.write({ id: 'a', kind: 'show', deleted: true, updatedAt: 'a1' });
+  t.write({ id: 'b', kind: 'show', deleted: false, updatedAt: 'b1' });
+  await t.pass();
+  t.table.delete('a'); // a purge or a removal on another page leaves no row to read
+  t.clock.now += 9 * 60_000;
+  assert.deepEqual((await t.pass()).map((r) => r[0]), ['a', 'b'], 'held until the full listing');
+  t.clock.now += 61_000;
+  assert.deepEqual((await t.pass()).map((r) => r[0]), ['b'], 'gone at the full listing');
+  assert.equal(t.asked[t.asked.length - 1], null, 'that pass read in full');
+});

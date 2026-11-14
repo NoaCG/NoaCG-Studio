@@ -1054,7 +1054,9 @@ test('parts', async ({ page, browser }) => {
     // MEASURE_KINDS (comma-separated) narrows a run, so a large fixture fits one five-minute job.
     // `reopened`: the page reloads first, so this is the first edit after the page opens (G4 section
     // 11); what the page reads as it opens is before the count starts.
-    const all = ['warm', 'cue-edit', 'reopened', 'design-update', 'graphic-add', 'graphic-add-same-image', 'graphic-remove'] as const;
+    // `press`: automatic updates off and the page reopened, a cue edit, then Publish changes pressed
+    // (the press path, reported beside AC-5); the switch goes back on after it.
+    const all = ['warm', 'cue-edit', 'reopened', 'design-update', 'graphic-add', 'graphic-add-same-image', 'graphic-remove', 'press'] as const;
     const wanted = process.env.MEASURE_KINDS ? new Set(process.env.MEASURE_KINDS.split(',')) : null;
     const kinds = all.filter((k) => !wanted || wanted.has(k));
     const rounds = Number(process.env.MEASURE_ROUNDS ?? 1);
@@ -1062,7 +1064,8 @@ test('parts', async ({ page, browser }) => {
     for (let round = 0; round < rounds; round++) {
       const pic = await image(round);
       for (const kind of kinds) {
-        if (kind === 'reopened') {
+        if (kind === 'press') await setSwitch('auto_publish', false);
+        if (kind === 'reopened' || kind === 'press') {
           await page.reload();
           await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
         }
@@ -1076,11 +1079,19 @@ test('parts', async ({ page, browser }) => {
         wholeMeter?.reset();
         sent = [];
         const t0 = await nowOn(page);
-        if (kind === 'warm' || kind === 'cue-edit' || kind === 'reopened') {
+        if (kind === 'warm' || kind === 'cue-edit' || kind === 'reopened' || kind === 'press') {
           await select(page, 'LP2 Stepped');
           const field = page.getByTestId('cue-field-f0');
-          await field.fill(kind === 'warm' ? `Warm ${round}` : `${kind === 'reopened' ? 'r' : ''}${round} `.padEnd(2048, 'x'));
+          await field.fill(kind === 'warm' ? `Warm ${round}` : `${kind === 'reopened' ? 'r' : kind === 'press' ? 'p' : ''}${round} `.padEnd(2048, 'x'));
           await field.blur();
+          if (kind === 'press') {
+            // Saved first, then pressed, as an operator does.
+            await expect.poll(async () => (await stateOf()).rev > before.rev, { timeout: 60_000, intervals: [100] }).toBe(true);
+            const panel = page.getByTestId('production-status-panel');
+            if (!(await panel.isVisible())) await page.getByTestId('production-status').click();
+            await panel.getByTestId('panel-publish-changes').click({ timeout: 30_000 });
+            await page.keyboard.press('Escape');
+          }
         } else {
           await page.evaluate(async ({ id, kind, round, pic }) => {
             const m = await __noacgImport('/src/model/shows.ts');
@@ -1147,6 +1158,7 @@ test('parts', async ({ page, browser }) => {
           }) } : {}),
         });
         log(kind, round, rows[rows.length - 1].pageBytesJudged, (rows[rows.length - 1].output as { down: number }).down);
+        if (kind === 'press') await setSwitch('auto_publish', true);
       }
     }
     writeResult(`parts-${tag}`, { fixture: FIXTURE, net: NET, at: new Date().toISOString(), fixtureFacts: fx, rows });

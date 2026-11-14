@@ -49,8 +49,15 @@ function server() {
 
 /** The worker body, started with its own `self`; `ask` posts a message and resolves its answer. */
 function worker(srv) {
-  const answers = new Map();
-  const scope = { onmessage: null, postMessage: (m) => answers.get(m.id)?.(m) };
+  /** Each question asked and how to answer it, matched by the message's id. */
+  const pending = [];
+  const scope = {
+    onmessage: null,
+    postMessage: (m) => {
+      const asked = pending.find((p) => p.id === m.id);
+      if (asked) asked.resolve(m);
+    },
+  };
   globalThis.self = scope;
   globalThis.fetch = srv.fetch;
   readerMain();
@@ -58,7 +65,7 @@ function worker(srv) {
   return (hold = []) =>
     new Promise((resolve) => {
       id += 1;
-      answers.set(id, resolve);
+      pending.push({ id, resolve });
       scope.onmessage({ data: { id, url: 'http://x', key: 'k', slug: 's', mode: 'parts', hold } });
     });
 }
