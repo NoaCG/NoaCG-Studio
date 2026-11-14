@@ -1,0 +1,315 @@
+{
+  "pr": 2569,
+  "head": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+  "testedBase": "1b7e067c537d567e119c5f886b22f521b2a80503",
+  "local": {
+    "check": "PASS exacthead10paths inline2/2",
+    "fullSO": "AGREE/A actualcomplete freshfullverdict",
+    "focusedBrowser": "55/55PASS1.5m",
+    "safety": "31 refusals/0writes/exactstate;3 literal cases secondedit",
+    "scripts": "9 delta checks+12testsPASS; priorunchangedother proofs retained",
+    "capacity": "Exit0/WARN64.4% missingreport/frozenseedfallback"
+  },
+  "ci": {
+    "run": 43648944689,
+    "head": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+    "attempt": 1,
+    "status": "completed",
+    "overall": "failure",
+    "jobCount": 32,
+    "jobs": [
+      {
+        "id": 132612856544,
+        "name": "E2E plan",
+        "result": "success",
+        "started": "2026-11-14T22:36:04Z",
+        "completed": "2026-11-14T22:36:30Z"
+      },
+      {
+        "id": 132612856840,
+        "name": "Reviewed",
+        "result": "failure",
+        "started": "2026-11-14T22:36:04Z",
+        "completed": "2026-11-14T22:38:39Z"
+      },
+      {
+        "id": 132612856872,
+        "name": "Build",
+        "result": "success",
+        "started": "2026-11-14T22:36:04Z",
+        "completed": "2026-11-14T22:45:26Z"
+      },
+      {
+        "id": 132612856994,
+        "name": "Factory gates",
+        "result": "success",
+        "started": "2026-11-14T22:36:04Z",
+        "completed": "2026-11-14T22:37:59Z"
+      },
+      {
+        "id": 132612858029,
+        "name": "Vercel accepted the commit",
+        "result": "skipped",
+        "started": "2026-11-14T22:36:02Z",
+        "completed": "2026-11-14T22:36:02Z"
+      },
+      {
+        "id": 132612983794,
+        "name": "Configured E2E 2/4 (selected, local Supabase)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:48:17Z"
+      },
+      {
+        "id": 132612983810,
+        "name": "Catalog calibration gate",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:48:01Z"
+      },
+      {
+        "id": 132612983837,
+        "name": "Configured E2E 1/4 (selected, local Supabase)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:49:33Z"
+      },
+      {
+        "id": 132612983858,
+        "name": "Configured E2E 4/4 (selected, local Supabase)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:50:19Z"
+      },
+      {
+        "id": 132612983920,
+        "name": "Configured E2E 3/4 (selected, local Supabase)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:48:52Z"
+      },
+      {
+        "id": 132612984002,
+        "name": "E2E 4/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:43:26Z"
+      },
+      {
+        "id": 132612984020,
+        "name": "E2E 10/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:42:28Z"
+      },
+      {
+        "id": 132612984025,
+        "name": "E2E 11/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:43:28Z"
+      },
+      {
+        "id": 132612984031,
+        "name": "E2E 7/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:42:13Z"
+      },
+      {
+        "id": 132612984037,
+        "name": "E2E 6/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:42:13Z"
+      },
+      {
+        "id": 132612984040,
+        "name": "E2E 8/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:42:13Z"
+      },
+      {
+        "id": 132612984051,
+        "name": "E2E 2/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:44:04Z"
+      },
+      {
+        "id": 132612984064,
+        "name": "E2E 1/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:42:38Z"
+      },
+      {
+        "id": 132612984067,
+        "name": "E2E 5/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:43:39Z"
+      },
+      {
+        "id": 132612984106,
+        "name": "E2E 3/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:42:36Z"
+      },
+      {
+        "id": 132612984135,
+        "name": "E2E 14/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:33Z",
+        "completed": "2026-11-14T22:42:11Z"
+      },
+      {
+        "id": 132612984162,
+        "name": "E2E 12/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:43:16Z"
+      },
+      {
+        "id": 132612984166,
+        "name": "E2E 13/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:43:50Z"
+      },
+      {
+        "id": 132612984171,
+        "name": "E2E 9/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:43:05Z"
+      },
+      {
+        "id": 132612984186,
+        "name": "E2E 15/15 (subset)",
+        "result": "success",
+        "started": "2026-11-14T22:36:32Z",
+        "completed": "2026-11-14T22:42:32Z"
+      },
+      {
+        "id": 132612985142,
+        "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+        "result": "skipped",
+        "started": "2026-11-14T22:36:31Z",
+        "completed": "2026-11-14T22:36:30Z"
+      },
+      {
+        "id": 132614971180,
+        "name": "Combined E2E report",
+        "result": "success",
+        "started": "2026-11-14T22:44:06Z",
+        "completed": "2026-11-14T22:44:31Z"
+      },
+      {
+        "id": 132614972262,
+        "name": "E2E retry (failed specs, same commit)",
+        "result": "skipped",
+        "started": "2026-11-14T22:44:05Z",
+        "completed": "2026-11-14T22:44:04Z"
+      },
+      {
+        "id": 132615327518,
+        "name": "Re-run (failed Build or Factory job, same commit)",
+        "result": "skipped",
+        "started": "2026-11-14T22:45:27Z",
+        "completed": "2026-11-14T22:45:26Z"
+      },
+      {
+        "id": 132616614800,
+        "name": "Configured E2E verdict (selected)",
+        "result": "success",
+        "started": "2026-11-14T22:50:21Z",
+        "completed": "2026-11-14T22:50:43Z"
+      },
+      {
+        "id": 132616717581,
+        "name": "CI gate",
+        "result": "success",
+        "started": "2026-11-14T22:50:45Z",
+        "completed": "2026-11-14T22:50:53Z"
+      },
+      {
+        "id": 132616762686,
+        "name": "After the gate",
+        "result": "skipped",
+        "started": "2026-11-14T22:50:53Z",
+        "completed": "2026-11-14T22:50:53Z"
+      }
+    ],
+    "meaning": "AllproductgatesPASS; ONLY Reviewed missingcoordinatorstamp failed146s/28polls. FiveSKIPsarebookkeeping/unneededretry/notPASS; no testsreran."
+  },
+  "configured": {
+    "mode": "all",
+    "activeSpecs": 62,
+    "shards": 4,
+    "verdictJob": 132616614800,
+    "result": "success",
+    "quarantines": "Existing3nonblockingmanifest entries retained; not claimedpassed"
+  },
+  "codex": {
+    "comment": 6885280039,
+    "trigger": "PRopened",
+    "at": "2026-11-14T22:37:43.032962Z",
+    "status": "completed",
+    "findings": false,
+    "commit": "f51865995aac9bca790f32ac6a3cf34b01c02bae"
+  },
+  "codeql": {
+    "run": 43648940999,
+    "result": "success",
+    "languages": [
+      "python",
+      "javascript-typescript",
+      "actions"
+    ]
+  },
+  "currentMainIntegration": {
+    "gitMain": "4f11d145fc09cb438cd8da478f73ebaee9e22263",
+    "tree": "93001eeb228bdbf68ca9a4d1f47fa17c9206d8ed",
+    "result": "freshfetch+merge-tree clean; narrowerEROFS/stalerefprobe retained notverdict",
+    "changes": "OtherPR2567 docs/scripts/backend teamproductions, no feature-file overlap; no headchange"
+  },
+  "sideEnds": {
+    "ends": {},
+    "why": []
+  },
+  "queueApproval": {
+    "approvedForExactHead": true,
+    "owner": "root6af455",
+    "verdict": "PASS: check, full SO A, CI gate, configured suite, Codex no findings",
+    "stamp": "still absent; noacg/reviewed notposted; PRauto null/labelsnone/unqueued"
+  },
+  "auth": {
+    "cli": "gh API HTTP401 Badcredentials; no newcredential/configchange performed",
+    "firstReadFailure": "2026-11-14T22:43:01.241Z",
+    "monitor": "OwnedGHCLI monitor27178 terminatedPID75623/exit143; no furtherknown-denial polling",
+    "git": "NormalGitremote read/fetchworks; no credentialtransplant",
+    "connector": "GitHubplugin reads all32jobs via supportedGETper_page100; mutationsforcomments/auto available, workflowdispatch not exposed",
+    "ownerRequest": "Pending same-chat asynchronous request torefresh managedCloudGitHubaccess; no tokensrequested"
+  },
+  "queueLookup": {
+    "noneForThisPR": true,
+    "recentOtherHelper": 43649626240,
+    "job": 132614974428,
+    "confirmedOtherPR": 2563,
+    "branch": "claude/plan-live-publishing-fix-2508",
+    "sha": "a33e416f21f0f5b47eb9e8e3afa46000dff59ca5",
+    "source": "Actualrecentdispatchcollection+wholejoblog; no #2569 dispatchattempt"
+  },
+  "manualAlternative": {
+    "workflow": "https://github.com/NoaCG/NoaCG-Studio/actions/workflows/cloud-queue-merge.yml",
+    "ref": "main",
+    "branch": "codex/plan-editor-r1-5-e5f-quiz-edit",
+    "sha": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+    "review": "PASS: check, full SO A, CI gate, configured suite, Codex no findings",
+    "meaning": "Owner may execute documentedmainhelperonce; rootmustreconcileactualrun/stampbeforeanyownattempt, then sessionauto via connector with freshheadguards. No testjobretries."
+  },
+  "phase": "6/11PASS; E5F partialfixnotlanded/notdeployed; fullphase/ownerhostedEditUndo pending; retained2552/SVGstop/originalattempts."
+}
