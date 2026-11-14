@@ -72,7 +72,7 @@
       "actor": "/root/editor_e5f_cloud_builder",
       "thread": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
-      "status": "AssistantPR2555actualqueueadmitted; group43617774692inprogress/rootactive. FullWIP2552draft andphaseacceptancepending.",
+      "status": "Assistant-only merge82c4 at16:58:12; postlanding/deploy active, rootsoleowner. FullE5F remainsbuildinprogress/SVGstopped; no partialPASS.",
       "source": "4751981d1202c8127739e21e95c979f4af01711b",
       "deliveryBranch": "codex/plan-editor-r1-5-e5f-assistant",
       "deliverySource": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84"
@@ -3696,7 +3696,7 @@
       "conclusion": "Newbbox already6166beforegetter; final7871to7872 identicalbbox/CTMrounding~.000006 despiteinline3D. Getter-onlyP unsupported. Cacheinitializedbyresetnotmotionproof. No productrepairqualified; stopSVG/no automaticfallback."
     },
     "assistantSerialDelivery": {
-      "status": "FocusedPR2555open/unqueued exact52ae; root soleactiveowner ACKed; originalCI/Codex inprogress",
+      "status": "Assistant-only milestone MERGED; exact-merge postlanding/deploy pending; fullE5F notcomplete",
       "brief": "briefs/e5f-assistant-serial-delivery-20261114.txt",
       "sha256": "3138f48a9ff47e759e9f8af12d0dc012a60849d9b23d6cdb2fe77f6ef47de571",
       "worktree": "/workspace/noacg-editor-r1-5-e5f-assistant",
@@ -3812,9 +3812,35 @@
             "run": 43617774692,
             "head": "82c4a59d245572c743ecee22a592e128642d735e",
             "branch": "gh-readonly-queue/main/pr-2555-5c118f5b02c3b6266d8286cc24f797438774eedb",
-            "status": "in_progress"
+            "status": "completed",
+            "conclusion": "success"
           }
-        }
+        },
+        "state": "merged",
+        "mergeSha": "82c4a59d245572c743ecee22a592e128642d735e",
+        "mergedAt": "2026-11-14T16:58:12Z"
+      },
+      "landing": {
+        "mergeSha": "82c4a59d245572c743ecee22a592e128642d735e",
+        "firstParent": "5c118f5b02c3b6266d8286cc24f797438774eedb",
+        "featureHead": "52ae616dc76d1b7b1a3b6bce01a65aa4582fbe84",
+        "mergedAt": "2026-11-14T16:58:12Z",
+        "verification": "ActualPRmergedtrue and mergegroup43617774692SUCCESS; source52ae unchanged/queueused",
+        "scope": "PARTIAL serialassistant milestone, not E5F build completion/acceptance. Full four-criteria independentphasechecker remainsreserved until allfour ready; no checkattempt consumed or reset.",
+        "postMerge": {
+          "ci": 43618491194,
+          "quarantine": 43618491184,
+          "configured": 43618491183,
+          "postLand": 43618491173,
+          "codeql": 43618490585,
+          "status": "inprogress; rootmuststaythroughterminalanddeployment"
+        },
+        "deploymentBookkeepingSkips": [
+          43618503164,
+          43618502046,
+          43618500565,
+          43618498072
+        ]
       }
     }
   }
