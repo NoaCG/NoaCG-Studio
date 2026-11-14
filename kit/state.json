@@ -78,8 +78,9 @@
       "source": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
       "deliveryBranch": "codex/plan-editor-r1-5-e5f-quiz-edit",
       "deliverySource": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
-      "note": "Corrected f518 checkPASS/55browserPASS; NEWfreshfullSOrunning. Remote7f6knownAminusWIP/noPR, hold furtherpushuntilA. Alloldhistory/SVG2552stop/fullphasepending.",
-      "monitorOwner": "root active sole repair owner through new PR queue, exact merge checks and deployment; no durable wake claimed"
+      "note": "PR2569 exactf518/checkPASS/fullSOA; originalCI43648944689 running (147offline/62configured); originalCodeXrunning. Rootsoleactiveowner6885285874 throughqueue/allposts; old2552/SVGstop/fullphasepending.",
+      "monitorOwner": "root active sole repair owner through new PR queue, exact merge checks and deployment; no durable wake claimed",
+      "pr": 2569
     }
   ],
   "owner": [
@@ -4062,7 +4063,7 @@
           "verification": "j22855PASS1.5m;delta9checks+2files12scriptPASS;TS/ESLintPASS; priorotherunchangedscriptproofsretained",
           "capacity": "Newcanonicalfetch/check exit0/WARN64.4%, missingreport/frozenseedfallback/no ceilingchange",
           "reviewer": "/root/editor_e5f_cloud_builder/e5f_quiz_corrected_final_full_so",
-          "review": "NEW freshfork-none FULL SO running; rootactualagentstatusread",
+          "review": "Actualcomplete NEWfreshfullSO AGREE/A, rootreadterminal, scopeonly/notphasePASS",
           "delivery": "Remote7f6knownAminusWIP; no furtherpushuntilactualA/Aplus/onePR thenrootqueue/allposts; no phasePASS"
         }
       },
@@ -4140,6 +4141,26 @@
         "coherentGreen": "j22855/55PASS1.5m/2workers/cap5; oldordinaryquiz/runtime/Undo/durable+4exports/Help/stalecasespreserved",
         "checks": "TS+ESLintPASS; delta9cheapchecks+2affectedfiles12scripttestsPASS; unchangedpreviousotherscriptproofsretained",
         "next": "Coherentcommit/finalcurrentmaincheck/stamp/capacity +NEWfreshfullSOA/Aplus; no furtherpush/PRuntilthen"
+      },
+      "delivery": {
+        "pr": 2569,
+        "head": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+        "base": "1b7e067c537d567e119c5f886b22f521b2a80503",
+        "receipt": "quiz-pr-2569-prequeue-20261114.json",
+        "sha256": "470c83621736fc0aebc978b04984d6f5f2c67358c4c11e4451d990ec88821126",
+        "status": "Openreadyunqueued; rootactiveowner; exactCI/configured/Codexpending",
+        "ownerComment": 6885285874,
+        "ci": 43648944689,
+        "codeql": 43648940999,
+        "codex": {
+          "comment": 6885280039,
+          "commit": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+          "trigger": "PR opened",
+          "since": "2026-11-14T22:36:07.728630Z",
+          "status": "running",
+          "noDuplicateRequest": true
+        },
+        "monitorSession": 27178
       }
     }
   },

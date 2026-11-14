@@ -1,0 +1,131 @@
+{
+  "pr": 2569,
+  "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2569",
+  "head": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+  "base": "1b7e067c537d567e119c5f886b22f521b2a80503",
+  "localCheck": "PASS exacthead10paths inline2/2/simplifyinline/verifyinline",
+  "fullSO": {
+    "verdict": "AGREE/A",
+    "actor": "/root/editor_e5f_cloud_builder/e5f_quiz_corrected_final_full_so",
+    "source": "Actualcomplete terminal read via list_agents; worker retained verbatim SHA73b689b3eeadac5675add63a94f263370a6a7a014c2534c5fbe068f7dd5604ce"
+  },
+  "repairOwner": {
+    "actor": "root",
+    "native": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
+    "comment": 6885285874,
+    "status": "ACTIVE no durablewake; root throughallposts"
+  },
+  "attachedParent": true,
+  "ci": {
+    "run": 43648944689,
+    "head": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+    "status": "in_progress",
+    "planJob": 132612856544,
+    "offline": {
+      "mode": "subset",
+      "count": 147,
+      "shards": 15,
+      "quarantined": [
+        "e2e/editor-images.spec.ts",
+        "e2e/editor-projects.spec.ts"
+      ],
+      "unmeasured": [
+        "output-debate-clock.spec.ts"
+      ]
+    },
+    "configured": {
+      "mode": "all",
+      "count": 62,
+      "specs": [
+        "account.spec.ts",
+        "agent-access.spec.ts",
+        "all-out-from-heads.spec.ts",
+        "analytics.spec.ts",
+        "anonymous.spec.ts",
+        "audience-live.spec.ts",
+        "bridge-real-server.spec.ts",
+        "community-authed.spec.ts",
+        "community-pack-review.spec.ts",
+        "connector-grants.spec.ts",
+        "connector-oauth.spec.ts",
+        "connector-send.spec.ts",
+        "connector-tools.spec.ts",
+        "control-link-guard.spec.ts",
+        "deep-link-boot.spec.ts",
+        "election-selection.spec.ts",
+        "external-data-connector.spec.ts",
+        "feed-route.spec.ts",
+        "feedback.spec.ts",
+        "follow-status-is-visible.spec.ts",
+        "homebase.spec.ts",
+        "imported-quiz-output.spec.ts",
+        "late-commit-notice.spec.ts",
+        "late-send-abandoned.spec.ts",
+        "library-arrival.spec.ts",
+        "live-health.spec.ts",
+        "live-prepare.spec.ts",
+        "live-presence-steady.spec.ts",
+        "live-ready.spec.ts",
+        "ograf-rundown.spec.ts",
+        "ograf-typed-data.spec.ts",
+        "output-cold-boot.spec.ts",
+        "output-realtime-floor.spec.ts",
+        "output-url-cannot-push.spec.ts",
+        "panel-graphic-actions.spec.ts",
+        "panel-lease.spec.ts",
+        "panel-page.spec.ts",
+        "panel-production-page.spec.ts",
+        "panel-relay.spec.ts",
+        "per-graphic-replacement.spec.ts",
+        "playout-adjust-race.spec.ts",
+        "playout-both-roads.spec.ts",
+        "playout-resolve-race.spec.ts",
+        "playout-status.spec.ts",
+        "playout-switch-mid-flight.spec.ts",
+        "pro-wizard.spec.ts",
+        "production-data-key-dispatch.spec.ts",
+        "production-data-key-sheet.spec.ts",
+        "production-data-key-tick.spec.ts",
+        "production-data-key.spec.ts",
+        "production-links.spec.ts",
+        "publish-output-default.spec.ts",
+        "quiz-output.spec.ts",
+        "relay-cold-boot.spec.ts",
+        "rundown-timing-recovery.spec.ts",
+        "scorebug-output.spec.ts",
+        "shared-lab-computer.spec.ts",
+        "signed-in-ux.spec.ts",
+        "svg-import-journey.spec.ts",
+        "sync-one-pass-per-edit.spec.ts",
+        "take-behind-out.spec.ts",
+        "teams.spec.ts"
+      ],
+      "quarantined": [
+        "e2e/configured/command-sequence.spec.ts",
+        "e2e/configured/operator-outage-not-unpublished.spec.ts",
+        "e2e/configured/publish-guard.spec.ts"
+      ],
+      "reasonsWhole": [
+        "src/components/editorFoundation/ProposalPanel.tsx",
+        "src/components/editorFoundation/commands.ts",
+        "src/components/editorFoundation/proposals.ts",
+        "src/e2eRegistry.ts"
+      ]
+    },
+    "source": "Actual E2E plan wholejoblog fetched andmanifestparsed, not inferred; fourselectedconfiguredjobsrunning"
+  },
+  "codeql": {
+    "run": 43648940999,
+    "status": "in_progress"
+  },
+  "codex": {
+    "comment": 6885280039,
+    "commit": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+    "trigger": "PR opened",
+    "since": "2026-11-14T22:36:07.728630Z",
+    "status": "running",
+    "noDuplicateRequest": true
+  },
+  "queue": "not admitted/auto null/labelsnone; pending exactCIgate/configuredverdict/Codex",
+  "phase": "Partialmilestone only; fullE5F/hostedownerreceipt pending; old2552/SVGstop retained"
+}
