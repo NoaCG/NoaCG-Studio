@@ -240,6 +240,36 @@ test('after a change elsewhere kept the typing, a change to the typed cue itself
   expect(await page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!.cues!.map(c => c.label), ids.show)).toEqual(['Theirs', 'Renamed elsewhere', 'Gamma']);
 });
 
+test('deleting the cue just typed in stays one undoable step, with no note of a change elsewhere (#2572, D6)', async ({ page }) => {
+  const ids = await seed(page);
+  await select(page, 'Gamma'); await page.getByTestId('cue-label').fill('Typed then deleted');
+  await parkFocusOffControls(page); await expect(row(page, 'Typed then deleted')).toBeVisible();
+  await settleDurableWrites(page);
+  const typed = await snapshot(page, ids.show);
+  await select(page, 'Typed then deleted'); await key(page, 'Delete');
+  await expect(row(page, 'Typed then deleted')).toHaveCount(0);
+  await settleDurableWrites(page);
+  await expect(page.getByTestId('rundown-note').filter({ hasText: 'changed elsewhere' })).toHaveCount(0);
+  await key(page, 'Control+z'); await expectSlice(page, ids.show, typed);
+});
+
+test('a typed save that storage refuses keeps the typed text and says why (#2572, D6)', async ({ page }) => {
+  await seed(page);
+  await select(page, 'Alpha'); const input = page.getByTestId('cue-label');
+  await failNextPut(page);
+  await input.fill('Typed while full');
+  await expect(page.getByTestId('rundown-note')).toContainText('storage is full');
+  await page.waitForTimeout(500);
+  await expect(input).toHaveValue('Typed while full');
+  await expect(page.getByTestId('rundown-note')).not.toContainText('changed elsewhere');
+  // Storage has room again: typing on saves, and the refused write is not taken for a change elsewhere.
+  await input.fill('Typed while full, then saved');
+  await parkFocusOffControls(page);
+  await expect(row(page, 'Typed while full, then saved')).toBeVisible();
+  await expect(input).toHaveValue('Typed while full, then saved');
+  await expect(page.getByTestId('rundown-note').filter({ hasText: 'changed elsewhere' })).toHaveCount(0);
+});
+
 test('typing queued behind a held team save survives a teammate\'s change to another cue (#2572, D5)', async ({ page }) => {
   const { ids, state, advance } = await teamBackend(page);
   await select(page, 'Alpha'); const input = page.getByTestId('cue-label');
