@@ -89,7 +89,9 @@ const SHELL_WORDS = new Set(['{', '}', '!', 'if', 'then', 'else', 'elif', 'fi', 
 const TESTS = new Set(['test', '[', '[[']);
 
 /** Any of these in the text is needed for any reason below; without one, nothing is parsed. */
-const MAY_REACH = /[$`]|supabase|\.(?:[cm]?[jt]s|py|sh)\b/i;
+const MAY_REACH = /[$`]|supabase|\.(?:[cm]?[jt]s|py|sh)\b|\b(?:node|tsx|ts-node|bun|deno|python3?|bash|sh|zsh)\b/i;
+/** Interpreter flags that run code other than the file it is given: inline code, or a preload. */
+const RUNS_OTHER_CODE = /^(?:-e|--eval|-p|--print|-c|-r|--require|--import|--loader|--experimental-loader)(?:=|$)/;
 const ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const TOOL_FILES = new Set(PRODUCTION_TOOLS.map((path) => path.split('/').pop()));
 
@@ -279,10 +281,11 @@ function prefixOverrides(words) {
 /** Script files a simple command runs: any script word after an interpreter, or the command itself. */
 function scriptsRun(words, dir) {
   const at = runnerAt(words);
-  const candidates = at >= 0 ? words.slice(at + 1) : commandWords(words).slice(0, 1);
+  // After an interpreter, any file it is given may be the program, extension or not; a file run
+  // directly is judged by its extension, since every word of every command would otherwise be read.
+  const candidates = at >= 0 ? words.slice(at + 1).filter((w) => !w.startsWith('-')) : commandWords(words).slice(0, 1).filter((w) => SCRIPT.test(w));
   const files = [];
   for (const word of candidates) {
-    if (!SCRIPT.test(word)) continue;
     const file = isAbsolute(word) ? word : resolve(dir, word);
     if (statSync(file, { throwIfNoEntry: false })?.isFile()) files.push(file);
   }
@@ -369,7 +372,10 @@ export function productionReachRefusal(command, { env = process.env, cwd = proce
       const oneOff = named.length > 0 && READS_ENV.test(text);
       return { file, named, oneOff, rel: tool || oneOff ? trackedPath(file) : null };
     });
-    if (files.some(({ rel }) => rel && PRODUCTION_TOOLS.includes(rel))) continue;
+    // Only when the tool IS the program: the first file the interpreter is given, with no code of
+    // its own beside it (`node -e '...' scripts/admin.mjs` runs the `-e` code, not the tool).
+    const entry = files[0];
+    if (entry?.rel && PRODUCTION_TOOLS.includes(entry.rel) && !words.some((w) => RUNS_OTHER_CODE.test(w))) continue;
 
     const name = commandWords(words)[0] ?? words[0];
     // What this command names: its words, and every heredoc its line feeds it. A text tool may
