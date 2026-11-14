@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "head": "23a18e6a8df72fd825187e94ca3819ace36b5e16",
-      "pr": 2564,
-      "step": "build",
-      "phase": "v5",
       "session": "/root/v5_builder",
-      "note": "Grouped state-observation repair after independent reassessment. Pinned Windows browser j-5257, GitHub CI 43648748491, exact Codex review and fresh full Risky review are underway. No queue admission until they pass."
+      "step": "build",
+      "pr": 2564,
+      "phase": "v5",
+      "head": "6ac9fafdf68b8555f280b2401edfaba675be686c",
+      "note": "Latest main integrated. Current versus staged player validation, invalid native empty evidence and the CI TypeScript error repaired. Exact typechecks and selected gates passed; local Windows browser j-5258, CI 43650271912, Codex and fresh independent full review pending."
     }
   ],
   "owner": [],
