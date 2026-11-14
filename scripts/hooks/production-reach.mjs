@@ -354,8 +354,10 @@ export function productionReachRefusal(command, { env = process.env, cwd = proce
     }
 
     const own = envFile ? new Set() : prefixOverrides(words);
+    // What the program it starts can read. The shell expands `$NAME` in this command's own
+    // arguments BEFORE an assignment or `env -u` on it applies, so expansions are judged
+    // against every armed credential, not only these.
     const live = armed.filter((name) => !own.has(name));
-    if (live.length === 0) continue;
 
     // A production tool allows this simple command, and nothing else in the line. Each file is
     // read once; git is asked only about a possible tool or a one-off that reads a live
@@ -373,7 +375,7 @@ export function productionReachRefusal(command, { env = process.env, cwd = proce
     // What this command names: its words, and every heredoc its line feeds it. A text tool may
     // name a credential; anything else that names one is treated as using it.
     const named = namedIn([...words, ...heredocs.map((doc) => doc.body)].join('\n')).filter((cred) => live.includes(cred));
-    const expanded = [...expands, ...heredocs.filter((doc) => !doc.quoted).flatMap((doc) => expansionsIn(doc.body))].filter((cred) => live.includes(cred));
+    const expanded = [...expands, ...heredocs.filter((doc) => !doc.quoted).flatMap((doc) => expansionsIn(doc.body))].filter((cred) => armed.includes(cred));
     const text = TEXT_TOOLS.has(name) && !(TEXT_TOOLS.get(name) && words.some((w) => TEXT_TOOLS.get(name).test(w)));
     if (named.length > 0 && !text) reasons.push(`\`${name}\` names ${named.join(' and ')} and is not plain text work`);
     else if (expanded.length > 0 && !TESTS.has(name)) reasons.push(`\`${name}\` expands ${[...new Set(expanded)].join(' and ')}`);
