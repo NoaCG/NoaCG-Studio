@@ -1,5 +1,8 @@
 import { currentAuthoringDocument, retainCurrentProjectDraft, useAuthoringProjects } from '../../store/authoringProjects';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { usePanelLayout } from './usePanelLayout';
+import PanelDivider from './PanelDivider';
+import { PANEL_MIN } from './panelLayout';
 import { useTemplateStore } from '../../store/templateStore';
 import { guardNavigation, useRouter } from '../../app/router';
 import { useSaveUi } from '../../store/saveActions';
@@ -63,6 +66,7 @@ export default function EditorFoundation() {
   const groupPath = groupLocation.document === authoringId ? groupLocation.path.filter(selector => hierarchy.groups.has(selector)) : [];
   const groupScope = groupPath[groupPath.length - 1] ?? null;
   const [projectOpen, setProjectOpen] = useState(false);
+  const panels = usePanelLayout(projectOpen);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const assistantButton = useRef<HTMLButtonElement>(null);
   const [linked, setLinked] = useState(true);
@@ -165,7 +169,8 @@ export default function EditorFoundation() {
     seek: (to, cue) => commandView.current.seek(to, cue),
     afterWrite: () => commandView.current.afterWrite(),
   }), [session]);
-  return <main className={'ef-shell' + (projectOpen ? ' ef-project-open' : '') + (groupScope ? ' ef-group-open' : '')} data-testid="editor-foundation"
+  const divider = (key: 'project' | 'inspector' | 'timeline', name: string, axis: 'x' | 'y', sign: 1 | -1) => <PanelDivider name={name} axis={axis} sign={sign} value={panels.sizes[key]} min={PANEL_MIN[key]} max={panels.max[key]} resize={(value, commit) => panels.resize(key, value, commit)} cancel={panels.cancel} />;
+  return <main ref={panels.root} style={{ '--ef-project-width': panels.sizes.project + 'px', '--ef-inspector-width': panels.sizes.inspector + 'px', '--ef-timeline-height': panels.sizes.timeline + 'px' } as CSSProperties} className={'ef-shell' + (projectOpen ? ' ef-project-open' : '') + (groupScope ? ' ef-group-open' : '')} data-testid="editor-foundation"
     onKeyDown={event => {
       if (event.defaultPrevented) return;
       const historyKey = (event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase());
@@ -216,7 +221,7 @@ export default function EditorFoundation() {
           2026-09-24). Home, beside the brand, is the way out. */}
     </header>
     <div className="ef-document-strip"><button aria-expanded={projectOpen} aria-controls="ef-project" onClick={() => setProjectOpen(!projectOpen)}>Project {projectOpen ? '▾' : '▸'}</button>
-      <span className="ef-document-tab">{template.name}</span><span className="ef-spacer" />
+      <button onClick={panels.reset}>Reset layout</button><span className="ef-document-tab">{template.name}</span><span className="ef-spacer" />
       {groupScope && <button className="ef-root-return" aria-label="Back to Composition" onClick={() => navigateGroup(null)}>← Back to Composition</button>}
       <span className="ef-location-label">Editing</span><nav className="ef-group-breadcrumbs" aria-label="Group breadcrumbs"><button onClick={() => navigateGroup(null)} aria-current={!groupScope ? 'location' : undefined}>Composition</button>{groupPath.map(selector => <button key={selector} onClick={() => navigateGroup(selector)} aria-current={selector === groupScope ? 'location' : undefined}>{view.parts.find(part => part.selector === selector)?.label ?? selector}</button>)}</nav></div>
     <div className="ef-workspace">
@@ -254,9 +259,12 @@ export default function EditorFoundation() {
         <LiveDataControls key={'live-data:' + session.instanceId} template={template} execute={operation => { pause(); session.cancel(); images.execute([operation]); }} />
         <p className="ef-muted">Assets and operator fields for this graphic. Select artwork in Layers below the canvas.</p>
       </aside>
+      {projectOpen && divider('project', 'Project panel width', 'x', 1)}
       <Canvas key={authoringId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} openLayerMenu={(selector, x, y) => setLayerMenu({ selector, x, y, id: crypto.randomUUID(), instance: session.instanceId })} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
+      {divider('inspector', 'Inspector panel width', 'x', -1)}
       {assistantOpen ? <ProposalPanel key={session.instanceId} close={() => { setAssistantOpen(false); assistantButton.current?.focus(); }} /> : <Inspector reveal={activeReveal} seek={(time, cue) => { pause(); preview.current?.stopExit(); seek(time, cue); }} time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} previewLoop={previewLoop} openAssets={openAssets} editPoints={setPathEditing} />}
     </div>
+    {divider('timeline', 'Timeline height', 'y', -1)}
     <Timeline reveal={activeReveal} key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} setSelection={selectors => { setPathEditing(null); setLayerMenu(null); recordFoundationInput('selection'); setSelection(selectors); }} layerMenu={layerMenu?.instance === session.instanceId ? layerMenu : null} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)}
       isExitPreview={() => preview.current?.isExiting() ?? false} />

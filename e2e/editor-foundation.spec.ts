@@ -421,3 +421,45 @@ test('document ports isolate transactions and refuse unknown source data without
   });
   expect(result).toEqual({ isolated: true, wrongDocument: true, restored: true, unknown: true, retired: true });
 });
+
+
+for (const [width, height] of [[1366, 768], [1920, 1080]] as const) test(`panel dividers retain reachable layout without editing at ${width}x${height}`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height }); await open(page); await ready(page);
+  await page.getByRole('button', { name: /^Project/ }).first().click();
+  const divider = page.getByRole('separator', { name: 'Inspector panel width', exact: true });
+  await expect(divider).toBeVisible();
+  const snapshot = () => page.evaluate(async () => {
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { source: s.template, history: s.history, future: s.future, selected: s.selectedParts };
+  });
+  const before = await snapshot();
+  const first = (await divider.boundingBox())!;
+  await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2); await page.mouse.down();
+  await page.mouse.move(first.x - 70, first.y + first.height / 2, { steps: 4 }); await page.mouse.up();
+  await expect.poll(async () => (await page.locator('.ef-inspector').boundingBox())!.width).toBeGreaterThan(330);
+  const committedWidth = (await page.locator('.ef-inspector').boundingBox())!.width;
+  const stored = await page.evaluate(() => localStorage.getItem('spx-gfx-editor-layout'));
+  const start = (await divider.boundingBox())!;
+  await page.mouse.move(start.x + 3, start.y + start.height / 2); await page.mouse.down(); await page.mouse.move(start.x - 30, start.y + start.height / 2);
+  expect(await page.evaluate(() => localStorage.getItem('spx-gfx-editor-layout'))).toBe(stored);
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  await expect.poll(async () => (await page.locator('.ef-inspector').boundingBox())!.width).toBe(committedWidth);
+  const project = page.getByRole('separator', { name: 'Project panel width', exact: true }); await project.focus(); await page.keyboard.press('Home');
+  await expect.poll(async () => (await page.locator('.ef-project').boundingBox())!.width).toBe(180);
+  await page.keyboard.press('End'); expect((await page.locator('.ef-canvas').boundingBox())!.width).toBeGreaterThanOrEqual(239);
+  await page.keyboard.press('Home');
+  const timeline = page.getByRole('separator', { name: 'Timeline height', exact: true }); await timeline.focus();
+  const oldHeight = (await page.locator('.ef-timeline').boundingBox())!.height; await page.keyboard.press('ArrowUp');
+  await expect.poll(async () => (await page.locator('.ef-timeline').boundingBox())!.height).toBeGreaterThan(oldHeight);
+  await page.keyboard.press('End'); expect((await page.locator('.ef-workspace').boundingBox())!.height).toBeGreaterThanOrEqual(199);
+  await page.keyboard.press('Home');
+  const retainedWidth = (await page.locator('.ef-inspector').boundingBox())!.width, retainedHeight = (await page.locator('.ef-timeline').boundingBox())!.height;
+  const retained = await page.evaluate(() => localStorage.getItem('spx-gfx-editor-layout'));
+  expect(await snapshot()).toEqual(before);
+  await page.reload(); await ready(page); expect(await snapshot()).toEqual(before);
+  expect((await page.locator('.ef-inspector').boundingBox())!.width).toBe(retainedWidth); expect((await page.locator('.ef-timeline').boundingBox())!.height).toBe(retainedHeight);
+  expect(await page.evaluate(() => localStorage.getItem('spx-gfx-editor-layout'))).toBe(retained);
+  await page.getByRole('button', { name: 'Reset layout', exact: true }).click();
+  await expect.poll(async () => (await page.locator('.ef-inspector').boundingBox())!.width).toBe(280);
+  expect(await snapshot()).toEqual(before); await page.screenshot({ path: info.outputPath('reachable-layout.png') });
+});
