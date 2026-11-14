@@ -44,11 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "step": "build",
-      "head": "1b7e067c537d567e119c5f886b22f521b2a80503",
+      "pr": 2564,
+      "note": "Rules-only V5 draft is awaiting independent review at pinned head before any product edits. Windows tests and release acceptance remain in the existing run.",
       "session": "/root/v5_builder",
-      "phase": "v5",
-      "note": "V4 accepted. Fresh local builder working from latest main on vMix clip timing, reload, and the next Bridge release. Rules-first review before product edits."
+      "head": "643d6ab8e33c1c5d8348a614b5d625c9c0e895dc",
+      "step": "build",
+      "phase": "v5"
     }
   ],
   "owner": [],
