@@ -1,3 +1,4 @@
+// runs on: dev server - checks the env object the dev server injects into each module; the build inlines it
 // covers: src/components/wizard/import/{MapSvgFieldsStep.tsx,draft.ts}
 // The wizard shell mounts the step and passes it the draft, so a shell change runs this walk too.
 // covers: src/components/wizard/**, !src/components/wizard/import/**

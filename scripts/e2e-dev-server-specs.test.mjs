@@ -13,12 +13,13 @@ test('finds every URL-style /src and /benchmarks path outside the door and comme
     "import { s } from '/src/output/stage.ts';",
     "const b = await import('/benchmarks/creative/v1/briefs.json');",
     "await request.get(`${base}/src/x.ts`);",
+    "await page.goto('/e2e/fixtures/canvas-guides.html');",
     "await __noacgImport('/src/model/library.ts');",
     "// a comment naming import('/src/x.ts')",
     "import { x } from '../src/model/x';",
     "type T = typeof import('/src/model/library.ts');",
   ].join('\n');
-  assert.deepEqual(devServerPaths(text), [1, 2, 3, 4, 5]);
+  assert.deepEqual(devServerPaths(text), [1, 2, 3, 4, 5, 6]);
 });
 
 test('a spec that needs the dev server must say so, and a helper may not need it', () => {

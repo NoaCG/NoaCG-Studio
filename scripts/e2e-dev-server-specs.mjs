@@ -9,8 +9,8 @@
 // The browser suite runs against the e2e build (playwright.config.ts, NOACG_E2E_ON_BUILD=1). A few
 // specs test something only the dev server has: they swap a source module over the network
 // (`page.route('**/src/backend/config.ts*')`), rewrite a page's boot script, ask for a fresh module
-// copy (`?t=`), read source files or stylesheets by their /src URL, or import a file the build does
-// not serve (/benchmarks). On the build such a route matches nothing and raises nothing, so the
+// copy (`?t=`), read source files or stylesheets by their /src URL, or open a file the build does
+// not serve (/benchmarks, an /e2e/ fixture page). On the build such a route matches nothing and raises nothing, so the
 // spec would pass without exercising its condition. Those specs run in the "dev" project instead,
 // on a dev server, with every assertion unchanged.
 //
@@ -18,7 +18,7 @@
 //
 //   // runs on: dev server - <why the build cannot serve it>
 //
-// This check reads every spec and helper. A URL-style `/src/` or `/benchmarks/` path outside a
+// This check reads every spec and helper. A URL-style `/src/`, `/benchmarks/` or `/e2e/` path outside a
 // `__noacgImport('/src/…')` call and outside a comment line means the dev server; such a spec
 // without the header fails here. A helper with one fails too, since its importers cannot see it.
 // A spec may carry the header without a detected path (it reads stylesheets the build bundles,
@@ -35,7 +35,7 @@ const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 export const MARKER = /^\/\/ runs on: dev server - (\S.{9,})$/;
 /** Anything that looks like an attempt at it, anywhere: a typo must not silently mean "the build". */
 const NEAR = /^\s*\/\/\s*runs[\s-]*on\b/im;
-const URL_PATH = /(['"`*]|\$\{[^}]*\}|https?:\/\/[^/'"`\s]*)\/(src|benchmarks)\//;
+const URL_PATH = /(['"`*]|\$\{[^}]*\}|https?:\/\/[^/'"`\s]*)\/(src|benchmarks|e2e)\//;
 
 /** Line numbers (1-based) where a text names a URL-style /src/ or /benchmarks/ path outside the
  *  door and outside a comment line. */
@@ -44,12 +44,16 @@ export function devServerPaths(text) {
   text.split('\n').forEach((line, i) => {
     if (/^\s*(\/\/|\*)/.test(line)) return;
     const rest = line
-      .replace(/__noacgImport\(\s*(['"`])\/src\/[^'"`]*\1\s*\)/g, '')
+      .replace(/(__noacgImport|\bdoor)\(\s*(['"`])\/(src|e2e)\/[^'"`]*\2\s*\)/g, '')
       .replace(/typeof import\([^)]*\)/g, '');
     if (URL_PATH.test(rest)) hits.push(i + 1);
   });
   return hits;
 }
+
+/** The global setups (playwright configs' globalSetup): not spec helpers, and each reaches the
+ *  page through the door on the build and its own URL only on the dev server. */
+const GLOBAL_SETUP = new Set(['e2e/_offline-guard.ts', 'e2e/_configured-guard.ts']);
 
 /** `{ specs, problems }` over `[file, text]` entries of e2e/ (top level): the spec files marked
  *  for the dev server, and every spec or helper that needs it without saying so. */
@@ -57,6 +61,7 @@ export function classify(entries) {
   const specs = [];
   const problems = [];
   for (const [file, text] of entries) {
+    if (GLOBAL_SETUP.has(file)) continue;
     const marked = MARKER.test(text.split('\n', 1)[0]);
     const near = !marked && NEAR.test(text);
     const hits = devServerPaths(text);

@@ -1,3 +1,4 @@
+// runs on: dev server - opens the /e2e/fixtures page that imports the component by its /src URL
 // covers: src/components/canvas/CanvasGuides.tsx, e2e/fixtures/canvas-guides.html
 
 import { expect, test } from '@playwright/test';
