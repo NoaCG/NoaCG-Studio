@@ -1225,7 +1225,7 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   const saved = await page.evaluate(async () => {
     const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find(s => s.name === 'Evening News')!;
-    return (show.playoutItems ?? []).map(item => ({ item, cueId: show.cues?.find(c => c.sourceId === item.id)?.id }));
+    return (show.playoutItems ?? []).map(item => ({ item, showId: show.id, cueId: show.cues?.find(c => c.sourceId === item.id)?.id }));
   });
   const clips = saved.find(({ item }) => item.adapter === 'vmix' && item.name === movie)!;
   const audio = saved.find(({ item }) => item.adapter === 'vmix' && item.name === sound)!;
@@ -1250,6 +1250,8 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   await page.screenshot({ path: info.outputPath('vmix-cue-editor.png') });
   await page.getByTestId('verb-take').click();
   await expect(clipRow).toContainText('ON AIR');
+  const clipInstance = vmix.players.clips.instance;
+  expect(clipInstance).toBeTruthy();
   await page.getByTestId('playout-pause').click();
   await expect.poll(() => media.actions.length).toBe(2);
   await page.getByTestId('playout-resume').click();
@@ -1261,23 +1263,25 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   await page.getByTestId('verb-take').click();
   await expect(audioRow).toContainText('ON AIR');
   await expect(clipRow).toContainText('ON AIR');
+  const audioInstance = vmix.players.audio.instance;
+  expect(audioInstance).toBeTruthy();
   await page.getByTestId('verb-out').click();
   await expect(audioRow).not.toContainText('ON AIR');
   await expect(clipRow).toContainText('ON AIR');
   await clipRow.getByTestId('select-cue').click();
   await page.getByTestId('verb-out').click();
   await expect(clipRow).not.toContainText('ON AIR');
-  const player = (verb: string, slot: 'clips' | 'audio', name: string, cueId?: string) => ({
+  const player = (verb: string, slot: 'clips' | 'audio', name: string, identity: { cueId: string } | { expectedPlayerInstance: string }) => ({
     target: { adapter: 'vmix' },
-    action: { verb, slot: { adapter: 'vmix', player: slot }, item: { kind: 'media', name }, ...(cueId ? { cueId } : {}) },
+    action: { verb, slot: { adapter: 'vmix', player: slot }, item: { kind: 'media', name }, ...identity },
   });
   expect(media.actions).toEqual([
-    player('take', 'clips', movie, clips.cueId),
-    player('pause', 'clips', movie),
-    player('resume', 'clips', movie),
-    player('take', 'audio', sound, audio.cueId),
-    player('out', 'audio', sound),
-    player('out', 'clips', movie),
+    player('take', 'clips', movie, { cueId: 'vmix:' + JSON.stringify([clips.showId, clips.cueId, clips.item.id]) }),
+    player('pause-player-held', 'clips', movie, { expectedPlayerInstance: clipInstance! }),
+    player('resume-player-held', 'clips', movie, { expectedPlayerInstance: clipInstance! }),
+    player('take', 'audio', sound, { cueId: 'vmix:' + JSON.stringify([audio.showId, audio.cueId, audio.item.id]) }),
+    player('out-player-held', 'audio', sound, { expectedPlayerInstance: audioInstance! }),
+    player('out-player-held', 'clips', movie, { expectedPlayerInstance: clipInstance! }),
   ]);
   expect(bridge.actions).toEqual([]);
   expect(vmix.actions).toEqual([]);
@@ -1292,6 +1296,11 @@ test('vMix media browses the selected folder and plays on separate clip and audi
     await releaseTake.promise;
     await route.fallback();
   };
+  const unavailablePlayerReading = (route: Route) =>
+    route.request().method() === 'POST' && !route.request().postDataJSON()?.outputUrl
+      ? route.fulfill({ status: 503, headers: { 'Access-Control-Allow-Origin': '*' } })
+      : route.fallback();
+  await page.route(BRIDGE + '/state', unavailablePlayerReading);
   await page.route(BRIDGE + '/act', holdTake);
   try {
     await page.getByTestId('verb-take').click();
@@ -1312,10 +1321,15 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   } finally {
     releaseTake.resolve();
     await page.unroute(BRIDGE + '/act', holdTake);
+    // With observations held off, this assertion checks the old reply alone. A fresh read
+    // from the current pairing may now recover the instance, independently of that reply.
+    await page.unroute(BRIDGE + '/state', unavailablePlayerReading);
   }
   await expect(page.getByTestId('verb-take')).toBeEnabled();
   await page.getByTestId('verb-take').click();
   await expect(clipRow).toContainText('ON AIR');
+  const retakenInstance = vmix.players.clips.instance;
+  expect(retakenInstance).toBeTruthy();
   await page.getByTestId('verb-out').click();
   await expect(clipRow).not.toContainText('ON AIR');
 
@@ -1461,9 +1475,9 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   await expect(page.getByTestId('verb-take')).toBeEnabled();
   await expect(page.getByTestId('verb-target')).toHaveText('To: this page only');
   expect(media.actions.slice(6)).toEqual([
-    player('take', 'clips', movie, clips.cueId),
-    player('take', 'clips', movie, clips.cueId),
-    player('out', 'clips', movie),
+    player('take', 'clips', movie, { cueId: 'vmix:' + JSON.stringify([clips.showId, clips.cueId, clips.item.id]) }),
+    player('take', 'clips', movie, { cueId: 'vmix:' + JSON.stringify([clips.showId, clips.cueId, clips.item.id]) }),
+    player('out-player-held', 'clips', movie, { expectedPlayerInstance: retakenInstance! }),
   ]);
   const actionsBeforeMixedTake = media.actions.length;
   await parkFocusOffControls(page);
@@ -1493,14 +1507,15 @@ test('an accepted vMix All out finishes both original players after leaving the 
   await slotBridge(page.context(), { vmix });
   await seedSettings(page);
   await productionPage(page);
-  const [clips, audio] = await evaluateInPage(page, async () => {
+  const saved = await evaluateInPage(page, async () => {
     const { addPlayoutItem, loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find(s => s.name === 'Evening News')!;
     const clips = addPlayoutItem(show.id, { adapter: 'vmix', kind: 'media', name: 'Clip.mp4', mediaKind: 'movie', layer: 0 }).cueId;
     const audio = addPlayoutItem(show.id, { adapter: 'vmix', kind: 'media', name: 'Sting.wav', mediaKind: 'audio', layer: 0 }).cueId;
     if (!clips || !audio) throw new Error('Both vMix cues must be saved.');
     await new Promise(resolve => setTimeout(resolve));
-    return [clips, audio];
+    const stored = loadShows().find(s => s.id === show.id)!;
+    return { showId: show.id, clips, audio, cues: stored.cues! };
   });
   await page.getByTestId('production-status').click();
   await page.getByTestId('production-status-panel').getByTestId('vmix-switch').click();
@@ -1508,19 +1523,20 @@ test('an accepted vMix All out finishes both original players after leaving the 
   const take = async (id: string) => {
     const row = page.getByTestId('cue-' + id);
     await row.getByTestId('select-cue').click();
+    const itemId = saved.cues.find(c => c.id === id)!.sourceId;
     const sent = page.waitForResponse(response => response.url() === BRIDGE + '/act' &&
-      response.request().postDataJSON()?.action?.cueId === id);
+      response.request().postDataJSON()?.action?.cueId === 'vmix:' + JSON.stringify([saved.showId, id, itemId]));
     await page.getByTestId('verb-take').click();
     await expect(row).toContainText('ON AIR');
     return (await (await sent).json()).instance as string;
   };
-  const clipInstance = await take(clips);
-  const audioInstance = await take(audio);
+  const clipInstance = await take(saved.clips);
+  const audioInstance = await take(saved.audio);
   const firstSent = Promise.withResolvers<void>();
   const finish = Promise.withResolvers<void>();
   let holding = true;
   await page.route(BRIDGE + '/act', async route => {
-    if (route.request().method() !== 'POST' || route.request().postDataJSON()?.action?.verb !== 'out-player-instance') return route.fallback();
+    if (route.request().method() !== 'POST' || route.request().postDataJSON()?.action?.verb !== 'out-player-held') return route.fallback();
     if (holding) {
       holding = false;
       firstSent.resolve();
@@ -1534,7 +1550,7 @@ test('an accepted vMix All out finishes both original players after leaving the 
     await page.evaluate(() => { location.hash = '#/home'; });
     await expect(page.getByTestId('verb-out-all')).toHaveCount(0);
     finish.resolve();
-    await expect.poll(() => media.actions.filter(call => call.action.verb === 'out-player-instance')
+    await expect.poll(() => media.actions.filter(call => call.action.verb === 'out-player-held')
       .map(call => [call.action.slot.player, call.action.expectedPlayerInstance]).sort()).toEqual([
       ['audio', audioInstance],
       ['clips', clipInstance],

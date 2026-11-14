@@ -28,6 +28,7 @@ import type { ActResult, PlayoutAdapter } from './adapters/casparcg.js';
 import { ografApiBase } from './adapters/ograf.js';
 import type { VmixAdapter } from './adapters/vmix.js';
 import { VmixDeadline, VmixPublicationUncertain } from './vmixMedia.js';
+import type { VmixAction } from './vmixPlayers.js';
 import {
   MAX_SEQUENCE_ENTRIES,
   MAX_VMIX_OVERLAYS,
@@ -41,7 +42,6 @@ import {
   VMIX_OUTPUT_TOKEN_PREFIX,
   type ItemRef,
   type MediaPlayback,
-  type PlayoutAction,
   type RememberedServer,
   type RenderTargetId,
   type SequenceEntry,
@@ -356,7 +356,7 @@ function readEntry(v: unknown, index: number, count: number, loop: boolean): Seq
 
 /** An action from a body, validated field by field: what goes to a live channel is never
  *  forwarded on trust. */
-export function readAction(body: Record<string, unknown>): PlayoutAction {
+export function readAction(body: Record<string, unknown>): VmixAction {
   const a = body.action;
   if (!isRecord(a)) throw new UsageError('The request has no action.');
   const slot = readSlot(a.slot);
@@ -367,10 +367,11 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
     throw new UsageError('A vMix take or out can name the current input by key. Only take can expect an empty overlay.');
   }
   const expectedPlayer = a.expectedPlayerInstance;
-  const guardedOut = a.verb === 'out-player-instance';
-  if ((guardedOut || expectedPlayer !== undefined) && (!guardedOut || slot.adapter !== 'vmix' || !('player' in slot) ||
+  const guardedPlayer = a.verb === 'out-player-instance' || a.verb === 'out-player-held' ||
+    a.verb === 'pause-player-held' || a.verb === 'resume-player-held';
+  if ((guardedPlayer || expectedPlayer !== undefined) && (!guardedPlayer || slot.adapter !== 'vmix' || !('player' in slot) ||
     typeof expectedPlayer !== 'string' || !/^[a-z0-9._-]{1,128}$/i.test(expectedPlayer))) {
-    throw new UsageError('A guarded vMix player Out requires its expected playback instance.');
+    throw new UsageError('A guarded vMix player action requires its expected playback instance.');
   }
   if (a.imageFit !== undefined && (a.verb !== 'take' || (a.imageFit !== 'fit' && a.imageFit !== 'stretch') || slot.adapter !== 'casparcg')) throw new UsageError('imageFit is Fit or Stretch on a CasparCG media Take.');
   // A field on the wrong verb is refused rather than dropped: a level on an update would otherwise
@@ -405,14 +406,23 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
       return { verb: 'update', slot, data };
     }
     case 'out-player-instance':
+    case 'out-player-held':
     case 'out': {
       const item = isRecord(a.item) ? readItem(a.item) : undefined;
       return {
         verb: 'out', slot, item, ...(a.fadeOut !== undefined ? { fadeOut: readFade(a.fadeOut, 'fadeOut') } : {}),
         ...(typeof expected === 'string' ? { expectedOverlayInput: expected } : {}),
         ...(typeof expectedPlayer === 'string' ? { expectedPlayerInstance: expectedPlayer } : {}),
+        ...(a.verb === 'out-player-held' ? { requireMeasuredPlayer: true } : {}),
       };
     }
+    case 'pause-player-held':
+    case 'resume-player-held':
+      return {
+        verb: a.verb === 'pause-player-held' ? 'pause' : 'resume', slot,
+        item: isRecord(a.item) ? readItem(a.item) : undefined,
+        expectedPlayerInstance: expectedPlayer as string, requireMeasuredPlayer: true,
+      };
     case 'next':
     case 'pause':
     case 'resume':
@@ -523,7 +533,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
     if (url === '/health' && req.method === 'GET') {
       send(
         200,
-        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const, 'vmix-player-out-guard' as const] : [])] } satisfies BridgeWireReply<'/health'>,
+        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const, 'vmix-player-out-guard' as const, 'vmix-player-transport-guard' as const] : [])] } satisfies BridgeWireReply<'/health'>,
         true,
       );
       return;

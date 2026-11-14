@@ -4,8 +4,6 @@
 // rules beside it in ./serverState.ts are run.
 
 import type { PlayoutResult } from './playoutLink';
-import type { StateReply } from './playoutProtocol';
-
 export interface ServerStatePoll {
   stop: () => void;
   /** Read now: after an action, or when the tab comes back into view. */
@@ -20,11 +18,11 @@ export interface ServerStatePoll {
  * It only READS. What a reading changes is the caller's, and nothing in here can send a command:
  * no timer on the page ever fires or queues a clip.
  */
-export function pollServerState(options: {
-  read: (channel: number) => Promise<{ result: PlayoutResult; reply?: StateReply }>;
-  channels: () => number[];
+export function pollServerState<Target, Reading>(options: {
+  read: (target: Target) => Promise<{ result: PlayoutResult; reply?: Reading }>;
+  channels: () => Target[];
   busy: () => boolean;
-  onReading: (channel: number, reply: StateReply, receivedAt: number) => void;
+  onReading: (target: Target, reply: Reading, receivedAt: number) => void;
   busyMs?: number;
   idleMs?: number;
 }): ServerStatePoll {

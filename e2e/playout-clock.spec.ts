@@ -29,6 +29,7 @@ import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
 import { holdKeyRepeats, parkFocusOffControls } from './_keys';
 import { dropSvg } from './_svg-import';
+import { fakeVmix, fakeBridge as installFakeBridge } from './_fakeBridge';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -255,6 +256,108 @@ function leave(fake: Fake, addr: string, remaining: number) {
 
 const clock = (page: Page) => page.getByTestId('clip-clock');
 const clockTime = (page: Page) => page.getByTestId('clip-clock-time');
+
+test('vMix reads a playing cue, restores the exact production after reload, and marks a foreign replacement', async ({ page }, info) => {
+  const folder = 'C:/Videos';
+  const file = 'Replays/Opening.mp4';
+  const vmix = fakeVmix(8, { folder, files: { [folder]: {
+    '': [{ name: 'Replays', kind: 'folder' }],
+    Replays: [{ name: file, kind: 'movie', frames: 1500, fps: 25 }],
+  } } });
+  await installFakeBridge(page.context(), { vmix });
+  await seedSettings(page);
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Evening News');
+  const { showId, cueId, itemId, copyId } = await evaluateInPage(page, async () => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const show = shows.loadShows().find(s => s.name === 'Evening News')!;
+    const { cueId } = shows.addPlayoutItem(show.id, { adapter: 'vmix', kind: 'media', name: 'Replays/Opening.mp4', mediaKind: 'movie', layer: 0, frames: 1500, fps: 25 });
+    const copy = shows.duplicateShowChecked(show.id).show;
+    if (!copy || !cueId) throw new Error('Both productions and their shared cue must be saved.');
+    return { showId: show.id, cueId, itemId: copy.cues!.find(c => c.id === cueId)!.sourceId, copyId: copy.id };
+  });
+  await settleDurableWrites(page);
+  const clip = page.getByTestId('cue-' + cueId);
+  await clip.getByTestId('select-cue').click();
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
+  await expect.poll(() => vmix.routes.filter(route => route === '/state').length).toBeGreaterThan(0);
+
+  const staleRead = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const staleSettled = Promise.withResolvers<void>();
+  const freshRequested = Promise.withResolvers<void>();
+  const releaseFresh = Promise.withResolvers<void>();
+  let holding = false;
+  const hold = async (route: Route) => {
+    if (route.request().method() !== 'POST' || route.request().postDataJSON()?.outputUrl) return route.fallback();
+    if (holding) {
+      freshRequested.resolve();
+      await releaseFresh.promise;
+      return route.fallback();
+    }
+    holding = true;
+    const snapshot = vmix.reply('/state', { target: { adapter: 'vmix' } });
+    staleRead.resolve();
+    await release.promise;
+    try {
+      await route.fulfill({ status: 200, json: snapshot, headers: { 'Access-Control-Allow-Origin': '*' } });
+    } finally {
+      staleSettled.resolve();
+    }
+  };
+  await page.route(BRIDGE + '/state', hold);
+  try {
+    await staleRead.promise;
+    await page.getByTestId('verb-take').click();
+    await expect(clip).toContainText('ON AIR');
+    release.resolve();
+    await staleSettled.promise;
+    // The serial poll must have processed the old reply before it can ask again. Hold the
+    // new reply until the row proves it survived the stale one.
+    await freshRequested.promise;
+    await expect(clip).toContainText('ON AIR');
+    await expect(clip.getByTestId('cue-replaced')).toHaveCount(0);
+    releaseFresh.resolve();
+    await expect(clockTime(page)).toHaveText(/^-0:5[0-9]$/);
+    const before = await clockTime(page).textContent();
+    await expect(clockTime(page)).not.toHaveText(before!);
+    await expect(clip.getByTestId('cue-replaced')).toHaveCount(0);
+    expect(vmix.media!.actions).toMatchObject([{ action: {
+      verb: 'take', cueId: 'vmix:' + JSON.stringify([showId, cueId, itemId]), slot: { adapter: 'vmix', player: 'clips' },
+    } }]);
+  } finally {
+    release.resolve();
+    releaseFresh.resolve();
+    await page.unroute(BRIDGE + '/state', hold);
+  }
+
+  await page.reload();
+  await expect(clip).toContainText('ON AIR');
+  await expect(clockTime(page)).toHaveText(/^-/);
+  await page.screenshot({ path: info.outputPath('vmix-clock-after-reload.png') });
+  vmix.players.clips = { ...vmix.players.clips, position: 59.8, loop: true, playerCompleted: true };
+  await expect(clock(page)).toContainText('HOLDING');
+  await expect(clockTime(page).locator('.pd-clipclock-num')).toHaveText(/^\+\d+:\d\d$/);
+  await expect(clip.getByTestId('cue-length')).toHaveText('0:00');
+  await expect(clip).toContainText('ON AIR');
+  await page.goto('/app#/production/' + copyId);
+  await expect(clip).toBeVisible();
+  const beforeCopyRead = vmix.routes.filter(route => route === '/state').length;
+  await expect.poll(() => vmix.routes.filter(route => route === '/state').length).toBeGreaterThan(beforeCopyRead);
+  await expect(clip).not.toContainText('ON AIR');
+  await expect(clock(page)).toHaveCount(0);
+  await page.goto('/app#/production/' + showId);
+  await expect(clip).toContainText('ON AIR');
+
+  const { generation } = vmix.players.clips;
+  vmix.players.clips = { player: 'clips', layer: 0, generation, producer: 'other', playerOccupied: true, paused: false, loop: false };
+  await expect(clip.getByTestId('cue-replaced')).toBeVisible();
+  await expect(clip).not.toContainText('ON AIR');
+  await expect(clock(page)).toHaveCount(0);
+  await expect(page.getByTestId('verb-out')).toBeDisabled();
+  await page.screenshot({ path: info.outputPath('vmix-clip-replaced.png') });
+  expect(vmix.media!.actions).toHaveLength(1);
+});
 
 test('the clock counts the segment the server reports, warns at 10 and 5, then holds and counts up', async ({ page }) => {
   await seedSettings(page);

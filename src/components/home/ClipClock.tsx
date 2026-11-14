@@ -157,8 +157,8 @@ export default function ClipClock({
  */
 export function SlotRemaining({ timing, slot, fallback }: { timing: StorePart<ServerTiming>; slot: string; fallback: string }) {
   const t = useSyncExternalStore(timing.subscribe, () => timing.get()[slot]);
-  const now = useNow(!!t?.segment && !t.paused);
+  const now = useNow(!!t?.segment && !t.paused && !t.completed);
   const left = remainingAt(t, now);
   // A clip that has reached its end holds there: no time is left, and "-0:00" would read as a sign.
-  return <>{left === null ? fallback : left <= 0 && !t?.loop ? '0:00' : `-${clockText(left)}`}</>;
+  return <>{left === null ? fallback : left <= 0 && (!t?.loop || t.completed) ? '0:00' : `-${clockText(left)}`}</>;
 }

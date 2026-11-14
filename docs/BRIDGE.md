@@ -274,6 +274,16 @@ If you save a vMix preset with the NoaCG Browser input, start Bridge on the same
 and port before opening the preset. If Bridge starts late, reload that Browser input in vMix.
 Starting Bridge leaves every input and overlay as it is.
 
+For rundown media, use Bridge 0.12.0 or newer. In **Settings > Playout**, use **Choose folder**
+to select the media folder on the vMix computer. In the production use **From vMix** to add a
+clip, still or audio cue. The first Take creates the corresponding **NoaCG Clips** or **NoaCG
+Audio** Video List in vMix. You can place those inputs in your vMix setup.
+
+The clip clock follows the player's report, and reloading the production can find a playing
+cue that this running Bridge started for it. If the player switches to someone else's media,
+the previous cue says **replaced on the server** and its transport controls stop applying.
+After restarting Bridge, check any still-playing input in vMix before taking the cue again.
+
 ## 3. The Bridge (`noacg bridge`, `cli/src/playout/`)
 
 It lives in the existing `noacg` CLI rather than as a second local process, for the reason

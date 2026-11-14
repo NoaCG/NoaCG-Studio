@@ -15,12 +15,12 @@ import type { PlayoutAction } from './playoutProtocol';
 import type { ServerPlayoutStore } from './serverPlayoutStore';
 import type { TakeContext } from './takeBlockers';
 import { folderRun, runServerVerb, sequenceAction, sequenceMembers, type SequenceMember, type ServerVerb, type ServerVerbOutcome } from './serverPlayout.ts';
-import { applyAccepted, applyClearedSlot } from './serverState.ts';
+import { applyAccepted, applyClearedSlot, vmixCueIdentity } from './serverState.ts';
 import { slotAddress } from './playoutSlots.ts';
 import { effectiveEnd, segmentSeconds } from './cuePlayback.ts';
 
 export interface ServerVerbIo {
-  act: (settings: PlayoutSettings, action: PlayoutAction) => Promise<PlayoutResult>;
+  act: (settings: PlayoutSettings, action: PlayoutAction, current?: () => boolean) => Promise<PlayoutResult>;
   /** The studio's settings as they stand now. */
   loadSettings: () => PlayoutSettings;
   /** The page's own clock (ms), for the folds. */
@@ -89,30 +89,60 @@ export function runVmixAndRecord(
   io: ServerVerbIo,
   intent: ServerVerbIntent,
   current: () => boolean,
+  showId = '',
 ): Promise<ServerVerbOutcome> {
   const { item, cue, verb, label } = intent;
   const settings = io.loadSettings();
-  const slot = intent.rundown.slots.itemSlot(settings, item);
+  const binding = store.vmixBinding();
+  const expected = store.ownership.get().onAir[item.id];
+  const configured = intent.rundown.slots.itemSlot(settings, item);
+  const slot = verb !== 'take' && expected ? expected.slot : configured;
   const refused = (reason: string): ServerVerbOutcome => ({ ok: false, note: `${label} was not sent: ${reason}`, accepted: [] });
   if (slot.adapter !== 'vmix' || !('player' in slot)) return Promise.resolve(refused('This cue has no vMix player.'));
   if (verb === 'update' || verb === 'next') return Promise.resolve(refused('This control is unavailable for vMix media.'));
-  const expected = store.ownership.get().onAir[item.id];
-  const owns = () => verb === 'take' || (!!expected && expected.cueId === cue.id && store.ownership.get().onAir[item.id] === expected);
-  return store.runVmix(slot.player, () => {
-    if (!current()) return Promise.resolve(refused('The vMix connection changed.'));
+  const cueId = showId ? vmixCueIdentity(showId, cue.id, item.id) : cue.id;
+  const moved = () => {
+    const live = store.ownership.get().onAir[item.id];
+    return verb === 'take' && live && slotAddress(live.slot) !== slotAddress(slot);
+  };
+  const owns = () => verb === 'take' || (!!expected?.instance && expected.cueId === cue.id && store.ownership.get().onAir[item.id] === expected);
+  let wake = false;
+  return store.runVmix(slot.player, (accept, sessionUnchanged) => {
+    if (!current()) return Promise.resolve(refused('The vMix connection changed. Check the selected cue.'));
+    if (verb === 'take' && !cueId) return Promise.resolve(refused('This cue has no recoverable vMix identity.'));
     if (!owns()) return Promise.resolve(refused('This cue is no longer on its vMix player.'));
+    if (moved()) return Promise.resolve(refused('Take the cue off its previous vMix player first.'));
+    const retirePlayer = () => {
+      if (!sessionUnchanged() || store.vmixBinding() !== binding) return;
+      store.apply(parts => applyClearedSlot(parts, { slot }));
+      wake = true;
+    };
     return runAndRecord(store, {
       ...io,
+      wake: () => { wake = true; },
       loadSettings: () => settings,
       act: async (sendSettings, action) => {
-        if (!current() || !owns()) return { state: 'config', detail: 'This vMix action was cancelled.' };
-        const result = await io.act(sendSettings, action);
-        if (!current()) return { state: 'config', detail: 'The vMix connection changed.' };
-        if (result.playerUncertain) store.apply(parts => applyClearedSlot(parts, { slot }));
+        if (!current() || !owns() || slotAddress(action.slot) !== slotAddress(slot)) {
+          return { state: 'config', detail: 'This vMix action was cancelled.' };
+        }
+        const request = action.verb === 'take' ? { ...action, cueId }
+          : action.verb === 'out' || action.verb === 'pause' || action.verb === 'resume'
+            ? { ...action, expectedPlayerInstance: expected?.instance } : action;
+        const result = await io.act(sendSettings, request, () => current() && owns());
+        if (result.playerUncertain) retirePlayer();
         return result;
       },
-    }, intent, current);
-  });
+    }, intent, accepted => {
+      if (!current()) {
+        if (accepted.length) retirePlayer();
+        return 'The vMix connection changed. Check the selected cue.';
+      }
+      const action = accepted[0];
+      if (action && (!action.session || action.generation === undefined || !accept(action.session, action.generation))) {
+        return 'vMix player state changed before the action reply.';
+      }
+    });
+  }).finally(() => { if (wake) io.wake(); });
 }
 
 /**
@@ -128,7 +158,7 @@ export async function runAndRecord(
   store: Pick<ServerPlayoutStore, 'ownership' | 'apply'>,
   io: ServerVerbIo,
   intent: ServerVerbIntent,
-  current?: () => boolean,
+  verifyReply?: (accepted: ServerVerbOutcome['accepted']) => string | undefined,
 ): Promise<ServerVerbOutcome> {
   // A Take never goes the old way with a setting dropped (docs/CLIP_PLAYBACK_PLAN.md §6.9). SPACE,
   // the button and Re-take all come through here, so the check is made once, where it cannot be
@@ -136,7 +166,7 @@ export async function runAndRecord(
   // touches nothing, the draft included.
   if (intent.verb === 'take' && intent.blocked) return { ok: false, note: `${intent.label} was not sent: ${intent.blocked}`, accepted: [] };
   try {
-    return await runVerb(store, io, intent, current);
+    return await runVerb(store, io, intent, verifyReply);
   } finally {
     // A save that fails reports itself through the save state; it never holds or aborts the verb.
     void io.flush().catch(() => undefined);
@@ -147,7 +177,7 @@ async function runVerb(
   store: Pick<ServerPlayoutStore, 'ownership' | 'apply'>,
   io: ServerVerbIo,
   intent: ServerVerbIntent,
-  current?: () => boolean,
+  verifyReply?: (accepted: ServerVerbOutcome['accepted']) => string | undefined,
 ): Promise<ServerVerbOutcome> {
   const { cue, item, verb, label, options = {}, readable } = intent;
   const { cues, items: playoutItems, folders, places } = intent.rundown;
@@ -196,8 +226,9 @@ async function runVerb(
     loop,
     ...(options.cut ? { cut: true } : {}),
   });
-  // A pairing can change between the action reply and this synchronous acceptance fold.
-  if (current && !current()) return { ok: false, note: `${label}: The vMix connection changed.`, accepted: [] };
+  // Authority can change between the action reply and this synchronous acceptance fold.
+  const rejected = verifyReply?.(outcome.accepted);
+  if (rejected) return { ok: false, note: `${label}: ${rejected}`, accepted: [] };
   for (const a of outcome.accepted) {
     store.apply((parts) =>
       applyAccepted(parts, {

@@ -58,6 +58,24 @@ export interface OgrafSlot {
 /** Where in vMix: one of its overlay channels, from 1 to the `overlays` it reports. */
 export type VmixPlayer = 'clips' | 'audio';
 
+const VMIX_MEDIA_EXTENSIONS = {
+  movie: ['.avi', '.m4v', '.mov', '.mp4', '.mpeg', '.mpg', '.mxf', '.qt', '.wmv'],
+  still: ['.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff'],
+  audio: ['.mp3', '.wav'],
+};
+export type VmixMediaKind = keyof typeof VMIX_MEDIA_EXTENSIONS;
+
+/** The files the Bridge can play in a vMix Video List. */
+export function vmixMediaKind(name: string): VmixMediaKind | undefined {
+  const parts = name.split(/[\\/]/);
+  const leaf = parts[parts.length - 1];
+  const dot = leaf.lastIndexOf('.');
+  if (dot <= 0) return undefined;
+  const extension = leaf.slice(dot).toLowerCase();
+  return (Object.keys(VMIX_MEDIA_EXTENSIONS) as VmixMediaKind[])
+    .find(kind => VMIX_MEDIA_EXTENSIONS[kind].includes(extension));
+}
+
 export interface VmixOverlaySlot {
   adapter: 'vmix';
   overlay: number;
@@ -148,7 +166,7 @@ export type PlayoutAction =
    *  only; a Bridge that does not list the `playback` feature must never be sent one. */
   | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean; cueId?: string; playback?: MediaPlayback; imageFit?: 'fit' | 'stretch'; expectedOverlayInput?: string | null }
   | { verb: 'update'; slot: Slot; data: Record<string, string> }
-  | { verb: 'next' | 'pause' | 'resume'; slot: Slot; item?: ItemRef }
+  | { verb: 'next' | 'pause' | 'resume'; slot: Slot; item?: ItemRef; expectedPlayerInstance?: string }
   /** `fadeOut` fades a clip to nothing. A vMix panel Out carries the displayed input key. */
   | { verb: 'out'; slot: Slot; item?: ItemRef; fadeOut?: number; expectedOverlayInput?: string; expectedPlayerInstance?: string }
   /** Remove whatever is in the slot at once, with no exit: the All out an OGraf server offers. On
@@ -224,7 +242,7 @@ export interface AgentError {
  *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
  *  `ending` is the `ending` verb: a clip's ending changed while it plays. `channels` is `/channels`:
  *  the channels a server reports it has. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard';
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard' | 'vmix-player-transport-guard';
 
 /** Prefix the paired token for keyed vMix verbs so a legacy Bridge refuses the request even if it
  * replaced the new Bridge after the browser's capability probe. The token itself is unchanged. */
@@ -443,6 +461,12 @@ export interface PairLinkReply {
  */
 export interface SlotState {
   player?: VmixPlayer;
+  /** The picked vMix name, confirmed to still resolve to the held file. */
+  playerSource?: string;
+  /** A current Bridge confirmed a foreign occupant (true) or an empty player (false). */
+  playerOccupied?: boolean;
+  /** vMix reported the selected file as Completed. The position and Loop setting remain native. */
+  playerCompleted?: true;
   /** The slot's layer; the channel is the request's. */
   layer: number;
   /** `empty` after a STOP, `colour` after `PLAY … EMPTY`; nothing is on air in either. */
