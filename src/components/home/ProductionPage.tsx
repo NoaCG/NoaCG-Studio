@@ -1146,7 +1146,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       setPublishedReaders(facts.readers);
       if (scenes) sceneJoinRef.current?.({ version: ver, scenes });
       // A development build lets a spec withhold the request, to prove outputs find it alone.
-      if (import.meta.env.DEV && (window as unknown as { __noacgWithholdPrep?: boolean }).__noacgWithholdPrep) return;
+      if ((import.meta.env.DEV || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) && (window as unknown as { __noacgWithholdPrep?: boolean }).__noacgWithholdPrep) return;
       setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
     },
   });

@@ -48,7 +48,9 @@ const WRITES: Record<Write, { key: string; has: string[]; not: string[] }> = {
   L: { key: LIB, has: [], not: [] },
   K: { key: SLOT, has: ['commitLink', 'persistLink'], not: [] },
   F: { key: SLOT, has: ['settleTrailingAutosave'], not: [] },
-  I: { key: SLOT, has: [], not: ['saveActions.ts'] },
+  // Not a save's own write: every slot write src/store/saveActions.ts makes runs through one of these
+  // three, and a function name survives the e2e build where a file name does not.
+  I: { key: SLOT, has: [], not: ['persistLink', 'settleTrailingAutosave', 'discardDraft'] },
   D: { key: SLOT, has: ['discardDraft'], not: ['persistLink'] },
 };
 type Probe = { rules: { w: Write; action: Action; used?: boolean }[]; acted: { w: Write; action: Action }[]; releases: (() => void)[]; errors: number };

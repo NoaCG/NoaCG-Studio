@@ -137,7 +137,9 @@ export default async function offlineGuard(): Promise<void> {
     const page = await browser.newPage();
     await page.goto(`${base}/app`, { waitUntil: 'domcontentloaded' });
     env = await page.evaluate(async () => {
-      const probe = (await import('/e2e/_env-probe.ts')) as Record<string, unknown>;
+      // The door when the page has one (the e2e build answers it from its registry), else the module's URL.
+      const door = (window as unknown as { __noacgImport?: (p: string) => Promise<unknown> }).__noacgImport;
+      const probe = (await (door ? door('/e2e/_env-probe.ts') : import('/e2e/_env-probe.ts'))) as Record<string, unknown>;
       return { ...probe };
     });
     const aiSignal = AbortSignal.timeout(PROBE_TIMEOUT_MS);

@@ -28,6 +28,9 @@ test('refuses a plain in-page source import, and allows the door and a type posi
   const found = plainImports([
     ['e2e/a.spec.ts', "await __noacgImport('/src/model/library.ts');\ntype T = typeof import('/src/model/library.ts');"],
     ['e2e/b.spec.ts', "line one\nawait import('/src/store/templateStore.ts');"],
+    ['e2e/c.spec.ts', "await import('/src/ai/lite/pipeline.ts' as string);"],
+    ['e2e/d.spec.ts', "await import('/src/model/id.ts?t=' + Date.now()); await import('/src/model/wizard.ts' + bust);"],
+    ['e2e/e.spec.ts', "// through `import('/src/store/x.ts')` once\n * as `import('/src/store/y.ts')`"],
   ]);
-  assert.deepEqual(found, ['e2e/b.spec.ts:2']);
+  assert.deepEqual(found, ['e2e/b.spec.ts:2', 'e2e/c.spec.ts:1']);
 });

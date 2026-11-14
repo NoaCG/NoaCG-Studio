@@ -8,6 +8,11 @@ import { localWorkers, validateCloudWorkerRequest } from './scripts/e2e-workers.
 // port in a linked worktree), so parallel worktrees never reuse each other's servers.
 const base = `http://127.0.0.1:${devPort()}`;
 const isCi = Boolean(process.env.CI);
+// THE SUITE AGAINST THE BUILT APP (run #1967, plan A step d): `NOACG_E2E_ON_BUILD=1` builds the e2e
+// bundle (`npm run build:e2e`) and serves it with `vite preview` on the same port, instead of the dev
+// server. A fresh context boots it in about a third of the time. Specs reach app modules through
+// `__noacgImport` (src/app/e2eModules.ts), which the build answers from its registry.
+const onBuild = process.env.NOACG_E2E_ON_BUILD === '1';
 
 // THE BLOB FILE MUST BE UNIQUE PER SHARD, and only Playwright's own `--shard=i/n` makes it so on
 // its own - it suffixes the zip with the shard number. Without sharding every runner writes
@@ -126,10 +131,12 @@ export default defineConfig({
   webServer: {
     // The port is passed, not left to vite.config.ts: the server then reserves exactly the number
     // this config is waiting on, or fails loudly (scripts/dev-port.mjs, "asking never reserves").
-    command: `npm run dev -- --host 127.0.0.1 --port ${devPort()} --strictPort`,
+    command: onBuild
+      ? `npm run build:e2e && npx vite preview --outDir dist-e2e --host 127.0.0.1 --port ${devPort()} --strictPort`
+      : `npm run dev -- --host 127.0.0.1 --port ${devPort()} --strictPort`,
     url: base,
-    reuseExistingServer: true,
-    timeout: 60_000,
+    reuseExistingServer: !onBuild,
+    timeout: onBuild ? 240_000 : 60_000,
     // Pin the suite to OFFLINE mode regardless of the developer's local .env (which may hold real
     // Supabase creds for live testing). Env vars set here take priority over .env files in Vite,
     // so these empty values win and the app behaves as the no-backend tool the specs assume.

@@ -23,7 +23,7 @@ import { STARTERS } from './starters';
 import { installE2eModules } from '../app/e2eModules';
 
 // Browser specs reach this page's modules through window.__noacgImport (src/app/e2eModules.ts).
-installE2eModules(null);
+installE2eModules();
 
 /** The preview's settle data: the graphic's own field defaults — the GraphicThumb recipe,
  *  without the store around it. */

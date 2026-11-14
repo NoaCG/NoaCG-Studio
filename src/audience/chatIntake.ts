@@ -758,7 +758,7 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
 // than by importing the module in an evaluate: a dev server can resolve an evaluate's import
 // to a SECOND module instance (the ghost-store trap), whose registry would be empty while the
 // app's own carries the sources the UI shows. The handle the APP registered is unambiguous.
-// Dev-only: a production build carries no seam.
-if (import.meta.env?.DEV && typeof window !== 'undefined') {
+// Dev server and e2e build only: a production build carries no seam.
+if ((import.meta.env?.DEV || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) && typeof window !== 'undefined') {
   (window as unknown as Record<string, unknown>).__noacgChatIntake = { for: chatIntakeFor };
 }

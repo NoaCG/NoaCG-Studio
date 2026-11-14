@@ -35,6 +35,7 @@ import { fileURLToPath } from 'node:url';
 import { CONFIGURED_BACKEND, CONFIGURED_COVERAGE, CONFIGURED_FULL, CONFIGURED_SPECS, COVERAGE, CRITICAL, FOCUS } from './e2e-lists.mjs';
 import { COPY_PATH_FILE, copyEdit, scanScript, specsNaming } from './e2e-affected-copy.mjs';
 import { measured } from './measured.mjs';
+import { EXTRA as REGISTRY_EXTRA } from './e2e-module-registry.mjs';
 import {
   budgetMinutes,
   predictShardMinutes,
@@ -948,6 +949,9 @@ export function checkoutSourceGraph() {
       if (/\.(m?[jt]sx?|css)$/.test(file)) sources.set(file, readCheckout(file) ?? '');
     }
   }
+  // The files outside src/ and api/ a source module imports: the e2e registry's EXTRA modules
+  // (scripts/e2e-module-registry.mjs), the env probe. Each is a leaf, so knowing it exists is enough.
+  for (const path of REGISTRY_EXTRA) files.add(path.slice(1));
   sourceGraphCache = sourceGraph(sources, files);
   return sourceGraphCache;
 }

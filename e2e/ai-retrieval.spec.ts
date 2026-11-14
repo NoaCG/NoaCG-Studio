@@ -301,10 +301,10 @@ test.describe('the chassis keeps the zone it was drawn for', () => {
     // the adapt-first policy has to travel as an ARGUMENT. This drives the one compile path
     // both use with each caller's real options, rather than a parameter default.
     const res = await page.evaluate(async () => {
-      const pipeline = (await import('/src/ai/lite/pipeline.ts' as string)) as {
+      const pipeline = (await __noacgImport('/src/ai/lite/pipeline.ts')) as {
         assembleGroundedTemplate: (s: unknown, c: unknown, o: unknown) => { template: { css: string } };
       };
-      const catalog = (await import('/src/templates/catalog.ts' as string)) as {
+      const catalog = (await __noacgImport('/src/templates/catalog.ts')) as {
         variantById: (id: string) => { defaultZone: string };
       };
       const base = {
