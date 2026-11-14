@@ -197,7 +197,8 @@
   "#2392 fix taken into the run: owner yes 2026-11-13.",
   "2026-11-13 B A A B: phase 6 AC-4 large gap judged at end of phase 7, auto updates off in production until then; #2494 fixed in run before phase 8; #2495 guard fixed in run; leftovers stay.",
   "2026-11-13 phase 6: A, auto updates publish after editing pauses; AC-4 measured at 5 s pace, 10 pairs.",
-  "Coordinator (delegated) 2026-11-13T20:46Z: phase 6 AC-4 typical judged on pooled p95 difference over 20 interleaved pairs at 5 s edits, pass at <= 50 ms; bootstrap range and per-pair values reported. First 10 pairs: +38 ms (90% +24..+56)."
+  "Coordinator (delegated) 2026-11-13T20:46Z: phase 6 AC-4 typical judged on pooled p95 difference over 20 interleaved pairs at 5 s edits, pass at <= 50 ms; bootstrap range and per-pair values reported. First 10 pairs: +38 ms (90% +24..+56).",
+  "2026-11-14 owner: workers use the existing check accounts, never create test accounts."
  ],
  "phase2": {
   "builderCostUSD": "about 50",
@@ -209,7 +210,8 @@
   "Phase 3: the owner-approved fix (#2389) passed a full /so A yet lost an edit on reload; the independent checker caught it with a slowed send plus reload probe. Reload-in-the-window probes belong in every save-path brief.",
   "Phase 5: Codex on each new head found four real playout defects after /so grade A (stale demand read dropping a Take, seed pruning, hold not released after swap, lost entrance across republish). Wait for Codex on the final head before the receipt, and ask for behaviour tests, not source checks. Builders read the block deadline as their own deadline; say it is renewed.",
   "Phase 6: builder's single-pair AC-4 measurement (+1.9 ms) did not reproduce for the checker (+260 pooled, bimodal). Briefs for timing criteria must require several interleaved on/off pairs and report the spread.",
-  "Fix #2495 (test guard) cost about 473 USD over nine /so rounds (1.36M output tokens): a small guard grew through review rounds until the round cap forced a smaller scope. Briefs for tooling fixes should cap scope up front and split follow-ups early."
+  "Fix #2495 (test guard) cost about 473 USD over nine /so rounds (1.36M output tokens): a small guard grew through review rounds until the round cap forced a smaller scope. Briefs for tooling fixes should cap scope up front and split follow-ups early.",
+  "2026-11-14: the phase 7 repairer sat idle 07:55-18:53 waiting on its own /so and CI with no wake; the coordinator's only check-in was 12 h away. Keep check-ins at most 4 h apart while a worker is active."
  ],
  "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open).",
  "phase3": {
@@ -258,10 +260,10 @@
   "costUSD": "about 106 (builder 88, checker 18) plus /so sessions"
  },
  "block": {
-  "epoch": 4,
-  "deadline": "2026-11-14T18:51:05.037Z"
+  "epoch": 5,
+  "deadline": "2026-11-15T18:53:08.776Z"
  },
- "nextCheckin": "2026-11-14T06:20:00Z",
+ "nextCheckin": "2026-11-14T22:50:00Z",
  "traps5": [
   "the job queue runs two browser jobs on one port and one account",
   "graphic frames are sandboxed (checker 5-c-b19d)"
