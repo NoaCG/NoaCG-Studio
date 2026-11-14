@@ -2,6 +2,7 @@
 // check first:
 //
 //  0. No command reads or prints a .env file's values (env-secrets.mjs).
+//  0b. No one-off command uses the production admin key or access token (production-reach.mjs).
 //  1. Dev servers go through the Claude preview tools, never a raw shell command - a stray
 //     server on this checkout's port is exactly the "reuseExistingServer picks up the wrong
 //     env" e2e trap documented in e2e/AGENTS.md ("Gotchas when writing a spec").
@@ -28,6 +29,7 @@
 import { isAbsolute, join } from 'node:path';
 import { readHookInput, deny, gitOutput, checkoutKind } from './lib.mjs';
 import { envSecretsRefusal, showsEnvSecrets } from './env-secrets.mjs';
+import { productionReachRefusal } from './production-reach.mjs';
 import * as rules from '../rules.mjs';
 import { portsFor } from '../dev-port.mjs';
 import { mainPushRefusal } from './main-push.mjs';
@@ -79,6 +81,12 @@ function targetRoot() {
 // guard-read.mjs; env-secrets.mjs decides for all three.
 const secretRead = showsEnvSecrets(command, sessionDir);
 if (secretRead) deny(envSecretsRefusal(secretRead));
+
+// --- 0b. No one-off command reaches production with the admin key (#2560) ---------------------
+//
+// production-reach.mjs decides; the Codex guard asks it too.
+const productionReach = productionReachRefusal(command, { env: process.env, cwd: sessionDir });
+if (productionReach) deny(productionReach);
 
 // --- 1. Dev-server policy -----------------------------------------------------------------
 
