@@ -146,6 +146,8 @@ import { designEditedAt, libraryStoreText, loadGraphics, newerLibraryDesign, tem
 import { describeProductionGate, productionGateFailures } from '../../validation/productionGate';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
+import { keepGeometry } from '../../control/keptGeometry';
+import { LIVE_BUILD } from '../../control/livePath';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
@@ -2588,13 +2590,47 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         if (!everyGraphic || seen.has(g.id)) return [];
         seen.add(g.id);
       }
-      const values = airedValuesOf(cue);
-      const state = adjustStateOf(cue, record, lib);
-      const styleId = state?.measureStyleId ?? '';
+      const { id, values, state } = identityOf(cue, g, record, lib);
       const input: MeasureInput = { template: templateForSavedGraphic(g, lib), values, style: previewStyleOf(state) };
-      return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, styleId), input }];
+      return [{ cueId: cue.id, graphicId: g.id, id, input }];
     });
   };
+  /** A graphic cue's measurement identity: what a Take of it airs, in the style it airs in. */
+  const identityOf = (cue: ShowCue, g: SavedGraphic, record: Show, lib = library) => {
+    const values = airedValuesOf(cue);
+    const state = adjustStateOf(cue, record, lib);
+    return { id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, state?.measureStyleId ?? ''), values, state };
+  };
+  /** What this page measured, kept in this browser across a reload (control/keptGeometry.ts, #2532):
+   *  a reopened page takes a cue's kept box when its identity is unchanged, so the first publish after
+   *  a reload carries the boxes the last one did rather than resending cues nobody changed. */
+  const keptBoxes = useMemo(
+    () =>
+      keepGeometry(
+        session.geometry,
+        id,
+        () => new Map((latestShow.current?.cues ?? []).filter((c) => c.source !== 'playout').map((c) => [c.id, c.sourceId] as const)),
+        {
+          getItem: (k) => localStorage.getItem(k),
+          setItem: (k, v) => localStorage.setItem(k, v),
+          setTimeout: (run, ms) => setTimeout(run, ms),
+          clearTimeout: (t) => clearTimeout(t as ReturnType<typeof setTimeout>),
+          build: LIVE_BUILD,
+        },
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session],
+  );
+  useEffect(() => keptBoxes.watch(), [keptBoxes]);
+  /** Takes the kept boxes of `record`'s graphic cues this session has not measured yet. */
+  const adoptKeptBoxes = (record: Show, lib = library) =>
+    keptBoxes.adopt((owed) =>
+      (record.cues ?? []).flatMap((cue) => {
+        const g = owed.has(cue.id) ? record.graphics.find((x) => x.id === cue.sourceId) : undefined;
+        if (!g || cue.source === 'playout' || isForeignGraphic(g.template)) return [];
+        return [{ cueId: cue.id, graphicId: g.id, id: identityOf(cue, g, record, lib).id }];
+      }),
+    );
   // With saves and publishes in parts (live-publishing G4), every graphic as Publish asks, measured
   // in the background from the moment the page opens, so the first publish after a reload has each
   // box and does not drop one it published before (a cue resent for nothing). Otherwise only the
@@ -2608,7 +2644,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
   // the identity a cue's box was measured for.
   useEffect(() => {
-    if (show) measurer.want(measureJobs(show, library, boxesAhead));
+    if (!show) return;
+    adoptKeptBoxes(show);
+    measurer.want(measureJobs(show, library, boxesAhead));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, library, stage, measurer, resolved, boxesAhead]);
 
@@ -2949,6 +2987,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       // adjusted cue carries an appearance.
       appearanceFor: appearanceForRef.current = async (latest) => {
         const lib = loadGraphics();
+        adoptKeptBoxes(latest, lib);
         await Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
         const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
         const ctx = styleCtxOf(latest, templates);
