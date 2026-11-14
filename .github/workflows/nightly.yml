@@ -71,6 +71,7 @@ jobs:
     outputs:
       run: ${{ steps.find.outputs.run }}
       shards: ${{ steps.find.outputs.shards }}
+      quarantine: ${{ steps.find.outputs.quarantine }}
     steps:
       - name: Find a green full push run on this commit
         id: find
@@ -119,6 +120,13 @@ jobs:
             echo "::notice title=Nightly::main's full push run ${RUN} is green on this commit - the E2E shards are skipped and its reports used."
             echo "run=$RUN" >> "$GITHUB_OUTPUT"
             echo "shards=$SHARDS" >> "$GITHUB_OUTPUT"
+          elif [ "$GATE" = "success" ] && [ -n "$SHARDS" ] && [ "$GREEN" = "$SHARDS" ] && [ "$BLOBS" = "$SHARDS" ] && [ "$TRACES" = "$SHARDS" ] && [ "$QCONCLUSION" = "success" ] && [ "$QRED" != "unreadable" ]; then
+            # Only quarantined specs are not green. The push run sampled every other spec green, so
+            # one shard here runs just these, and the report merges it with that run's reports.
+            echo "::notice title=Nightly::main's full push run ${RUN} is green on this commit - only the quarantined spec(s) not green there run here: ${QRED}"
+            echo "run=$RUN" >> "$GITHUB_OUTPUT"
+            echo "shards=$SHARDS" >> "$GITHUB_OUTPUT"
+            echo "quarantine=$(jq -cn --arg s "$QRED" '$s | split(" ")')" >> "$GITHUB_OUTPUT"
           else
             echo "Not a complete green full run - running the shards."
           fi
@@ -134,7 +142,8 @@ jobs:
     name: Nightly shard plan
     needs: covered
     # Not `success()`: a `covered` job that failed or hit its cap found nothing, so the shards run.
-    if: ${{ !cancelled() && needs.covered.outputs.run == '' }}
+    # With a quarantine list, the plan is one shard of just those specs.
+    if: ${{ !cancelled() && (needs.covered.outputs.run == '' || needs.covered.outputs.quarantine != '') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -152,8 +161,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.run_id }}
+          QUARANTINE: ${{ needs.covered.outputs.quarantine }}
         run: |
           set -uo pipefail
+          if [ -n "$QUARANTINE" ]; then
+            echo "shardspecs=$(jq -c '[.]' <<< "$QUARANTINE")" >> "$GITHUB_OUTPUT"
+            echo 'matrix={"shardIndex":[1],"shardTotal":[1]}' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           REPORTS=""
           for id in $(gh run list --workflow nightly.yml --status completed --limit 6 \
             --json databaseId --jq ".[] | select(.databaseId != ${RUN_ID}) | .databaseId" | head -5); do
@@ -168,9 +183,10 @@ jobs:
 
   e2e:
     name: Nightly E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-    needs: plan
-    # Explicit, because the implied `success()` also reads `covered`, two jobs up: a failed lookup
-    # must still run the shards.
+    # `covered` for the quarantine list, which names this shard's blob.
+    needs: [covered, plan]
+    # Explicit, because the implied `success()` also reads `covered`: a failed lookup must still
+    # run the shards.
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
     runs-on: ubuntu-latest
     # The job's cap, kept where it was. Each shard's own Playwright run stops itself five minutes
@@ -213,8 +229,9 @@ jobs:
           # The suite runs on the e2e build (playwright.config.ts); the specs that need the dev
           # server say so in their header and run there (scripts/e2e-dev-server-specs.mjs).
           NOACG_E2E_ON_BUILD: ${{ inputs.dev_server && '0' || '1' }}
-          # One blob name per shard, so the report job can tell which shard sent none.
-          NOACG_BLOB_NAME: report-${{ matrix.shardIndex }}.zip
+          # One blob name per shard, so the report job can tell which shard sent none. The quarantine
+          # shard's blob sits beside the push run's `report-<n>.zip` files, so it has its own name.
+          NOACG_BLOB_NAME: ${{ needs.covered.outputs.quarantine != '' && 'report-quarantine.zip' || format('report-{0}.zip', matrix.shardIndex) }}
           # Record which source each spec EXECUTED, for the traced spec map the report job builds
           # (scripts/e2e-traced.mjs). V8's binary function coverage; it adds no measurable time.
           NOACG_E2E_TRACE: ${{ runner.temp }}/e2e-trace
@@ -407,8 +424,10 @@ jobs:
       # node_modules from cache, or `npm ci` on a miss - the action carries the measurement.
       - uses: ./.github/actions/node-modules
 
+      # The shards here: the whole suite, or with a quarantine list the one shard of those specs,
+      # whose blob joins main's push run reports below.
       - name: Download shard reports
-        if: ${{ needs.covered.outputs.run == '' }}
+        if: ${{ needs.covered.outputs.run == '' || needs.covered.outputs.quarantine != '' }}
         uses: actions/download-artifact@v5
         with:
           path: all-blob-reports
@@ -437,7 +456,7 @@ jobs:
       # the committed map for any spec that did not finish. Before the time budget, which can fail
       # this job; the map is worth the same on a slow night.
       - name: Download shard traces
-        if: ${{ !cancelled() && needs.covered.outputs.run == '' }}
+        if: ${{ !cancelled() && (needs.covered.outputs.run == '' || needs.covered.outputs.quarantine != '') }}
         uses: actions/download-artifact@v5
         with:
           path: all-traces
@@ -589,10 +608,12 @@ jobs:
           GATES_RESULT: ${{ needs.catalog-gates.result }}
           REPORT_RESULT: ${{ needs.report.result }}
           COVERED_RUN: ${{ needs.covered.outputs.run }}
+          COVERED_QUARANTINE: ${{ needs.covered.outputs.quarantine }}
         run: |
           failed=""
-          # Skipped shards are a pass only when main's green full push run on this commit stood in.
-          if [ -n "$COVERED_RUN" ] && [ "$E2E_RESULT" = "skipped" ]; then E2E_RESULT=success; fi
+          # Skipped shards are a pass only when main's green full push run on this commit stood in
+          # for all of them. With a quarantine list, that shard had to run here.
+          if [ -n "$COVERED_RUN" ] && [ -z "$COVERED_QUARANTINE" ] && [ "$E2E_RESULT" = "skipped" ]; then E2E_RESULT=success; fi
           [ "$E2E_RESULT" = "success" ] || failed="${failed}- Full E2E suite: ${E2E_RESULT}\n"
           [ "$CATALOG_RESULT" = "success" ] || failed="${failed}- Catalog calibration tripwire: ${CATALOG_RESULT}\n"
           # Name all FIVE gates this job carries, for the same reason the report line below names
