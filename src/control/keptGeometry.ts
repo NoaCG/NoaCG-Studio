@@ -17,7 +17,8 @@
 
 import type { StorePart } from './storePart';
 import { measured, type GeometryPart } from './adjustGeometry.ts';
-import type { Measurement, Size } from './cueAdjust.ts';
+import type { Measurement } from './cueAdjust.ts';
+import { canonicalJson } from '../backend/unitPatch.ts';
 
 export const KEPT_GEOMETRY_KEY = 'spx-gfx-measured';
 /** Productions kept, newest first; an older one is measured again when it opens. */
@@ -203,39 +204,51 @@ export function keepGeometry(part: StorePart<GeometryPart>, productionId: string
   };
 }
 
-/** A cue's box as the stored publication carries it, with what it was measured against. */
+/** A cue's box as the stored publication carries it, with the cue it was published on: its values,
+ *  its adjust records without the box (graphic, cue, look, frame, stage) and its graphic's design
+ *  digest in the stored stamp (`ver.g`), each as canonical JSON. */
 export interface PublishedBox {
-  g: string;
   box: Measurement;
-  frame: Size;
-  stage: Size;
+  values: string;
+  rest: string;
+  digest: string | null;
 }
 
-const isSize = (s: unknown): s is Size => !!s && typeof s === 'object' && typeof (s as Size).width === 'number' && typeof (s as Size).height === 'number';
+/** What a cue is now, in the terms a stored box is checked against. */
+export interface CueNow {
+  values: unknown;
+  /** The adjust this publish writes for it, without the box. */
+  rest: unknown;
+  digest: string | null;
+}
 
-/** Each cue's box in a stored publication's cues (`output.cues`, each `adjust.box`), by cue id. */
-export function publishedBoxesOf(cues: unknown): Map<string, PublishedBox> {
+/** Each cue's box in a stored publication (`output.cues`, each `adjust.box`; `digests`: its stamp's
+ *  `ver.g`, by graphic name), by cue id. */
+export function publishedBoxesOf(cues: unknown, digests: unknown = null): Map<string, PublishedBox> {
   const out = new Map<string, PublishedBox>();
   if (!Array.isArray(cues)) return out;
-  for (const c of cues as { id?: unknown; adjust?: { graphicId?: unknown; box?: unknown; frame?: unknown; stage?: unknown } }[]) {
+  const byName = digests && typeof digests === 'object' ? (digests as Record<string, unknown>) : {};
+  for (const c of cues as { id?: unknown; graphic?: unknown; values?: unknown; adjust?: { box?: unknown } & Record<string, unknown> }[]) {
     const a = c?.adjust;
-    if (typeof c?.id !== 'string' || !a || typeof a.graphicId !== 'string' || !isMeasurement(a.box) || !isSize(a.frame) || !isSize(a.stage)) continue;
-    out.set(c.id, { g: a.graphicId, box: a.box, frame: a.frame, stage: a.stage });
+    if (typeof c?.id !== 'string' || !a || !isMeasurement(a.box)) continue;
+    const { box, ...rest } = a;
+    const digest = typeof c.graphic === 'string' && typeof byName[c.graphic] === 'string' ? (byName[c.graphic] as string) : null;
+    out.set(c.id, { box, values: canonicalJson(c.values ?? null), rest: canonicalJson(rest), digest });
   }
   return out;
 }
 
-const sameSize = (a: Size, b: Size) => a.width === b.width && a.height === b.height;
-
 /**
  * THE BOX A PUBLISH CARRIES for a cue (#2532, coordinator's route (b) on #2361): what the page
  * measured (`measured`, its own or its graphic's newest, `geometryOf`), else the box the stored
- * publication carries for the same cue of the same graphic measured against the same frame and
- * stage. A measurement that has not come yet so never takes a published box away, and a box changes
- * in the publication only when the page has measured one. Every path a publish takes builds its
- * payload from this one answer (R23).
+ * publication carries for that cue while the stored cue is the cue as it is now (the same values,
+ * the same adjust records, look, frame and stage, the same design); otherwise none, as before. A
+ * measurement that has not come yet so never takes a published box away, a box changes in the
+ * publication only when the page has measured one, and a box is never carried onto a cue it was not
+ * measured for. Every path a publish takes builds its payload from this one answer (R23).
  */
-export function publishBox(measured: Measurement | null, last: PublishedBox | undefined, graphicId: string, frame: Size, stage: Size): Measurement | null {
+export function publishBox(measured: Measurement | null, last: PublishedBox | undefined, now: CueNow): Measurement | null {
   if (measured) return measured;
-  return last && last.g === graphicId && sameSize(last.frame, frame) && sameSize(last.stage, stage) ? last.box : null;
+  if (!last || last.digest === null || last.digest !== now.digest) return null;
+  return last.values === canonicalJson(now.values ?? null) && last.rest === canonicalJson(now.rest) ? last.box : null;
 }

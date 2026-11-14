@@ -170,32 +170,55 @@ describe('a reload keeps the boxes a publish carries', () => {
 });
 
 describe('a publish keeps the stored box of a cue the page has not measured (#2532, route (b))', () => {
-  /** The stored publication's cues as `buildOutputPayload` wrote them. */
-  const storedCues = (part, cues) =>
-    Object.entries(cues).map(([id, [g, mid]]) => ({ id, graphic: g, values: {}, adjust: H.publishedAdjustOf({ id: g }, {}, undefined, G.geometryOf(part, id, g, mid).m, HD, HD) }));
+  const DIGESTS = { g1: 'dg1', g2: 'dg2' };
+  /** A cue as the record holds it: its values; its adjust as a publish writes it, without the box. */
+  const cueRecord = (c, g, values = { f0: `v-${c}` }) => ({ id: c, g, values, rest: H.publishedAdjustOf({ id: g }, {}, undefined, null, HD, HD) });
+  const RECORDS = Object.fromEntries(Object.entries(CUES).map(([c, [g]]) => [c, cueRecord(c, g)]));
+  /** The stored publication's cues, as `buildOutputPayload` wrote them, and its stamp's `ver.g`. */
+  const storedOf = (part, records = RECORDS, digests = DIGESTS) =>
+    K.publishedBoxesOf(
+      JSON.parse(JSON.stringify(Object.values(records).map((r) => ({ id: r.id, graphic: r.g, values: r.values, adjust: H.publishedAdjustOf({ id: r.g }, {}, undefined, G.geometryOf(part, r.id, r.g, CUES[r.id][1]).m, HD, HD) })))),
+      digests,
+    );
   /** What a publish carries for each cue: `publishBox` over the session and the stored boxes. */
-  const publishes = (part, cues, stored) =>
-    Object.fromEntries(Object.entries(cues).map(([c, [g, id]]) => [c, K.publishBox(G.geometryOf(part, c, g, id).m, stored.get(c), g, HD, HD)]));
-
-  test('a cold page (nothing kept, nothing measured yet) publishes every box the stored publication has', () => {
+  const publishes = (part, stored, records = RECORDS, digests = DIGESTS) =>
+    Object.fromEntries(Object.values(records).map((r) => [r.id, K.publishBox(G.geometryOf(part, r.id, r.g, CUES[r.id][1]).m, stored.get(r.id), { values: r.values, rest: r.rest, digest: digests[r.g] ?? null })]));
+  const measuredBefore = () => {
     const before = storePart(G.NO_GEOMETRY);
     before.set((p) => G.measured(p, 'c1', 'g1', 'id-c1', box(872)));
     before.set((p) => G.measured(p, 'c3', 'g2', 'id-c3', box(700)));
-    const stored = K.publishedBoxesOf(JSON.parse(JSON.stringify(storedCues(before.get(), CUES))));
+    return before;
+  };
+
+  test('a cold page (nothing kept, nothing measured yet) publishes every box the stored publication has', () => {
+    const before = measuredBefore();
+    const stored = storedOf(before.get());
     const cold = storePart(G.NO_GEOMETRY);
-    assert.deepEqual(publishes(cold.get(), CUES, stored), published(before.get(), CUES));
+    assert.deepEqual(publishes(cold.get(), stored), published(before.get(), CUES));
     // Once the page measures a graphic, its measurement is what goes, as before.
     cold.set((p) => G.measured(p, 'c1', 'g1', 'id-c1', box(880)));
-    assert.deepEqual(publishes(cold.get(), CUES, stored), { c1: box(880), c2: box(880), c3: box(700) });
+    assert.deepEqual(publishes(cold.get(), stored), { c1: box(880), c2: box(880), c3: box(700) });
   });
 
-  test('a stored box of another graphic, frame or stage is not carried', () => {
-    const last = { g: 'g1', box: box(872), frame: HD, stage: HD };
-    assert.equal(K.publishBox(null, last, 'g2', HD, HD), null);
-    assert.equal(K.publishBox(null, last, 'g1', HD, { width: 1280, height: 720 }), null);
-    assert.equal(K.publishBox(null, last, 'g1', { width: 1280, height: 720 }, HD), null);
-    assert.equal(K.publishBox(null, undefined, 'g1', HD, HD), null);
-    assert.deepEqual(K.publishBox(null, last, 'g1', HD, HD), box(872));
+  test('a box is never carried onto a cue it was not measured for', () => {
+    const before = measuredBefore();
+    const stored = storedOf(before.get());
+    const cold = storePart(G.NO_GEOMETRY).get();
+    // This page's own edit of c1, whose measurement has not come: c1 carries no box, the rest keep theirs.
+    const edited = { ...RECORDS, c1: cueRecord('c1', 'g1', { f0: 'edited' }) };
+    assert.deepEqual(publishes(cold, stored, edited), { c1: null, c2: box(872), c3: box(700) });
+    // A teammate published c3 with new text after this page read the stored boxes: the record now holds
+    // theirs, so the old box is not written back over their newer one.
+    const theirs = { ...RECORDS, c3: cueRecord('c3', 'g2', { f0: 'teammate' }) };
+    assert.equal(publishes(cold, stored, theirs).c3, null);
+    // A design edit (another digest), a cue adjusted since (another adjust record), another stage.
+    assert.equal(publishes(cold, stored, RECORDS, { ...DIGESTS, g2: 'dg2-new' }).c3, null);
+    const adjusted = { ...RECORDS, c3: { ...RECORDS.c3, rest: H.publishedAdjustOf({ id: 'g2' }, { adjust: { v: 1, anchor: 'tl' } }, undefined, null, HD, HD) } };
+    assert.equal(publishes(cold, stored, adjusted).c3, null);
+    const smaller = { ...RECORDS, c3: { ...RECORDS.c3, rest: H.publishedAdjustOf({ id: 'g2' }, {}, undefined, null, HD, { width: 1280, height: 720 }) } };
+    assert.equal(publishes(cold, stored, smaller).c3, null);
+    // A stamp with no digest for the graphic carries nothing.
+    assert.equal(publishes(cold, storedOf(before.get(), RECORDS, {})).c3, null);
   });
 
   test('a stored publication that is not one reads as no boxes', () => {

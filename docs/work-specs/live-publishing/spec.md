@@ -557,8 +557,9 @@ Filled in by each phase's pull request.
     has measured one, so a measurement result never rides on an edit unless it is new.
   What a Take airs is unchanged: the published box is not what a Take places by. Both publish paths
   take their payload from the one `publishedOf` call, so they write the same record (R23). No
-  migration. Rules (a Risky row: reload state). K1 to K7 were written after the first code and K8
-  after the full `/so`, so none was challenged before coding; each is pinned by a test:
+  migration. Rules (a Risky row: reload state). K1 to K7 were written after the first code, K8 after
+  the first full `/so` and K9 after the second, so none was challenged before coding; each is pinned
+  by a test:
   - K1 With `partial_writes` off, nothing is kept, taken, read or carried: Takes and publishes are as
     on `main`. Only the background measurer differs: it starts once the switch is read.
   - K2 With it on, a reopened page takes a kept box for a cue only when it has not measured that cue
@@ -575,8 +576,11 @@ Filled in by each phase's pull request.
   - K7 The background measurer starts once the switch is read, so a box measured anew never races
     a kept one.
   - K8 A cue with no measurement since the page opened (none of its own, none of its graphic's)
-    publishes the box the stored publication carries for it, when that box is of the same graphic
-    and was measured against the same frame and stage; otherwise none, as before. Whole and parts
+    publishes the box the stored publication carries for it; otherwise none, as before.
+  - K9 A stored box is carried only onto the cue it was published on, as that cue is now: the same
+    values, the same adjust records, look, frame and stage, and the same design (its graphic's
+    digest in the stored stamp). A cue this page edited, or a teammate published since the read, or
+    whose design changed, carries none. Found by the second full review. Whole and parts
     publishes carry the same box (`publish-guard.spec.ts`, AC-5 check, cold reload on both paths).
     The stored boxes are read afresh each time the production opens; a publish waits for that read
     within its measure cap (or reads itself when there is none), and a failed read is not kept, so

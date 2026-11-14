@@ -247,8 +247,9 @@ const publishedBoxes = new Map<string, Promise<Map<string, PublishedBox> | null>
 /** Read the box the stored publication carries for each cue (null: the read failed). */
 export function readPublishedBoxes(sb: Sb, showId: string): Promise<Map<string, PublishedBox> | null> {
   const read = (async () => {
-    const { data, error } = await sb.from('control_shows').select('cues:output->cues').eq('id', showId).maybeSingle();
-    return error ? null : publishedBoxesOf((data as { cues?: unknown } | null)?.cues);
+    const { data, error } = await sb.from('control_shows').select('cues:output->cues, g:output->ver->g').eq('id', showId).maybeSingle();
+    const row = data as { cues?: unknown; g?: unknown } | null;
+    return error ? null : publishedBoxesOf(row?.cues, row?.g);
   })().catch(() => null);
   publishedBoxes.set(showId, read);
   void read.then((boxes) => {

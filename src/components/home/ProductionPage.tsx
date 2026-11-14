@@ -212,6 +212,7 @@ import {
   libraryGraphicDigests,
   sendsInOrder,
   sentHere,
+  copyDigest,
   verbAired,
   verbStale,
   verbsLanded,
@@ -3012,14 +3013,24 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         ]);
         const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
         const ctx = styleCtxOf(latest, templates);
+        // The design digest a stored box is checked against, for each graphic one of whose cues has
+        // a stored box (the stamp's `ver.g`, memoized: the publish computes the same right after).
+        const digests = new Map<string, string>();
+        if (stored) {
+          for (const [i, g] of latest.graphics.entries()) {
+            if ((latest.cues ?? []).some((c) => c.sourceId === g.id && stored.has(c.id))) digests.set(g.id, await copyDigest(latest, i, g.template));
+          }
+        }
         return (cue) => {
           const g = latest.graphics.find((x) => x.id === cue.sourceId);
           const state = adjustStateOf(cue, latest, lib, ctx);
           if (!g || !state) return undefined;
           // A cue the page has not measured keeps the box the stored publication carries (#2532).
           const frame = frameOf(g, lib);
-          const box = stored ? publishBox(state.m, stored.get(cue.id), g.id, frame, stage) : state.m;
-          const adjust = publishedAdjustOf(g, cue, ctx.lookFor?.(g.id), box, frame, stage);
+          const look = ctx.lookFor?.(g.id);
+          const rest = publishedAdjustOf(g, cue, look, null, frame, stage);
+          const box = stored ? publishBox(state.m, stored.get(cue.id), { values: cue.values, rest, digest: digests.get(g.id) ?? null }) : state.m;
+          const adjust = publishedAdjustOf(g, cue, look, box, frame, stage);
           return { ...(state.send ? { appearance: state.send } : {}), adjust };
         };
       },
