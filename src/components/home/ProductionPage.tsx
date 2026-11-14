@@ -147,7 +147,7 @@ import { describeProductionGate, productionGateFailures } from '../../validation
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { keepGeometry, publishBox } from '../../control/keptGeometry';
-import { publishedBoxOf } from '../../control/publishParts';
+import { storedBoxes } from '../../control/publishParts';
 import { LIVE_BUILD } from '../../control/livePath';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
@@ -3003,7 +3003,13 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       appearanceFor: appearanceForRef.current = async (latest) => {
         const lib = loadGraphics();
         adoptKeptBoxes(latest, lib);
-        await Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
+        // The stored boxes (a cue not measured yet keeps its published one, #2532) are waited for
+        // beside the measurements, within the same cap.
+        const capped = <T,>(p: Promise<T>) => Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), PUBLISH_MEASURE_CAP_MS))]);
+        const [stored] = await Promise.all([
+          boxesAhead === true ? capped(storedBoxes(latest.id)) : null,
+          Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS))),
+        ]);
         const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
         const ctx = styleCtxOf(latest, templates);
         return (cue) => {
@@ -3012,7 +3018,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           if (!g || !state) return undefined;
           // A cue the page has not measured keeps the box the stored publication carries (#2532).
           const frame = frameOf(g, lib);
-          const box = boxesAhead === true ? publishBox(state.m, publishedBoxOf(latest.id, cue.id), g.id, frame, stage) : state.m;
+          const box = stored ? publishBox(state.m, stored.get(cue.id), g.id, frame, stage) : state.m;
           const adjust = publishedAdjustOf(g, cue, ctx.lookFor?.(g.id), box, frame, stage);
           return { ...(state.send ? { appearance: state.send } : {}), adjust };
         };

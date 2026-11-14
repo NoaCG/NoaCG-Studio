@@ -1157,11 +1157,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
         });
         await page.reload();
         await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
-        // The stored boxes are read as the production opens.
-        await expect.poll(() => page.evaluate(async ({ id, cues }) => {
-          const { publishedBoxOf } = await __noacgImport('/src/control/publishParts.ts');
-          return cues.some((c) => !!publishedBoxOf(id, c));
-        }, { id: showId, cues: boxesBefore.map(([c]) => c as string) }), { timeout: 30_000 }).toBe(true);
+        // No wait for the stored boxes' read: a publish waits for it itself.
       };
       await coldReload();
       const coldSeen = watch(page.context());

@@ -240,20 +240,39 @@ export async function prefetchPublishedBase(sb: Sb, showId: string): Promise<voi
   held.set(showId, { n, head: stored.head, panel: stored.panel, refs: stored.refs, title: '', profile: '' });
 }
 
-/** Each production's stored cue boxes, read when it opens (`prefetchPublishedBoxes`). */
-const publishedBoxes = new Map<string, Map<string, PublishedBox>>();
+/** Each production's stored cue boxes: the read made when it last opened, or by a publish. A read
+ *  that failed is not kept, so the next publish reads again. */
+const publishedBoxes = new Map<string, Promise<Map<string, PublishedBox> | null>>();
 
-/** With parts on, when the production opens: the box the stored publication carries for each cue,
- *  so a publish before the page has measured a cue keeps it (keptGeometry.ts `publishBox`). */
-export async function prefetchPublishedBoxes(sb: Sb, showId: string): Promise<void> {
-  if (publishedBoxes.has(showId)) return;
-  const { data, error } = await sb.from('control_shows').select('cues:output->cues').eq('id', showId).maybeSingle();
-  if (error || publishedBoxes.has(showId)) return;
-  publishedBoxes.set(showId, publishedBoxesOf((data as { cues?: unknown } | null)?.cues));
+/** Read the box the stored publication carries for each cue (null: the read failed). */
+export function readPublishedBoxes(sb: Sb, showId: string): Promise<Map<string, PublishedBox> | null> {
+  const read = (async () => {
+    const { data, error } = await sb.from('control_shows').select('cues:output->cues').eq('id', showId).maybeSingle();
+    return error ? null : publishedBoxesOf((data as { cues?: unknown } | null)?.cues);
+  })().catch(() => null);
+  publishedBoxes.set(showId, read);
+  void read.then((boxes) => {
+    if (!boxes && publishedBoxes.get(showId) === read) publishedBoxes.delete(showId);
+  });
+  return read;
 }
 
-/** The stored box of one cue, as read when the production opened. */
-export const publishedBoxOf = (showId: string, cueId: string): PublishedBox | undefined => publishedBoxes.get(showId)?.get(cueId);
+/** With parts on, when the production opens: the stored boxes read afresh (a publication made since
+ *  an earlier visit of this page load is then the one read), so a publish before the page has
+ *  measured a cue keeps its box (keptGeometry.ts `publishBox`). */
+export function prefetchPublishedBoxes(sb: Sb, showId: string): Promise<void> {
+  return readPublishedBoxes(sb, showId).then(() => undefined);
+}
+
+/** The stored boxes a publish builds with: the read made when the production opened, waited for,
+ *  or a read of its own when there is none (null: none could be read; the publish then carries
+ *  only what the page measured, as before). */
+export async function storedBoxes(showId: string, sbOf: () => Promise<Sb | null> = getSupabase): Promise<Map<string, PublishedBox> | null> {
+  const known = publishedBoxes.get(showId);
+  if (known) return known;
+  const sb = await sbOf();
+  return sb ? readPublishedBoxes(sb, showId) : null;
+}
 
 /** What this page's own last publish of each production wrote: the stamp, the revision, the OBS
  *  scenes and the panel (until this page publishes, the publication as read when the production

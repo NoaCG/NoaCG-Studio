@@ -45,3 +45,56 @@ test('only a base64 image is put and named by its content; a sound reference sta
   assert.deepEqual(assets.slice(1), [{ path: 's.mp3', data: 'noacg-audio:abc' }, { path: 'n.txt', data: 'plain text' }]);
   assert.deepEqual(publish.args.p_parts[0].assets, [assets[0].h], 'the part names only the image');
 });
+
+// The stored boxes a publish builds with (phase 7 repair, #2532): read afresh when the production
+// opens, waited for by a publish, read by the publish itself when there is none, and a failed read
+// is not kept.
+const { readPublishedBoxes, prefetchPublishedBoxes, storedBoxes } = await import('../src/control/publishParts.ts');
+const HD = { width: 1920, height: 1080 };
+const cueWith = (id, y) => ({ id, adjust: { graphicId: 'g1', box: { info: { x: 0, y, w: 10, h: 10 }, paint: null, minText: null }, frame: HD, stage: HD } });
+/** A server whose stored cues are `cues()` at each read; `fail` answers an error; `hold` delays it. */
+function boxesServer(cues, opts = {}) {
+  let reads = 0;
+  const q = { select: () => q, eq: () => q, maybeSingle: async () => {
+    reads++;
+    if (opts.hold) await opts.hold;
+    return opts.fail?.() ? { data: null, error: { message: 'down' } } : { data: { cues: cues() }, error: null };
+  } };
+  return { sb: { from: () => q }, reads: () => reads };
+}
+
+test('a production opened again reads the stored boxes afresh', async () => {
+  forgetPublishedParts();
+  let y = 1;
+  const server = boxesServer(() => [cueWith('c1', y)]);
+  await prefetchPublishedBoxes(server.sb, 's1');
+  y = 2; // a publish of this page load, before the production is opened again
+  await prefetchPublishedBoxes(server.sb, 's1');
+  assert.equal((await storedBoxes('s1', async () => server.sb)).get('c1').box.info.y, 2);
+  assert.equal(server.reads(), 2);
+});
+
+test('a publish waits for the read the opening started, and reads itself when there is none', async () => {
+  forgetPublishedParts();
+  let release;
+  const hold = new Promise((r) => (release = r));
+  const server = boxesServer(() => [cueWith('c1', 5)], { hold });
+  void prefetchPublishedBoxes(server.sb, 's2');
+  const waiting = storedBoxes('s2', async () => server.sb);
+  release();
+  assert.equal((await waiting).get('c1').box.info.y, 5);
+  assert.equal(server.reads(), 1, 'the publish took the opening read');
+  const other = boxesServer(() => [cueWith('c1', 7)]);
+  assert.equal((await storedBoxes('s3', async () => other.sb)).get('c1').box.info.y, 7);
+});
+
+test('a failed read is not kept: the next publish reads again', async () => {
+  forgetPublishedParts();
+  let down = true;
+  const server = boxesServer(() => [cueWith('c1', 9)], { fail: () => down });
+  assert.equal(await readPublishedBoxes(server.sb, 's4'), null);
+  await new Promise((r) => setTimeout(r));
+  down = false;
+  assert.equal((await storedBoxes('s4', async () => server.sb)).get('c1').box.info.y, 9);
+  assert.equal(server.reads(), 2);
+});
