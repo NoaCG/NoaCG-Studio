@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2378,
-      "head": "5b7300b6bfd452da0504e1199fc69351d18c1021",
-      "note": "Windows Chromium reported 24 passed on the reconciled head; queue wrapper lost exit, complete Playwright report retained. 454 Studio and 36 Bridge fake tests passed. Exact reviews and CI 43638046576 remain.",
       "session": "windows:j-5251",
+      "pr": 2378,
       "step": "build",
-      "phase": "v4"
+      "note": "Current exact head passed 24 Windows Chromium, affected checks and 932 Node, Bridge build and 36 fake-vMix, independent A and Codex clean. Normal PR CI 43638046576 still pending.",
+      "phase": "v4",
+      "head": "5b7300b6bfd452da0504e1199fc69351d18c1021"
     }
   ],
   "owner": [],

@@ -1,0 +1,125 @@
+
+[gates] check:contract-freshness: node scripts/check-contract-freshness.mjs
+[measured] 877 contract files
+Contract freshness OK: 877 contract file(s), every referenced script, doc and path exists.
+[gates] check:contract-freshness ok (0.6s) - 877 contract files
+
+[gates] check:contract-citations: node scripts/check-contract-citations.mjs
+[measured] 572 rule ids in contracts/rules
+[measured] 5355 text files scanned for citations
+Contract citations OK: 5355 file(s), every cited rule id and contract section exists.
+[gates] check:contract-citations ok (3.5s) - 572 rule ids in contracts/rules, 5355 text files scanned for citations
+
+[gates] check:docs-index: node scripts/check-docs-index.mjs
+[measured] 152 top-level docs
+[measured] 155 docs/README.md index rows
+check-docs-index: OK - all 152 top-level docs in docs/ have exactly one row in docs/README.md (subdirectories are exempt).
+[gates] check:docs-index ok (0.2s) - 152 top-level docs, 155 docs/README.md index rows
+
+[gates] check:e2e-registry: node scripts/e2e-module-registry.mjs
+[measured] 240 source modules the specs import
+e2e-module-registry: ok (240 modules)
+[gates] check:e2e-registry ok (0.3s) - 240 source modules the specs import
+
+[gates] check:e2e-dev-server: node scripts/e2e-dev-server-specs.mjs
+[measured] 292 e2e spec and helper files read
+e2e-dev-server-specs: 55 problem(s):
+  e2e/canvas-guides.spec.ts:12 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/canvas-guides.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/creative-routing.spec.ts:112 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/creative-routing.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/foreign-ograf-sandbox.spec.ts:44 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/foreign-ograf-sandbox.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/import-canvas.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/jev-svg-preparation.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/network-resilience.spec.ts:130 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/network-resilience.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/no-old-editor.spec.ts:320 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/no-old-editor.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/ograf-library.spec.ts:257 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/ograf-library.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/output-boot-resilience.spec.ts:54 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/output-boot-resilience.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/output-debate-clock.spec.ts:66 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/output-debate-clock.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/output-first-paint.spec.ts:32 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/output-first-paint.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/output-font-hold.spec.ts:25 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/output-font-hold.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/output-prepare.spec.ts:64 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/output-prepare.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/output-ready.spec.ts:56 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/output-ready.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/output-scene-link.spec.ts:73 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/output-scene-link.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/output-typed-recovery.spec.ts:66 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/output-typed-recovery.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/overlay-layers.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/playout-adjust.spec.ts:235 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/playout-adjust.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/playout-feedback-health.spec.ts:32 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/playout-feedback-health.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/production-controls.spec.ts:114 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/production-controls.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/production-data.spec.ts:2167 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/production-data.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/publish-output-setup.spec.ts:36 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/publish-output-setup.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/rundown-history.spec.ts:27 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/rundown-history.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/studio-evening-reliability.spec.ts:21 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/studio-evening-reliability.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/studio-feedback.spec.ts:40 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/studio-feedback.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/studio-release-completion.spec.ts:186 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/studio-release-completion.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/sync-dot.spec.ts:26 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/sync-dot.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/sync.spec.ts:19 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/sync.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+  e2e/wizard-logo.spec.ts:328 needs the dev server; add `// runs on: dev server - <why>` to its header
+  e2e/wizard-logo.spec.ts has a "runs on" line that is not the header: write `// runs on: dev server - <why>` as its first line
+[gates] check:e2e-dev-server FAILED (exit 1, 0.2s)
+
+[gates] check:client-secrets: node scripts/check-client-secrets.mjs
+[measured] 4911 source files scanned
+Client secret scan OK (src, e2e, scripts, docs).
+[gates] check:client-secrets ok (1.8s) - 4911 source files scanned
+
+[gates] check:skill: node cli/scripts/build-skill.mjs --check
+[measured] 32 generated files
+build-skill --check OK: 32 generated files match the source (noacg v0.12.4).
+[gates] check:skill ok (0.1s) - 32 generated files
+
+[gates] check:gate-coverage: node scripts/check-gate-coverage.mjs
+[measured] 491 gates audited
+check-gate-coverage: OK - 51 check(s) and 440 test file(s) declare their tier and guards (build 437, after-build 3, workflow 11, none 6, factory 34).
+[gates] check:gate-coverage ok (2.4s) - 491 gates audited
+
+[gates] check:client-neutral: node scripts/check-client-neutral.mjs
+[measured] 261 user-readable source files scanned
+Client-neutral copy - SPX may be named as a TARGET, never as the product's own vocabulary
+
+PASS - no client name is doing a general concept's job.
+[gates] check:client-neutral ok (0.3s) - 261 user-readable source files scanned
+
+[gates] check:copy: node scripts/check-copy.mjs
+[measured] 941 source files scanned
+[measured] 481 copy baseline rows
+Copy tells - user-facing text must not read as machine-written
+
+PASS - no new tells, and the baseline still matches the tree.
+[gates] check:copy ok (0.6s) - 941 source files scanned, 481 copy baseline rows
+
+[gates] check:preview-serialization: node scripts/check-preview-serialization.mjs
+[measured] 1476 source files scanned
+[measured] 35 module-scope names in files that interpolate a toString()
+[check:preview-serialization] ok - every serialized helper goes through serializeHelper
+[gates] check:preview-serialization ok (0.7s) - 1476 source files scanned, 35 module-scope names in files that interpolate a toString()
+
+[gates] check:landed-ref: node scripts/check-landed-ref.mjs
+[measured] 532 scripts scanned for a bare local `main` revision
+check-landed-ref: OK - 532 script(s) scanned, 4 deliberate use(s) of the bare local ref, 0 stale reads.
+[gates] check:landed-ref ok (0.4s) - 532 scripts scanned for a bare local `main` revision
+
+[gates] 1 check(s) failed: check:e2e-dev-server - tests not run
