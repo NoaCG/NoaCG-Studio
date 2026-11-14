@@ -42,9 +42,11 @@ export function installE2eModules(): void {
   }
   window.__noacgImport = async (path) => {
     const { MODULES, LAZY } = (await load(E2E_REGISTRY_URL)) as {
-      MODULES: Record<string, unknown>;
-      LAZY: Record<string, () => Promise<unknown>>;
+      MODULES?: Record<string, unknown>;
+      LAZY?: Record<string, () => Promise<unknown>>;
     };
+    // An entry whose signature the bundler did not keep exports nothing (vite.config.ts).
+    if (!MODULES || !LAZY) throw new Error(`${E2E_REGISTRY_URL} exports no registry: the e2e build must keep entry signatures strict`);
     if (path in MODULES) return MODULES[path];
     if (path in LAZY) return LAZY[path]();
     throw new Error(`${path} is not in the e2e build's module registry (scripts/e2e-module-registry.mjs)`);
