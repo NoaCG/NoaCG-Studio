@@ -21,7 +21,7 @@ const onBuild = process.env.NOACG_E2E_ON_BUILD === '1';
 // server on this checkout's second port, unchanged. The server starts only when this run holds one
 // of them: CI names each shard's files in NOACG_E2E_EXPECTED_SPECS.
 const devSpecs = onBuild ? devServerSpecs() : [];
-const specPattern = (file: string) => new RegExp(`[\\\\/]e2e[\\\\/]${file.slice('e2e/'.length).replace(/\./g, '\\.')}$`);
+const specPattern = (file: string) => new RegExp(`[\\\\/]e2e[\\\\/]${file.slice('e2e/'.length).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
 const devSpecPatterns = devSpecs.map(specPattern);
 const expected = process.env.NOACG_E2E_EXPECTED_SPECS?.split(/\s+/).filter(Boolean).map((f) => (f.startsWith('e2e/') ? f : `e2e/${f}`));
 const needsDevServer = devSpecs.length > 0 && (!expected || expected.some((f) => devSpecs.includes(f)));

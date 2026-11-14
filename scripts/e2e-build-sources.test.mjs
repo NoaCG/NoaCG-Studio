@@ -53,7 +53,7 @@ test('offsets in a built chunk answer repo-relative source files, dependencies l
     mappings: mappings([[[0, 0], [14, 1]], [[0, 2]]]),
   }));
   assert.deepEqual(sourcesOf(root, 'dist-e2e', 'assets/x.js', [0, 14, 29]).sort(), ['src/one.ts', 'src/two.ts']);
-  assert.deepEqual(sourcesOf(root, 'dist-e2e', 'assets/missing.js', [0]), []);
+  assert.throws(() => sourcesOf(root, 'dist-e2e', 'assets/missing.js', [0]), /has no source map/, 'a missing map fails loudly');
   writeFileSync(path.join(root, 'dist-e2e/assets/y.js'), 'x');
   writeFileSync(path.join(root, 'dist-e2e/assets/y.js.map'), JSON.stringify({ version: 3, sources: ['../../src/A.tsx', '../../src/b.ts', '../../node_modules/r/C.jsx'], mappings: '' }));
   assert.deepEqual(componentsOf(root, 'dist-e2e', 'assets/y.js'), ['src/A.tsx'], 'components on load, not dependencies');

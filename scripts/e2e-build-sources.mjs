@@ -74,13 +74,15 @@ function repoPath(root, parsed, source) {
   return rel.startsWith('..') || rel.startsWith('node_modules/') || path.isAbsolute(rel) ? null : rel;
 }
 
-/** A built chunk with its source map, parsed once per process; null when either is missing. */
+/** A built chunk with its source map, parsed once per process. A chunk with no map throws: a
+ *  trace that quietly answered nothing for it would record a spec as complete and narrow the
+ *  planner's selection without a word (scripts/e2e-traced.mjs counts such a spec as fresh). */
 function parsedChunk(root, dist, chunk) {
   const file = path.join(root, dist, chunk);
   if (!chunks.has(file)) {
     const mapFile = `${file}.map`;
     if (!existsSync(file) || !existsSync(mapFile)) {
-      chunks.set(file, null);
+      throw new Error(`${path.join(dist, chunk)} has no source map, so the trace cannot tell its source files (vite.config.ts writes maps for the e2e build)`);
     } else {
       const map = JSON.parse(readFileSync(mapFile, 'utf8'));
       chunks.set(file, { map, lookup: sourceLookup(map), starts: lineStarts(readFileSync(file, 'utf8')), dir: path.dirname(file), sourceRoot: map.sourceRoot ?? '' });
@@ -90,10 +92,9 @@ function parsedChunk(root, dist, chunk) {
 }
 
 /** Repo-relative source files the functions starting at `offsets` in a built chunk came from.
- *  `chunk` is the chunk's path under `dist` (`assets/x.js`); a chunk with no map gives nothing. */
+ *  `chunk` is the chunk's path under `dist` (`assets/x.js`). */
 export function sourcesOf(root, dist, chunk, offsets) {
   const parsed = parsedChunk(root, dist, chunk);
-  if (!parsed) return [];
   const found = new Set();
   for (const offset of offsets) {
     let lo = 0;
@@ -116,6 +117,5 @@ export function sourcesOf(root, dist, chunk, offsets) {
  *  component in a chunk the page loaded, which keeps its map a superset of the dev server's. */
 export function componentsOf(root, dist, chunk) {
   const parsed = parsedChunk(root, dist, chunk);
-  if (!parsed) return [];
   return parsed.map.sources.filter((s) => /\.(tsx|jsx)$/.test(s)).map((s) => repoPath(root, parsed, s)).filter(Boolean);
 }
