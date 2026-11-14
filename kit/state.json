@@ -44,13 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2564,
-      "note": "Rules-only V5 draft is awaiting independent review at pinned head before any product edits. Windows tests and release acceptance remain in the existing run.",
-      "session": "/root/v5_builder",
-      "head": "643d6ab8e33c1c5d8348a614b5d625c9c0e895dc",
+      "note": "Independent Rules review and compatibility correction checked. Local V5 implementation authorized on the same draft. Required Windows verification, final independent review, and exact release still pending.",
       "step": "build",
-      "phase": "v5",
-      "repairComment": 6884473922
+      "pr": 2564,
+      "session": "/root/v5_builder",
+      "head": "cbde8a3740adf0f01b79693ceef628bdf62f6c11",
+      "phase": "v5"
     }
   ],
   "owner": [],
