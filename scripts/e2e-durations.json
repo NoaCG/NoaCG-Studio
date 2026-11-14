@@ -1,22 +1,22 @@
 {
   "$comment": "GENERATED - do not hand-edit. See scripts/e2e-durations.mjs for how to refresh it and why it exists.",
   "source": {
-    "run": "43552605380",
+    "run": "43569321859",
     "runs": [
-      "43552605380",
+      "43569321859",
       "43560650900",
-      "43569321859"
+      "43552605380"
     ],
     "percentile": 0.8,
     "workflow": "ci.yml",
     "branch": "main",
-    "sha": "18c0c25f30b8d270a1b7084c3e99898e85cfcc3a",
+    "sha": "9ecdf0f225391888a5826f5a2cb87cea442aed87",
     "mode": "full",
     "recordedAt": "2026-11-14"
   },
   "overhead": {
-    "jobMinutes": 0.47,
-    "medianJobMinutes": 0.35,
+    "jobMinutes": 0.48,
+    "medianJobMinutes": 0.32,
     "testFactor": 1.05,
     "samples": 15
   },

@@ -657,6 +657,11 @@ function measureRun(runId, work) {
   return minutesByFile(JSON.parse(readFileSync(report, 'utf8')));
 }
 
+/** The run ids named after `--record`: numeric arguments only, each once. */
+export function recordRunIds(args) {
+  return [...new Set(args.filter((a) => /^\d+$/.test(a)))];
+}
+
 /** Download recent runs' shard reports and rewrite the table from what they measured. */
 function record(runIds) {
   let targets;
@@ -673,6 +678,8 @@ function record(runIds) {
       }
       targets.push({ id: String(runId), sha: view.headSha });
     }
+    // Newest first, as newestFullRuns gives them: the table's source and overhead come from targets[0].
+    targets.sort((a, b) => Number(b.id) - Number(a.id));
   } else {
     targets = newestFullRuns(RECORD_RUNS);
     if (targets.length < MIN_RECORD_RUNS) {
@@ -872,7 +879,7 @@ async function main() {
 
   if (args.includes('--refresh')) return refresh(positional, bodyPath);
 
-  if (args.includes('--record')) return record(args.filter((a) => !a.startsWith('--')));
+  if (args.includes('--record')) return record(recordRunIds(args));
 
   if (!positional) {
     console.error(

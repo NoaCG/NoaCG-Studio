@@ -23,6 +23,7 @@ import {
   parseArgs,
   predictShardMinutes,
   quietBody,
+  recordRunIds,
   refreshBody,
   refreshVerdict,
   REFRESH_BRANCH,
@@ -399,4 +400,9 @@ test('several runs record each spec at its slow-runner percentile, from the runs
   assert.equal(table['b.spec.ts'], 2.6);
   assert.equal(table['c.spec.ts'], 0.5, 'a spec one run carried is recorded from that run, never dropped');
   assert.deepEqual(slowRunnerMinutes([fast]), fast, 'one run records itself');
+});
+
+test('--record takes each named run id once and ignores flags and their values', () => {
+  assert.deepEqual(recordRunIds(['--record', '43552605380', '43569321859', '43552605380']), ['43552605380', '43569321859']);
+  assert.deepEqual(recordRunIds(['--record', '--body', 'out.md']), []);
 });

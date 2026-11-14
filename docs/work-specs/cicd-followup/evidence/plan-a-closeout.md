@@ -66,8 +66,9 @@ assertions are unchanged.
 | sync.spec.ts | imports fresh module copies (?t=), which only the dev server serves |
 | wizard-logo.spec.ts | imports fresh module copies (a cache-busting suffix), which only the dev server serves |
 
-Converting the 19 backend-config swaps to a runtime seam would move them to the build and save
-roughly 8 test-min more. The coordinator kept them on the dev server to keep spec edits low. That
+Converting the 15 backend-config swaps to a runtime seam would move them to the build. They take
+20.0 test-min in the new table (output-debate-clock, quarantined, is not counted); at the suite's
+31% saving on the build, that is about 6 test-min more. The coordinator kept them on the dev server to keep spec edits low. That
 conversion is a later option.
 
 ## Open
