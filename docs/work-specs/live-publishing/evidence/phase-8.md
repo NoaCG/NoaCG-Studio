@@ -115,6 +115,7 @@ offline, as above). Reported as tested numbers, not judged (AC-6).
 |---|---|---|---|---|---|---|
 | 5 | j-0022 | 476 (0) | 31.9 / 62.3 / 116 ms | 199 / 199 | 39 / 39 | 2 of 2 |
 | 10 | j-0029 | 216 (0) | 86.2 / 185.7 / 371 ms | 199 / 199 | 39 / 39 | 4 of 7 |
+| 10, with the #2565 fix | j-0039 | 214 (0) | 87.0 / 254.7 / 382 ms | 199 / 199 | 39 / 39 | 1 of 7 (#2572) |
 | 15 | j-0032 | 91 (0) | 161.8 / 560.1 / 874 ms | see below | 39 / 38 | 2 of 12 |
 
 **15 pages overran the test machine.** Sixteen browser pages and the servers on one 4-CPU machine:
@@ -132,7 +133,15 @@ productions with an edit on its way up before it awaits the teammates' documents
 fetched record over an edit made during that await. More editors mean more fetches, so it showed
 here first. It is not #2562 (one account on two devices). Filed as #2565 (P1), reported to the
 coordinator, and fixed first in #2570 once AC-6's own check met it too (next section). No conflicted
-copy, no Goal or message lost, no Take lost. RESULTS_10_FIXED
+copy, no Goal or message lost, no Take lost.
+
+**A second path, with the fix (#2572).** Run again with #2570 applied (j-0039), the 10-page run
+still lost the last text of 6 of 7 editors. A shorter diagnostic run (j-0040, 2.5 minutes, 3 of 7
+lost) read each editor's own page 60 s after the typing stopped: the cue editor's input itself
+showed the previous text (`#36` where `#37` was typed), with nothing unsent, no save pending and no
+note. So the typed text is dropped on the typist's page before or while it becomes the record, not
+during the team read. Filed as #2572 (P1) and reported to the coordinator; not fixed in this phase.
+The five-page runs never met it (ten minutes, twelve pairs, the configured check three times).
 
 ### The configured spec
 

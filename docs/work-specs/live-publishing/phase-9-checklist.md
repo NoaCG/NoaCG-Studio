@@ -98,6 +98,9 @@ each goes on only once `auto_publish_state()` or `partial_writes_state()` report
   publish. Phase 8's five accounts did not meet it (it needs the same account on two devices).
 - #2565: on a team production, an edit made while the page reads teammates' changes was lost.
   Phase 8 met it and fixed it first (#2570); step 9 is the studio check of that fix.
+- #2572: with seven people editing one team production, a typed cue text can revert to the previous
+  one. Open. Five people (two editing) never met it; it decides how many may edit one production at
+  once until it is fixed.
 
 Then judge the recorded gaps: AC-4 on the large fixture (+125 ms pooled p95 during publishing,
 against 50 ms) and D1 (step 3). Decide: switch on, switch on for some productions first, or keep off.
