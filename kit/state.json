@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "step": "build",
+      "head": "23a18e6a8df72fd825187e94ca3819ace36b5e16",
       "pr": 2564,
-      "head": "7571f1dea9f67d86d1fcc80138cda2c02ad42d62",
+      "step": "build",
+      "phase": "v5",
       "session": "/root/v5_builder",
-      "note": "First exact-head CI source checks passed; Reviewed withheld. Local 46250053 grouped repair passed 46 Windows browser cases and 335 selected Node tests. A second fresh review reproduced a related ownership and contradictory-state defect. Independent state-rule reassessment is in progress before the next repair. No new push or release.",
-      "phase": "v5"
+      "note": "Grouped state-observation repair after independent reassessment. Pinned Windows browser j-5257, GitHub CI 43648748491, exact Codex review and fresh full Risky review are underway. No queue admission until they pass."
     }
   ],
   "owner": [],
