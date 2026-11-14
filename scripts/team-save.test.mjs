@@ -304,3 +304,198 @@ test('a settle whose outbox write throws fails the save and never leaves it in f
   h.request.resolve({ data: { saved: true, updated_at: 'confirmed', updated_by: 'owner' }, error: null });
   assert.equal(await second, null);
 });
+
+// #2565: refreshOnce reads teammates' documents. An edit made while that read is out, on the
+// production being read or any other, keeps its local record and its base; a skipped production is
+// read again on a later pass.
+function refreshHarness() {
+  const docs = [];
+  const fetched = [];
+  const answers = [];
+  const shows = new Map(['show', 'other'].map(id => [id, { id, teamId: 'team', version: 2, name: 'First', graphics: [] }]));
+  const head = (id, token) => ({ id, team_id: 'team', updated_at: token, updated_by: 'mate' });
+  let heads = [head('show', 'base'), head('other', 'base')];
+  // Once the pass under test is reading, a pass started meanwhile (a move asks for one) waits.
+  const reads = { held: false, headsHeld: false };
+  const outbox = {};
+  const headReads = [];
+  const sb = {
+    from: () => ({
+      select: (cols) => cols.includes('doc')
+        ? { in: (_col, ids) => { fetched.push(ids); const d = deferred(); docs.push(d); return d.promise; } }
+        : { order: () => { if (!reads.headsHeld) return Promise.resolve({ data: heads, error: null }); const d = deferred(); headReads.push(d); return d.promise; } },
+      insert: (row) => ({ select: () => ({ single: async () => ({ data: { id: row.id, team_id: row.team_id, updated_at: 'moved', updated_by: 'owner' }, error: null }) }) }),
+      delete: () => ({ eq: (_col, id) => ({ select: async () => ({ data: [{ id }], error: null }) }) }),
+    }),
+    rpc: async () => answers.shift(),
+  };
+  const teams = () => reads.held ? new Promise(() => {}) : Promise.resolve({ teams: [], members: [], error: null });
+  const stubs = {
+    './supabase': { getSupabase: async () => sb },
+    './teams': { listMyTeams: teams, listMyTeamMembers: teams },
+    './assets': assets,
+    './pacing': pacing,
+    './partialWrites': { partialWritesOn: async () => false, unitPace: async () => {}, noteWritten: () => {} },
+    './unitPatch': {},
+    '../model/shows': { deleteShow: () => {} },
+    '../model/teamShows': {
+      loadTeamShows: () => [...shows.values()],
+      applyServerTeamShow: doc => { shows.set(doc.id, doc); },
+      // As model/teamShows.ts: the list replaces every record; a kept one stays as this tab has it.
+      applyServerTeamShows: (list, keep) => {
+        const next = new Map(list.map(s => [s.id, keep.has(s.id) && shows.has(s.id) ? shows.get(s.id) : s]));
+        shows.clear();
+        for (const [id, s] of next) shows.set(id, s);
+      },
+      removeTeamShow: id => { shows.delete(id); },
+      setTeamShowsStatus: () => {},
+    },
+    '../model/rundownHistory': history,
+    '../model/teamShowMerge': {},
+    '../model/copySettle': { settleGraphics: (graphics) => ({ graphics, changed: false }) },
+    '../model/durableStore': { canAuthorAccount: () => true, libraryInUse: () => 'owner', commitDurableWrites: async () => null },
+    '../model/teamOutbox': { retainTeamEdit: () => {}, acknowledgeTeamEdit: () => {}, pendingTeamEdits: () => outbox },
+  };
+  const setup = `
+    export function seedForTest(doc: Show) {
+      running = { userId: 'owner', stop: () => {} };
+      server.set(doc.id, { token: 'base', doc, teamId: 'team', updatedBy: 'owner' });
+    }
+    export function editForTest(id: string) { scheduleSave(id); }
+    export function refreshForTest() { return refreshOnce(); }
+    export function knownForTest(id: string) { return server.get(id); }
+  `;
+  const compiled = ts.transpileModule(source + setup, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const exports = {};
+  vm.runInNewContext(compiled, { exports, require: name => {
+    assert.ok(name in stubs, `unexpected dependency: ${name}`);
+    return stubs[name];
+  }, setTimeout: () => 1, clearTimeout: () => {} });
+  for (const show of shows.values()) exports.seedForTest(show);
+  return {
+    controller: exports, docs, fetched, answers, reads, headReads, outbox,
+    heads: () => heads,
+    settle: () => new Promise(resolve => setImmediate(resolve)),
+    name: id => shows.get(id)?.name,
+    edit(id, name) { shows.set(id, { ...shows.get(id), name }); exports.editForTest(id); },
+    /** A teammate saved `show`: its head moves, and this is the row the read answers with. */
+    teammateSaved(token, name) {
+      heads = [head('show', token), heads[1]];
+      return { ...head('show', token), doc: { id: 'show', version: 2, name, graphics: [] } };
+    },
+  };
+}
+
+test('an edit made while teammates\' documents are read keeps its text and base, and is read again later (#2565)', async () => {
+  const h = refreshHarness();
+  const row = h.teammateSaved('t2', 'Theirs');
+  const pass = h.controller.refreshForTest();
+  while (h.docs.length === 0) await h.settle();
+  assert.deepEqual(h.fetched[0], ['show']);
+  h.edit('show', 'Mine'); // typed while the read is out, on the production being read
+  h.edit('other', 'Mine too'); // and on one that is not being read
+  h.docs[0].resolve({ data: [row], error: null });
+  await pass;
+  assert.equal(h.name('show'), 'Mine', 'the typed text stays on the page');
+  assert.equal(h.name('other'), 'Mine too', 'an edit to a production not being read stays too');
+  assert.equal(h.controller.knownForTest('other').token, 'base');
+  assert.equal(h.controller.knownForTest('show').token, 'base', 'the save still carries the token its edit started from');
+  assert.equal(h.controller.knownForTest('show').doc.name, 'First');
+
+  // The edit is confirmed (here over the teammate's save, as a merge would leave it), then a
+  // teammate saves again: the next pass reads the production, so nothing is stuck.
+  h.answers.push({ data: { saved: true, updated_at: 't3', updated_by: 'owner' }, error: null });
+  assert.equal(await h.controller.flushTeamProduction('show'), null);
+  const later = h.teammateSaved('t4', 'Theirs again');
+  const next = h.controller.refreshForTest();
+  while (h.docs.length === 1) await h.settle();
+  assert.deepEqual(h.fetched[1], ['show']);
+  h.docs[1].resolve({ data: [later], error: null });
+  await next;
+  assert.equal(h.name('show'), 'Theirs again');
+  assert.equal(h.controller.knownForTest('show').token, 't4');
+});
+
+test('a save confirmed while teammates\' documents are read is not undone by the older read (#2565)', async () => {
+  const h = refreshHarness();
+  const row = h.teammateSaved('t2', 'Theirs');
+  const pass = h.controller.refreshForTest();
+  while (h.docs.length === 0) await h.settle();
+  h.edit('show', 'Mine');
+  h.answers.push({ data: { saved: true, updated_at: 't3', updated_by: 'owner' }, error: null });
+  assert.equal(await h.controller.flushTeamProduction('show'), null);
+  h.docs[0].resolve({ data: [row], error: null });
+  await pass;
+  assert.equal(h.name('show'), 'Mine');
+  assert.equal(h.controller.knownForTest('show').token, 't3');
+  assert.equal(h.controller.getTeamState().heads.show.updatedAt, 't3', 'the shown head is the confirmed one (#2566)');
+});
+
+test('a production moved in or deleted while teammates\' documents are read stays as this tab left it (#2566)', async () => {
+  const h = refreshHarness();
+  const row = h.teammateSaved('t2', 'Theirs');
+  const pass = h.controller.refreshForTest();
+  while (h.docs.length === 0) await h.settle();
+  h.reads.held = true;
+  const moved = await h.controller.moveProductionToTeam({ id: 'moved', version: 2, name: 'Moved', graphics: [] }, 'team');
+  assert.equal(moved.error, null);
+  assert.equal((await h.controller.deleteTeamProduction({ id: 'show' })).error, null);
+  h.docs[0].resolve({ data: [row], error: null });
+  await pass;
+  assert.equal(h.name('moved'), 'Moved', 'the moved production stays on the page');
+  assert.equal(h.controller.knownForTest('moved').token, 'moved', 'and keeps its revision, so its next edit can save');
+  assert.equal(h.controller.getTeamState().heads.moved.updatedAt, 'moved');
+  assert.equal(h.name('show'), undefined, 'the deleted production does not come back');
+  assert.equal(h.controller.knownForTest('show'), undefined);
+  assert.equal(h.controller.getTeamState().heads.show, undefined);
+});
+
+test('a rundown undo saved while teammates\' documents are read is not undone by the older read (#2565)', async () => {
+  const h = refreshHarness();
+  const row = h.teammateSaved('t2', 'Theirs');
+  const pass = h.controller.refreshForTest();
+  while (h.docs.length === 0) await h.settle();
+  const expected = history.rundownSlice({ id: 'show', graphics: [] });
+  h.answers.push({ data: { saved: true, updated_at: 't3', updated_by: 'owner' }, error: null });
+  assert.equal((await h.controller.restoreTeamRundown('show', expected, expected, () => true)).status, 'saved');
+  h.docs[0].resolve({ data: [row], error: null });
+  await pass;
+  assert.equal(h.name('show'), 'First');
+  assert.equal(h.controller.knownForTest('show').token, 't3');
+});
+
+test('a move or a save made while the heads are read is not undone by that older list (#2565 /so)', async () => {
+  const h = refreshHarness();
+  h.reads.headsHeld = true;
+  const pass = h.controller.refreshForTest();
+  while (h.headReads.length === 0) await h.settle();
+  const listed = h.heads(); // the list as the server answered before the move and the save
+  h.reads.held = true;
+  h.reads.headsHeld = false;
+  assert.equal((await h.controller.moveProductionToTeam({ id: 'moved', version: 2, name: 'Moved', graphics: [] }, 'team')).error, null);
+  h.edit('show', 'Mine');
+  h.answers.push({ data: { saved: true, updated_at: 't3', updated_by: 'owner' }, error: null });
+  assert.equal(await h.controller.flushTeamProduction('show'), null);
+  h.headReads[0].resolve({ data: listed, error: null });
+  // The old list makes `show` look stale; the read answers with the row as it was then.
+  while (h.docs.length === 0) await h.settle();
+  h.docs[0].resolve({ data: [{ ...listed[0], doc: { id: 'show', version: 2, name: 'First', graphics: [] } }], error: null });
+  await pass;
+  assert.equal(h.name('moved'), 'Moved', 'the moved production stays on the page');
+  assert.equal(h.controller.knownForTest('moved').token, 'moved');
+  assert.equal(h.name('show'), 'Mine');
+  assert.equal(h.controller.getTeamState().heads.show.updatedAt, 't3', 'the shown head is the confirmed one');
+});
+
+test('an edit the pass restores from the outbox shows the head the server just listed (#2565 /so delta)', async () => {
+  const h = refreshHarness();
+  await h.controller.refreshForTest();
+  assert.equal(h.controller.getTeamState().heads.show.updatedAt, 'base');
+  h.teammateSaved('t2', 'Theirs');
+  const first = { id: 'show', teamId: 'team', version: 2, name: 'First', graphics: [] };
+  h.outbox.show = { token: 'base', base: first, local: { ...first, name: 'Mine' }, teamId: 'team', updatedBy: 'owner' };
+  await h.controller.refreshForTest();
+  assert.equal(h.name('show'), 'Mine');
+  assert.equal(h.controller.knownForTest('show').token, 'base', 'the restored edit keeps its base, so its save merges');
+  assert.equal(h.controller.getTeamState().heads.show.updatedAt, 't2');
+});

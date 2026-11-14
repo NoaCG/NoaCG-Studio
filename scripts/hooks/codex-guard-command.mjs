@@ -1,6 +1,7 @@
 // PreToolUse guard for Codex's shell tool, wired in `.codex/hooks.json`: a polling loop with no
 // time limit, a push to main, a command that reads .env values (#1281) or GitHub text carrying
-// a prompt or owner notes (github-text.mjs) is refused,
+// a prompt or owner notes (github-text.mjs), or a one-off use of the production admin key
+// (production-reach.mjs, #2560) is refused,
 // with the same words the Claude Code guard (guard-command.mjs) uses.
 //
 // These shared rules are tool-neutral. docs/work-specs/agent-lifecycle/spec.md point 18 asks whether
@@ -19,6 +20,7 @@ import { readHookInput } from './lib.mjs';
 import { mainPushRefusal } from './main-push.mjs';
 import { githubTextRefusal } from './github-text.mjs';
 import { envSecretsRefusal, showsEnvSecrets } from './env-secrets.mjs';
+import { productionReachRefusal } from './production-reach.mjs';
 import { endlessWait, endlessWaitRefusal } from '../command-match.mjs';
 
 const input = await readHookInput();
@@ -28,7 +30,7 @@ if (typeof command === 'string') {
   const cwd = typeof input.cwd === 'string' && input.cwd ? input.cwd : process.cwd();
   const secretRead = showsEnvSecrets(command, cwd);
   const wait = !secretRead && endlessWait(command);
-  refusal = secretRead ? envSecretsRefusal(secretRead) : wait ? endlessWaitRefusal(wait) : mainPushRefusal(command, cwd) ?? githubTextRefusal(command, cwd);
+  refusal = secretRead ? envSecretsRefusal(secretRead) : wait ? endlessWaitRefusal(wait) : productionReachRefusal(command, { cwd }) ?? mainPushRefusal(command, cwd) ?? githubTextRefusal(command, cwd);
 }
 if (refusal) {
   process.stdout.write(JSON.stringify({
