@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 import generate from '../ai/generate.js';
+import { executeGatewayRequest, GatewayError } from './aiGateway.js';
+import { studioEditorErrorMessage } from './aiEditorPolicy.js';
 import { gatewayLedgerConfigured, gatewayLedgerEntry } from './aiGatewayLedger.js';
 import { aiGenerateRateLimitCaps } from './rateLimit.js';
 import { userAiKeysCookie } from './aiCredentials.js';
@@ -444,3 +446,82 @@ for (const [name, change] of [['token ceiling', { maxTokens: 26001 }], ['unstruc
     } }));
     assert.equal(res.status, 400); assert.equal((await res.json() as { error: { code: string } }).error.code, 'invalid_request');
   });
+
+// Studio owns these settings: a caller cannot repair a managed route or token budget.
+for (const surface of ['editor', undefined] as const) {
+  for (const status of [400, 404]) test('managed failure ownership: model rejection ' + status + ' / ' + String(surface), async () => {
+    process.env.VITE_AI_PROVIDER = 'anthropic'; process.env.VITE_AI_MODEL = 'managed-model';
+    process.env.ANTHROPIC_API_KEY = 'managed-test-key';
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response('This model is no longer available to new users.', { status });
+    try {
+      const response = await generate.fetch(gatewayRequest(uniqueIp(), { surface,
+        route: { provider: 'anthropic', model: 'personal-model' }, request: {
+          system: 'Test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+          structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } },
+        } }));
+      assert.equal(response.status, 502);
+      const { error } = await response.json() as { error: { code: string; message: string; retryable: boolean } };
+      assert.equal(error.code, 'provider_rejected'); assert.equal(error.retryable, false);
+      if (surface === 'editor') assert.equal(error.message, 'The Studio editor assistant is unavailable. Manual editing is available.');
+      else assert.match(error.message, /Pick a newer model from the list/);
+    } finally { globalThis.fetch = realFetch; }
+  });
+
+  test('managed failure ownership: truncated response / ' + String(surface), async () => {
+    process.env.AI_GATEWAY_API_KEY = 'managed-test-key';
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({ choices: [{ message: { content: '{' }, finish_reason: 'length' }],
+      usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.001 } });
+    try {
+      const response = await generate.fetch(gatewayRequest(uniqueIp(), { surface,
+        route: { provider: 'vercel', model: 'personal-model' }, request: {
+          system: 'Test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+          structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } },
+        } }));
+      assert.equal(response.status, 502);
+      const { error } = await response.json() as { error: { code: string; message: string; retryable: boolean } };
+      assert.equal(error.code, 'malformed_response'); assert.equal(error.retryable, false);
+      if (surface === 'editor') {
+        assert.match(error.message, /Studio editor assistant/); assert.match(error.message, /simpler request/);
+        assert.doesNotMatch(error.message, /outputBudget|src\/|Raise/);
+      } else assert.match(error.message, /Raise.*budget/);
+    } finally { globalThis.fetch = realFetch; }
+  });
+}
+
+test('managed failure ownership: invalid deployment model retains the route bound without personal setup', async () => {
+  process.env.VITE_AI_PROVIDER = 'anthropic'; process.env.VITE_AI_MODEL = 'x'.repeat(161);
+  const realFetch = globalThis.fetch; let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error('must not send'); };
+  try {
+    const response = await generate.fetch(gatewayRequest(uniqueIp(), { surface: 'editor', request: {
+      system: 'Test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+      structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } },
+    } }));
+    assert.equal(response.status, 400); assert.equal(calls, 0);
+    assert.deepEqual((await response.json() as { error: unknown }).error, { code: 'invalid_request',
+      message: 'The Studio editor assistant is unavailable. Manual editing is available.', retryable: false });
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('managed failure ownership: presentation preserves served usage and the content-free ledger', async () => {
+  const body: AiGatewayRequestBody = { surface: 'editor', route: { provider: 'anthropic', model: 'claude-sonnet-5-5' }, request: {
+    system: 'Test', messages: [{ role: 'user', content: 'Help' }], maxTokens: 100,
+    structuredOutput: { name: 'editor_help', description: 'Test', schema: { type: 'object' } },
+  } };
+  await assert.rejects(executeGatewayRequest(body, { keyFor: async () => 'fixture-key', fetchImpl: async () =>
+    Response.json({ content: [{ type: 'text', text: '{' }], stop_reason: 'max_tokens',
+      usage: { input_tokens: 10, output_tokens: 5 } }) }), (error: unknown) => {
+    assert.ok(error instanceof GatewayError); assert.equal(error.code, 'malformed_response');
+    assert.equal(error.status, 502); assert.equal(error.retryable, false);
+    const usage = error.servedUsage; assert.ok(usage); assert.equal(usage.totalTokens, 15);
+    const entry = () => gatewayLedgerEntry({ userId: null, ipHash: 'fixture', body, userKeys: {},
+      errorCode: error.code, servedUsage: error.servedUsage });
+    const before = entry(); const originalMessage = error.message;
+    assert.match(studioEditorErrorMessage(error), /simpler request/);
+    assert.equal(error.message, originalMessage); assert.equal(error.servedUsage, usage);
+    assert.deepEqual(entry(), before); assert.equal(before.inputTokens, 10); assert.equal(before.outputTokens, 5);
+    return true;
+  });
+});

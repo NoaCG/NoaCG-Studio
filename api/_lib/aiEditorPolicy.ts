@@ -2,6 +2,17 @@
 import { isAiProviderId, outputBudget } from '../../src/ai/modelTypes.js';
 import { GatewayError } from './aiGateway.js';
 
+const EDITOR_UNAVAILABLE = 'The Studio editor assistant is unavailable. Manual editing is available.';
+
+/** Only presentation changes; the original failure still owns accounting and retry semantics. */
+export function studioEditorErrorMessage(error: GatewayError): string {
+  if (error.code === 'missing_key' || error.code === 'provider_rejected') return EDITOR_UNAVAILABLE;
+  if (error.code === 'malformed_response') {
+    return 'The Studio editor assistant could not complete the response. Try a simpler request or use manual editing.';
+  }
+  return error.message;
+}
+
 export function studioEditorBody(value: unknown): unknown {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
   const body = value as Record<string, unknown>;
@@ -9,8 +20,10 @@ export function studioEditorBody(value: unknown): unknown {
   const provider = (process.env.VITE_AI_PROVIDER ?? '').trim() || 'vercel';
   const model = (process.env.VITE_AI_MODEL ?? '').trim() || (provider === 'vercel' ? 'alibaba/qwen3-coder-next' : '');
   if (!isAiProviderId(provider) || !model) {
-    throw new GatewayError('unavailable', 'The Studio editor assistant is unavailable. Manual editing is available.', 503, false);
+    throw new GatewayError('unavailable', EDITOR_UNAVAILABLE, 503, false);
   }
+  // The shared route validator has this same bound; this setting belongs to Studio.
+  if (model.length > 160) throw new GatewayError('invalid_request', EDITOR_UNAVAILABLE, 400, false);
   const request = body.request && typeof body.request === 'object' && !Array.isArray(body.request)
     ? body.request as Record<string, unknown> : {};
   const structured = request.structuredOutput as { name?: unknown } | undefined;

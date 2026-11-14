@@ -2,7 +2,7 @@ import { bearerToken, ipHash, json, methodGuard, readJson } from '../_lib/http.j
 import { serverAuthConfigured, verifyUser, type AuthedUser } from '../_lib/auth.js';
 import { hasUserAiKeysCookie, managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
 import { executeGatewayRequest, GatewayError, validateGatewayBody, type GatewayExecutionPolicy } from '../_lib/aiGateway.js';
-import { studioEditorBody } from '../_lib/aiEditorPolicy.js';
+import { studioEditorBody, studioEditorErrorMessage } from '../_lib/aiEditorPolicy.js';
 import { surfaceExecutionPolicy, surfaceRoutePolicy } from '../_lib/aiSurfacePolicy.js';
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
 import { admitManagedProCall, proAllowanceEnforceable, settleManagedProCall } from '../_lib/pro/managedCall.js';
@@ -11,16 +11,16 @@ import { checkAiGenerateRateLimit } from '../_lib/rateLimit.js';
 import { gatedFeature, resolvePaidAiAccess, resolveUserEntitlement, surfaceRefused } from '../_lib/entitlements.js';
 import { allows } from '../../src/entitlements/contract.js';
 import { readSystemSettings, routeDisabled } from '../_lib/systemSettings.js';
-import type { AiGatewayErrorBody, AiGatewayRequestBody, AiProviderId, ModelResult } from '../../src/ai/modelTypes.js';
+import type { AiGatewayErrorBody, AiGatewayRequestBody, AiGatewaySurface, AiProviderId, ModelResult } from '../../src/ai/modelTypes.js';
 
 const MAX_BODY_BYTES = 12_000_000;
 
-function errorResponse(error: GatewayError, headers: Record<string, string> = {}): Response {
+function errorResponse(error: GatewayError, headers: Record<string, string> = {}, surface?: AiGatewaySurface): Response {
   return json(
     {
       error: {
         code: error.code,
-        message: error.message,
+        message: surface === 'editor' ? studioEditorErrorMessage(error) : error.message,
         retryable: error.retryable,
       },
     } satisfies AiGatewayErrorBody,
@@ -221,10 +221,6 @@ export default {
         : new GatewayError('invalid_request', 'The AI request is invalid.', 400, false);
     }
 
-    if (body.surface === 'editor' && failure?.code === 'missing_key') {
-      failure = new GatewayError('missing_key', 'The Studio editor assistant is unavailable. Manual editing is available.', 412, false);
-    }
-
     // Settle what a managed Pro call cost into its own reservation, BEFORE the gateway ledger
     // write below - the two record different things (a generation's running spend against its
     // ceiling, versus one request's content-free accounting) and only the first can refuse the
@@ -245,6 +241,6 @@ export default {
       ...(result ? { result } : { errorCode: failure?.code, servedUsage: failure?.servedUsage }),
     }));
 
-    return result ? json(result) : errorResponse(failure ?? new GatewayError('unavailable', 'No AI route was available.', 503, false));
+    return result ? json(result) : errorResponse(failure ?? new GatewayError('unavailable', 'No AI route was available.', 503, false), {}, body.surface);
   },
 };
