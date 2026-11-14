@@ -33,6 +33,8 @@ const POLICIED_SURFACES: Record<AiGatewaySurface, boolean> = {
   // person and their role - to an image model on NoaCG's key. That is third-party personal
   // data, and it is the reason this module exists.
   pro: true,
+  // The Studio-managed editor follows the existing managed retention policy, fail closed.
+  editor: true,
   // Video is NOT policied here, deliberately. Its routes are user-selectable through the
   // video model picker rather than pinned, so a ZDR directive would refuse whichever of them
   // no ZDR-agreement provider serves - turning a privacy improvement into an outage on a
