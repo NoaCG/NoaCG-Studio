@@ -76,6 +76,10 @@ export const DEPLOY_AFFECTING_SCRIPTS = new Set([
   'scripts/site-nav.mjs',
   'scripts/skewProtectionPlugin.mjs',
   'scripts/whats-new.mjs',
+  // The backend rule a test or measurement build is judged by (#2508). The site's own build sets
+  // none of its switches, but it imports them, so an edit here still builds.
+  'scripts/configured-target.mjs',
+  'scripts/supabase-projects.mjs',
 ]);
 
 /**

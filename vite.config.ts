@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { claimDevPorts, reservesPorts, writeLaunchConfig } from './scripts/dev-port.mjs';
+import { assertConfiguredTarget, MEASURE_BACKEND_FILE } from './scripts/configured-target.mjs';
 import { panelBackendPlugin } from './scripts/panelBackendPlugin.mjs';
 import { catalogIndexPlugin } from './scripts/catalogIndexPlugin.mjs';
 import { skewProtectionPlugin } from './scripts/skewProtectionPlugin.mjs';
@@ -50,6 +51,16 @@ const GENERATED: Record<string, () => string> = {
   // The coding-agent prompt, on Downloads and in the docs (scripts/agent-prompt.mjs).
   [AGENT_PROMPT_MARKER]: () => renderAgentPrompt(),
 };
+
+function measureBackendStamp(url: string): Plugin {
+  return {
+    name: 'noacg-measure-backend',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: MEASURE_BACKEND_FILE, source: JSON.stringify({ VITE_SUPABASE_URL: url }) });
+    },
+  };
+}
 
 function generatedPages(): Plugin {
   return {
@@ -116,6 +127,13 @@ function buildStamp(): string {
 const KEEP_NAMES = { function: true, class: true };
 
 export default defineConfig(({ command, mode }) => {
+  const isBuild = command === 'build';
+  const measureHooks = process.env.VITE_MEASURE_HOOKS === '1';
+  // A build or server a test or a measurement starts (#2508, below).
+  const testRun = Boolean(process.env.NOACG_E2E_SERVER) || measureHooks || mode === 'e2e';
+  // Read once, and only where it is used: the serve path fills process.env from it, and the
+  // test/measurement check reads it. The site's own build never reads it here.
+  const fileEnv = command === 'serve' || testRun ? loadEnv(mode, process.cwd(), '') : {};
   if (command === 'serve') {
     // The dev server mounts the REAL api/ handlers (aiDevPlugin/renderApiPlugin), and they
     // read server-only configuration from process.env exactly as they do on Vercel — but
@@ -123,10 +141,18 @@ export default defineConfig(({ command, mode }) => {
     // serve time so `AI_LITE_*`, provider keys, and the render config work locally the way
     // production works. Only MISSING keys are filled: an inline env var (or a Playwright
     // webServer.env override, e.g. the offline suite's blanked Supabase vars) always wins.
-    for (const [key, value] of Object.entries(loadEnv(mode, process.cwd(), ''))) {
+    for (const [key, value] of Object.entries(fileEnv)) {
       if (!(key in process.env)) process.env[key] = value;
     }
   }
+  // A TEST OR A MEASUREMENT NEVER BUILDS OR SERVES AGAINST A BACKEND IT MAY NOT DESTROY (#2508).
+  // A server a Playwright config starts sets NOACG_E2E_SERVER, a measurement build sets
+  // VITE_MEASURE_HOOKS=1 and the browser suite's build is `--mode e2e`; each is judged by the rule
+  // every configured run uses, on what this build will actually see (the shell over the .env
+  // files, as Vite merges them). The site's own builds set none of the three and are untouched.
+  // A bundle inlines only the browser's half; the api/ handlers run only under a server.
+  const seen: Record<string, string | undefined> = { ...fileEnv, ...process.env, ...(isBuild ? { SUPABASE_URL: '' } : {}) };
+  if (testRun) assertConfiguredTarget(seen, `this ${isBuild ? 'build' : 'server'} for a test or a measurement`);
   // THE E2E BUILD (`npm run build:e2e`, served to the browser suite): the app's bundle with
   // function and class names kept (below), the source-module registry specs reach through
   // (src/app/e2eModules.ts), and the app's test seams on. It is NOT the minified app users get.
@@ -158,6 +184,9 @@ export default defineConfig(({ command, mode }) => {
       // ?dpl=<deployment id> on every built file reference, on a Vercel build with Skew Protection
       // on, so an open page keeps loading its own deploy (scripts/skewProtectionPlugin.mjs).
       skewProtectionPlugin(),
+      // A measurement build records the backend it was given, which the harness judges before it
+      // serves the build (MEASURE_BACKEND_FILE in scripts/configured-target.mjs, #2508).
+      ...(measureHooks && isBuild ? [measureBackendStamp(seen.VITE_SUPABASE_URL ?? '')] : []),
     ],
     // strictPort: the port is this checkout's identity (playwright + the dev scripts derive
     // the same number), so failing loudly beats silently drifting onto a neighbour's port. The
