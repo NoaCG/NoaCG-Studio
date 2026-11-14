@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2378,
-      "step": "build",
-      "note": "Local Chromium 24 passed, independent A and Codex clean, exact CI gate and configured verdict green. Exact stamp posted, auto-merge enabled, normal merge group pending.",
-      "session": "github:2378",
-      "head": "5b7300b6bfd452da0504e1199fc69351d18c1021",
-      "phase": "v4"
+      "step": "check",
+      "note": "Merged through the normal queue on the same tree tested on Windows. Independent exact-merge checker confirmed the 24 passing Playwright cases and 160 focused Windows Node checks. Awaiting CI push, configured suite and CodeQL on the exact merge.",
+      "head": "1b7e067c537d567e119c5f886b22f521b2a80503",
+      "session": "/root/v4_checker",
+      "phase": "v4",
+      "pr": 2378
     }
   ],
   "owner": [],
