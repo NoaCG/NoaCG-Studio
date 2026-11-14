@@ -3430,7 +3430,7 @@
     "contractClarification": "Coordinator extraction bug produced four first-line rubric labels in E5F admission. Do not shorten the actual contract: ALL four full Acceptance paragraphs at the pinned phase.spec24d7 are binding through the spec, including guard/credential/stale/undo/source/export/keyboard/access/limit requirements. Preserve admitted labels/history without resetting allowance. Builder notified before any code; independent evidence must address every clause of those full paragraphs."
   },
   "e5fCheckpoint": {
-    "status": "FINAL_FULL_SO_ONE_P2_CORRECTION_ACTIVE_NO_PR_NOT_DEPLOYED",
+    "status": "ROUND1_CORRECTED_COMMITTED_FRESH_FULL_REVIEW_ACTIVE_NO_PR",
     "actor": "/root/editor_e5f_cloud_builder",
     "thread": "6af8403d-0d00-8191-804b-4923b3338071",
     "source": "4751981d1202c8127739e21e95c979f4af01711b",
@@ -3488,7 +3488,13 @@
       "actor": "/root/editor_e5f_cloud_builder/e5f_final_full_so",
       "verdict": "B/AGREE WITH CORRECTIONS; full40filediffread; exactlyoneP2 newunknown-version layoutrecord overwrittenonmount/resize/reset; nootherconfirmeddefect",
       "rootRead": "Read completefinalnativeverdict, source and src/AGENTS.md13 persisted-format invariant; confirmsnewpanelpreferencefamily, noE4machinery implicated.",
-      "correction": "Samebuilder only; kernelowneddecode/writability metadata, transientlayoutusable while unknownstoredbytesreadonly; focusedred/green mount/resize/reset andexistingv1durability. NoPRopened orproductpushspent onknown-redhead. Fresh fullSO required after correction because gradeB doesnotqualifydelta-only."
+      "correction": "Samebuilder only; kernelowneddecode/writability metadata, transientlayoutusable while unknownstoredbytesreadonly; focusedred/green mount/resize/reset andexistingv1durability. NoPRopened orproductpushspent onknown-redhead. Fresh fullSO required after correction because gradeB doesnotqualifydelta-only.",
+      "correctionResult": {
+        "commit": "7f94a8e2f",
+        "red": "j197FAIL reproducedv2bytesoverwrittenonmount; originalfullSO B retained",
+        "green": "Unit5/5PASS;j1984/4PASS18.1s standardv1bothviewports+unknownbefore/aftermount throughresize/reset/reload/sourcehistory; gates3files19tests0fail0skipPASS; tsc/lint/deps1506modules7213edges/diffPASS",
+        "root": "Readexactcurrentkernelcodec/hook and completej197/j198terminal logs pluscommitted round1notes; no additionalconcurrencyframework/noE4machinerychange/no rootrerun"
+      }
     },
     "reconciliation": {
       "merge": "be7b5c593dc1e48b8f4ac81601668f4c2c4180f9",
@@ -3496,6 +3502,14 @@
       "scope": "7CI/nightly/tracedmapfilesonly; product/API/E2E bytesunchangedfrom5bfd; cleanworktree/generatedregistryvalid240modules/mergeorderclear",
       "capacity": "Exit0/WARN131.8of204.5min64.4%;4editedexisting specs, medianestimate+0.27min; alltierOK, staleweeklygrowthwarningretained; nolimits/exceptions changed",
       "sideEnds": "Root canonicalhelper onall40featurepaths atbe7/currentmain yieldsends{}why[]; no packageversions/build/lock. Freshissue1967bodyread2026-11-14; no newsideendinghold."
+    },
+    "correctedFullReview": {
+      "actor": "/root/editor_e5f_cloud_builder/e5f_corrected_final_full_so",
+      "head": "9f70b9835777e3815b4336654fe06bb80198ef7c",
+      "base": "5c118f5b0",
+      "scope": "Fresh FULL41pathdiff and all4completeparagraphs; pending, notA/A+ yet",
+      "reconcile": "Onlymainquarantinerelease5c118 mergedclean; correctedproductbytesunchanged, generatedregistry240valid. No featurequarantine/testlimit/configweakening.",
+      "next": "Buildernormalinlinecheck and coherent firstunqueuedPR mayrunCI/Codex whilefullSOreadonly. Rootsolequeue/repair/postlandowner. Actualhostedproviderpendingnormalmaindeployment/qualifiedauthisolation."
     }
   }
 }
