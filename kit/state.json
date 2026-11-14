@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
+      "note": "Resumed same project. j-5242 reaped without verdict. Current-main conflicts resolved on 5b7300b6. Local Chromium j-5251 active; exact review and normal CI 43638046576 pending.",
       "pr": 2378,
-      "session": "windows:j-5242",
-      "head": "eee31a8d068b6e60070a74c714a3df24b6043dea",
+      "session": "windows:j-5251",
       "step": "build",
-      "note": "Exact independent A, Codex clean, normal CI gate and configured verdict passed. Only required local Chromium j-5242 remains before the queue, waiting for the shared Windows RAM floor.",
-      "phase": "v4"
+      "phase": "v4",
+      "head": "5b7300b6bfd452da0504e1199fc69351d18c1021"
     }
   ],
   "owner": [],
