@@ -2,6 +2,7 @@ import { applyDocumentBrand } from '../../model/brandApplication';
 import type { SavedLook } from '../../model/packets';
 import type { SpxTemplate } from '../../model/types';
 import { getTemplateParts } from '../../model/structure';
+import { publicTextDefaults } from '../../blocks/publicTextDefaults';
 import { readOrganization, writeOrganization } from '../../model/editorOrganization';
 import { locateAnimData, losslessAnimData, parseAnimData, serializeAnimData, spliceAnimData } from '../../blocks/animData';
 import { applySound, type SoundOperation } from '../../blocks/soundEdit';
@@ -58,6 +59,7 @@ export type EditorOperation =
   | { kind: 'key.set'; selector: string; step: number; property: string; time: number; value: number }
   | { kind: 'base.set'; selector: string; values: BasePatch }
   | { kind: 'text.set'; selector: string; text: string }
+  | { kind: 'field.default'; fieldId: string; text: string }
   | { kind: 'style.set'; selector: string; values: ArtworkStyle }
   | { kind: 'layer.rename'; selector: string; label: string }
   | { kind: 'layer.visibility'; selector: string; hidden: boolean }
@@ -214,6 +216,8 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = editBase(next, operation.selector, operation.values); targets.add(operation.selector);
     } else if (operation.kind === 'layer.create') {
       const result = createArtwork(next, operation.geometry); next = result.template; targets.add(result.selector);
+    } else if (operation.kind === 'field.default') {
+      next = publicTextDefaults(next).write(operation.fieldId, operation.text); targets.add('#' + operation.fieldId);
     } else if (operation.kind === 'text.set') {
       next = editArtworkText(next, operation.selector, operation.text); targets.add(operation.selector);
     } else if (operation.kind === 'style.set') {

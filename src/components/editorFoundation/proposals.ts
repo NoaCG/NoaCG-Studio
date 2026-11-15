@@ -9,6 +9,7 @@ export interface ReviewedProposal {
   expected: Inspection['expected'];
   transactionId: string;
   changedIds: string[];
+  labels: Record<string, string>;
 }
 export const editorHelpSchema = z.strictObject({ answer: z.string().trim().min(1).max(5000) });
 export const helpOutputSchema = () => z.toJSONSchema(editorHelpSchema);
@@ -43,7 +44,13 @@ export function reviewProposal(commands: EditorCommands, inspection: Inspection,
   } else {
     requireCurrentContext(commands, inspection);
   }
-  return { proposal, expected: inspection.expected, transactionId, changedIds };
+  const labels = Object.fromEntries(proposal.commands.flatMap(command => {
+    if (!('targetId' in command.args)) return [];
+    const id = command.args.targetId;
+    const target = inspection.targets.find(target => target.id === id);
+    return target ? [[id, target.label]] : [];
+  }));
+  return { proposal, expected: inspection.expected, transactionId, changedIds, labels };
 }
 export async function proposeEditorEdits(commands: EditorCommands, prompt: string) {
   if (!prompt.trim() || prompt.length > 4000) throw new Error('Describe the edit in 1 to 4000 characters.');
