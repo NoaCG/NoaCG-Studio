@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "phase": "v6",
+      "session": "/root/v6_builder",
+      "step": "build",
       "pr": 2575,
       "head": "318151166087a1ceda38249e2d53ce55494a6e4d",
-      "session": "/root/v6_builder",
-      "note": "Owner resumed after provider usage interruption. Existing epoch 20, same draft and original builder reconciled. Clean unpublished a2556c6e preserved with Windows fake/partial native evidence. Fresh independent compact-authority/deadline reassessment is running before the grouped V6 repair. No queue, no release, no new run.",
-      "step": "build"
+      "note": "Resumed V6 grouped handoff/transport repair at clean unpublished 3284e22a. Exact native AC-12, 51 focused tests and 35 legacy regressions, and shared Windows browser j-5264 (24/24, exit 0) passed. Fresh exact-head independent review running; no product push, queue, or release.",
+      "phase": "v6"
     }
   ],
   "owner": [],
