@@ -28,6 +28,7 @@ type PlayerSend = (name: string, value?: string | number) => Promise<AdapterResu
 type ListRead = () => Promise<VmixVideoList | undefined>;
 type PlaybackState = 'Paused' | 'Running' | 'Completed';
 type Occurrence = { key: string; list: VmixVideoList };
+type MediaOccurrence = Occurrence & { root: string };
 interface OccurrenceGuard {
   states?: readonly PlaybackState[];
   segment?: ClipSegment;
@@ -49,6 +50,7 @@ interface TakeIdentity {
   cueId?: string;
   sourceName: string;
   file: string;
+  root: string;
   key: string;
   list: VmixVideoList;
   lastMeasuredPositionMs?: number;
@@ -70,10 +72,11 @@ interface ClipWork {
   quieting?: boolean;
 }
 interface PlayerPresentation {
+  player: VmixPlayer;
   alpha: number;
   ramp?: { target: number };
   fade?: AlphaFade & { kind: 'in' | 'end' | 'out'; clipAt?: number };
-  cover?: { originalMute?: boolean; mutedByBridge?: true; zeroVolume?: true };
+  cover?: { originalMute?: boolean; mute?: { connectionId: number; root: string; list: VmixVideoList }; zeroVolume?: true };
   stoppedExit?: { instance: string; connectionId: number; root: string; state: 'Paused' | 'Completed'; position: number };
 }
 interface PlayerMemory {
@@ -251,10 +254,10 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     return saved;
   }
 
-  function presentationFor(saved: PlayerMemory, key: string): PlayerPresentation {
+  function presentationFor(saved: PlayerMemory, player: VmixPlayer, key: string): PlayerPresentation {
     let presentation = saved.presentations.get(key);
     if (!presentation) {
-      presentation = { alpha: 255 };
+      presentation = { player, alpha: 255 };
       saved.presentations.set(key, presentation);
     }
     return presentation;
@@ -262,6 +265,15 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
 
   function reconcile(port: number, player: VmixPlayer, current: PlayerInput | undefined): PlayerMemory {
     const saved = memory(port, player);
+    for (const [key, presentation] of saved.presentations) {
+      if (key !== current?.input.key && presentation.cover?.mute) delete presentation.cover.mute;
+    }
+    if (current) {
+      const presentation = saved.presentations.get(current.input.key);
+      observeUnmuted(presentation, current.list.muted);
+      const cover = presentation?.cover;
+      if (cover?.mute && !sameSelection(current.list, cover.mute.list)) delete cover.mute;
+    }
     const take = saved.take;
     if (!take) return saved;
     if (!current || current.input.key !== take.key || !sameSelection(current.list, take.list) ||
@@ -303,6 +315,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
       const list = current.value.lists.get(key);
       if (list) {
         if (!readablePlayback(list)) return;
+        observeUnmuted(memory(port, player).presentations.get(key), list.muted);
         if (checkFiles) {
           try {
             const problem = await playbackProblem(port, player, list, mixer.until);
@@ -388,7 +401,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
 
   function guardFor(take: TakeIdentity): OccurrenceGuard {
     return {
-      muted: take.presentation.cover?.originalMute !== undefined ? true : vmixMediaKind(take.file) === 'audio' ? false : undefined,
+      muted: take.presentation.cover?.originalMute !== undefined ? true : take.presentation.player === 'audio' ? false : undefined,
       fader: take.presentation.cover?.zeroVolume ? 0 : undefined,
     };
   }
@@ -421,29 +434,61 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     return 'missing';
   }
 
-  async function muteCover(mixer: PlayerMixer, presentation: PlayerPresentation, send: PlayerSend, occurrence: Occurrence, phase: OccurrenceGuard = {}) {
-    const muted = textValue(await mixer.readText(occurrencePath(occurrence, phase) + '/@muted'))?.toLowerCase();
-    if (muted !== 'true' && muted !== 'false') return false;
-    const original = muted === 'true';
-    if (!isPosition(await samplePosition(mixer, occurrence, { ...phase, muted: original }))) return false;
+  function observeUnmuted(presentation: PlayerPresentation | undefined, muted: boolean | undefined) {
+    if (muted === false && presentation?.cover) delete presentation.cover.mute;
+  }
+
+  function ownsMute(mixer: PlayerMixer, presentation: PlayerPresentation | undefined, occurrence: MediaOccurrence): boolean {
+    const cover = presentation?.cover;
+    if (!cover?.mute) return false;
+    const mute = cover.mute;
+    if (mute.connectionId === mixer.connectionId && sameVmixPath(mute.root, occurrence.root) &&
+        sameSelection(mute.list, occurrence.list)) return true;
+    delete cover.mute;
+    return false;
+  }
+
+  function carryMute(mixer: PlayerMixer, presentation: PlayerPresentation, occurrence: MediaOccurrence, next: VmixVideoList) {
+    const cover = presentation.cover;
+    if (cover?.mute && next.muted === true && ownsMute(mixer, presentation, occurrence)) cover.mute.list = next;
+  }
+
+  async function readMute(mixer: PlayerMixer, presentation: PlayerPresentation, occurrence: Occurrence, phase: OccurrenceGuard) {
+    const native = textValue(await mixer.readText(occurrencePath(occurrence, phase) + '/@muted'))?.toLowerCase();
+    if (native !== 'true' && native !== 'false') return;
+    const muted = native === 'true';
+    observeUnmuted(presentation, muted);
+    return muted;
+  }
+
+  async function muteCover(
+    mixer: PlayerMixer, presentation: PlayerPresentation, send: PlayerSend, occurrence: MediaOccurrence, phase: OccurrenceGuard = {},
+  ) {
+    const expected = occurrence.list.muted;
+    const owned = ownsMute(mixer, presentation, occurrence);
+    if (expected === undefined || (presentation.player === 'audio' && expected && !owned)) return false;
+    const actual = await readMute(mixer, presentation, occurrence, phase);
+    if (actual !== expected || !isPosition(await samplePosition(mixer, occurrence, { ...phase, muted: expected }))) return false;
     const cover = presentation.cover ??= {};
-    cover.originalMute ??= original;
+    if (!owned) delete cover.mute;
+    cover.originalMute = expected && !owned;
     const matte = await send('SetAlpha', 0);
     if (!matte.ok) return false;
     presentation.alpha = 0;
-    if (!original) {
-      delete cover.mutedByBridge;
+    if (!expected) {
       if (!isPosition(await samplePosition(mixer, occurrence, { ...phase, muted: false })) ||
           !(await send('AudioOff')).ok) return false;
     }
     if (!isPosition(await observePosition(mixer, occurrence, { ...phase, muted: true }))) return false;
-    if (!original) cover.mutedByBridge = true;
+    if (!expected && mixer.connectionId !== undefined) {
+      cover.mute = { connectionId: mixer.connectionId, root: occurrence.root, list: occurrence.list };
+    }
     return true;
   }
 
   async function openMute(presentation: PlayerPresentation, send: PlayerSend) {
     const result = await send('AudioOn');
-    if (presentation.cover && (result.ok || result.error.code === 'uncertain')) delete presentation.cover.mutedByBridge;
+    if (presentation.cover && (result.ok || result.error.code === 'uncertain')) delete presentation.cover.mute;
     return result.ok;
   }
 
@@ -463,8 +508,10 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
       if (opened && !await outside()) return;
     }
     const cover = take.presentation.cover;
-    if (opened && cover && (await send('AudioOff')).ok &&
-        isPosition(await observePosition(mixer, take, { muted: true }))) cover.mutedByBridge = true;
+    if (opened && cover && mixer.connectionId !== undefined && (await send('AudioOff')).ok &&
+        isPosition(await observePosition(mixer, take, { muted: true }))) {
+      cover.mute = { connectionId: mixer.connectionId, root: take.root, list: take.list };
+    }
   }
 
   function presentationPhase(take: TakeIdentity, list: VmixVideoList): PresentationPhase | undefined {
@@ -564,6 +611,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
         positionMs = await samplePosition(mixer, take, { ...guard, states: ['Completed'] });
       }
       if (!isPosition(positionMs)) return;
+      observeUnmuted(take.presentation, guard.muted);
       if (!ignoreRewind && !take.list.loop && take.lastMeasuredPositionMs !== undefined && positionMs + 750 < take.lastMeasuredPositionMs) return;
       return { ...take.list, state, positionMs, volume, ...(guard.muted === undefined ? {} : { muted: guard.muted }) };
     };
@@ -603,14 +651,17 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     return false;
   }
 
-  async function restoreEmptyMute(mixer: PlayerMixer, key: string, presentation: PlayerPresentation, send: PlayerSend) {
+  async function restoreEmptyMute(mixer: PlayerMixer, occurrence: MediaOccurrence, presentation: PlayerPresentation, send: PlayerSend) {
     const cover = presentation.cover;
     if (cover?.originalMute !== false) return true;
-    const muted = textValue(await mixer.readText(emptyInput(key) + '[@position=0]/@muted'))?.toLowerCase();
-    if (muted === 'false') return true;
+    const muted = textValue(await mixer.readText(emptyInput(occurrence.key) + '[@position=0]/@muted'))?.toLowerCase();
+    if (muted === 'false') {
+      observeUnmuted(presentation, false);
+      return true;
+    }
     if (muted !== 'true') return false;
-    if (!cover.mutedByBridge) return true;
-    return await openMute(presentation, send) && await confirmEmpty(mixer, key, false);
+    if (!ownsMute(mixer, presentation, occurrence)) return true;
+    return await openMute(presentation, send) && await confirmEmpty(mixer, occurrence.key, false);
   }
 
   function attachWork(port: number, player: VmixPlayer, saved: PlayerMemory, take: TakeIdentity, mixer: PlayerMixer, root: string, work: Omit<ClipWork, 'root' | 'generation' | 'connectionId'> = {}) {
@@ -762,7 +813,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     });
     if (!isPosition(position) ||
         !(await send('ListRemoveAll')).ok || !(await confirmEmpty(mixer, take.key))) return;
-    if (!await restoreEmptyMute(mixer, take.key, presentation, send)) return;
+    if (!await restoreEmptyMute(mixer, take, presentation, send)) return;
     delete presentation.ramp;
     delete presentation.fade;
     delete presentation.cover;
@@ -803,9 +854,13 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
   ): Promise<VmixVideoList | undefined> {
     const { presentation } = take;
     const original = presentation.cover?.originalMute;
-    const opening = original === false;
+    if (original === undefined || (presentation.player === 'audio' && original)) return;
+    const currentMute = await readMute(mixer, presentation, take, phase);
+    if (currentMute === undefined || (original && !currentMute)) return;
+    const opening = !original && currentMute;
     if (opening) {
-      if (!isPosition(await samplePosition(mixer, take, { ...phase, muted: true })) || !await openMute(presentation, send)) return;
+      if (!ownsMute(mixer, presentation, take) || !isPosition(await samplePosition(mixer, take, { ...phase, muted: true })) ||
+          !await openMute(presentation, send)) return;
       const opened = await observePosition(mixer, take, { muted: false });
       if (!isPosition(opened)) return;
       if (phase.segment && !withinSegment(opened, phase.segment)) {
@@ -813,7 +868,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
         return;
       }
     }
-    const guard = { ...phase, muted: original ?? guardFor(take).muted };
+    const guard = { ...phase, muted: original };
     let position = await samplePosition(mixer, take, guard);
     if (!isPosition(position)) {
       if (opening) await recloseOutOfRange(mixer, take, send, phase, guard.muted, true);
@@ -846,7 +901,9 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     }
     const read = reader(mixer, take, { ignoreRewind: true, phase });
     const current = await read();
-    if (!current) return uncertain('settling the surviving cue');
+    if (!current || (presentation.cover?.originalMute === false && !ownsMute(mixer, presentation, take))) {
+      return uncertain('settling the surviving cue');
+    }
     if (presentation.ramp || !volumeAt(current.volume, take.fader)) {
       const restored = await putVolume(presentation, send, take.fader, read, mixer.until, true);
       if (!restored.ok) return restored;
@@ -867,7 +924,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
 
   async function restartLoop(mixer: PlayerMixer, take: TakeIdentity, row: VmixVideoList, send: PlayerSend) {
     const phase: OccurrenceGuard = { states: ['Running', 'Completed'], boundary: take.trim!.outMs };
-    if (!await muteCover(mixer, take.presentation, send, { key: take.key, list: row }, phase)) return false;
+    if (!await muteCover(mixer, take.presentation, send, { ...take, list: row }, phase)) return false;
     const read = reader(mixer, take);
     const atBoundary = await read();
     if (!atBoundary || !await pauseAt(atBoundary, read, send, mixer.until, take.trim!.outMs)) return false;
@@ -920,7 +977,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
   }
 
   async function readyPlayer(
-    port: number, player: VmixPlayer, current: PlayerInput | undefined, setup: Setup, mixer: Mixer, saved: PlayerMemory,
+    port: number, player: VmixPlayer, current: PlayerInput | undefined, setup: Setup, mixer: Mixer, saved: PlayerMemory, root: string,
   ): Promise<{ key: string; list: VmixVideoList } | Failure> {
     const title = VMIX_PLAYER_TITLE[player];
     let input = current?.input;
@@ -946,20 +1003,23 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
       saved.created = { key: input.key, attempt };
     }
     const key = input.key;
-    const cover = saved.presentations.get(key)?.cover;
-    const audioReady = (list: VmixVideoList) => readyForPlayback(player, list) ||
-      (cover?.originalMute === false && cover.mutedByBridge && list.muted === true);
+    const presentation = saved.presentations.get(key);
+    const audioReady = (list: VmixVideoList) => {
+      observeUnmuted(presentation, list.muted);
+      return readyForPlayback(player, list) || (list.muted === true && ownsMute(mixer, presentation, { key, root, list }));
+    };
     if (!reuse) {
       await media.keepPlayer(port, player, key, false, mixer.until);
       delete saved.created;
       const before = await mixer.read();
       const list = before.ok && playbackList(before.value, key);
       if (!list) return uncertain('identifying ' + title + ' for setup');
+      observeUnmuted(presentation, list.muted);
       const problem = await playbackProblem(port, player, list, mixer.until);
       if (problem) return problem;
       for (const [name, value] of [
         ['SetInputName', title], ['AutoPlayOff'], ['AutoPauseOff'], ['AutoRestartOff'], ['AutoPlayNextOff'],
-        ...(player === 'audio' ? [['AudioAutoOff'], ...(cover?.originalMute === false ? [] : [['AudioOn']])] : []),
+        ...(player === 'audio' ? [['AudioAutoOff'], ...(presentation?.cover ? [] : [['AudioOn']])] : []),
       ]) {
         const result = await mixer.send(name, { Input: key, ...(value !== undefined ? { Value: value } : {}) });
         if (!result.ok) return result;
@@ -989,6 +1049,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     return async () => {
       const raw = await mixer.read();
       const list = raw.ok && playbackList(raw.value, key);
+      if (list) observeUnmuted(memory(port, player).presentations.get(key), list.muted);
       if (!list || !selected(list) || !readyForPlayback(player, list, mute) ||
           await playbackProblem(port, player, list, mixer.until)) return;
       return list;
@@ -997,10 +1058,10 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
 
   async function takeCue(port: number, player: VmixPlayer, current: PlayerInput | undefined, setup: Setup, mixer: Mixer, action: Extract<PlayoutAction, { verb: 'take' }>, saved: PlayerMemory): Promise<VmixActResult> {
     const initialPath = await withinVmixDeadline(mixer.until, () => media.file(port, action.item.name));
-    const prepared = await readyPlayer(port, player, current, setup, mixer, saved);
+    const root = setup.root ?? await withinVmixDeadline(mixer.until, () => media.folder(port));
+    const prepared = await readyPlayer(port, player, current, setup, mixer, saved, root);
     if ('error' in prepared) return prepared;
     const { key, list: preparedList } = prepared;
-    const root = setup.root ?? await withinVmixDeadline(mixer.until, () => media.folder(port));
     const playback = action.playback;
     const trimmed = playback?.trim !== undefined;
     const end = playback?.end ?? (action.loop ? 'loop' : 'hold');
@@ -1018,21 +1079,22 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     if (!before) return uncertain('setting up the Take');
     const currentProblem = await playbackProblem(port, player, before, mixer.until);
     if (currentProblem) return currentProblem;
-    const priorCover = saved.presentations.get(key)?.cover;
-    const repairingMute = priorCover?.originalMute === false && priorCover.mutedByBridge && before.muted === true;
+    const presentation = presentationFor(saved, player, key);
+    observeUnmuted(presentation, before.muted);
+    const occurrence = { key, root, list: before };
+    const repairingMute = before.muted === true && ownsMute(mixer, presentation, occurrence);
     if ((!readyForPlayback(player, before) && !repairingMute) || !sameSelection(preparedList, before)) {
       return uncertain('setting up the Take');
     }
     const file = await withinVmixDeadline(mixer.until, () => media.file(port, action.item.name));
     if (!sameVmixPath(initialPath, file)) return refused('The vMix media path changed during Take. Check the folder and try again.');
-    const presentation = presentationFor(saved, key);
     delete presentation.stoppedExit;
     const coverMute = () => presentation.cover?.originalMute === undefined ? undefined : true;
     const timedCover = trimmed || fadeIn !== undefined || !!presentation.cover || !!presentation.ramp ||
       !!presentation.fade || presentation.alpha !== 255;
     const v6Take = timed || playback?.gain !== undefined;
     const hidden = timedCover || (v6Take && before.items.length > 0 && saved.take?.key !== key);
-    if (hidden && !await muteCover(mixer, presentation, send, { key, list: before })) {
+    if (hidden && !await muteCover(mixer, presentation, send, occurrence)) {
       return uncertain('covering the player before selection');
     }
     const audibleWhenReady = (list: VmixVideoList) => readyForPlayback(player, list, coverMute());
@@ -1050,6 +1112,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     const addedList = await observe(port, player, mixer, key, list => list.selected === currentIndex && sameItems(list.items, appended));
     if (addedList && 'error' in addedList) return addedList;
     if (!addedList || !audibleWhenReady(addedList)) return uncertain('adding the file');
+    carryMute(mixer, presentation, occurrence, addedList);
 
     // vMix acknowledges Loop on an empty list without applying it.
     const ending = await send(loop ? 'LoopOn' : 'LoopOff');
@@ -1082,11 +1145,12 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     const selectedList = await observe(port, player, mixer, key, list => selected(list) && (!trimmed || list.state !== 'Running') && (!timed || hasTiming(list, file)));
     if (selectedList && 'error' in selectedList) return selectedList;
     if (!selectedList || !audibleWhenReady(selectedList)) return uncertain('selecting the requested file');
+    carryMute(mixer, presentation, { key, root, list: configured }, selectedList);
     const trim = playback?.trim && trimSegment(playback.trim, selectedList.durationMs);
     if (trimmed && !trim) return refused('The requested trim does not fit the measured vMix file length.');
     const instance = (mixer.session ? mixer.session + '.' : '') + randomUUID();
     const started: TakeIdentity = {
-      id: instance, cueId: action.cueId, sourceName: action.item.name, file, key, list: selectedList,
+      id: instance, cueId: action.cueId, sourceName: action.item.name, file, key, root, list: selectedList,
       trim, end, fadeOut, fader, presentation, armed: false,
     };
     let playing: VmixVideoList | Failure | undefined;
@@ -1122,6 +1186,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
       if (after && 'error' in after) return partial(after);
       if (!after) return uncertain('removing earlier items after the requested file was seen playing');
       // Prefix removal can be observed even if the same selected input lost audio readiness.
+      carryMute(mixer, presentation, started, after);
       if (presentation.cover) started.list = after;
       else rememberSelection(started, after);
       if (!audibleWhenReady(after)) return uncertain('removing earlier items after the requested file was seen playing');
@@ -1253,6 +1318,12 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     const presentation = current && saved.presentations.get(current.input.key);
     const stoppedExit = presentation?.stoppedExit;
     const transport = action.verb === 'pause' || action.verb === 'resume';
+    const active = saved.take;
+    if (current && active && (transport || action.verb === 'ending') &&
+        (active.trim || presentation?.cover || presentation?.ramp || presentation?.fade)) {
+      active.root = setup.root ?? await withinVmixDeadline(mixer.until, () => media.folder(port));
+      ownsMute(mixer, presentation, { ...active, list: current.list });
+    }
     const exiting = !!presentation && (!!stoppedExit || (presentation.fade ? presentation.fade.kind !== 'in' : presentation.ramp?.target === 0));
     const legacyExit = expectedInstance === undefined && transport && exiting;
     const canTransfer = !!presentation?.cover && !!stoppedExit && (transport || action.verb === 'ending');
@@ -1262,7 +1333,6 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     }
     let transferred: PresentationPhase | undefined;
     if (legacyExit || canTransfer) {
-      const active = saved.take;
       guardedInstance ??= active?.id;
       if (!active || !guardedInstance) return refused('Bridge could not confirm the vMix cue whose fade would change.');
       const owned = await rereadOwned();
@@ -1282,7 +1352,8 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     }
     if (action.verb === 'resume' && current && !readyForPlayback(player, current.list)) {
       const cover = presentation?.cover;
-      if (!transferred || cover?.originalMute !== false || !cover.mutedByBridge || current.list.muted !== true) {
+      if (!transferred || !saved.take || cover?.originalMute !== false || current.list.muted !== true ||
+          !ownsMute(mixer, presentation, { ...saved.take, list: current.list })) {
         return refused('vMix has not confirmed NoaCG Audio unmuted. Check its audio in vMix before resuming the cue.');
       }
     }
@@ -1335,6 +1406,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     const loop = nextEnd === 'loop' && !take?.trim;
     const verb = action.verb === 'ending' ? (loop ? 'LoopOn' : 'LoopOff') : action.verb === 'resume' ? 'Play' : 'Pause';
     let after: VmixVideoList | Failure | undefined;
+    let emptyMuteSource: MediaOccurrence | undefined;
     let raw: string;
     if (action.verb === 'pause' && transferred) {
       after = expectedList;
@@ -1348,7 +1420,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
         after = observed;
       } else {
         const frozen = transferred ?? presentationPhase(take, observed);
-        if (!frozen || !await muteCover(mixer, take.presentation, send, take, frozen)) return uncertain('covering the resumed clip');
+        if (!frozen || !await muteCover(mixer, take.presentation, send, { ...take, list: observed }, frozen)) return uncertain('covering the resumed clip');
         if (exiting) {
           const problem = await settleCoveredLevel(mixer, take, send, frozen);
           if (problem) return problem;
@@ -1385,6 +1457,14 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
           }
           if (!confirmed) return uncertain('pausing the player before clearing it');
         }
+        if (presentation?.cover?.mute) {
+          const root = setup.root ?? await withinVmixDeadline(mixer.until, () => media.folder(port));
+          const source = { key, root, list: expectedList };
+          if (ownsMute(mixer, presentation, source) &&
+              isPosition(await samplePosition(mixer, source, { states: ['Paused', 'Completed'], muted: true }))) {
+            emptyMuteSource = source;
+          }
+        }
         const removed = await mixer.send('ListRemoveAll', { Input: key });
         if (!removed.ok) return removed;
       }
@@ -1402,8 +1482,10 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     if (empty) {
       delete saved.take;
       if (presentation) {
-        if (presentation.cover?.originalMute === false && !await confirmEmpty(mixer, key)) return uncertain('confirming the emptied player audio');
-        if (!await restoreEmptyMute(mixer, key, presentation, send)) return uncertain('restoring the emptied player audio');
+        if (emptyMuteSource && presentation.cover?.mute &&
+            (!await confirmEmpty(mixer, key) || !await restoreEmptyMute(mixer, emptyMuteSource, presentation, send))) {
+          return uncertain('restoring the emptied player audio');
+        }
         delete presentation.cover;
         delete presentation.fade;
         delete presentation.stoppedExit;
@@ -1443,6 +1525,10 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     folderChanged(port: number, root: string) {
       for (const player of VMIX_PLAYERS) {
         const saved = memories.get(port + '/' + player);
+        for (const presentation of saved?.presentations.values() ?? []) {
+          const cover = presentation.cover;
+          if (cover?.mute && !sameVmixPath(cover.mute.root, root)) delete cover.mute;
+        }
         if (saved?.work && !sameVmixPath(saved.work.root, root)) {
           if (saved.take) saved.take.armed = false;
           stopWork(saved);

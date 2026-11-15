@@ -137,6 +137,22 @@ mute write. A naturally completed clip can finish its original entrance on an en
 An interrupted fade retains its physical presentation even when an alpha write is refused after
 the fader settles. A subsequent Take can reveal only its own confirmed occurrence.
 
+## Routing rules refined after implementation review
+
+A V6 cover checks the exact current mute against its latest known source before
+blacking, muting, seeking or playing. NoaCG Audio requires an unmuted route or the
+same occurrence still muted by the Bridge. NoaCG Clips preserves the operator's
+observed mute. A fresh unmuted observation replaces an older route decision.
+
+Only an acknowledged AudioOff followed by an exact muted reading establishes
+ownership of the temporary mute. An unmuted reading, changed occurrence, media
+folder or mixer connection retires that ownership. The Bridge can carry its
+verified mute to the observed successor of its own acknowledged list edit in
+the same action. The same proof governs empty retirement. An already open or
+externally muted empty player receives no AudioOn. Timed playback reports
+success and arms its clock only after rechecking its intended route on the
+final native occurrence.
+
 ## Verification, release and rollback
 
 - Use the existing fake TCP server with a controlled clip clock and a reference trace based on the Rules. Check guarded wire skew, command order, settled and relative positions, native and Bridge endings, fade ownership and endpoints, gain reset, paused time, delayed and unknown results, the port read budget, and stale work queued before a later action. Include a loop seek that rebounds, and a Clear armed inside 40 ms during another native ramp. Record the configured and actual sound and picture endpoint timing and removal. Keep the browser check in the existing playout-cues journey and run it through the shared Windows queue.
