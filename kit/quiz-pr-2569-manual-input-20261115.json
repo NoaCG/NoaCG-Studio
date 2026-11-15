@@ -1,0 +1,18 @@
+{
+  "at": "2026-11-15T06:58:38.733Z",
+  "run": 43687631309,
+  "job": 132731325413,
+  "ref": "main",
+  "workflowMain": "5f22e9850fd5691fe43173cc31da6ee6020ee4f2",
+  "branch": "codex/plan-editor-r1-5-e5f-quiz-edit",
+  "inputSha": "\tf51865995aac9bca790f32ac6a3cf34b01c02bae",
+  "result": "Failed input validation: full40character SHA required. Leadingtab received; no stamp,label,queue or tests executed.",
+  "actualPrHead": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+  "prState": "open/unmerged/noauto/nolabels",
+  "integration": {
+    "main": "5f22e9850fd5691fe43173cc31da6ee6020ee4f2",
+    "tree": "0a463a1347b1a3e7d44fbc0c2f5b57d33dcbf4f8",
+    "result": "Freshfetch/merge-treeclean, branchclean"
+  },
+  "root": "Read entire failedjoblog; native6af455 unchanged; Git+connectorread routes qualified; no knownCLI401 retry. Ownerasked sameworkflownewdispatch withcleanSHA, NOTfailedjobrerun."
+}

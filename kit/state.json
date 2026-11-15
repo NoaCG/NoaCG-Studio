@@ -78,7 +78,7 @@
       "source": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
       "deliveryBranch": "codex/plan-editor-r1-5-e5f-quiz-edit",
       "deliverySource": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
-      "note": "PR2569 f518 allproductgates/Codex/CodeQL PASS. OnlyReviewedstamp missing; CLI401 blocksdocumenteddispatch. Explicitdependencyhandoff/noafter-sessionmonitor claimed. Noqueue/deploy/phasePASS; retained2552/SVGstop.",
+      "note": "PR2569 f518 allproductgates/reviewsPASS; manualhelper43687631309 inputFAIL leadingtab/no changes. Freshmain5f22 integrationclean. Awaitcorrectedmanualrun; no phasePASS/deploy, retained2552/SVGstop.",
       "monitorOwner": "root sole acknowledged owner, PAUSED on explicit authentication prerequisite; no durablewake/after-sessionmonitoring",
       "pr": 2569
     }
@@ -86,8 +86,8 @@
   "owner": [
     {
       "kind": "cloud-github-auth",
-      "what": "Unblock PR2569 approval: refresh managedCloudGitHublogin orrun maincloud-queue-merge workflow once with branch codex/plan-editor-r1-5-e5f-quiz-edit, exactf51865995aac9bca790f32ac6a3cf34b01c02bae and actualPASS verdict",
-      "where": "Samechatpendingquestion; exactinputs in quiz-pr-2569-ready-authwait-20261114.json"
+      "what": "Run main approval workflow again with exact clean f51865995aac9bca790f32ac6a3cf34b01c02bae; firstmanualrun43687631309 rejectedleadingtab beforewrite",
+      "where": "Samechat pendingcorrected-run request; other inputsunchanged"
     },
     "No recruitment or downloaded build is requested. Owner will review fixes through hosted Studio after engineering verification.",
     "Actual receiving-system, rights and candidate-specific release decisions retain their existing gates; do not infer completion from usability feedback.",
@@ -1506,11 +1506,10 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Refresh Codex Cloud GitHub command-line access (HTTP401), or execute the documented main approval workflow once for PR2569 using the exact handoff inputs",
+    "what": "Owner starts main approval workflow again for PR2569 with exact SHA f51865995aac9bca790f32ac6a3cf34b01c02bae and no whitespace; first run rejected leading tab before writes",
     "eta": null,
     "kind": "dependency",
-    "owner": "owner",
-    "receipt": "quiz-pr-2569-ready-authwait-20261114.json"
+    "owner": "owner"
   },
   "completedCausalityReviews": [
     {
@@ -4159,7 +4158,7 @@
         "base": "1b7e067c537d567e119c5f886b22f521b2a80503",
         "receipt": "quiz-pr-2569-prequeue-20261114.json",
         "sha256": "470c83621736fc0aebc978b04984d6f5f2c67358c4c11e4451d990ec88821126",
-        "status": "Allproductgates+Codex+CodeQL PASS; stamp/queueblocked CLI401; no deploy",
+        "status": "Readyallproductgates/reviews; firstownermanualhelperfailedbeforewrite dueleadingtabSHA; waitingcorrectedmanualdispatch",
         "ownerComment": 6885285874,
         "ci": 43648944689,
         "codeql": 43648940999,
@@ -4199,7 +4198,27 @@
           "sha": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
           "review": "PASS: check, full SO A, CI gate, configured suite, Codex no findings",
           "meaning": "Owner may execute documentedmainhelperonce; rootmustreconcileactualrun/stampbeforeanyownattempt, then sessionauto via connector with freshheadguards. No testjobretries."
-        }
+        },
+        "manualAttempts": [
+          {
+            "at": "2026-11-15T06:58:38.733Z",
+            "run": 43687631309,
+            "job": 132731325413,
+            "ref": "main",
+            "workflowMain": "5f22e9850fd5691fe43173cc31da6ee6020ee4f2",
+            "branch": "codex/plan-editor-r1-5-e5f-quiz-edit",
+            "inputSha": "\tf51865995aac9bca790f32ac6a3cf34b01c02bae",
+            "result": "Failed input validation: full40character SHA required. Leadingtab received; no stamp,label,queue or tests executed.",
+            "actualPrHead": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+            "prState": "open/unmerged/noauto/nolabels",
+            "integration": {
+              "main": "5f22e9850fd5691fe43173cc31da6ee6020ee4f2",
+              "tree": "0a463a1347b1a3e7d44fbc0c2f5b57d33dcbf4f8",
+              "result": "Freshfetch/merge-treeclean, branchclean"
+            },
+            "root": "Read entire failedjoblog; native6af455 unchanged; Git+connectorread routes qualified; no knownCLI401 retry. Ownerasked sameworkflownewdispatch withcleanSHA, NOTfailedjobrerun."
+          }
+        ]
       }
     }
   },
