@@ -74,21 +74,16 @@
       "actor": "/root/editor_e5f_cloud_builder",
       "thread": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
-      "status": "WAIT requiredCloudGitHubauth/ownermainworkflow action; no code/queue launches",
+      "status": "Queued; rootactive monitoringgroup/allpost",
       "source": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
       "deliveryBranch": "codex/plan-editor-r1-5-e5f-quiz-edit",
       "deliverySource": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
-      "note": "PR2569 f518 allproductgates/reviewsPASS; manualhelper43687631309 inputFAIL leadingtab/no changes. Freshmain5f22 integrationclean. Awaitcorrectedmanualrun; no phasePASS/deploy, retained2552/SVGstop.",
-      "monitorOwner": "root sole acknowledged owner, PAUSED on explicit authentication prerequisite; no durablewake/after-sessionmonitoring",
+      "note": "PR2569 actualqueue06:59:44Z, group43687919642/3b06 running; exactf518 stamp+headguards, Reviewedrecovered/productexecutionstimestampsunchanged. Rootsoleactiveowner throughposts/deploy. Retained2552/SVGstop/fullphasepending.",
+      "monitorOwner": "root active through merge andallpost/deploy viaGitHubconnector; no durablewake claimed",
       "pr": 2569
     }
   ],
   "owner": [
-    {
-      "kind": "cloud-github-auth",
-      "what": "Run main approval workflow again with exact clean f51865995aac9bca790f32ac6a3cf34b01c02bae; firstmanualrun43687631309 rejectedleadingtab beforewrite",
-      "where": "Samechat pendingcorrected-run request; other inputsunchanged"
-    },
     "No recruitment or downloaded build is requested. Owner will review fixes through hosted Studio after engineering verification.",
     "Actual receiving-system, rights and candidate-specific release decisions retain their existing gates; do not infer completion from usability feedback.",
     "Hosted Help answered; quiz Paris→Helsinki Edit refused. Apply/Undo remains unverified; engineer correction first, no recruitment or localbuild."
@@ -1505,12 +1500,7 @@
     },
     "currentPublicUpdate": 6831775749
   },
-  "waitingOn": {
-    "what": "Owner starts main approval workflow again for PR2569 with exact SHA f51865995aac9bca790f32ac6a3cf34b01c02bae and no whitespace; first run rejected leading tab before writes",
-    "eta": null,
-    "kind": "dependency",
-    "owner": "owner"
-  },
+  "waitingOn": null,
   "completedCausalityReviews": [
     {
       "id": "6af4b05b-8a1c-8191-b931-182efca3b062",
@@ -4158,7 +4148,7 @@
         "base": "1b7e067c537d567e119c5f886b22f521b2a80503",
         "receipt": "quiz-pr-2569-prequeue-20261114.json",
         "sha256": "470c83621736fc0aebc978b04984d6f5f2c67358c4c11e4451d990ec88821126",
-        "status": "Readyallproductgates/reviews; firstownermanualhelperfailedbeforewrite dueleadingtabSHA; waitingcorrectedmanualdispatch",
+        "status": "Actualqueueadmitted; mergegroupCIrunning; rootactiveowner",
         "ownerComment": 6885285874,
         "ci": 43648944689,
         "codeql": 43648940999,
@@ -4217,8 +4207,40 @@
               "result": "Freshfetch/merge-treeclean, branchclean"
             },
             "root": "Read entire failedjoblog; native6af455 unchanged; Git+connectorread routes qualified; no knownCLI401 retry. Ownerasked sameworkflownewdispatch withcleanSHA, NOTfailedjobrerun."
+          },
+          {
+            "run": 43687818821,
+            "job": 132731898766,
+            "result": "success",
+            "ref": "main",
+            "actualCheckout": "4f62bb9ce9f4382e426fc104f8a9a7941b3ae230",
+            "sha": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+            "root": "Entirejoblogread; correct40charSHA, exactbranch, actualPASS verdict; onlyReviewedrecoveryrequested"
           }
-        ]
+        ],
+        "queue": {
+          "event": "added_to_merge_queue",
+          "at": "2026-11-15T06:59:44Z",
+          "run": 43687919642,
+          "sha": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+          "base": "4f62bb9ce9f4382e426fc104f8a9a7941b3ae230",
+          "status": "in_progress"
+        },
+        "stamp": {
+          "id": 58951157881,
+          "context": "noacg/reviewed",
+          "state": "success"
+        },
+        "recovery": {
+          "run": 43648944689,
+          "reviewed": 132731965141,
+          "reviewedResult": "success",
+          "ciGate": 132731967885,
+          "ciGateResult": "success",
+          "configuredVerdict": 132731967456,
+          "configuredResult": "success",
+          "product": "GitHubreplayallocatesnewjobIDs butALL21 Build/Factory/15offline/4configured start/endtimestamps matchoriginalNov14executions; no producttestexecution repeated"
+        }
       }
     }
   },

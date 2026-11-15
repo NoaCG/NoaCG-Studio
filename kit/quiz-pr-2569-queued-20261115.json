@@ -1,0 +1,42 @@
+{
+  "pr": 2569,
+  "feature": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+  "manualWorkflow": {
+    "run": 43687818821,
+    "job": 132731898766,
+    "result": "success",
+    "ref": "main",
+    "actualCheckout": "4f62bb9ce9f4382e426fc104f8a9a7941b3ae230",
+    "sha": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+    "root": "Entirejoblogread; correct40charSHA, exactbranch, actualPASS verdict; onlyReviewedrecoveryrequested"
+  },
+  "stamp": {
+    "id": 58951157881,
+    "context": "noacg/reviewed",
+    "state": "success"
+  },
+  "headGuards": {
+    "before": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+    "after": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+    "enable": "SessionGitHubconnector success afterstamp/waitcleared"
+  },
+  "queue": {
+    "event": "added_to_merge_queue",
+    "at": "2026-11-15T06:59:44Z",
+    "run": 43687919642,
+    "sha": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+    "base": "4f62bb9ce9f4382e426fc104f8a9a7941b3ae230",
+    "status": "in_progress"
+  },
+  "ciRecovery": {
+    "run": 43648944689,
+    "reviewed": 132731965141,
+    "reviewedResult": "success",
+    "ciGate": 132731967885,
+    "ciGateResult": "success",
+    "configuredVerdict": 132731967456,
+    "configuredResult": "success",
+    "product": "GitHubreplayallocatesnewjobIDs butALL21 Build/Factory/15offline/4configured start/endtimestamps matchoriginalNov14executions; no producttestexecution repeated"
+  },
+  "limits": "SameE5F/action13/block12, allhistory/attempts retained. CLI401stillknown; Git+connectorrouteswork. Rootsoleactiveowner throughall exactmergepostchecks/deploy; no durablewake/phasePASS."
+}
