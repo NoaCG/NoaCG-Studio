@@ -46,12 +46,12 @@
   },
   "inFlight": [
     {
+      "head": "3c498fb55eecd56687e132f6564fc2bb1d09b8fe",
+      "pr": 2573,
+      "step": "Dependency repair exact checks",
       "phase": "V6",
-      "head": "493b45e6c65d32365e644630bb4b05db8d4e9cd8",
-      "note": "Three focused storage and closing regressions passed locally. The exact review and full affected gates are in flight. The extended Windows probe induced the intended opaque-write refusal and must claim that result explicitly. PR #2573 remains unqueued and V6 stays on #2575.",
-      "step": "Dependency repair verification",
       "session": "01a1bb0e-ec06-7111-ae29-89b778de221e",
-      "pr": 2573
+      "note": "The last two retry variants were reproduced on the prior candidate and pass locally on the corrected code. The exact independent review and Windows jobs j-5295 and j-5296 are running. The existing #2573 is unqueued. V6 still waits for its allocation."
     }
   ],
   "owner": [],
