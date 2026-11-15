@@ -1504,7 +1504,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "SAMEreadonlyreviewer focusedbasecounterexample/traceassessment; no more tests/builds/patch or queue untilrecommendation",
+    "what": "Originalbuilder finalraw-protocol evidenceprobe usingqualifiedbasebundle; onlyremainingjob/8base samples; STOPafterterminal",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4736,6 +4736,21 @@
               "file": "briefs/e5f-blank-base-trace-causal-delta-20261115.txt",
               "sha256": "fa282f78efb11e806fb90904f6c71164c251d706ec7c21e6be2df6f7956451fe",
               "scope": "Focusedreadonly newbase-trace evidence; no execution/patch"
+            },
+            "traceAssessment": {
+              "actor": "/root/e5f_blank_queue_causality_so",
+              "native": "6afa053a-d488-8191-ae54-e1163ac3404d",
+              "verdict": "CANNOTJUDGE mechanism; pre-existingbaseoccurrence established; no application/E4defectproven",
+              "file": "blank-pr2579-base-trace-causal-verdict-20261115.md",
+              "sha256": "4cd8241579e38dd1beba0a8137365971268f734c98452b5033ea50219accd80e"
+            },
+            "finalProtocolProbe": {
+              "actor": "/root/editor_e5f_cloud_builder",
+              "file": "briefs/e5f-blank-final-raw-protocol-probe-20261115.txt",
+              "sha256": "4b3b7bde97e0e39aa754982eeb579b9abe09eaa3c55433cefc8430daf4f767a0",
+              "budget": "ONEunusedsecondjob cap5,1worker,8remainingbasesamples,maxfailures1,retries0,NOnewbuild; cumulativejobs<=2/baseinitialsamples<=10/onebundle",
+              "reason": "Getunderlyingrawbrowserprotocolerror, notratecomparison/retryasfix",
+              "scope": "Diagnostic only; firstcollectionstop honored/manualevidencedelta; noproductpatch/queuewaiver"
             }
           }
         },
