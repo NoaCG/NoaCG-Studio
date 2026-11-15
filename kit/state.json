@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "session": "github:2564",
-      "head": "94bf48096c99656adfe664d4e02ddb5c627f04db",
-      "note": "Independent Risky A, exact GitHub Codex clean, local Windows 46 browser and 377 focused Node/Bridge checks, app/API types and scoped lint, Build and all selected CI gate/configured checks green. normal merge queue admission observed. Waiting exact merge then fresh independent acceptance and Windows Bridge 0.12.0 release/download.",
+      "note": "V5 merged through normal queue. Exact tree matches proposed merge; sole difference from reviewed head is existing unrelated quarantine already on main. Fresh independent checker verifying AC-11, exact post-land suite and the actual Bridge 0.12.0 Windows release/download.",
       "pr": 2564,
-      "step": "build",
-      "phase": "v5"
+      "phase": "v5",
+      "session": "/root/v5_checker",
+      "head": "6da76c942cc19136b67ed0235d8074733b129257",
+      "step": "check"
     }
   ],
   "owner": [],
