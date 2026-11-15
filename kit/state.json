@@ -44,11 +44,11 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2575,
-      "step": "build",
-      "note": "Clean local 5947c94f validates acknowledged list handoffs and keeps new hidden/failed Takes private until verified output. 161 focused Bridge, 168 Studio, exact browser j-5269 (24/24) and isolated vMix AC-12 passed, with both settings restored. Fresh full independent /root/v6_publication_exact_so underway. Same draft remote 31815116. No queue or release.",
+      "note": "Exact native Windows and focused checks passed. Fresh full review B confirmed Audio ownership leaks through covered Pause and readiness early returns. Independent model reassessment also reproduced an armed Hold surviving a foreign status snapshot. Shared XML witness and focused tests underway on same draft and builder. No queue or release.",
       "phase": "v6",
       "head": "5947c94f0fcb81b211c2da04bcab4e8c86ea6f36",
+      "pr": 2575,
+      "step": "build",
       "session": "/root/v6_builder"
     }
   ],
