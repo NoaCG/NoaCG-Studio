@@ -42,16 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [
-    {
-      "phase": "v5",
-      "session": "/root/v5_checker",
-      "step": "check",
-      "head": "6da76c942cc19136b67ed0235d8074733b129257",
-      "note": "Exact merge released Bridge 0.12.0 automatically; independent Windows download verified its published SHA-256. Production deployment, post-landing and quarantine passed. Independent AC-11 focused checks, exact main CI/configured and CodeQL pending.",
-      "pr": 2564
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": []
