@@ -1,0 +1,31 @@
+{
+  "branch": "codex/plan-vmix-v6-build",
+  "mergeBase": "6da76c942cc19136b67ed0235d8074733b129257",
+  "files": [
+    "cli/BRIDGE_CHANGELOG.md",
+    "cli/package.json",
+    "cli/src/playout/adapters/vmix.ts",
+    "cli/src/playout/protocol.ts",
+    "cli/src/playout/server.ts",
+    "cli/src/playout/vmixClipTimer.ts",
+    "cli/src/playout/vmixPlayers.ts",
+    "cli/src/playout/vmixTcp.ts",
+    "cli/test/_fakeVmix.mjs",
+    "cli/test/vmix.test.mjs",
+    "docs/BRIDGE.md",
+    "docs/work-specs/bridge-vmix-adapter/evidence/phase-v6.md",
+    "docs/work-specs/bridge-vmix-adapter/spec.md",
+    "docs/work-specs/bridge-vmix-adapter/work.json",
+    "e2e/_fakeBridge.ts",
+    "e2e/playout-cues.spec.ts",
+    "scripts/server-verbs.test.mjs",
+    "src/components/home/ServerCueEditor.tsx",
+    "src/control/bridgeWatch.ts",
+    "src/control/playoutLink.ts",
+    "src/control/playoutProtocol.ts",
+    "src/control/serverPlayout.ts",
+    "src/control/serverState.ts",
+    "src/control/serverVerbs.ts"
+  ],
+  "deleted": []
+}

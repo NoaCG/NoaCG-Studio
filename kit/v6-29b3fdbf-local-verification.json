@@ -1,0 +1,40 @@
+{
+  "capturedAt": "2026-11-15T09:35:08.4845169+00:00",
+  "head": "29b3fdbfba8ea12a9c426861c12df4947159a1a1",
+  "nativeHead": "df5aa4370a228ea017a73a052f1a6a7d14bcb4ba",
+  "cleanWorktree": true,
+  "builds": {
+    "exitCode": 0,
+    "bridge": "npm run build --prefix cli",
+    "studio": "npx --no-install tsc --noEmit"
+  },
+  "scope": {
+    "file": "check-scope.json",
+    "base": "6da76c942cc19136b67ed0235d8074733b129257",
+    "paths": 24,
+    "diffCheck": "passed"
+  },
+  "focused": {
+    "bridge": {
+      "failed": 0,
+      "passed": 202,
+      "log": "focused-bridge.log"
+    },
+    "studio": {
+      "failed": 0,
+      "passed": 198,
+      "log": "focused-studio.log"
+    }
+  },
+  "browser": {
+    "priorRedReceipt": "C:/claude/Temp/vmix-v6-runtime-1115/product-9e1d50e6c9/local-verification.json",
+    "state": "Waiting for live Ending to be wired to the production page after the current #2573 allocation",
+    "previousPassingReceipt": "C:/claude/Temp/vmix-v6-runtime-1115/product-4c68c7ab51/local-verification.json"
+  },
+  "realVmix": {
+    "result": "passed",
+    "replies": "v6-product-replies.json",
+    "proof": "v6-product-proof.json",
+    "tcp": "v6-product-tcp.json"
+  }
+}
