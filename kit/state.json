@@ -1503,7 +1503,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Samebuilder DOCS-only aftercoding B1/B3amendment thenSAMEreviewer grade; no product/testwork",
+    "what": "SAMEreviewer concreteaftercodingB1/B3grade oncd84; no furtherproduct/testwork",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4365,7 +4365,7 @@
       }
     },
     "blankIsolationAssessment": {
-      "status": "SAMEreadonlysource-familyapproachAwithcorrections; DOCS-ONLYaftercodingRules amendment admitted; allproductWIP staysfrozen",
+      "status": "AftercodingDOCS cd84pushed; SAMEgraderbeforeanyfactory/helpercorrection; product/testWIPfrozen",
       "actor": "/root/editor_e5f_cloud_builder",
       "native": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
@@ -4494,6 +4494,20 @@
         "brief": "briefs/e5f-blank-aftercoding-rules-20261115.txt",
         "sha256": "7b8eb4fe2b729b2187db01bb47252c3a827c4b3af55ea56ce3aaf1eb8d42c6e1",
         "scope": "ONLY2docs; all9failedWIPpathhashesfrozen; no test/product/probe"
+      },
+      "afterCodingCheckpoint": {
+        "head": "cd84faa3d9ae3e99169d2a7a183577b40b2294d8",
+        "parent": "73d6181b5704187b91920edf60550af1f69c9ff5",
+        "docsOnly": true,
+        "all9WipHashes": "UNCHANGED20bf95a8",
+        "rulesSha256": "5568b4fce3c68afbccc70e361a0ed5fdb19381827725f3eb2096c13927c5ced3",
+        "receipt": "/workspace/noacg-editor-r1-5-e5f-blank/e5f.local/blank-aftercoding-docs-receipt.json",
+        "receiptSha256": "2d869ff55cc8a78cc0956b0b7c66ca45cb7f93fd1ac4ca77585938a73fc97b00",
+        "reviewIntent": {
+          "actor": "/root/editor_blank_rules_first",
+          "brief": "briefs/e5f-blank-aftercoding-same-review-20261115.txt",
+          "sha256": "bf084806e8c49a34c62de3f5e3657fa73e7f44a5ba9e3d18c1e2edd91bfe1b97"
+        }
       }
     }
   },
