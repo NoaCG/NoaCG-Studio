@@ -4588,8 +4588,16 @@
           "repairOwnerComment": 6894344307,
           "repairs": 0,
           "ci": 43714190234,
-          "codex": 43714187035,
-          "status": "CI/Codex running"
+          "codex": {
+            "summaryComment": 6894342917,
+            "status": "running",
+            "head": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+            "trigger": "PRopened; no duplicate request"
+          },
+          "status": "CI/Codex running",
+          "codeql": 43714187035,
+          "configuredSelection": "Actualplanjob132812059552: all63active on4localstacks",
+          "capacity": "ActualGitHubWARN131.8/204.5; partial43201149088 judgednewestcomplete43014542120, normal line; noexception"
         }
       }
     }
