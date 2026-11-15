@@ -67,8 +67,11 @@ export async function startFakeVmix(options = {}) {
     for (const [, attr, value] of selector.matchAll(/\[@(selectedIndex|duration|state)='([^']+)'\]/g)) {
       if (String(fields[attr]) !== value) return;
     }
-    const count = /\[count\(list\/item\)=(\d+)\]/.exec(selector)?.[1];
+    const count = /\[count\(list\/(?:item|\*)\)=(\d+)\]/.exec(selector)?.[1];
     if (input.list.length !== Number(count)) return;
+    const markers = input.selectedMarkers ?? (input.list.length ? [input.selectedIndex] : []);
+    if (selector.includes('count(list/item[translate(@selected,') &&
+        (input.badSelectedMarker || markers.length > 1 || (markers.length && markers[0] !== input.selectedIndex))) return;
     for (const [, attr, value] of selector.matchAll(/\[translate\(@(loop|muted),[^)]+\)='(true|false)'\]/g)) {
       if (String(input[attr]) !== value) return;
     }
@@ -86,7 +89,8 @@ export async function startFakeVmix(options = {}) {
         updateClock(i);
         const selected = i.list?.[i.selectedIndex - 1];
         const title = i.type === 'VideoList' && selected ? i.title + ' - ' + path.basename(selected) : i.title;
-        const list = i.list ? '<list>' + i.list.map((file, index) => '<item' + (index === i.selectedIndex - 1 ? ' selected="true"' : '') + '>' + esc(file) + '</item>').join('') + '</list>' : '';
+        const marked = i.selectedMarkers ?? [i.selectedIndex];
+        const list = i.list ? '<list>' + i.list.map((file, index) => '<item' + (marked.includes(index + 1) ? ' selected="' + (i.badSelectedMarker ?? 'true') + '"' : '') + '>' + esc(file) + '</item>').join('') + '</list>' : '';
         return '<input key="' + i.key + '" number="' + (n + 1) + '" type="' + i.type + '" title="' + esc(title) + '" shortTitle="' + esc(i.title) + '" state="' + (i.state ?? 'Paused') + '" position="' + (i.position ?? 0) + '" duration="' + (i.duration ?? 0) + '"' + (i.list ? ' volume="' + amplitude(i) + '"' : '') + ' muted="' + (i.muted ? 'True' : 'False') + '" loop="' + (i.loop ? 'True' : 'False') + '"' + (i.list ? ' selectedIndex="' + i.selectedIndex + '"' : '') + '>' + list + esc(i.title) + '</input>';
       })
       .join('')}</inputs><overlays>${Array.from({ length: 16 }, (_, c) => {

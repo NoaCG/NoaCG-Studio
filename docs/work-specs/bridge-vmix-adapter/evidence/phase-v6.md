@@ -25,6 +25,29 @@ The vMix 29.0.0.49 Trial ran in an owned blank 25p startup preset. Native XML id
 - The single-keyframe clip used a synthetic 8-second MP4 at 25 fps. After the second occurrence was selected and paused, `SetPosition 2040` reported 2040 at 3 and 24 ms and returned to zero by 42 ms. A separate covered diagnostic Play started at zero. Seeking again while Running also rebounded. With no earlier output exposed, the safe result for that failed seek is to keep the cover and refuse. The diagnostic hidden start does not belong to production.
 - On a separate all-intra 25 fps MP4, paused positions 2001 and 2039 settled at 2000, and 2041 settled at 2040. On aligned seeks the decoder held 2040 or 2080 for 250 ms. One Play from the stable paused reading 2080 reported 2049 before advancing past 2080. The black, silent cover stays through an in-range Running observation. A separate control used a red marker before 2080 and green from frame 52. Its cover samples were black [2, 0, 2], and its first captured revealed frame after confirming progress was green [0, 255, 1].
 
+## First implementation review and native findings
+
+The first built candidate, `0066420ea4b9f38ea1d21937f86562f6a8523b2b`, held the 3600 ms trim at
+3720 ms, a signed error of +120 ms. The last guarded position query went out 1 ms before Pause.
+Its post-command state reads began at about +1, +78 and +120 ms. Program samples showed the prior
+blue clip, black cover and green replacement. The red pre-in marker stayed out of the samples.
+The candidate then stopped on native `SetGain` refusing the floating-point text `5.999999999999998`.
+The settings hashes matched their originals and vMixService stayed running.
+
+A separate native check found that `SetGain`, `SetVolume` and the fader part of `SetVolumeFade` accept
+integer text and refuse fractional text, including `6.0` and `70.8`. Whole fader 70 gave XML volume
+24.01%. The adapter rounds after applying the equations in Rule 4. The cue keeps its saved dB and
+linear gain values. A verified short fade sends its requested duration. The 40 ms minimum applies
+when superseding a pending native ramp.
+
+The first product review found a shared timing and ownership gap. The repair preserves an unresolved
+black cover on the native GUID across failed seeks and requires a newly confirmed Take to reveal it.
+Every background write checks the captured root and peer identity, and samples the selected
+position as the final scalar. A held trim can finish its fade while the clip is paused. A faded Out
+also pauses a trimmed clip at its out point while the fade settles. Controlled fake traces cover
+short Loop, a changed containing root, a rewind between reads, contradictory selection markers,
+0/0 timing and the short-fade or conflicting-ramp cases.
+
 ## Verification, release and rollback
 
 - Use the existing fake TCP server with a controlled clip clock and a reference trace based on the Rules. Check guarded wire skew, command order, settled and relative positions, native and Bridge endings, fade ownership and endpoints, gain reset, paused time, delayed and unknown results, the port read budget, and stale work queued before a later action. Include a loop seek that rebounds, and a Clear armed inside 40 ms during another native ramp. Record the configured and actual sound and picture endpoint timing and removal. Keep the browser check in the existing playout-cues journey and run it through the shared Windows queue.

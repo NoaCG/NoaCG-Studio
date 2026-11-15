@@ -305,6 +305,27 @@ export interface VmixVideoList {
   volume?: number;
 }
 
+function selectedMarkerMatches(marked: readonly number[], selected: number): boolean {
+  return marked.length <= 1 && (marked.length === 0 || marked[0] === selected);
+}
+
+const xpathString = (value: string) => value.includes("'") ? '"' + value + '"' : "'" + value + "'";
+const xpathFlag = (attribute: string) => "translate(@" + attribute + ",'TRUEFALS','truefals')";
+
+/** A scalar read has the same selected-index/marker rule as complete Video List XML. */
+export function vmixOccurrenceXPath(key: string, list: VmixVideoList, audio: boolean): string {
+  const flag = xpathFlag('selected');
+  const marked = 'list/item[' + flag + "='true']";
+  const marker = '[not(list/item[@selected and not(' + flag + "='true' or " + flag + "='false')])]" +
+    '[count(' + marked + ')=0 or (count(' + marked + ')=1 and list/item[' + list.selected + '][' + flag + "='true'])]";
+  const flags = '[' + xpathFlag('loop') + "='" + list.loop + "']";
+  const mute = audio ? '[' + xpathFlag('muted') + "='false']" : '';
+  const items = list.items.map((file, index) => '[list/item[' + (index + 1) + ']=' + xpathString(file) + ']').join('');
+  return 'vmix/inputs/input[@key=' + xpathString(key) + "][@type='VideoList'][@selectedIndex='" + list.selected +
+    "'][@duration='" + list.durationMs + "'][count(list)=1][count(list/item)=" + list.items.length +
+    '][count(list/*)=' + list.items.length + '][not(list/item/*)]' + marker + flags + mute + items;
+}
+
 const MAX_XML_DEPTH = 128;
 const STATE_SECTIONS = new Set(['version', 'edition', 'inputs', 'overlays']);
 const XML_SPACE = /^[ \t\r\n]*$/;
@@ -484,7 +505,7 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
     if (videoList && depth === 3) {
       const { value, key, seen, invalid, marked } = videoList;
       if (value && seen && !invalid && value.selected <= Math.max(1, value.items.length) &&
-          marked.length <= 1 && (!marked.length || marked[0] === value.selected)) lists.set(key, value);
+          selectedMarkerMatches(marked, value.selected)) lists.set(key, value);
       videoList = undefined;
     }
     if (depth === 2) section = undefined;

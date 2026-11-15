@@ -291,6 +291,8 @@ If vMix cannot settle at the chosen point, Bridge keeps the replacement black an
 and reports the failure. Check trims on your media before the show.
 
 Bridge runs the clip's boundaries and fades on the owned Video List while it is running.
+vMix accepts whole fader points and whole positive dB, so Bridge rounds the converted cue level
+to the nearest value the mixer can apply.
 A restarted Bridge will not resume the prior timed work. Picture fades update at 25 steps per
 second because the TCP state omits the mixer's configured rate. Program and Preview stay with
 the vMix operator.

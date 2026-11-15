@@ -3274,7 +3274,7 @@ test('AC-8: an acknowledged populated Loop no-op never selects or plays the repl
 });
 
 /** The fake media and Bridge timers share a controllable clock. An explicit read joins each port turn. */
-async function timedFixture(t, fakeOptions) {
+async function timedFixture(t, fakeOptions, mediaOptions) {
   let now = 0;
   const callbacks = new Map();
   const clock = {
@@ -3285,7 +3285,7 @@ async function timedFixture(t, fakeOptions) {
       return () => callbacks.delete(callback);
     },
   };
-  const fixture = await playerFixture(t, { now: clock.now, ...fakeOptions }, { clipClock: clock });
+  const fixture = await playerFixture(t, { now: clock.now, ...fakeOptions }, { clipClock: clock }, mediaOptions);
   const { adapter, target, fake, player } = fixture;
   const joinTurn = () => adapter.overlays(target);
   async function advance(ms) {
@@ -3306,7 +3306,7 @@ async function timedFixture(t, fakeOptions) {
     verb, slot: player(), item: { kind: 'media', name: 'clip B.mp4' }, expectedPlayerInstance: instance,
     requireMeasuredPlayer: true, ...settings,
   });
-  return { ...fixture, row, read, expected, advance, joinTurn, callbacks };
+  return { ...fixture, row, read, expected, advance, joinTurn, callbacks, now: clock.now };
 }
 
 test('AC-12: trimmed Take covers a stopped selection, confirms the seek, and holds the measured segment', async t => {
@@ -3360,6 +3360,12 @@ test('AC-12: a transient vMix seek sample and a still trim cannot reveal or play
   const still = await fixture.take('still.png', { playback: { trim: { out: 1 } } });
   assert.equal(still.ok, false);
   assert.equal(fixture.fake.lines.length, end);
+  const before = fixture.fake.functions.length;
+  assert.equal((await fixture.take('clip A.mp4')).ok, true);
+  const replacement = fixture.fake.functions.slice(before);
+  const playing = replacement.findIndex(fn => fn.name === 'Play');
+  const reveal = replacement.findIndex(fn => ['SetAlpha', 'SetVolume'].includes(fn.name) && Number(fn.params.Value) > 0);
+  assert.ok(playing >= 0 && reveal > playing);
 });
 
 test('AC-12: a guarded Loop rewinds within its segment, and changing it to Clear disarms Loop', async t => {
@@ -3524,4 +3530,165 @@ test('AC-12: HTTP advertises timed playback and binds new verbs to the exact hel
     await fixture.advance(4300);
     assert.equal((await fixture.read()).producer, 'empty');
   });
+});
+
+test('AC-12: short Loop keeps measuring each lap and a rebounding rewind stays covered', async t => {
+  let seeks = 0;
+  let rebounds = false;
+  const reveals = [];
+  const fixture = await timedFixture(t, {
+    afterFunction(name, params) {
+      if (name === 'SetPosition' && ++seeks > 1 && rebounds) {
+        setTimeout(() => { fixture.row().position = 0; }, 35);
+      }
+      if ((name === 'SetAlpha' || name === 'SetVolume') && Number(params.Value) > 0) {
+        const row = fixture.row();
+        reveals.push({ function: name, path: row.list[row.selectedIndex - 1], at: fixture.now() });
+      }
+      return false;
+    },
+  });
+  const result = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 0.6 }, end: 'loop' } });
+  assert.equal(result.ok, true);
+  await fixture.advance(235);
+  assert.ok(seeks >= 3, 'short loops must re-measure inside one segment after each rewind');
+  rebounds = true;
+  await fixture.advance(100);
+  assert.equal(fixture.row().state, 'Paused');
+  assert.equal(fixture.row().alpha, 0);
+  assert.equal(fixture.row().fader, 0);
+  const earlier = reveals.length;
+  assert.equal((await fixture.expected(result.instance, 'resume')).ok, false);
+  await fixture.expected(result.instance, 'pause');
+  assert.equal((await fixture.expected(result.instance, 'ending', { playback: { end: 'hold' } })).ok, false);
+  assert.equal(reveals.length, earlier);
+  assert.equal((await fixture.take('clip A.mp4')).ok, true);
+  assert.equal(reveals.length, earlier + 2);
+  assert.ok(reveals.slice(earlier).every(event => event.path === join(fixture.root, 'clip A.mp4')));
+});
+
+test('AC-12: a changed containing media folder disarms work even when the old absolute file remains legal', async t => {
+  const fixture = await timedFixture(t, undefined, { persisted: true });
+  const result = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.3 } } });
+  assert.equal(result.ok, true);
+  await fixture.advance(100);
+  const settings = JSON.parse(await readFile(fixture.setupFile, 'utf8'));
+  settings.ports[fixture.target.port].root = join(fixture.root, '..');
+  await writeFile(fixture.setupFile, JSON.stringify(settings));
+  assert.ok(await fixture.media.relativeFile(fixture.target.port, join(fixture.root, 'clip B.mp4')));
+  const calls = fixture.fake.functions.length;
+  await fixture.advance(450);
+  assert.equal(fixture.fake.functions.length, calls);
+  assert.equal(fixture.row().state, 'Running');
+});
+
+test('AC-12: an inter-scalar rewind cannot make the previous position authorize an early Pause', async t => {
+  let rewound = false;
+  const fixture = await timedFixture(t, {
+    hook(line) {
+      if (!rewound && line.startsWith('XMLTEXT ') && line.endsWith('/@state') && fixture.now() >= 500) {
+        fixture.row().position = 100;
+        rewound = true;
+      }
+      return false;
+    },
+  });
+  const result = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.5 } } });
+  assert.equal(result.ok, true);
+  const then = fixture.fake.functions.length;
+  await fixture.advance(570);
+  assert.equal(rewound, true);
+  assert.equal(fixture.fake.functions.slice(then).some(fn => fn.name === 'Pause'), false);
+  await fixture.advance(440);
+  assert.equal(fixture.row().state, 'Paused');
+  assert.ok(fixture.row().position >= 500);
+});
+
+test('AC-12: native selected markers must agree and the peer setup cannot claim the same GUID', async t => {
+  const fixture = await timedFixture(t);
+  const audioTake = await fixture.take('sting.wav', { playback: { trim: { out: 0.2 } } });
+  assert.equal(audioTake.ok, true);
+  const audio = fixture.fake.inputs.find(input => input.title === 'NoaCG Audio');
+  const real = fixture.media.playerSetups;
+  let aliases = false;
+  fixture.media.playerSetups = async (port, player, recovery) => {
+    const [setup] = await real(port, player, recovery);
+    if (player !== 'audio') return [setup];
+    const peer = aliases ? audio.key : XML_INPUT_KEY;
+    return [setup, { ...setup, players: { ...setup.players, clips: { key: peer, ready: false } } }];
+  };
+  await fixture.advance(260);
+  assert.equal(audio.state, 'Paused', 'unrelated Clips publication cannot cancel current Audio');
+  const another = await fixture.take('sting.wav', { playback: { trim: { out: 0.2 } } });
+  assert.equal(another.ok, true);
+  aliases = true;
+  const then = fixture.fake.functions.length;
+  await fixture.advance(300);
+  assert.equal(fixture.fake.functions.length, then);
+  aliases = false;
+  const clips = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.3 } } });
+  assert.equal(clips.ok, true);
+  fixture.row().badSelectedMarker = 'unknown';
+  const tracked = fixture.fake.functions.length;
+  await fixture.advance(400);
+  assert.equal(fixture.fake.functions.length, tracked);
+});
+
+test('AC-12: 0/0 remains a presentation reading and cannot run or arm timed work', async t => {
+  const fixture = await timedFixture(t);
+  const current = await fixture.take('clip B.mp4', { playback: { end: 'clear' } });
+  assert.equal(current.ok, true);
+  Object.assign(fixture.row(), { duration: 0, position: 0, state: 'Running' });
+  assert.equal((await fixture.read()).instance, current.instance);
+  const then = fixture.fake.lines.length;
+  await fixture.advance(1000);
+  const lines = fixture.fake.lines.slice(then);
+  assert.ok(lines.filter(line => line.startsWith('XMLTEXT ')).length <= 3);
+  assert.ok(!lines.some(line => line.startsWith('FUNCTION ')));
+  const armed = await fixture.expected(current.instance, 'ending', { playback: { end: 'clear' } });
+  assert.equal(armed.ok, false);
+  assert.equal(fixture.row().list.length, 1);
+});
+
+test('AC-12: Hold stops the short trim while its long fade in still reaches the endpoint', async t => {
+  const fixture = await timedFixture(t);
+  const current = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.1 }, fadeIn: 0.5 } });
+  assert.equal(current.ok, true);
+  await fixture.advance(120);
+  assert.equal(fixture.row().state, 'Paused');
+  assert.ok(fixture.row().alpha < 255);
+  const heldAt = fixture.row().position;
+  await fixture.advance(400);
+  assert.equal(fixture.row().position, heldAt);
+  assert.equal(fixture.row().alpha, 255);
+  assert.equal(fixture.row().fader, 100);
+});
+
+test('AC-12: a normal Out fade holds the trim at its out point until the fade can clear', async t => {
+  const fixture = await timedFixture(t);
+  const current = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.1 } } });
+  assert.equal(current.ok, true);
+  const out = fixture.expected(current.instance, 'out', { fadeOut: 0.3 });
+  await fixture.joinTurn();
+  await fixture.advance(160);
+  assert.equal(fixture.row().state, 'Paused');
+  assert.ok(fixture.row().position >= 100 && fixture.row().position < 140);
+  assert.equal(fixture.row().list.length, 1);
+  await fixture.advance(170);
+  assert.equal((await out).ok, true);
+  assert.equal(fixture.row().list.length, 0);
+});
+
+test('AC-12: the measured integer fader preserves an ordinary 20 ms fade and +6 dB is one integer operand', async t => {
+  const fixture = await timedFixture(t);
+  const short = await fixture.take('clip B.mp4', { playback: { fadeIn: 0.02, gain: 10 ** (-12 / 20) } });
+  assert.equal(short.ok, true);
+  assert.equal(fixture.fake.functions.find(fn => fn.name === 'SetVolumeFade').params.Value, '71,20');
+  await fixture.advance(25);
+  assert.equal(fixture.row().fader, 71);
+  assert.equal(fixture.row().alpha, 255);
+  const boosted = await fixture.take('clip B.mp4', { playback: { gain: 10 ** (6 / 20) } });
+  assert.equal(boosted.ok, true);
+  assert.equal(fixture.fake.functions.findLast(fn => fn.name === 'SetGain').params.Value, '6');
+  assert.equal(fixture.row().fader, 100);
 });

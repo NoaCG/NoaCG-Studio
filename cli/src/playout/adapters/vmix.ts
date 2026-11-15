@@ -324,7 +324,9 @@ export function createVmixAdapter(options: {
           exclusive(port, async () => {
             clearTimeout(waiting);
             if (missedTurn || Date.now() >= until) throw expired();
-            return save(until);
+            const root = await save(until);
+            players.folderChanged(port, root);
+            return root;
           }).then(resolve, reject);
         });
       });

@@ -1,5 +1,4 @@
 import type { MediaPlayback } from './protocol.js';
-import type { VmixVideoList } from './vmixTcp.js';
 
 export const VMIX_FRAME_MS = 40;
 export const VMIX_SEEK_SETTLE_MS = 125;
@@ -33,7 +32,9 @@ export function trimSegment(trim: NonNullable<MediaPlayback['trim']>, durationMs
 }
 
 export function gainSettings(gain = 1): { fader: number; db: number } {
-  return gain <= 1 ? { fader: 100 * gain ** 0.25, db: 0 } : { fader: 100, db: 20 * Math.log10(gain) };
+  // vMix 29's function operands accept whole fader points and whole dB.
+  return gain <= 1 ? { fader: Math.round(100 * gain ** 0.25), db: 0 }
+    : { fader: 100, db: Math.round(20 * Math.log10(gain)) };
 }
 
 // vMix reports amplitude in XML, while mixer functions accept the fader's position.
@@ -57,18 +58,4 @@ export function fadeFrame(fade: AlphaFade, now: number): { alpha: number; nextAt
     alpha: Math.round(fade.from + (fade.to - fade.from) * fraction),
     nextAt: fade.at + Math.min(fade.duration, (frame + 1) * VMIX_FRAME_MS),
   };
-}
-
-const xpathString = (value: string) => value.includes("'") ? '"' + value + '"' : "'" + value + "'";
-
-/**
- * vMix's XMLTEXT reads one scalar. Predicates bind that scalar to the entire observed occurrence,
- * even when it has more than one copy of a path. An absent match grants no mixer write.
- */
-export function vmixOccurrenceXPath(key: string, list: VmixVideoList, audio: boolean): string {
-  const flags = "[translate(@loop,'TRUEFALS','truefals')='" + list.loop + "']";
-  const mute = audio ? "[translate(@muted,'FALSE','false')='false']" : '';
-  const items = list.items.map((file, index) => '[list/item[' + (index + 1) + ']=' + xpathString(file) + ']').join('');
-  return 'vmix/inputs/input[@key=' + xpathString(key) + "][@type='VideoList'][@selectedIndex='" + list.selected +
-    "'][@duration='" + list.durationMs + "'][count(list/item)=" + list.items.length + ']' + flags + mute + items;
 }
