@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Exact native and focused checks passed, Windows j-5271 23/24 with old quarantined re-pair test race and timed editor green. Independent B reproduced overly broad Ending ACK exception and old authority surviving compact rewind. Read-only reassessment complete and grouped repair in flight with same builder/draft. No push, queue or release.",
-      "phase": "v6",
-      "pr": 2575,
-      "session": "/root/v6_builder",
+      "note": "Exact local Bridge and Studio, shared Windows j-5272 (24/24) and owned native passed. Full independent B confirmed native authority defects and missing Studio live ending under approved AC-12. Native repair proceeds in the same worker. Studio overlapping ProductionPage.tsx waits for open #2573. No push, queue or release.",
       "step": "build",
-      "head": "9e1d50e6c9212e161c8cdcaff25ecab4f033e18d"
+      "pr": 2575,
+      "phase": "v6",
+      "session": "/root/v6_builder",
+      "head": "4c68c7ab51c3c8d6b5d37513995e2a164048d3ad"
     }
   ],
   "owner": [],
