@@ -1,0 +1,822 @@
+{
+  "head": "234996efac6b74d16e1c4b3c42db1bc4c8939603",
+  "started": "2026-11-15T08:07:31.280Z",
+  "commands": [
+    {
+      "line": "XML",
+      "t": 7681,
+      "answer": "XML 1982"
+    },
+    {
+      "line": "FUNCTION AddInput Value=VideoList%7C",
+      "t": 7839,
+      "answer": "FUNCTION OK Completed"
+    },
+    {
+      "line": "XML",
+      "t": 7842,
+      "answer": "XML 2120"
+    },
+    {
+      "line": "XML",
+      "t": 7870,
+      "answer": "XML 2120"
+    },
+    {
+      "line": "FUNCTION SetInputName Input=812d16e6-beeb-4ffc-9d1f-854533ba1a38&Value=NoaCG%20Clips",
+      "t": 7874,
+      "answer": "FUNCTION OK Completed"
+    },
+    {
+      "line": "XML",
+      "t": 8077,
+      "answer": "XML 2278"
+    },
+    {
+      "line": "XML",
+      "t": 8106,
+      "answer": "XML 2311"
+    },
+    {
+      "line": "XML",
+      "t": 10087,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10114,
+      "answer": "XML 2356"
+    },
+    {
+      "line": "XML",
+      "t": 10141,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10167,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10194,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10221,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10248,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10274,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10302,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10328,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10354,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10381,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10409,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10436,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10463,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10492,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10519,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10548,
+      "answer": "XML 2354"
+    },
+    {
+      "line": "XML",
+      "t": 10576,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10603,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10630,
+      "answer": "XML 2354"
+    },
+    {
+      "line": "XML",
+      "t": 10659,
+      "answer": "XML 2356"
+    },
+    {
+      "line": "XML",
+      "t": 10689,
+      "answer": "XML 2356"
+    },
+    {
+      "line": "XML",
+      "t": 10717,
+      "answer": "XML 2356"
+    },
+    {
+      "line": "XML",
+      "t": 10745,
+      "answer": "XML 2354"
+    },
+    {
+      "line": "XML",
+      "t": 10774,
+      "answer": "XML 2356"
+    },
+    {
+      "line": "XML",
+      "t": 10802,
+      "answer": "XML 2356"
+    },
+    {
+      "line": "XML",
+      "t": 10830,
+      "answer": "XML 2356"
+    },
+    {
+      "line": "XML",
+      "t": 10857,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10884,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10912,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10938,
+      "answer": "XML 2358"
+    },
+    {
+      "line": "XML",
+      "t": 10965,
+      "answer": "XML 2355"
+    },
+    {
+      "line": "XML",
+      "t": 17142,
+      "answer": "XML 2283"
+    },
+    {
+      "line": "XML",
+      "t": 17328,
+      "answer": "XML 2357"
+    },
+    {
+      "line": "XML",
+      "t": 17356,
+      "answer": "XML 2357"
+    },
+    {
+      "line": "XML",
+      "t": 17536,
+      "answer": "XML 2362"
+    },
+    {
+      "line": "XML",
+      "t": 17737,
+      "answer": "XML 2366"
+    },
+    {
+      "line": "XML",
+      "t": 17937,
+      "answer": "XML 2368"
+    },
+    {
+      "line": "XML",
+      "t": 18138,
+      "answer": "XML 2371"
+    },
+    {
+      "line": "XML",
+      "t": 18338,
+      "answer": "XML 2378"
+    },
+    {
+      "line": "XML",
+      "t": 18387,
+      "answer": "XML 2323"
+    },
+    {
+      "line": "XML",
+      "t": 18536,
+      "answer": "XML 2139"
+    },
+    {
+      "line": "XML",
+      "t": 25646,
+      "answer": "XML 2171"
+    }
+  ],
+  "settingsRestored": [
+    {
+      "file": "last.vmix",
+      "sha": "707fbc7a70ae80327187d7dc5f28a774c77b6c23fb5e4e3bafa1ed64ca13efbe"
+    },
+    {
+      "file": "user.config",
+      "sha": "9396e6e6ce98a5abdf87c29831e63d7c5ee0bb4b163511fd02ea9951edc0255b"
+    }
+  ],
+  "serviceBefore": "RUNNING",
+  "mixerPid": 74576,
+  "trimResult": {
+    "ok": true,
+    "raw": "vMix confirmed the selected file playing.",
+    "value": {},
+    "generation": 2,
+    "instance": "ba919b69-48c5-4c29-9407-75989483119f"
+  },
+  "hold": {
+    "requestedMs": 3600,
+    "actualMs": 3720,
+    "errorMs": 120
+  },
+  "trimSnapshots": [
+    {
+      "t": 8446,
+      "rgb": [
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "t": 8511,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 8580,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 8670,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 8736,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 8826,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 8891,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 8957,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9025,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9092,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9157,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9250,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9316,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9383,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9452,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9519,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9586,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9652,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9723,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9789,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 9858,
+      "rgb": [
+        0,
+        255,
+        1
+      ]
+    },
+    {
+      "t": 9952,
+      "rgb": [
+        0,
+        255,
+        1
+      ]
+    },
+    {
+      "t": 10020,
+      "rgb": [
+        0,
+        255,
+        1
+      ]
+    }
+  ],
+  "quantizedFader": {
+    "cueDb": -12,
+    "fader": 71,
+    "actualVolume": 25.41168
+  },
+  "gain": {
+    "baseline": 0.1124603,
+    "atPlus6dB": 0.2546732,
+    "ratio": 2.264560916163304
+  },
+  "fadeResult": {
+    "ok": true,
+    "raw": "vMix confirmed the player is empty.",
+    "value": {},
+    "generation": 5
+  },
+  "fadeAudio": [
+    {
+      "t": 20,
+      "videoState": "Running",
+      "volume": 100,
+      "meter": 0.2547441,
+      "position": 160,
+      "items": 1
+    },
+    {
+      "t": 201,
+      "videoState": "Running",
+      "volume": 49.78713,
+      "meter": 0.1343444,
+      "position": 320,
+      "items": 1
+    },
+    {
+      "t": 401,
+      "videoState": "Running",
+      "volume": 26.87386,
+      "meter": 0.04213995,
+      "position": 540,
+      "items": 1
+    },
+    {
+      "t": 601,
+      "videoState": "Running",
+      "volume": 6.250003,
+      "meter": 0.009442195,
+      "position": 740,
+      "items": 1
+    },
+    {
+      "t": 803,
+      "videoState": "Running",
+      "volume": 0.6146568,
+      "meter": 0.000848067,
+      "position": 940,
+      "items": 1
+    },
+    {
+      "t": 1003,
+      "videoState": "Running",
+      "volume": 0.004096024,
+      "meter": 6.370392e-7,
+      "position": 1140,
+      "items": 1
+    },
+    {
+      "t": 1051,
+      "videoState": "Paused",
+      "volume": 0,
+      "meter": 0,
+      "position": 1160,
+      "items": 1
+    },
+    {
+      "t": 1201,
+      "videoState": "Completed",
+      "volume": 0,
+      "meter": 0,
+      "position": 0,
+      "items": 0
+    }
+  ],
+  "fadeSnapshots": [
+    {
+      "t": 17329,
+      "rgb": [
+        255,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 17399,
+      "rgb": [
+        248,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 17466,
+      "rgb": [
+        227,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 17535,
+      "rgb": [
+        207,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 17630,
+      "rgb": [
+        187,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 17697,
+      "rgb": [
+        164,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 17790,
+      "rgb": [
+        145,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 17856,
+      "rgb": [
+        124,
+        0,
+        1
+      ]
+    },
+    {
+      "t": 17949,
+      "rgb": [
+        102,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 18018,
+      "rgb": [
+        84,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 18084,
+      "rgb": [
+        72,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 18153,
+      "rgb": [
+        52,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 18220,
+      "rgb": [
+        31,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 18311,
+      "rgb": [
+        9,
+        0,
+        0
+      ]
+    },
+    {
+      "t": 18377,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 18470,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 18533,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "t": 18598,
+      "rgb": [
+        2,
+        0,
+        2
+      ]
+    }
+  ],
+  "fadeEndpoint": {
+    "targetMs": 1000,
+    "removedAfterMs": 1092,
+    "alphaSamples": [
+      {
+        "t": 44,
+        "alpha": 245
+      },
+      {
+        "t": 85,
+        "alpha": 235
+      },
+      {
+        "t": 133,
+        "alpha": 224
+      },
+      {
+        "t": 165,
+        "alpha": 214
+      },
+      {
+        "t": 203,
+        "alpha": 204
+      },
+      {
+        "t": 245,
+        "alpha": 194
+      },
+      {
+        "t": 282,
+        "alpha": 184
+      },
+      {
+        "t": 324,
+        "alpha": 173
+      },
+      {
+        "t": 365,
+        "alpha": 163
+      },
+      {
+        "t": 404,
+        "alpha": 153
+      },
+      {
+        "t": 444,
+        "alpha": 143
+      },
+      {
+        "t": 486,
+        "alpha": 133
+      },
+      {
+        "t": 523,
+        "alpha": 122
+      },
+      {
+        "t": 565,
+        "alpha": 112
+      },
+      {
+        "t": 604,
+        "alpha": 102
+      },
+      {
+        "t": 645,
+        "alpha": 92
+      },
+      {
+        "t": 684,
+        "alpha": 82
+      },
+      {
+        "t": 723,
+        "alpha": 71
+      },
+      {
+        "t": 764,
+        "alpha": 61
+      },
+      {
+        "t": 813,
+        "alpha": 51
+      },
+      {
+        "t": 844,
+        "alpha": 41
+      },
+      {
+        "t": 886,
+        "alpha": 31
+      },
+      {
+        "t": 924,
+        "alpha": 20
+      },
+      {
+        "t": 966,
+        "alpha": 10
+      },
+      {
+        "t": 1005,
+        "alpha": 0
+      }
+    ]
+  },
+  "loopEntrance": {
+    "alphaAfterFirstLoop": 204,
+    "endpointMs": 1404,
+    "rampCount": 1,
+    "firstLoopFunctions": [
+      "AudioOff",
+      "Pause",
+      "SetPosition",
+      "Play",
+      "AudioOn",
+      "SetAlpha"
+    ]
+  },
+  "firstInstanceRetired": true,
+  "passed": true,
+  "serviceAfter": "RUNNING",
+  "finished": "2026-11-15T08:07:58.364Z"
+}

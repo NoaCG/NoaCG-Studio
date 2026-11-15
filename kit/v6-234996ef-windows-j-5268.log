@@ -1,0 +1,50 @@
+=== j-5268 npm run test:e2e -- e2e/playout-cues.spec.ts
+=== cwd C:\claude\Temp\vmix-v6-build-1108
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/playout-cues.spec.ts
+
+[e2e] 6 workers - 5787 MB free (the measured maximum)
+[WebServer] (node:56208) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 24 tests using 6 workers
+
+(node:72236) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:64160) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18688) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:55344) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15332) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  4 [chromium] › e2e\playout-cues.spec.ts:266:1 › the CasparCG file action explains unavailable setup in both add surfaces (8.4s)
+  ok  6 [chromium] › e2e\playout-cues.spec.ts:523:1 › a trim outside the file or ending before it starts is refused in the panel and never saved (8.9s)
+  ok  2 [chromium] › e2e\playout-cues.spec.ts:344:1 › a deep media library is browsed folder by folder, a long name gives way, and Add never leaves the popover (9.9s)
+  ok  3 [chromium] › e2e\playout-cues.spec.ts:279:1 › a clip from the server becomes a cue on the clip layer, and Take, Pause, Resume and Out are one command each (9.9s)
+  ok  5 [chromium] › e2e\playout-cues.spec.ts:445:1 › each setting goes out with its Take: Clear with a fade, a fade in, a level and a trim; Out fades (11.6s)
+  ok  1 [chromium] › e2e\playout-cues.spec.ts:399:1 › a clip set to Loop is taken with LOOP, the row says so, and the choice survives a reload (13.8s)
+  ok  7 [chromium] › e2e\playout-cues.spec.ts:554:1 › an audio file plays on its own layer, 5, below the clips, and a still offers Hold only (5.1s)
+  ok 10 [chromium] › e2e\playout-cues.spec.ts:637:1 › a server that cannot do a setting has it off, named by its version (5.3s)
+  ok  9 [chromium] › e2e\playout-cues.spec.ts:612:1 › a cue on air that the Bridge can no longer take still comes OFF by SPACE, and is never re-taken the old way (8.0s)
+  ok  8 [chromium] › e2e\playout-cues.spec.ts:577:1 › a cue with a setting an old Bridge cannot play is not taken, and says why; a legacy cue still goes as it did (8.9s)
+  ok 12 [chromium] › e2e\playout-cues.spec.ts:719:1 › a server template takes the next free layer, carries its typed fields as JSON data, and Update, Next and Out follow (4.9s)
+  ok 14 [chromium] › e2e\playout-cues.spec.ts:787:1 › the server that cannot list says so, and a typed name still makes a cue (4.3s)
+  ok 13 [chromium] › e2e\playout-cues.spec.ts:772:1 › a template NoaCG exported brings its own fields, matched by the export slug (7.1s)
+  ok 15 [chromium] › e2e\playout-cues.spec.ts:804:1 › with no Bridge running a server cue cannot be taken, and the editor names the hop (7.1s)
+  ok 17 [chromium] › e2e\playout-cues.spec.ts:848:1 › one rundown cues a template on the graphics channel and a clip on the insert channel, any cue can move, and All out clears both (7.1s)
+  ok 16 [chromium] › e2e\playout-cues.spec.ts:823:1 › a server cue and its item are removed together, and survive a reload as part of the record (7.2s)
+  ok 18 [chromium] › e2e\playout-cues.spec.ts:955:1 › nothing replaces the NoaCG output: a server item on its slot is refused with the reason, and a new template never defaults there (7.3s)
+  ok 11 [chromium] › e2e\playout-cues.spec.ts:648:1 › THE LOOP RULE: an older build's Loop box still reaches cues nobody chose an ending for here, and never overrules one (15.8s)
+  ok 19 [chromium] › e2e\playout-cues.spec.ts:989:1 › a take on a slot another cue holds replaces it, and a channel the studio does not name stays listed as itself (9.6s)
+  ok 21 [chromium] › e2e\playout-cues.spec.ts:1134:1 › a re-take onto a channel the server refuses leaves nothing marked ON AIR, since the old copy already came off (5.5s)
+  ok 23 [chromium] › e2e\playout-cues.spec.ts:1501:1 › an accepted vMix All out finishes both original players after leaving the production (5.0s)
+  ok 24 [chromium] › e2e\playout-cues.spec.ts:1563:1 › vMix timed capabilities offer cue playback controls and send trimmed Take and guarded faded Out (4.8s)
+  ok 20 [chromium] › e2e\playout-cues.spec.ts:1042:1 › every verb sends the same action after a drag reorder and after a reload, and a reload forgets what is up (8.5s)
+  ok 22 [chromium] › e2e\playout-cues.spec.ts:1159:1 › vMix media browses the selected folder and plays on separate clip and audio players (13.8s)
+
+  24 passed (47.2s)

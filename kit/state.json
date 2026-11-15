@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "step": "build",
-      "session": "/root/v6_builder",
       "pr": 2575,
-      "head": "234996efac6b74d16e1c4b3c42db1bc4c8939603",
-      "note": "150 focused Bridge, 168 Studio, shared Windows j-5268 (24/24) and owned vMix all passed locally. Independent B reproduced stale native mute through foreign list handoff and premature cue identity on failed hidden Take. Read-only model reassessment complete. Grouped safe repair ongoing in active builder on same draft, no push or queue.",
-      "phase": "v6"
+      "step": "build",
+      "note": "Clean local 5947c94f validates acknowledged list handoffs and keeps new hidden/failed Takes private until verified output. 161 focused Bridge, 168 Studio, exact browser j-5269 (24/24) and isolated vMix AC-12 passed, with both settings restored. Fresh full independent /root/v6_publication_exact_so underway. Same draft remote 31815116. No queue or release.",
+      "phase": "v6",
+      "head": "5947c94f0fcb81b211c2da04bcab4e8c86ea6f36",
+      "session": "/root/v6_builder"
     }
   ],
   "owner": [],
