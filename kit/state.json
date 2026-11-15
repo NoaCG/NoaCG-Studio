@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2575,
-      "note": "New clean local V6 candidate 234996ef scopes mute restoration to the current occurrence and exact native route. 150 Bridge and 168 Studio focused checks passed. Fresh full independent /root/v6_route_exact_so, isolated vMix and shared Windows browser in progress. Same draft remains unpushed, 31815116. No queue or release.",
-      "phase": "v6",
       "step": "build",
+      "session": "/root/v6_builder",
+      "pr": 2575,
       "head": "234996efac6b74d16e1c4b3c42db1bc4c8939603",
-      "session": "/root/v6_builder"
+      "note": "150 focused Bridge, 168 Studio, shared Windows j-5268 (24/24) and owned vMix all passed locally. Independent B reproduced stale native mute through foreign list handoff and premature cue identity on failed hidden Take. Read-only model reassessment complete. Grouped safe repair ongoing in active builder on same draft, no push or queue.",
+      "phase": "v6"
     }
   ],
   "owner": [],
