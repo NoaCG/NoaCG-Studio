@@ -1,0 +1,40 @@
+{
+  "capturedAt": "2026-11-15T08:24:49.184Z",
+  "head": "5947c94f0fcb81b211c2da04bcab4e8c86ea6f36",
+  "cleanWorktree": true,
+  "build": {
+    "command": "npm run build --prefix cli",
+    "exitCode": 0
+  },
+  "scope": {
+    "file": "check-scope.json",
+    "base": "6da76c942cc19136b67ed0235d8074733b129257",
+    "paths": 21,
+    "diffCheck": "passed"
+  },
+  "focused": {
+    "bridge": {
+      "passed": 161,
+      "failed": 0,
+      "log": "focused-bridge.log"
+    },
+    "studio": {
+      "passed": 168,
+      "failed": 0,
+      "log": "focused-studio.log"
+    }
+  },
+  "browser": {
+    "job": "j-5269",
+    "tests": 24,
+    "durationSeconds": 48.1,
+    "report": "windows-j-5269-report.json",
+    "log": "windows-j-5269.log"
+  },
+  "realVmix": {
+    "result": "passed",
+    "proof": "v6-product-proof.json",
+    "tcp": "v6-product-tcp.json",
+    "replies": "v6-product-replies.json"
+  }
+}
