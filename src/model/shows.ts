@@ -30,7 +30,8 @@ import { put, readShowProfile, serializeShowProfile } from './profile';
 import { actionArgsOf, actionSchemaOf, migrateToTyped, nativeOf, readJson, readOgrafDeclared, readTypedArgs, TYPED_ARGS_VERSION, TYPED_MAX_DEPTH, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedAction, type TypedArgs, type TypedReceipt, type TypedValues } from './ografTyped';
 import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
-import { replaceRundown, type RundownSlice } from './rundownHistory';
+import { cueFieldsKey, replaceRundown, RUNDOWN_CHANGED, type RundownSlice } from './rundownHistory';
+import type { TeamCueDraftText } from './teamShowMerge';
 import { uuid } from './id';
 import { sceneCopyRefusal, sceneSnapshot, separateSceneGraphics, type SceneCopyGuard, type SceneSnapshot } from './obsScenes';
 import { JOIN_PAGE_LIMITS } from './joinPage';
@@ -634,7 +635,7 @@ function notifyDataChanged(): void {
  * carried over from what is stored rather than dropped: that tombstone is how the move reaches
  * this account's other devices.
  */
-function saveAll(list: Show[]): string | null {
+function saveAll(list: Show[], draft?: { showId: string; text: TeamCueDraftText }): string | null {
   if (!canAuthorAccount()) return 'Account editing is paused. Sign in again; pending work is preserved.';
   const personal: Show[] = [];
   for (const show of list) {
@@ -642,7 +643,7 @@ function saveAll(list: Show[]): string | null {
     // words, whichever writer put it there (a press, a paste of an earlier copy, a duplicate, an
     // edit). A no-op for a production with no hidden words.
     if (!show.deleted) scrubHiddenWords(show);
-    if (show.teamId) writeTeamShow(show);
+    if (show.teamId) writeTeamShow(show, draft?.showId === show.id ? draft.text : undefined);
     else personal.push(show);
   }
   const shadowed = teamShowIds();
@@ -1205,6 +1206,7 @@ function patchShowChecked(
   write?: SelectionWrite,
   /** The typed writer's allowance (`setCueTyped`): cue id to the envelope bytes it writes. */
   typedWrite?: ReadonlyMap<string, string | null>,
+  draft?: { cueId: string; before: string },
 ): { shows: Show[]; error: string | null } {
   const all = readEditable();
   const visible = () => all.filter((s) => !s.deleted);
@@ -1223,7 +1225,10 @@ function patchShowChecked(
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   scrubHiddenWords(show); // W11: this tab's copy too, before the rebased pass decides the stored one
-  if (!rebased || show.teamId || teamShowIds().has(showId)) return { shows: visible(), error: saveAll(all) };
+  if (!rebased || show.teamId || teamShowIds().has(showId)) {
+    const edited = draft && show.cues?.find(cue => cue.id === draft.cueId);
+    return { shows: visible(), error: saveAll(all, draft && edited ? { showId, text: { ...draft, after: cueFieldsKey(edited) } } : undefined) };
+  }
   const personal = loadAllShows().map((s) => (s.id === showId ? show : s));
   rebasedDurableSet(SHOWS_KEY, JSON.stringify(personal), (current) => {
     const raw = JSON.parse(current ?? '[]') as Show[];
@@ -1582,9 +1587,12 @@ export function updateShowCueChecked(
   showId: string,
   cueId: string,
   patch: { label?: string; values?: Record<string, string>; note?: string | null; stagedFrom?: MessageReceipt },
+  expectedDraftText?: string,
 ): { shows: Show[]; error: string | null } {
+  const draft = expectedDraftText === undefined ? undefined : { cueId, before: expectedDraftText };
   return patchShowChecked(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
+    if (draft && (!cue || cueFieldsKey(cue) !== draft.before)) return RUNDOWN_CHANGED;
     if (!cue) return patch.stagedFrom ? 'This cue was removed.' : false;
     const source = show.graphics.find((g) => g.id === cue.sourceId);
     const refused = source && boundMessageField(show, source, patch.stagedFrom);
@@ -1599,7 +1607,7 @@ export function updateShowCueChecked(
     if (patch.note === null) delete cue.note;
     else if (patch.note !== undefined) cue.note = patch.note;
     return true;
-  }, Boolean(patch.stagedFrom));
+  }, !!draft || Boolean(patch.stagedFrom), undefined, undefined, draft);
 }
 
 /** Asked inside the selection writer's write, on the record that door is writing: why this cue may

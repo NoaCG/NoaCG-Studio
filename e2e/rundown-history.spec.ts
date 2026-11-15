@@ -188,6 +188,7 @@ test('a change elsewhere in the rundown never discards the cue being typed (#257
   await expect(input).toHaveValue('Typed here');
   await expect(row(page, 'Typed here')).toBeVisible();
   await settleDurableWrites(page);
+  await expect(page.getByTestId('rundown-note')).toContainText('changed elsewhere');
   // Typed again after its idle save landed, and the other cue changes while the save is still queued.
   await input.fill('Typed again');
   await page.waitForTimeout(320);
@@ -289,6 +290,76 @@ test('typing queued behind a held team save survives a teammate\'s change to ano
   await expect.poll(() => state.doc?.cues?.map(c => c.label), { timeout: 15_000 }).toEqual(['One two', 'Teammate rename', 'Gamma']);
   await expect(input).toHaveValue('One two');
   await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a held team draft keeps its text when a teammate changes that cue’s accent (#2572, D1, D5)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  await select(page, 'Alpha');
+  const input = page.getByTestId('cue-label');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('Local Alpha');
+    await expect.poll(() => state.calls, { message: 'the draft save is out' }).toBeGreaterThan(calls);
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[0] ? { ...c, accentColor: '#6600CC' } : c)) };
+    advance();
+  } finally { release(); }
+  await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[0]), { timeout: 15_000 })
+    .toMatchObject({ label: 'Local Alpha', accentColor: '#6600CC' });
+  await expect(input).toHaveValue('Local Alpha');
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a queued draft checks its own cue after the editor moves to another cue (#2572, D3)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  const input = page.getByTestId('cue-label');
+  await select(page, 'Gamma');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('Local Gamma');
+    await expect.poll(() => state.calls, { message: 'the first save is out' }).toBeGreaterThan(calls);
+    await select(page, 'Alpha');
+    await input.fill('Local Alpha');
+    await select(page, 'Beta');
+    await input.fill('Local Beta');
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[0] ? { ...c, label: 'Teammate Alpha' } : c)) };
+    advance();
+  } finally { release(); }
+  await expect.poll(() => state.doc?.cues?.map(c => c.label), { timeout: 15_000 }).toEqual(['Teammate Alpha', 'Local Beta', 'Local Gamma']);
+  await expect(input).toHaveValue('Local Beta');
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('leaving a production drops its queued draft write (#2572, D6)', async ({ page }) => {
+  const { ids, state } = await teamBackend(page);
+  const input = page.getByTestId('cue-label');
+  await select(page, 'Gamma');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('Local Gamma');
+    await expect.poll(() => state.calls, { message: 'the first save is out' }).toBeGreaterThan(calls);
+    await select(page, 'Alpha');
+    await input.fill('Queued Alpha');
+    await select(page, 'Beta');
+    await page.evaluate(id => { window.location.hash = '/production/' + id; }, ids.other);
+    await expect(page.getByTestId('production-page')).toBeVisible();
+    await expect(row(page, 'Beta')).toHaveCount(0);
+  } finally { release(); }
+  await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[2])?.label).toBe('Local Gamma');
+  await expect.poll(() => page.evaluate(async id => {
+    const m = await __noacgImport('/src/backend/teamProductions.ts');
+    return m.getTeamState().saving[id] ?? null;
+  }, ids.show)).toBeNull();
+  await settleDurableWrites(page);
+  expect(state.doc?.cues?.find(c => c.id === ids.cues[0])?.label).toBe('Alpha');
+  expect(state.calls).toBe(calls + 1);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 

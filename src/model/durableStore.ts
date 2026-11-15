@@ -748,9 +748,15 @@ export function rebasedDurableSet(
         const next = accepted === previous ? { value } : rebase(accepted);
         if ('refused' in next) { refusal = next.refused; tx.abort(); return; }
         stored = next.value;
-        store.put(stored, storedKey);
       } catch {
         refusal = UNREADABLE_MESSAGE;
+        try { tx.abort(); } catch { /* already aborting */ }
+        return;
+      }
+      try {
+        store.put(stored, storedKey);
+      } catch (error) {
+        refusal = isQuotaError(error) ? FULL_MESSAGE : FAILED_MESSAGE;
         try { tx.abort(); } catch { /* already aborting */ }
       }
     };

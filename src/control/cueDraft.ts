@@ -81,7 +81,9 @@ export interface OwedEdit {
 
 /** Whether `cue` holds `text`: the label, the note and each of the text's values. */
 function holds(cue: CueRecord, text: CueFields): boolean {
-  return cue.label === text.label && (cue.note || null) === (text.note || null) && Object.entries(text.values).every(([k, v]) => cue.values[k] === v);
+  const entries = Object.entries(text.values);
+  return cue.label === text.label && (cue.note || null) === (text.note || null)
+    && Object.keys(cue.values).length === entries.length && entries.every(([k, v]) => cue.values[k] === v);
 }
 
 /** The browser half the page hands in. */
@@ -91,7 +93,7 @@ export interface CueDraftIo {
   /** Start or continue an edit group. A fresh draft passes the cue record it starts from. */
   editing: (group: string, freshCue: CueRecord | null) => void;
   /** Save through the rundown history, answering whether the store confirmed it. */
-  writeCue: (cueId: string, fields: CueFields) => Promise<boolean>;
+  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord) => Promise<boolean>;
   /** Save at once, with no history and nothing to await: whether the store accepted it. */
   retainCue: (cueId: string, fields: CueFields) => boolean;
   /** The newest record of a cue, if the production holds it. */
@@ -422,7 +424,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       // Through the history, so the store confirms it; the record goes only then, and only if no
       // later hide has recorded a newer edit meanwhile. Unconfirmed, it is tried again next visit.
       const same = JSON.stringify(e);
-      void io.writeCue(e.cueId, e.fields).then((saved) => {
+      void io.writeCue(e.cueId, e.fields, cue).then((saved) => {
         if (!saved) return;
         recovered = true;
         if (JSON.stringify(io.owed.read()) === same) io.owed.forget();

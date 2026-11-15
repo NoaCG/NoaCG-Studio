@@ -40,8 +40,8 @@ export const sameRundown = (a: RundownSlice, b: RundownSlice): boolean => sliceK
 export const cueFieldsKey = (cue: { label: string; note?: string | null; values?: Record<string, string> }): string =>
   JSON.stringify(ordered({ label: cue.label, note: cue.note || null, values: cue.values ?? {} }));
 
-export const cueTextKey = (slice: RundownSlice, cueId: string): string | null => {
-  const cue = slice.cues.find((c) => c.id === cueId);
+export const cueTextKey = (rundown: Pick<Show, 'cues'>, cueId: string): string | null => {
+  const cue = rundown.cues?.find((c) => c.id === cueId);
   return cue ? cueFieldsKey(cue) : null;
 };
 /** Whether a change made elsewhere left the text of the cue being typed as `expected` held it, the

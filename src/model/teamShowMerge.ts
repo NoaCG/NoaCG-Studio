@@ -16,6 +16,8 @@
 // adding a cue and Ben retyping another must both survive. `graphics`, `cues`, `datasets` and
 // `playoutItems` are arrays of objects with an `id`, and each item gets the same three-way rule.
 // Only the same ITEM changed differently on both sides is a conflict, and there theirs stands.
+// A checked cue draft also has its own text baseline. When their cue still has that text, merge
+// the remaining cue changes normally and apply the draft's text to that result.
 //
 // FOLDERS STAY WHOLE (docs/CLIP_PLAYBACK_PLAN.md §7). A folder's cues stand together in the flat cue
 // list, and a merge can tear them apart - one teammate folders A and B while the other orders A, C,
@@ -32,7 +34,10 @@
 // here, on a page of code. Its one runtime import is the folder rules, which are pure too; the `.ts`
 // is what lets Node resolve it.
 
-import type { Show } from './shows';
+import type { Show, ShowCue } from './shows';
+import { cueTextKey } from './rundownHistory.ts';
+import { selectedFields, selectionReadOnly } from './productionData.ts';
+import { typedReadOnly } from './ografTyped.ts';
 import { settleFolders } from './showFolders.ts';
 import { freeName } from './poolIdentity.ts';
 import { scrubHiddenWords } from './wordCues.ts';
@@ -66,7 +71,26 @@ export interface TeamShowMerge {
   gathered: boolean;
 }
 
+/** Before and after text of a native cue draft that passed the local write checks. */
+export interface TeamCueDraftText {
+  cueId: string;
+  before: string;
+  after: string;
+}
+
+export function matchingTeamCueDrafts(base: Show, local: Show, drafts: readonly TeamCueDraftText[]): TeamCueDraftText[] {
+  return drafts.filter(({ cueId, before, after }) =>
+    before !== after && cueTextKey(base, cueId) === before && cueTextKey(local, cueId) === after);
+}
+
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+function overlayCueText(cue: ShowCue, text: ShowCue): ShowCue {
+  const result = { ...cue, label: text.label, values: text.values };
+  if (text.note === undefined) delete result.note;
+  else result.note = text.note;
+  return result;
+}
 
 type Item = { id: string };
 
@@ -236,8 +260,19 @@ function renameOurNewGraphics(base: Show, ours: Show, theirs: Show): Show {
  * Merge a refused local document onto the one a teammate saved. `at` becomes the result's
  * `updatedAt`, so the merged record reads as the newest edit it is.
  */
-export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string): TeamShowMerge {
-  const ours = renameOurNewGraphics(base, mine, theirs);
+export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string, drafts: readonly TeamCueDraftText[] = []): TeamShowMerge {
+  const draftIds = new Set(matchingTeamCueDrafts(base, mine, drafts)
+    .filter(draft => cueTextKey(theirs, draft.cueId) === draft.before).map(draft => draft.cueId));
+  const baselines = new Map(base.cues?.filter(cue => draftIds.has(cue.id)).map(cue => [cue.id, cue]));
+  const draftCues = new Map(mine.cues?.filter(cue => draftIds.has(cue.id)).map(cue => [cue.id, cue]));
+  const local = draftCues.size ? {
+    ...mine,
+    cues: mine.cues?.map(cue => {
+      const baseline = baselines.get(cue.id);
+      return baseline ? overlayCueText(cue, baseline) : cue;
+    }),
+  } : mine;
+  const ours = renameOurNewGraphics(base, local, theirs);
   const doc: Record<string, unknown> = { ...theirs };
   const lost: string[] = [];
   const b = base as unknown as Record<string, unknown>;
@@ -282,6 +317,22 @@ export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string):
     if (doc.cues !== undefined) doc.cues = settled.cues;
     if (settled.folders.length) doc.folders = settled.folders;
     else delete doc.folders;
+  }
+  if (draftCues.size) {
+    const merged = doc as unknown as Show;
+    merged.cues = merged.cues?.map(cue => {
+      const draft = draftCues.get(cue.id);
+      if (!draft) return cue;
+      draftCues.delete(cue.id);
+      const connectedEdit = selectedFields(cue, merged.collections).some(field =>
+        draft.values[field] !== undefined && draft.values[field] !== cue.values[field]);
+      if (connectedEdit || selectionReadOnly(cue, merged.collections) || typedReadOnly(cue)) {
+        if (!lost.includes(FIELD_LABEL.cues)) lost.push(FIELD_LABEL.cues);
+        return cue;
+      }
+      return overlayCueText(cue, draft);
+    });
+    if (draftCues.size && !lost.includes(FIELD_LABEL.cues)) lost.push(FIELD_LABEL.cues);
   }
   // W11 (interaction phase 6): a cue taken from one side cannot carry a word the merged question
   // list hides, whichever side hid it.

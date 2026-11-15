@@ -30,11 +30,11 @@ import {
   removeTeamShow,
   setTeamShowsStatus,
 } from '../model/teamShows';
-import { mergeTeamShow } from '../model/teamShowMerge';
+import { matchingTeamCueDrafts, mergeTeamShow, type TeamCueDraftText } from '../model/teamShowMerge';
 import { settleGraphics } from '../model/copySettle';
 import { canAuthorAccount, commitDurableWrites, libraryInUse } from '../model/durableStore';
 import { acknowledgeTeamEdit, pendingTeamEdits, retainTeamEdit } from '../model/teamOutbox';
-import { replaceRundown, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../model/rundownHistory';
+import { cueTextKey, replaceRundown, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../model/rundownHistory';
 import { blobToDataUrl, classifyAssetRefusal, dataUrlToBlob, externalizeSharedAssets, rehydrateSharedAssets } from './assets';
 import { backoffDelay } from './pacing';
 import { diff, storedMap, type PatchOp, type UnitMap } from './unitPatch';
@@ -667,14 +667,26 @@ function setSaving(id: string, value: 'pending' | 'failed' | null): void {
   setState({ saving });
 }
 
-function scheduleSave(id: string): void {
+function scheduleSave(id: string, draft?: TeamCueDraftText): void {
   dirty.add(id);
   setSaving(id, 'pending');
   const known = server.get(id);
   const local = loadTeamShows().find(s => s.id === id);
   try {
     if (!running || !known || !local) throw new Error('No verified team revision is available. The edit has not been saved to cloud.');
-    retainTeamEdit(running.userId, id, { token: known.token, base: known.doc, local, teamId: known.teamId, updatedBy: known.updatedBy });
+    const pending = pendingTeamEdits(running.userId)[id];
+    const previous = pending?.token === known.token ? pending.cueDrafts ?? [] : [];
+    const cueDrafts = matchingTeamCueDrafts(known.doc, local, previous);
+    if (draft && cueTextKey(local, draft.cueId) === draft.after) {
+      const earlier = previous.find(prior => prior.cueId === draft.cueId && prior.after === draft.before);
+      const before = earlier?.before ?? draft.before;
+      if (before !== draft.after && cueTextKey(known.doc, draft.cueId) === before) {
+        const at = cueDrafts.findIndex(prior => prior.cueId === draft.cueId);
+        if (at !== -1) cueDrafts.splice(at, 1);
+        cueDrafts.push({ ...draft, before });
+      }
+    }
+    retainTeamEdit(running.userId, id, { token: known.token, base: known.doc, local, teamId: known.teamId, updatedBy: known.updatedBy, cueDrafts });
   } catch (error) {
     setSaving(id, 'failed');
     noteFailure(id, error instanceof Error ? error.message : String(error));
@@ -689,6 +701,14 @@ function scheduleSave(id: string): void {
       void pushSave(id);
     }, Math.max(SAVE_DEBOUNCE_MS, savesResumeAt - Date.now())),
   );
+}
+
+/** Move pending draft text over the exact draft snapshot that was sent before it. */
+function draftsAfterSent(drafts: TeamCueDraftText[], sentDrafts: TeamCueDraftText[], sent: Show): TeamCueDraftText[] {
+  return drafts.map(draft => {
+    const earlier = sentDrafts.find(prior => prior.cueId === draft.cueId && prior.before === draft.before);
+    return earlier && cueTextKey(sent, draft.cueId) === earlier.after ? { ...draft, before: earlier.after } : draft;
+  });
 }
 
 /**
@@ -723,12 +743,18 @@ async function pushSave(id: string): Promise<void> {
   let doc = teamDoc(sent);
   let failure: string | null = null;
   try {
+    const readDrafts = (forToken: string): TeamCueDraftText[] => {
+      const pending = pendingTeamEdits(owner.userId)[id];
+      return pending?.token === forToken ? pending.cueDrafts ?? [] : [];
+    };
+    let cueDrafts = matchingTeamCueDrafts(base, doc, readDrafts(token));
     const settled = settleGraphics(sent.graphics, base.graphics, new Date().toISOString());
     if (settled.changed) {
       sent = { ...sent, graphics: settled.graphics };
       applyServerTeamShow(sent);
-      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: known.updatedBy, teamId: known.teamId });
       doc = teamDoc(sent);
+      cueDrafts = matchingTeamCueDrafts(base, doc, cueDrafts);
+      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: known.updatedBy, teamId: known.teamId, cueDrafts });
     }
     for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
       const { answer, error } = await saveTeamProduction(id, token, doc, known.teamId);
@@ -740,6 +766,15 @@ async function pushSave(id: string): Promise<void> {
       }
       if (answer.saved) {
         acknowledgeTeamEdit(owner.userId, id, sent);
+        const newer = pendingTeamEdits(owner.userId)[id];
+        if (newer?.token === token) {
+          // The saved snapshot can be an earlier draft value in a newer pending edit.
+          const rebased = draftsAfterSent(newer.cueDrafts ?? [], cueDrafts, doc);
+          retainTeamEdit(owner.userId, id, {
+            ...newer, token: answer.updatedAt, base: doc, updatedBy: answer.updatedBy,
+            cueDrafts: matchingTeamCueDrafts(doc, newer.local, rebased),
+          });
+        }
         server.set(id, { token: answer.updatedAt, doc, updatedBy: answer.updatedBy, teamId: known.teamId });
         setState({
           heads: { ...state.heads, [id]: { id, teamId: known.teamId, updatedAt: answer.updatedAt, updatedBy: answer.updatedBy } },
@@ -749,7 +784,8 @@ async function pushSave(id: string): Promise<void> {
       // Refused: a teammate saved first. Their document is the new base.
       const theirs = teamDoc(teamRecord(answer.doc, { id, team_id: known.teamId, updated_at: answer.updatedAt, updated_by: answer.updatedBy }));
       server.set(id, { token: answer.updatedAt, doc: theirs, updatedBy: answer.updatedBy, teamId: known.teamId });
-      const merged = mergeTeamShow(base, doc, theirs, new Date().toISOString());
+      const latestDrafts = readDrafts(token);
+      const merged = mergeTeamShow(base, doc, theirs, new Date().toISOString(), cueDrafts);
       // The operator may have typed on while the save was out; that edit is merged on top rather
       // than overwritten by the result.
       const now = loadTeamShows().find((s) => s.id === id);
@@ -758,7 +794,9 @@ async function pushSave(id: string): Promise<void> {
       let lost = merged.lost;
       let gathered = merged.gathered;
       if (now && JSON.stringify(teamDoc(now)) !== JSON.stringify(teamDoc(sent))) {
-        const again = mergeTeamShow(teamDoc(sent), teamDoc(now), merged.doc, new Date().toISOString());
+        const current = teamDoc(now);
+        const newerDrafts = draftsAfterSent(matchingTeamCueDrafts(base, current, latestDrafts), cueDrafts, doc);
+        const again = mergeTeamShow(doc, current, merged.doc, new Date().toISOString(), newerDrafts);
         next = again.doc;
         lost = [...new Set([...lost, ...again.lost])];
         gathered ||= again.gathered;
@@ -780,7 +818,8 @@ async function pushSave(id: string): Promise<void> {
       base = theirs;
       token = answer.updatedAt;
       doc = teamDoc(next);
-      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: answer.updatedBy, teamId: known.teamId });
+      cueDrafts = matchingTeamCueDrafts(base, doc, latestDrafts);
+      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: answer.updatedBy, teamId: known.teamId, cueDrafts });
       if (attempt === MAX_SAVE_ATTEMPTS - 1) {
         failure = 'Teammates keep saving this production - your edit is on screen but not saved yet.';
         dirty.add(id);
