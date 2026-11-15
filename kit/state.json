@@ -1504,7 +1504,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Mergegroup43750083365 exactf295, thenactualPR2579 merge andallpostchecks/deploy; rootactive",
+    "what": "Freshreadonly queuefailure causalassessment beforeanycode; PRnotmerged/deployed; originalstops binding",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4594,7 +4594,7 @@
             "has_unresolved_findings": false,
             "status": "completed"
           },
-          "status": "QUEUED actualtimeline19:01:41Z",
+          "status": "MergequeueFAILED; oldexternalretentionAPIcontextdestroyed; causalclassUNRESOLVED, no edits",
           "codeql": 43714187035,
           "configuredSelection": "Actualplanjob132812059552: all63active on4localstacks",
           "capacity": "ActualGitHubWARN131.8/204.5; partial43201149088 judgednewestcomplete43014542120, normal line; noexception",
@@ -4639,6 +4639,25 @@
             "mergeGroupRun": 43750083365,
             "mergeGroupHead": "f2954d1c2c94e412c71707a6d928e17228f48267",
             "autoMerge": "Session-owned connector accepted; actualqueue confirmed, RESTauto null notmistakenforabsence"
+          },
+          "queueFailure": {
+            "run": 43750083365,
+            "head": "f2954d1c2c94e412c71707a6d928e17228f48267",
+            "job": 132922029759,
+            "case": "e2e/editor-projects.spec.ts:605/api; evaluate620 contextdestroyed navigation",
+            "result": "184PASS1FAIL; newblankcasesPASS",
+            "retry": "132925010527 refused execution becauseeditedspec; notsecondproductfailure",
+            "logs": [
+              "blank-pr2579-mergegroup-failed-shard.log.gz",
+              "blank-pr2579-mergegroup-retry-refusal.log.gz"
+            ],
+            "artifact": "14176166795 FileServiceref obtained; byteURLError, no traceread",
+            "reviewIntent": {
+              "actor": "/root/e5f_blank_queue_causality_so",
+              "file": "briefs/e5f-blank-queue-causal-assessment-20261115.txt",
+              "sha256": "4b75ba192b87b1217282b4d41736f801bc483b9253dc98931dda8b154cecd0f7",
+              "scope": "READONLY exactfailurefamily; no source/test/build/repro/repairpermission"
+            }
           }
         },
         "proofArchive": {
