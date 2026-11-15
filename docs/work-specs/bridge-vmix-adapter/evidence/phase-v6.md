@@ -153,6 +153,19 @@ externally muted empty player receives no AudioOn. Timed playback reports
 success and arms its clock only after rechecking its intended route on the
 final native occurrence.
 
+During an acknowledged covered list change, a readable state can show its exact
+predecessor while the change is pending. The first exact successor carries the
+temporary mute. A later predecessor, a third selection, a missing input or a
+different type stops the handoff. A confirmed unmute retires its authority as soon
+as the Bridge observes it, including while checking other state for the same
+response. Compact absence remains bounded to the accepted observation window.
+
+An initially hidden Take retains its exact selection for cleanup. Public state
+uses occupied, unidentified player state until the Bridge verifies reveal or
+dispatches a verified entrance. Before that point the selection cannot supply
+a cue, instance, segment or automatic timer. A V5 Take observed playing retains
+its visible identity if prefix cleanup partly fails.
+
 ## Verification, release and rollback
 
 - Use the existing fake TCP server with a controlled clip clock and a reference trace based on the Rules. Check guarded wire skew, command order, settled and relative positions, native and Bridge endings, fade ownership and endpoints, gain reset, paused time, delayed and unknown results, the port read budget, and stale work queued before a later action. Include a loop seek that rebounds, and a Clear armed inside 40 ms during another native ramp. Record the configured and actual sound and picture endpoint timing and removal. Keep the browser check in the existing playout-cues journey and run it through the shared Windows queue.

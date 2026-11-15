@@ -4582,7 +4582,7 @@ test('AC-12: empty retirement restores only affirmatively Bridge-muted Audio', a
         if (mode === 'unproved external mute') input.muted = true;
         const current = (await adapter.overlays(target)).value.players.find(row => row.player === 'audio');
         const before = fake.functions.length;
-        const cut = await act({ verb: 'out-player-held', expectedPlayerInstance: current.instance });
+        const cut = await act(current.instance ? { verb: 'out-player-held', expectedPlayerInstance: current.instance } : { verb: 'out' });
         assert.equal(cut.ok, true, JSON.stringify(cut));
         assert.equal(input.list.length, 0);
         assert.equal(input.muted, mode === 'unproved external mute');
@@ -4809,6 +4809,204 @@ test('AC-12: a later mute after cut or on a foreign occurrence has no retirement
       assert.equal(input.list.length, 0);
       assert.equal(input.muted, true);
       assert.deepEqual(fixture.fake.functions.slice(before).map(fn => fn.name), ['Pause', 'ListRemoveAll']);
+    });
+  }
+});
+
+
+test('AC-12: a readable foreign list ends the covered append, select, prefix or empty transition', async t => {
+  for (const mutation of ['ListAdd', 'SelectIndex', 'ListRemove', 'ListRemoveAll']) {
+    await t.test(mutation, async t => {
+      let fault = false;
+      let checking = false;
+      let injectedAt;
+      let input;
+      let refusedFader = false;
+      const fixture = await timedFixture(t, {
+        afterFunction(name, params, socket) {
+          if (checking && name === mutation) fault = true;
+          if (mutation === 'ListRemoveAll' && !checking && input?.muted && name === 'SetVolume' && params.Value === '100') {
+            input.fader = 0;
+            refusedFader = true;
+            socket.write('FUNCTION ER Fader refused\r\n');
+            return true;
+          }
+          return false;
+        },
+        transformXml(body) {
+          if (!fault || injectedAt !== undefined) return body;
+          injectedAt = fixture.fake.functions.length;
+          return body.replace(/selectedIndex="\d+"/, 'selectedIndex="1"').replace(/duration="\d+"/, 'duration="4000"')
+            .replace(/<list>[\s\S]*?<\/list>/, '<list><item selected="true">' + join(fixture.root, 'foreign.wav') + '</item></list>');
+        },
+      });
+      await writeFile(join(fixture.root, 'foreign.wav'), 'fixture');
+      const first = await fixture.take('sting.wav');
+      assert.equal(first.ok, true);
+      input = fixture.fake.inputs.find(row => row.title === 'NoaCG Audio');
+      const playback = { trim: { in: 0.5, out: 2 } };
+      if (mutation === 'ListRemoveAll') {
+        assert.equal((await fixture.take('sting.wav', { playback })).ok, false);
+        assert.equal(refusedFader, true);
+      }
+      checking = true;
+      const failed = mutation === 'ListRemoveAll'
+        ? await fixture.adapter.act(fixture.target, { verb: 'out', slot: fixture.player('audio') })
+        : await fixture.take('sting.wav', { playback });
+      assert.equal(failed.ok, false);
+      assert.ok(injectedAt);
+      assert.equal(fixture.fake.functions.length, injectedAt);
+      assert.equal(input.muted, true);
+      const count = fixture.fake.functions.length;
+      assert.equal((await fixture.take('sting.wav', { playback })).ok, false);
+      assert.equal(fixture.fake.functions.length, count);
+    });
+  }
+});
+
+test('AC-12: an own index handoff cannot regress to its predecessor after first successor evidence', async t => {
+  let step = 0;
+  let input;
+  let checking = false;
+  let interrupted;
+  const fixture = await timedFixture(t, {
+    hook(line) {
+      if (!checking || step === 0 || line !== 'XML') return false;
+      if (step === 1) {
+        input.duration = 0;
+        input.position = 0;
+      } else if (step === 2) {
+        interrupted = fixture.fake.functions.length;
+        input.selectedIndex = 1;
+        input.duration = 4000;
+        input.position = 0;
+      }
+      step += 1;
+      return false;
+    },
+    afterFunction(name) {
+      if (checking && name === 'SelectIndex') step = 1;
+      return false;
+    },
+  });
+  assert.equal((await fixture.take('sting.wav')).ok, true);
+  input = fixture.fake.inputs.find(row => row.title === 'NoaCG Audio');
+  checking = true;
+  const result = await fixture.take('sting.wav', { playback: { trim: { in: 0.5, out: 2 } } });
+  assert.equal(result.ok, false);
+  assert.ok(interrupted);
+  assert.equal(fixture.fake.functions.length, interrupted);
+  assert.equal(input.muted, true);
+});
+
+test('AC-12: positive unmute during compact publication fallback retires the previous mute proof', async t => {
+  let input;
+  let removed = false;
+  let missing = false;
+  let observedOpen = false;
+  const fixture = await timedFixture(t, {
+    afterFunction(name) {
+      if (name === 'ListRemove') removed = true;
+      return false;
+    },
+    hook(line, socket) {
+      if (!removed || observedOpen) return false;
+      if (missing && line === 'XML') {
+        input.muted = false;
+        observedOpen = true;
+        return false;
+      }
+      if (line.startsWith('XMLTEXT ') && line.endsWith('/@position') && line.includes('count(list/item)=1')) {
+        missing = true;
+        socket.write('XMLTEXT ER XML Entry Not Found\r\n');
+        return true;
+      }
+      return false;
+    },
+  });
+  assert.equal((await fixture.take('sting.wav')).ok, true);
+  input = fixture.fake.inputs.find(row => row.title === 'NoaCG Audio');
+  const playback = { trim: { in: 0.5, out: 2 } };
+  assert.equal((await fixture.take('sting.wav', { playback })).ok, false);
+  assert.equal(observedOpen, true);
+  input.muted = true;
+  const start = fixture.fake.functions.length;
+  const later = await fixture.take('sting.wav', { playback });
+  assert.equal(later.ok, false);
+  assert.equal(fixture.fake.functions.length, start);
+  assert.equal(input.muted, true);
+});
+
+test('AC-12: a state batch records observed unmute before a malformed peer blocks the report', async t => {
+  let input;
+  let blockRestore = true;
+  const fixture = await timedFixture(t, {
+    afterFunction(name, params, socket) {
+      if (blockRestore && input?.muted && name === 'SetVolume' && params.Value === '100') {
+        input.fader = 0;
+        socket.write('FUNCTION ER Fader refused\r\n');
+        return true;
+      }
+      return false;
+    },
+  });
+  assert.equal((await fixture.take('sting.wav')).ok, true);
+  input = fixture.fake.inputs.find(row => row.title === 'NoaCG Audio');
+  const playback = { trim: { in: 0.5, out: 2 } };
+  assert.equal((await fixture.take('sting.wav', { playback })).ok, false);
+  assert.equal(input.muted, true);
+  const peer = fixture.fake.add('VideoList', 'NoaCG Clips');
+  peer.state = 'InvalidPlaybackState';
+  input.muted = false;
+  const read = await fixture.adapter.overlays(fixture.target);
+  assert.equal(read.ok, true);
+  assert.equal(read.value.players, undefined);
+  input.muted = true;
+  peer.state = 'Completed';
+  blockRestore = false;
+  const before = fixture.fake.functions.length;
+  assert.equal((await fixture.take('sting.wav', { playback })).ok, false);
+  assert.equal(fixture.fake.functions.length, before);
+});
+
+test('AC-12: a failed hidden fader or entrance stays private until a verified presentation', async t => {
+  for (const failure of ['fader', 'entrance']) {
+    await t.test(failure, async t => {
+      let reject = false;
+      let input;
+      const fixture = await timedFixture(t, {
+        afterFunction(name, params, socket) {
+          if (!reject || !(failure === 'fader' && name === 'SetVolume' && params.Value === '100' ||
+              failure === 'entrance' && name === 'SetVolumeFade' && params.Value === '100,1000')) return false;
+          if (failure === 'fader') input.fader = 0;
+          else delete input.volumeRamp;
+          socket.write('FUNCTION ER Fixture refusal\r\n');
+          return true;
+        },
+      });
+      const prior = await fixture.take('clip A.mp4');
+      assert.equal(prior.ok, true);
+      input = fixture.row();
+      reject = true;
+      const playback = failure === 'fader' ? { trim: { in: 0.5, out: 2 } } : { fadeIn: 1 };
+      const result = await fixture.take('clip B.mp4', { playback });
+      assert.equal(result.ok, false);
+      assert.equal(input.alpha, 0);
+      assert.equal(fixture.callbacks.size, 0);
+      const hidden = await fixture.read();
+      assert.equal(hidden.producer, 'other');
+      assert.equal(hidden.playerOccupied, true);
+      for (const field of ['file', 'playerSource', 'instance', 'cueId', 'segment']) assert.equal(hidden[field], undefined);
+      assert.equal((await fixture.expected(prior.instance, 'pause')).ok, false);
+      const plain = await fixture.adapter.act(fixture.target, { verb: 'pause', slot: fixture.player() });
+      assert.equal(plain.ok, true);
+      assert.equal(plain.instance, undefined);
+      assert.equal((await fixture.adapter.act(fixture.target, { verb: 'out', slot: fixture.player() })).ok, true);
+      reject = false;
+      const visible = await fixture.take('clip B.mp4', { playback });
+      assert.equal(visible.ok, true, JSON.stringify(visible));
+      assert.equal((await fixture.read()).instance, visible.instance);
+      assert.equal((await fixture.read()).playerSource, 'clip B.mp4');
     });
   }
 });
