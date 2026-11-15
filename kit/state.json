@@ -46,12 +46,12 @@
   },
   "inFlight": [
     {
+      "pr": 2575,
       "phase": "v6",
       "step": "build",
+      "note": "V6 wait confirmed. Local isolated one-test reproduction on #2573 CI tree d3d2e29d failed j-5273, exact base e3bd018e passed j-5274. Source and other run jobs untouched. ProductionPage still held by live-publishing #2361. Clean V6 and its existing local passing evidence retained.",
       "head": "29b3fdbfba8ea12a9c426861c12df4947159a1a1",
-      "session": "/root/v6_builder",
-      "note": "Read-only diagnosis of existing dependency #2573: GitHub mergeable, CI browser imported SVG quiz failure and missing review stamp, no merge queued or shared-file release from #2361. Same clean V6 checkpoint and passing local evidence retained. No actions on the other PR or jobs.",
-      "pr": 2575
+      "session": "/root/v6_builder"
     }
   ],
   "owner": [],
