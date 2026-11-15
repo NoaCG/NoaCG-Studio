@@ -1,0 +1,722 @@
+{
+  "observedAt": "2026-11-15T07:32:35.485Z",
+  "merge": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+  "checks": [
+    {
+      "id": 43688806825,
+      "name": "CI",
+      "head_sha": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+      "status": "completed",
+      "conclusion": "success",
+      "updated_at": "2026-11-15T07:22:02Z",
+      "run_attempt": 1,
+      "jobs": [
+        {
+          "id": 132734853162,
+          "name": "Vercel accepted the commit",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:16Z",
+          "completed_at": "2026-11-15T07:13:37Z",
+          "steps": []
+        },
+        {
+          "id": 132734853310,
+          "name": "Factory gates",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:16Z",
+          "completed_at": "2026-11-15T07:13:06Z",
+          "steps": []
+        },
+        {
+          "id": 132734853337,
+          "name": "Build",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:16Z",
+          "completed_at": "2026-11-15T07:19:39Z",
+          "steps": [
+            {
+              "name": "E2E protection check",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734853362,
+          "name": "E2E plan",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:16Z",
+          "completed_at": "2026-11-15T07:11:29Z",
+          "steps": [
+            {
+              "name": "Newest weekly growth report",
+              "conclusion": "skipped"
+            },
+            {
+              "name": "E2E capacity line (estimate)",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734854004,
+          "name": "Reviewed",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-15T07:11:15Z",
+          "completed_at": "2026-11-15T07:11:14Z",
+          "steps": []
+        },
+        {
+          "id": 132734910378,
+          "name": "Catalog calibration gate",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:21:30Z",
+          "steps": []
+        },
+        {
+          "id": 132734910591,
+          "name": "E2E 1/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:19:14Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910596,
+          "name": "E2E 5/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:19:01Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910609,
+          "name": "E2E 9/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:20:40Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910615,
+          "name": "E2E 8/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:20:56Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910619,
+          "name": "E2E 12/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:19:33Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910620,
+          "name": "E2E 13/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:21:03Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910625,
+          "name": "E2E 3/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:21:22Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910638,
+          "name": "E2E 6/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:32Z",
+          "completed_at": "2026-11-15T07:21:02Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910652,
+          "name": "E2E 11/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:32Z",
+          "completed_at": "2026-11-15T07:21:21Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910658,
+          "name": "E2E 10/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:19:29Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910666,
+          "name": "E2E 4/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:19:09Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910671,
+          "name": "E2E 7/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:18:48Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910676,
+          "name": "E2E 2/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:21:15Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910688,
+          "name": "E2E 15/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:31Z",
+          "completed_at": "2026-11-15T07:19:36Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734910689,
+          "name": "E2E 14/15 (full)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:32Z",
+          "completed_at": "2026-11-15T07:19:47Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734911557,
+          "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-15T07:11:30Z",
+          "completed_at": "2026-11-15T07:11:29Z",
+          "steps": []
+        },
+        {
+          "id": 132734911789,
+          "name": "Configured E2E verdict (selected)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-15T07:11:30Z",
+          "completed_at": "2026-11-15T07:11:29Z",
+          "steps": []
+        },
+        {
+          "id": 132734911917,
+          "name": "Configured E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (selected, local Supabase)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-15T07:11:30Z",
+          "completed_at": "2026-11-15T07:11:29Z",
+          "steps": []
+        },
+        {
+          "id": 132736763452,
+          "name": "Re-run (failed Build or Factory job, same commit)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-15T07:19:39Z",
+          "completed_at": "2026-11-15T07:19:39Z",
+          "steps": []
+        },
+        {
+          "id": 132737160455,
+          "name": "Combined E2E report",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:21:24Z",
+          "completed_at": "2026-11-15T07:21:46Z",
+          "steps": [
+            {
+              "name": "Measure this change against the capacity line",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132737161760,
+          "name": "E2E retry (failed specs, same commit)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-15T07:21:23Z",
+          "completed_at": "2026-11-15T07:21:23Z",
+          "steps": []
+        },
+        {
+          "id": 132737188789,
+          "name": "CI gate",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:21:32Z",
+          "completed_at": "2026-11-15T07:21:40Z",
+          "steps": [
+            {
+              "name": "Landing hold",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132737226154,
+          "name": "After the gate",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:21:42Z",
+          "completed_at": "2026-11-15T07:22:01Z",
+          "steps": [
+            {
+              "name": "Quarantine the specs that failed and then passed",
+              "conclusion": "skipped"
+            },
+            {
+              "name": "File / update the red-main issue",
+              "conclusion": "skipped"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 43688806801,
+      "name": "configured-suite",
+      "head_sha": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+      "status": "completed",
+      "conclusion": "success",
+      "updated_at": "2026-11-15T07:28:33Z",
+      "run_attempt": 1,
+      "jobs": [
+        {
+          "id": 132734852541,
+          "name": "Configured shard plan",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:16Z",
+          "completed_at": "2026-11-15T07:11:33Z",
+          "steps": []
+        },
+        {
+          "id": 132734924720,
+          "name": "Configured E2E shard 1/4",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:35Z",
+          "completed_at": "2026-11-15T07:27:51Z",
+          "steps": [
+            {
+              "name": "Supabase container logs (on failure)",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734924734,
+          "name": "Configured E2E shard 2/4",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:35Z",
+          "completed_at": "2026-11-15T07:26:13Z",
+          "steps": [
+            {
+              "name": "Supabase container logs (on failure)",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734924749,
+          "name": "Configured E2E shard 3/4",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:35Z",
+          "completed_at": "2026-11-15T07:26:24Z",
+          "steps": [
+            {
+              "name": "Supabase container logs (on failure)",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734924824,
+          "name": "Configured E2E shard 4/4",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:35Z",
+          "completed_at": "2026-11-15T07:25:20Z",
+          "steps": [
+            {
+              "name": "Supabase container logs (on failure)",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132738614025,
+          "name": "Configured E2E (authenticated, local Supabase)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:27:53Z",
+          "completed_at": "2026-11-15T07:28:19Z",
+          "steps": [
+            {
+              "name": "File / update the rolling issue",
+              "conclusion": "skipped"
+            },
+            {
+              "name": "Fail the run when the suite was not a clean verdict",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132738713716,
+          "name": "Configured quarantine",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:28:21Z",
+          "completed_at": "2026-11-15T07:28:32Z",
+          "steps": [
+            {
+              "name": "Quarantine the specs that failed and then passed",
+              "conclusion": "skipped"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 43688806769,
+      "name": "Push on main",
+      "head_sha": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+      "status": "completed",
+      "conclusion": "success",
+      "updated_at": "2026-11-15T07:29:26Z",
+      "run_attempt": 1,
+      "jobs": [
+        {
+          "id": 132734855592,
+          "name": "Analyze (python)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:17Z",
+          "completed_at": "2026-11-15T07:12:15Z",
+          "steps": []
+        },
+        {
+          "id": 132734855677,
+          "name": "Analyze (actions)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:17Z",
+          "completed_at": "2026-11-15T07:12:12Z",
+          "steps": []
+        },
+        {
+          "id": 132734855687,
+          "name": "Analyze (javascript-typescript)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:17Z",
+          "completed_at": "2026-11-15T07:29:25Z",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": 43688806804,
+      "name": "Post-landing",
+      "head_sha": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+      "status": "completed",
+      "conclusion": "success",
+      "updated_at": "2026-11-15T07:12:28Z",
+      "run_attempt": 1,
+      "jobs": [
+        {
+          "id": 132734852606,
+          "name": "Delivery age alarms",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:16Z",
+          "completed_at": "2026-11-15T07:12:27Z",
+          "steps": []
+        },
+        {
+          "id": 132734852771,
+          "name": "Weekly growth report health",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:16Z",
+          "completed_at": "2026-11-15T07:11:33Z",
+          "steps": [
+            {
+              "name": "Re-run a partial growth report",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734852789,
+          "name": "Apply migrations",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:18Z",
+          "completed_at": "2026-11-15T07:11:41Z",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": 43688806783,
+      "name": "Quarantine",
+      "head_sha": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+      "status": "completed",
+      "conclusion": "success",
+      "updated_at": "2026-11-15T07:14:46Z",
+      "run_attempt": 1,
+      "jobs": [
+        {
+          "id": 132734852768,
+          "name": "Quarantined specs",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:16Z",
+          "completed_at": "2026-11-15T07:11:27Z",
+          "steps": []
+        },
+        {
+          "id": 132734903148,
+          "name": "Quarantine (e2e/playout-cues.spec.ts)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:30Z",
+          "completed_at": "2026-11-15T07:13:09Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734903167,
+          "name": "Quarantine (e2e/import-svg-credits.spec.ts)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:29Z",
+          "completed_at": "2026-11-15T07:14:04Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734903171,
+          "name": "Quarantine (e2e/import-prepare.spec.ts)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:29Z",
+          "completed_at": "2026-11-15T07:12:26Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734903173,
+          "name": "Quarantine (e2e/editor-images.spec.ts)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:29Z",
+          "completed_at": "2026-11-15T07:12:35Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132734903231,
+          "name": "Quarantine (e2e/editor-projects.spec.ts)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:11:29Z",
+          "completed_at": "2026-11-15T07:14:20Z",
+          "steps": [
+            {
+              "name": "Upload failure evidence",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132735566547,
+          "name": "Quarantine release",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:14:21Z",
+          "completed_at": "2026-11-15T07:14:45Z",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": 43688981785,
+      "name": "deploy-verify",
+      "head_sha": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+      "status": "completed",
+      "conclusion": "success",
+      "updated_at": "2026-11-15T07:14:14Z",
+      "run_attempt": 1,
+      "jobs": [
+        {
+          "id": 132735374153,
+          "name": "Verify production deployment",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:13:31Z",
+          "completed_at": "2026-11-15T07:13:52Z",
+          "steps": [
+            {
+              "name": "Report a failed production deployment",
+              "conclusion": "skipped"
+            },
+            {
+              "name": "File / update the production issue",
+              "conclusion": "skipped"
+            }
+          ]
+        },
+        {
+          "id": 132735374301,
+          "name": "Deep link on the deployed bundle",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-15T07:13:32Z",
+          "completed_at": "2026-11-15T07:14:13Z",
+          "steps": []
+        },
+        {
+          "id": 132735375500,
+          "name": "Drift check (live vs main)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-15T07:13:30Z",
+          "completed_at": "2026-11-15T07:13:29Z",
+          "steps": []
+        }
+      ]
+    }
+  ],
+  "scope": "Exact-merge engineering/deployment monitoring complete. Skipped jobs/steps retain their actual conclusions. No real-provider or hosted owner acceptance inferred; no E5F phase PASS."
+}

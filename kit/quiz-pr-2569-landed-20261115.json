@@ -28,30 +28,42 @@
   "post": {
     "ci": {
       "run": 43688806825,
-      "status": "in_progress"
+      "status": "completed",
+      "result": "success",
+      "completedObserved": "2026-11-15T07:22:02Z"
     },
     "configured": {
       "run": 43688806801,
-      "status": "in_progress"
+      "status": "completed",
+      "result": "success",
+      "completedObserved": "2026-11-15T07:28:33Z"
     },
     "codeql": {
       "run": 43688806769,
-      "status": "in_progress"
+      "status": "completed",
+      "result": "success",
+      "completedObserved": "2026-11-15T07:29:26Z"
     },
     "postLand": {
       "run": 43688806804,
-      "result": "success"
+      "result": "success",
+      "status": "completed",
+      "completedObserved": "2026-11-15T07:12:28Z"
     },
     "quarantine": {
       "run": 43688806783,
-      "result": "success"
+      "result": "success",
+      "status": "completed",
+      "completedObserved": "2026-11-15T07:14:46Z"
     },
     "deployment": {
       "run": 43688981785,
       "result": "success",
       "verifyProduction": 132735374153,
       "deepLink": 132735374301,
-      "drift": "skipped/notPASS"
+      "drift": "skipped/notPASS",
+      "status": "completed",
+      "completedObserved": "2026-11-15T07:14:14Z"
     },
     "deploymentBookkeepingSkips": [
       43688844394,

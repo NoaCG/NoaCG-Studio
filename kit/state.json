@@ -4151,7 +4151,7 @@
         "base": "1b7e067c537d567e119c5f886b22f521b2a80503",
         "receipt": "quiz-pr-2569-prequeue-20261114.json",
         "sha256": "470c83621736fc0aebc978b04984d6f5f2c67358c4c11e4451d990ec88821126",
-        "status": "MERGED/deployedactual3b06; rootactive exactmergeCI/configured/CodeQLpending",
+        "status": "MERGED/deployed; exact-merge post checks SUCCESS; hosted owner QA pending; no phase PASS",
         "ownerComment": 6885285874,
         "ci": 43648944689,
         "codeql": 43648940999,
@@ -4160,8 +4160,9 @@
           "commit": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
           "trigger": "PR opened",
           "since": "2026-11-14T22:36:07.728630Z",
-          "status": "running",
-          "noDuplicateRequest": true
+          "status": "completed",
+          "noDuplicateRequest": true,
+          "hasAnyFindings": false
         },
         "monitorSession": null,
         "readyReceipt": "quiz-pr-2569-ready-authwait-20261114.json",
@@ -4227,7 +4228,8 @@
           "run": 43687919642,
           "sha": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
           "base": "4f62bb9ce9f4382e426fc104f8a9a7941b3ae230",
-          "status": "in_progress"
+          "status": "completed",
+          "conclusion": "success"
         },
         "stamp": {
           "id": 58951157881,
@@ -4274,30 +4276,42 @@
           "post": {
             "ci": {
               "run": 43688806825,
-              "status": "in_progress"
+              "status": "completed",
+              "result": "success",
+              "completedObserved": "2026-11-15T07:22:02Z"
             },
             "configured": {
               "run": 43688806801,
-              "status": "in_progress"
+              "status": "completed",
+              "result": "success",
+              "completedObserved": "2026-11-15T07:28:33Z"
             },
             "codeql": {
               "run": 43688806769,
-              "status": "in_progress"
+              "status": "completed",
+              "result": "success",
+              "completedObserved": "2026-11-15T07:29:26Z"
             },
             "postLand": {
               "run": 43688806804,
-              "result": "success"
+              "result": "success",
+              "status": "completed",
+              "completedObserved": "2026-11-15T07:12:28Z"
             },
             "quarantine": {
               "run": 43688806783,
-              "result": "success"
+              "result": "success",
+              "status": "completed",
+              "completedObserved": "2026-11-15T07:14:46Z"
             },
             "deployment": {
               "run": 43688981785,
               "result": "success",
               "verifyProduction": 132735374153,
               "deepLink": 132735374301,
-              "drift": "skipped/notPASS"
+              "drift": "skipped/notPASS",
+              "status": "completed",
+              "completedObserved": "2026-11-15T07:14:14Z"
             },
             "deploymentBookkeepingSkips": [
               43688844394,
@@ -4318,6 +4332,13 @@
           "reviews": "Four finished quizRules/fullSO/reassessment Codex sessions archived via supportedappAPI; actualverdicts/proofs retained. Originalbuilder/native6af840 kept forongoingE5F andretainedWIP, no cleanup of valuableworktrees.",
           "ownerQA": "Asked samechat freshhostedtab/disposablequiz Paris→Helsinki reviewedApply/Undo afternormaldeployment verified; answerpending.",
           "scope": "Partialquizfix landing only; 6/11phasesPASS, fullE5F stillincomplete. Retained2552/6bc/SVGstop/allattempts/E4boundary unchanged."
+        },
+        "postComplete": {
+          "receipt": "quiz-pr-2569-post-complete-20261115.json",
+          "sha256": "55ef3f8e0823aae926dd1da15b3cd28b73e26f289366190f08dbe2847f07b9a1",
+          "ownerComment": 6885285874,
+          "repairMonitoring": "COMPLETE; all owned post results terminal; attempts preserved0",
+          "hostedQA": "pending"
         }
       },
       "queueResumeBlock": {
