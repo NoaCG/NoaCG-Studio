@@ -44,11 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "V5 accepted and Bridge 0.12.0 Windows download verified. V6 fresh local worker begins Rules and reproduction. Owned blank vMix Trial 29.0.0.49 read only by XML with two blank inputs, idle outputs and both state files restored; ffmpeg and ffprobe verified. Required real tests remain local and separate.",
-      "step": "build",
-      "phase": "v6",
+      "head": "4060483d9d2d9cb6f87175a8a8f0bb0115bba9dc",
       "session": "/root/v6_builder",
-      "head": "6da76c942cc19136b67ed0235d8074733b129257"
+      "note": "Original active block renewed under standing authorization. V6 Rules-only draft and baseline fake vMix reproduction ready for fresh independent Rules review. No product edits or physical device action by builder yet.",
+      "pr": 2575,
+      "step": "build",
+      "phase": "v6"
     }
   ],
   "owner": [],
