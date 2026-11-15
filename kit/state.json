@@ -1501,7 +1501,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Same builder readonly blank/previews isolation assessment; hosted owner quiz Paris→Helsinki Apply/Undo reply independently pending",
+    "what": "Fresh read-only blank/previews Rules-first review; hosted owner quiz Edit Apply Undo independently pending",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4356,13 +4356,21 @@
       }
     },
     "blankIsolationAssessment": {
-      "status": "READONLYassessment admitted; no productedit/test/newallowance",
+      "status": "READONLY assessment complete; root accepts narrow scope for fresh Rules-first review only, no product code admitted",
       "actor": "/root/editor_e5f_cloud_builder",
       "native": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
       "brief": "briefs/e5f-blank-isolation-assessment-20261115.txt",
       "sha256": "421b571048e8897ec5964dcf627783f331dbfaa1187b9d3525adfe6de2d33c03",
-      "scope": "Nextalreadyapprovedparagraph2 isolation fromretained6bc, preserveSVGstop/deployedassistant/E4boundary; no codeuntilrootadmission/earlierdeliverysettled"
+      "scope": "Nextalreadyapprovedparagraph2 isolation fromretained6bc, preserveSVGstop/deployedassistant/E4boundary; no codeuntilrootadmission/earlierdeliverysettled",
+      "proposal": "blank-isolation-assessment-20261115.md",
+      "proposalSha256": "1c9a400b0f913e4cc07ee2881cb58e5224d7aa0e4648edcdda04063bc73a59ee",
+      "rulesIntent": {
+        "actor": "/root/editor_blank_rules_first",
+        "brief": "briefs/e5f-blank-rules-first-20261115.txt",
+        "sha256": "7d7b3ad055835c2cdd30ef9e6ba56bede8cd6107e3fd77818b94e1a4c6844b63",
+        "status": "intent before launch"
+      }
     }
   },
   "handoffHistory": [
