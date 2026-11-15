@@ -170,8 +170,16 @@ Every valid full native snapshot records a confirmed unmute, a foreign or
 missing occurrence, or a changed connection before any state, readiness or
 media checks. An acknowledged list change admits its predecessor and successor
 only for its own input. The pre-append Pause requires the same selection
-throughout. A foreign occurrence or changed connection stops armed work before
-any subsequent compact timer samples can authorize a write.
+throughout. A confirmed foreign occurrence, changed timed connection or
+contradictory measured loop or duration retires the old timed instance. A
+confirmed nonloop rewind over 750 ms compares against the highest trusted
+position and retires the instance in either full or compact reads. Only an
+own seek or reveal with positive confirmation rebases the nonloop checkpoint. Unreadable playback, 0/0
+timing or loss of expected Audio mute readback disarms work and preserves the
+passive instance and position checkpoint. A readable change from a frozen exit
+state or position ends its restoration authority even if that state later
+returns. An acknowledged change and a native Loop wrap retain their existing
+confirmation paths.
 
 ## Verification, release and rollback
 

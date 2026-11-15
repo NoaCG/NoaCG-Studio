@@ -59,6 +59,7 @@ interface TakeIdentity {
   key: string;
   list: VmixVideoList;
   lastMeasuredPositionMs?: number;
+  timedConnectionId?: number;
   trim?: ClipSegment;
   end: NonNullable<MediaPlayback['end']>;
   fadeOut?: number;
@@ -190,9 +191,14 @@ function sameSelection(a: VmixVideoList, b: VmixVideoList): boolean {
   return a.selected === b.selected && sameItems(a.items, b.items);
 }
 
-function rememberSelection(take: TakeIdentity, list: VmixVideoList): void {
+const rewound = (take: TakeIdentity, position: number, loop: boolean) =>
+  !loop && take.lastMeasuredPositionMs !== undefined && position + 750 < take.lastMeasuredPositionMs;
+
+function rememberSelection(take: TakeIdentity, list: VmixVideoList, rebased = false): void {
   take.list = list;
-  if (list.durationMs > 0) take.lastMeasuredPositionMs = list.positionMs;
+  if (list.durationMs > 0) {
+    take.lastMeasuredPositionMs = rebased || list.loop ? list.positionMs : Math.max(take.lastMeasuredPositionMs ?? 0, list.positionMs);
+  }
 }
 
 function addedInput(known: ReadonlyMap<string, VmixInput>, xml: VmixXml): VmixInput | null | undefined {
@@ -280,14 +286,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     }
     const take = saved.take;
     if (!take) return saved;
-    if (!current || current.input.key !== take.key || !sameSelection(current.list, take.list) ||
-        (!take.presentation.cover && !current.list.loop && current.list.durationMs > 0 && take.lastMeasuredPositionMs !== undefined &&
-          current.list.positionMs + 750 < take.lastMeasuredPositionMs)) {
-      stopWork(saved);
-      delete saved.take;
-    } else if (!take.presentation.cover && (!take.trim || current.list.positionMs >= take.trim.inMs)) {
-      rememberSelection(take, current.list);
-    }
+    if (!current || current.input.key !== take.key || !sameSelection(current.list, take.list)) retireTake(saved, take);
     return saved;
   }
 
@@ -350,10 +349,31 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     work.out?.finish(result);
   }
 
+  function disarmWork(saved: PlayerMemory) {
+    if (saved.take) saved.take.armed = false;
+    stopWork(saved);
+  }
+
+  function retireTake(saved: PlayerMemory, take: TakeIdentity) {
+    if (saved.take !== take) return;
+    const { presentation } = take;
+    const cover = presentation.cover;
+    if (cover?.mute && sameSelection(cover.mute.list, take.list)) delete cover.mute;
+    if (presentation.stoppedExit?.instance === take.id) delete presentation.stoppedExit;
+    delete saved.take;
+    stopWork(saved);
+  }
+
+  function forgetMovedStop(take: TakeIdentity, state: string, position: number): boolean {
+    const frozen = take.presentation.stoppedExit;
+    if (!frozen || (frozen.state === state && frozen.position === position)) return false;
+    delete take.presentation.stoppedExit;
+    return true;
+  }
+
   function supersedeWork(saved: PlayerMemory) {
     saved.generation += 1;
-    stopWork(saved);
-    if (saved.take) saved.take.armed = false;
+    disarmWork(saved);
   }
 
   function keyed(mixer: PlayerMixer, key: string): PlayerSend {
@@ -459,27 +479,49 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
   }
 
   function witnessSnapshot(port: number, connectionId: number | undefined, xml: VmixXml, pending?: PlayerTransition): boolean {
+    let admitted = !pending;
     for (const player of VMIX_PLAYERS) {
       const saved = memories.get(port + '/' + player);
       if (!saved) continue;
       for (const [key, presentation] of saved.presentations) {
         const raw = xml.lists.get(key);
+        const list = raw && readablePlayback(raw) ? raw : undefined;
         observeUnmuted(presentation, raw?.muted);
         const cover = presentation.cover;
+        if (cover?.mute && cover.mute.connectionId !== connectionId) delete cover.mute;
         const ownTransition = pending?.key === key && pending.player === player;
-        if (cover?.mute && (cover.mute.connectionId !== connectionId ||
-            (!ownTransition && (!raw || !readablePlayback(raw) || !sameSelection(cover.mute.list, raw))))) delete cover.mute;
-      }
-      const { work, take } = saved;
-      if (work && take) {
-        const list = playbackList(xml, take.key);
-        if (work.connectionId !== connectionId || !list || !sameSelection(take.list, list)) {
-          take.armed = false;
-          stopWork(saved);
+        if (ownTransition) admitted = pending.accepts(list);
+        if (!(ownTransition && admitted) && cover?.mute && (!list || !sameSelection(cover.mute.list, list))) {
+          delete cover.mute;
         }
       }
+      const { work, take } = saved;
+      if (!take) continue;
+      const list = playbackList(xml, take.key);
+      const stillList = xml.inputs.some(input => input.key === take.key && input.type === 'VideoList');
+      const timed = take.timedConnectionId !== undefined;
+      if (!stillList || (timed && take.timedConnectionId !== connectionId)) {
+        retireTake(saved, take);
+        continue;
+      }
+      // An accepted own mutation can change this occurrence but grants no exception to the other player.
+      if (admitted && pending?.key === take.key && pending.player === player) continue;
+      if ((list && !sameSelection(take.list, list)) ||
+          (list?.durationMs && timed && (list.durationMs !== take.list.durationMs || list.loop !== take.list.loop)) ||
+          (list?.durationMs && !take.presentation.cover && rewound(take, list.positionMs, list.loop))) {
+        retireTake(saved, take);
+        continue;
+      }
+      const requiredMute = guardFor(take).muted;
+      const movedStop = list?.durationMs && forgetMovedStop(take, list.state, list.positionMs);
+      if (!list || !hasTiming(list, take.file) || movedStop ||
+          (work && requiredMute !== undefined && list.muted !== requiredMute)) {
+        disarmWork(saved);
+        continue;
+      }
+      if (!take.presentation.cover && (!take.trim || list.positionMs >= take.trim.inMs)) rememberSelection(take, list);
     }
-    return !pending || pending.accepts(playbackList(xml, pending.key));
+    return admitted;
   }
 
   function transition(
@@ -646,8 +688,8 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
 
   function reader(
     mixer: PlayerMixer, take: TakeIdentity,
-    { ignoreRewind = false, phase = {}, allowUnknownDuration = false }: {
-      ignoreRewind?: boolean; phase?: OccurrenceGuard; allowUnknownDuration?: boolean;
+    { ignoreRewind = false, phase = {}, allowUnknownDuration = false, owner }: {
+      ignoreRewind?: boolean; phase?: OccurrenceGuard; allowUnknownDuration?: boolean; owner?: PlayerMemory;
     } = {},
   ): ListRead {
     if (!allowUnknownDuration && !hasTiming(take.list, take.file)) return async () => undefined;
@@ -669,7 +711,14 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
         positionMs = await samplePosition(mixer, take, { ...guard, states: ['Completed'] });
       }
       if (!isPosition(positionMs)) return;
-      if (!ignoreRewind && !take.list.loop && take.lastMeasuredPositionMs !== undefined && positionMs + 750 < take.lastMeasuredPositionMs) return;
+      if (!ignoreRewind && rewound(take, positionMs, take.list.loop)) {
+        if (owner) retireTake(owner, take);
+        return;
+      }
+      if (owner?.take === take && forgetMovedStop(take, state, positionMs)) {
+        disarmWork(owner);
+        return;
+      }
       return { ...take.list, state, positionMs, volume, ...(guard.muted === undefined ? {} : { muted: guard.muted }) };
     };
   }
@@ -723,6 +772,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
 
   function attachWork(port: number, player: VmixPlayer, saved: PlayerMemory, take: TakeIdentity, mixer: PlayerMixer, root: string, work: Omit<ClipWork, 'root' | 'generation' | 'connectionId'> = {}) {
     if (mixer.connectionId === undefined || saved.take !== take || !take.presented || !hasTiming(take.list, take.file)) return;
+    take.timedConnectionId = mixer.connectionId;
     const current: ClipWork = { ...work, root, generation: saved.generation, connectionId: mixer.connectionId };
     saved.work = current;
     queueWork(port, player, saved, take, current, 0);
@@ -731,11 +781,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
 
   function queueWork(port: number, player: VmixPlayer, saved: PlayerMemory, take: TakeIdentity, work: ClipWork, delayMs: number) {
     const current = () => saved.work === work && saved.take === take && work.generation === saved.generation;
-    const disarm = () => {
-      if (!current()) return;
-      take.armed = false;
-      stopWork(saved);
-    };
+    const disarm = () => { if (current()) disarmWork(saved); };
     work.cancel = clock.schedule(Math.max(1, Math.ceil(delayMs)), () => {
       if (!current()) return;
       void timerTurn(port, work.connectionId, work.out?.until, async mixer => {
@@ -756,7 +802,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
 
   async function tick(mixer: PlayerMixer, saved: PlayerMemory, take: TakeIdentity, work: ClipWork): Promise<number | null | undefined> {
     const { presentation } = take;
-    const read = reader(mixer, take);
+    const read = reader(mixer, take, { owner: saved });
     const send = keyed(mixer, take.key);
     let row = await read();
     if (!row || (presentation.cover && work.boundaryAt === undefined) || (take.trim && row.positionMs < take.trim.inMs)) return;
@@ -783,7 +829,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
       take.armed = false;
     }
     if (isTrimBoundary && take.end === 'loop') {
-      const continued = await restartLoop(mixer, take, row, send);
+      const continued = await restartLoop(mixer, saved, take, row, send);
       return continued ? 1 : undefined;
     }
     if (autoClear && row.state === 'Running' && !work.out && presentation.fade?.kind !== 'end' && take.fadeOut !== undefined &&
@@ -836,7 +882,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     if (!atEnd(row)) return;
     work.boundaryAt ??= now;
     if (needsSilence) presentation.cover ??= {};
-    const read = reader(mixer, take);
+    const read = reader(mixer, take, { owner: saved });
     if (presentation.alpha !== 0 && needsSilence) {
       if (!(await send('SetAlpha', 0)).ok) return;
       presentation.alpha = 0;
@@ -945,7 +991,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
       volume: phase.fader === 0 ? 0 : undefined,
     };
     delete presentation.cover;
-    rememberSelection(take, revealed);
+    rememberSelection(take, revealed, true);
     return revealed;
   }
 
@@ -979,10 +1025,10 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     return revealed;
   }
 
-  async function restartLoop(mixer: PlayerMixer, take: TakeIdentity, row: VmixVideoList, send: PlayerSend) {
+  async function restartLoop(mixer: PlayerMixer, saved: PlayerMemory, take: TakeIdentity, row: VmixVideoList, send: PlayerSend) {
     const phase: OccurrenceGuard = { states: ['Running', 'Completed'], boundary: take.trim!.outMs };
     if (!await muteCover(mixer, take.presentation, send, { ...take, list: row }, phase)) return false;
-    const read = reader(mixer, take);
+    const read = reader(mixer, take, { owner: saved });
     const atBoundary = await read();
     if (!atBoundary || !await pauseAt(atBoundary, read, send, mixer.until, take.trim!.outMs)) return false;
     const playing = await startCovered(mixer, take, send, true);
@@ -1243,9 +1289,13 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
       removedAt = Date.now();
       const expected = appended.slice(remove);
       const suffix = (list: VmixVideoList) => list.selected === index - remove && list.loop === loop && sameItems(list.items, expected);
+      const prefixTransition = handoff(started.list, suffix) ?? {
+        player, key,
+        accepts: (list?: VmixVideoList) => !!list && (suffix(list) || sameSelection(list, started.list)),
+      };
       const after = await observe(port, player, mixer, key, list => suffix(list) &&
         (list.state === 'Running' || (list.state === 'Completed' && list.durationMs > 0 && list.positionMs >= list.durationMs)),
-        { transition: handoff(started.list, suffix) });
+        { transition: prefixTransition });
       if (after && 'error' in after) return partial(after);
       if (!after) return uncertain('removing earlier items after the requested file was seen playing');
       // Prefix removal can be observed even if the same selected input lost audio readiness.
@@ -1392,7 +1442,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
     const legacyExit = expectedInstance === undefined && transport && exiting;
     const canTransfer = !!presentation?.cover && !!stoppedExit && (transport || action.verb === 'ending');
     const coverProblem = () => refused('The vMix player is covered after an unconfirmed timed action. Take the cue again or clear the player.');
-    if (presentation?.cover && !canTransfer && (action.verb === 'resume' || action.verb === 'ending' || fadedOut || legacyExit)) {
+    if (presentation?.cover && !canTransfer && (action.verb === 'resume' || action.verb === 'ending' || fadedOut || (exiting && transport))) {
       return coverProblem();
     }
     let transferred: PresentationPhase | undefined;
@@ -1534,12 +1584,17 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
       }
       const emptySuccessor = (list: VmixVideoList) => list.items.length === 0;
       const emptyTransition = emptyMuteSource && presentation ? transition(mixer, presentation, emptyMuteSource, emptySuccessor, true) : undefined;
+      const endingTransition: PlayerTransition | undefined = action.verb === 'ending' && take?.timedConnectionId !== undefined ? {
+        player, key,
+        accepts: list => !!list && sameSelection(list, expectedList) && list.durationMs === expectedList.durationMs &&
+          (list.loop === expectedList.loop || list.loop === loop),
+      } : undefined;
       after = await observe(port, player, mixer, key, list => {
         if (empty) return emptySuccessor(list);
         if (!sameSelection(list, expectedList)) return false;
         if (action.verb === 'ending') return list.loop === loop;
         return list.state === (action.verb === 'resume' ? 'Running' : 'Paused');
-      }, { checkFiles: !recovery, stillOwned: !empty && guardedInstance !== undefined ? confirmOwned : undefined, transition: emptyTransition });
+      }, { checkFiles: !recovery, stillOwned: !empty && guardedInstance !== undefined ? confirmOwned : undefined, transition: emptyTransition ?? endingTransition });
     }
     if (after && 'error' in after) return after;
     if (!after || (action.verb === 'resume' && !readyForPlayback(player, after))) {
@@ -1595,10 +1650,7 @@ export function createVmixPlayers(media: VmixMedia, timerTurn: TimerTurn, clock:
           const cover = presentation.cover;
           if (cover?.mute && !sameVmixPath(cover.mute.root, root)) delete cover.mute;
         }
-        if (saved?.work && !sameVmixPath(saved.work.root, root)) {
-          if (saved.take) saved.take.armed = false;
-          stopWork(saved);
-        }
+        if (saved?.work && !sameVmixPath(saved.work.root, root)) disarmWork(saved);
       }
     },
     close() {

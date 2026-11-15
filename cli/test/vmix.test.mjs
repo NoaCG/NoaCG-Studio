@@ -4268,7 +4268,7 @@ test('AC-12: the first compact read waits for own empty-list SelectIndex in untr
 });
 
 test('AC-12: an exactly stopped settling Out can transfer to Pause or ending without risking removal', async t => {
-  for (const mode of ['guarded pause', 'legacy pause', 'guarded ending', 'completed stop', 'moved stop']) {
+  for (const mode of ['guarded pause', 'legacy pause', 'guarded ending', 'completed stop', 'moved stop', 'restored position', 'restored state']) {
     await t.test(mode, async t => {
       let restoring = false;
       const fixture = await timedFixture(t, {
@@ -4299,13 +4299,23 @@ test('AC-12: an exactly stopped settling Out can transfer to Pause or ending wit
         assert.equal(fixture.row().alpha, 0);
         assert.ok(fixture.row().fader > 0);
         if (mode === 'moved stop') fixture.row().position += 80;
+        const restored = mode === 'restored state' || mode === 'restored position';
+        if (restored) {
+          const row = fixture.row();
+          const { state, position } = row;
+          if (mode === 'restored state') row.state = 'Running';
+          else row.position += 80;
+          assert.equal((await fixture.adapter.status(target)).ok, true);
+          Object.assign(row, { state, position });
+        }
         const start = fake.functions.length;
         restoring = true;
-        const result = await act(mode === 'guarded pause' ? { verb: 'pause-player-held', expectedPlayerInstance }
+        const result = await act(mode === 'guarded pause' || restored ? { verb: 'pause-player-held', expectedPlayerInstance }
           : mode === 'guarded ending' ? { verb: 'ending-player-held', item, expectedPlayerInstance, playback: { end: 'hold' } }
             : { verb: 'pause' });
-        assert.equal(result.ok, mode !== 'moved stop', JSON.stringify(result));
-        if (mode === 'moved stop') {
+        const shouldRestore = mode !== 'moved stop' && !restored;
+        assert.equal(result.ok, shouldRestore, JSON.stringify(result));
+        if (!shouldRestore) {
           assert.equal(fake.functions.length, start);
         } else {
           assert.equal(fixture.row().state, mode === 'completed stop' ? 'Completed' : 'Paused');
@@ -4938,6 +4948,11 @@ test('AC-12: a diagnostic full read retires an armed Hold on a foreign occurrenc
       const healthy = mode === 'healthy status';
       assert.deepEqual(fixture.fake.functions.slice(before).map(fn => fn.name), healthy ? ['Pause'] : []);
       assert.equal(clips.state, healthy ? 'Paused' : 'Running');
+      if (!healthy) {
+        assert.equal((await fixture.read()).instance, undefined);
+        assert.equal((await fixture.expected(result.instance, 'out')).ok, false);
+        assert.equal(fixture.fake.functions.length, before);
+      }
     });
   }
 });
@@ -4970,6 +4985,84 @@ test('AC-12: an own covered list change still observes the other player', async 
   await fixture.advance(470);
   assert.equal(clips.state, 'Running');
   assert.equal(fixture.fake.functions.slice(before).some(fn => fn.params.Input === clips.key), false);
+});
+
+test('AC-12: a positive timed contradiction retires the instance before state or guarded Out can adopt it', async t => {
+  for (const mode of ['loop', 'duration', 'rewind after jitter', 'compact rewind']) {
+    await t.test(mode, async t => {
+      let rewound = false;
+      const fixture = await timedFixture(t, {
+        hook(line) {
+          if (mode !== 'compact rewind' || rewound || !line.endsWith('/@state') || fixture.now() < 20) return false;
+          fixture.row().position = 600;
+          rewound = true;
+          return false;
+        },
+      });
+      const take = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 2.5 } } });
+      assert.equal(take.ok, true);
+      const clips = fixture.row();
+      clips.position = 1800;
+      assert.equal((await fixture.adapter.status(fixture.target)).ok, true);
+      const before = fixture.fake.functions.length;
+      if (mode === 'compact rewind') {
+        await fixture.advance(300);
+        assert.equal(rewound, true);
+      } else if (mode === 'rewind after jitter') {
+        clips.position = 1300;
+        assert.equal((await fixture.read()).instance, take.instance);
+        clips.position = 900;
+        assert.equal((await fixture.adapter.status(fixture.target)).ok, true);
+      } else {
+        if (mode === 'loop') clips.loop = true;
+        else clips.duration = 3900;
+        assert.equal((await fixture.read()).instance, undefined);
+      }
+      Object.assign(clips, { position: 1800, duration: 4000, loop: false });
+      assert.equal((await fixture.read()).instance, undefined);
+      assert.equal((await fixture.expected(take.instance, 'out')).ok, false);
+      await fixture.advance(800);
+      assert.equal(clips.state, 'Running');
+      assert.equal(fixture.fake.functions.length, before);
+    });
+  }
+});
+
+test('AC-12: missing timing or a diagnostic Audio mute disarms without discarding passive ownership', async t => {
+  for (const mode of ['Audio mute', '0/0', 'unreadable']) {
+    await t.test(mode, async t => {
+      const fixture = await timedFixture(t);
+      const audio = mode === 'Audio mute';
+      const take = await fixture.take(audio ? 'sting.wav' : 'clip B.mp4', { playback: { trim: { in: 0.5, out: 1 } } });
+      assert.equal(take.ok, true);
+      const input = audio ? fixture.fake.inputs.find(row => row.title === 'NoaCG Audio') : fixture.row();
+      const previous = { muted: input.muted, position: input.position, duration: input.duration, state: input.state };
+      if (audio) input.muted = true;
+      else if (mode === '0/0') Object.assign(input, { position: 0, duration: 0 });
+      else input.state = 'InvalidPlaybackState';
+      assert.equal((await fixture.adapter.status(fixture.target)).ok, true);
+      Object.assign(input, previous);
+      const before = fixture.fake.functions.length;
+      await fixture.advance(600);
+      assert.equal(input.state, 'Running');
+      assert.equal(fixture.fake.functions.length, before);
+      const current = (await fixture.joinTurn()).value.players.find(row => row.player === (audio ? 'audio' : 'clips'));
+      assert.equal(current.instance, take.instance);
+    });
+  }
+});
+
+test('AC-12: an acknowledged live ending may change the measured Loop mode', async t => {
+  const fixture = await timedFixture(t, { loopDelayMs: 70 });
+  const take = await fixture.take('clip B.mp4', { playback: { end: 'clear' } });
+  assert.equal(take.ok, true);
+  const ending = await fixture.expected(take.instance, 'ending', { playback: { end: 'loop' } });
+  assert.equal(ending.ok, true, JSON.stringify(ending));
+  assert.equal((await fixture.read()).instance, take.instance);
+  assert.equal(fixture.row().loop, true);
+  await fixture.advance(4200);
+  assert.equal((await fixture.read()).instance, take.instance);
+  assert.equal(fixture.row().state, 'Running');
 });
 
 test('AC-12: an own index handoff cannot regress to its predecessor after first successor evidence', async t => {
