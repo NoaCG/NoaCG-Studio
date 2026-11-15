@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Exact local Bridge and Studio, shared Windows j-5272 (24/24) and owned native passed. Full independent B confirmed native authority defects and missing Studio live ending under approved AC-12. Native repair proceeds in the same worker. Studio overlapping ProductionPage.tsx waits for open #2573. No push, queue or release.",
+      "note": "Native grouped continuity correction pinned clean at df5aa437. Bridge build and 14 final focused checks passed, integrated receipt pending. V6 Studio live Ending work can proceed on non-overlapping control/editor files. Open #2573 still owns ProductionPage.tsx, so the final page wiring waits there. Same draft remote 31815116. No publication, queue or release.",
       "step": "build",
-      "pr": 2575,
       "phase": "v6",
+      "head": "df5aa4370a228ea017a73a052f1a6a7d14bcb4ba",
       "session": "/root/v6_builder",
-      "head": "4c68c7ab51c3c8d6b5d37513995e2a164048d3ad"
+      "pr": 2575
     }
   ],
   "owner": [],
