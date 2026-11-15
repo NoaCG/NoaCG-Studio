@@ -35,7 +35,7 @@
 // is what lets Node resolve it.
 
 import type { Show, ShowCue } from './shows';
-import { cueTextKey } from './rundownHistory.ts';
+import { cueFieldsKey, cueTextKey } from './rundownHistory.ts';
 import { selectedFields, selectionReadOnly } from './productionData.ts';
 import { typedReadOnly } from './ografTyped.ts';
 import { settleFolders } from './showFolders.ts';
@@ -97,12 +97,15 @@ function draftTextAllowed(cue: ShowCue, text: ShowCue, baseline: ShowCue, collec
 export function guardMergedCueDrafts(doc: Show, theirs: Show, drafts: readonly TeamCueDraftText[]): string[] {
   if (!drafts.length || !doc.cues) return [];
   const baselines = new Map(theirs.cues?.map(cue => [cue.id, cue]));
-  const candidates = new Map(drafts.map(proof => [proof.cueId, proof.after]));
+  const checkedIds = new Set(drafts.map(proof => proof.cueId));
   let refused = false;
   doc.cues = doc.cues.map(cue => {
+    if (!checkedIds.has(cue.id)) return cue;
     const baseline = baselines.get(cue.id);
-    const after = candidates.get(cue.id);
-    if (!baseline || !after || cueTextKey(doc, cue.id) !== after || cueTextKey(theirs, cue.id) === after
+    if (!baseline) return cue;
+    const after = cueFieldsKey(cue);
+    if (!drafts.some(proof => proof.cueId === cue.id && proof.after === after)
+      || cueFieldsKey(baseline) === after
       || draftTextAllowed(cue, cue, baseline, doc.collections)) return cue;
     refused = true;
     return overlayCueText(cue, baseline);

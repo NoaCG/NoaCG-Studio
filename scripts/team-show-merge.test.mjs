@@ -125,7 +125,9 @@ test('a teammate mapping a connected field blocks a draft edit to that field', (
 
   // A later local edit can attach the mapping after the first merge accepted the text.
   const later = { ...ours, collections: theirs.collections };
-  assert.deepEqual(guardMergedCueDrafts(later, base, [draft]), ['the rundown']);
+  const newer = { ...ours, cues: [{ ...original, values: { f0: 'Newer draft' } }] };
+  const newerProof = { ...draft, after: cueTextKey(newer, 'A') };
+  assert.deepEqual(guardMergedCueDrafts(later, base, [draft, newerProof]), ['the rundown']);
   assert.deepEqual(later.cues[0], original);
   assert.deepEqual(later.collections, theirs.collections);
 });

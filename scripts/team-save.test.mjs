@@ -23,12 +23,12 @@ const deferred = () => {
 };
 
 /** Execute the real save controller with a delayed disk and RPC, without an account/server. */
-function harness(pending = true, graphics = [], storage = undefined, settle = { settleGraphics: (graphics) => ({ graphics, changed: false }) }, retainFails = { left: 0 }) {
+function harness(pending = true, graphics = [], storage = undefined, settle = { settleGraphics: (graphics) => ({ graphics, changed: false }) }, retainFails = { left: 0 }, cues = undefined) {
   const disk = deferred();
   const request = deferred();
   const requests = [];
   const answers = [];
-  let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics };
+  let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics, ...(cues ? { cues } : {}) };
   let retained = { local };
   const stubs = {
     './supabase': { getSupabase: async () => ({ storage, rpc: async (_name, args) => { requests.push(args); return answers.length ? answers.shift() : request.promise; } }) },
@@ -38,7 +38,7 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     // Saves in parts (live-publishing G4) are off here: the whole save these tests pin.
     './partialWrites': { partialWritesOn: async () => false, unitPace: async () => {}, noteWritten: () => {} },
     './unitPatch': {},
-    '../model/shows': {},
+    '../model/shows': { separateMergedScenes: show => show },
     '../model/teamShows': { loadTeamShows: () => [local], applyServerTeamShow: doc => { local = doc; } },
     '../model/rundownHistory': history,
     '../model/teamShowMerge': teamMerge,
@@ -62,7 +62,8 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
       server.set(doc.id, { token: 'base', doc, teamId: 'team', updatedBy: 'owner' });
       if (pending) { dirty.add(doc.id); setSaving(doc.id, 'pending'); }
     }
-    export function editForTest(id: string) { scheduleSave(id); }
+    export function editForTest(id: string, draft?: TeamCueDraftText, previous?: Show) { scheduleSave(id, draft, previous); }
+    export function pushForTest(id: string) { return pushSave(id); }
     export function seedBaseForTest(doc: Show) { server.set(doc.id, { token: 'base', doc, teamId: 'team', updatedBy: 'owner' }); }
     export function pacingForTest() { return { readFailures, readsResumeAt, saveFailures, savesResumeAt }; }
     export function noteReadForTest(failed: boolean) { noteRead(failed); }
@@ -79,6 +80,13 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     controller: exports, disk, request, requests, answers,
     local: () => local,
     edit(name) { local = { ...local, name }; exports.editForTest(local.id); },
+    typeCue(cueId, label) {
+      const previous = local;
+      local = { ...local, cues: local.cues.map(cue => cue.id === cueId ? { ...cue, label } : cue) };
+      exports.editForTest(local.id, {
+        cueId, before: history.cueTextKey(previous, cueId), after: history.cueTextKey(local, cueId),
+      }, previous);
+    },
     retained: () => retained?.local ?? null,
   };
 }
@@ -95,6 +103,28 @@ test('team flush includes an edit made while its browser-storage commit was pend
   assert.equal(await saving, null);
   assert.equal(h.retained(), null);
   assert.equal(h.controller.getTeamState().saving.show, undefined);
+});
+
+test('two CAS refusals retire the observed prefix of a still-checked cue draft', async () => {
+  const cue = { id: 'cue', sourceId: 'g', label: 'A', values: {} };
+  const h = harness(false, [], undefined, undefined, undefined, [cue]);
+  const base = h.local();
+  h.typeCue(cue.id, 'B');
+  h.disk.resolve(null);
+  const pushed = h.controller.pushForTest(base.id);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.requests[0]?.p_doc.cues[0]?.label, 'B');
+  h.typeCue(cue.id, 'C');
+  const advanced = { ...base, cues: [{ ...cue, label: 'B', accentColor: '#9900CC' }] };
+  const remote = { ...base, cues: [{ ...cue, accentColor: '#6600CC' }] };
+  h.answers.push(
+    { data: { saved: false, updated_at: 'second-head', doc: remote }, error: null },
+    { data: { saved: true, updated_at: 'accepted' }, error: null },
+  );
+  h.request.resolve({ data: { saved: false, updated_at: 'first-head', doc: advanced }, error: null });
+  await pushed;
+  assert.deepEqual(h.requests.map(request => request.p_doc.cues[0]?.label), ['B', 'C', 'A']);
+  assert.equal(h.requests[2].p_doc.cues[0].accentColor, '#6600CC');
 });
 
 test('per-edit receipt requires an advanced revision and the exact intended rundown', async () => {

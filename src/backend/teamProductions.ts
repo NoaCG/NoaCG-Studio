@@ -693,6 +693,14 @@ function rememberCueDrafts(id: string, local: Show, drafts: LocalCueDraft[]): Lo
   return applicable;
 }
 
+/** A returned server document consumes already observed text on either CAS outcome. */
+function remainingCueDrafts(drafts: LocalCueDraft[], before: Show, observed: Show): LocalCueDraft[] {
+  return drafts.filter(proof => {
+    const text = cueTextKey(observed, proof.cueId);
+    return text !== null && proof.after !== text && (proof.before === text || text === cueTextKey(before, proof.cueId));
+  });
+}
+
 function scheduleSave(id: string, draft?: TeamCueDraftText, previous?: Show | null): void {
   dirty.add(id);
   setSaving(id, 'pending');
@@ -788,10 +796,7 @@ async function pushSave(id: string): Promise<void> {
         server.set(id, { token: answer.updatedAt, doc, updatedBy: answer.updatedBy, teamId: known.teamId });
         const current = loadTeamShows().find(show => show.id === id);
         const newer = pendingTeamEdits(owner.userId)[id];
-        const proofs = (localCueDrafts.get(id) ?? []).filter(proof => {
-          const accepted = cueTextKey(doc, proof.cueId);
-          return proof.after !== accepted && (proof.before === accepted || accepted === cueTextKey(base, proof.cueId));
-        });
+        const proofs = remainingCueDrafts(localCueDrafts.get(id) ?? [], base, doc);
         if (dirty.has(id) && current) {
           const cueDrafts = rememberCueDrafts(id, current, proofs);
           if (newer?.token === token && JSON.stringify(current) === JSON.stringify(newer.local)) {
@@ -834,7 +839,7 @@ async function pushSave(id: string): Promise<void> {
         lost = [...new Set([...lost, ...again.lost])];
         gathered ||= again.gathered;
       }
-      const guarded = guardMergedCueDrafts(next, theirs, latestDrafts);
+      const guarded = guardMergedCueDrafts(next, theirs, [...continuing, ...latestDrafts]);
       if (guarded.length) lost = [...new Set([...lost, ...guarded])];
       if (lost.length > 0 || gathered) {
         const who = teamMemberName(known.teamId, answer.updatedBy);
@@ -850,10 +855,11 @@ async function pushSave(id: string): Promise<void> {
       next = separateMergedScenes(next, theirs);
       applyServerTeamShow({ ...next, teamId: known.teamId });
       sent = { ...next, teamId: known.teamId };
+      const pending = remainingCueDrafts(latestDrafts, base, theirs);
       base = theirs;
       token = answer.updatedAt;
       doc = teamDoc(next);
-      cueDrafts = rememberCueDrafts(id, doc, latestDrafts);
+      cueDrafts = rememberCueDrafts(id, doc, pending);
       retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: answer.updatedBy, teamId: known.teamId, cueDrafts });
       if (attempt === MAX_SAVE_ATTEMPTS - 1) {
         failure = 'Teammates keep saving this production - your edit is on screen but not saved yet.';
