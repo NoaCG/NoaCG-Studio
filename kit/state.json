@@ -44,13 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "head": "4060483d9d2d9cb6f87175a8a8f0bb0115bba9dc",
-      "session": "/root/v6_builder",
-      "note": "Original active block renewed under standing authorization. V6 Rules-only draft and baseline fake vMix reproduction ready for fresh independent Rules review. No product edits or physical device action by builder yet.",
-      "pr": 2575,
+      "head": "318151166087a1ceda38249e2d53ce55494a6e4d",
       "step": "build",
       "phase": "v6",
-      "repairComment": 6886580411
+      "session": "/root/v6_builder",
+      "note": "Independent Rules review complete after native 25p probes documented transient seek, guarded XMLTEXT and ramp supersession. Approved exact Rules published; builder implementing V6, real verification stays on isolated Windows vMix. Separate quarantine change on main is untouched; explicit local browser evidence still required.",
+      "pr": 2575
     }
   ],
   "owner": [],
