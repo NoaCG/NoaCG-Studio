@@ -30,7 +30,7 @@ export interface FakeVmixRequest {
 }
 
 interface FakeVmixMediaAction {
-  verb: 'take' | 'out' | 'out-player-instance' | 'pause' | 'resume' | 'out-player-held' | 'pause-player-held' | 'resume-player-held' | 'out-player-fade-held';
+  verb: 'take' | 'out' | 'out-player-instance' | 'pause' | 'resume' | 'out-player-held' | 'pause-player-held' | 'resume-player-held' | 'out-player-fade-held' | 'ending-player-held';
   slot: VmixPlayerSlot;
   item: ItemRef;
   cueId?: string;
@@ -141,6 +141,9 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
         (!playerAction.expectedPlayerInstance || playerAction.expectedPlayerInstance !== before.instance)) {
         return { ok: false, v: PLAYOUT_V, error: { hop: 'target', code: 'refused', detail: 'The playback instance changed.' } };
       }
+      if (verb === 'ending-player-held' && (!media.timedPlayback || playerAction.item.name !== before.playerSource)) {
+        return { ok: false, v: PLAYOUT_V, error: { hop: 'target', code: 'refused', detail: 'The live ending is unavailable.' } };
+      }
       generation += 1;
       if (verb === 'take') {
         const file = playerAction.item.name;
@@ -156,6 +159,8 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
         };
       } else if (verb.startsWith('out')) {
         players[player] = { player, layer: 0, producer: 'empty', playerOccupied: false, generation, paused: false, loop: false };
+      } else if (verb === 'ending-player-held') {
+        players[player] = { ...before, generation, loop: playerAction.playback?.end === 'loop' };
       } else {
         players[player] = { ...before, generation, paused: verb.startsWith('pause') };
       }

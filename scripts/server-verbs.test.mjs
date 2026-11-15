@@ -294,6 +294,82 @@ test('vMix keeps the old player for explicit guarded Out when the configured rou
   assert.equal(out.expectedPlayerInstance, old.instance);
 });
 
+test('vMix live Ending keeps the selected instance and clock anchor through Hold, Loop and Clear', async () => {
+  const r = vmixRig();
+  assert.equal((await r.press(r.a, 'take')).ok, true);
+  const slot = vmixSlot('clips');
+  const { instance, takenAt } = r.h.store.ownership.get().onAir[r.clips.id];
+  const [address] = Object.keys(r.h.store.timing.get());
+  const timing = { segment: { start: 0.75, length: 2.5 }, position: 1.1, at: 1250, paused: true, loop: false, source: 'server' };
+  r.h.store.apply(parts => ({ ...parts, timing: { ...parts.timing, [address]: timing } }));
+  const requests = [];
+  r.h.io.act = async (_, action) => {
+    requests.push(action);
+    return { ...r.accept(action), instance };
+  };
+  const cases = [
+    ['loop', { end: 'loop' }],
+    ['clear', { end: 'clear', fadeOut: 0.5 }],
+    ['hold', undefined],
+  ];
+  for (const [end, playback] of cases) {
+    const edited = { ...r.a, playback: { end, fadeOut: 'short', fadeIn: 'long', trimIn: 0.75 } };
+    assert.equal((await r.press(edited, 'ending')).ok, true);
+    assert.deepEqual(requests.at(-1), {
+      verb: 'ending', slot, expectedPlayerInstance: instance, item: { kind: 'media', name: r.clips.name },
+      ...(playback ? { playback } : {}),
+    });
+    assert.deepEqual(r.h.store.ownership.get().onAir[r.clips.id], { cueId: r.a.id, slot, instance, takenAt, end });
+    assert.deepEqual(r.h.store.timing.get()[address], { ...timing, loop: end === 'loop' });
+  }
+  assert.deepEqual(r.sent.map(([, verb]) => verb), ['take', 'ending', 'ending', 'ending']);
+});
+
+test('vMix serializes explicitly selected live endings for the same instance and revokes them on replacement', async () => {
+  const r = vmixRig();
+  assert.equal((await r.press(r.a, 'take')).ok, true);
+  const { instance } = r.h.store.ownership.get().onAir[r.clips.id];
+  const entered = Promise.withResolvers();
+  const finish = Promise.withResolvers();
+  r.h.io.act = async (_, action) => {
+    if (action.playback?.end === 'loop') {
+      entered.resolve();
+      await finish.promise;
+    }
+    return { ...r.accept(action), ...(action.verb === 'ending' ? { instance } : {}) };
+  };
+  const loop = r.press({ ...r.a, playback: { end: 'loop' } }, 'ending');
+  await entered.promise;
+  const hold = r.press({ ...r.a, playback: { end: 'hold' } }, 'ending');
+  const replace = r.press(r.b, 'take');
+  const stale = r.press({ ...r.a, playback: { end: 'clear' } }, 'ending');
+  finish.resolve();
+  assert.equal((await loop).ok, true);
+  assert.equal((await hold).ok, true);
+  assert.equal((await replace).ok, true);
+  assert.equal((await stale).ok, false);
+  assert.deepEqual(r.sent.map(([, verb]) => verb), ['take', 'ending', 'ending', 'take']);
+  assert.equal(r.h.store.ownership.get().onAir[r.clips.id].cueId, r.b.id);
+});
+
+test('vMix has no live Ending dispatch for a still or Play next and cannot adopt an uncertain ending', async () => {
+  const r = vmixRig();
+  const edited = { ...r.a, playback: { end: 'loop' } };
+  assert.equal((await r.press(edited, 'ending')).ok, false);
+  assert.equal((await r.press(r.a, 'take')).ok, true);
+  assert.equal((await r.press({ ...r.a, playback: { end: 'next' } }, 'ending')).ok, false);
+  r.clips.mediaKind = 'still';
+  assert.equal((await r.press(edited, 'ending')).ok, false);
+  r.clips.mediaKind = 'movie';
+  assert.deepEqual(r.sent.map(([, verb]) => verb), ['take']);
+  r.h.io.act = async (_, action) => ({ ...r.accept(action), state: 'server', detail: 'Ending reply lost', playerUncertain: true });
+  const outcome = await r.press(edited, 'ending');
+  assert.equal(outcome.ok, false);
+  assert.match(outcome.note, /Ending reply lost/);
+  assert.deepEqual(r.h.store.ownership.get().onAir, {});
+  assert.deepEqual(r.sent.map(([, verb]) => verb), ['take', 'ending']);
+});
+
 test('a vMix reply cannot keep earlier authority when its cue is rebound in flight', async () => {
   for (const resultKind of ['accepted', 'uncertain']) {
     const r = vmixRig();

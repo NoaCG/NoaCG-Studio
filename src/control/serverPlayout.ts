@@ -60,7 +60,7 @@ export interface ServerLive {
  */
 export type ServerOnAir = Readonly<Record<string, ServerLive>>;
 
-export type ServerVerb = 'take' | 'update' | 'next' | 'out' | 'pause' | 'resume';
+export type ServerVerb = 'take' | 'update' | 'next' | 'out' | 'pause' | 'resume' | 'ending';
 
 /** Whether THIS cue is what the page last put up on its item. */
 export function serverCueLive(onAir: ServerOnAir, item: PlayoutItem | null, cue: ShowCue | null): boolean {
@@ -118,7 +118,7 @@ export function serverLayers(onAir: ServerOnAir, items: PlayoutItem[], cues: Sho
  * Out fades when the cue has a fade out. `cue` is the cue whose settings apply: the one taken, and
  * for Out the one on air.
  */
-export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, values: Record<string, string>, cueId?: string, cue?: Pick<ShowCue, 'playback' | 'imageFit'>): PlayoutAction {
+export function serverAction(verb: Exclude<ServerVerb, 'ending'>, item: PlayoutItem, slot: Slot, values: Record<string, string>, cueId?: string, cue?: Pick<ShowCue, 'playback' | 'imageFit'>): PlayoutAction {
   const itemRef = { kind: item.kind, name: item.name };
   if (verb === 'take') {
     const media = item.kind === 'media' ? takePlayback(cue ?? {}, item) : { loop: false };
@@ -770,10 +770,12 @@ export async function runServerVerb({
     // still saying ON AIR after a refused take would be the one thing on the page that is not true.
     took('out', live.slot, off);
   }
-  const action =
-    verb === 'take' && sequence && sequence.length > 1
+  const action = verb === 'ending'
+    ? item.adapter === 'vmix' && live?.cueId === cue.id ? endingAction(cue, item, slot) : null
+    : verb === 'take' && sequence && sequence.length > 1
       ? sequenceAction(sequence, slot, loop)
       : serverAction(verb, item, slot, values(), verb === 'take' ? cue.id : undefined, cut ? undefined : cue);
+  if (!action) return { ok: false, note: `${label} was not sent: This cue has no live vMix ending to change.`, accepted };
   const result = await act(action);
   if (result.state !== 'ok') return { ok: false, note: `${label} did not reach the playout server: ${result.detail}`, accepted };
   took(verb, slot, result);

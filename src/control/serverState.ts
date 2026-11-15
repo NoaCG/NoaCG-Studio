@@ -461,6 +461,12 @@ export function applyAccepted(
   } else if (a.verb === 'out') {
     onAir = withoutItem(onAir, a.itemId);
     delete nextTiming[at];
+  } else if (a.verb === 'ending' && a.end && a.instance) {
+    const live = onAir[a.itemId];
+    if (live?.cueId === a.cueId && live.instance === a.instance && slotAddress(live.slot) === at) {
+      onAir = { ...onAir, [a.itemId]: { ...live, end: a.end } };
+      if (nextTiming[at]) nextTiming[at] = { ...nextTiming[at], loop: a.end === 'loop' };
+    }
   } else if ((a.verb === 'pause' || a.verb === 'resume') && nextTiming[at]) {
     const t = nextTiming[at];
     const { completed, ...previous } = t;

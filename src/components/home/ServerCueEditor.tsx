@@ -34,6 +34,7 @@ import {
 } from '../../control/cuePlayback';
 import { channelLabel, channelOf, itemSlot, slotAddress, type PlayoutResult, type PlayoutSettings } from '../../control/playoutLink';
 import { nextClipWords, type PlayNext } from '../../control/serverPlayout';
+import { vmixPlayerReadContract } from '../../control/playoutProtocol';
 import { FieldRow } from '../fields/FieldControl';
 import AccountAuthoringGate, { useAccountAuthoring } from '../AccountAuthoringGate';
 import { THROUGH_END, type ThroughRole } from '../../control/serverPlayout';
@@ -80,6 +81,7 @@ export default function ServerCueEditor({
   through,
   onEdit,
   onTransport,
+  liveEnding,
   setShows,
 }: {
   showId: string;
@@ -108,12 +110,22 @@ export default function ServerCueEditor({
   /** Pause and Resume, as NAMED verbs through the page's one dispatcher (`onVerb`), so a key or a
    *  hardware panel reaches them the same way this button does. */
   onTransport: (verb: 'pause' | 'resume') => void;
+  liveEnding?: { end: ClipEnd; change: (cue: ShowCue) => void };
   setShows: (shows: Show[]) => void;
 }) {
   /** The channel it is set to play on, for the pick. */
   const channel = channelOf(playoutSettings, item);
   const media = item.kind === 'media';
   const vmix = item.adapter === 'vmix';
+  const canChangeEnding = vmix && live && adapterActive && !through && item.mediaKind !== 'still' &&
+    ability?.state === 'ok' && vmixPlayerReadContract(ability.features ?? []) === 'timed' && ability.capabilities?.includes('end');
+  const changeEnding = (end: ClipEnd) => {
+    const shows = setCuePlayback(showId, cue.id, { end });
+    setShows(shows);
+    if (end === 'next' || !canChangeEnding || !liveEnding) return;
+    const editedCue = shows.find(show => show.id === showId)?.cues?.find(current => current.id === cue.id);
+    if (editedCue) liveEnding.change(editedCue);
+  };
   const references = () => loadShows().find(s => s.id === showId)?.cues?.filter(c => c.source === 'playout' && c.sourceId === item.id) ?? [];
   const [routeChange, setRouteChange] = useState<{ field: 'channel' | 'layer'; value: number; cues: ShowCue[] } | null>(null);
   const applyRoute = (field: 'channel' | 'layer', value: number) => setShows(field === 'channel' ? setPlayoutItemChannel(showId, item.id, value) : setPlayoutItemLayer(showId, item.id, value));
@@ -242,6 +254,8 @@ export default function ServerCueEditor({
           playNext={playNext}
           through={through}
           set={(patch) => setShows(setCuePlayback(showId, cue.id, patch))}
+          setEnding={changeEnding}
+          liveEnd={canChangeEnding ? liveEnding?.end : undefined}
         />
         </AccountAuthoringGate>
       )}
@@ -353,6 +367,8 @@ function ClipSettings({
   playNext,
   through,
   set,
+  setEnding,
+  liveEnd,
 }: {
   item: PlayoutItem;
   cue: ShowCue;
@@ -361,6 +377,8 @@ function ClipSettings({
   playNext: PlayNext | null;
   through: ThroughPlace | null;
   set: (patch: { [K in keyof CuePlayback]?: CuePlayback[K] | null }) => void;
+  setEnding: (end: ClipEnd) => void;
+  liveEnd?: ClipEnd;
 }) {
   // The last clip of a Play-through folder keeps its own ending, but Play next never leaves the
   // folder, so a stored Play next reads as Hold there; the record is not rewritten.
@@ -380,7 +398,7 @@ function ClipSettings({
     set({ levelDb: dragDb === 0 ? null : dragDb });
     setDragDb(null);
   };
-  const nextApplies = live ? ' · applies at the next Take' : '';
+  const nextApplies = live && end !== liveEnd ? ' · applies at the next Take' : '';
   const offEnd = (e: ClipEnd): string | null => {
     if (e === 'hold' || e === end) return null;
     if (e === 'loop') return null;
@@ -429,7 +447,7 @@ function ClipSettings({
                   className={end === e ? 'on' : ''}
                   disabled={!!off}
                   title={off ?? undefined}
-                  onClick={() => set({ end: e })}
+                  onClick={() => setEnding(e)}
                   data-testid={`clip-end-${e}`}
                 >
                   {END_WORDS[e]}

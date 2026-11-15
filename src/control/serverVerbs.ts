@@ -100,12 +100,23 @@ export function runVmixAndRecord(
   const refused = (reason: string): ServerVerbOutcome => ({ ok: false, note: `${label} was not sent: ${reason}`, accepted: [] });
   if (slot.adapter !== 'vmix' || !('player' in slot)) return Promise.resolve(refused('This cue has no vMix player.'));
   if (verb === 'update' || verb === 'next') return Promise.resolve(refused('This control is unavailable for vMix media.'));
+  if (verb === 'ending' && intent.rundown.places.has(cue.id)) {
+    return Promise.resolve(refused('The folder sets this cue’s ending.'));
+  }
   const cueId = showId ? vmixCueIdentity(showId, cue.id, item.id) : cue.id;
   const moved = () => {
     const live = store.ownership.get().onAir[item.id];
     return verb === 'take' && live && slotAddress(live.slot) !== slotAddress(slot);
   };
-  const owns = () => verb === 'take' || (!!expected?.instance && expected.cueId === cue.id && store.ownership.get().onAir[item.id] === expected);
+  const owns = () => {
+    if (verb === 'take') return true;
+    if (!expected?.instance || expected.cueId !== cue.id) return false;
+    const live = store.ownership.get().onAir[item.id];
+    if (verb === 'ending') {
+      return live?.instance === expected.instance && live.cueId === cue.id && slotAddress(live.slot) === slotAddress(slot);
+    }
+    return live === expected;
+  };
   let wake = false;
   return store.runVmix(slot.player, (accept, sessionUnchanged) => {
     if (!current()) return Promise.resolve(refused('The vMix connection changed. Check the selected cue.'));
@@ -126,7 +137,7 @@ export function runVmixAndRecord(
           return { state: 'config', detail: 'This vMix action was cancelled.' };
         }
         const request = action.verb === 'take' ? { ...action, cueId }
-          : action.verb === 'out' || action.verb === 'pause' || action.verb === 'resume'
+          : action.verb === 'out' || action.verb === 'pause' || action.verb === 'resume' || action.verb === 'ending'
             ? { ...action, expectedPlayerInstance: expected?.instance } : action;
         const result = await io.act(sendSettings, request, () => current() && owns());
         if (result.playerUncertain) retirePlayer();
@@ -138,7 +149,8 @@ export function runVmixAndRecord(
         return 'The vMix connection changed. Check the selected cue.';
       }
       const action = accepted[0];
-      if (action && (!action.session || action.generation === undefined || !accept(action.session, action.generation))) {
+      if (action && ((verb === 'ending' && (!owns() || action.instance !== expected?.instance)) ||
+          !action.session || action.generation === undefined || !accept(action.session, action.generation))) {
         return 'vMix player state changed before the action reply.';
       }
     });
@@ -238,7 +250,7 @@ async function runVerb(
         // The take's own count until the server's first reading: the part of the file it plays.
         length: item.adapter === 'vmix' ? undefined : segmentSeconds(first.cue, item),
         loop: effectiveEnd(first.cue, item) === 'loop',
-        // What this take sent for its end, which the clock says until the next Take.
+        // The ending the server accepted, which the clock shows independently of the saved cue.
         end: effectiveEnd(first.cue, item),
         now: io.now(),
         readable,
