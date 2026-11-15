@@ -1,0 +1,33 @@
+{
+  "head": "cd84faa3d9ae3e99169d2a7a183577b40b2294d8",
+  "files": {
+    "/workspace/noacg-editor-r1-5-e5f-blank/e5f.local/blank-source-mutation/good-helper.ts": "ef017e7766dacd712bee836abacd9e890255d5828d2738ce6630d79e4d6c6bdc",
+    "/workspace/noacg-editor-r1-5-e5f-blank/e5f.local/blank-source-mutation/good-factory.ts": "5cc9eb21e7ee5670b75449f385e6e54af66cfe7f0027b40aee3a659f1f495195",
+    "/workspace/noacg-editor-r1-5-e5f-blank/e5f.local/blank-source-mutation/failed-shared-helper.ts": "6a61b9951f50d86385e5ea53c1ba15a88f4c8715f29f2fdb8df280b2075b77f3",
+    "/workspace/noacg-editor-r1-5-e5f-blank/e5f.local/blank-source-mutation/failed-neutral-factory.ts": "3f323a9b363140dd0a4e44b4ee9fa0b88555f5a08155fbb74daf4cfdb79d2cb8"
+  },
+  "specSha256": "e41b9016099a95d2fcfd660b0fa71fa1e313d7306ea8409965879f4c91e8d172",
+  "restored": true,
+  "mutantSha256": "654196cde0557dbad5af62fc1c66549c6785ed5abfdd834b255caa84a5ae3784",
+  "job": "j-0233",
+  "terminal": {
+    "id": "j-0233",
+    "kind": "gate",
+    "command": "NOACG_E2E_ON_BUILD=0 NOACG_E2E_EXPECTED_SPECS=editor-projects.spec.ts npm run test:e2e -- e2e/editor-projects.spec.ts --project=chromium --workers=2 --grep 'requested blank escape keeps|held Save cannot revive' --output=e5f.local/blank-guard-mutant",
+    "checkout": "/workspace/noacg-editor-r1-5-e5f-blank",
+    "branch": "codex/plan-editor-r1-5-e5f-blank",
+    "after": [],
+    "capMinutes": 5,
+    "retryOf": null,
+    "retryCount": 0,
+    "enqueuedAt": 1794743308094,
+    "state": "failed",
+    "startedAt": 1794743308366,
+    "finishedAt": 1794743324694,
+    "exitCode": 1,
+    "pid": 88854,
+    "logPath": "/workspace/NoaCG-Studio/.git/noacg-jobs/logs/j-0233.log",
+    "giveUpReason": "auto-merge refused it (exit 1) - read the log for which check said no"
+  },
+  "restoredSha256": "ef017e7766dacd712bee836abacd9e890255d5828d2738ce6630d79e4d6c6bdc"
+}
