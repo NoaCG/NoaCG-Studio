@@ -816,6 +816,13 @@ picker from the unsigned exe; a preset saved with the players.
 
 ## Phase notes
 
+### V5 build notes
+
+V5 reads the vMix rundown's player slots for its clock and recovers a playing cue by production,
+cue and Bridge playback instance. The V5 release uses the independent Bridge version and
+operator notes. The [V5 evidence](evidence/phase-v5.md) records the rules, reproduction, previous
+verified main and revert command.
+
 ### V4 build notes
 
 V4 adds vMix media to the existing rundown. A cue carries its adapter, file relative to the Bridge's media folder, and media kind. vMix has two player slots. The Studio routes each cue to its own adapter, refuses the other system's cues, and reads the media folder's immediate children from Bridge. Settings opens the Bridge's native folder picker.

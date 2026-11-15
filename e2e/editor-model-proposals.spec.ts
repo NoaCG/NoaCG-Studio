@@ -1,5 +1,8 @@
 // covers: src/components/editorFoundation/{ProposalPanel,proposals,commands,EditorFoundation}.ts*, src/ai/editorProposals.ts
+// covers: src/blocks/publicTextDefaults.ts, src/export/registry.ts
 import { test, expect, type Page } from '@playwright/test';
+import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
+import { settleDurableWrites } from './_durable';
 
 const edit = { id: 'text.set', args: { targetId: 'f0', text: 'Reviewed default' } };
 const response = (output: unknown) => ({ output, provider: 'openai', model: 'deterministic-test', usage: { inputTokens: 12, outputTokens: 6, totalTokens: 18 }, attempts: [] });
@@ -145,6 +148,7 @@ test('unavailable Studio assistant leaves offline authoring and source intact', 
   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [], keyStorageAvailable: false } }));
   await page.goto('/app?editor=foundation#/editor-foundation'); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+  await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Help', exact: true }).click();
   const before = await snapshot(page);
   await page.getByRole('textbox', { name: 'Ask about this graphic', exact: true }).fill('How do I edit this graphic?');
   await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeEnabled();
@@ -316,6 +320,7 @@ for (const personal of ['absent', 'conflicting'] as const) test('Studio assistan
       fallbacks: [{ provider: 'openai', model: 'personal-fallback' }], temperature: 1.7, seed: 12345, configuredProviders: [] });
   });
   await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+  await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Help', exact: true }).click();
   await page.getByRole('textbox', { name: 'Ask about this graphic', exact: true }).fill('How do I change the selected artwork?');
   await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeEnabled();
   const before = await snapshot(page);
@@ -336,4 +341,127 @@ for (const personal of ['absent', 'conflicting'] as const) test('Studio assistan
     for (const key of ['temperature', 'seed', 'model', 'modelRole']) expect(body.request).not.toHaveProperty(key);
   }
   await expect(page.getByText('Configure AI in New graphic → AI settings.', { exact: false })).toHaveCount(0);
+});
+
+
+test('assistant opens in Edit while Help stays an explicit read-only choice', async ({ page }) => {
+  await page.goto('/app?editor=foundation#/editor-foundation');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+  await expect(page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Edit', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('textbox', { name: 'Describe an edit', exact: true })).toBeVisible();
+  const before = await snapshot(page);
+  await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Help', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Ask about this graphic', exact: true })).toBeVisible();
+  expect(await snapshot(page)).toEqual(before);
+  await expect(page.getByRole('button', { name: 'Apply edits', exact: true })).toHaveCount(0);
+});
+
+for (const name of ['Sticker Quiz', 'Showtime Quiz', 'Arcade Quiz']) test('reviewed quiz public default: ' + name, async ({ page }) => {
+  await bootstrapGraphic(page, { name }); await openWorkingGraphicInEditor(page);
+  const graphic = page.frameLocator('iframe[title="Foundation graphic preview"]');
+  await expect(graphic.locator('#f1')).toHaveText('Paris');
+  const inspection = await page.evaluate(async () => (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect({ limit: 50 }));
+  expect(inspection.ok).toBe(true);
+  if (!inspection.ok) throw new Error(inspection.refusal.message);
+  expect(inspection.targets.find(t => t.id === 'f1')?.capabilities['text.set'].supported).toBe(true);
+  expect(inspection.targets.filter(t => t.id === 'f1')).toHaveLength(1);
+  expect(inspection.nextOffset).toBeNull();
+  await page.route('**/api/ai/generate', route => route.fulfill({ json: response({ summary: 'A different answer',
+    commands: [{ id: 'text.set', args: { targetId: 'f1', text: 'Helsinki' } }] }) }));
+  await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Describe an edit', exact: true })).toBeVisible();
+  const before = await snapshot(page);
+  await propose(page, 'Change Paris to Helsinki in Answer A');
+  const review = page.getByRole('region', { name: 'Proposed edits' });
+  await expect(review).toContainText('Answer A (f1)');
+  expect(await snapshot(page)).toEqual(before);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(await snapshot(page)).toEqual(before);
+  await propose(page, 'Change Paris to Helsinki in Answer A');
+  await expect(review).toContainText('Answer A (f1)');
+  expect(await snapshot(page)).toEqual(before);
+  await page.getByRole('button', { name: 'Apply edits', exact: true }).click();
+  await expect(graphic.locator('#f1')).toHaveText('Helsinki');
+  await expect(page.getByTestId('proposal-commit-status')).toHaveText('Applied. Preview ready.');
+  const after = await snapshot(page);
+  expect(after.source.fields).toEqual(before.source.fields.map(f => f.field === 'f1' ? { ...f, value: 'Helsinki' } : f));
+  expect(after.source.css).toBe(before.source.css); expect(after.source.js).toBe(before.source.js);
+  expect(after.source.assets).toEqual(before.source.assets); expect(after.source.settings).toEqual(before.source.settings);
+  expect(after.view.sampleData).toEqual(before.view.sampleData);
+  expect(after.history.undo).toBe(before.history.undo + 1);
+  const defaults = await page.evaluate(async () => {
+    const t = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().session.port.read();
+    const d = new DOMParser().parseFromString(t.html, 'text/html');
+    const raw = d.getElementById('spx-template-definition')!.textContent!;
+    const definition = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+    return { fields: definition.DataFields, answer: d.getElementById('f1')!.textContent };
+  });
+  expect(defaults.fields).toEqual(after.source.fields); expect(defaults.answer).toBe('Helsinki');
+  for (const [id, text] of [['f2', 'Athens'], ['f3', 'London'], ['f4', 'Rome'], ['f5', 'B']]) await expect(graphic.locator('#' + id)).toHaveText(text);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(graphic.locator('#f1')).toHaveText('Paris'); expect((await snapshot(page)).source).toEqual(before.source);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect(graphic.locator('#f1')).toHaveText('Helsinki'); expect((await snapshot(page)).source).toEqual(after.source);
+});
+
+
+test('reviewed quiz default survives durable reopen and executed export updates', async ({ page }, testInfo) => {
+  await bootstrapGraphic(page, { name: 'Sticker Quiz' }); await openWorkingGraphicInEditor(page);
+  await page.route('**/api/ai/generate', route => route.fulfill({ json: response({ summary: 'Change the first answer',
+    commands: [{ id: 'text.set', args: { targetId: 'f1', text: 'Helsinki' } }] }) }));
+  await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+  const before = await snapshot(page); await propose(page, 'Change Paris to Helsinki in Answer A');
+  await expect(page.getByRole('region', { name: 'Proposed edits' })).toContainText('Answer A (f1)');
+  expect(await snapshot(page)).toEqual(before);
+  await page.getByRole('button', { name: 'Apply edits', exact: true }).click();
+  await expect(page.frameLocator('iframe[title="Foundation graphic preview"]').locator('#f1')).toHaveText('Helsinki');
+  await expect(page.getByTestId('proposal-commit-status')).toHaveText('Applied. Preview ready.');
+  const image = testInfo.outputPath('reviewed-quiz-default.png'); await page.screenshot({ path: image });
+  await testInfo.attach('reviewed-quiz-default', { path: image, contentType: 'image/png' });
+  await page.getByRole('button', { name: 'Close assistant', exact: true }).click();
+  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Reviewed quiz default');
+  await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await settleDurableWrites(page); const saved = await snapshot(page);
+  expect(saved.source.fields.find(f => f.field === 'f1')?.value).toBe('Helsinki');
+  await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.frameLocator('iframe[title="Foundation graphic preview"]').locator('#f1')).toHaveText('Helsinki');
+  expect((await snapshot(page)).source).toEqual(saved.source);
+  const defaults = Object.fromEntries(saved.source.fields.map(f => [f.field, String(f.value)]));
+  const errors: string[] = [];
+  for (const target of ['spx', 'casparcg', 'html-overlay', 'ograf']) {
+    const files = await page.evaluate(async target => {
+      const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
+      return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
+    }, target);
+    const output = await page.context().newPage(); output.on('pageerror', error => errors.push(target + ': ' + error.message));
+    await output.route('http://quiz-export.local/**', route => {
+      const name = new URL(route.request().url()).pathname.slice(1), body = files[name];
+      return route.fulfill({ status: body || !name ? 200 : 404,
+        contentType: /\.m?js$/.test(name) ? 'application/javascript' : /\.css$/.test(name) ? 'text/css' : /\.woff2?$/.test(name) ? 'font/woff2' : /\.json$/.test(name) ? 'application/json' : 'text/html',
+        body: body ? Buffer.from(body, 'base64') : '<html><body></body></html>' });
+    });
+    if (target === 'ograf') {
+      await output.goto('http://quiz-export.local/');
+      await output.evaluate(async () => {
+        const mod = await import('http://quiz-export.local/graphic.mjs'); customElements.define('quiz-export', mod.default);
+        const el = document.createElement('quiz-export') as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown> };
+        document.body.appendChild(el); await el.load({ data: {} }); await el.playAction({});
+      });
+    } else {
+      await output.goto('http://quiz-export.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
+      if (target !== 'html-overlay') await output.evaluate(() => (window as unknown as { play(): void }).play());
+    }
+    await expect(output.locator('#f1'), target + ' canonical default').toHaveText('Helsinki');
+    for (const [id, value] of [['f2', 'Athens'], ['f3', 'London'], ['f4', 'Rome'], ['f5', 'B']]) await expect(output.locator('#' + id), target).toHaveText(value);
+    const update = async (data: Record<string, string>) => output.evaluate(async ({ target, data }) => {
+      if (target === 'ograf') await (document.querySelector('quiz-export') as HTMLElement & { updateAction(p: unknown): Promise<unknown> }).updateAction({ data, skipAnimation: true });
+      else (window as unknown as { update(data: string): void }).update(JSON.stringify(data));
+    }, { target, data });
+    await update({ f1: 'Runtime binding probe' }); await expect(output.locator('#f1'), target + ' update binding').toHaveText('Runtime binding probe');
+    await update(defaults); await expect(output.locator('#f1'), target + ' default restored').toHaveText('Helsinki');
+    await output.close();
+  }
+  expect(errors).toEqual([]); expect((await snapshot(page)).source).toEqual(saved.source);
 });

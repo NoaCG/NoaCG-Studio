@@ -7,23 +7,27 @@ import { askEditorHelp, proposeEditorEdits, type ReviewedProposal } from './prop
 import { editorHelpGuide } from '../../ai/editorProposals';
 import type { EditorCommands, EditorProposal } from './commands';
 
-function describeCommand(command: EditorProposal['commands'][number]) {
+function reviewTarget(labels: Record<string, string>, id: string) {
+  return typeof labels[id] === 'string' ? labels[id] + ' (' + id + ')' : id;
+}
+function describeCommand(command: EditorProposal['commands'][number], labels: Record<string, string>) {
   const args = command.args;
+  const target = 'targetId' in args ? reviewTarget(labels, args.targetId) : '';
   if (command.id === 'layer.create' && 'geometry' in args) {
     const g = args.geometry;
     if (g.shape === 'text' && !g.box) return `Create point text at (${g.x}, ${g.y}).`;
     return `Create ${g.shape === 'text' ? 'text box' : g.shape} at (${g.x}, ${g.y}), ${g.width} by ${g.height} pixels.`;
   }
-  if (command.id === 'text.set' && 'text' in args) return `Set ${args.targetId} wording to "${args.text}".`;
-  if (command.id === 'base.set' && 'values' in args) return `Position ${args.targetId}: ${Object.entries(args.values).map(([axis, value]) => `${axis} = ${value} pixels`).join(', ')}. Motion is preserved.`;
-  if (command.id === 'animation.key' && 'property' in args) return `Animate ${args.targetId}: ${args.property} offset ${args.value} pixels at ${args.time}s within cue ${args.step}.`;
+  if (command.id === 'text.set' && 'text' in args) return `Set ${target} wording to "${args.text}".`;
+  if (command.id === 'base.set' && 'values' in args) return `Position ${target}: ${Object.entries(args.values).map(([axis, value]) => `${axis} = ${value} pixels`).join(', ')}. Motion is preserved.`;
+  if (command.id === 'animation.key' && 'property' in args) return `Animate ${target}: ${args.property} offset ${args.value} pixels at ${args.time}s within cue ${args.step}.`;
   if ('time' in args) return `${command.id === 'step.add' ? 'Add Next cue' : 'Set Out cue'} at ${args.time}s.`;
   return command.id;
 }
 
 type Receipt = Extract<ReturnType<EditorCommands['apply']>, { ok: true }>;
 export default function ProposalPanel({ close }: { close(): void }) {
-  const [mode, setMode] = useState<'help' | 'edit'>('help');
+  const [mode, setMode] = useState<'help' | 'edit'>('edit');
   const [answer, setAnswer] = useState('');
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
@@ -107,9 +111,9 @@ export default function ProposalPanel({ close }: { close(): void }) {
       {pending && <section aria-label="Proposed edits">
         <p>{pending.proposal.summary}</p>
         <ol className="ef-proposal-commands">{pending.proposal.commands.map((command, index) => <li key={index}>
-          <p>{describeCommand(command)}</p></li>)}</ol>
+          <p>{describeCommand(command, pending.labels)}</p></li>)}</ol>
         {!!pending.proposal.commands.length && <>
-          <p>Affected: {pending.changedIds.length ? pending.changedIds.join(', ') : 'Composition cues'}</p>
+          <p>Affected: {pending.changedIds.length ? pending.changedIds.map(id => reviewTarget(pending.labels, id)).join(', ') : 'Composition cues'}</p>
           <button className="primary" onClick={apply}>Apply edits</button>
         </>}
       </section>}

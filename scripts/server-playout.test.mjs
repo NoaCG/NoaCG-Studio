@@ -15,8 +15,149 @@ const { runServerVerb, serverAction, serverCueLive, serverLayers, withTaken, wit
   '../src/control/serverPlayout.ts'
 );
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
-const { NO_OWNERSHIP, applyAccepted, applyClearedSlot, applyReading, clipClock, clockText, followedClip, isEstimated, namesItem, remainingAt, STALE_MS } =
+const { NO_OWNERSHIP, applyAccepted, applyClearedSlot, applyReading, applyVmixReading, vmixCueIdentity, clipClock, clockText, followedClip, isEstimated, namesItem, remainingAt, STALE_MS } =
   await import('../src/control/serverState.ts');
+
+test('vMix observations recover an exact production, cue and full selected file', () => {
+  const showId = 'show-A';
+  const movie = { ...clip, id: 'media', name: 'Alias/Reel.mp4', adapter: 'vmix', mediaKind: 'movie' };
+  const opening = cue('opening', movie.id);
+  const duplicate = cue('standby', movie.id);
+  const clips = { adapter: 'vmix', player: 'clips' };
+  const base = { ownership: NO_OWNERSHIP, timing: {} };
+  const expectedCue = 'vmix:["show-A","opening","media"]';
+  assert.equal(vmixCueIdentity(showId, opening.id, movie.id), expectedCue);
+  assert.equal(vmixCueIdentity('x'.repeat(199), opening.id, movie.id), undefined);
+  const row = { player: 'clips', layer: 0, producer: 'video', generation: 1, file: 'Canonical/Reel.mp4',
+    playerSource: movie.name, instance: 'b1.first', cueId: expectedCue, position: 3, segment: { start: 0, length: 15 },
+    paused: false, loop: false };
+  const context = { showId, cues: [opening, duplicate], items: [movie], slotOf: () => clips, now: 10 };
+  const read = (parts, reading, changes = {}) => applyVmixReading(parts, reading, 'b1', { ...context, ...changes });
+  assert.equal(read(base, row, { showId: 'show-copy' }).ownership, NO_OWNERSHIP);
+  assert.equal(read(base, { ...row, cueId: opening.id }).ownership, NO_OWNERSHIP);
+  assert.equal(read(base, { ...row, playerSource: 'Alias/Reel.MOV' }).ownership, NO_OWNERSHIP);
+  assert.equal(read(base, row, { cues: [duplicate] }).ownership, NO_OWNERSHIP);
+  const staged = { ...row, file: movie.name, playerSource: undefined, position: 5 };
+  assert.equal(read(base, staged).ownership, NO_OWNERSHIP, 'the older canonical path cannot authorize reload recovery');
+  const otherItem = { ...movie, id: 'other-source' };
+  const rebound = { cues: [{ ...opening, sourceId: otherItem.id }], items: [movie, otherItem] };
+  assert.equal(read(base, row, rebound).ownership, NO_OWNERSHIP, 'same-path replacement item cannot acquire the cue');
+  const recovered = read(base, row);
+  assert.deepEqual(recovered.ownership.onAir.media, { cueId: opening.id, instance: 'b1.first', slot: clips, takenAt: 10 });
+  assert.equal(clipClock(recovered.ownership, recovered.timing, [movie], [opening], 1010).remaining, 11);
+  const next = read(recovered, { ...row, position: 4 }, { now: 1010 });
+  assert.equal(next.ownership, recovered.ownership, 'position alone preserves the owner object');
+  const stagedTiming = read(next, staged);
+  assert.equal(stagedTiming.ownership, next.ownership, 'staged timing can still update an accepted instance');
+  assert.equal(stagedTiming.timing['NoaCG Clips'].position, 5);
+  const foreign = read(next, { ...row, playerSource: undefined, instance: undefined, cueId: undefined });
+  assert.equal(foreign.ownership.onAir.media, undefined);
+  assert.equal(foreign.ownership.replaced.media.cueId, opening.id);
+  assert.deepEqual(read(foreign, { player: 'clips', producer: 'empty' }).ownership, NO_OWNERSHIP);
+});
+
+test('vMix completion gives one stable Holding time without projecting the native position or Loop', () => {
+  const slot = { adapter: 'vmix', player: 'clips' };
+  const movie = { ...clip, id: 'media', name: 'Roll.mp4', adapter: 'vmix', mediaKind: 'movie' };
+  const opening = cue('opening', movie.id);
+  const context = { showId: 'story', cues: [opening], items: [movie], slotOf: () => slot };
+  const base = { ownership: NO_OWNERSHIP, timing: {} };
+  const row = { player: 'clips', layer: 0, producer: 'video', generation: 1, file: movie.name,
+    playerSource: movie.name, instance: 's1.playing', cueId: 'vmix:["story","opening","media"]',
+    position: 8, segment: { start: 0, length: 10 }, paused: false, loop: true, playerCompleted: true };
+  const inferred = applyVmixReading(base, { ...row, playerCompleted: undefined, position: 10, loop: false }, 's1', { ...context, now: 20 });
+  assert.equal(inferred.timing['NoaCG Clips'].endedAt, 20);
+  const complete = applyVmixReading(inferred, row, 's1', { ...context, now: 100 });
+  const held = applyVmixReading(complete, row, 's1', { ...context, now: 850 });
+  assert.equal(held.ownership, complete.ownership);
+  const timing = held.timing['NoaCG Clips'];
+  assert.equal(timing.position, 8);
+  assert.equal(timing.loop, true);
+  assert.equal(timing.endedAt, 100);
+  const presented = clipClock(held.ownership, held.timing, [movie], [opening], 1100);
+  assert.equal(presented.phase, 'holding');
+  assert.equal(presented.remaining, 0);
+  assert.equal(presented.over, 1);
+
+  const target = { slot, itemId: movie.id, cueId: opening.id, now: 1100, readable: true };
+  const paused = applyAccepted(held, { ...target, verb: 'pause' });
+  assert.equal(paused.timing['NoaCG Clips'].position, 8);
+  assert.equal(paused.timing['NoaCG Clips'].completed, undefined);
+  assert.equal(paused.timing['NoaCG Clips'].endedAt, undefined);
+  assert.equal(clipClock(paused.ownership, paused.timing, [movie], [opening], 1100).phase, 'paused');
+
+  const resumed = applyAccepted(held, { ...target, verb: 'resume' });
+  assert.equal(resumed.timing['NoaCG Clips'].position, undefined);
+  assert.equal(resumed.timing['NoaCG Clips'].completed, undefined);
+  assert.equal(resumed.timing['NoaCG Clips'].endedAt, undefined);
+  const pending = clipClock(resumed.ownership, resumed.timing, [movie], [opening], 1100);
+  assert.equal(pending.remaining, null);
+  assert.equal(pending.estimated, true);
+  const running = applyVmixReading(resumed, { ...row, playerCompleted: undefined, position: 9 }, 's1', { ...context, now: 1200 });
+  assert.equal(clipClock(running.ownership, running.timing, [movie], [opening], 1200).phase, 'looping');
+  assert.equal(running.timing['NoaCG Clips'].position, 9);
+  const completedAgain = applyVmixReading(running, row, 's1', { ...context, now: 1300 });
+  assert.equal(completedAgain.timing['NoaCG Clips'].endedAt, 1300);
+  const newInstance = applyVmixReading(held, { ...row, instance: 's1.replacement' }, 's1', { ...context, now: 1400 });
+  assert.equal(newInstance.timing['NoaCG Clips'].endedAt, 1400);
+  const zeroDuration = { ...row, position: 0, segment: { start: 0, length: 0 } };
+  const noDuration = applyVmixReading(held, zeroDuration, 's1', { ...context, now: 900 });
+  assert.equal(noDuration.ownership, held.ownership);
+  assert.equal(clipClock(noDuration.ownership, noDuration.timing, [movie], [opening], 900).remaining, null, 'no previous duration is carried into a completed zero-duration read');
+  const durationRestored = applyVmixReading(noDuration, row, 's1', { ...context, now: 1100 });
+  assert.equal(durationRestored.ownership, held.ownership);
+  assert.equal(durationRestored.timing['NoaCG Clips'].endedAt, 100);
+
+  const firstWithoutDuration = applyVmixReading(base, zeroDuration, 's1', { ...context, now: 1500 });
+  assert.equal(clipClock(firstWithoutDuration.ownership, firstWithoutDuration.timing, [movie], [opening], 1500).remaining, null);
+  const firstKnownDuration = applyVmixReading(firstWithoutDuration, row, 's1', { ...context, now: 1750 });
+  assert.equal(firstKnownDuration.ownership, firstWithoutDuration.ownership);
+  assert.equal(firstKnownDuration.timing['NoaCG Clips'].endedAt, 1500);
+  const knownClock = clipClock(firstKnownDuration.ownership, firstKnownDuration.timing, [movie], [opening], 2500);
+  assert.equal(knownClock.phase, 'holding');
+  assert.equal(knownClock.remaining, 0);
+  assert.equal(knownClock.over, 1);
+});
+
+test('vMix command and reading admission follows player fences and retires the shared Bridge session', async () => {
+  const store = createServerPlayoutStore();
+  store.bindVmix('paired');
+  const clips = { player: 'clips', generation: 5 };
+  const audio = { player: 'audio', generation: 0 };
+  const first = store.observeVmix();
+  assert.deepEqual(first('S1', 20, [clips, audio]), [clips, audio]);
+  assert.deepEqual(store.observeVmix()('S1', 19, [clips]), []);
+  assert.deepEqual(store.observeVmix()('S1', 22, [{ ...clips, generation: 4 }]), []);
+
+  const old = store.observeVmix();
+  const entered = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const action = store.runVmix('clips', async accept => {
+    entered.resolve();
+    await release.promise;
+    return accept('S1', 6);
+  });
+  await entered.promise;
+  const during = store.observeVmix();
+  assert.deepEqual(old('S1', 23, [clips]), []);
+  assert.deepEqual(during('S2', 1, [{ ...clips, generation: 0 }, audio]), [audio]);
+  release.resolve();
+  assert.equal(await action, false, 'late S1 action cannot restore clips against S2');
+  assert.deepEqual(store.observeVmix()('S1', 30, [clips, audio]), []);
+  assert.deepEqual(store.observeVmix()('S2', 2, [{ ...clips, generation: 0 }]), [{ ...clips, generation: 0 }]);
+
+  const pending = store.observeVmix();
+  await store.runVmix('clips', async () => {});
+  assert.deepEqual(pending('S2', 3, [clips]), [], 'pre-dispatch read cannot revive ownership after uncertainty');
+  assert.deepEqual(store.observeVmix()('S2', 4, [clips]), [clips], 'fresh evidence can win after the action');
+  const opposite = store.observeVmix();
+  assert.equal(await store.runVmix('audio', async accept => accept('S3', 0)), true);
+  assert.deepEqual(opposite('S2', 40, [clips]), [], 'a late pre-restart read cannot undo a newer action');
+  const previousPairing = store.observeVmix();
+  store.bindVmix('another');
+  store.bindVmix('paired');
+  assert.deepEqual(previousPairing('S3', 1, [clips]), []);
+});
 
 const slot = (channel, layer) => ({ adapter: 'casparcg', channel, layer });
 const clip = { id: 'clip', adapter: 'casparcg', kind: 'media', name: 'GIORNO', layer: 10, channel: 2, frames: 1500, fps: 25 };
