@@ -41,15 +41,17 @@
     "source": "df5767458230558e9fdee158e663e9367e58f8e3",
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
-  "waitingOn": {},
+  "waitingOn": {
+    "what": "Open PR #2573 still owns ProductionPage.tsx. V6 waits for that allocation before adding the live ending callback."
+  },
   "inFlight": [
     {
-      "note": "Native grouped continuity correction pinned clean at df5aa437. Bridge build and 14 final focused checks passed, integrated receipt pending. V6 Studio live Ending work can proceed on non-overlapping control/editor files. Open #2573 still owns ProductionPage.tsx, so the final page wiring waits there. Same draft remote 31815116. No publication, queue or release.",
-      "step": "build",
-      "phase": "v6",
-      "head": "df5aa4370a228ea017a73a052f1a6a7d14bcb4ba",
+      "pr": 2575,
+      "head": "29b3fdbfba8ea12a9c426861c12df4947159a1a1",
+      "note": "Clean local 29b3fdbf combines native authority repair and non-overlap live Ending control/editor. 202 Bridge, 198 Studio, build/typecheck and owned native passed. One shared-file dependency (#2573) holds remaining ProductionPage wiring, then exact local Windows and fresh full review. No product push, queue or release.",
       "session": "/root/v6_builder",
-      "pr": 2575
+      "step": "build",
+      "phase": "v6"
     }
   ],
   "owner": [],
