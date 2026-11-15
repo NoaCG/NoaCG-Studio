@@ -1,0 +1,47 @@
+{
+  "at": "2026-11-15T17:59:56.431Z",
+  "run": "plan-editor-r1-5-2026-11-08",
+  "phase": "E5F",
+  "actionId": "plan-editor-r1-5-2026-11-08:13",
+  "coordinatorNative": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
+  "environment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
+  "block": 13,
+  "head": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+  "main": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+  "cleanTrackedTree": true,
+  "qualification": {
+    "probes": [
+      "2026-11-15T17:58:04.983Z",
+      "2026-11-15T17:58:25.847Z"
+    ],
+    "workspaceChild": "PASS twice",
+    "git": "PASS twice + exactremoteheads",
+    "cliAPI": "Known401 NOT EXECUTED; standard overall preflight FAIL explicitly retained",
+    "connector": "Actual PR/runs/jobs/status/Codex/repaircomment reads PASS",
+    "profile": "4CPU16GiB2workers; hiddenancestor fallback disclosed"
+  },
+  "nativeReconciliation": {
+    "builder": "6af8403d-0d00-8191-804b-4923b3338071 terminal completed; sameoriginalaction; no newdispatch",
+    "coordinator": "Same native original6af455; unexpired existingblock reused; noownershiptakeover/newstore/block"
+  },
+  "github": {
+    "pr": 2579,
+    "headUnchanged": true,
+    "ci": 43714190234,
+    "ciGate": "PASS",
+    "configured": "63files149PASS0FAIL0FLAKY3existingSKIP",
+    "codex": "Actualsummary6894342917 completed/no findings onexacthead",
+    "noacgReviewed": "MISSING actualstatusread",
+    "autoMerge": false,
+    "merged": false,
+    "queue": "not admitted"
+  },
+  "approval": {
+    "actualList": "allbranch workflow_dispatch collection100/2268; newest run43687818821 at06:58:25Z, beforeblankPR12:30; no newapprovalrun",
+    "decision": "UNRESOLVED exact dispatch evidence; missingstamp stopsqueue",
+    "capability": "No dispatch/statuswrite/browser tool found; knownCLI401/status403 not retried; no proxy/credential/providerchange",
+    "ownerRequest": "Exact mainhelper branchblank/full62e/PASSreview supplied via asyncinput; awaiting startedrun"
+  },
+  "preservation": "Allpriorfailures/exhaustedallowances/2552/SVG/E4/inheritedmodel andlocal-last unchanged",
+  "changes": "No productsource/test/check/limit changes or reruns"
+}

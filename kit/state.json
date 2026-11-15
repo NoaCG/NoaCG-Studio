@@ -8,7 +8,7 @@
     "return": "Return native receipts to /root in this active Codex Cloud chat",
     "environment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
     "session": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
-    "status": "SameCloudroot block13; checkpointwaiting ownerapprovalhelper, no unattendedwake"
+    "status": "SameCloudroot activeblock13; currentnative/head/supervisor reconciled, ownerhelperstillowed; no wake"
   },
   "authorization": {
     "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
@@ -27,7 +27,7 @@
   "execution": {
     "harness": "codex",
     "mode": "active",
-    "activity": "Active root regainedsameCloudexec, publish reviewedblank milestone thenownCI/queue/posts",
+    "activity": "Same native resumed17:57UTC; noapprovalhelper observed, waitingconcrete ownerdispatch beforequeue",
     "continuation": "Native same reviewer/builder followups; root active through future owned merge/posts; no unattended wake"
   },
   "branchPrefix": "codex",
@@ -1504,7 +1504,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Owner start main cloud-queue-merge helper for PR2579 exact62e; root handles queue/postchecks afteractualstamp",
+    "what": "Owner start main cloud-queue-merge approval helper for PR2579 exact62e; then rootqueue/posts/deploy",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4577,7 +4577,7 @@
         "proofs": "j23216PASS,j2351PASS,j2364PASS,j2371PASS; intentionalj2332RED/exactrestore. j229-j231/j234 failuresretained; source-bound oracle corrections only. catalog539/539;13gates0fail0skip; targetedlint/typesPASS",
         "capacity": "WARN64.4%/exit0 canonicalcurrentrange; frozen-seed/readFailed policy",
         "ciPlan": "174blocking incl editededitor-projects+unchangedproduction-sounds; all63activeconfigured+2quarantined",
-        "limits": "No builtCI/Codex/hostedblank/nativehost/device/fullE5FPASS",
+        "limits": "GitHubbuiltCIgate/configured/Codex complete; approvalstamp/queue/deployment/hostedblank/fullE5F acceptance pending",
         "outage": "Execserverdisconnected beforeprocess; sameWTrecovered12:26 clean62e; no mutationsreplayed/no infrastructureattemptspent",
         "publication": "Publishedexact62e; PR2579open, noauto/noqueue",
         "pr": {
@@ -4623,6 +4623,10 @@
             "decision": "UNRESOLVED exacthelper-evidence identity; observationonly",
             "reads": "Workflow-specific run URL rejected400; supportedmainworkflow_dispatchcollection100/913 read. Newesthelper43687818821 completed06:58 beforeblankPR12:30; no newhelper inobservedcurrentwindow. No CLI401retry or dispatchperformed.",
             "behavior": "Existing ownerhelperrequest unchanged; reconcile actualrun beforefurtheraction"
+          },
+          "reconciliation": {
+            "file": "blank-pr2579-reconciliation-1759-20261115.json",
+            "sha256": "64d10bebe887d1b65f1cf206a9e5ff5ed7608d717e6216e5b54064d58496a1c5"
           }
         },
         "proofArchive": {
