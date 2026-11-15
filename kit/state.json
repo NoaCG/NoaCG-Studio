@@ -8,7 +8,7 @@
     "return": "Return native receipts to /root in this active Codex Cloud chat",
     "environment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
     "session": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
-    "status": "Active sameCloudroot block13; original native/model/effort, no durablewake"
+    "status": "SameCloudroot block13; checkpointwaiting ownerapprovalhelper, no unattendedwake"
   },
   "authorization": {
     "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
@@ -4617,6 +4617,12 @@
             "branch": "codex/plan-editor-r1-5-e5f-blank",
             "sha": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
             "review": "PASS: check, full SO A, Codex no findings, exact-head CI gate and configured suite"
+          },
+          "approvalObservation": {
+            "at": "2026-11-15T12:49:41.401Z",
+            "decision": "UNRESOLVED exacthelper-evidence identity; observationonly",
+            "reads": "Workflow-specific run URL rejected400; supportedmainworkflow_dispatchcollection100/913 read. Newesthelper43687818821 completed06:58 beforeblankPR12:30; no newhelper inobservedcurrentwindow. No CLI401retry or dispatchperformed.",
+            "behavior": "Existing ownerhelperrequest unchanged; reconcile actualrun beforefurtheraction"
           }
         },
         "proofArchive": {
