@@ -88,8 +88,8 @@ function holds(cue: CueRecord, text: CueFields): boolean {
 export interface CueDraftIo {
   /** Whether this account may write the record now. */
   canWrite: () => boolean;
-  /** An edit is starting: tell the account's sync, and open (or continue) the history's edit group. */
-  editing: (group: string) => void;
+  /** Start or continue an edit group. A fresh draft passes the cue record it starts from. */
+  editing: (group: string, freshCue: CueRecord | null) => void;
   /** Save through the rundown history, answering whether the store confirmed it. */
   writeCue: (cueId: string, fields: CueFields) => Promise<boolean>;
   /** Save at once, with no history and nothing to await: whether the store accepted it. */
@@ -350,8 +350,9 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       // owed: the page saves and clears it when the selection moves, `selectCue`.)
       if (held && !pressing) dropHeld();
       const d = part.get();
-      io.editing(editGroup(cue.id, patch));
-      const base: DraftPart = d && d.cueId === cue.id ? d : { cueId: cue.id, label: cue.label, note: cue.note ?? '', values: { ...cue.values } };
+      const continuing = d?.cueId === cue.id;
+      io.editing(editGroup(cue.id, patch), continuing ? null : cue);
+      const base: DraftPart = continuing ? d : { cueId: cue.id, label: cue.label, note: cue.note ?? '', values: { ...cue.values } };
       if (base !== d) started(base);
       // Set before the timer, so a flush in this same tick sees the edit.
       set({ ...base, ...patch, values: { ...base.values, ...(patch.values ?? {}) } });

@@ -36,10 +36,13 @@ export const sliceKey = (slice: RundownSlice): string => JSON.stringify(ordered(
 export const sameRundown = (a: RundownSlice, b: RundownSlice): boolean => sliceKey(a) === sliceKey(b);
 
 /** A cue's TEXT as the cue draft writes it (control/cueDraft.ts `fieldsOf`): label, note and values,
- *  as one comparable key; null when the slice has no such cue (#2572). */
+ *  as one comparable key (#2572). */
+export const cueFieldsKey = (cue: { label: string; note?: string | null; values?: Record<string, string> }): string =>
+  JSON.stringify(ordered({ label: cue.label, note: cue.note || null, values: cue.values ?? {} }));
+
 export const cueTextKey = (slice: RundownSlice, cueId: string): string | null => {
   const cue = slice.cues.find((c) => c.id === cueId);
-  return cue ? JSON.stringify(ordered({ label: cue.label, note: cue.note || null, values: cue.values ?? {} })) : null;
+  return cue ? cueFieldsKey(cue) : null;
 };
 /** Whether a change made elsewhere left the text of the cue being typed as `expected` held it, the
  *  cue still there (#2572, D1). A move, a folder change or any other cue is elsewhere; its label,

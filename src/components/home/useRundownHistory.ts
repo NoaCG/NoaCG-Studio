@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { beginTeamRundownEdit, commitTeamRundownEdit, restoreTeamRundown, subscribeTeamState, getTeamState, type TeamRundownReceipt } from '../../backend/teamProductions';
 import { canAuthorAccount, commitDurableReceipt, captureDurableWrites, libraryInUse, isDurableStoreActive } from '../../model/durableStore';
 import { loadShows, restorePersonalRundown, type Show } from '../../model/shows';
-import { RundownHistory, cueTextKey, landedReplacement, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
+import type { CueRecord } from '../../control/cueDraft';
+import { RundownHistory, cueFieldsKey, cueTextKey, landedReplacement, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
 
 type WriteResult = { shows: Show[]; error: string | null; refused?: string | null };
 type Group = { key: string; before: RundownSlice; after: RundownSlice; valid: boolean };
@@ -208,14 +209,15 @@ export function useRundownHistory(
       record(held.before, held.after, 'Edit cue'); return true;
     }, false);
   };
-  const beginGroup = (key: string) => {
+  const beginGroup = (key: string, freshCue: CueRecord | null) => {
+    // An idle save can clear the draft while the undo group stays open.
+    if (freshCue) typing.current = { cueId: freshCue.id, text: cueFieldsKey(freshCue) };
     if (group.current?.key === key) return;
     void closeGroup();
     const current = fresh(); if (!current) return;
     const slice = rundownSlice(current);
     group.current = { key, before: slice, after: slice, valid: true };
-    // Typing starts on a cue (its key is `<cue id>:<fields>`, control/cueDraft.ts `editGroup`): what
-    // this page knows of its text is the record's now. Another field of the same cue keeps it.
+    // A restored draft can already be open before the history sees its first edit.
     const cueId = key.slice(0, key.indexOf(':'));
     if (typing.current?.cueId !== cueId) typing.current = { cueId, text: cueTextKey(slice, cueId) };
     changed();

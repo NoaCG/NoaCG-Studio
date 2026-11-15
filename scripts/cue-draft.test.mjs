@@ -23,6 +23,7 @@ function harness() {
   const writes = [];
   const retained = [];
   const groups = [];
+  const freshCues = [];
   const timers = new Map();
   const listeners = { hide: new Set(), shown: new Set(), flush: new Set(), press: new Set() };
   let nextTimer = 1;
@@ -32,6 +33,7 @@ function harness() {
     writes,
     retained,
     groups,
+    freshCues,
     timers,
     listeners,
     canWrite: true,
@@ -48,7 +50,10 @@ function harness() {
   };
   h.draft = createCueDraft(session, {
     canWrite: () => h.canWrite,
-    editing: (group) => groups.push(group),
+    editing: (group, freshCue) => {
+      groups.push(group);
+      freshCues.push(freshCue);
+    },
     writeCue: (cueId, fields) =>
       new Promise((resolve) => writes.push({ cueId, fields: structuredClone(fields), answer: resolve })),
     retainCue: (cueId, fields) => {
@@ -134,6 +139,25 @@ test('ten keystrokes then a flush save once, with the latest text, through the h
   h.writes[0].answer(true);
   assert.equal(await flushed, true);
   assert.equal(h.writes.length, 1, 'written once');
+});
+
+test('only a fresh draft reports the cue it started from, even in the same edit group', async () => {
+  const h = harness();
+  h.draft.edit(OPENER, { values: { f0: 'Typed' } });
+  const refused = h.draft.flush();
+  h.draft.edit(OPENER, { label: 'Typed label' });
+  h.writes[0].answer(false);
+  assert.equal(await refused, false);
+  h.draft.edit(OPENER, { values: { f0: 'Edited' } });
+  const accepted = h.draft.flush();
+  h.writes[1].answer(true);
+  assert.equal(await accepted, true);
+
+  const liveCue = { ...OPENER, label: 'Typed label', values: { ...OPENER.values, f0: 'Live action' } };
+  h.records.set(OPENER.id, liveCue);
+  h.draft.edit(liveCue, { values: { f0: 'Fresh edit' } });
+  assert.equal(h.groups.at(-1), h.groups.at(-2));
+  assert.deepEqual(h.freshCues, [OPENER, null, null, liveCue]);
 });
 
 test('the idle save comes 300 ms after the LAST keystroke, once', () => {
