@@ -1,0 +1,231 @@
+{
+  "at": "2026-11-15T12:47:09.996Z",
+  "pr": 2579,
+  "head": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+  "base": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+  "ciRun": 43714190234,
+  "ciRunConclusion": "failure solely missing Reviewed stamp",
+  "jobs": [
+    {
+      "id": 132812059276,
+      "name": "Reviewed",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 132812059552,
+      "name": "E2E plan",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812059557,
+      "name": "Build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812059642,
+      "name": "Factory gates",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812060208,
+      "name": "Vercel accepted the commit",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 132812198632,
+      "name": "Catalog calibration gate",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198638,
+      "name": "Configured E2E 1/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198644,
+      "name": "Configured E2E 2/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198679,
+      "name": "Configured E2E 3/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198680,
+      "name": "Configured E2E 4/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198760,
+      "name": "E2E 1/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198778,
+      "name": "E2E 4/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198781,
+      "name": "E2E 2/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198793,
+      "name": "E2E 6/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198826,
+      "name": "E2E 5/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198842,
+      "name": "E2E 3/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198847,
+      "name": "E2E 7/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198855,
+      "name": "E2E 8/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198863,
+      "name": "E2E 12/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198866,
+      "name": "E2E 14/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198868,
+      "name": "E2E 9/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198879,
+      "name": "E2E 13/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198914,
+      "name": "E2E 11/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198924,
+      "name": "E2E 15/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812198993,
+      "name": "E2E 10/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132812200239,
+      "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 132814458593,
+      "name": "Combined E2E report",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132814459636,
+      "name": "E2E retry (failed specs, same commit)",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 132814508875,
+      "name": "Re-run (failed Build or Factory job, same commit)",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 132815692292,
+      "name": "Configured E2E verdict (selected)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132815786862,
+      "name": "CI gate",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132815843695,
+      "name": "After the gate",
+      "status": "completed",
+      "conclusion": "skipped"
+    }
+  ],
+  "configured": {
+    "mode": "all",
+    "files": 63,
+    "shards": 4,
+    "passed": 149,
+    "failed": 0,
+    "flaky": 0,
+    "skipped": 3
+  },
+  "codex": {
+    "commit_sha": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+    "has_any_findings": false,
+    "has_unresolved_findings": false,
+    "status": "completed"
+  },
+  "codeql": {
+    "run": 43714187035,
+    "conclusion": "success"
+  },
+  "localSO": "AGREE/A/A/A",
+  "approval": {
+    "status": "awaiting owner helper workflow dispatch",
+    "reason": "CLI known401; statuswrite known403; connector no dispatch; no workaround",
+    "branch": "codex/plan-editor-r1-5-e5f-blank",
+    "sha": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+    "review": "PASS: check, full SO A, Codex no findings, exact-head CI gate and configured suite"
+  },
+  "queue": "not enabled/not queued",
+  "limits": "Not deployed; hosted blank and fullE5F acceptance pending; all retained stops unchanged"
+}
