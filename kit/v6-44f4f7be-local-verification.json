@@ -1,0 +1,41 @@
+{
+  "capturedAt": "2026-11-15T08:41:14.0777417+00:00",
+  "head": "44f4f7be5af7952bc70cce8643c488e5cb0400b5",
+  "cleanWorktree": true,
+  "build": {
+    "exitCode": 0,
+    "command": "npm run build --prefix cli"
+  },
+  "scope": {
+    "diffCheck": "passed",
+    "paths": 21,
+    "base": "6da76c942cc19136b67ed0235d8074733b129257",
+    "file": "check-scope.json"
+  },
+  "focused": {
+    "bridge": {
+      "log": "focused-bridge.log",
+      "passed": 170,
+      "failed": 0
+    },
+    "studio": {
+      "log": "focused-studio.log",
+      "passed": 168,
+      "failed": 0
+    }
+  },
+  "browser": {
+    "report": "windows-j-5270-report.json",
+    "tests": 24,
+    "job": "j-5270",
+    "log": "windows-j-5270.log",
+    "screenshot": "windows-j-5270-editor.png",
+    "durationSeconds": 50.3
+  },
+  "realVmix": {
+    "tcp": "v6-product-tcp.json",
+    "result": "passed",
+    "proof": "v6-product-proof.json",
+    "replies": "v6-product-replies.json"
+  }
+}
