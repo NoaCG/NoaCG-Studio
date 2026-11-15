@@ -47,11 +47,11 @@
   "inFlight": [
     {
       "phase": "v6",
-      "note": "Existing V6 remains parked at clean local 29b3fdbf, same draft 31815116. #2573 remains open and blocked at c9cc8682 without auto-merge or release of ProductionPage. Existing 202 Bridge, 198 Studio, build/typecheck and exact native PASS evidence preserved. Live ending wiring and combined checks await that file.",
-      "pr": 2575,
+      "step": "build",
       "head": "29b3fdbfba8ea12a9c426861c12df4947159a1a1",
       "session": "/root/v6_builder",
-      "step": "build"
+      "note": "Read-only diagnosis of existing dependency #2573: GitHub mergeable, CI browser imported SVG quiz failure and missing review stamp, no merge queued or shared-file release from #2361. Same clean V6 checkpoint and passing local evidence retained. No actions on the other PR or jobs.",
+      "pr": 2575
     }
   ],
   "owner": [],
