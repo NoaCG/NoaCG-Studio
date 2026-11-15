@@ -4241,6 +4241,14 @@
           "configuredResult": "success",
           "product": "GitHubreplayallocatesnewjobIDs butALL21 Build/Factory/15offline/4configured start/endtimestamps matchoriginalNov14executions; no producttestexecution repeated"
         }
+      },
+      "queueResumeBlock": {
+        "id": "148ee538-a17d-4073-9dc2-8b8aa089c70a",
+        "owner": "codex:6af455f4-b1c8-8191-86b2-8bfdfc619075",
+        "epoch": 13,
+        "startedAt": "2026-11-15T07:05:17.803Z",
+        "deadline": "2026-11-15T20:21:38.127Z",
+        "note": "Sameowner/deadline; supportedblocked-project resumption afterclearwait; no attempt/phase reset. Earlierqueued event recordedasactualobservation, not relaunched."
       }
     }
   },
