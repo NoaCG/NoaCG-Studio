@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2575,
+      "note": "Exact native and focused checks passed, Windows j-5271 23/24 with old quarantined re-pair test race and timed editor green. Independent B reproduced overly broad Ending ACK exception and old authority surviving compact rewind. Read-only reassessment complete and grouped repair in flight with same builder/draft. No push, queue or release.",
       "phase": "v6",
-      "note": "Exact focused, Windows j-5270 and owned vMix checks passed. Independent B and fresh read-only reassessment reproduced stale cue identity after foreign observations, timed guard refresh after contradictory readings, and frozen-exit authority surviving a changed phase. Same builder doing grouped correction. No push, queue or release.",
+      "pr": 2575,
       "session": "/root/v6_builder",
       "step": "build",
-      "head": "44f4f7be5af7952bc70cce8643c488e5cb0400b5"
+      "head": "9e1d50e6c9212e161c8cdcaff25ecab4f033e18d"
     }
   ],
   "owner": [],
