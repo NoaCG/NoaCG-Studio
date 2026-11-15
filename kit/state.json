@@ -1504,7 +1504,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Sameoriginalbuilder correctsconfirmedignoredmanifestABSENT semantics beforefirstdiagnosticjob; originalcaps/counts unchanged",
+    "what": "SAMEreadonlyreviewer focusedbasecounterexample/traceassessment; no more tests/builds/patch or queue untilrecommendation",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4716,7 +4716,27 @@
               "counts": "0/2jobs,0/20samples; exceptionretained, no productattemptreset",
               "correction": "RecordABSENT onlywhereexactGitcommitdoesnotcontainpath; validatepresence matchesworktree. Nevercopynewhelperintobase. Finishsameignoredmanifests/configs andhashbeforeenqueue. PassiveURLobserver preserveonlyeditor=foundation flagratherthanincorrecteditor=1, no secrets."
             },
-            "diagnosticPreJobClarification": "Before FIRST enqueue only, routine ignored config/fixture/manifest authoring mistakes may be corrected within exact frozen tracked trees after retaining errors and validating source/oracle hashes. No separate root approval per typo is needed. This does NOT authorize source/test changes, ignoring a source mismatch, permission denial loops, extra builds/jobs/samples, runtime observer errors, or any actual build/browser/test/cap failure. Those still stop immediately. Original two setup failures remain; counts 0/2 jobs and 0/20 samples before first enqueue, not reset."
+            "diagnosticPreJobClarification": "Before FIRST enqueue only, routine ignored config/fixture/manifest authoring mistakes may be corrected within exact frozen tracked trees after retaining errors and validating source/oracle hashes. No separate root approval per typo is needed. This does NOT authorize source/test changes, ignoring a source mismatch, permission denial loops, extra builds/jobs/samples, runtime observer errors, or any actual build/browser/test/cap failure. Those still stop immediately. Original two setup failures remain; counts 0/2 jobs and 0/20 samples before first enqueue, not reset.",
+            "diagnosticOutcome": {
+              "job": 238,
+              "base": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+              "worktree": "/workspace/noacg-editor-r1-5-e5f-blank-built-control",
+              "result": "1PASS1FAIL8NOTRUN; sameAPIcontextloss;20.056s; collectionSTOPPED",
+              "counts": "1/2jobs,1baseE2Ebundle,2initialsamples; feature0jobs/0bundles/0samples",
+              "outcomeSHA256": "5cd958ae62ccee06ad4850a0bbff3ccce0de5a1467f06af5df4c94e5728c45e7",
+              "observer": "Bothcomplete;childreplacements seen;NOmain-document replacement/preload/pageerror/requestfailed/crash/close/disconnect. No mechanism/rate/E4claim",
+              "archive": "blank-built-api-diagnostic-j238.tar.xz",
+              "archiveSHA256": "c1ae819e0a49a98479fa0c842a5971448910a0ce20a30db0ab3a4f9eaca730bf",
+              "archiveManifest": "blank-built-api-diagnostic-j238-archive.json",
+              "limits": "Node24.19vsCI24.22;Chromium149;isolatedsinglecase;trace.network0B;snapshotsfalse;Remotiondependencywarning"
+            },
+            "traceReviewIntent": {
+              "actor": "/root/e5f_blank_queue_causality_so",
+              "native": "6afa053a-d488-8191-ae54-e1163ac3404d",
+              "file": "briefs/e5f-blank-base-trace-causal-delta-20261115.txt",
+              "sha256": "fa282f78efb11e806fb90904f6c71164c251d706ec7c21e6be2df6f7956451fe",
+              "scope": "Focusedreadonly newbase-trace evidence; no execution/patch"
+            }
           }
         },
         "proofArchive": {
@@ -4775,6 +4795,13 @@
       "restore": "Before reading the logical raw path, gunzip the compressed artifact to an owned output path and verify rawSha256. The historical raw bytes and original receipt hashes are unchanged.",
       "reason": "Existing8MiBkitlimit enforced; checkpoint failed at8401335bytes. No limit modified or evidence dropped."
     },
-    "publishFailure": "One checkpoint publication refusedexisting8MiB; preservedstate/rawsource beforelosslessarchive, no ledger event/attemptreset"
+    "publishFailure": "One checkpoint publication refusedexisting8MiB; preservedstate/rawsource beforelosslessarchive, no ledger event/attemptreset",
+    "completedHistoricalLogs": {
+      "manifest": "recovery-artifact-archives.json",
+      "count": 24,
+      "rawBytes": 2187003,
+      "gzipBytes": 451311,
+      "note": "LosslessrawSHAverifiedpacking; rawbackupsretainedoutsidekit; restorelogicalhistorical.logpaths frommanifest.gz BEFOREreading. Alloriginalreceiptsunchanged; guardunchanged."
+    }
   }
 }

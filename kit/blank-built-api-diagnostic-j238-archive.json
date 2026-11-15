@@ -1,0 +1,12 @@
+{
+  "source": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+  "featureSource": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+  "job": "j-0238",
+  "archive": "blank-built-api-diagnostic-j238.tar.xz",
+  "sha256": "c1ae819e0a49a98479fa0c842a5971448910a0ce20a30db0ab3a4f9eaca730bf",
+  "bytes": 1456092,
+  "files": 27,
+  "verification": "Everyarchive member SHA compared withlocaloriginal; includeswholelogs, bothcomplete traces, PNG,errorcontext, pass/failobserverrecords, config/source/build/artifact manifests",
+  "result": "1PASS1FAIL8NOTRUN onbase; featureNOTRUN;1job/1E2Ebundle/2initialsamples; no mechanism/rate/E4 inference",
+  "restore": "Extract to owned evidence directory and verify member hashes against archivedartifactmanifest andoriginalsource receipts; original files remain incontrolWT."
+}
