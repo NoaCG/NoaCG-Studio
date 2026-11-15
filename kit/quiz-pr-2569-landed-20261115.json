@@ -1,0 +1,75 @@
+{
+  "pr": 2569,
+  "feature": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+  "merge": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+  "mergedAt": "2026-11-15T07:11:12Z",
+  "parents": [
+    "4f62bb9ce9f4382e426fc104f8a9a7941b3ae230",
+    "f51865995aac9bca790f32ac6a3cf34b01c02bae"
+  ],
+  "tree": "ac4296eb1504dac23c2e83996e314b608d8e7447",
+  "sourceProof": "ActualGitHubmergedtrue, commitparents/tree fetched; gitdiff ALL10featurefiles fromf518toactualmerge empty; no sourcechange",
+  "mergeGroup": {
+    "run": 43687919642,
+    "result": "success",
+    "jobs": {
+      "success": 23,
+      "skipped": 6
+    },
+    "selectedOffline": 145,
+    "configured": "Exempt per actualE2Eplan notice: checked perlanding byconfigured-suite; skippednotPASS",
+    "quarantined": [
+      "editor-images",
+      "editor-projects",
+      "import-svg-credits",
+      "playout-cues"
+    ]
+  },
+  "post": {
+    "ci": {
+      "run": 43688806825,
+      "status": "in_progress"
+    },
+    "configured": {
+      "run": 43688806801,
+      "status": "in_progress"
+    },
+    "codeql": {
+      "run": 43688806769,
+      "status": "in_progress"
+    },
+    "postLand": {
+      "run": 43688806804,
+      "result": "success"
+    },
+    "quarantine": {
+      "run": 43688806783,
+      "result": "success"
+    },
+    "deployment": {
+      "run": 43688981785,
+      "result": "success",
+      "verifyProduction": 132735374153,
+      "deepLink": 132735374301,
+      "drift": "skipped/notPASS"
+    },
+    "deploymentBookkeepingSkips": [
+      43688844394,
+      43688816429,
+      43688815126,
+      43688814923,
+      43688812620
+    ]
+  },
+  "publicVersion": {
+    "commit": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+    "ref": "main",
+    "builtAt": "2026-11-15T07:11:38.554Z",
+    "lastDeployAffectingCommit": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+    "deployedCommitIsCurrent": true,
+    "root": "ActualpublicGET observed during07:16Z; no signed-in/modelacceptance inferred"
+  },
+  "reviews": "Four finished quizRules/fullSO/reassessment Codex sessions archived via supportedappAPI; actualverdicts/proofs retained. Originalbuilder/native6af840 kept forongoingE5F andretainedWIP, no cleanup of valuableworktrees.",
+  "ownerQA": "Asked samechat freshhostedtab/disposablequiz Paris→Helsinki reviewedApply/Undo afternormaldeployment verified; answerpending.",
+  "scope": "Partialquizfix landing only; 6/11phasesPASS, fullE5F stillincomplete. Retained2552/6bc/SVGstop/allattempts/E4boundary unchanged."
+}
