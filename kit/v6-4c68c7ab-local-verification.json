@@ -1,0 +1,42 @@
+{
+  "capturedAt": "2026-11-15T09:14:13.8041321+00:00",
+  "head": "4c68c7ab51c3c8d6b5d37513995e2a164048d3ad",
+  "cleanWorktree": true,
+  "build": {
+    "exitCode": 0,
+    "command": "npm run build --prefix cli"
+  },
+  "scope": {
+    "file": "check-scope.json",
+    "paths": 21,
+    "base": "6da76c942cc19136b67ed0235d8074733b129257",
+    "diffCheck": "passed"
+  },
+  "focused": {
+    "studio": {
+      "log": "focused-studio.log",
+      "failed": 0,
+      "passed": 168
+    },
+    "bridge": {
+      "log": "focused-bridge.log",
+      "failed": 0,
+      "passed": 192
+    }
+  },
+  "browser": {
+    "job": "j-5272",
+    "screenshot": "windows-j-5272-editor.png",
+    "report": "windows-j-5272-report.json",
+    "log": "windows-j-5272.log",
+    "tests": 24,
+    "durationSeconds": 49.7,
+    "priorRedReceipt": "C:/claude/Temp/vmix-v6-runtime-1115/product-9e1d50e6c9/local-verification.json"
+  },
+  "realVmix": {
+    "replies": "v6-product-replies.json",
+    "result": "passed",
+    "tcp": "v6-product-tcp.json",
+    "proof": "v6-product-proof.json"
+  }
+}

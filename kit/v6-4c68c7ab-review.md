@@ -1,0 +1,9 @@
+# V6 independent review of 4c68c7ab
+
+Fresh full configured-model /so from /root/v6_native_transition_exact_so returned grade B on clean 4c68c7ab51c3c8d6b5d37513995e2a164048d3ad for all 21 paths. Exact local build, 192 focused Bridge, 168 Studio, Windows j-5272 (24/24) and isolated native AC-12 passed. j-5271 exact red on its earlier pin remains preserved.
+
+The current native ownership family still has four confirmed issues in actual fake TCP traces. A pending native Loop bit can authorize a foreign rewind or reject a legal wrap under the prior mode. An observed covered high-water is not retained. Guarded Cut can remove after its compact probe has retired the instance. An acknowledged prefix removal can adopt a contradictory duration while its selected source has not changed. The fresh read-only /root/v6_verified_mode_reassess recommends prior verified policy and narrow per-edit successor semantics before carrying authority, retaining measured high-water under cover, and rechecking current guarded Cut. Normal native wrap, trimmed Bridge Loop and V5 partials remain controls.
+
+A separate owner-approved AC-12 outcome is missing from the normal operator flow. The current cue editor saves Hold, Loop and Clear for next Take, and no Studio caller sends the implemented guarded live ending action. Owner decision 3 explicitly expects vMix ending changes while a clip plays. Wire the existing control for eligible vMix timed Bridge/current cue ownership, with guarded instance/pairing and an honest result for invalidation. Preserve saved settings and existing CasparCG controls, including the separate #763 Play next issue. Add a normal browser case and stale response guard verification. Current open #2573 holds ProductionPage.tsx, so V6 will not edit it until that allocation clears. The same builder can continue native work without overlap.
+
+No product push, merge queue or V6 release yet.
