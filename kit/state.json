@@ -42,7 +42,15 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [],
+  "inFlight": [
+    {
+      "note": "V5 accepted and Bridge 0.12.0 Windows download verified. V6 fresh local worker begins Rules and reproduction. Owned blank vMix Trial 29.0.0.49 read only by XML with two blank inputs, idle outputs and both state files restored; ffmpeg and ffprobe verified. Required real tests remain local and separate.",
+      "step": "build",
+      "phase": "v6",
+      "session": "/root/v6_builder",
+      "head": "6da76c942cc19136b67ed0235d8074733b129257"
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": []
