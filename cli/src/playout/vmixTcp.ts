@@ -49,7 +49,7 @@ interface Pending {
 }
 
 export class VmixConnection {
-  private readonly port: number;
+  readonly port: number;
   private readonly greetingMs: number;
   private readonly replyMs: number;
   private socket?: Socket;

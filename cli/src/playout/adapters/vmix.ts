@@ -13,7 +13,7 @@ import { VMIX_BROWSER_LOAD_PROBLEM, VMIX_INPUT_KEY, vmixOverlayCount, type Agent
 import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, type VmixXml } from '../vmixTcp.js';
 import { newVmixBrowser, vmixOutputAddress, vmixOutputId, vmixOutputStore, vmixRedirectRequest, type VmixOutputStore } from '../vmixOutputs.js';
 import { createVmixMedia, VmixDeadline, VmixPublicationUncertain, type VmixMedia } from '../vmixMedia.js';
-import { createVmixPlayers, unsupportedPlayerAction, type VmixAction, type VmixActResult, type PlayerMixer } from '../vmixPlayers.js';
+import { createVmixPlayers, unsupportedPlayerAction, type VmixAction, type VmixActResult, type PlayerMixer, type PlayerTransition } from '../vmixPlayers.js';
 import type { VmixClipClock } from '../vmixClipTimer.js';
 import type { ActContext, ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
 
@@ -187,7 +187,10 @@ export function createVmixAdapter(options: {
     return { ok: false, error: { hop: 'target', code: 'unreachable', setup: r.setup, detail } };
   }
 
-  async function read(conn: VmixConnection, until: number, scope: SnapshotScope | 'diagnostic' = {}): Promise<AdapterResult<VmixXml> & { lost?: boolean }> {
+  async function read(
+    conn: VmixConnection, until: number, scope: SnapshotScope | 'diagnostic' = {}, transition?: PlayerTransition,
+  ): Promise<AdapterResult<VmixXml> & { lost?: boolean }> {
+    const connectionId = conn.connectionId;
     const r = await conn.command('XML', until);
     if (!r.ok) {
       const why = r.lost === 'timeout' ? 'no answer in time' : r.lost === 'late' ? 'no time left to ask' : 'the connection closed';
@@ -196,6 +199,7 @@ export function createVmixAdapter(options: {
     }
     const xml = r.body === undefined ? undefined : parseVmixXml(r.body);
     if (!xml) return { ok: false, error: { hop: 'target', code: 'refused', detail: 'vMix answered XML with something that is not its state.', raw: r.line } };
+    if (!players.witnessSnapshot(conn.port, connectionId, xml, transition)) return refused('The vMix player changed during the list command.');
     if (scope !== 'diagnostic') {
       const count = vmixOverlayCount(xml.version, xml.edition);
       if (scope.expectedCount !== undefined && scope.expectedCount !== count) return refused('The vMix overlay count changed. Check it and try again.');
@@ -401,7 +405,7 @@ export function createVmixAdapter(options: {
     const connectionId = conn.connectionId;
     return {
       connectionId, until,
-      read: deadline => read(conn, Math.min(until, deadline ?? until), 'diagnostic'),
+      read: (deadline, transition) => read(conn, Math.min(until, deadline ?? until), 'diagnostic', transition),
       async readText(xpath, deadline) {
         if (closed || conn.connectionId !== connectionId || /[\r\n]/.test(xpath)) return 'failed';
         const reply = await conn.command('XMLTEXT ' + xpath, Math.min(until, deadline ?? until));

@@ -166,6 +166,13 @@ dispatches a verified entrance. Before that point the selection cannot supply
 a cue, instance, segment or automatic timer. A V5 Take observed playing retains
 its visible identity if prefix cleanup partly fails.
 
+Every valid full native snapshot records a confirmed unmute, a foreign or
+missing occurrence, or a changed connection before any state, readiness or
+media checks. An acknowledged list change admits its predecessor and successor
+only for its own input. The pre-append Pause requires the same selection
+throughout. A foreign occurrence or changed connection stops armed work before
+any subsequent compact timer samples can authorize a write.
+
 ## Verification, release and rollback
 
 - Use the existing fake TCP server with a controlled clip clock and a reference trace based on the Rules. Check guarded wire skew, command order, settled and relative positions, native and Bridge endings, fade ownership and endpoints, gain reset, paused time, delayed and unknown results, the port read budget, and stale work queued before a later action. Include a loop seek that rebounds, and a Clear armed inside 40 ms during another native ramp. Record the configured and actual sound and picture endpoint timing and removal. Keep the browser check in the existing playout-cues journey and run it through the shared Windows queue.

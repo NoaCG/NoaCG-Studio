@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { request as httpRequest } from 'node:http';
-import { promises as fs } from 'node:fs';
+import { promises as fs, renameSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, realpath, rm, rmdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -4814,8 +4814,8 @@ test('AC-12: a later mute after cut or on a foreign occurrence has no retirement
 });
 
 
-test('AC-12: a readable foreign list ends the covered append, select, prefix or empty transition', async t => {
-  for (const mutation of ['ListAdd', 'SelectIndex', 'ListRemove', 'ListRemoveAll']) {
+test('AC-12: a readable foreign list ends the covered pause, append, select, prefix or empty transition', async t => {
+  for (const mutation of ['Pause', 'ListAdd', 'SelectIndex', 'ListRemove', 'ListRemoveAll']) {
     await t.test(mutation, async t => {
       let fault = false;
       let checking = false;
@@ -4862,6 +4862,114 @@ test('AC-12: a readable foreign list ends the covered append, select, prefix or 
       assert.equal(fixture.fake.functions.length, count);
     });
   }
+});
+
+test('AC-12: a conclusive readiness refusal retires an earlier own mute before retry', async t => {
+  for (const mode of ['retyped', 'unavailable']) {
+    await t.test(mode, async t => {
+      let input;
+      let refusedFader = false;
+      let fault = false;
+      let reads = 0;
+      let unavailable;
+      const fixture = await timedFixture(t, {
+        afterFunction(name, params, socket) {
+          if (refusedFader || !input?.muted || name !== 'SetVolume' || params.Value !== '100') return false;
+          refusedFader = true;
+          input.fader = 0;
+          socket.write('FUNCTION ER Fader refused\r\n');
+          return true;
+        },
+        transformXml(body) {
+          if (!fault || ++reads !== 2) return body;
+          if (mode === 'retyped') return body.replace('type="VideoList"', 'type="Image"');
+          renameSync(join(fixture.root, 'sting.wav'), unavailable);
+          return body;
+        },
+      }, { persisted: true });
+      assert.equal((await fixture.take('sting.wav')).ok, true);
+      input = fixture.fake.inputs.find(row => row.title === 'NoaCG Audio');
+      const playback = { trim: { in: 0.5, out: 2 } };
+      assert.equal((await fixture.take('sting.wav', { playback })).ok, false);
+      assert.equal(refusedFader, true);
+      assert.equal(input.muted, true);
+      unavailable = join(fixture.root, 'sting-unavailable.wav');
+      fault = true;
+      const before = fixture.fake.functions.length;
+      try {
+        const refused = await fixture.take('sting.wav', { playback });
+        assert.equal(refused.ok, false);
+        assert.match(refused.error.detail, mode === 'retyped' ? /could not confirm the selected Video List/ : /unavailable in its media folder/);
+        assert.equal(fixture.fake.functions.length, before);
+        assert.equal(reads, 2);
+      } finally {
+        fault = false;
+        if (mode === 'unavailable' && reads >= 2) renameSync(unavailable, join(fixture.root, 'sting.wav'));
+      }
+      assert.equal((await fixture.take('sting.wav', { playback })).ok, false);
+      assert.equal(fixture.fake.functions.length, before);
+      assert.equal(input.muted, true);
+    });
+  }
+});
+
+test('AC-12: a diagnostic full read retires an armed Hold on a foreign occurrence', async t => {
+  for (const mode of ['healthy status', 'foreign status', 'foreign state with malformed peer']) {
+    await t.test(mode, async t => {
+      const fixture = await timedFixture(t);
+      const result = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 0.9 } } });
+      assert.equal(result.ok, true);
+      const clips = fixture.row();
+      const list = clips.list;
+      const before = fixture.fake.functions.length;
+      if (mode !== 'healthy status') clips.list = [join(fixture.root, 'clip A.mp4')];
+      if (mode === 'foreign state with malformed peer') {
+        const peer = fixture.fake.add('VideoList', 'NoaCG Audio');
+        peer.state = 'InvalidPlaybackState';
+        const state = await fixture.joinTurn();
+        assert.equal(state.ok, true);
+        assert.equal(state.value.players, undefined);
+        peer.state = 'Completed';
+      } else {
+        assert.equal((await fixture.adapter.status(fixture.target)).ok, true);
+      }
+      clips.list = list;
+      await fixture.advance(470);
+      const healthy = mode === 'healthy status';
+      assert.deepEqual(fixture.fake.functions.slice(before).map(fn => fn.name), healthy ? ['Pause'] : []);
+      assert.equal(clips.state, healthy ? 'Paused' : 'Running');
+    });
+  }
+});
+
+test('AC-12: an own covered list change still observes the other player', async t => {
+  let clips;
+  let audio;
+  let changePending = false;
+  let observed = false;
+  const fixture = await timedFixture(t, {
+    afterFunction(name, params) {
+      if (name === 'ListAdd' && params.Input === audio?.key) changePending = true;
+      return false;
+    },
+    transformXml(body) {
+      if (!changePending || observed) return body;
+      observed = true;
+      return body.replace(join(fixture.root, 'clip B.mp4'), join(fixture.root, 'clip A.mp4'));
+    },
+  });
+  const held = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 0.9 } } });
+  assert.equal(held.ok, true);
+  clips = fixture.row();
+  assert.equal((await fixture.take('sting.wav')).ok, true);
+  audio = fixture.fake.inputs.find(row => row.title === 'NoaCG Audio');
+  const replacement = await fixture.take('sting.wav', { playback: { trim: { in: 0.5, out: 2 } } });
+  assert.equal(observed, true);
+  assert.equal(replacement.ok, true, JSON.stringify(replacement));
+  const before = fixture.fake.functions.length;
+  await fixture.advance(470);
+  assert.equal(clips.state, 'Running');
+  assert.equal(fixture.fake.functions.slice(before).some(fn => fn.params.Input === clips.key), false);
 });
 
 test('AC-12: an own index handoff cannot regress to its predecessor after first successor evidence', async t => {
