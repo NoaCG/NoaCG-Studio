@@ -104,6 +104,14 @@ request, refuses an impossible duration before replacing prior work, and expires
 deadline even while its deferred turn is waiting. Automatic post-Take work keeps its
 per-step deadline.
 
+The foreground handoff also applies to gain-only Takes that use native cover, and to a
+replacement that inherits cover or an interrupted ramp. Compact replies must arrive as
+bounded, valid UTF-8 lines ending in CRLF. A malformed success or not-found reply grants
+neither a write nor a retry. An interrupted exit follows one restore on current and
+legacy Pause or Resume when its held occurrence is confirmed. A trimmed Resume proves
+Running in range, finishes the intended fader reset while still muted and reveals once.
+An ongoing entrance carries its original ramp. An originally muted Clip remains muted.
+
 The covered Loop rechecks its boundary before setting alpha and before the separately keyed
 mute write. A naturally completed clip can finish its original entrance on an ending change.
 An interrupted fade retains its physical presentation even when an alpha write is refused after

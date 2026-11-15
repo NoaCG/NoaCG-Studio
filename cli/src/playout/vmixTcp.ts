@@ -153,20 +153,21 @@ export class VmixConnection {
         this.finish({ ok: true, status: body.status, line: body.line, body: isUtf8(body.data) ? body.data.toString('utf8') : undefined });
         continue;
       }
-      const awaitingFunction = this.pending?.word === 'FUNCTION';
+      const waitingFor = this.pending?.word;
+      const waitsForLine = waitingFor === 'FUNCTION' || waitingFor === 'XMLTEXT';
       const nl = this.buf.indexOf(0x0a);
       if (nl < 0) {
         if (this.buf.length > MAX_LINE_BYTES) {
-          if (awaitingFunction) this.rejectFunctionReply(s);
+          if (waitsForLine) this.rejectLineReply(s);
           else s.destroy();
         }
         return;
       }
       const lineBytes = this.buf.subarray(0, nl);
       this.buf = this.buf.subarray(nl + 1);
-      if (awaitingFunction) {
-        if (!this.readFunctionLine(lineBytes)) {
-          this.rejectFunctionReply(s);
+      if (waitsForLine) {
+        if (!this.readReplyLine(lineBytes, waitingFor)) {
+          this.rejectLineReply(s);
           return;
         }
         continue;
@@ -205,30 +206,24 @@ export class VmixConnection {
           return;
         }
       }
-      if (word === 'XMLTEXT' && status !== 'OK' && status !== 'ER') {
-        // The player guard asks for a single numeric or state value. A length header can
-        // precede multiline data, so close before any of that data can answer a later turn.
-        this.finish({ ok: true, status, line });
-        s.destroy();
-        return;
-      }
       this.finish({ ok: true, status, line });
     }
   }
 
-  /** Only a FUNCTION answer or an asynchronous event can arrive during a FUNCTION turn. */
-  private readFunctionLine(bytes: Buffer): boolean {
+  /** A scalar or function turn accepts its own reply and asynchronous events on complete lines. */
+  private readReplyLine(bytes: Buffer, waitingFor: 'FUNCTION' | 'XMLTEXT'): boolean {
     if (bytes.length > MAX_LINE_BYTES || bytes.at(-1) !== 0x0d || !isUtf8(bytes)) return false;
     const line = bytes.subarray(0, -1).toString('utf8');
-    const envelope = /^(FUNCTION|ACTS|TALLY) (OK|ER)(?: [^\r\n]+)?$/.exec(line);
+    const envelope = /^(FUNCTION|XMLTEXT|ACTS|TALLY) (OK|ER)(?: ([^\r\n]+))?$/.exec(line);
     if (!envelope) return false;
-    const [, word, status] = envelope;
-    if (word !== 'FUNCTION') return status === 'OK';
+    const [, word, status, payload] = envelope;
+    if (word === 'ACTS' || word === 'TALLY') return status === 'OK';
+    if (word !== waitingFor || (word === 'XMLTEXT' && payload === undefined)) return false;
     this.finish({ ok: true, status, line });
     return true;
   }
 
-  private rejectFunctionReply(s: Socket): void {
+  private rejectLineReply(s: Socket): void {
     // Discard the remaining bytes so a later line cannot answer the command.
     s.destroy();
     this.finish({ ok: false, lost: 'invalid-reply' });
