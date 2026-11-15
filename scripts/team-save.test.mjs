@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import * as history from '../src/model/rundownHistory.ts';
+import * as teamMerge from '../src/model/teamShowMerge.ts';
 import { rolldown } from 'rolldown';
 import * as pacing from '../src/backend/pacing.ts';
 import * as copySettle from '../src/model/copySettle.ts';
@@ -40,7 +41,7 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     '../model/shows': {},
     '../model/teamShows': { loadTeamShows: () => [local], applyServerTeamShow: doc => { local = doc; } },
     '../model/rundownHistory': history,
-    '../model/teamShowMerge': {},
+    '../model/teamShowMerge': teamMerge,
     // The send-time settle (live-publishing W2) is copy-settle.test.mjs's; nothing here differs in design.
     '../model/copySettle': settle,
     '../model/durableStore': { canAuthorAccount: () => true, libraryInUse: () => 'owner', commitDurableWrites: () => disk.promise },
@@ -352,7 +353,7 @@ function refreshHarness() {
       setTeamShowsStatus: () => {},
     },
     '../model/rundownHistory': history,
-    '../model/teamShowMerge': {},
+    '../model/teamShowMerge': teamMerge,
     '../model/copySettle': { settleGraphics: (graphics) => ({ graphics, changed: false }) },
     '../model/durableStore': { canAuthorAccount: () => true, libraryInUse: () => 'owner', commitDurableWrites: async () => null },
     '../model/teamOutbox': { retainTeamEdit: () => {}, acknowledgeTeamEdit: () => {}, pendingTeamEdits: () => outbox },

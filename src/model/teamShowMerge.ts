@@ -87,6 +87,30 @@ function overlayCueText(cue: ShowCue, text: ShowCue): ShowCue {
   return result;
 }
 
+function draftTextAllowed(cue: ShowCue, text: ShowCue, baseline: ShowCue, collections: Show['collections']): boolean {
+  const connectedEdit = selectedFields(cue, collections).some(field =>
+    text.values[field] !== undefined && text.values[field] !== baseline.values[field]);
+  return !connectedEdit && !selectionReadOnly(cue, collections) && !typedReadOnly(cue);
+}
+
+/** A second merge may attach a recipe after a first pass applied the draft. Recheck the final cue. */
+export function guardMergedCueDrafts(doc: Show, theirs: Show, drafts: readonly TeamCueDraftText[]): string[] {
+  if (!drafts.length || !doc.cues) return [];
+  const baselines = new Map(theirs.cues?.map(cue => [cue.id, cue]));
+  const candidates = new Map(drafts.map(proof => [proof.cueId, proof.after]));
+  let refused = false;
+  doc.cues = doc.cues.map(cue => {
+    const baseline = baselines.get(cue.id);
+    const after = candidates.get(cue.id);
+    if (!baseline || !after || cueTextKey(doc, cue.id) !== after || cueTextKey(theirs, cue.id) === after
+      || draftTextAllowed(cue, cue, baseline, doc.collections)) return cue;
+    refused = true;
+    return overlayCueText(cue, baseline);
+  });
+  if (refused) scrubHiddenWords(doc);
+  return refused ? [FIELD_LABEL.cues] : [];
+}
+
 type Item = { id: string };
 
 function isItemList(value: unknown): value is Item[] {
@@ -321,9 +345,7 @@ export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string, 
       const draft = draftCues.get(cue.id);
       if (!draft) return cue;
       draftCues.delete(cue.id);
-      const connectedEdit = selectedFields(cue, merged.collections).some(field =>
-        draft.values[field] !== undefined && draft.values[field] !== cue.values[field]);
-      if (connectedEdit || selectionReadOnly(cue, merged.collections) || typedReadOnly(cue)) {
+      if (!draftTextAllowed(cue, draft, cue, merged.collections)) {
         if (!lost.includes(FIELD_LABEL.cues)) lost.push(FIELD_LABEL.cues);
         return cue;
       }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { beginTeamRundownEdit, commitTeamRundownEdit, restoreTeamRundown, subscribeTeamState, getTeamState, type TeamRundownReceipt } from '../../backend/teamProductions';
-import { canAuthorAccount, commitDurableReceipt, captureDurableWrites, libraryInUse, isDurableStoreActive } from '../../model/durableStore';
+import { beginTeamRundownEdit, commitTeamRundownEdit, restoreTeamRundown, subscribeTeamState, getTeamState, teamCueTextConfirmed, type TeamRundownReceipt } from '../../backend/teamProductions';
+import { canAuthorAccount, commitDurableReceipt, captureDurableWrites, libraryInUse, isDurableStoreActive, type DurableWriteReceipt } from '../../model/durableStore';
 import { loadShows, restorePersonalRundown, type Show } from '../../model/shows';
 import type { CueFields, CueRecord } from '../../control/cueDraft';
 import { RundownHistory, cueFieldsKey, cueTextKey, landedReplacement, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
@@ -14,6 +14,18 @@ type Typing = {
   retaining?: Promise<boolean>;
 };
 type PendingTeamEdit = { before: RundownSlice; after: RundownSlice; label: string; receipt: TeamRundownReceipt; group?: Group; closed: boolean; confirming: boolean };
+
+function hasDraftReceipt(receipts: readonly DurableWriteReceipt[], show: Show, cueId: string, text: string): boolean {
+  return receipts.some(receipt => {
+    try {
+      const value = JSON.parse(receipt.value ?? 'null');
+      const stored = show.teamId ? value?.edits?.[show.id]?.local : value?.find((candidate: Show) => candidate.id === show.id);
+      return stored?.id === show.id && stored.teamId === show.teamId && cueTextKey(stored, cueId) === text;
+    } catch {
+      return false;
+    }
+  });
+}
 
 /** One authoring queue and one history per mounted production/account. Persistence stays in
  * the model/backend; this hook records only exact acknowledged results and never dispatches air. */
@@ -158,7 +170,10 @@ export function useRundownHistory(
     const intended = intendedShow ? rundownSlice(intendedShow) : null;
     let error = result.refused ?? result.error;
     const stagedText = draft && !error && intended ? cueTextKey(intended, draft.cueId) : null;
-    const staged = stagedText === null ? undefined : { text: stagedText };
+    if (!error && draft && (stagedText === null || !hasDraftReceipt(captured.receipts, current, draft.cueId, stagedText))) {
+      error = 'This rundown save has not been confirmed.';
+    }
+    const staged = !error && stagedText !== null ? { text: stagedText } : undefined;
     if (draft && staged) draft.staged = staged;
     for (const receipt of captured.receipts) {
       const failed = await commitDurableReceipt(receipt);
@@ -191,7 +206,8 @@ export function useRundownHistory(
       // network failure, or a refusal, is as today (D6).
       if (draft && error === RUNDOWN_CHANGED) {
         changedElsewhere(acceptedSlice);
-        return !!team && locallyAccepted && typedLanded;
+        return !!team && locallyAccepted && typedLanded && stagedText !== null
+          && teamCueTextConfirmed(team, draft.cueId, stagedText);
       }
       if (team && intended && accepted && acceptedSlice && sameRundown(acceptedSlice, intended) && !sameRundown(before, intended)) {
         pendingTeam.current = { before: pending?.before ?? held?.before ?? before, after: intended, label, receipt: team, group: held, closed: !held, confirming: false };
@@ -256,7 +272,7 @@ export function useRundownHistory(
     const key = current.teamId ? 'spx-gfx-team-outbox' : 'spx-gfx-shows';
     const { result, receipts } = captureDurableWrites(key, () => write(before));
     const text = cueTextKey(result.shows.find(show => show.id === current.id && show.teamId === current.teamId) ?? {}, cueId);
-    if (result.error || result.refused || text === null || (!receipts.length && text !== before)) return false;
+    if (result.error || result.refused || text === null || !hasDraftReceipt(receipts, current, cueId, text)) return false;
     const staged = { text };
     draft.staged = staged;
     const settled = Promise.all(receipts.map(commitDurableReceipt)).then(errors => {

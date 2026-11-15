@@ -10,7 +10,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
+const { guardMergedCueDrafts, mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
 const { cueTextKey } = await import('../src/model/rundownHistory.ts');
 
 const AT = '2026-09-27T00:00:00.000Z';
@@ -122,6 +122,12 @@ test('a teammate mapping a connected field blocks a draft edit to that field', (
   assert.deepEqual(doc.cues[0], original);
   assert.deepEqual(doc.collections, theirs.collections);
   assert.deepEqual(lost, ['the rundown']);
+
+  // A later local edit can attach the mapping after the first merge accepted the text.
+  const later = { ...ours, collections: theirs.collections };
+  assert.deepEqual(guardMergedCueDrafts(later, base, [draft]), ['the rundown']);
+  assert.deepEqual(later.cues[0], original);
+  assert.deepEqual(later.collections, theirs.collections);
 });
 
 test('one teammate folders A and B while the other orders A, C, B, D: the folder is gathered and reported', () => {

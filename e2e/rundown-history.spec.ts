@@ -429,9 +429,13 @@ test('an ordinary cue write cannot persist a rejected draft from the mirror (#25
   await select(page, 'Alpha');
   await page.evaluate(async ids => {
     const shows = await __noacgImport('/src/model/shows.ts');
-    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    const store = await __noacgImport('/src/model/durableStore.ts');
+    const { durable } = store;
     const original = IDBObjectStore.prototype.get;
     const key = 'spx-gfx-shows';
+    let reportRefusals!: (errors: (string | null)[]) => void;
+    (window as unknown as { dependentWriteErrors: Promise<(string | null)[]> }).dependentWriteErrors =
+      new Promise(resolve => { reportRefusals = resolve; });
     const committedElsewhere = JSON.parse(durable.getItem(key)!) as Show[];
     committedElsewhere.find(show => show.id === ids.show)!.cues!.find(cue => cue.id === ids.cues[0])!.label = 'Remote Alpha';
     // Write straight to IndexedDB to hold the mirror notification from the other tab.
@@ -455,10 +459,13 @@ test('an ordinary cue write cannot persist a rejected draft from the mirror (#25
           shows.updateShowCueChecked(ids.show, ids.cues[1], { label: 'Ordinary Beta' });
           const opaque = JSON.parse(durable.getItem(key)!) as Show[];
           const show = opaque.find(show => show.id === ids.show)!;
-          show.name = 'First dependent write';
-          durable.setItem(key, JSON.stringify(opaque));
-          show.name = 'Second dependent write';
-          durable.setItem(key, JSON.stringify(opaque));
+          const { receipts } = store.captureDurableWrites(key, () => {
+            show.name = 'First dependent write';
+            durable.setItem(key, JSON.stringify(opaque));
+            show.name = 'Second dependent write';
+            durable.setItem(key, JSON.stringify(opaque));
+          });
+          void Promise.all(receipts.map(store.commitDurableReceipt)).then(reportRefusals);
         });
       }
       return original.call(this, k);
@@ -467,6 +474,9 @@ test('an ordinary cue write cannot persist a rejected draft from the mirror (#25
   await page.getByTestId('cue-label').fill('Rejected Alpha');
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush')));
   await expect(row(page, 'Ordinary Beta')).toBeVisible();
+  const errors = await page.evaluate(() =>
+    (window as unknown as { dependentWriteErrors: Promise<(string | null)[]> }).dependentWriteErrors);
+  expect(errors).toEqual(Array(2).fill('The production changed before this save. Try the edit again.'));
   await settleDurableWrites(page);
   await page.reload();
   await expect(row(page, 'Remote Alpha')).toBeVisible();
@@ -488,6 +498,122 @@ test('an ordinary cue write cannot persist a rejected draft from the mirror (#25
   await expect(row(page, 'Remote Alpha')).toBeVisible();
   await expect(row(page, 'Ordinary Beta')).toBeVisible();
   expect(await name()).toBe('Fresh production write');
+});
+
+test('ordinary cue writes back to the sent draft text revoke draft-only merge authority (#2572, D6)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  await select(page, 'Alpha');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await page.getByTestId('cue-label').fill('Sent draft');
+    await expect.poll(() => state.calls).toBeGreaterThan(calls);
+    await page.evaluate(async ids => {
+      const shows = await __noacgImport('/src/model/shows.ts');
+      shows.updateShowCueChecked(ids.show, ids.cues[0], { label: 'Ordinary edit' });
+      shows.updateShowCueChecked(ids.show, ids.cues[0], { label: 'Sent draft' });
+    }, ids);
+    await settleDurableWrites(page);
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[0] ? { ...c, accentColor: '#6600CC' } : c)) };
+    advance();
+  } finally { release(); }
+  await expect.poll(() => state.calls).toBeGreaterThan(calls + 1);
+  await expect.poll(() => page.evaluate(async id => {
+    const team = await __noacgImport('/src/backend/teamProductions.ts');
+    return team.getTeamState().saving[id] ?? null;
+  }, ids.show)).toBeNull();
+  expect(state.doc?.cues?.find(c => c.id === ids.cues[0])).toMatchObject({ label: 'Alpha', accentColor: '#6600CC' });
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an ordinary team edit cannot inherit another tab’s draft proof (#2572, D6)', async ({ page }) => {
+  const { ids, state } = await teamBackend(page);
+  const proofs = await page.evaluate(async ({ ids, token }) => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const history = await __noacgImport('/src/model/rundownHistory.ts');
+    const { durable, libraryInUse } = await __noacgImport('/src/model/durableStore.ts');
+    const base = shows.loadShows().find(show => show.id === ids.show)!;
+    const local = structuredClone(base);
+    const cueId = ids.cues[0];
+    local.cues!.find(cue => cue.id === cueId)!.label = 'Same bytes';
+    const cueDrafts = [{ cueId, before: history.cueTextKey(base, cueId), after: history.cueTextKey(local, cueId) }];
+    // As an adopted account-scoped outbox write arrives, this tab still holds its own base.
+    const key = 'spx-gfx-team-outbox';
+    durable.setItem(key, JSON.stringify({ v: 1, owner: libraryInUse(), edits: {
+      [ids.show]: { token, base, local, teamId: base.teamId, updatedBy: null, cueDrafts },
+    } }));
+    shows.updateShowCueChecked(ids.show, cueId, { label: 'Same bytes' });
+    const edit = JSON.parse(durable.getItem(key)!).edits[ids.show];
+    return edit.cueDrafts ?? [];
+  }, { ids, token: state.token });
+  expect(proofs).toEqual([]);
+  await settleDurableWrites(page);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an acknowledged team draft cannot authorize the next save from its older baseline (#2572, D3)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  await select(page, 'Alpha');
+  const input = page.getByTestId('cue-label');
+  let releaseFirst!: () => void;
+  let releaseNext!: () => void;
+  state.hold = new Promise<void>(resolve => { releaseFirst = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('First draft');
+    await expect.poll(() => state.calls).toBeGreaterThan(calls);
+    await input.fill('Next draft');
+    await page.evaluate(id => { window.location.hash = '/production/' + id; }, ids.other);
+    await expect(row(page, 'Beta')).toHaveCount(0);
+    await settleDurableWrites(page);
+    state.hold = new Promise<void>(resolve => { releaseNext = resolve; });
+    releaseFirst();
+    await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[0])?.label).toBe('First draft');
+    await expect.poll(() => state.calls).toBeGreaterThan(calls + 1);
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[0] ? { ...c, label: 'Alpha', accentColor: '#6600CC' } : c)) };
+    advance();
+  } finally {
+    releaseFirst();
+    releaseNext?.();
+  }
+  await expect.poll(() => state.calls).toBeGreaterThan(calls + 2);
+  await expect.poll(() => page.evaluate(async id => {
+    const team = await __noacgImport('/src/backend/teamProductions.ts');
+    return team.getTeamState().saving[id] ?? null;
+  }, ids.show)).toBeNull();
+  expect(state.doc?.cues?.find(c => c.id === ids.cues[0])).toMatchObject({ label: 'Alpha', accentColor: '#6600CC' });
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('hiding keeps an owed team draft if its local outbox never confirmed it (#2572, D6)', async ({ page }) => {
+  const { ids, state } = await teamBackend(page);
+  await select(page, 'Alpha');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await page.evaluate(async () => {
+      const { durable } = await __noacgImport('/src/model/durableStore.ts');
+      const put = durable.setItem;
+      durable.setItem = function(key, value) {
+        if (key === 'spx-gfx-team-outbox') throw new DOMException('Injected full store', 'QuotaExceededError');
+        put.call(this, key, value);
+      };
+    });
+    await page.getByTestId('cue-label').fill('Recover this cue');
+    await expect.poll(() => page.evaluate(async ids => {
+      const shows = await __noacgImport('/src/model/shows.ts');
+      return shows.loadShows().find(show => show.id === ids.show)?.cues?.find(c => c.id === ids.cues[0])?.label;
+    }, ids)).toBe('Recover this cue');
+    const owed = await page.evaluate(async id => {
+      const { libraryInUse } = await __noacgImport('/src/model/durableStore.ts');
+      window.dispatchEvent(new PageTransitionEvent('pagehide'));
+      await new Promise(resolve => setTimeout(resolve, 0));
+      return JSON.parse(localStorage.getItem('spx-gfx-owed-cue-edits@' + libraryInUse()) ?? '{}').shows?.[id];
+    }, ids.show);
+    expect(owed?.fields.label).toBe('Recover this cue');
+  } finally { release(); }
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
 test('a change elsewhere to the cue being typed itself keeps today\'s rule: the typed text gives way (#2572, D3)', async ({ page }) => {
