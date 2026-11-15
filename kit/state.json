@@ -1503,7 +1503,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Originalbuilder oneboundednewfactory/helpercorrection andcandidateproof underacceptedaftercodingRules",
+    "what": "Originalbuilder remainingboundedvisual/Entry/production-origin/legacy proof and intentionalguardmutationrestore, then finalcheck/fullSO",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4523,6 +4523,23 @@
         "brief": "briefs/e5f-blank-source-family-correction-20261115.txt",
         "sha256": "2e85168f31fbf06fffdde0924d2f371336a4f6eaf556a75c2edf9fa5c241f334",
         "scope": "ONLYdedicatednewfactory+helperEscape, tests/notes/proofs; anysamefamilyproductfail STOPbeforeanotherpatch, no reset"
+      },
+      "correctedFamilyProof": {
+        "job": 232,
+        "result": "16PASS36.7s/2workerscap5, no executedretry/skip; HEADcd84+working source notfinalhead",
+        "scope": "Originaltext/Escape defects, bothsharedidle/busyowners, firstTextDrawUndoRedoSaveReopen2IDs, heldSaveawayback, acceptedgate/newersource/newergate, 3formatsplain+brandzeroalpha and4executedbrowserexports",
+        "root": "WHOLEj232log read; authoredPNG/SPX/OGrafframes viewed; sixplain/brandedPNGalphaextrema all0 at1280x720,1920x1080,3840x2160",
+        "limits": "OldstarterPNGcapturedBEFOREpaintassertion, strengthenedproofpending. OGrafglobalframe+8hostoffset recorded, actualhostoriginconfirmationpending; no globalparity/nativehost claim.",
+        "preservedSource": {
+          "directory": "blank-source-preserved-20261115",
+          "hashes": {
+            "failed-neutral-factory.ts": "3f323a9b363140dd0a4e44b4ee9fa0b88555f5a08155fbb74daf4cfdb79d2cb8",
+            "failed-shared-helper.ts": "6a61b9951f50d86385e5ea53c1ba15a88f4c8715f29f2fdb8df280b2075b77f3",
+            "good-helper.ts": "ef017e7766dacd712bee836abacd9e890255d5828d2738ce6630d79e4d6c6bdc",
+            "good-factory.ts": "5cc9eb21e7ee5670b75449f385e6e54af66cfe7f0027b40aee3a659f1f495195"
+          }
+        },
+        "mutation": "j233 currentlydeliberateguardfault, exactgooddiskbackupandfinallyrestore expected; notfinalcandidatePASS"
       }
     }
   },
@@ -4549,5 +4566,20 @@
     ],
     "qualification": "Actual disposablechildIO/Git PASS in2separatecommands. CLIAPI known401 NOTEXECUTED; preflight reports unqualifiedCLI explicitly. Connected Actions repo read succeeded total28409. No CLI refresh, credential substitution, nativechildmapping or wake claim.",
     "ownership": "Same native/same unexpiredblock; waitnull/pendingnull, nextphase7 build wait reconciled, no secondstore/project or newblock."
+  },
+  "recoveryArtifactArchives": {
+    "manifest": "recovery-artifact-archives.json",
+    "latest": {
+      "logicalPath": "e4-owner1-stop-2026-11-12/final-head.patch",
+      "compressedPath": "e4-owner1-stop-2026-11-12/final-head.patch.gz",
+      "rawSha256": "8fbc9f1481690ef550840c7cf51e6243a8fe2d39bdb33b8f74e10584cc892107",
+      "gzipSha256": "25fa3af158e9a14f22d1ff87534055811ccdd5b5e60d4e057fcdacf57c85e11a",
+      "rawBytes": 1885970,
+      "gzipBytes": 1225647,
+      "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/e4-owner1-stop-2026-11-12/final-head.patch",
+      "restore": "Before reading the logical raw path, gunzip the compressed artifact to an owned output path and verify rawSha256. The historical raw bytes and original receipt hashes are unchanged.",
+      "reason": "Existing8MiBkitlimit enforced; checkpoint failed at8401335bytes. No limit modified or evidence dropped."
+    },
+    "publishFailure": "One checkpoint publication refusedexisting8MiB; preservedstate/rawsource beforelosslessarchive, no ledger event/attemptreset"
   }
 }

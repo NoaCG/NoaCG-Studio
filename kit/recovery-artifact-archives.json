@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "archives": [
+    {
+      "logicalPath": "e4-owner1-stop-2026-11-12/final-head.patch",
+      "compressedPath": "e4-owner1-stop-2026-11-12/final-head.patch.gz",
+      "rawSha256": "8fbc9f1481690ef550840c7cf51e6243a8fe2d39bdb33b8f74e10584cc892107",
+      "gzipSha256": "25fa3af158e9a14f22d1ff87534055811ccdd5b5e60d4e057fcdacf57c85e11a",
+      "rawBytes": 1885970,
+      "gzipBytes": 1225647,
+      "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/e4-owner1-stop-2026-11-12/final-head.patch",
+      "restore": "Before reading the logical raw path, gunzip the compressed artifact to an owned output path and verify rawSha256. The historical raw bytes and original receipt hashes are unchanged.",
+      "reason": "Existing8MiBkitlimit enforced; checkpoint failed at8401335bytes. No limit modified or evidence dropped."
+    }
+  ]
+}
