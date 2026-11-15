@@ -48,6 +48,32 @@ also pauses a trimmed clip at its out point while the fade settles. Controlled f
 short Loop, a changed containing root, a rewind between reads, contradictory selection markers,
 0/0 timing and the short-fade or conflicting-ramp cases.
 
+The Windows owned fixture then ran the second candidate,
+`ddff59d774152fdda9305fbb4e107952bd6ebe16`. Thirteen replacement snapshots showed the old blue clip,
+eight black samples and the revealed green clip. Hold reached 3640 ms for an out point of 3600 ms.
+The +6 dB tone rose from 0.126 to 0.255. From full volume, the one-second Out reached alpha zero
+at 1005 ms, reported native volume 0.02073608 at 1003 ms and confirmed hard zero and a zero
+meter at 1051 ms. Removal followed at 1092 ms. The private settings were restored by hash.
+
+A second independent review reproduced an unsafe trimmed Resume, a newer nonzero scalar being
+missed before Clear, and the entrance changing ownership on Loop, held ending changes or overlapping
+replacement Takes. The revised lifecycle keeps the observed player presentation on the native GUID,
+separate from cancellable, generation-bound playback work. Take, Loop and Resume share the guarded
+trim start. Resume refuses a sampled position outside the half-open trim. A short Loop mutes the
+verified player through its stopped seek and restores the captured mute state after an in-range
+Running observation, carrying the same elapsed entrance. Ending changes preserve a held entrance.
+Clear checks unique GUID, stopped state, boundary and any required audio zero in its final predicate.
+An observed duplicate GUID fails the compact guard even if its other attributes differ.
+
+A vMix 29 25p diagnostic sampled Clips, Audio with Audio Auto off, and an initially muted Clips
+input. Keyed AudioOff held the routed master meter at zero through Pause, the settled 2080 ms
+seek and covered Play. The original 1.8-second fader ramp continued in all three cases to volume
+100. AudioOn restored sound where the input started unmuted. An originally muted input stayed
+silent. An interleaved AudioOn was acknowledged immediately, while the mute-conditioned
+XMLTEXT predicate rejected the changed state at 107 ms, after still accepting it at 79 ms.
+The guard describes observed state, and vMix has no atomic compare-and-set. Both original
+settings hashes were restored and vMixService stayed running.
+
 ## Verification, release and rollback
 
 - Use the existing fake TCP server with a controlled clip clock and a reference trace based on the Rules. Check guarded wire skew, command order, settled and relative positions, native and Bridge endings, fade ownership and endpoints, gain reset, paused time, delayed and unknown results, the port read budget, and stale work queued before a later action. Include a loop seek that rebounds, and a Clear armed inside 40 ms during another native ramp. Record the configured and actual sound and picture endpoint timing and removal. Keep the browser check in the existing playout-cues journey and run it through the shared Windows queue.

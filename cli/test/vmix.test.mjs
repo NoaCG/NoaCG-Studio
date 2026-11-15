@@ -3556,7 +3556,7 @@ test('AC-12: short Loop keeps measuring each lap and a rebounding rewind stays c
   await fixture.advance(100);
   assert.equal(fixture.row().state, 'Paused');
   assert.equal(fixture.row().alpha, 0);
-  assert.equal(fixture.row().fader, 0);
+  assert.equal(fixture.row().muted, true, 'the failed seek stays silent without restarting the native fader');
   const earlier = reveals.length;
   assert.equal((await fixture.expected(result.instance, 'resume')).ok, false);
   await fixture.expected(result.instance, 'pause');
@@ -3565,6 +3565,152 @@ test('AC-12: short Loop keeps measuring each lap and a rebounding rewind stays c
   assert.equal((await fixture.take('clip A.mp4')).ok, true);
   assert.equal(reveals.length, earlier + 2);
   assert.ok(reveals.slice(earlier).every(event => event.path === join(fixture.root, 'clip A.mp4')));
+});
+
+
+
+test('AC-12: both Resume wire forms reject a stopped clip outside the half-open trim without writing', async t => {
+  const fixture = await timedFixture(t);
+  await withBridge(fixture.adapter, async post => {
+    const { target, player, fake } = fixture;
+    const slot = player();
+    const action = action => post('/act', { target, action: { slot, ...action } });
+    const take = await action({ verb: 'take', item: { kind: 'media', name: 'clip B.mp4' }, playback: { trim: { in: 0.5, out: 1 } } });
+    assert.equal(take.ok, true);
+    assert.equal((await action({ verb: 'pause-player-held', expectedPlayerInstance: take.instance })).ok, true);
+    const count = fake.functions.length;
+    fixture.row().position = 499;
+    assert.equal((await action({ verb: 'resume-player-held', expectedPlayerInstance: take.instance })).ok, false);
+    fixture.row().position = 1000;
+    assert.equal((await action({ verb: 'resume' })).ok, false);
+    assert.equal(fake.functions.length, count);
+    assert.equal(fixture.row().state, 'Paused');
+  });
+});
+
+test('AC-12: trimmed Resume keeps the player covered when the native Play rebounds below in', async t => {
+  let resuming = false;
+  const fixture = await timedFixture(t, {
+    afterFunction(name) {
+      if (resuming && name === 'Play') fixture.row().position = 470;
+      return false;
+    },
+  });
+  const take = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 1 } } });
+  assert.equal(take.ok, true);
+  assert.equal((await fixture.expected(take.instance, 'pause')).ok, true);
+  fixture.row().muted = false;
+  resuming = true;
+  const start = fixture.fake.functions.length;
+  assert.equal((await fixture.expected(take.instance, 'resume')).ok, false);
+  assert.deepEqual(fixture.fake.functions.slice(start).map(fn => fn.name), ['SetAlpha', 'AudioOff', 'Play']);
+  assert.equal(fixture.row().alpha, 0);
+  assert.equal(fixture.row().muted, true);
+});
+
+test('AC-12: Clear rechecks stopped state and exact zero in the same final scalar as the trim boundary', async t => {
+  for (const changed of ['volume', 'state']) {
+    await t.test(changed, async t => {
+      let injected = false;
+      let fixture;
+      fixture = await timedFixture(t, {
+        hook(line) {
+          if (line.startsWith('XMLTEXT ') && line.includes("[@state='Paused' or @state='Completed']") &&
+              line.includes('number(@volume)=0')) {
+            injected = true;
+            if (changed === 'volume') fixture.row().fader = 25;
+            else fixture.row().state = 'Running';
+          }
+          return false;
+        },
+      });
+      assert.equal((await fixture.take('clip B.mp4', { playback: { trim: { out: 0.5 }, end: 'clear', fadeOut: 0.1 } })).ok, true);
+      await fixture.advance(600);
+      assert.equal(injected, true);
+      assert.ok(fixture.row().list.length);
+      assert.equal(fixture.row().alpha, 0);
+      assert.equal(fixture.fake.functions.some(fn => fn.name === 'ListRemoveAll'), false);
+    });
+  }
+});
+
+test('AC-12: the scalar guard rejects a duplicate GUID before checking its list or state', async t => {
+  const fixture = await timedFixture(t, {
+    inputs: [{ key: '101010af-1111-4222-a333-123456abcdef', title: 'NoaCG Clips', type: 'VideoList' }],
+  });
+  const take = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.3 } } });
+  assert.equal(take.ok, true);
+  const count = fixture.fake.functions.length;
+  const original = fixture.row();
+  const duplicate = original.key.toUpperCase();
+  assert.notEqual(duplicate, original.key);
+  fixture.fake.inputs.push({ key: duplicate, title: 'Different input', type: 'Blank' });
+  await fixture.advance(600);
+  assert.equal(fixture.fake.functions.length, count);
+  assert.ok(fixture.fake.lines.some(line => line.startsWith('XMLTEXT ') && line.includes("inputs[count(input[translate(@key,")));
+  assert.equal(original.state, 'Running');
+});
+
+test('AC-12: a short Loop restarts under cover without restarting or jumping its entrance', async t => {
+  const fixture = await timedFixture(t);
+  const take = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 0.6 }, end: 'loop', fadeIn: 1 } });
+  assert.equal(take.ok, true);
+  fixture.row().muted = false;
+  const start = fixture.fake.functions.length;
+  await fixture.advance(235);
+  const calls = fixture.fake.functions.slice(start);
+  assert.ok(calls.filter(fn => fn.name === 'SetPosition').length >= 2);
+  assert.equal(calls.filter(fn => fn.name === 'AudioOn').length, calls.filter(fn => fn.name === 'AudioOff').length);
+  assert.ok(calls.some(fn => fn.name === 'AudioOff'));
+  assert.equal(fixture.row().muted, false);
+  assert.ok(fixture.row().alpha > 0 && fixture.row().alpha < 65, 'each lap resumes the elapsed entrance frame');
+  assert.ok(fixture.row().fader > 0 && fixture.row().fader < 25);
+  assert.equal(fixture.fake.functions.filter(fn => fn.name === 'SetVolumeFade').length, 1);
+  assert.equal(calls.some(fn => fn.name === 'SetVolume'), false);
+});
+
+test('AC-12: a live ending change keeps the entrance moving on a held trim', async t => {
+  const fixture = await timedFixture(t);
+  const take = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.18 }, fadeIn: 1 } });
+  assert.equal(take.ok, true);
+  await fixture.advance(240);
+  assert.equal(fixture.row().state, 'Paused');
+  assert.ok(fixture.row().alpha > 0 && fixture.row().alpha < 255);
+  const hold = fixture.row().position;
+  const calls = fixture.fake.functions.length;
+  const changed = await fixture.expected(take.instance, 'ending', { playback: { end: 'loop' } });
+  assert.equal(changed.ok, true);
+  await fixture.advance(900);
+  assert.equal(fixture.row().alpha, 255);
+  assert.equal(fixture.row().fader, 100);
+  assert.equal(fixture.row().state, 'Paused');
+  assert.equal(fixture.row().position, hold);
+  assert.ok(fixture.fake.functions.slice(calls).every(fn => ['LoopOff', 'SetAlpha'].includes(fn.name)));
+});
+
+test('AC-12: a replacement Take during an entrance never reveals the previous occurrence', async t => {
+  let replacing = false;
+  const seen = [];
+  const fixture = await timedFixture(t, {
+    afterFunction(name, params) {
+      if (!replacing) return false;
+      const row = fixture.row();
+      seen.push({ name, value: params.Value, selected: row.list[row.selectedIndex - 1], muted: row.muted });
+      if (name === 'SetVolumeFade' && params.Value === '0,40') void fixture.advance(90);
+      return false;
+    },
+  });
+  assert.equal((await fixture.take('clip B.mp4', { playback: { fadeIn: 1 } })).ok, true);
+  fixture.row().muted = false;
+  await fixture.advance(200);
+  replacing = true;
+  assert.equal((await fixture.take('clip A.mp4')).ok, true);
+  assert.ok(seen.some(entry => entry.name === 'AudioOff'));
+  assert.ok(seen.some(entry => entry.name === 'AudioOn'));
+  const reveals = seen.filter(entry => entry.name === 'AudioOn' || ['SetAlpha', 'SetVolume'].includes(entry.name) && Number(entry.value) > 0);
+  assert.ok(reveals.length >= 3);
+  assert.ok(reveals.every(entry => entry.selected === join(fixture.root, 'clip A.mp4')));
+  assert.equal(fixture.row().muted, false);
 });
 
 test('AC-12: a changed containing media folder disarms work even when the old absolute file remains legal', async t => {

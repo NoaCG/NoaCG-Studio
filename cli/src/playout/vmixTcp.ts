@@ -313,15 +313,20 @@ const xpathString = (value: string) => value.includes("'") ? '"' + value + '"' :
 const xpathFlag = (attribute: string) => "translate(@" + attribute + ",'TRUEFALS','truefals')";
 
 /** A scalar read has the same selected-index/marker rule as complete Video List XML. */
-export function vmixOccurrenceXPath(key: string, list: VmixVideoList, audio: boolean): string {
+export function vmixInputXPath(key: string): string {
+  const wanted = "translate(@key,'ABCDEF','abcdef')=" + xpathString(key);
+  return 'vmix/inputs[count(input[' + wanted + '])=1]/input[' + wanted + ']';
+}
+
+export function vmixOccurrenceXPath(key: string, list: VmixVideoList, muted?: boolean): string {
   const flag = xpathFlag('selected');
   const marked = 'list/item[' + flag + "='true']";
   const marker = '[not(list/item[@selected and not(' + flag + "='true' or " + flag + "='false')])]" +
     '[count(' + marked + ')=0 or (count(' + marked + ')=1 and list/item[' + list.selected + '][' + flag + "='true'])]";
   const flags = '[' + xpathFlag('loop') + "='" + list.loop + "']";
-  const mute = audio ? '[' + xpathFlag('muted') + "='false']" : '';
+  const mute = muted !== undefined ? '[' + xpathFlag('muted') + "='" + muted + "']" : '';
   const items = list.items.map((file, index) => '[list/item[' + (index + 1) + ']=' + xpathString(file) + ']').join('');
-  return 'vmix/inputs/input[@key=' + xpathString(key) + "][@type='VideoList'][@selectedIndex='" + list.selected +
+  return vmixInputXPath(key) + "[@type='VideoList'][@selectedIndex='" + list.selected +
     "'][@duration='" + list.durationMs + "'][count(list)=1][count(list/item)=" + list.items.length +
     '][count(list/*)=' + list.items.length + '][not(list/item/*)]' + marker + flags + mute + items;
 }
