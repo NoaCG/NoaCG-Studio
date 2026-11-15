@@ -46,11 +46,11 @@
   },
   "inFlight": [
     {
-      "head": "1a8881f992b112bfa21b5bd337d5fd64be349887",
-      "pr": 2573,
-      "note": "Verified handoff of the existing PR only. Windows reproduction failed on the exact previous merge and passed on its first parent. The local repair passed the same quiz assertion, 62 focused unit tests, ESLint and TypeScript. Windows rundown checks and fresh independent review are in flight. V6 remains on PR #2575 waiting for this dependency.",
-      "step": "Dependency repair and review",
+      "note": "Fresh review reproduced a queued same-cue overwrite, loss on a concurrent metadata edit, and a stale write after leaving a production. Grouped local candidate passed 166 focused unit tests, strict ESLint and TypeScript. Windows jobs j-5284/j-5285 and a fresh exact review are running. The existing remote head remains c9cc8682. V6 PR #2575 is still waiting on this dependency.",
+      "head": "ee6ccf77dea95919598515f5a20b71682eb70a5b",
       "phase": "V6",
+      "pr": 2573,
+      "step": "Dependency repair verification",
       "session": "01a1bb0e-ec06-7111-ae29-89b778de221e"
     }
   ],
