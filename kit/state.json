@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Exact native Windows and focused checks passed. Fresh full review B confirmed Audio ownership leaks through covered Pause and readiness early returns. Independent model reassessment also reproduced an armed Hold surviving a foreign status snapshot. Shared XML witness and focused tests underway on same draft and builder. No queue or release.",
-      "phase": "v6",
-      "head": "5947c94f0fcb81b211c2da04bcab4e8c86ea6f36",
       "pr": 2575,
+      "phase": "v6",
+      "note": "Exact focused, Windows j-5270 and owned vMix checks passed. Independent B and fresh read-only reassessment reproduced stale cue identity after foreign observations, timed guard refresh after contradictory readings, and frozen-exit authority surviving a changed phase. Same builder doing grouped correction. No push, queue or release.",
+      "session": "/root/v6_builder",
       "step": "build",
-      "session": "/root/v6_builder"
+      "head": "44f4f7be5af7952bc70cce8643c488e5cb0400b5"
     }
   ],
   "owner": [],
