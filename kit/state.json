@@ -4671,7 +4671,27 @@
               "file": "briefs/e5f-blank-built-diagnostic-protocol-20261115.txt",
               "sha256": "0f3be4e217522053eeea954471cb81d80b719fc15815a674b6396862bee95d1c",
               "scope": "PREPAREONLY immutablebuilt diagnostic, no edits/build/tests/network/extraagents yet"
-            }
+            },
+            "savedControls": {
+              "currentBase": {
+                "run": 43688806783,
+                "job": 132734903231,
+                "source": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+                "mode": "BUILT1worker",
+                "result": "67PASSinclAPI/2.3min",
+                "log": "blank-pr2579-prior-main-control-43688806783.log.gz"
+              },
+              "historical": {
+                "run": 43473841954,
+                "job": 132052611505,
+                "source": "a71607a977fa4b57db908a5a63fa589b977f551d",
+                "mode": "DEVserver config; NOT builtparity",
+                "result": "SameAPIcase/evaluate603 contextdestroyed beforeblank; retry132056948658PASS",
+                "log": "blank-pr2579-historical-failure-43473841954.log.gz"
+              },
+              "limits": "Historicalmatchdoesnotproveidenticalcause or nofailure-rate effect; currentbaseonepassnotcausalabsenceproof; noqueuewaiver"
+            },
+            "artifactTransport": "Twoexplicitpermissionroutes URLError/OSError beforebytes; stoproute, no localtrace or artifactsourceclaim"
           }
         },
         "proofArchive": {
