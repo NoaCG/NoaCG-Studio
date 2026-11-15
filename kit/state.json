@@ -48,10 +48,10 @@
     {
       "session": "/root/v6_builder",
       "phase": "v6",
+      "head": "29b3fdbfba8ea12a9c426861c12df4947159a1a1",
       "step": "build",
       "pr": 2575,
-      "head": "29b3fdbfba8ea12a9c426861c12df4947159a1a1",
-      "note": "V6 dependency still confirmed. #2573 remains open at c9cc8682, blocked and with no auto-merge. Exact local 29b3fdbf, 202 Bridge and 198 Studio tests, build/typecheck and owned native PASS retained. Waiting before editing shared ProductionPage, then combined Windows and fresh full review. Existing draft remains 31815116."
+      "note": "Same saved V6 checkpoint and dependency. #2573 remains open and blocked at c9cc8682. The live-publishing run #2361 remains open with no posted release of ProductionPage.tsx. The local 202 Bridge, 198 Studio and isolated native pass evidence is preserved. Combined page wiring, Windows verification and independent review still wait. Existing draft remote 31815116."
     }
   ],
   "owner": [],
