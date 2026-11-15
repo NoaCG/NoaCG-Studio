@@ -45,11 +45,11 @@
   "inFlight": [
     {
       "pr": 2575,
-      "session": "/root/v6_builder",
-      "note": "Clean V6 candidate; build, native acceptance, 94 focused Bridge, 35 legacy Bridge, 117 Studio and 24 Windows Chromium passed. Fresh independent review confirmed product findings in Audio mute authority across Take, Resume and Loop, including a repeat Take overriding a known external mute. Worktree frozen. Fresh read-only rule reassessment underway before one grouped repair on same draft. PR stays draft, remote 31815116. No queue or release.",
+      "note": "New clean local V6 candidate 234996ef scopes mute restoration to the current occurrence and exact native route. 150 Bridge and 168 Studio focused checks passed. Fresh full independent /root/v6_route_exact_so, isolated vMix and shared Windows browser in progress. Same draft remains unpushed, 31815116. No queue or release.",
+      "phase": "v6",
       "step": "build",
-      "head": "5cdfda91ba0db1ad9d4b0d56f865a7d18a42f933",
-      "phase": "v6"
+      "head": "234996efac6b74d16e1c4b3c42db1bc4c8939603",
+      "session": "/root/v6_builder"
     }
   ],
   "owner": [],
