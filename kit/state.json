@@ -42,16 +42,16 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "Open PR #2573 still owns ProductionPage.tsx. V6 waits for that allocation before adding the live ending callback."
+    "what": "PR #2573 still holds ProductionPage.tsx. Its checked team retry repair reached the limit. Explicit authorization for another repair and a fresh independent review are needed before landing."
   },
   "inFlight": [
     {
+      "step": "Dependency repair limit",
       "head": "3c498fb55eecd56687e132f6564fc2bb1d09b8fe",
-      "pr": 2573,
-      "step": "Dependency repair exact checks",
-      "phase": "V6",
+      "note": "PR #2573 is at the repair limit for checked cue text across team save retries. Exact local candidate 3c498fb5 passed 524 affected tests and all 35 Windows browser checks, but its fresh full review graded B. On pinned Windows code, a held team save omitted a hidden word as required and lost the remaining typed word after an accent-only second refusal. See 3c498fb5-word-normalization-repro.log. The three recurring team-retry repair candidates were 493b45e6, 35ec1ffb and 3c498fb5. V6 stays on the same PR #2575 and needs #2573 to clear before wiring ProductionPage.tsx.",
       "session": "01a1bb0e-ec06-7111-ae29-89b778de221e",
-      "note": "The last two retry variants were reproduced on the prior candidate and pass locally on the corrected code. The exact independent review and Windows jobs j-5295 and j-5296 are running. The existing #2573 is unqueued. V6 still waits for its allocation."
+      "phase": "V6",
+      "pr": 2573
     }
   ],
   "owner": [],
