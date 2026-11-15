@@ -1,0 +1,45 @@
+[
+  {
+    "type": "before",
+    "callId": "call@32",
+    "startTime": 5128.4,
+    "class": "Frame",
+    "method": "evaluateExpression",
+    "params": {
+      "expression": "async ({\n    id,\n    door\n  }) => {\n    const P = await __noacgImport('/src/store/authoringProjects.ts');\n    const ok = door === 'api' ? await P.openProjectDocument(id) : await P.createAuthoringProject('Second project', [P.workspace().documents[0].template]);\n    if (!ok) throw new Error(P.useAuthoringProjects.getState().error);\n  }",
+      "isFunction": true,
+      "arg": {
+        "value": {
+          "o": [
+            {
+              "k": "id",
+              "v": {
+                "s": "7e0b3d7b-391b-41aa-9f6c-9d406dac3da0"
+              }
+            },
+            {
+              "k": "door",
+              "v": {
+                "s": "api"
+              }
+            }
+          ],
+          "id": 1
+        },
+        "handles": []
+      }
+    },
+    "stepId": "pw:api@47",
+    "pageId": "page@7bf0f1456034a73a9cafef673c3cf0eb"
+  },
+  {
+    "type": "after",
+    "callId": "call@32",
+    "endTime": 5202.746,
+    "error": {
+      "message": "Execution context was destroyed, most likely because of a navigation.",
+      "stack": "Error: Execution context was destroyed, most likely because of a navigation.\n    at rewriteError (/workspace/noacg-editor-r1-5-e5f-blank-built-control/node_modules/playwright-core/lib/coreBundle.js:35107:11)\n    at CRExecutionContext.evaluateWithArguments (/workspace/noacg-editor-r1-5-e5f-blank-built-control/node_modules/playwright-core/lib/coreBundle.js:35175:60)\n    at LongStandingScope._race (/workspace/noacg-editor-r1-5-e5f-blank-built-control/node_modules/playwright-core/lib/coreBundle.js:3390:18)\n    at evaluateExpression (/workspace/noacg-editor-r1-5-e5f-blank-built-control/node_modules/playwright-core/lib/coreBundle.js:18781:12)\n    at _Frame._evaluateExpression (/workspace/noacg-editor-r1-5-e5f-blank-built-control/node_modules/playwright-core/lib/coreBundle.js:22786:24)\n    at _Frame.evaluateExpression (/workspace/noacg-editor-r1-5-e5f-blank-built-control/node_modules/playwright-core/lib/coreBundle.js:22782:16)\n    at _FrameDispatcher.evaluateExpression (/workspace/noacg-editor-r1-5-e5f-blank-built-control/node_modules/playwright-core/lib/coreBundle.js:53416:41)\n    at _ProgressController.run (/workspace/noacg-editor-r1-5-e5f-blank-built-control/node_modules/playwright-core/lib/coreBundle.js:11762:27)\n    at _FrameDispatcher._runCommand (/workspace/noacg-editor-r1-5-e5f-blank-built-control/node_modules/playwright-core/lib/coreBundle.js:18203:18)\n    at DispatcherConnection.dispatch (/workspace/noacg-editor-r1-5-e5f-blank-built-control/node_modules/playwright-core/lib/coreBundle.js:18408:27)",
+      "name": "Error"
+    }
+  }
+]

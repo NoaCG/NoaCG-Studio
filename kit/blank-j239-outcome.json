@@ -1,0 +1,174 @@
+{
+  "at": "2026-11-15T20:12:18.982891+00:00",
+  "nativeId": "6af8403d-0d00-8191-804b-4923b3338071",
+  "action": 13,
+  "jobId": "j-0239",
+  "state": "failed",
+  "exitCode": 1,
+  "elapsedSeconds": 6.18,
+  "capMinutes": 5,
+  "workers": 1,
+  "retries": 0,
+  "source": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+  "samplesThisJob": 1,
+  "passed": 0,
+  "failed": 1,
+  "notRun": 7,
+  "cumulativeDiagnosticJobs": 2,
+  "cumulativeBaseSamples": 3,
+  "cumulativeBundles": 1,
+  "newBuilds": 0,
+  "featureExecuted": false,
+  "collectionStopped": true,
+  "bundleUnchanged": true,
+  "sourceChecks": [
+    {
+      "root": "/workspace/noacg-editor-r1-5-e5f-blank-built-control",
+      "head": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+      "status": "",
+      "source10paths": {
+        "e2e/editor-projects.spec.ts": "38f4a572b0f7f2508c502d0e4f434bf778263344df76a5d04ac359a8c20ccf71",
+        "e2e/wizard-entry-fit.spec.ts": "76c6bef6c16760bda155252fc73f3b6cc6d5afb67e7fa112cde34019a9c17bd0",
+        "src/components/editorFoundation/ProjectStarter.tsx": "3de9e6b5fc305fffd60f804268e92cb64d538332ee63365d98f04f5ef59449e6",
+        "src/components/editorFoundation/projects.css": "aa6cec777d5a202ef25173e21687ff855c878a1c79f7dde21b523959ecebc9b1",
+        "src/components/editorFoundation/startBlankGraphic.ts": "ABSENT",
+        "src/components/wizard/CreationWizard.tsx": "11f6f59c9937d883cb82b3968917f1e1b36df0aea954d575c778e1b3b294275b",
+        "src/components/wizard/steps/EntryStep.tsx": "cf1f416eedbb0ad3fd0a4071e7423402fc4c5de244f563242b0d8488ced98a43",
+        "src/e2eRegistry.ts": "59d5e0b4653b863c7c7eb733213626bae92b3984cb5433f5537a4f6f156eff42",
+        "src/styles/wizard-entry.css": "7336eddde7768912939dc5563bd6c03d82421033e7997e5e8fc7056f152526eb",
+        "src/templates/blank.ts": "c54cfadb9a6573f22c9d5c347df97a9bc67a6bc06000c2520439befde0b6372c"
+      },
+      "exactSourceUnchanged": true,
+      "lockUnchanged": true
+    },
+    {
+      "root": "/workspace/noacg-editor-r1-5-e5f-blank",
+      "head": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+      "status": "",
+      "source10paths": {
+        "e2e/editor-projects.spec.ts": "d62fc0c2ba84ed60018f63214ee0f9568132ae193c86101457c0f708baf6cb54",
+        "e2e/wizard-entry-fit.spec.ts": "21df66f487cb92fc27e08cc0ee095fc5f4d206444c0f75d1fe2dcc6caf360038",
+        "src/components/editorFoundation/ProjectStarter.tsx": "a6ebd5c423db0861756da0400dda82ed2da078fafec61e598543504d43cbb4cb",
+        "src/components/editorFoundation/projects.css": "01084b9460c50b25808e737142d01b4cf1e9d30009f516ff4c8b86a8bdcfab4d",
+        "src/components/editorFoundation/startBlankGraphic.ts": "ef017e7766dacd712bee836abacd9e890255d5828d2738ce6630d79e4d6c6bdc",
+        "src/components/wizard/CreationWizard.tsx": "0d95661dbbded2eefea20c34b88ec53312459e69114443b660027e699adc51df",
+        "src/components/wizard/steps/EntryStep.tsx": "7e12f67e0f8e6833cff7cf589f7c60f14a1d0c698eb35093d6c7bddd8c06ccf4",
+        "src/e2eRegistry.ts": "25711b146163c3e52c094e88a18b5702b979a98534f0c1e60c578d6405be48ee",
+        "src/styles/wizard-entry.css": "ffa615fd289ba9b6944505268812ad9a190d669c96d8756c7ac0b64a679b348d",
+        "src/templates/blank.ts": "5cc9eb21e7ee5670b75449f385e6e54af66cfe7f0027b40aee3a659f1f495195"
+      },
+      "exactSourceUnchanged": true,
+      "lockUnchanged": true
+    }
+  ],
+  "observers": [
+    {
+      "manifest": "sample-0-worker-0.json",
+      "complete": true,
+      "incomplete": null,
+      "records": 44,
+      "repeat": 0,
+      "worker": 0,
+      "status": "failed",
+      "originalRetries": 0,
+      "testId": "bc72186b5b5d7e316877-a6db36d2873e7b5b820b",
+      "eventCounts": {
+        "page": 1,
+        "begin": 1,
+        "framenavigated": 11,
+        "console": 24,
+        "frameattached": 3,
+        "requestfailed": 1,
+        "framedetached": 2,
+        "fixture-teardown": 1
+      },
+      "mainNavigations": [
+        {
+          "at": "2026-11-15T20:09:46.505Z",
+          "phase": "test",
+          "kind": "framenavigated",
+          "pageId": 1,
+          "frameId": 2,
+          "parentId": null,
+          "main": true,
+          "url": "http://127.0.0.1:5224/app#/home"
+        },
+        {
+          "at": "2026-11-15T20:09:46.938Z",
+          "phase": "test",
+          "kind": "framenavigated",
+          "pageId": 1,
+          "frameId": 2,
+          "parentId": null,
+          "main": true,
+          "url": "http://127.0.0.1:5224/app#/home"
+        },
+        {
+          "at": "2026-11-15T20:09:47.144Z",
+          "phase": "test",
+          "kind": "framenavigated",
+          "pageId": 1,
+          "frameId": 2,
+          "parentId": null,
+          "main": true,
+          "url": "http://127.0.0.1:5224/app?editor=foundation#/home"
+        },
+        {
+          "at": "2026-11-15T20:09:47.144Z",
+          "phase": "test",
+          "kind": "framenavigated",
+          "pageId": 1,
+          "frameId": 2,
+          "parentId": null,
+          "main": true,
+          "url": "http://127.0.0.1:5224/app?editor=foundation#/editor-foundation"
+        }
+      ],
+      "preloadCrashErrors": [
+        {
+          "at": "2026-11-15T20:09:47.313Z",
+          "phase": "test",
+          "kind": "requestfailed",
+          "pageId": 1,
+          "url": "http://127.0.0.1:5224/fonts/inter.woff2",
+          "resourceType": "font",
+          "navigation": false,
+          "failure": {
+            "errorText": "net::ERR_ABORTED"
+          }
+        }
+      ]
+    }
+  ],
+  "rawProtocolLineCount": 1657,
+  "unparsedLongMessageCount": 6,
+  "primaryRejection": {
+    "id": 50,
+    "sessionId": "65F25F8E48689422512657C558BD3651",
+    "method": "Runtime.callFunctionOn",
+    "code": -32000,
+    "message": "Promise was collected",
+    "contextId": 3,
+    "frameId": "1E5509205A1A056154B1C7984F87503F",
+    "contextKind": "default main frame",
+    "contextDestroyedRecorded": false,
+    "matchingExpression": "original openProjectDocument API test"
+  },
+  "laterSeparateRejection": {
+    "id": 54,
+    "code": -32000,
+    "message": "Cannot find context with specified id",
+    "contextId": 16,
+    "frameId": "6E00844FCACC8A4D5237AFE8CD5DA0DC",
+    "contextKind": "child iframe isolated utility world",
+    "contextDestroyedRecorded": true
+  },
+  "conclusion": "Underlying protocol rejection and context/frame identity captured for this base occurrence. Original queue root cause and feature effect remain CANNOT JUDGE; no product or E4 attribution/repair/queue waiver.",
+  "limits": [
+    "No new runtime invocation after first failure; feature never executed.",
+    "Raw rejection is observed, not proof of why the promise was collected or application data integrity after rejection.",
+    "Original queue trace unavailable; cannot equate its underlying rejection from same generic message alone.",
+    "Six long protocol messages could not be decoded as single JSON lines; whole raw log retained; relevant rejection/send/context messages decoded.",
+    "Node24.19.0 and local Chromium149.0.7827.55/workload differ from originalCI; no rate claim."
+  ]
+}

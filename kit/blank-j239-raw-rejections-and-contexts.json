@@ -1,0 +1,902 @@
+{
+  "parsedProtocolLines": 1657,
+  "unparsedLongLines": [
+    {
+      "line": 2332,
+      "prefix": "  pw:protocol \u25c0 RECV {\"method\":\"Page.screencastFrame\",\"params\":{\"data\":\"/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQ",
+      "parseError": "Unterminated string starting at: line 1 column 51 (char 50)"
+    },
+    {
+      "line": 2430,
+      "prefix": "  pw:protocol \u25c0 RECV {\"method\":\"Page.screencastFrame\",\"params\":{\"data\":\"/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQ",
+      "parseError": "Unterminated string starting at: line 1 column 51 (char 50)"
+    },
+    {
+      "line": 2508,
+      "prefix": "  pw:protocol \u25c0 RECV {\"method\":\"Page.screencastFrame\",\"params\":{\"data\":\"/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQ",
+      "parseError": "Expecting value: line 1 column 65514 (char 65513)"
+    },
+    {
+      "line": 2682,
+      "prefix": "  pw:protocol \u25c0 RECV {\"method\":\"Page.screencastFrame\",\"params\":{\"data\":\"/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQ",
+      "parseError": "Unterminated string starting at: line 1 column 51 (char 50)"
+    },
+    {
+      "line": 2768,
+      "prefix": "  pw:protocol \u25c0 RECV {\"id\":69,\"result\":{\"node\":{\"nodeId\":0,\"backendNodeId\":42,\"nodeType\":1,\"nodeName\":\"IFRAME\",\"localName\":\"iframe",
+      "parseError": "Unterminated string starting at: line 1 column 279 (char 278)"
+    },
+    {
+      "line": 2772,
+      "prefix": "  pw:protocol SEND \u25ba {\"id\":71,\"method\":\"Runtime.evaluate\",\"params\":{\"expression\":\"\\n        (() => {\\n        \\n        const modu",
+      "parseError": "Unterminated string starting at: line 1 column 61 (char 60)"
+    }
+  ],
+  "rejections": [
+    {
+      "send": {
+        "line": 2566,
+        "direction": "SEND",
+        "message": {
+          "id": 50,
+          "method": "Runtime.callFunctionOn",
+          "params": {
+            "functionDeclaration": "(utilityScript, ...args) => utilityScript.evaluate(...args)",
+            "objectId": "-7108873472281789849.3.1",
+            "arguments": [
+              {
+                "objectId": "-7108873472281789849.3.1"
+              },
+              {
+                "value": true
+              },
+              {
+                "value": true
+              },
+              {
+                "value": "async ({\n    id,\n    door\n  }) => {\n    const P = await __noacgImport('/src/store/authoringProjects.ts');\n    const ok = door === 'api' ? await P.openProjectDocument(id) : await P.createAuthoringProject('Second project', [P.workspace().documents[0].template]);\n    if (!ok) throw new Error(P.useAuthoringProjects.getState().error);\n  }"
+              },
+              {
+                "value": 1
+              },
+              {
+                "value": {
+                  "o": [
+                    {
+                      "k": "id",
+                      "v": "7e0b3d7b-391b-41aa-9f6c-9d406dac3da0"
+                    },
+                    {
+                      "k": "door",
+                      "v": "api"
+                    }
+                  ],
+                  "id": 1
+                }
+              }
+            ],
+            "returnByValue": true,
+            "awaitPromise": true,
+            "userGesture": true
+          },
+          "sessionId": "65F25F8E48689422512657C558BD3651"
+        }
+      },
+      "rejection": {
+        "line": 2618,
+        "direction": "RECV",
+        "message": {
+          "id": 50,
+          "error": {
+            "code": -32000,
+            "message": "Promise was collected"
+          },
+          "sessionId": "65F25F8E48689422512657C558BD3651"
+        }
+      },
+      "objectOrigin": {
+        "send": {
+          "line": 1154,
+          "direction": "SEND",
+          "message": {
+            "id": 29,
+            "method": "Runtime.evaluate",
+            "params": {
+              "expression": "\n      (() => {\n        \n        const module = {};\n        \nvar __commonJS = obj => {\n  let required = false;\n  let result;\n  return function __require() {\n    if (!required) {\n      required = true;\n      let fn;\n      for (const name in obj) { fn = obj[name]; break; }\n      const module = { exports: {} };\n      fn(module.exports, module);\n      result = module.exports;\n    }\n    return result;\n  }\n};\nvar __export = (target, all) => {for (var name in all) target[name] = all[name];};\nvar __toESM = mod => ({ ...mod, 'default': mod });\nvar __toCommonJS = mod => ({ ...mod, __esModule: true });\n\n\n// packages/injected/src/utilityScript.ts\nvar utilityScript_exports = {};\n__export(utilityScript_exports, {\n  UtilityScript: () => UtilityScript\n});\nmodule.exports = __toCommonJS(utilityScript_exports);\n\n// packages/isomorphic/utilityScriptSerializers.ts\nfunction isRegExp(obj) {\n  try {\n    return obj instanceof RegExp || Object.prototype.toString.call(obj) === \"[object RegExp]\";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isDate(obj) {\n  try {\n    return obj instanceof Date || Object.prototype.toString.call(obj) === \"[object Date]\";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isURL(obj) {\n  try {\n    return obj instanceof URL || Object.prototype.toString.call(obj) === \"[object URL]\";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isError(obj) {\n  var _a;\n  try {\n    return obj instanceof Error || obj && ((_a = Object.getPrototypeOf(obj)) == null ? void 0 : _a.name) === \"Error\";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isTypedArray(obj, constructor) {\n  try {\n    return obj instanceof constructor || Object.prototype.toString.call(obj) === `[object ${constructor.name}]`;\n  } catch (error) {\n    return false;\n  }\n}\nfunction isArrayBuffer(obj) {\n  try {\n    return obj instanceof ArrayBuffer || Object.prototype.toString.call(obj) === \"[object ArrayBuffer]\";\n  } catch (error) {\n    return false;\n  }\n}\nvar typedArrayConstructors = {\n  i8: Int8Array,\n  ui8: Uint8Array,\n  ui8c: Uint8ClampedArray,\n  i16: Int16Array,\n  ui16: Uint16Array,\n  i32: Int32Array,\n  ui32: Uint32Array,\n  // TODO: add Float16Array once it's in baseline\n  f32: Float32Array,\n  f64: Float64Array,\n  bi64: BigInt64Array,\n  bui64: BigUint64Array\n};\nfunction typedArrayToBase64(array) {\n  if (\"toBase64\" in array)\n    return array.toBase64();\n  const binary = Array.from(new Uint8Array(array.buffer, array.byteOffset, array.byteLength)).map((b) => String.fromCharCode(b)).join(\"\");\n  return btoa(binary);\n}\nfunction base64ToTypedArray(base64, TypedArrayConstructor) {\n  const binary = atob(base64);\n  const bytes = new Uint8Array(binary.length);\n  for (let i = 0; i < binary.length; i++)\n    bytes[i] = binary.charCodeAt(i);\n  return new TypedArrayConstructor(bytes.buffer);\n}\nfunction parseEvaluationResultValue(value, handles = [], refs = /* @__PURE__ */ new Map()) {\n  if (Object.is(value, void 0))\n    return void 0;\n  if (typeof value === \"object\" && value) {\n    if (\"ref\" in value)\n      return refs.get(value.ref);\n    if (\"v\" in value) {\n      if (value.v === \"undefined\")\n        return void 0;\n      if (value.v === \"null\")\n        return null;\n      if (value.v === \"NaN\")\n        return NaN;\n      if (value.v === \"Infinity\")\n        return Infinity;\n      if (value.v === \"-Infinity\")\n        return -Infinity;\n      if (value.v === \"-0\")\n        return -0;\n      return void 0;\n    }\n    if (\"d\" in value) {\n      return new Date(value.d);\n    }\n    if (\"u\" in value)\n      return new URL(value.u);\n    if (\"bi\" in value)\n      return BigInt(value.bi);\n    if (\"e\" in value) {\n      const error = new Error(value.e.m);\n      error.name = value.e.n;\n      error.stack = value.e.s;\n      return error;\n    }\n    if (\"r\" in value)\n      return new RegExp(value.r.p, value.r.f);\n    if (\"a\" in value) {\n      const result = [];\n      refs.set(value.id, result);\n      for (const a of value.a)\n        result.push(parseEvaluationResultValue(a, handles, refs));\n      return result;\n    }\n    if (\"o\" in value) {\n      const result = {};\n      refs.set(value.id, result);\n      for (const { k, v } of value.o) {\n        if (k === \"__proto__\")\n          continue;\n        result[k] = parseEvaluationResultValue(v, handles, refs);\n      }\n      return result;\n    }\n    if (\"h\" in value)\n      return handles[value.h];\n    if (\"ta\" in value)\n      return base64ToTypedArray(value.ta.b, typedArrayConstructors[value.ta.k]);\n    if (\"ab\" in value)\n      return base64ToTypedArray(value.ab.b, Uint8Array).buffer;\n  }\n  return value;\n}\nfunction serializeAsCallArgument(value, handleSerializer) {\n  return serialize(value, handleSerializer, { visited: /* @__PURE__ */ new Map(), lastId: 0 });\n}\nfunction serialize(value, handleSerializer, visitorInfo) {\n  if (value && typeof value === \"object\") {\n    if (typeof globalThis.Window === \"function\" && value instanceof globalThis.Window)\n      return \"ref: <Window>\";\n    if (typeof globalThis.Document === \"function\" && value instanceof globalThis.Document)\n      return \"ref: <Document>\";\n    if (typeof globalThis.Node === \"function\" && value instanceof globalThis.Node)\n      return \"ref: <Node>\";\n  }\n  return innerSerialize(value, handleSerializer, visitorInfo);\n}\nfunction innerSerialize(value, handleSerializer, visitorInfo) {\n  var _a;\n  const result = handleSerializer(value);\n  if (\"fallThrough\" in result)\n    value = result.fallThrough;\n  else\n    return result;\n  if (typeof value === \"symbol\")\n    return { v: \"undefined\" };\n  if (Object.is(value, void 0))\n    return { v: \"undefined\" };\n  if (Object.is(value, null))\n    return { v: \"null\" };\n  if (Object.is(value, NaN))\n    return { v: \"NaN\" };\n  if (Object.is(value, Infinity))\n    return { v: \"Infinity\" };\n  if (Object.is(value, -Infinity))\n    return { v: \"-Infinity\" };\n  if (Object.is(value, -0))\n    return { v: \"-0\" };\n  if (typeof value === \"boolean\")\n    return value;\n  if (typeof value === \"number\")\n    return value;\n  if (typeof value === \"string\")\n    return value;\n  if (typeof value === \"bigint\")\n    return { bi: value.toString() };\n  if (isError(value)) {\n    let stack;\n    if ((_a = value.stack) == null ? void 0 : _a.startsWith(value.name + \": \" + value.message)) {\n      stack = value.stack;\n    } else {\n      stack = `${value.name}: ${value.message}\n${value.stack}`;\n    }\n    return { e: { n: value.name, m: value.message, s: stack } };\n  }\n  if (isDate(value))\n    return { d: value.toJSON() };\n  if (isURL(value))\n    return { u: value.toJSON() };\n  if (isRegExp(value))\n    return { r: { p: value.source, f: value.flags } };\n  for (const [k, ctor] of Object.entries(typedArrayConstructors)) {\n    if (isTypedArray(value, ctor))\n      return { ta: { b: typedArrayToBase64(value), k } };\n  }\n  if (isArrayBuffer(value))\n    return { ab: { b: typedArrayToBase64(new Uint8Array(value)) } };\n  const id = visitorInfo.visited.get(value);\n  if (id)\n    return { ref: id };\n  if (Array.isArray(value)) {\n    const a = [];\n    const id2 = ++visitorInfo.lastId;\n    visitorInfo.visited.set(value, id2);\n    for (let i = 0; i < value.length; ++i)\n      a.push(serialize(value[i], handleSerializer, visitorInfo));\n    return { a, id: id2 };\n  }\n  if (typeof value === \"object\") {\n    const o = [];\n    const id2 = ++visitorInfo.lastId;\n    visitorInfo.visited.set(value, id2);\n    for (const name of Object.keys(value)) {\n      let item;\n      try {\n        item = value[name];\n      } catch (e) {\n        continue;\n      }\n      if (name === \"toJSON\" && typeof item === \"function\")\n        o.push({ k: name, v: { o: [], id: 0 } });\n      else\n        o.push({ k: name, v: serialize(item, handleSerializer, visitorInfo) });\n    }\n    let jsonWrapper;\n    try {\n      if (o.length === 0 && value.toJSON && typeof value.toJSON === \"function\")\n        jsonWrapper = { value: value.toJSON() };\n    } catch (e) {\n    }\n    if (jsonWrapper)\n      return innerSerialize(jsonWrapper.value, handleSerializer, visitorInfo);\n    return { o, id: id2 };\n  }\n}\n\n// packages/injected/src/utilityScript.ts\nvar UtilityScript = class {\n  constructor(global, isUnderTest) {\n    var _a, _b, _c, _d, _e, _f, _g, _h;\n    this.global = global;\n    this.isUnderTest = isUnderTest;\n    if (global.__pwClock) {\n      this.builtins = global.__pwClock.builtins;\n    } else {\n      this.builtins = {\n        setTimeout: (_a = global.setTimeout) == null ? void 0 : _a.bind(global),\n        clearTimeout: (_b = global.clearTimeout) == null ? void 0 : _b.bind(global),\n        setInterval: (_c = global.setInterval) == null ? void 0 : _c.bind(global),\n        clearInterval: (_d = global.clearInterval) == null ? void 0 : _d.bind(global),\n        requestAnimationFrame: (_e = global.requestAnimationFrame) == null ? void 0 : _e.bind(global),\n        cancelAnimationFrame: (_f = global.cancelAnimationFrame) == null ? void 0 : _f.bind(global),\n        requestIdleCallback: (_g = global.requestIdleCallback) == null ? void 0 : _g.bind(global),\n        cancelIdleCallback: (_h = global.cancelIdleCallback) == null ? void 0 : _h.bind(global),\n        performance: global.performance,\n        Intl: global.Intl,\n        Date: global.Date,\n        AbortSignal: global.AbortSignal\n      };\n    }\n    if (this.isUnderTest)\n      global.builtins = this.builtins;\n  }\n  evaluate(isFunction, returnByValue, expression, argCount, ...argsAndHandles) {\n    const args = argsAndHandles.slice(0, argCount);\n    const handles = argsAndHandles.slice(argCount);\n    const parameters = [];\n    for (let i = 0; i < args.length; i++)\n      parameters[i] = parseEvaluationResultValue(args[i], handles);\n    let result = this.global.eval(expression);\n    if (isFunction === true) {\n      result = result(...parameters);\n    } else if (isFunction === false) {\n      result = result;\n    } else {\n      if (typeof result === \"function\")\n        result = result(...parameters);\n    }\n    return returnByValue ? this._promiseAwareJsonValueNoThrow(result) : result;\n  }\n  jsonValue(returnByValue, value) {\n    if (value === void 0)\n      return void 0;\n    return serializeAsCallArgument(value, (value2) => ({ fallThrough: value2 }));\n  }\n  _promiseAwareJsonValueNoThrow(value) {\n    const safeJson = (value2) => {\n      try {\n        return this.jsonValue(true, value2);\n      } catch (e) {\n        return void 0;\n      }\n    };\n    if (value && typeof value === \"object\" && typeof value.then === \"function\") {\n      return (async () => {\n        const promiseValue = await value;\n        return safeJson(promiseValue);\n      })();\n    }\n    return safeJson(value);\n  }\n};\n\n        return new (module.exports.UtilityScript())(globalThis, false);\n      })();",
+              "contextId": 3
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        "response": {
+          "line": 1190,
+          "direction": "RECV",
+          "message": {
+            "id": 29,
+            "result": {
+              "result": {
+                "type": "object",
+                "className": "UtilityScript",
+                "description": "UtilityScript",
+                "objectId": "-7108873472281789849.3.1"
+              }
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        }
+      },
+      "contextId": 3,
+      "contextCreated": [
+        {
+          "line": 956,
+          "direction": "RECV",
+          "message": {
+            "method": "Runtime.executionContextCreated",
+            "params": {
+              "context": {
+                "id": 3,
+                "origin": "http://127.0.0.1:5224",
+                "name": "",
+                "uniqueId": "-1830598899360682695.1510681869543406128",
+                "auxData": {
+                  "isDefault": true,
+                  "type": "default",
+                  "frameId": "1E5509205A1A056154B1C7984F87503F"
+                }
+              }
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        }
+      ],
+      "contextDestroyed": [],
+      "frameEvents": [
+        {
+          "line": 894,
+          "direction": "RECV",
+          "message": {
+            "method": "Runtime.executionContextsCleared",
+            "params": {},
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 899,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "4783D9DA5331B78EAF40A06CCD4ACC2C",
+                "url": "http://127.0.0.1:5224/app",
+                "urlFragment": "#/home",
+                "domainAndRegistry": "",
+                "securityOrigin": "http://127.0.0.1:5224",
+                "securityOriginDetails": {
+                  "isLocalhost": true
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "SecureLocalhost",
+                "crossOriginIsolatedContextType": "NotIsolated",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2132,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.navigatedWithinDocument",
+            "params": {
+              "frameId": "1E5509205A1A056154B1C7984F87503F",
+              "url": "http://127.0.0.1:5224/app#/home",
+              "navigationType": "historyApi"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2228,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.navigatedWithinDocument",
+            "params": {
+              "frameId": "1E5509205A1A056154B1C7984F87503F",
+              "url": "http://127.0.0.1:5224/app?editor=foundation#/home",
+              "navigationType": "historyApi"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2232,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.navigatedWithinDocument",
+            "params": {
+              "frameId": "1E5509205A1A056154B1C7984F87503F",
+              "url": "http://127.0.0.1:5224/app?editor=foundation#/editor-foundation",
+              "navigationType": "historyApi"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2254,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "4F95A533CAB25586B57FD90F7CC0AA1B",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "1D24DDC638C4449120B7DC7A7BA5E13B",
+                "name": "",
+                "url": "about:blank",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2317,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "4F95A533CAB25586B57FD90F7CC0AA1B",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "7757B5CEC4FD16301035CDC597AC7160",
+                "name": "",
+                "url": "about:srcdoc",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2360,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameDetached",
+            "params": {
+              "frameId": "4F95A533CAB25586B57FD90F7CC0AA1B",
+              "reason": "remove"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2374,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "A4923E62C78A521098EFF5A58F8B039C",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "0F538A8FDD642A0FB7C84650620D1692",
+                "name": "",
+                "url": "about:blank",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2416,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "A4923E62C78A521098EFF5A58F8B039C",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "C80715B9F3170A52B60A34DF58843A8D",
+                "name": "",
+                "url": "about:srcdoc",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2493,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "A4923E62C78A521098EFF5A58F8B039C",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "3169D5FF03FE5C8D50512B9A2B28FD59",
+                "name": "",
+                "url": "about:srcdoc",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2592,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameDetached",
+            "params": {
+              "frameId": "A4923E62C78A521098EFF5A58F8B039C",
+              "reason": "remove"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2600,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "6E00844FCACC8A4D5237AFE8CD5DA0DC",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "99CBDE3A5E3B340F4FEF81F9504B753B",
+                "name": "",
+                "url": "about:blank",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2659,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "6E00844FCACC8A4D5237AFE8CD5DA0DC",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "1B648E3342C5FE3AE6D9DF36E0A28C45",
+                "name": "",
+                "url": "about:srcdoc",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        }
+      ]
+    },
+    {
+      "send": {
+        "line": 2646,
+        "direction": "SEND",
+        "message": {
+          "id": 54,
+          "method": "Runtime.callFunctionOn",
+          "params": {
+            "functionDeclaration": "(utilityScript, ...args) => utilityScript.evaluate(...args)",
+            "objectId": "-7108873472281789849.16.1",
+            "arguments": [
+              {
+                "objectId": "-7108873472281789849.16.1"
+              },
+              {
+                "value": false
+              },
+              {
+                "value": true
+              },
+              {
+                "value": "(function inPagePrepareForScreenshots(screenshotStyle, hideCaret, disableAnimations, syncAnimations) {\n  if (syncAnimations) {\n    const style = document.createElement(\"style\");\n    style.textContent = \"body {}\";\n    document.head.appendChild(style);\n    document.documentElement.getBoundingClientRect();\n    style.remove();\n  }\n  if (!screenshotStyle && !hideCaret && !disableAnimations)\n    return;\n  const collectRoots = (root, roots2 = []) => {\n    roots2.push(root);\n    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);\n    do {\n      const node = walker.currentNode;\n      const shadowRoot = node instanceof Element ? node.shadowRoot : null;\n      if (shadowRoot)\n        collectRoots(shadowRoot, roots2);\n    } while (walker.nextNode());\n    return roots2;\n  };\n  const roots = collectRoots(document);\n  const cleanupCallbacks = [];\n  if (screenshotStyle) {\n    for (const root of roots) {\n      const styleTag = document.createElement(\"style\");\n      styleTag.textContent = screenshotStyle;\n      if (root === document)\n        document.documentElement.append(styleTag);\n      else\n        root.append(styleTag);\n      cleanupCallbacks.push(() => {\n        styleTag.remove();\n      });\n    }\n  }\n  if (hideCaret) {\n    const elements = /* @__PURE__ */ new Map();\n    for (const root of roots) {\n      root.querySelectorAll(\"input,textarea,[contenteditable]\").forEach((element2) => {\n        elements.set(element2, {\n          value: element2.style.getPropertyValue(\"caret-color\"),\n          priority: element2.style.getPropertyPriority(\"caret-color\")\n        });\n        element2.style.setProperty(\"caret-color\", \"transparent\", \"important\");\n      });\n    }\n    cleanupCallbacks.push(() => {\n      for (const [element2, value2] of elements)\n        element2.style.setProperty(\"caret-color\", value2.value, value2.priority);\n    });\n  }\n  if (disableAnimations) {\n    const infiniteAnimationsToResume = /* @__PURE__ */ new Set();\n    const handleAnimations = (root) => {\n      for (const animation of root.getAnimations()) {\n        if (!animation.effect || animation.playbackRate === 0 || infiniteAnimationsToResume.has(animation))\n          continue;\n        const endTime = animation.effect.getComputedTiming().endTime;\n        if (Number.isFinite(endTime)) {\n          try {\n            animation.finish();\n          } catch (e) {\n          }\n        } else {\n          try {\n            animation.cancel();\n            infiniteAnimationsToResume.add(animation);\n          } catch (e) {\n          }\n        }\n      }\n    };\n    for (const root of roots) {\n      const handleRootAnimations = handleAnimations.bind(null, root);\n      handleRootAnimations();\n      root.addEventListener(\"transitionrun\", handleRootAnimations);\n      root.addEventListener(\"animationstart\", handleRootAnimations);\n      cleanupCallbacks.push(() => {\n        root.removeEventListener(\"transitionrun\", handleRootAnimations);\n        root.removeEventListener(\"animationstart\", handleRootAnimations);\n      });\n    }\n    cleanupCallbacks.push(() => {\n      for (const animation of infiniteAnimationsToResume) {\n        try {\n          animation.play();\n        } catch (e) {\n        }\n      }\n    });\n  }\n  window.__pwCleanupScreenshot = () => {\n    for (const cleanupCallback of cleanupCallbacks)\n      cleanupCallback();\n    delete window.__pwCleanupScreenshot;\n  };\n})(undefined, false, false, false)"
+              },
+              {
+                "value": 1
+              },
+              {
+                "value": {
+                  "v": "undefined"
+                }
+              }
+            ],
+            "returnByValue": true,
+            "awaitPromise": true,
+            "userGesture": true
+          },
+          "sessionId": "65F25F8E48689422512657C558BD3651"
+        }
+      },
+      "rejection": {
+        "line": 2676,
+        "direction": "RECV",
+        "message": {
+          "id": 54,
+          "error": {
+            "code": -32000,
+            "message": "Cannot find context with specified id"
+          },
+          "sessionId": "65F25F8E48689422512657C558BD3651"
+        }
+      },
+      "objectOrigin": {
+        "send": {
+          "line": 2637,
+          "direction": "SEND",
+          "message": {
+            "id": 52,
+            "method": "Runtime.evaluate",
+            "params": {
+              "expression": "\n      (() => {\n        \n        const module = {};\n        \nvar __commonJS = obj => {\n  let required = false;\n  let result;\n  return function __require() {\n    if (!required) {\n      required = true;\n      let fn;\n      for (const name in obj) { fn = obj[name]; break; }\n      const module = { exports: {} };\n      fn(module.exports, module);\n      result = module.exports;\n    }\n    return result;\n  }\n};\nvar __export = (target, all) => {for (var name in all) target[name] = all[name];};\nvar __toESM = mod => ({ ...mod, 'default': mod });\nvar __toCommonJS = mod => ({ ...mod, __esModule: true });\n\n\n// packages/injected/src/utilityScript.ts\nvar utilityScript_exports = {};\n__export(utilityScript_exports, {\n  UtilityScript: () => UtilityScript\n});\nmodule.exports = __toCommonJS(utilityScript_exports);\n\n// packages/isomorphic/utilityScriptSerializers.ts\nfunction isRegExp(obj) {\n  try {\n    return obj instanceof RegExp || Object.prototype.toString.call(obj) === \"[object RegExp]\";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isDate(obj) {\n  try {\n    return obj instanceof Date || Object.prototype.toString.call(obj) === \"[object Date]\";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isURL(obj) {\n  try {\n    return obj instanceof URL || Object.prototype.toString.call(obj) === \"[object URL]\";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isError(obj) {\n  var _a;\n  try {\n    return obj instanceof Error || obj && ((_a = Object.getPrototypeOf(obj)) == null ? void 0 : _a.name) === \"Error\";\n  } catch (error) {\n    return false;\n  }\n}\nfunction isTypedArray(obj, constructor) {\n  try {\n    return obj instanceof constructor || Object.prototype.toString.call(obj) === `[object ${constructor.name}]`;\n  } catch (error) {\n    return false;\n  }\n}\nfunction isArrayBuffer(obj) {\n  try {\n    return obj instanceof ArrayBuffer || Object.prototype.toString.call(obj) === \"[object ArrayBuffer]\";\n  } catch (error) {\n    return false;\n  }\n}\nvar typedArrayConstructors = {\n  i8: Int8Array,\n  ui8: Uint8Array,\n  ui8c: Uint8ClampedArray,\n  i16: Int16Array,\n  ui16: Uint16Array,\n  i32: Int32Array,\n  ui32: Uint32Array,\n  // TODO: add Float16Array once it's in baseline\n  f32: Float32Array,\n  f64: Float64Array,\n  bi64: BigInt64Array,\n  bui64: BigUint64Array\n};\nfunction typedArrayToBase64(array) {\n  if (\"toBase64\" in array)\n    return array.toBase64();\n  const binary = Array.from(new Uint8Array(array.buffer, array.byteOffset, array.byteLength)).map((b) => String.fromCharCode(b)).join(\"\");\n  return btoa(binary);\n}\nfunction base64ToTypedArray(base64, TypedArrayConstructor) {\n  const binary = atob(base64);\n  const bytes = new Uint8Array(binary.length);\n  for (let i = 0; i < binary.length; i++)\n    bytes[i] = binary.charCodeAt(i);\n  return new TypedArrayConstructor(bytes.buffer);\n}\nfunction parseEvaluationResultValue(value, handles = [], refs = /* @__PURE__ */ new Map()) {\n  if (Object.is(value, void 0))\n    return void 0;\n  if (typeof value === \"object\" && value) {\n    if (\"ref\" in value)\n      return refs.get(value.ref);\n    if (\"v\" in value) {\n      if (value.v === \"undefined\")\n        return void 0;\n      if (value.v === \"null\")\n        return null;\n      if (value.v === \"NaN\")\n        return NaN;\n      if (value.v === \"Infinity\")\n        return Infinity;\n      if (value.v === \"-Infinity\")\n        return -Infinity;\n      if (value.v === \"-0\")\n        return -0;\n      return void 0;\n    }\n    if (\"d\" in value) {\n      return new Date(value.d);\n    }\n    if (\"u\" in value)\n      return new URL(value.u);\n    if (\"bi\" in value)\n      return BigInt(value.bi);\n    if (\"e\" in value) {\n      const error = new Error(value.e.m);\n      error.name = value.e.n;\n      error.stack = value.e.s;\n      return error;\n    }\n    if (\"r\" in value)\n      return new RegExp(value.r.p, value.r.f);\n    if (\"a\" in value) {\n      const result = [];\n      refs.set(value.id, result);\n      for (const a of value.a)\n        result.push(parseEvaluationResultValue(a, handles, refs));\n      return result;\n    }\n    if (\"o\" in value) {\n      const result = {};\n      refs.set(value.id, result);\n      for (const { k, v } of value.o) {\n        if (k === \"__proto__\")\n          continue;\n        result[k] = parseEvaluationResultValue(v, handles, refs);\n      }\n      return result;\n    }\n    if (\"h\" in value)\n      return handles[value.h];\n    if (\"ta\" in value)\n      return base64ToTypedArray(value.ta.b, typedArrayConstructors[value.ta.k]);\n    if (\"ab\" in value)\n      return base64ToTypedArray(value.ab.b, Uint8Array).buffer;\n  }\n  return value;\n}\nfunction serializeAsCallArgument(value, handleSerializer) {\n  return serialize(value, handleSerializer, { visited: /* @__PURE__ */ new Map(), lastId: 0 });\n}\nfunction serialize(value, handleSerializer, visitorInfo) {\n  if (value && typeof value === \"object\") {\n    if (typeof globalThis.Window === \"function\" && value instanceof globalThis.Window)\n      return \"ref: <Window>\";\n    if (typeof globalThis.Document === \"function\" && value instanceof globalThis.Document)\n      return \"ref: <Document>\";\n    if (typeof globalThis.Node === \"function\" && value instanceof globalThis.Node)\n      return \"ref: <Node>\";\n  }\n  return innerSerialize(value, handleSerializer, visitorInfo);\n}\nfunction innerSerialize(value, handleSerializer, visitorInfo) {\n  var _a;\n  const result = handleSerializer(value);\n  if (\"fallThrough\" in result)\n    value = result.fallThrough;\n  else\n    return result;\n  if (typeof value === \"symbol\")\n    return { v: \"undefined\" };\n  if (Object.is(value, void 0))\n    return { v: \"undefined\" };\n  if (Object.is(value, null))\n    return { v: \"null\" };\n  if (Object.is(value, NaN))\n    return { v: \"NaN\" };\n  if (Object.is(value, Infinity))\n    return { v: \"Infinity\" };\n  if (Object.is(value, -Infinity))\n    return { v: \"-Infinity\" };\n  if (Object.is(value, -0))\n    return { v: \"-0\" };\n  if (typeof value === \"boolean\")\n    return value;\n  if (typeof value === \"number\")\n    return value;\n  if (typeof value === \"string\")\n    return value;\n  if (typeof value === \"bigint\")\n    return { bi: value.toString() };\n  if (isError(value)) {\n    let stack;\n    if ((_a = value.stack) == null ? void 0 : _a.startsWith(value.name + \": \" + value.message)) {\n      stack = value.stack;\n    } else {\n      stack = `${value.name}: ${value.message}\n${value.stack}`;\n    }\n    return { e: { n: value.name, m: value.message, s: stack } };\n  }\n  if (isDate(value))\n    return { d: value.toJSON() };\n  if (isURL(value))\n    return { u: value.toJSON() };\n  if (isRegExp(value))\n    return { r: { p: value.source, f: value.flags } };\n  for (const [k, ctor] of Object.entries(typedArrayConstructors)) {\n    if (isTypedArray(value, ctor))\n      return { ta: { b: typedArrayToBase64(value), k } };\n  }\n  if (isArrayBuffer(value))\n    return { ab: { b: typedArrayToBase64(new Uint8Array(value)) } };\n  const id = visitorInfo.visited.get(value);\n  if (id)\n    return { ref: id };\n  if (Array.isArray(value)) {\n    const a = [];\n    const id2 = ++visitorInfo.lastId;\n    visitorInfo.visited.set(value, id2);\n    for (let i = 0; i < value.length; ++i)\n      a.push(serialize(value[i], handleSerializer, visitorInfo));\n    return { a, id: id2 };\n  }\n  if (typeof value === \"object\") {\n    const o = [];\n    const id2 = ++visitorInfo.lastId;\n    visitorInfo.visited.set(value, id2);\n    for (const name of Object.keys(value)) {\n      let item;\n      try {\n        item = value[name];\n      } catch (e) {\n        continue;\n      }\n      if (name === \"toJSON\" && typeof item === \"function\")\n        o.push({ k: name, v: { o: [], id: 0 } });\n      else\n        o.push({ k: name, v: serialize(item, handleSerializer, visitorInfo) });\n    }\n    let jsonWrapper;\n    try {\n      if (o.length === 0 && value.toJSON && typeof value.toJSON === \"function\")\n        jsonWrapper = { value: value.toJSON() };\n    } catch (e) {\n    }\n    if (jsonWrapper)\n      return innerSerialize(jsonWrapper.value, handleSerializer, visitorInfo);\n    return { o, id: id2 };\n  }\n}\n\n// packages/injected/src/utilityScript.ts\nvar UtilityScript = class {\n  constructor(global, isUnderTest) {\n    var _a, _b, _c, _d, _e, _f, _g, _h;\n    this.global = global;\n    this.isUnderTest = isUnderTest;\n    if (global.__pwClock) {\n      this.builtins = global.__pwClock.builtins;\n    } else {\n      this.builtins = {\n        setTimeout: (_a = global.setTimeout) == null ? void 0 : _a.bind(global),\n        clearTimeout: (_b = global.clearTimeout) == null ? void 0 : _b.bind(global),\n        setInterval: (_c = global.setInterval) == null ? void 0 : _c.bind(global),\n        clearInterval: (_d = global.clearInterval) == null ? void 0 : _d.bind(global),\n        requestAnimationFrame: (_e = global.requestAnimationFrame) == null ? void 0 : _e.bind(global),\n        cancelAnimationFrame: (_f = global.cancelAnimationFrame) == null ? void 0 : _f.bind(global),\n        requestIdleCallback: (_g = global.requestIdleCallback) == null ? void 0 : _g.bind(global),\n        cancelIdleCallback: (_h = global.cancelIdleCallback) == null ? void 0 : _h.bind(global),\n        performance: global.performance,\n        Intl: global.Intl,\n        Date: global.Date,\n        AbortSignal: global.AbortSignal\n      };\n    }\n    if (this.isUnderTest)\n      global.builtins = this.builtins;\n  }\n  evaluate(isFunction, returnByValue, expression, argCount, ...argsAndHandles) {\n    const args = argsAndHandles.slice(0, argCount);\n    const handles = argsAndHandles.slice(argCount);\n    const parameters = [];\n    for (let i = 0; i < args.length; i++)\n      parameters[i] = parseEvaluationResultValue(args[i], handles);\n    let result = this.global.eval(expression);\n    if (isFunction === true) {\n      result = result(...parameters);\n    } else if (isFunction === false) {\n      result = result;\n    } else {\n      if (typeof result === \"function\")\n        result = result(...parameters);\n    }\n    return returnByValue ? this._promiseAwareJsonValueNoThrow(result) : result;\n  }\n  jsonValue(returnByValue, value) {\n    if (value === void 0)\n      return void 0;\n    return serializeAsCallArgument(value, (value2) => ({ fallThrough: value2 }));\n  }\n  _promiseAwareJsonValueNoThrow(value) {\n    const safeJson = (value2) => {\n      try {\n        return this.jsonValue(true, value2);\n      } catch (e) {\n        return void 0;\n      }\n    };\n    if (value && typeof value === \"object\" && typeof value.then === \"function\") {\n      return (async () => {\n        const promiseValue = await value;\n        return safeJson(promiseValue);\n      })();\n    }\n    return safeJson(value);\n  }\n};\n\n        return new (module.exports.UtilityScript())(globalThis, false);\n      })();",
+              "contextId": 16
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        "response": {
+          "line": 2645,
+          "direction": "RECV",
+          "message": {
+            "id": 52,
+            "result": {
+              "result": {
+                "type": "object",
+                "className": "UtilityScript",
+                "description": "UtilityScript",
+                "objectId": "-7108873472281789849.16.1"
+              }
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        }
+      },
+      "contextId": 16,
+      "contextCreated": [
+        {
+          "line": 2606,
+          "direction": "RECV",
+          "message": {
+            "method": "Runtime.executionContextCreated",
+            "params": {
+              "context": {
+                "id": 16,
+                "origin": "://",
+                "name": "__playwright_utility_world_page@7bf0f1456034a73a9cafef673c3cf0eb",
+                "uniqueId": "-4131637616908547384.-452885076911003248",
+                "auxData": {
+                  "isDefault": false,
+                  "type": "isolated",
+                  "frameId": "6E00844FCACC8A4D5237AFE8CD5DA0DC"
+                }
+              }
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        }
+      ],
+      "contextDestroyed": [
+        {
+          "line": 2658,
+          "direction": "RECV",
+          "message": {
+            "method": "Runtime.executionContextDestroyed",
+            "params": {
+              "executionContextId": 16,
+              "executionContextUniqueId": "-4131637616908547384.-452885076911003248"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        }
+      ],
+      "frameEvents": [
+        {
+          "line": 894,
+          "direction": "RECV",
+          "message": {
+            "method": "Runtime.executionContextsCleared",
+            "params": {},
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 899,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "4783D9DA5331B78EAF40A06CCD4ACC2C",
+                "url": "http://127.0.0.1:5224/app",
+                "urlFragment": "#/home",
+                "domainAndRegistry": "",
+                "securityOrigin": "http://127.0.0.1:5224",
+                "securityOriginDetails": {
+                  "isLocalhost": true
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "SecureLocalhost",
+                "crossOriginIsolatedContextType": "NotIsolated",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2132,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.navigatedWithinDocument",
+            "params": {
+              "frameId": "1E5509205A1A056154B1C7984F87503F",
+              "url": "http://127.0.0.1:5224/app#/home",
+              "navigationType": "historyApi"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2228,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.navigatedWithinDocument",
+            "params": {
+              "frameId": "1E5509205A1A056154B1C7984F87503F",
+              "url": "http://127.0.0.1:5224/app?editor=foundation#/home",
+              "navigationType": "historyApi"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2232,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.navigatedWithinDocument",
+            "params": {
+              "frameId": "1E5509205A1A056154B1C7984F87503F",
+              "url": "http://127.0.0.1:5224/app?editor=foundation#/editor-foundation",
+              "navigationType": "historyApi"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2254,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "4F95A533CAB25586B57FD90F7CC0AA1B",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "1D24DDC638C4449120B7DC7A7BA5E13B",
+                "name": "",
+                "url": "about:blank",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2317,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "4F95A533CAB25586B57FD90F7CC0AA1B",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "7757B5CEC4FD16301035CDC597AC7160",
+                "name": "",
+                "url": "about:srcdoc",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2360,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameDetached",
+            "params": {
+              "frameId": "4F95A533CAB25586B57FD90F7CC0AA1B",
+              "reason": "remove"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2374,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "A4923E62C78A521098EFF5A58F8B039C",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "0F538A8FDD642A0FB7C84650620D1692",
+                "name": "",
+                "url": "about:blank",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2416,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "A4923E62C78A521098EFF5A58F8B039C",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "C80715B9F3170A52B60A34DF58843A8D",
+                "name": "",
+                "url": "about:srcdoc",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2493,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "A4923E62C78A521098EFF5A58F8B039C",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "3169D5FF03FE5C8D50512B9A2B28FD59",
+                "name": "",
+                "url": "about:srcdoc",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2592,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameDetached",
+            "params": {
+              "frameId": "A4923E62C78A521098EFF5A58F8B039C",
+              "reason": "remove"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2600,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "6E00844FCACC8A4D5237AFE8CD5DA0DC",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "99CBDE3A5E3B340F4FEF81F9504B753B",
+                "name": "",
+                "url": "about:blank",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        },
+        {
+          "line": 2659,
+          "direction": "RECV",
+          "message": {
+            "method": "Page.frameNavigated",
+            "params": {
+              "frame": {
+                "id": "6E00844FCACC8A4D5237AFE8CD5DA0DC",
+                "parentId": "1E5509205A1A056154B1C7984F87503F",
+                "loaderId": "1B648E3342C5FE3AE6D9DF36E0A28C45",
+                "name": "",
+                "url": "about:srcdoc",
+                "domainAndRegistry": "",
+                "securityOrigin": "://",
+                "securityOriginDetails": {
+                  "isLocalhost": false
+                },
+                "mimeType": "text/html",
+                "adFrameStatus": {
+                  "adFrameType": "none"
+                },
+                "secureContextType": "Secure",
+                "crossOriginIsolatedContextType": "NotIsolatedFeatureDisabled",
+                "gatedAPIFeatures": []
+              },
+              "type": "Navigation"
+            },
+            "sessionId": "65F25F8E48689422512657C558BD3651"
+          }
+        }
+      ]
+    }
+  ]
+}

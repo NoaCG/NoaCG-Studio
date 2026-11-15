@@ -1,0 +1,45 @@
+{
+  "at": "2026-11-15T20:12:18.980358+00:00",
+  "sourceChecks": [
+    {
+      "root": "/workspace/noacg-editor-r1-5-e5f-blank-built-control",
+      "head": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+      "status": "",
+      "source10paths": {
+        "e2e/editor-projects.spec.ts": "38f4a572b0f7f2508c502d0e4f434bf778263344df76a5d04ac359a8c20ccf71",
+        "e2e/wizard-entry-fit.spec.ts": "76c6bef6c16760bda155252fc73f3b6cc6d5afb67e7fa112cde34019a9c17bd0",
+        "src/components/editorFoundation/ProjectStarter.tsx": "3de9e6b5fc305fffd60f804268e92cb64d538332ee63365d98f04f5ef59449e6",
+        "src/components/editorFoundation/projects.css": "aa6cec777d5a202ef25173e21687ff855c878a1c79f7dde21b523959ecebc9b1",
+        "src/components/editorFoundation/startBlankGraphic.ts": "ABSENT",
+        "src/components/wizard/CreationWizard.tsx": "11f6f59c9937d883cb82b3968917f1e1b36df0aea954d575c778e1b3b294275b",
+        "src/components/wizard/steps/EntryStep.tsx": "cf1f416eedbb0ad3fd0a4071e7423402fc4c5de244f563242b0d8488ced98a43",
+        "src/e2eRegistry.ts": "59d5e0b4653b863c7c7eb733213626bae92b3984cb5433f5537a4f6f156eff42",
+        "src/styles/wizard-entry.css": "7336eddde7768912939dc5563bd6c03d82421033e7997e5e8fc7056f152526eb",
+        "src/templates/blank.ts": "c54cfadb9a6573f22c9d5c347df97a9bc67a6bc06000c2520439befde0b6372c"
+      },
+      "exactSourceUnchanged": true,
+      "lockUnchanged": true
+    },
+    {
+      "root": "/workspace/noacg-editor-r1-5-e5f-blank",
+      "head": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+      "status": "",
+      "source10paths": {
+        "e2e/editor-projects.spec.ts": "d62fc0c2ba84ed60018f63214ee0f9568132ae193c86101457c0f708baf6cb54",
+        "e2e/wizard-entry-fit.spec.ts": "21df66f487cb92fc27e08cc0ee095fc5f4d206444c0f75d1fe2dcc6caf360038",
+        "src/components/editorFoundation/ProjectStarter.tsx": "a6ebd5c423db0861756da0400dda82ed2da078fafec61e598543504d43cbb4cb",
+        "src/components/editorFoundation/projects.css": "01084b9460c50b25808e737142d01b4cf1e9d30009f516ff4c8b86a8bdcfab4d",
+        "src/components/editorFoundation/startBlankGraphic.ts": "ef017e7766dacd712bee836abacd9e890255d5828d2738ce6630d79e4d6c6bdc",
+        "src/components/wizard/CreationWizard.tsx": "0d95661dbbded2eefea20c34b88ec53312459e69114443b660027e699adc51df",
+        "src/components/wizard/steps/EntryStep.tsx": "7e12f67e0f8e6833cff7cf589f7c60f14a1d0c698eb35093d6c7bddd8c06ccf4",
+        "src/e2eRegistry.ts": "25711b146163c3e52c094e88a18b5702b979a98534f0c1e60c578d6405be48ee",
+        "src/styles/wizard-entry.css": "ffa615fd289ba9b6944505268812ad9a190d669c96d8756c7ac0b64a679b348d",
+        "src/templates/blank.ts": "5cc9eb21e7ee5670b75449f385e6e54af66cfe7f0027b40aee3a659f1f495195"
+      },
+      "exactSourceUnchanged": true,
+      "lockUnchanged": true
+    }
+  ],
+  "bundleUnchanged": true,
+  "bundleFiles": 504
+}

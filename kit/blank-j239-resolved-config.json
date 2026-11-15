@@ -1,0 +1,19 @@
+{
+  "removals": 1,
+  "servers": [
+    {
+      "original": "npm run build:e2e && npx vite preview --outDir dist-e2e --host 127.0.0.1 --port 5224 --strictPort",
+      "derived": "npx vite preview --outDir dist-e2e --host 127.0.0.1 --port 5224 --strictPort",
+      "url": "http://127.0.0.1:5224",
+      "reuseExistingServer": false,
+      "timeout": 240000,
+      "cwd": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/",
+      "envUnchanged": true
+    }
+  ],
+  "unchangedGlobalSetup": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e2e/_offline-guard.ts",
+  "trace": {
+    "mode": "on",
+    "snapshots": false
+  }
+}

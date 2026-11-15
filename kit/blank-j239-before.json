@@ -1,0 +1,86 @@
+{
+  "at": "2026-11-15T20:08:52.495232+00:00",
+  "nativeId": "6af8403d-0d00-8191-804b-4923b3338071",
+  "action": 13,
+  "modelEffort": "inherited unchanged; exact metadata not exposed",
+  "source": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+  "worktree": "/workspace/noacg-editor-r1-5-e5f-blank-built-control",
+  "command": "CI=1 NOACG_E2E_ON_BUILD=1 NOACG_E2E_EXPECTED_SPECS=editor-projects.spec.ts DEBUG=pw:api,pw:protocol npm run test:e2e -- --config=e5f.local/built-api-protocol/playwright.config.ts e2e/editor-projects.spec.ts --project=chromium --workers=1 --retries=0 --repeat-each=8 --max-failures=1 --grep 'external draft is durably retained through project api$' --output=e5f.local/built-api-protocol/results",
+  "commandSHA256": "ec9b07dccb33f01c9f16303ec0638d18ac5d6c4908f2867a8eb09c253ea88589",
+  "maximumAdditionalSamples": 8,
+  "maximumCumulativeBaseSamples": 10,
+  "maximumCumulativeJobs": 2,
+  "existingBundleTotal": 1,
+  "newBuilds": 0,
+  "worker": 1,
+  "retries": 0,
+  "maxFailures": 1,
+  "capMinutes": 5,
+  "reason": "Manual final passive raw Runtime.callFunctionOn protocol evidence probe after retained first failure and read-only CANNOTJUDGE; not a repair/rate comparison/queue waiver. Stop after any failure or terminal; no further runs.",
+  "bundleManifestSHA256": "01e1734450b54430de632ae2f63e0f31cc9689ba8421c39b5704f3130295fb4f",
+  "qualifiedBundleFiles": 504,
+  "original3601sliceSHA256": "c5d59a5ada6beaa13001416e507dda255bcdc569eb64e25de57aba62f16f1d6e",
+  "complete3603caseSHA256": "ed18c921e93a52925ee1f8355bcd49d64c104ba51d575985c3a78e0419d9ae09",
+  "before": {
+    "recordedAt": "2026-11-15T19:49:03.293728+00:00",
+    "nativeId": "6af8403d-0d00-8191-804b-4923b3338071",
+    "action": 13,
+    "modelEffort": "inherited unchanged; exact runtime model metadata not exposed",
+    "head": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+    "branch": "codex/plan-editor-r1-5-e5f-blank-built-control",
+    "worktree": "/workspace/noacg-editor-r1-5-e5f-blank-built-control",
+    "command": "CI=1 NOACG_E2E_ON_BUILD=1 NOACG_E2E_EXPECTED_SPECS=editor-projects.spec.ts DEBUG=pw:api npm run test:e2e -- --config=e5f.local/built-api-diagnostic/playwright.config.ts e2e/editor-projects.spec.ts --project=chromium --workers=1 --retries=0 --repeat-each=10 --max-failures=1 --grep 'external draft is durably retained through project api$' --output=e5f.local/built-api-diagnostic/results",
+    "commandSha256": "457a52dcabf32ef38ace87d59167ba9d6f2d108ffb253047b42e9a05cd2527b5",
+    "capMinutes": 5,
+    "workers": 1,
+    "retries": 0,
+    "maximumSamples": 10,
+    "reason": "Bounded initial evidence collection; zero failures INCONCLUSIVE. Any failure or incomplete observer stops both-head collection.",
+    "externalDoorBlockSha256": "c5d59a5ada6beaa13001416e507dda255bcdc569eb64e25de57aba62f16f1d6e",
+    "source10paths": {
+      "e2e/editor-projects.spec.ts": "38f4a572b0f7f2508c502d0e4f434bf778263344df76a5d04ac359a8c20ccf71",
+      "e2e/wizard-entry-fit.spec.ts": "76c6bef6c16760bda155252fc73f3b6cc6d5afb67e7fa112cde34019a9c17bd0",
+      "src/components/editorFoundation/ProjectStarter.tsx": "3de9e6b5fc305fffd60f804268e92cb64d538332ee63365d98f04f5ef59449e6",
+      "src/components/editorFoundation/projects.css": "aa6cec777d5a202ef25173e21687ff855c878a1c79f7dde21b523959ecebc9b1",
+      "src/components/editorFoundation/startBlankGraphic.ts": "ABSENT",
+      "src/components/wizard/CreationWizard.tsx": "11f6f59c9937d883cb82b3968917f1e1b36df0aea954d575c778e1b3b294275b",
+      "src/components/wizard/steps/EntryStep.tsx": "cf1f416eedbb0ad3fd0a4071e7423402fc4c5de244f563242b0d8488ced98a43",
+      "src/e2eRegistry.ts": "59d5e0b4653b863c7c7eb733213626bae92b3984cb5433f5537a4f6f156eff42",
+      "src/styles/wizard-entry.css": "7336eddde7768912939dc5563bd6c03d82421033e7997e5e8fc7056f152526eb",
+      "src/templates/blank.ts": "c54cfadb9a6573f22c9d5c347df97a9bc67a6bc06000c2520439befde0b6372c"
+    },
+    "lockSha256": "57df8e4dba1185c08d3b584ec05b555fee041e978ceff8e2fd42a15aaf15dcda",
+    "installedLockSha256": "f098c538fda48355184ab086515b8391f62f4713db7449fcf4494ee868aa307c",
+    "distinctInodes": {
+      "node_modules/.package-lock.json": 179621,
+      "node_modules/vite/package.json": 690699,
+      "node_modules/@playwright/test/package.json": 685866,
+      "node_modules/.vite": 680478,
+      "node_modules/.vite-temp": 179525
+    },
+    "configFixtureHashes": {
+      "observe.ts": "65d36cb546ecfff567211100cd72d527d4db24dcf3e0985547d19edbf2b41e69",
+      "playwright.config.ts": "0e09fff5d6a4c902dcc32268556ae3c3013496052b180beb19550cb76152cbed",
+      "tsconfig.observe.json": "c48bd8204edc80339030d928a24d174a6edac3df7812b88e349f1445fbc436c3"
+    },
+    "node": "24.19.0",
+    "playwright": "1.61.1",
+    "ciNodeLimit": "CI used24.22.2; not equivalent host/version/workload",
+    "knownCLI401": "NOTEXECUTED; network qualification overall FAIL retained",
+    "preservedSetupFailures": [
+      {
+        "kind": "ENOENT",
+        "boundary": "evidence directory mkdir before network/Git/config/worktree/build/browser; root created existing directory and ACKed continuation from0jobs0samples"
+      },
+      {
+        "kind": "FileNotFoundError",
+        "boundary": "pre-job manifest mistakenly read feature-only startBlankGraphic.ts frombase; root verified legitimate absence and ACKed ABSENT representation from0jobs0samples"
+      }
+    ]
+  },
+  "hashes": {
+    "observe.ts": "8a53bc613f18bc7ca18b22b04e354ca681c43d9077ffd5bf07c2e2223bc37d71",
+    "playwright.config.ts": "ed3631f1fda48a4bc0a6a87711a72f16aaf17dd66feb4945a45dcbeba53ceef3",
+    "tsconfig.observe.json": "c48bd8204edc80339030d928a24d174a6edac3df7812b88e349f1445fbc436c3"
+  }
+}

@@ -299,6 +299,102 @@
       "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/history-logs-20261115/receipts/e2-main-ci-shard15-first-failure.log",
       "restore": "Gunzip to an owned output and verify rawSha256 before reading the historical logical raw path. Raw evidence and earlier receipts are unchanged.",
       "reason": "Lossless packing of completed historical text logs to preserve complete new diagnostic traces under existing8MiB limit; no evidence dropped or limit changed."
+    },
+    {
+      "logicalPath": "e4-owner1-stop-2026-11-12/source-src-model-shows.ts.txt",
+      "compressedPath": "e4-owner1-stop-2026-11-12/source-src-model-shows.ts.txt.gz",
+      "compression": "gzip",
+      "rawSha256": "2c98ba49f25ab9f727cae73312c756865ca3bf4bb24340fbe9f0915f1ef15b18",
+      "gzipSha256": "4dc34b0af3b87ed7082879bd44b505acd8fdddbc415e1ca691b7c36ae3da674c",
+      "rawBytes": 154533,
+      "gzipBytes": 45313,
+      "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/history-text-20261115/e4-owner1-stop-2026-11-12/source-src-model-shows.ts.txt",
+      "restore": "Gunzip to owned output and verify rawSha256 before using historical logical path; original evidence and receipt hashes unchanged.",
+      "reason": "Lossless completed historical text packing under unchanged 8MiB cap; current source/runtime state never compressed."
+    },
+    {
+      "logicalPath": "e4-independent-check/exact-merge-receiving--source.json",
+      "compressedPath": "e4-independent-check/exact-merge-receiving--source.json.gz",
+      "compression": "gzip",
+      "rawSha256": "e393deb93887cf347357e48e993cc46552e3a316b257d14f1b2591142c3cc34b",
+      "gzipSha256": "ebfde56b3ab0ea00b36362f619f8b944de90ed3d9588778bf597aecd95696e22",
+      "rawBytes": 130205,
+      "gzipBytes": 40278,
+      "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/history-text-20261115/e4-independent-check/exact-merge-receiving--source.json",
+      "restore": "Gunzip to owned output and verify rawSha256 before using historical logical path; original evidence and receipt hashes unchanged.",
+      "reason": "Lossless completed historical text packing under unchanged 8MiB cap; current source/runtime state never compressed."
+    },
+    {
+      "logicalPath": "e4-owner2-verification/ci-terminal-attempt1-all33.json",
+      "compressedPath": "e4-owner2-verification/ci-terminal-attempt1-all33.json.gz",
+      "compression": "gzip",
+      "rawSha256": "ad96c428b77ba0b520b71c89379aafd419d76b546f64f996967fe5b4eed8d0f1",
+      "gzipSha256": "8cfd98b56b38e90f3eeb10ed5bc71b803bac50c1c0e4268f7045a767d98ce1df",
+      "rawBytes": 95538,
+      "gzipBytes": 5292,
+      "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/history-text-20261115/e4-owner2-verification/ci-terminal-attempt1-all33.json",
+      "restore": "Gunzip to owned output and verify rawSha256 before using historical logical path; original evidence and receipt hashes unchanged.",
+      "reason": "Lossless completed historical text packing under unchanged 8MiB cap; current source/runtime state never compressed."
+    },
+    {
+      "logicalPath": "receipts/e1-final-growth.json",
+      "compressedPath": "receipts/e1-final-growth.json.gz",
+      "compression": "gzip",
+      "rawSha256": "3ece824cb4cf0d2b11301a7297479ad987578948df9068ffd1271eed8df7e3e3",
+      "gzipSha256": "79394e8b26cb49efbaeb1f45162439cdbfd52bccab5e00bc699911559a7b06b6",
+      "rawBytes": 68204,
+      "gzipBytes": 9089,
+      "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/history-text-20261115/receipts/e1-final-growth.json",
+      "restore": "Gunzip to owned output and verify rawSha256 before using historical logical path; original evidence and receipt hashes unchanged.",
+      "reason": "Lossless completed historical text packing under unchanged 8MiB cap; current source/runtime state never compressed."
+    },
+    {
+      "logicalPath": "e4-owner1-stop-2026-11-12/source-e2e-new-graphic-guard.spec.ts.txt",
+      "compressedPath": "e4-owner1-stop-2026-11-12/source-e2e-new-graphic-guard.spec.ts.txt.gz",
+      "compression": "gzip",
+      "rawSha256": "54917d3d9686a82a8b1aa3b8acd0fc2eeb3bf64b494aafb1d0fc844e70b040a2",
+      "gzipSha256": "53f005c24f98c97683d0f74321b61d4d49af1d852e34a1f497e2eb1307ec9ca3",
+      "rawBytes": 57996,
+      "gzipBytes": 11099,
+      "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/history-text-20261115/e4-owner1-stop-2026-11-12/source-e2e-new-graphic-guard.spec.ts.txt",
+      "restore": "Gunzip to owned output and verify rawSha256 before using historical logical path; original evidence and receipt hashes unchanged.",
+      "reason": "Lossless completed historical text packing under unchanged 8MiB cap; current source/runtime state never compressed."
+    },
+    {
+      "logicalPath": "receipts/e1-svg-group-geometry/canonical-group-zero-diff.patch",
+      "compressedPath": "receipts/e1-svg-group-geometry/canonical-group-zero-diff.patch.gz",
+      "compression": "gzip",
+      "rawSha256": "05a578bc7a65e0e7e19fc4d6607b5beaf7ee539d9fdf5cc9a4a122cf6cee47c2",
+      "gzipSha256": "677aa90cf6e95d0719d9e5a729958e0c57dae0fc49a702a1f21bb4bde8a7d6aa",
+      "rawBytes": 54965,
+      "gzipBytes": 15118,
+      "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/history-text-20261115/receipts/e1-svg-group-geometry/canonical-group-zero-diff.patch",
+      "restore": "Gunzip to owned output and verify rawSha256 before reading historical logical path.",
+      "reason": "Lossless historical text packing after unchanged8MiB guard refused publish; no evidence removed."
+    },
+    {
+      "logicalPath": "receipts/e1-svg-group-geometry/j-5081-error-context.md",
+      "compressedPath": "receipts/e1-svg-group-geometry/j-5081-error-context.md.gz",
+      "compression": "gzip",
+      "rawSha256": "47681cc694074ebb320053439db3ac1be5487123d4c9ccb90721c6e74a4f52f9",
+      "gzipSha256": "117d55d258df7dd891d7659ca75f665b10a0d6e264314cd76e4e54475a22c9e2",
+      "rawBytes": 47533,
+      "gzipBytes": 10506,
+      "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/history-text-20261115/receipts/e1-svg-group-geometry/j-5081-error-context.md",
+      "restore": "Gunzip to owned output and verify rawSha256 before reading historical logical path.",
+      "reason": "Lossless historical text packing after unchanged8MiB guard refused publish; no evidence removed."
+    },
+    {
+      "logicalPath": "receipts/e1-svg-group-geometry/j-5080-error-context.md",
+      "compressedPath": "receipts/e1-svg-group-geometry/j-5080-error-context.md.gz",
+      "compression": "gzip",
+      "rawSha256": "90139a7cda9e0aa94452f63ef64d17afd4ea23360753c60b26070b32cc00fbd7",
+      "gzipSha256": "f7a68d9b8d722df4acbf4097b6c229ffd4fd003d5a24618525dd2594f9b05e01",
+      "rawBytes": 47039,
+      "gzipBytes": 10009,
+      "retainedRaw": "/workspace/noacg-editor-r1-5-state/a0e9aa58/retained-artifacts/history-text-20261115/receipts/e1-svg-group-geometry/j-5080-error-context.md",
+      "restore": "Gunzip to owned output and verify rawSha256 before reading historical logical path.",
+      "reason": "Lossless historical text packing after unchanged8MiB guard refused publish; no evidence removed."
     }
   ]
 }

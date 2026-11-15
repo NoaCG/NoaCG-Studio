@@ -1,0 +1,152 @@
+{
+  "issue": {
+    "url": "https://api.github.com/repos/microsoft/playwright/issues/41826",
+    "repository_url": "https://api.github.com/repos/microsoft/playwright",
+    "labels_url": "https://api.github.com/repos/microsoft/playwright/issues/41826/labels{/name}",
+    "comments_url": "https://api.github.com/repos/microsoft/playwright/issues/41826/comments",
+    "events_url": "https://api.github.com/repos/microsoft/playwright/issues/41826/events",
+    "html_url": "https://github.com/microsoft/playwright/issues/41826",
+    "id": 4903250206,
+    "node_id": "I_kwDODTssw88AAAABJEGpHg",
+    "number": 41826,
+    "title": "[Bug]: Promise was collected in cross frame promises",
+    "user": {
+      "login": "goloveychuk",
+      "id": 2370419,
+      "node_id": "MDQ6VXNlcjIzNzA0MTk=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2370419?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/goloveychuk",
+      "html_url": "https://github.com/goloveychuk",
+      "followers_url": "https://api.github.com/users/goloveychuk/followers",
+      "following_url": "https://api.github.com/users/goloveychuk/following{/other_user}",
+      "gists_url": "https://api.github.com/users/goloveychuk/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/goloveychuk/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/goloveychuk/subscriptions",
+      "organizations_url": "https://api.github.com/users/goloveychuk/orgs",
+      "repos_url": "https://api.github.com/users/goloveychuk/repos",
+      "events_url": "https://api.github.com/users/goloveychuk/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/goloveychuk/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "labels": [],
+    "state": "closed",
+    "locked": false,
+    "assignees": [
+      {
+        "login": "dgozman",
+        "id": 9881434,
+        "node_id": "MDQ6VXNlcjk4ODE0MzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9881434?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/dgozman",
+        "html_url": "https://github.com/dgozman",
+        "followers_url": "https://api.github.com/users/dgozman/followers",
+        "following_url": "https://api.github.com/users/dgozman/following{/other_user}",
+        "gists_url": "https://api.github.com/users/dgozman/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/dgozman/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/dgozman/subscriptions",
+        "organizations_url": "https://api.github.com/users/dgozman/orgs",
+        "repos_url": "https://api.github.com/users/dgozman/repos",
+        "events_url": "https://api.github.com/users/dgozman/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/dgozman/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      }
+    ],
+    "milestone": null,
+    "comments": 5,
+    "created_at": "2026-07-16T14:52:11Z",
+    "updated_at": "2026-07-20T10:19:57Z",
+    "closed_at": "2026-07-20T10:19:57Z",
+    "assignee": {
+      "login": "dgozman",
+      "id": 9881434,
+      "node_id": "MDQ6VXNlcjk4ODE0MzQ=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9881434?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/dgozman",
+      "html_url": "https://github.com/dgozman",
+      "followers_url": "https://api.github.com/users/dgozman/followers",
+      "following_url": "https://api.github.com/users/dgozman/following{/other_user}",
+      "gists_url": "https://api.github.com/users/dgozman/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/dgozman/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/dgozman/subscriptions",
+      "organizations_url": "https://api.github.com/users/dgozman/orgs",
+      "repos_url": "https://api.github.com/users/dgozman/repos",
+      "events_url": "https://api.github.com/users/dgozman/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/dgozman/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "author_association": "NONE",
+    "issue_field_values": [],
+    "type": null,
+    "active_lock_reason": null,
+    "sub_issues_summary": {
+      "total": 0,
+      "completed": 0,
+      "percent_completed": 0
+    },
+    "issue_dependencies_summary": {
+      "blocked_by": 0,
+      "total_blocked_by": 0,
+      "blocking": 0,
+      "total_blocking": 0
+    },
+    "body": "### Version\n\n1.58.2\n\n### Steps to reproduce\n\nReproducing is hard, it requires GC calls from browser.\n\non playwright side\n```ts\npage.evaluate('someFunction')\n```\nOn main frame\n```ts\nwindow.someFunction = () => iframeWindow.someOtherFunction()\n```\nOn iframe\n```ts\nwindow.someOtherFunction = () => Promise.resolve()\n```\nSomewhere on that time GC need to happen and clean promise from iframe.\n\n\n### Expected behavior\n\nIdeally we need to fix cross-frames promises GC, but idk if it's possible because it seems like cdp issue.\nIf there is no solution, at least we need to write a meaningful msg about what happened in error message. \nEither add cdp error message to playwright error description or map it to a description for developers to help solve the issue. \n\n\n### Actual behavior\n\nPlaywright side throws \n`page.evaluate: Execution context was destroyed, most likely because of a navigation.`\n\n### Additional context\n\nIn cdp debug I see a \n```json\n{\n  \"method\": \"Runtime.callFunctionOn\",\n  \"params\": {\n    \"functionDeclaration\": \"(utilityScript, ...args) => utilityScript.evaluate(...args)\",\n    \"objectId\": \"...\",\n    \"arguments\": [\n      { \"objectId\": \"...\" },\n      { \"value\": true },\n      { \"value\": true },\n      {\n        \"value\": \"(function anonymous() { return __SomeE2EApi__.waitForChangesAppliedAsync() })\"\n      },\n      { \"value\": 1 },\n      { \"value\": { \"v\": \"undefined\" } }\n    ],\n    \"returnByValue\": true,\n    \"awaitPromise\": true,\n    \"userGesture\": true\n  }\n\n{\"code\":-32000,\"message\":\"Promise was collected\"}\n```\nTo fix (I don't see the error after this change but I cannot have 100% proof that this fix works) the issue I've changed the implementation from \n```ts\nwaitForChangesAppliedAsync = () => iframeWindow.waitForChangesAppliedAsync() \n```\nto\n```ts\nwaitForChangesAppliedAsync = async () => {\n  await iframeWindow.waitForChangesAppliedAsync() \n}\n```\nwhich creates promise on main frame instead of passthrough iframe promise.\n\nReproduced on macos local browser and linux with remote browser pool on k8s pods on different chrome versions.\nNot a env-dependent issue.\n\n### Environment\n\n```shell\nSystem:\n    OS: macOS 26.2\n    CPU: (10) arm64 Apple M1 Pro\n    Memory: 70.80 MB / 32.00 GB\n  Binaries:\n    Node: 24.10.0 - /Users/vadymh/.local/state/fnm_multishells/63441_1783516106428/bin/node\n    Yarn: 1.22.19 - /Users/vadymh/.local/state/fnm_multishells/63441_1783516106428/bin/yarn\n    npm: 11.6.1 - /Users/vadymh/.local/state/fnm_multishells/63441_1783516106428/bin/npm\n  IDEs:\n    VSCode: 1.128.0 - /usr/local/bin/code\n    Cursor: 3.1.10 - /usr/local/bin/cursor\n    Claude Code: 2.1.202 - /Users/vadymh/.local/bin/claude\n    Codex: 0.142.5 - /Users/vadymh/.local/bin/codex\n  Languages:\n    Bash: 3.2.57 - /bin/bash\n```",
+    "reactions": {
+      "url": "https://api.github.com/repos/microsoft/playwright/issues/41826/reactions",
+      "total_count": 0,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 0,
+      "eyes": 0
+    },
+    "timeline_url": "https://api.github.com/repos/microsoft/playwright/issues/41826/timeline",
+    "performed_via_github_app": null,
+    "state_reason": "completed",
+    "pinned_comment": null,
+    "score": 1
+  },
+  "comments": [
+    {
+      "html_url": "https://github.com/microsoft/playwright/issues/41826#issuecomment-5003075561",
+      "author": "goloveychuk",
+      "association": "NONE",
+      "body": "Reproduce code\n```ts\nimport { test, expect, type CDPSession, type Page } from '@playwright/test';\n\ntest('raw CDP reports Promise was collected for an unretained cross-frame promise', async ({ page, browserName }) => {\n  test.skip(browserName !== 'chromium', 'Chromium/V8-specific CDP behavior');\n\n  const client = await page.context().newCDPSession(page);\n  await installCrossFramePromiseFixture(page);\n\n  const error = await reproducePromiseCollection(page, client, 'cdp');\n\n  console.log(`Reproduced raw CDP error: ${error.message}`);\n  expect(error.message).toContain('Promise was collected');\n});\n\ntest('reproduces misleading page.evaluate error for a collected cross-frame promise', async ({ page, browserName }) => {\n  test.skip(browserName !== 'chromium', 'Chromium/V8-specific CDP behavior');\n\n  const client = await page.context().newCDPSession(page);\n  await installCrossFramePromiseFixture(page);\n\n  const error = await reproducePromiseCollection(page, client, 'playwright');\n\n  console.log(`Reproduced Playwright error: ${error.message}`);\n  expect(error.message).toContain('Execution context was destroyed, most likely because of a navigation.');\n  expect(error.message).not.toContain('Promise was collected');\n});\n\ntest('retaining and awaiting the cross-frame promise avoids collection', async ({ page, browserName }) => {\n  test.skip(browserName !== 'chromium', 'Chromium/V8-specific CDP behavior');\n\n  const client = await page.context().newCDPSession(page);\n  await installCrossFramePromiseFixture(page);\n\n  const resultPromise = page.evaluate(async () => {\n    return window['__SomeE2EApi__'].waitForChangesAppliedAsync2();\n  });\n\n  await forceGarbageCollection(client);\n\n  await expect(resultPromise).resolves.toBe('resolved from iframe');\n});\n\nasync function installCrossFramePromiseFixture(page: Page) {\n  await page.setContent(`\n    <!doctype html>\n    <html>\n      <body>\n        <iframe id=\"child\" srcdoc=\"\n          <!doctype html>\n          <script>\n            window.createUnretainedNeverSettlingPromise = () => new Promise(() => {});\n            // window.createUnretainedNeverSettlingPromise = () => Promise.resolve()\n            window.createUnretainedResolvingPromise = () => {\n              const promise = new Promise(resolve => setTimeout(() => resolve('resolved from iframe'), 1000));\n              return promise;\n            };\n          </script>\n        \"></iframe>\n        <script>\n          window.__SomeE2EApi__ = {\n            waitForChangesAppliedAsync() {\n              const child = document.querySelector('#child').contentWindow;\n              return child.createUnretainedNeverSettlingPromise();\n            },\n            async waitForChangesAppliedAsync2() {\n              const child = document.querySelector('#child').contentWindow;\n              return await child.createUnretainedResolvingPromise();\n            }\n          };\n        </script>\n      </body>\n    </html>\n  `);\n\n  await page.waitForFunction(() => {\n    const child = document.querySelector('iframe')?.contentWindow;\n    return !!window['__SomeE2EApi__'] && !!child?.['createUnretainedNeverSettlingPromise'];\n  });\n}\n\nasync function reproducePromiseCollection(page: Page, client: CDPSession, mode: 'cdp' | 'playwright'): Promise<Error> {\n  let lastResult: unknown;\n  for (let attempt = 0; attempt < 30; ++attempt) { // 1 is probably enough\n    const resultPromise = mode === 'cdp' ? client.send('Runtime.evaluate', {\n      expression: 'window.__SomeE2EApi__.waitForChangesAppliedAsync()',\n      returnByValue: true,\n      awaitPromise: true,\n      userGesture: true,\n    }).catch(e => e) : page.evaluate(() => window['__SomeE2EApi__'].waitForChangesAppliedAsync()).catch(e => e);\n\n    await forceGarbageCollection(client);\n\n    lastResult = await Promise.race([\n      resultPromise,\n      new Promise(resolve => setTimeout(() => resolve('timed out waiting for evaluation result'), 5000)),\n    ]);\n\n    if (lastResult instanceof Error)\n      return lastResult;\n  }\n\n  throw new Error(`Did not reproduce promise collection. Last result: ${String(lastResult)}`);\n}\n\nasync function forceGarbageCollection(client: CDPSession) {\n  for (let i = 0; i < 20; ++i)\n    await client.send('HeapProfiler.collectGarbage');\n}\n```\n\nNot sure what is going on.\nIframes might be unrelated or there could be different conditions to repro this error\n```ts\nwaitForChangesAppliedAsync() {\n              // const child = document.querySelector('#child').contentWindow;\n              // return child.createUnretainedNeverSettlingPromise();\n              return new Promise(() => {});\n            },\n```\nalso reproducing same issue.\nLooks like empty promises are collected by gc.\nBut in my project where I reproduced this error, it's 100% not empty promises."
+    },
+    {
+      "html_url": "https://github.com/microsoft/playwright/issues/41826#issuecomment-5003960436",
+      "author": "github-actions[bot]",
+      "association": "CONTRIBUTOR",
+      "body": "Hi, I'm the Playwright bot and I took a first look.\n\n**Reproduced on tip-of-tree (npm `1.62.0-next`, sha `2bcd8f2`), chromium only.** When a cross-frame promise gets garbage-collected before it settles, CDP returns `{\"code\":-32000,\"message\":\"Promise was collected\"}`, and Playwright rewrites that into the misleading `page.evaluate: Execution context was destroyed, most likely because of a navigation.` — no navigation actually happened. So the \"fix cross-frame GC\" part is really V8/CDP behavior, but the **wrong error message is on us**: `crExecutionContext.rewriteError` funnels any unrecognized CDP error into the \"execution context was destroyed\" string. That's the concrete, actionable bug here.\n\nYour workaround (`async () => { await iframeWindow.foo() }`) is sound: awaiting in the parent frame keeps a reference so the promise isn't collected.\n\n<details>\n<summary>Minimal repro (condensed from your comment)</summary>\n\n```ts\nimport { test, expect } from './pageTest';\n\ntest('promise collected cross frame', async ({ page, browserName }) => {\n  test.skip(browserName !== 'chromium');\n  const client = await page.context().newCDPSession(page);\n  await page.setContent(`\n    <iframe id=\"child\" srcdoc=\"<script>window.makePromise = () => new Promise(() => {});</script>\"></iframe>\n    <script>\n      window.api = () => document.querySelector('#child').contentWindow.makePromise();\n    </script>\n  `);\n  await page.waitForFunction(() => !!document.querySelector('iframe')?.contentWindow?.['makePromise']);\n\n  const resultPromise = page.evaluate(() => window['api']()).catch(e => e);\n  for (let i = 0; i < 20; ++i)\n    await client.send('HeapProfiler.collectGarbage');\n  const result = await Promise.race([\n    resultPromise,\n    new Promise(resolve => setTimeout(() => resolve('did not settle'), 5000)),\n  ]);\n  console.log('RESULT:', result instanceof Error ? result.message : result);\n  expect(result).toBeInstanceOf(Error);\n});\n```\n\nOutput: `RESULT: page.evaluate: Execution context was destroyed, most likely because of a navigation.`\n</details>\n\n<details>\n<summary>What I ran</summary>\n\n- version: tip-of-tree (npm `1.62.0-next`, sha `2bcd8f2`)\n- browser: chromium — reproduces. This is Chromium/V8-CDP-specific (`HeapProfiler.collectGarbage` + `Runtime.callFunctionOn` returning `-32000 Promise was collected`); firefox/webkit don't have the equivalent path, so I scoped the repro to chromium.\n- The raw CDP error is `Promise was collected`; it's lost because `packages/playwright-core/src/server/chromium/crExecutionContext.ts` `rewriteError()` throws the generic \"Execution context was destroyed\" for anything not recognized as a JS error or a closed session.\n- variation: a plain unretained `new Promise(() => {})` (no iframe) collected by GC reproduces the same message, matching your note.\n</details>\n\nTwo things a maintainer will want to weigh: whether to surface the real CDP reason (e.g. keep the `Promise was collected` text) instead of the navigation message, and whether Playwright should retain the awaited promise so GC can't collect it mid-flight. I can't tell which they'll pick, but the misleading message is clearly the reproducible bug.\n\n\n<sub>Triaged by the Playwright bot - [agent run](https://github.com/microsoft/playwright/actions/runs/29585302740)</sub>\n<!-- playwright-ai-triage -->\n"
+    },
+    {
+      "html_url": "https://github.com/microsoft/playwright/issues/41826#issuecomment-5015182306",
+      "author": "dgozman",
+      "association": "COLLABORATOR",
+      "body": "I have reproduced this without any iframes. Chromium collects the evaluation promise unless it is retained by something in the page. Firefox/WebKit keep it alive.\n\n```ts\ntest('promise collected', async ({ page }) => {\n  const resultPromise = page.evaluate(() => {\n    window['createPromise'] = () => new Promise(() => {});\n    return window['createPromise']();\n  }).catch(e => e);\n  for (let i = 0; i < 20; i++)\n    await page.requestGC();\n  console.log((await resultPromise).message);\n});\n```"
+    },
+    {
+      "html_url": "https://github.com/microsoft/playwright/issues/41826#issuecomment-5020667346",
+      "author": "goloveychuk",
+      "association": "NONE",
+      "body": "@dgozman \nInteresting, how it can be fixed\nI guess this is the place where error thrown\nhttps://github.com/v8/v8/blob/e95287160cb4fe3f02bc9acf5f928cb393d31664/src/inspector/injected-script.cc#L1217\nWhile this is chrome bug, I don't know where to fix it.\nCan it be walkarounded in playwright side?\ne.g. this works\n```ts\nimport { test, expect, type CDPSession, type Page } from '@playwright/test';\n\ntest('promise collected', async ({ page }) => {\n  const resultPromise = page.evaluate(() => {\n    window['createPromise'] = () => new Promise(() => {});\n    const promise = window['createPromise']();\n    window['promise'] = promise;\n    return promise.finally(() => {\n      window['promise'] = null;\n    });\n  }).catch(e => e);\n  for (let i = 0; i < 20; i++)\n    await page.requestGC();\n  console.log((await resultPromise).message);\n});\n```\nSo maybe on utility side this will also work\n```ts\n  evaluate(isFunction: boolean | undefined, returnByValue: boolean, expression: string, argCount: number, ...argsAndHandles: any[]) {\n    const args = argsAndHandles.slice(0, argCount);\n    const handles = argsAndHandles.slice(argCount);\n    const parameters = [];\n    for (let i = 0; i < args.length; i++)\n      parameters[i] = parseEvaluationResultValue(args[i], handles);\n\n    let result = this.global.eval(expression);\n\n    if (isFunction === true) {\n      result = result(...parameters);\n    } else if (isFunction === false) {\n      result = result;\n    } else {\n      // auto detect.\n      if (typeof result === 'function')\n        result = result(...parameters);\n    }\n    this.global[kStoredPromises].set(result, true);\n    result.finally(() => this.global[kStoredPromises].delete(result)).catch(() => {});\n    \n    return returnByValue ? this._promiseAwareJsonValueNoThrow(result) : result;\n  }\n```"
+    },
+    {
+      "html_url": "https://github.com/microsoft/playwright/issues/41826#issuecomment-5020745031",
+      "author": "dgozman",
+      "association": "COLLABORATOR",
+      "body": "@goloveychuk I don't think there is a need to fix this on the Playwright side. It is very rare that the resulting promise is not retained by anything, and usually indicates an error in your program. The promise that was collected wouldn't end up resolved/rejected anyway, so awaiting for the result is pointless - any fix would trade an error in evaluate for a hanging evaluate."
+    }
+  ]
+}

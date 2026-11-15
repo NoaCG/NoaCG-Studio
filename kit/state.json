@@ -64,7 +64,7 @@
     }
   },
   "brief": {
-    "read": "Read current hosted feedback owner-decision at24d7ddcec05d476833d463511590b9277e960bf3 and phase notes. Old E1–E4/E5C/E6C receipts retain exact-source scopes; original failed evidence/allowances remain. The accepted source E6C705 is historical; build new scope on exact current-main source supplied in this brief.",
+    "read": "Read current hosted feedback owner-decision at24d7ddcec05d476833d463511590b9277e960bf3 and phase notes. Old E1\u2013E4/E5C/E6C receipts retain exact-source scopes; original failed evidence/allowances remain. The accepted source E6C705 is historical; build new scope on exact current-main source supplied in this brief.",
     "rules": "Same run and immutable original criteria/history. E1-E4/E5C/E6C independently PASS only at their recorded source/environment. All old E4 failures, STOPs, exhausted ordinary3/3 plus old ownerextra1/1 plus narrow1/1, failed WIP, E5C packaging3/3 and E6C probes remain retained. No old allowance reset or historical green relabel. Any CONFIRMED E4-attributable defect stops for owner reassessment before edits. Owned editor graphics install as independent production copies; no automatic propagation or collaboration design, necessary newer-write safety stays.\nCurrent owner receipt24d7 authorizes E5F afterE6C, serial assistant-first then blank creation, panel sizing, whole-graphic controls. User testing is hosted Studio. Recruited study declined: no recruitment request, no fake human/performance PASS. Original remaining E5/E6/OW1/E7 acceptance is not erased; real receivers, written GSAP disposition and explicit release approval remain.\nNo production configuration/data/DB write or query, plaintext credential access/printing/transplant/new account or billing/privacy change. Safely use existing configuration only within existing access/spend/rate limits. Earlier paid E3 round limits stay spent; do not relabel old probes. Real hosted E5F acceptance requires actual provider evidence, not mocked success; report concrete credential/permission blocks and finish unaffected engineering. Gateway usage connector403 already observed; do not retry that unchanged.\nUse current folder rules before edits. Reproduce observable gaps; write Risky state rules and obtain required fresh Rules-first review before product code; final full fresh SO A/A+, normal check/Codex review/CI/configured selection. Comparable executed reference interactions or explicit no-equivalent limit. Root alone admits/stamps/enables queue and acknowledges sole PR repair ownership; worker never self-approves. Inherit Codex model/effort without overrides. No parallel product edits or live shared service use. Qualify own exact-source worktree/resources/network and actual cache/output IO. Preserve original owner binding separately from observed environment; no invented CLI mapping.\nUse existing jobs queue, small5min/onebroader12min/build5min bounds and derived worker count. Full build/suites in Actions except existing verified risk-triggered bounded route. No waits/retries/skips or weakened assertions/checks/limits as fixes. Preserve all failed/pretest/source admissions. Root stays through queue/merge/terminal exact checks/fresh independent acceptance; no durable wake claim. Stop on pause or supplied work-block boundary, only root renews. Keep8MiB/two-folder-depth kit bound and valuable ignored evidence; no new binary evidence exception."
   },
   "inFlight": [
@@ -89,7 +89,7 @@
   "owner": [
     "No recruitment or downloaded build is requested. Owner will review fixes through hosted Studio after engineering verification.",
     "Actual receiving-system, rights and candidate-specific release decisions retain their existing gates; do not infer completion from usability feedback.",
-    "Owner confirmed hosted quiz Paris→Helsinki Edit, review/Apply and Undo: “it works”. Earlier Help success retained. No local build or recruitment."
+    "Owner confirmed hosted quiz Paris\u2192Helsinki Edit, review/Apply and Undo: \u201cit works\u201d. Earlier Help success retained. No local build or recruitment."
   ],
   "fixes": [
     {
@@ -1503,10 +1503,7 @@
     },
     "currentPublicUpdate": 6831775749
   },
-  "waitingOn": {
-    "what": "Originalbuilder finalraw-protocol evidenceprobe usingqualifiedbasebundle; onlyremainingjob/8base samples; STOPafterterminal",
-    "eta": null
-  },
+  "waitingOn": "Same causal reviewer final raw protocol/source assessment; PR2579 queue red preserved; no deployment or further execution admitted.",
   "completedCausalityReviews": [
     {
       "id": "6af4b05b-8a1c-8191-b931-182efca3b062",
@@ -1850,7 +1847,7 @@
         "acceptedVersusStagedFix": "CentralcurrentAuthoringDocument usesconfirmedsnapshotmembership, pendingdraftsretainedforrecovery/retry; open/create/keep awaitpersistence; intentreconfirmedbeforetarget; exactunchangedsubmittedunitrestoredonrefusedfinalstatus, laterworkpreserved",
         "j0094": "5PASS includingcancel/serial/heldwrites; productrefinementresetbaselineonidempotentsameprivate reopen, originalidempotenceassertionunchanged",
         "j0095": "4/4PASS21.7s independentdraft/cancel/baselineSaveAs/oldcommandimmediate-refusal; genuineotherdocument loads latestconfirmedbundle",
-        "j0096": "4/4PASS21.5s includesexplicit SAMEprivate adoptedrevisionrefusal→reloadexactbundle→newbindingrejectsoldpackets; rootread",
+        "j0096": "4/4PASS21.5s includesexplicit SAMEprivate adoptedrevisionrefusal\u2192reloadexactbundle\u2192newbindingrejectsoldpackets; rootread",
         "j0097": "NewNextoperatorpixeloracleFAIL wronglyrequiredexact255at60x7subpixeltext; actualglyphspa inted224. Wrongrepresentationretained, no product/sample/layout/timingchange",
         "j0098": "ReceivingstrongerNextproof1/1PASS25.9s; rootread",
         "j0099": "Finalreceiving1/1PASS26.4s afterremovingguessedcutoff: exactauthoredwhite/text/geometry/ancestorclip +actualopaqueglyphcontrast, fullresexportsstillrequireexactopaque255. Rootviewedoperator+HTMLNextrows andanalyzedall4stablearchivedPNGs",
@@ -2088,7 +2085,7 @@
         "fullSo": {
           "verdict": "AGREE WITH CORRECTIONS",
           "grade": "B",
-          "scope": "FULL51paths91a→63d7",
+          "scope": "FULL51paths91a\u219263d7",
           "receipt": "e4-owner1-stop-2026-11-12/final-full-so.txt",
           "sha256": "e538d1f3c3ea5a7bc2c9d303a5b8a783055d8b4f802fb4caab8eb599fffc9dd9",
           "rootReadback": "Entire verdict read and full source-manifest inspected; no A/A+ and do not land. Same-assessor clarification on later CI result pending.",
@@ -2270,8 +2267,8 @@
           "ends": {},
           "why": []
         },
-        "packageAudit": "Full91a→721c only pre-existing manualqualify:editor-projects scriptaddition; no version/deps/build/lock/CLIchanges.",
-        "receivingApplicability": "Currentbroader generatedfourZIPs; allfilenames and43uncompressedfilecontents equalstagedkit. Freshsource differs only brandApplication.lookId UUID; outputproducer+fixtureclosure63d→721c unchanged. Rootread actual JSON receipt.",
+        "packageAudit": "Full91a\u2192721c only pre-existing manualqualify:editor-projects scriptaddition; no version/deps/build/lock/CLIchanges.",
+        "receivingApplicability": "Currentbroader generatedfourZIPs; allfilenames and43uncompressedfilecontents equalstagedkit. Freshsource differs only brandApplication.lookId UUID; outputproducer+fixtureclosure63d\u2192721c unchanged. Rootread actual JSON receipt.",
         "capacityPrecheck": "PROVISIONALWARN197.7/21392.8%+0.42min usingcurrenthelper/actualfeatureinputs with missinggrowth/frozenseed. NotCIclearance; no403retry, limits/exceptionchangesnone."
       },
       "finalHead": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
@@ -2517,7 +2514,7 @@
     "branch": "codex/plan-editor-r1-5-e5c-build",
     "status": "PASS",
     "predecessor": "E4 accepted2026-11-13T11:21:26.775Z exact5f6; independentcomment6851283088",
-    "sourceApplicability": "5f6→e1c6 only e2e/import-svg-corpus.spec.ts, e2e/publish-output-setup.spec.ts andquarantine.json changed, no app/runtime/deps/workflowinputs; freshE5C acceptance stillrequired.",
+    "sourceApplicability": "5f6\u2192e1c6 only e2e/import-svg-corpus.spec.ts, e2e/publish-output-setup.spec.ts andquarantine.json changed, no app/runtime/deps/workflowinputs; freshE5C acceptance stillrequired.",
     "resourceSetup": "Ownedcleanbranch/worktree createdbeforework, rootpackage-lockSHA62dd0fe872965d011d1b30433f28ee547475dd08bf1309bbd569b0733214df4c equals shared dependencylock; onlynode_moduleslinked, no compiledoutput reuse.",
     "actor": "/root/editor_e5c_cloud_builder",
     "actionId": "plan-editor-r1-5-2026-11-08:9",
@@ -2547,16 +2544,16 @@
       "j0129": "PASS1/1 importedSVG cumulative UI/semantic/reviewed deterministic source+historyparity and3browseroutputs,1.7min,zero modelcalls.",
       "j0130": "INCOMPLETE performanceharness:1366selection30/raw200renderedframes collected; firstdragframegenerationdestroyedwindowlocalrecorder, TypeError e5cStop missing. Partialattempt1 retained; no productfailure or dragPASS.",
       "next": "Read-onlyattributionfromexistingtrace/source and finalindependentSO mustjudgeE5CCloudmeasurementcriterion. KeepOPENactualdevice/native125 performancequalification, no targetwaiver; anyconfirmedE4defect stopsforownerreassessment.",
-      "reference": "Freshactuala1e977→3142fc7 compare5commits onlyrelease.yml, binarymanifesttruthfula1, officialbinarylocated.",
+      "reference": "Freshactuala1e977\u21923142fc7 compare5commits onlyrelease.yml, binarymanifesttruthfula1, officialbinarylocated.",
       "productEdits": "None reported; no newrepairattempt.",
       "j0132": "MEASURED bothviewports/allplannedcounts/captures; initialdriverunderdriven15Hz, not30HzfeedbackPASS.",
       "j0133": "Startercumulative partialPASSthroughhistory/brand/independentdocs/save/reopen/subsetinstall2+1; scratchoperatorlocator ambiguoustwoiframes, originalfailure retained, no productfinding.",
       "j0134": "ReferenceextraPASStext/X+40 UndoRedo/timelineplaystop; initialSVGresourceclaimlaterqualified byj0137 actualcompletion/nativegraph.",
       "j0135": "StartercumulativePASS workerreported; rootreadbackpending.",
-      "j0136": "Singleextra≤5min highrateCDPdiagnosticMEASURED; offered600moves/group,max4outstanding, trustedreceived32–46Hz1366; changedcomputedpose12–20Hzdrag/8–10Hzscrub, protocolp95drag137.5ms/scrub251.4ms. InstrumentedconfigMISSEStargets; recordingoverheadconfoundsattribution. No performancePASS/pureinstrumentationcause claim. No furtherautomaticmeasurement/productcorrection.",
+      "j0136": "Singleextra\u22645min highrateCDPdiagnosticMEASURED; offered600moves/group,max4outstanding, trustedreceived32\u201346Hz1366; changedcomputedpose12\u201320Hzdrag/8\u201310Hzscrub, protocolp95drag137.5ms/scrub251.4ms. InstrumentedconfigMISSEStargets; recordingoverheadconfoundsattribution. No performancePASS/pureinstrumentationcause claim. No furtherautomaticmeasurement/productcorrection.",
       "j0138": "PASS5/5 receiving+4loopcases41.4s,freshfourZIP/browserNext/assets; rootreadbackpending.",
       "stopClarification": "ANYremainingconfirmedE4productdefectinclnewperformancedataeffect requiresstopbeforeedits, notonlypreviously-namedfamily. No relabelasnewE5Cwork.",
-      "readOnlyAttribution": "Workerreports PreviewController/runtime/TimelineunchangedsincepreE4admission91a57833; E4addeddocumentbinding/viewworkspacebookkeeping setSessionTime→rememberDocumentView/guards/debouncedautosave. CannotruleE4costin/out withoutcontrolledcomparison; NOcausalproductdefectconfirmed. Do notlabelunrelatedorperformanceclear.",
+      "readOnlyAttribution": "Workerreports PreviewController/runtime/TimelineunchangedsincepreE4admission91a57833; E4addeddocumentbinding/viewworkspacebookkeeping setSessionTime\u2192rememberDocumentView/guards/debouncedautosave. CannotruleE4costin/out withoutcontrolledcomparison; NOcausalproductdefectconfirmed. Do notlabelunrelatedorperformanceclear.",
       "highRatePointerUp": "INVALIDtargetjudgment: mixedCDPmove+Playwrightmouse.up sendsupatPlaywrightstalestartcoords. Rawcontinuousinput/pose/protocolretained; withholdhighratefinalpointerupPASS/FAIL. Originalawaiteddrivermouseupcoordinatecoherent, preserveactualvalues.",
       "reviewRequirement": "No furtherautomaticperformanceadmissions/productcorrection. Finishdiagnosticdocs/localkit. SeparateCloudMISS/INVALID/LIMITEDmetricsfromnameddevice/native125%NOTRUNOPENtargets. FreshfinalSOindependentlyjudges3E5Ccriteria, noledgradeA; anyconfirmedE4defectstopsbeforeedits. PhaseNOTaccepted/PRnotyetreported.",
       "frozenArtifactReview": {
@@ -2566,12 +2563,12 @@
         "originalSummary": "a1a1c82cf6ca0ba03dc44d7e20fba4c3dc698ed01b4c921ebef5a20965c71ae0",
         "highRateSummary": "cae1a53fd72462d0baebe1954d4c8f01ade9e94fa6fea5af742c587d5399c036",
         "rawFrames": "~1.5GB owned e5c.local retained, notcopied8MiBkit",
-        "allJobs": "j0128–j0138 all11terminal; j0131PASSreference, j0130INCOMPLETE, j0133locatorFAIL, j0134importscopeinitiallyunqualifiedthenj0137actualcompletednativegraph."
+        "allJobs": "j0128\u2013j0138 all11terminal; j0131PASSreference, j0130INCOMPLETE, j0133locatorFAIL, j0134importscopeinitiallyunqualifiedthenj0137actualcompletednativegraph."
       },
       "reviewHistory": {
         "28f15f5891a41d302256d976032438867604b72f": "FreshFULL AGREE/Aall3criteria before rootreadinesscorrection/newhelpers; notfinalscope.",
         "rootReadinessFinding": "loadF4 newhelpermutatedstoreBEFORE30/300validation; moveallpurevalidationbeforewrites andnegativehelper-smoke. Newhelperonly, notE4repair.",
-        "6e5a0783c1517898aa33f438c847caa6956d6948": "FreshFULL AGREEWITHCORRECTIONS/B: native launcherusesDEV/StrictMode whichrepo dev-worktree69–79 disqualifiesforlatency; srcimportsnotavailableinbuiltpreview. No actualE4productdefectconfirmed.",
+        "6e5a0783c1517898aa33f438c847caa6956d6948": "FreshFULL AGREEWITHCORRECTIONS/B: native launcherusesDEV/StrictMode whichrepo dev-worktree69\u201379 disqualifiesforlatency; srcimportsnotavailableinbuiltpreview. No actualE4productdefectconfirmed.",
         "ccbee6a775a189c732819128fd81ea5bdc55605f": {
           "actor": "/root/editor_e5c_cloud_builder/e5c_final_reconciled_full_so",
           "status": "COMPLETED FULL AGREE/A",
@@ -2592,12 +2589,12 @@
         "state": "THIRD_FINAL_QUALIFICATION_PASS",
         "route": "Existingendurance.ymlmanualcarrier +onelegitimateregistered source-pinned packaging/helperqualificationcommand; noworkflow/guard/budgetexceptions, no productcode or benchmark. FullnpmrunbuildinActions, existingdist/version.json.commit provenance, offlineenv, normaleditableF4ZIPimport/pureDOMobserver, strictartifactreceiptandownedcleanup.",
         "feasibility": "MeasuredoldexactBuild43412804437/job131843158163 npmrunbuild347s. Initial5minfullbuild+packageproposal infeasible BEFOREADMISSION; no failure/admission spent.",
-        "boundedProposal": "10minnewmanualinput onlyIFfreshmodelconfirmswithinunchangedendurance90min/1–75input+normalCIpolicies; 5minoffActionsbuildlimit unchanged. No existingtest/check/limit raised or skipped. Stopifbinding5minCIcapactuallyexists.",
+        "boundedProposal": "10minnewmanualinput onlyIFfreshmodelconfirmswithinunchangedendurance90min/1\u201375input+normalCIpolicies; 5minoffActionsbuildlimit unchanged. No existingtest/check/limit raised or skipped. Stopifbinding5minCIcapactuallyexists.",
         "next": "Freezehonestreceipts/sourceapplicability; finalfreshFULLreview, finalCI/Codex,normalqueueandindependentactualmergeacceptance. No furtherpackagingorperformanceadmission.",
         "modelActor": "/root/editor_e5c_cloud_builder/e5c_native_packaging_rules_so",
         "approvedRulesSource": "6eaae8d4a48a23a6f4b8f15a3c03aa998a851d93",
         "modelCorrection": "Consumerrequestedsource/extractedversion/fullinventoryguard refusechangedextraorstalefiles; staticobserver+editableZIPpath exercisedinproductionpreview; cleanupwithinprospective10minoverallscriptbound.",
-        "policyQualified": "CurrentCI Build15min, endurancejob90min/input1–75 unchanged. 10minnewActionsartifactinput isnotanextensionofanyadmittedattempt/offActionsbuildlimit. Allfullnpmrunbuildgates retained.",
+        "policyQualified": "CurrentCI Build15min, endurancejob90min/input1\u201375 unchanged. 10minnewActionsartifactinput isnotanextensionofanyadmittedattempt/offActionsbuildlimit. Allfullnpmrunbuildgates retained.",
         "rootReadback": "ActualcompletednativeRules-firstverdict readviaagentlisting; all3modelcorrectionsaddressed, nofiles/browser/heavytestsbyreviewer. Finalimplementation/artifact/helperreceipt stillunverified.",
         "rootMonitor": "88583 terminalsuccess; no backgroundwakeclaimed.",
         "retainedCarrierFailures": [
@@ -3016,7 +3013,7 @@
         "browser": "Chromium149.0.7827.55Linux",
         "fonts": "ActualbundledInter/Oswald/Saira weights400/700,48px; slots800/1043/1090",
         "retries": 0,
-        "scope": "1–2pxvariant,NOTproofoforiginal5%namedhostissue775; floor55%retained"
+        "scope": "1\u20132pxvariant,NOTproofoforiginal5%namedhostissue775; floor55%retained"
       },
       "preE4Evidence": {
         "oldCommit": "745c6f2dcd9ce5e82cc6655c652e08f0568800fd",
@@ -3035,7 +3032,7 @@
         "actor": "/root/editor_e6c_cloud_builder/rules_first_review",
         "status": "COMPLETED_AGREE_A_RulesFirstOnly",
         "assessedHead": "63edf29ed2119ed6256d396d6303c02b296b75bf",
-        "rootReadback": "ActualnativeverbatimAandentirepublishedRules1–6/callsiteauditread. ReviewerindependentlyverifiedpreE4file/runtimehashes+18metrics. NoRulescorrection; implementationandgatesunverified.",
+        "rootReadback": "ActualnativeverbatimAandentirepublishedRules1\u20136/callsiteauditread. ReviewerindependentlyverifiedpreE4file/runtimehashes+18metrics. NoRulescorrection; implementationandgatesunverified.",
         "rules": "Existing3proportionalpasses+max12measuredbisections,<=18geometryreads; observedfitlower/overflowupper/finalbracket<=original/4096,55%floor/maxauthoredtype; no wait/actionretry/test-threshold/capchange. ExactknownoldfullblockonceLF/CRLFonly; custom/newer/unknown/duplicate/partial/SVG/source/history/production/onairuntouched; idempotentpurehelperonlyderivedoutput5sites.",
         "architecture": "ExistingpermittedanimMigrationnamedpureexport/previewfacade; prepareOutRuntime/save/import/equivalenceunchanged; no architectureguardrelaxation."
       },
@@ -3127,7 +3124,7 @@
       "status": "TERMINAL_SUCCESS_43455609799_ATTEMPT1",
       "source": "c456f647eb8a30839473fd93467f447a181f2dc1",
       "sequence": "E6Ccurrentcandidate secondadmission, AFTERoneconcreteverifiedmetadatarepair; previousde563attempt1FAILretained unchanged, no samecommitrerun/no E5C3/3orE4reset",
-      "rootEvidence": "Root actualgitdiff EXACToneheaderline1+/1- expands3fullpaths/keepsother2; cleanworktree. ExistinggatecoveragePASS472gates/48checks424tests, actualgateplanfield-reference rowhittrueand5validpaths. NO app/runtime/helper/workflow/lock/assertion/parser/limitdelta de563→c456.",
+      "rootEvidence": "Root actualgitdiff EXACToneheaderline1+/1- expands3fullpaths/keepsother2; cleanworktree. ExistinggatecoveragePASS472gates/48checks424tests, actualgateplanfield-reference rowhittrueand5validpaths. NO app/runtime/helper/workflow/lock/assertion/parser/limitdelta de563\u2192c456.",
       "need": "Firstattemptstoppedbeforebuildtests/nativehelper/bundle, so no usablecurrentcandidateexists. Correctedmetadata permitsunchangedrequirednormalbuild toreachremaininggates andqualifynewversion/sourcec456.",
       "route": "UNCHANGED endurance.yml scriptqualify:editor-native-kit minutes10 local-supabasefalse; exactsourcepush+observeexisting first;ONEdispatch only; reconcileoriginalonunknownack; fullnormalbuild/helper/captures/ZIP/mandatorycleanupinsideexisting10 envelope.",
       "limits": "No thirdadmission or automaticrepair authorized; any failure/incomplete reportBEFOREfurtheredits. Previouslyfullreadfailedsource/log/receipt retained. Broader1/1spent48/48PASS appliesunchangedproduct/no repeat. E4allspent/confirmedE4effectSTOP.",
@@ -3162,7 +3159,7 @@
       "prComment": 6858501092,
       "evidence": "ActualnativeverbatimAindependentlyreadbyroot; no confirmeddefect/correction; reviewer23artifacthashes/8ZIPs/5toolkits/CLIintegrity/54independentquantizedcases+24capturehashes. Laterphysical/terms/consumerlimitskept."
     },
-    "finalKitRootReadback": "Rootreadfinalhandoff+verification/G07notes; independentlyreadactualcommitted23artifactblobs at569aac,2145856bytes,0size/hashmismatches. 8ZIPrawbytes/exactGSAPfontnotices verified; docsresourceobservations beforeload/held/Out/disposal andsourcepinseparationpresent. c456→569docs/evidenceonly; no app/runtime/helper/lock change. Finaldocs5cheapgates/treeguardactualPASS; no furtherbuild/broadneeded.",
+    "finalKitRootReadback": "Rootreadfinalhandoff+verification/G07notes; independentlyreadactualcommitted23artifactblobs at569aac,2145856bytes,0size/hashmismatches. 8ZIPrawbytes/exactGSAPfontnotices verified; docsresourceobservations beforeload/held/Out/disposal andsourcepinseparationpresent. c456\u2192569docs/evidenceonly; no app/runtime/helper/lock change. Finaldocs5cheapgates/treeguardactualPASS; no furtherbuild/broadneeded.",
     "pr": 2506,
     "prUrl": "https://github.com/NoaCG/NoaCG-Studio/pull/2506",
     "attachment": "AttachedactualPR2506viaCodexartifacttool",
@@ -3223,7 +3220,7 @@
         "ends": {},
         "why": []
       },
-      "rootActual": "Executedcanonicalphase-cf03-baseline.sideEnds inactualfeaturecwd onfullbase1178→56943paths."
+      "rootActual": "Executedcanonicalphase-cf03-baseline.sideEnds inactualfeaturecwd onfullbase1178\u219256943paths."
     },
     "sourceCheckStamp": {
       "rootPhysicalRead": "/workspace/NoaCG-Studio/.git/noacg-jobs/checks/codex-plan-editor-r1-5-e6c-build.json",
@@ -3235,7 +3232,7 @@
       "legs": "review/simplify/verify inline0findings0fixed; requiredRiskyRulesandFULLAindependentlyread"
     },
     "finalCurrentCandidateDecision": "CONCRETE_ROOT_ASSESSED actual705 sourceadmission nowexplicitabove; earlier NO AUTOMATIC third retainedhistorical, not erased. Nativec456neverrelabeled; allpriorattempts remain.",
-    "prRules": "WorkeractualPRBODYONLY addedconciseRules1–6; same569head/no push/review/testchange. RequiredobservableprecodeRules repeated.",
+    "prRules": "WorkeractualPRBODYONLY addedconciseRules1\u20136; same569head/no push/review/testchange. RequiredobservableprecodeRules repeated.",
     "queueStampIntent": {
       "status": "OBSERVED_ORIGINAL_HELPER_SUCCESS_REVIEWED_ONLY_RECOVERED",
       "at": "2026-11-13T16:32:20.751243+00:00",
@@ -3314,7 +3311,7 @@
       "source": "705ba59425441fedbe171bee993e4b621c7bf68b",
       "branch": "codex/plan-editor-r1-5-e6c-merged-candidate",
       "worktree": "/workspace/noacg-editor-r1-5-e6c-merged-candidate",
-      "scope": "FinalusableofflineAPPcandidate forlocalE5/currentmergedG07; no product/code/config/helperchange. Actualc456→705 includes19runtimefrontend/backend/control/outputpaths1583+/96- frommainPR2488; oldc456producer remainsvalidhistoricalbutcannotqualifynewwholeapp. NormalCIdoesnotuploaditsdist asusableofflinecandidate.",
+      "scope": "FinalusableofflineAPPcandidate forlocalE5/currentmergedG07; no product/code/config/helperchange. Actualc456\u2192705 includes19runtimefrontend/backend/control/outputpaths1583+/96- frommainPR2488; oldc456producer remainsvalidhistoricalbutcannotqualifynewwholeapp. NormalCIdoesnotuploaditsdist asusableofflinecandidate.",
       "admissionBasis": "Existingverify permitsone risk-triggeredbuild percommittedreviewedsource;705isactualqueue-reviewed/CIpassednewsource and hasNEVERhadnativecandidatebuild. This is sourcequalification, not retryofc456/de563 or a repairattempt reset. Rootexplicitlyassessedconcreteneed/source/bounds afterlanding, lifting earlier NO AUTOMATIC third-admission boundary onlyfor this oneactualmergepreparation. E6Ccount3total isvisible:de563FAIL,c456PASS,this705newsourcepending; E5C3/3 and everyE4spentcount untouched.",
       "rootChecks": "Ownrootclean705worktreecreated, branchunused; actualbranchworkflow_dispatchtotal0. Rootbytecomparedunchangedendurance/helper/smoke/captureexport/lock to c456; exacthelperSHA912b6b316719596904078ebfedf823f6ebb1d956f7b9be6fc2aa7f7c733e067d; lock62dd. Actualmergeparents7451+569/tree0d44/sourceallreviewed; no unreviewedappedit.",
       "route": "Pushownedstaticbranchat705; observationfirst; ONE endurance.yml workflow_dispatch scriptqualify:editor-native-kit minutes10 local-supabasefalse. FullNORMALbuild+unchanged12helperassertions+22historicalcaptures+currentversion/fullmanifest/ZIP+mandatorycleanup insideexisting10minuteenvelope. Sourceversionmust705.",
@@ -3594,7 +3591,7 @@
       "hosted": "AutomaticPRdeploymentIGNORED/mainonly expected, notsuccessorproviderproof. Repo productiontestsanonymous/nowrite and no productiontestcredentials; no callableconnectedbrowser/desktop. Owner signed-inwebsiteHelp/EditUndo mayberequiredLAST afterallconcreteengineering/landing; none asked yet.",
       "codeql": {
         "run": 43603121853,
-        "analysis": "Allthreejavascript-typescript/python/actionsanalysisjobsSUCCESS. Visiblealert117DOMtext→HTMLatcompositionSource27; fullalertREST403,noothercredential/transportscopeattempt.",
+        "analysis": "Allthreejavascript-typescript/python/actionsanalysisjobsSUCCESS. Visiblealert117DOMtext\u2192HTMLatcompositionSource27; fullalertREST403,noothercredential/transportscopeattempt.",
         "triage": "Rootinlinecodex-security statictriage/not_actionableforDOM-XSSatdetachedsink, mediumconfidence. EntireSECURITY/no scopedpolicyread. OnlycallercompositionEdits8discardsdoc; noappend/adopt/render, editkeepsHTMLbytes+CSSonly. Two sharedskillrefs unavailable/manualpolicyresolverfallback; no runtimeprobe/suppression/dismissal/testchange.",
         "reply": 4573888509,
         "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2552#discussion_r4573888509"
@@ -3630,7 +3627,7 @@
       "layout": "Freshreadonly /root/editor_e5f_cloud_builder/e5f_ci_layout_model_review stillpending on9f70/base5c118; no productpatchbeforeconsolidatedverdict. OldwizardTab/Starterdefault expectations qualifiedasdocumentednewdoorfixtureadaptations, originalguardsretained.",
       "result": "j199exact5c118built1/1PASS14.3s; j200exact9f70built1/1FAIL originalrequests3vs2 at184. RootbothWHOLElogsread; same1worker/offlinepins/lock/ownpaths,no repeat. Largechunkwarningsboth; baseextra@remotion/player dependency-scanwarning disclosed/teststillPASS. Frozenbuiltartifacts retained. n1each diagnostic, notfailure-rate comparison.",
       "mechanism": "Workeractualtrace/source implicatesnewNeutralBlankInter@fontface delays: auto noacgSoundPrepare failure maysettlebeforefirstexplicitstagewarm, allowingextraofflineattempt thenrepair. Need bounded instrumentation/documentedauto-vs-explicitPreparecontract beforefix; no source/test soundpatch/no unrelated-or-flakeclaim yet. ExistingcreateBlankTemplatehasrealconsumers; assess preservinglegacyhelpercontract/newauthoringfactory ONLYafterevidence ratherthan strippingfixturefonts orchangingrequest2.",
-      "instrumentation": "j203rawbaseordering recordedbutNOTAVERDICT: expectedoriginalspecmetadata mismatched actualignored diagnostic. No rerun/relabelling. j204featurediagnostic1/1PASS4.4s withcorrectsuffixexpectedfilename andsameguards. Rootreadconfig/spec/integritycode/rawlogs. FeatureautoofflineLoad1beforewhenLoaded, explicitwarm→offlineLoad2, repair→allowedLoad3; baseauto/warmoverlap→first1/repair2. Fontsfinishatdifferentloadphase. Theseareordering observations, no rateestimate."
+      "instrumentation": "j203rawbaseordering recordedbutNOTAVERDICT: expectedoriginalspecmetadata mismatched actualignored diagnostic. No rerun/relabelling. j204featurediagnostic1/1PASS4.4s withcorrectsuffixexpectedfilename andsameguards. Rootreadconfig/spec/integritycode/rawlogs. FeatureautoofflineLoad1beforewhenLoaded, explicitwarm\u2192offlineLoad2, repair\u2192allowedLoad3; baseauto/warmoverlap\u2192first1/repair2. Fontsfinishatdifferentloadphase. Theseareordering observations, no rateestimate."
     },
     "ciLayoutReassessment": {
       "actor": "/root/editor_e5f_cloud_builder/e5f_ci_layout_model_review",
@@ -3641,7 +3638,7 @@
       "proofLimit": "Earlierouterbox/native125capturesdonotqualifydrawablemin; afterfixverifyunchanged7witnesses, viewport/dividerextremes andaffectedactualnative125. SVGcausationneedsactualmappingmeasure, notolddefaultrestoreonly.",
       "svgControl": "IgnoredsamebaseconfigSHA1f618a75ac6b26ae021604510fd16d58ddc1fdde1f8ba2c014f5c5146400335e rootBOTHread; onlyslicesbuildprefix, keepsallguards/onBuild/preview. OriginalSVG757once5c118j201PASS8.2s vs9f70j202FAIL5.4s exactsamecornerdrift0.796234/0.105408 above.6. No duplicatebundle/rerun; n1diagnostic/sourcebound.",
       "handling": "Standalonepuretestfirstmistakencombinedchromefalsegreen andcorrected4/5redretained; temporarilykeptignoredthenrestoredtrackedtest. Rootcleanwordingclarified: freezeactualruntimeandselectedwitness; unrelatedmodeltestdidnotinvalidateartifact. No owedrepeat. Samebuildernowmayimplementreviewedlayout; no root/parallelproductedit.",
-      "result": "j205terminal6PASS1SVGFAIL1.2m: all5height+Hairlinemarquee nowPASS, originalSVGsame.6driftremains. No secondundirectedlayoutpatch. j20710/10PASS59.8s devWIP coversoriginalsound2,newdoors/currentruntime/durableidentity/save/reopen/blankWholeX24Undo, oldHome/startercancelguard, Blank→Openeditorfocus, actualviewport+Spacepan atdividerextremes/unknownversions.",
+      "result": "j205terminal6PASS1SVGFAIL1.2m: all5height+Hairlinemarquee nowPASS, originalSVGsame.6driftremains. No secondundirectedlayoutpatch. j20710/10PASS59.8s devWIP coversoriginalsound2,newdoors/currentruntime/durableidentity/save/reopen/blankWholeX24Undo, oldHome/startercancelguard, Blank\u2192Openeditorfocus, actualviewport+Spacepan atdividerextremes/unknownversions.",
       "native125": "j2082/2PASS actualChromeUIbrowserzoom1.25/CSSzoom1/pinch1; actualviewport190atCSS1093x545 and180.400009at1536x794; source/historysame/errorsempty. HEAD9f70+WIPdiffSHA60e5852a...fc320 explicitly. RootviewedBOTHnew1366/1920fullcompositorPNGs under e5f.local/panels-native-zoom-ci-correction. Cloudonly/no nameddevice/F4claim.",
       "observer": "Inlinecleanup no-depseffect causedavoidableper-tickobserver/measure churn; proposed[]missedCanvas keyauthoringId. Rootactualcaller263confirmed/reminded; samebuilderwillbindeffecttoexistingauthoringIdlifetime, no MutationObserver, focusedremount/chrome red-green. NotE4productedit; no broadF4rerun."
     },
@@ -3653,7 +3650,7 @@
     "ciSvgPrecision": {
       "actor": "/root/editor_e5f_cloud_builder/e5f_svg_precision_review",
       "status": "TerminalAGREEWITHCORRECTIONSapproachonly; rootFULLverdictread; no productprecisionpatch",
-      "evidence": "j206DEVcurrentallocationWIP2FAIL1PASS34.2s acrossdefault/timelineHome/InspectorEnd, .6unchanged. ParentCTMunchanged. Actualbbox316x47.5becomes316.67569x48.010555/default,315.182556x47.666496/timelineHome,314.126282x47.720634/InspectorEnd. Acceptedreplymatchesrawbbox. SourceaffineCTMafter×BEFOREboxholds corners<.0024compositionpx; no mappingpatchjustified. Do notreinterpret asimmutablebuilt9f70.",
+      "evidence": "j206DEVcurrentallocationWIP2FAIL1PASS34.2s acrossdefault/timelineHome/InspectorEnd, .6unchanged. ParentCTMunchanged. Actualbbox316x47.5becomes316.67569x48.010555/default,315.182556x47.666496/timelineHome,314.126282x47.720634/InspectorEnd. Acceptedreplymatchesrawbbox. SourceaffineCTMafter\u00d7BEFOREboxholds corners<.0024compositionpx; no mappingpatchjustified. Do notreinterpret asimmutablebuilt9f70.",
       "hypothesis": "j209ONEignoredsame-sourceGPprobe3/3PASS37.8s/all3pane layouts/original.6/fontArchivo retainedloadedidentity(asset8f704806...4967)/exacthtml-js-fields-assets. Before+after315.999572754x48at80,92 stable; screendrift<.001343/.000855. ORIGINALautobox316x47.5at80,91.5 meansinitialglyphboxchanges0.5; no paint-neutral assumption.",
       "artifactLimit": "Passingtestinfo.attach PNGbuffers discarded; j209 original/newpaint NOTpersistentreviewable. Rawsource/fullmetrics e5f.local/svg-precision-hypothesis/measurements.json retained. No pixel/exportparityPASS.",
       "next": "Rootexplainedrecommendationtowner beforeimplementation: avoidglobalfontpolicyunlessnecessary; independentlyreconcile originalfailedtest withDOCUMENTEDresize/fixed-side/source/export rule first. Freshfork-none inheritedread-only reviewer on6bc/base5c118 getsfullstrictusercontract/original.6/livebbox+affineproof/paintlimits. ReturnVALIDPRODUCTDEFECT/WRONGTESTEXPECTATION/UNRESOLVED with exactdoc+fileline evidence. Correctaffinepointalone doesnotdefeat visiblecornerrule; no convenienceoraclechange, no tests/build/probes/edits. Rootdecides afterverdict.",
@@ -3669,7 +3666,7 @@
     "localRepairCheckpoint": {
       "sha": "6bcce0057951aa7f721e6292e71c431a94400f4e",
       "state": "CleanLOCALonly13paths; remotePR2552still9f70. No push/stamp/status/newCI/Codex. Verifiedallocation+observerlifetime/legacyblankcompat/newfactory/ownerworkflowtestadaptations/rawnotes; SVGexplicitpending.",
-      "checks": "Model5/5, j2056/7(SVGFAILretained), j20710/10,j208native1252/2,j210observerred2/2FAIL156<180→j211remountgreen2/2PASS16.5s; targetedeslint/appTS/copy/diffPASS. RootreadactualauthoringIdcaller/effectbinding and bothnewfullnativecompositorimages. No broadF4repeat.",
+      "checks": "Model5/5, j2056/7(SVGFAILretained), j20710/10,j208native1252/2,j210observerred2/2FAIL156<180\u2192j211remountgreen2/2PASS16.5s; targetedeslint/appTS/copy/diffPASS. RootreadactualauthoringIdcaller/effectbinding and bothnewfullnativecompositorimages. No broadF4repeat.",
       "next": "No productSVG/gesture/render/testoracle edit; rootrequestednewfreshreadonly contractreassessment beforeimplementation, exact6bc/base5c118. No extraallowance/phase reset.",
       "remoteBackup": {
         "ref": "refs/heads/codex/plan-editor-r1-5-e5f-retained-6bcce005",
@@ -4333,7 +4330,7 @@
             "root": "ActualpublicGET observed during07:16Z; no signed-in/modelacceptance inferred"
           },
           "reviews": "Four finished quizRules/fullSO/reassessment Codex sessions archived via supportedappAPI; actualverdicts/proofs retained. Originalbuilder/native6af840 kept forongoingE5F andretainedWIP, no cleanup of valuableworktrees.",
-          "ownerQA": "Asked samechat freshhostedtab/disposablequiz Paris→Helsinki reviewedApply/Undo afternormaldeployment verified; answerpending.",
+          "ownerQA": "Asked samechat freshhostedtab/disposablequiz Paris\u2192Helsinki reviewedApply/Undo afternormaldeployment verified; answerpending.",
           "scope": "Partialquizfix landing only; 6/11phasesPASS, fullE5F stillincomplete. Retained2552/6bc/SVGstop/allattempts/E4boundary unchanged."
         },
         "postComplete": {
@@ -4553,7 +4550,7 @@
         "result": "8PASS1FAIL retained; wholelogrootread",
         "green": "Settledactualstarterpaint/PNG, Entryfocus-fit, legacy3exactemissions, recovered2oracles, externalretention/starterCancel, 4renderedexportsnormalizedtext/rectanglegeometry",
         "root": "Viewedsettledj234PNG/allvisiblecards painted. Exportreceiptall4normalizedtext287.984375,216,452x59; rectrelativehost672,324,480x378; actualOGrafhost8,8/bodymargin8. No exportproductchange/globalpageparityclaim.",
-        "failureDisposition": "Newproductioncase assumesUndoacrossfirstsave NAMEadoption. saveActions336–339 ownerexternalmetadatawrite Oct17e8664f738, session84–88 externalprivatehistoryclear Sep19e35f6932; unchangedbase, E4notes850 externalresetoracle. No newblank/E4attribution. Allpriorinstallation/masterassertionsPASS beforebadextraUndo premise.",
+        "failureDisposition": "Newproductioncase assumesUndoacrossfirstsave NAMEadoption. saveActions336\u2013339 ownerexternalmetadatawrite Oct17e8664f738, session84\u201388 externalprivatehistoryclear Sep19e35f6932; unchangedbase, E4notes850 externalresetoracle. No newblank/E4attribution. Allpriorinstallation/masterassertionsPASS beforebadextraUndo premise.",
         "admittedTestOnly": "FreshactualordinaryUIedit AFTERinstall, assertcurrentchanged/installedold-newcopies+mastersunchanged; Undo restorespost-save snapshot, Redo exactedit, reload source/copies retained. PreservepresaveUndoRedo/oldhistorytests; retainfirst-saveprivateUndo limitation. Onlychangedcase rerun; NO product/core patch."
       },
       "capacityDisposition": {
@@ -4751,6 +4748,23 @@
               "budget": "ONEunusedsecondjob cap5,1worker,8remainingbasesamples,maxfailures1,retries0,NOnewbuild; cumulativejobs<=2/baseinitialsamples<=10/onebundle",
               "reason": "Getunderlyingrawbrowserprotocolerror, notratecomparison/retryasfix",
               "scope": "Diagnostic only; firstcollectionstop honored/manualevidencedelta; noproductpatch/queuewaiver"
+            },
+            "finalProtocolOutcome": {
+              "job": 239,
+              "result": "0PASS1FAIL7NOTRUN;6.18s; STOPPED",
+              "cumulative": "2/2jobs,3base samples 1PASS2FAIL; feature0;onebundle; NO further execution admitted",
+              "primary": "id50 Promise was collected;maincontext3 notdestroyed",
+              "separate": "id54childcontext16 screenshot Cannotfindcontext",
+              "evidence": "blank-j239-evidence-manifest.json",
+              "upstream": "blank-j239-upstream-playwright-41826.json",
+              "limits": "No mechanism/queue parity/failure-rate/E4/data-safety attribution; full new trace only original owned WT"
+            },
+            "rawProtocolReviewIntent": {
+              "actor": "/root/e5f_blank_queue_causality_so",
+              "native": "6afa053a-d488-8191-ae54-e1163ac3404d",
+              "file": "briefs/e5f-blank-raw-protocol-review-20261115.txt",
+              "sha256": "1a1fd81cad5fe409f89b3ee3675667bd918031a683d3493857731045aac1a5eb",
+              "scope": "Focusedreadonlynew rawprotocol/upstream/source evidence; no execution/patch/phasecheck"
             }
           }
         },
@@ -4817,6 +4831,12 @@
       "rawBytes": 2187003,
       "gzipBytes": 451311,
       "note": "LosslessrawSHAverifiedpacking; rawbackupsretainedoutsidekit; restorelogicalhistorical.logpaths frommanifest.gz BEFOREreading. Alloriginalreceiptsunchanged; guardunchanged."
+    },
+    "completedHistoricalText": {
+      "count": 8,
+      "manifest": "recovery-artifact-archives.json",
+      "restore": "Gunzip and verify old raw hashes before reading.",
+      "guardStop": "Initial packing measured8447184>8388608 before publish; subsequent renewal publish refused. All writes reconciled; more completed historical text packed losslessly, no limit change."
     }
   }
 }

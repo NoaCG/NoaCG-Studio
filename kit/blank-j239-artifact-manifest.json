@@ -1,0 +1,82 @@
+{
+  "selection-list.log": {
+    "bytes": 1831,
+    "sha256": "1f1e717ac79ae6fc813786fe2ec04a742c50cd1152a1772e70f6ce1d02a8a8fc"
+  },
+  "observe.ts": {
+    "bytes": 4488,
+    "sha256": "8a53bc613f18bc7ca18b22b04e354ca681c43d9077ffd5bf07c2e2223bc37d71"
+  },
+  "sample-0-worker-0.jsonl": {
+    "bytes": 11195,
+    "sha256": "60925f54444ef69ac9ed201bdc5be5185aadc306544ed8adc1aa935f6b918fb8"
+  },
+  "before.json": {
+    "bytes": 5679,
+    "sha256": "1b9af33d72cf3045ce0fece76b254e1c8a82e3cc2eb4ce5329efbc13483fc219"
+  },
+  "playwright.config.ts": {
+    "bytes": 1367,
+    "sha256": "ed3631f1fda48a4bc0a6a87711a72f16aaf17dd66feb4945a45dcbeba53ceef3"
+  },
+  "sample-0-worker-0.json": {
+    "bytes": 195,
+    "sha256": "ed6eebf84d3efab0bc06fdabe8a704128b96d4aad3adb2290d5af81fbed6eb17"
+  },
+  "failed-call.trace.json": {
+    "bytes": 2797,
+    "sha256": "18fb33dcf86467142363cf7d7b5b02215136e876cb3713dd07436a69494433da"
+  },
+  "raw-rejections-and-contexts.json": {
+    "bytes": 56100,
+    "sha256": "5ffed1591b5980bd1746eaee2684be35f7b5a683fb29711f68e12bcec9f78fd9"
+  },
+  "after.json": {
+    "bytes": 2862,
+    "sha256": "b0380ee5f7c872e797baff16ddf1b8032bf2e7424dffd6b777caf674bf7f2bb9"
+  },
+  "tsconfig.observe.json": {
+    "bytes": 131,
+    "sha256": "c48bd8204edc80339030d928a24d174a6edac3df7812b88e349f1445fbc436c3"
+  },
+  "j-0239.json": {
+    "bytes": 963,
+    "sha256": "41da4036fa76386388c8cfb6440a61de6a9bdfdc171d8acc612c007366bd8241"
+  },
+  "j-0239.whole.log": {
+    "bytes": 3233324,
+    "sha256": "4375f754faed3d2f6923374ca155c01ee6b1491480991d4314acbe614fef0464"
+  },
+  "outcome.json": {
+    "bytes": 7041,
+    "sha256": "7afb9568ffcc4f2c0f3b54748da0c24ea077ad561378e29634cd36248f7df7b3"
+  },
+  "enqueue-request.json": {
+    "bytes": 5739,
+    "sha256": "e9f67de3127028c51b5ea5899a34a8090c2650f75e3d591d644ec537ea9cff0c"
+  },
+  "resolved-config.json": {
+    "bytes": 627,
+    "sha256": "2503237826455ab08dbf76f09b03d25c86104fe0202ab93fd8c68143a4fd9e9d"
+  },
+  "enqueue.log": {
+    "bytes": 467,
+    "sha256": "980df44c4742639379af239fc70db5f30ffb4ac333ba03576dde93ba6be784fa"
+  },
+  "results/.last-run.json": {
+    "bytes": 96,
+    "sha256": "25783c4ae98ec6c56111a97b2f40f57e0874a61fc9926501a6d44f042e36f498"
+  },
+  "results/editor-projects-external-d-c81b5-etained-through-project-api-chromium/error-context.md": {
+    "bytes": 33469,
+    "sha256": "76a6960bbe46aa0dca4aae299186d7eabecf4fc6ca3a656567eeb1248228f75e"
+  },
+  "results/editor-projects-external-d-c81b5-etained-through-project-api-chromium/test-failed-1.png": {
+    "bytes": 87368,
+    "sha256": "8d01ad5ba69f348afa3c818320106ecc2a2431e10d4ab614ceec8539ceef6c67"
+  },
+  "results/editor-projects-external-d-c81b5-etained-through-project-api-chromium/trace.zip": {
+    "bytes": 1641956,
+    "sha256": "073f008a89c60b64befbbb05edb6eb3f2e52df2fce1bc71bb029ff40a9285636"
+  }
+}

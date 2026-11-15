@@ -1,0 +1,80 @@
+{
+  "files": [
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/outcome.json",
+      "path": "blank-j239-outcome.json",
+      "sha256": "7afb9568ffcc4f2c0f3b54748da0c24ea077ad561378e29634cd36248f7df7b3",
+      "bytes": 7041
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/raw-rejections-and-contexts.json",
+      "path": "blank-j239-raw-rejections-and-contexts.json",
+      "sha256": "5ffed1591b5980bd1746eaee2684be35f7b5a683fb29711f68e12bcec9f78fd9",
+      "bytes": 56100
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/artifact-manifest.json",
+      "path": "blank-j239-artifact-manifest.json",
+      "sha256": "31ce1350924ab31ab70d113b6bf7d72a2d5d8576241267b634b71058b27f7c19",
+      "bytes": 2843
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/before.json",
+      "path": "blank-j239-before.json",
+      "sha256": "1b9af33d72cf3045ce0fece76b254e1c8a82e3cc2eb4ce5329efbc13483fc219",
+      "bytes": 5679
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/after.json",
+      "path": "blank-j239-after.json",
+      "sha256": "b0380ee5f7c872e797baff16ddf1b8032bf2e7424dffd6b777caf674bf7f2bb9",
+      "bytes": 2862
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/failed-call.trace.json",
+      "path": "blank-j239-failed-call.trace.json",
+      "sha256": "18fb33dcf86467142363cf7d7b5b02215136e876cb3713dd07436a69494433da",
+      "bytes": 2797
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/observe.ts",
+      "path": "blank-j239-observe.ts",
+      "sha256": "8a53bc613f18bc7ca18b22b04e354ca681c43d9077ffd5bf07c2e2223bc37d71",
+      "bytes": 4488
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/playwright.config.ts",
+      "path": "blank-j239-playwright.config.ts",
+      "sha256": "ed3631f1fda48a4bc0a6a87711a72f16aaf17dd66feb4945a45dcbeba53ceef3",
+      "bytes": 1367
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/resolved-config.json",
+      "path": "blank-j239-resolved-config.json",
+      "sha256": "2503237826455ab08dbf76f09b03d25c86104fe0202ab93fd8c68143a4fd9e9d",
+      "bytes": 627
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/sample-0-worker-0.json",
+      "path": "blank-j239-sample-0-worker-0.json",
+      "sha256": "ed6eebf84d3efab0bc06fdabe8a704128b96d4aad3adb2290d5af81fbed6eb17",
+      "bytes": 195
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/sample-0-worker-0.jsonl",
+      "path": "blank-j239-sample-0-worker-0.jsonl",
+      "sha256": "60925f54444ef69ac9ed201bdc5be5185aadc306544ed8adc1aa935f6b918fb8",
+      "bytes": 11195
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e5f-blank-built-control/e5f.local/built-api-protocol/j-0239.whole.log",
+      "path": "blank-j239-whole.log.xz",
+      "compression": "xz",
+      "rawSha256": "4375f754faed3d2f6923374ca155c01ee6b1491480991d4314acbe614fef0464",
+      "sha256": "e95e7740066b9a30d1e69b9af806c4806f5d907553e792156c15f91da6a68483",
+      "rawBytes": 3233324,
+      "bytes": 626352
+    }
+  ],
+  "trace": "Full trace.zip and screenshot retained in original owned control worktree only; no cleanup/export completeness claim."
+}
