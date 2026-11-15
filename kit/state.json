@@ -4715,7 +4715,8 @@
               "rootRead": "ControlHEAD3b/clean; filesystemfalse +gitcatfilefalse fornewhelper; expectedABSENT confirmed. Controlonly3ignoredobserver/configfiles; depsdistinctcopy completed.",
               "counts": "0/2jobs,0/20samples; exceptionretained, no productattemptreset",
               "correction": "RecordABSENT onlywhereexactGitcommitdoesnotcontainpath; validatepresence matchesworktree. Nevercopynewhelperintobase. Finishsameignoredmanifests/configs andhashbeforeenqueue. PassiveURLobserver preserveonlyeditor=foundation flagratherthanincorrecteditor=1, no secrets."
-            }
+            },
+            "diagnosticPreJobClarification": "Before FIRST enqueue only, routine ignored config/fixture/manifest authoring mistakes may be corrected within exact frozen tracked trees after retaining errors and validating source/oracle hashes. No separate root approval per typo is needed. This does NOT authorize source/test changes, ignoring a source mismatch, permission denial loops, extra builds/jobs/samples, runtime observer errors, or any actual build/browser/test/cap failure. Those still stop immediately. Original two setup failures remain; counts 0/2 jobs and 0/20 samples before first enqueue, not reset."
           }
         },
         "proofArchive": {
