@@ -123,6 +123,15 @@ before Play, then prove Running and the intended fader before reveal. A trim at
 its out point still refuses Resume. A caller requiring Running cannot substitute
 a native Completed sample as authority for its reset.
 
+A reveal commits the final exact native state, position and mute after its writes. Timed
+Take, Loop and Resume attach their work to that evidence. A raw Running observation
+while muted is provisional. The player can retain that selection after partial cleanup
+without granting timed authority. A verified Bridge-imposed mute can be carried across
+a refused level restore for the same frozen exit. An operator-imposed mute grants no
+Audio Resume. On empty retirement the Bridge restores an affirmatively owned mute once
+if still needed. An already restored route or an externally muted empty player needs
+no write.
+
 The covered Loop rechecks its boundary before setting alpha and before the separately keyed
 mute write. A naturally completed clip can finish its original entrance on an ending change.
 An interrupted fade retains its physical presentation even when an alpha write is refused after

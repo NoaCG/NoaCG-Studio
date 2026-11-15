@@ -4448,6 +4448,170 @@ test('AC-12: a required Running phase cannot fall back to Completed during level
   assert.ok(!fixture.fake.functions.slice(start).some(fn => fn.name === 'SetVolumeFade' || fn.name === 'AudioOn'));
 });
 
+
+test('AC-12: both Audio Resume wire forms return the exact unmuted continuation and rearm the trim', async t => {
+  for (const verb of ['resume-player-held', 'resume']) {
+    await t.test(verb, async t => {
+      const fixture = await timedFixture(t);
+      await withBridge(fixture.adapter, async post => {
+        const slot = fixture.player('audio');
+        const act = action => post('/act', { target: fixture.target, action: { slot, ...action } });
+        const take = await act({ verb: 'take', item: { kind: 'media', name: 'sting.wav' }, playback: { trim: { in: 0.5, out: 1.5 } } });
+        assert.equal(take.ok, true, JSON.stringify(take));
+        const input = fixture.fake.inputs.find(row => row.title === 'NoaCG Audio');
+        await fixture.advance(200);
+        assert.equal((await act({ verb: 'pause-player-held', expectedPlayerInstance: take.instance })).ok, true);
+        const resumed = await act(verb === 'resume' ? { verb } : { verb, expectedPlayerInstance: take.instance });
+        assert.equal(resumed.ok, true, JSON.stringify(resumed));
+        assert.equal(resumed.instance, take.instance);
+        assert.equal(input.muted, false);
+        assert.equal(input.state, 'Running');
+        await fixture.advance(900);
+        assert.equal(input.state, 'Paused');
+        assert.equal(input.position, 1500);
+      });
+    });
+  }
+});
+
+test('AC-12: a confirmed Bridge mute after a refused Audio exit restore remains recoverable by either Resume', async t => {
+  for (const verb of ['resume-player-held', 'resume']) {
+    await t.test(verb, async t => {
+      let input;
+      let refuse = true;
+      let outgoingRamp;
+      const fixture = await timedFixture(t, {
+        afterFunction(name, params, socket) {
+          if (name === 'SetVolumeFade' && params.Value === '0,1000') {
+            input.volumeRamp.duration = 1250;
+            outgoingRamp = input.volumeRamp;
+          }
+          if (name === 'SetVolumeFade' && params.Value === '100,40') {
+            assert.equal(input.muted, true);
+            if (refuse) {
+              input.volumeRamp = outgoingRamp;
+              socket.write('FUNCTION ER Restore refused\r\n');
+              return true;
+            }
+            void fixture.advance(90);
+          }
+          return false;
+        },
+      });
+      await withBridge(fixture.adapter, async post => {
+        const slot = fixture.player('audio');
+        const act = action => post('/act', { target: fixture.target, action: { slot, ...action } });
+        const item = { kind: 'media', name: 'sting.wav' };
+        const take = await act({ verb: 'take', item });
+        assert.equal(take.ok, true);
+        input = fixture.fake.inputs.find(row => row.title === 'NoaCG Audio');
+        const expectedPlayerInstance = take.instance;
+        const out = fixture.adapter.act(fixture.target, { verb: 'out', slot, expectedPlayerInstance, fadeOut: 1, requireMeasuredPlayer: true });
+        await fixture.joinTurn();
+        await fixture.advance(1005);
+        assert.equal(input.state, 'Paused');
+        assert.equal((await act({ verb: 'pause-player-held', expectedPlayerInstance })).ok, false);
+        assert.equal((await out).ok, false);
+        assert.equal(input.muted, true);
+        assert.equal(input.alpha, 0);
+        refuse = false;
+        const resume = await act(verb === 'resume' ? { verb } : { verb, expectedPlayerInstance });
+        assert.equal(resume.ok, true, JSON.stringify(resume));
+        assert.equal(resume.instance, take.instance);
+        assert.equal(input.muted, false);
+        assert.equal(input.state, 'Running');
+        assert.equal(input.fader, 100);
+      });
+    });
+  }
+});
+
+test('AC-12: external Audio mute grants neither current nor legacy Resume a write', async t => {
+  const fixture = await timedFixture(t);
+  await withBridge(fixture.adapter, async post => {
+    const { target, fake } = fixture;
+    const slot = fixture.player('audio');
+    const act = action => post('/act', { target, action: { slot, ...action } });
+    const take = await act({ verb: 'take', item: { kind: 'media', name: 'sting.wav' }, playback: { trim: { out: 1.5 } } });
+    assert.equal(take.ok, true);
+    assert.equal((await act({ verb: 'pause-player-held', expectedPlayerInstance: take.instance })).ok, true);
+    const input = fake.inputs.find(row => row.title === 'NoaCG Audio');
+    input.muted = true;
+    const before = fake.functions.length;
+    for (const action of [{ verb: 'resume' }, { verb: 'resume-player-held', expectedPlayerInstance: take.instance }]) {
+      assert.equal((await act(action)).ok, false);
+    }
+    assert.equal(fake.functions.length, before);
+    assert.equal(input.muted, true);
+  });
+});
+
+test('AC-12: empty retirement restores only affirmatively Bridge-muted Audio', async t => {
+  for (const mode of ['already unmuted', 'Bridge mute', 'unproved external mute']) {
+    await t.test(mode, async t => {
+      let blocking = false;
+      let input;
+      let refused = false;
+      const fixture = await timedFixture(t, {
+        afterFunction(name, params, socket) {
+          if (!blocking || refused) return false;
+          if (mode === 'already unmuted' && name === 'SetAlpha' && params.Value === '255') {
+            input.alpha = 0;
+          } else if (mode === 'Bridge mute' && name === 'SetVolume' && params.Value === '100') {
+            input.fader = 0;
+          } else if (mode === 'unproved external mute' && name === 'AudioOff') {
+            input.muted = false;
+          } else return false;
+          refused = true;
+          socket.write('FUNCTION ER Fixture refusal\r\n');
+          return true;
+        },
+      });
+      await withBridge(fixture.adapter, async post => {
+        const { target, fake, adapter } = fixture;
+        const slot = fixture.player('audio');
+        const act = action => post('/act', { target, action: { slot, ...action } });
+        const item = { kind: 'media', name: 'sting.wav' };
+        const first = await act({ verb: 'take', item });
+        assert.equal(first.ok, true);
+        input = fake.inputs.find(row => row.title === 'NoaCG Audio');
+        blocking = true;
+        const attempt = await act({ verb: 'take', item, playback: { trim: { in: 0.5, out: 2 } } });
+        assert.equal(attempt.ok, false);
+        assert.equal(refused, true);
+        if (mode === 'unproved external mute') input.muted = true;
+        const current = (await adapter.overlays(target)).value.players.find(row => row.player === 'audio');
+        const before = fake.functions.length;
+        const cut = await act({ verb: 'out-player-held', expectedPlayerInstance: current.instance });
+        assert.equal(cut.ok, true, JSON.stringify(cut));
+        assert.equal(input.list.length, 0);
+        assert.equal(input.muted, mode === 'unproved external mute');
+        assert.equal(fake.functions.slice(before).filter(fn => fn.name === 'AudioOn').length, mode === 'Bridge mute' ? 1 : 0);
+      });
+    });
+  }
+});
+
+test('AC-12: a positively accepted alpha still needs a fresh safe committed playback sample', async t => {
+  let moved = false;
+  const fixture = await timedFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips', muted: false }],
+    afterFunction(name, params) {
+      if (!moved && name === 'SetAlpha' && params.Value === '255') {
+        fixture.row().position = 900;
+        moved = true;
+      }
+      return false;
+    },
+  });
+  const result = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 0.9 } } });
+  assert.equal(result.ok, false);
+  assert.equal(moved, true);
+  assert.equal(fixture.row().alpha, 0);
+  assert.equal(fixture.row().muted, true);
+  assert.equal(fixture.callbacks.size, 0);
+});
+
 test('AC-12: a changed containing media folder disarms work even when the old absolute file remains legal', async t => {
   const fixture = await timedFixture(t, undefined, { persisted: true });
   const result = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.3 } } });
