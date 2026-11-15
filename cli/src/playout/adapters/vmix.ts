@@ -401,11 +401,14 @@ export function createVmixAdapter(options: {
     const connectionId = conn.connectionId;
     return {
       connectionId, until,
-      read: () => read(conn, until, 'diagnostic'),
-      async readText(xpath) {
-        if (closed || conn.connectionId !== connectionId || /[\r\n]/.test(xpath)) return;
-        const reply = await conn.command('XMLTEXT ' + xpath, until);
-        if (reply.ok && reply.status === 'OK') return /^XMLTEXT OK ([^\r\n]+)$/.exec(reply.line)?.[1];
+      read: deadline => read(conn, Math.min(until, deadline ?? until), 'diagnostic'),
+      async readText(xpath, deadline) {
+        if (closed || conn.connectionId !== connectionId || /[\r\n]/.test(xpath)) return 'failed';
+        const reply = await conn.command('XMLTEXT ' + xpath, Math.min(until, deadline ?? until));
+        if (!reply.ok) return 'failed';
+        if (reply.line === 'XMLTEXT ER XML Entry Not Found') return 'missing';
+        const value = /^XMLTEXT OK ([^\r\n]+)$/.exec(reply.line)?.[1];
+        return value === undefined ? 'failed' : { value };
       },
       async send(name, params) {
         const storageProblem = options.ownershipProblem?.();
@@ -416,8 +419,8 @@ export function createVmixAdapter(options: {
     };
   }
 
-  async function timerTurn(port: number, connectionId: number, run: (mixer: PlayerMixer) => Promise<void>) {
-    const until = Date.now() + timeoutMs;
+  async function timerTurn(port: number, connectionId: number, deadline: number | undefined, run: (mixer: PlayerMixer) => Promise<void>) {
+    const until = Math.min(deadline ?? Infinity, Date.now() + timeoutMs);
     return exclusive(port, async () => {
       const conn = connections.get(port);
       if (closed || Date.now() >= until || !conn || conn.connectionId !== connectionId) return false;

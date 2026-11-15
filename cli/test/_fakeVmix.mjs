@@ -87,6 +87,10 @@ export async function startFakeVmix(options = {}) {
     const range = /\[@position >= (\d+) and @position < (\d+)\]/.exec(selector);
     if (range && (input.position < Number(range[1]) || input.position >= Number(range[2]))) return;
     if (selector.includes('[@volume and number(@volume)=0]') && fields.volume !== 0) return;
+    const frozen = /\[@position=(\d+)\]/.exec(selector);
+    if (frozen && input.position !== Number(frozen[1])) return;
+    const level = /\[\@volume and number\(\@volume\) >= ([.\d]+) and number\(\@volume\) <= ([.\d]+)\]/.exec(selector);
+    if (level && (fields.volume < Number(level[1]) || fields.volume > Number(level[2]))) return;
     const field = /\/@(position|volume|state|muted)$/.exec(selector)?.[1];
     if (field) return fields[field];
   }

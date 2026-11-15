@@ -39,8 +39,9 @@ export function gainSettings(gain = 1): { fader: number; db: number } {
 
 // vMix reports amplitude in XML, while mixer functions accept the fader's position.
 export const faderVolume = (fader: number) => 100 * (fader / 100) ** 4;
+export const VMIX_VOLUME_TOLERANCE = 0.0001;
 export const volumeAt = (actual: number | undefined, fader: number) => actual !== undefined &&
-  (fader === 0 ? actual === 0 : Math.abs(actual - faderVolume(fader)) <= 0.0001);
+  (fader === 0 ? actual === 0 : Math.abs(actual - faderVolume(fader)) <= VMIX_VOLUME_TOLERANCE);
 
 export interface AlphaFade {
   from: number;

@@ -79,11 +79,30 @@ On `1eff5c53afb8064f2d94801b971fd5a96cb47a3c`, the complete native XML had the n
 selected item while the compact index-only and both GUID-specific occurrence predicates still
 missed. A key-only scalar saw the older position. Both complete occurrence predicates matched
 on the later sample, about 339 ms after the native ListRemove acknowledgement. The checked
-foreground handoff permits bounded reads only when the exact preceding compact occurrence is
-still observable. A trimmed replacement remains black and muted through that handoff. Its
-new occurrence must have a valid in-range position before reveal or automatic work. Missing,
-malformed or expired samples give no reveal authority. A known accepted unmute can be reversed
-only if fresh exact evidence shows the same occurrence is outside its trim.
+foreground handoff starts only after Bridge acknowledges its own selection or list removal
+and complete XML proves the exact successor. A native not-found response can wait within
+450 ms of acknowledgment, including each reply. Malformed or failed transport, another
+native refusal, or a proved contradictory occurrence or phase ends the handoff. A trimmed
+replacement remains black and muted through the handoff and needs a valid in-range
+position before reveal or automatic work. A known accepted unmute can be reversed only
+if fresh exact evidence shows the same occurrence is outside its trim.
+
+On `a2556c6ed15b03f557e515267140e5f42929ab57`, 21 Program samples followed the old blue
+clip through black to the green in-range clip. Hold stopped at the requested 3600 ms.
+The +6 dB tone rose from 0.11246 to 0.25472. The one-second Out reached black at 1003 ms
+and volume and meter zero at 1203 ms, then removed the list contents at 1219 ms.
+A supplementary Loop attempt from an empty list stopped without Play, because an exact
+compact read missed the newly selected stopped file just after the full reading confirmed
+it. Both original settings files were restored by hash.
+
+Each timed reveal requires the current exact playback phase and its intended audio level.
+Fade-in proves hard zero while the captured mute is still in effect, and proves zero again
+before dispatching its sole native ramp. A paused or completed restore binds the exact
+frozen position that was observed. Ordinary V5 Takes continue to use their existing native
+reads. An explicit faded Out reserves time to confirm the result within the original 7-second
+request, refuses an impossible duration before replacing prior work, and expires at that
+deadline even while its deferred turn is waiting. Automatic post-Take work keeps its
+per-step deadline.
 
 The covered Loop rechecks its boundary before setting alpha and before the separately keyed
 mute write. A naturally completed clip can finish its original entrance on an ending change.
