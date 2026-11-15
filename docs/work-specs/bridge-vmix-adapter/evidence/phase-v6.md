@@ -74,6 +74,22 @@ XMLTEXT predicate rejected the changed state at 107 ms, after still accepting it
 The guard describes observed state, and vMix has no atomic compare-and-set. Both original
 settings hashes were restored and vMixService stayed running.
 
+Whole XML and compact XML can briefly disagree after Bridge removes its own confirmed prefix.
+On `1eff5c53afb8064f2d94801b971fd5a96cb47a3c`, the complete native XML had the new sole
+selected item while the compact index-only and both GUID-specific occurrence predicates still
+missed. A key-only scalar saw the older position. Both complete occurrence predicates matched
+on the later sample, about 339 ms after the native ListRemove acknowledgement. The checked
+foreground handoff permits bounded reads only when the exact preceding compact occurrence is
+still observable. A trimmed replacement remains black and muted through that handoff. Its
+new occurrence must have a valid in-range position before reveal or automatic work. Missing,
+malformed or expired samples give no reveal authority. A known accepted unmute can be reversed
+only if fresh exact evidence shows the same occurrence is outside its trim.
+
+The covered Loop rechecks its boundary before setting alpha and before the separately keyed
+mute write. A naturally completed clip can finish its original entrance on an ending change.
+An interrupted fade retains its physical presentation even when an alpha write is refused after
+the fader settles. A subsequent Take can reveal only its own confirmed occurrence.
+
 ## Verification, release and rollback
 
 - Use the existing fake TCP server with a controlled clip clock and a reference trace based on the Rules. Check guarded wire skew, command order, settled and relative positions, native and Bridge endings, fade ownership and endpoints, gain reset, paused time, delayed and unknown results, the port read budget, and stale work queued before a later action. Include a loop seek that rebounds, and a Clear armed inside 40 ms during another native ramp. Record the configured and actual sound and picture endpoint timing and removal. Keep the browser check in the existing playout-cues journey and run it through the shared Windows queue.

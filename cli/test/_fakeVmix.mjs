@@ -79,7 +79,8 @@ export async function startFakeVmix(options = {}) {
     for (const [, at, single, double] of selector.matchAll(/\[list\/item\[(\d+)\]=(?:'([^']+)'|"([^"]+)")\]/g)) {
       if (input.list[Number(at) - 1] !== (single ?? double)) return;
     }
-    if (selector.includes("[@state='Paused' or @state='Completed']") && !['Paused', 'Completed'].includes(input.state)) return;
+    const states = /\[((?:@state='\w+' or )+@state='\w+')\]/.exec(selector)?.[1];
+    if (states && ![...states.matchAll(/@state='(\w+)'/g)].some(([, state]) => state === input.state)) return;
     const clearBoundary = /\[@position >= (\d+) or \(@state='Completed' and @duration=(\d+)\)\]/.exec(selector);
     if (clearBoundary && input.position < Number(clearBoundary[1]) &&
         (input.state !== 'Completed' || input.duration !== Number(clearBoundary[2]))) return;

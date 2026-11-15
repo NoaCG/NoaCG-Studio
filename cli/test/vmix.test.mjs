@@ -3713,6 +3713,186 @@ test('AC-12: a replacement Take during an entrance never reveals the previous oc
   assert.equal(fixture.row().muted, false);
 });
 
+
+test('AC-12: a trimmed replacement stays covered through its own prefix publication handoff', async t => {
+  for (const outcome of ['settled', 'trim expired', 'ambiguous']) {
+    await t.test(outcome, async t => {
+      let removed = false;
+      let missed = false;
+      let predecessor = false;
+      const fixture = await timedFixture(t, {
+        inputs: [{ type: 'VideoList', title: 'NoaCG Clips', muted: false }],
+        afterFunction(name) {
+          if (name === 'ListRemove') removed = true;
+          return false;
+        },
+        hook(line, socket) {
+          if (!removed || !line.startsWith('XMLTEXT ') || !line.endsWith('/@position')) return false;
+          if (!missed && line.includes("[@selectedIndex='1']") && line.includes('count(list/item)=1')) {
+            missed = true;
+            socket.write('XMLTEXT ER XML Entry Not Found\r\n');
+            return true;
+          }
+          if (missed && !predecessor && line.includes("[@selectedIndex='2']") && line.includes('count(list/item)=2')) {
+            predecessor = true;
+            if (outcome === 'trim expired') fixture.row().position = 1000;
+            socket.write(outcome === 'ambiguous' ? 'XMLTEXT ER XML Entry Not Found\r\n' : 'XMLTEXT OK 500\r\n');
+            return true;
+          }
+          return false;
+        },
+      });
+      assert.equal((await fixture.take('clip A.mp4')).ok, true);
+      const start = fixture.fake.functions.length;
+      const take = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 1 } } });
+      assert.equal(missed && predecessor, true);
+      const sent = fixture.fake.functions.slice(start);
+      const open = sent.findIndex(fn => fn.name === 'AudioOn');
+      if (outcome === 'settled') {
+        assert.equal(take.ok, true, JSON.stringify(take));
+        assert.ok(open > sent.findIndex(fn => fn.name === 'ListRemove'));
+        await fixture.advance(600);
+        assert.equal(fixture.row().state, 'Paused');
+      } else {
+        assert.equal(take.ok, false);
+        assert.equal(open, -1);
+        assert.equal(fixture.row().alpha, 0);
+        assert.equal(fixture.row().muted, true);
+        const current = fixture.fake.functions.length;
+        await fixture.advance(600);
+        assert.equal(fixture.fake.functions.length, current);
+      }
+    });
+  }
+});
+
+test('AC-12: an automatic Loop revalidates the boundary before alpha and separate mute writes', async t => {
+  for (const change of ['before alpha', 'before mute']) {
+    await t.test(change, async t => {
+      let checking = false;
+      let rewound = false;
+      const fixture = await timedFixture(t, {
+        inputs: [{ type: 'VideoList', title: 'NoaCG Clips', muted: false }],
+        hook(line) {
+          if (checking && change === 'before alpha' && line.endsWith('/@muted') && line.includes('@position >= 700')) {
+            fixture.row().position = 540;
+            rewound = true;
+          }
+          return false;
+        },
+        afterFunction(name, params) {
+          if (checking && change === 'before mute' && name === 'SetAlpha' && params.Value === '0') {
+            fixture.row().position = 540;
+            rewound = true;
+          }
+          return false;
+        },
+      });
+      const take = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 0.7 }, end: 'loop' } });
+      assert.equal(take.ok, true, JSON.stringify(take));
+      checking = true;
+      const start = fixture.fake.functions.length;
+      await fixture.advance(260);
+      assert.equal(rewound, true);
+      assert.deepEqual(fixture.fake.functions.slice(start).map(fn => fn.name), change === 'before mute' ? ['SetAlpha'] : []);
+    });
+  }
+});
+
+test('AC-12: a live ending change finishes a natural Completed clip entrance without another ramp', async t => {
+  const fixture = await timedFixture(t);
+  const take = await fixture.take('clip B.mp4', { playback: { fadeIn: 1 } });
+  assert.equal(take.ok, true);
+  fixture.row().position = fixture.row().duration - 50;
+  await fixture.advance(240);
+  assert.equal(fixture.row().state, 'Completed');
+  assert.ok(fixture.row().alpha > 0 && fixture.row().alpha < 255);
+  const start = fixture.fake.functions.length;
+  const ending = await fixture.expected(take.instance, 'ending', { playback: { end: 'hold' } });
+  assert.equal(ending.ok, true, JSON.stringify(ending));
+  await fixture.advance(850);
+  assert.equal(fixture.row().alpha, 255);
+  assert.equal(fixture.row().fader, 100);
+  assert.equal(fixture.row().state, 'Completed');
+  assert.ok(fixture.fake.functions.slice(start).every(fn => ['LoopOff', 'SetAlpha'].includes(fn.name)));
+  assert.equal(fixture.fake.functions.filter(fn => fn.name === 'SetVolumeFade').length, 1);
+});
+
+test('AC-12: a refused alpha restoration cannot expose the earlier item on the next Take', async t => {
+  let refuseAlpha = false;
+  let priorAlpha;
+  let replacing = false;
+  const reveals = [];
+  const fixture = await timedFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips', muted: false }],
+    afterFunction(name, params, socket) {
+      const row = fixture.row();
+      if (refuseAlpha && name === 'SetVolumeFade' && params.Value === '100,40') void fixture.advance(90);
+      if (refuseAlpha && name === 'SetAlpha' && params.Value === '255') {
+        refuseAlpha = false;
+        row.alpha = priorAlpha;
+        socket.write('FUNCTION ER Refused alpha\r\n');
+        return true;
+      }
+      if (replacing && (name === 'AudioOn' || ['SetAlpha', 'SetVolume'].includes(name) && Number(params.Value) > 0)) {
+        reveals.push(row.list[row.selectedIndex - 1]);
+      }
+      return false;
+    },
+  });
+  const take = await fixture.take('clip B.mp4');
+  assert.equal(take.ok, true);
+  const exiting = fixture.expected(take.instance, 'out', { fadeOut: 1 });
+  await fixture.joinTurn();
+  await fixture.advance(240);
+  priorAlpha = fixture.row().alpha;
+  assert.ok(priorAlpha > 0 && priorAlpha < 255);
+  refuseAlpha = true;
+  assert.equal((await fixture.expected(take.instance, 'ending', { playback: { end: 'hold' } })).ok, false);
+  assert.equal((await exiting).ok, false);
+  assert.equal(fixture.row().alpha, priorAlpha);
+  assert.equal(fixture.row().fader, 100);
+  replacing = true;
+  assert.equal((await fixture.take('clip A.mp4')).ok, true);
+  assert.equal(reveals.length, 3);
+  assert.ok(reveals.every(file => file === join(fixture.root, 'clip A.mp4')));
+});
+
+test('AC-12: malformed or expired native trim observations cannot release black or silence', async t => {
+  for (const outcome of ['malformed', 'expired during fader prep', 'expired after AudioOn']) {
+    await t.test(outcome, async t => {
+      let defect = false;
+      const fixture = await timedFixture(t, {
+        inputs: [{ type: 'VideoList', title: 'NoaCG Clips', muted: false }],
+        hook(line, socket) {
+          if (!defect && outcome === 'malformed' && line.endsWith('/@position') && line.includes("[@state='Running']") &&
+              line.includes('@position >= 500 and @position < 570')) {
+            defect = true;
+            socket.write('XMLTEXT OK not-a-position\r\n');
+            return true;
+          }
+          return false;
+        },
+        afterFunction(name, params) {
+          if (!defect && (outcome === 'expired during fader prep' && name === 'SetVolume' && params.Value === '100' ||
+              outcome === 'expired after AudioOn' && name === 'AudioOn')) {
+            defect = true;
+            fixture.row().position = 570;
+          }
+          return false;
+        },
+      });
+      const take = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 0.57 } } });
+      assert.equal(defect, true);
+      assert.equal(take.ok, false);
+      assert.equal(fixture.row().alpha, 0);
+      assert.equal(fixture.row().muted, true);
+      const routing = fixture.fake.functions.filter(fn => /AudioO(?:n|ff)/.test(fn.name)).map(fn => fn.name);
+      assert.deepEqual(routing, outcome === 'expired after AudioOn' ? ['AudioOff', 'AudioOn', 'AudioOff'] : ['AudioOff']);
+    });
+  }
+});
+
 test('AC-12: a changed containing media folder disarms work even when the old absolute file remains legal', async t => {
   const fixture = await timedFixture(t, undefined, { persisted: true });
   const result = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.3 } } });
