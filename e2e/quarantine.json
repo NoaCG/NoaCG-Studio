@@ -31,6 +31,11 @@
       "since": "2026-11-14",
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43645353967/job/132601857345"
+    },
+    "e2e/playout-cues.spec.ts": {
+      "since": "2026-11-15",
+      "count": 2,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43657752399"
     }
   },
   "released": {
@@ -193,10 +198,6 @@
     "e2e/pack-import.spec.ts": {
       "count": 1,
       "last": "2026-11-13"
-    },
-    "e2e/playout-cues.spec.ts": {
-      "count": 1,
-      "last": "2026-10-08"
     },
     "e2e/playout-feedback-health.spec.ts": {
       "count": 1,
