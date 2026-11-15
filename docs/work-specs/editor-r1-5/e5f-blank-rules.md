@@ -1,10 +1,10 @@
-# Blank authoring and starter previews: Rules before implementation
+# Blank authoring and starter previews: Rules and source-family amendment
 
-This is a documentation checkpoint for the next serial E5F correction. It contains no product implementation or new verification result. The [owner decision](owner-decision-2026-11-13-hosted-feedback.md) remains binding, including the complete second Acceptance paragraph:
+This is the documentation checkpoint for the serial E5F blank/previews correction. The source-family amendment below was clarified after coding and records failed candidate evidence; it contains no further product implementation or new execution result. The [owner decision](owner-decision-2026-11-13-hosted-feedback.md) remains binding, including the complete second Acceptance paragraph:
 
 > Blank project/graphic creation opens usable authoring directly with the existing unsaved-work guard, durable save/reopen and independent graphic identities. Starter selection remains available with meaningful names and previews.
 
-The original Rules-first opinion supported the seven-path direction but returned Rules A− because the new Blank graphic continuation could override a later departure. These amended Rules require the next opinion to meet A/A+ before code. The original opinion and every earlier failure remain historical; neither this checkpoint nor a Rules grade is engineering or full-phase acceptance.
+The original Rules-first opinion supported the seven-path direction but returned Rules A− because the new Blank graphic continuation could override a later departure. The first amendment subsequently received Rules A/approach A before implementation. Candidate j231 then returned six passes and two failures: empty neutral source refused its first text creation, and Escape over the shared confirmation also closed Entry. The source-family opinion recommends approach A with corrections; the concrete Rules below need the same reviewer’s A/A+ before any further code. The original A−, first amended A and every failed attempt remain historical; this amendment does not retroactively make them pre-code proof or engineering/full-phase acceptance.
 
 ## Scope and existing authority
 
@@ -20,7 +20,7 @@ The planned product scope is limited to these seven paths:
 | `src/styles/wizard-entry.css` | Door layout. |
 | `src/templates/blank.ts` | Additive dedicated authoring factory; legacy factory unchanged. |
 
-Reuse the final retained blank/compatibility source, not the historical global replacement of `createBlankTemplate`. No panel, whole-graphic, geometry, sourceContracts, shared-base, copy-baseline, runtime, assistant or E4 ownership/recovery edits belong here. Do not import mixed retained commits wholesale. Current notes and assistant/quiz history are preserved rather than replaced.
+Preserve the final retained legacy-factory compatibility boundary, not the historical global replacement of `createBlankTemplate`. The dedicated new factory follows the after-coding source-family rule in B3. No panel, whole-graphic, geometry, sourceContracts, shared-base, copy-baseline, runtime, assistant or E4 ownership/recovery edits belong here. Do not import mixed retained commits wholesale. Current notes and assistant/quiz history are preserved rather than replaced.
 
 Both doors use existing `requestSwitch`, SaveDialogs and confirmed `createAuthoringProject` behavior. That operation already allocates independent project/document identities, confirms workspace receipts, protects newer source/owner state and only then restores the new document. Explicit Save remains responsible for the library record. Existing installation snapshots and conditional newer-write refusals remain authoritative. No schema, migration, collaboration, identity or retry framework is needed.
 
@@ -32,7 +32,7 @@ A press on the new wizard Blank graphic door creates a local request lifetime; i
 
 The queued Blank continuation belongs to one initiating Entry lifetime, not a route string. Cancel, an accepted close/navigation/other walk, unmount or document-lifetime departure irrevocably revokes it. Returning to the same path cannot restore ownership. Before starting creation, the continuation must still own that Entry request. An approved Save can still save the original document through existing machinery after departure; that does not authorize the obsolete Blank request to create or open a new document.
 
-The shared guard's own Cancel remains usable under its existing rules. Do not install the new creating gate or disable that shared cancellation merely because a guard was requested. A closed name dialog drops its continuation; a later valid Blank press can acquire a fresh local lifetime.
+The shared guard's own Cancel remains usable under its existing rules. While either `confirmSwitch` or `saveDialog` is present, the new helper must yield underlying wizard Escape/leave handling to that shared dialog. Its existing handler exclusively decides cancellation, including a busy Save dialog whose Escape deliberately does nothing; Entry must stay open. This is local helper eligibility, without changing SaveDialogs, wizard confirmation policy or authoring core. Do not install the new creating gate or disable that shared cancellation merely because a guard was requested. A closed name dialog drops its continuation; a later valid Blank press can acquire a fresh local lifetime.
 
 ### Accepted: a bounded local busy operation
 
@@ -62,9 +62,19 @@ Each successful blank has independent project/document identities, its own sourc
 
 Save/reload/reopen preserves the authored source. Creating or editing the next blank cannot alter the first saved/retained graphic or installed/on-air copies. Existing pending-creation retry identities stay authoritative. A failed creation can retain staged intent under the existing transaction; distinguish it from replacing the visible current document. Existing current-bundle, owner/generation and newer-write protections remain unchanged.
 
-## B3. Preserve the legacy factory
+## B3. Empty, editable source and legacy compatibility — clarified after coding
 
-Keep `createBlankTemplate` byte/emission compatible for all existing sound, layout, machine and project-format callers. Add `createAuthoringBlankTemplate` using the existing current-neutral spine only for the two new authoring doors. Do not change core audio, remove new blank fonts, alter the unchanged sound request-count oracle or reinterpret a fixture as a product fix. Prior global-factory regression, exact-source controls and compatibility evidence retain their original scopes.
+Keep `createBlankTemplate` byte/emission compatible for all existing sound, layout, machine and project-format callers. Only `createAuthoringBlankTemplate`, serving the two new authoring doors, changes. The rejected neutral-spine candidate and its first-text refusal remain recorded; an empty field list alone did not prove usable blank authoring or transparent paint.
+
+The dedicated factory must create zero authored fields, layers and art assets, with zero initial painted content both unbranded and after optional branding. Existing structural containers, runtime and derived registry rows are not authored artwork. First ordinary text and shape creation must work through the unchanged authoring handlers and existing source writers, including editing the text and exact Undo/Redo. Do not add a hidden field, fabricated capability marker or placeholder visible content to make a guard pass.
+
+Use the existing placed-design constructor `IMPORTED_DESIGN.create`, which resolves its public options and calls `assembleImportedDesign` (`src/templates/importedDesign/shared.ts`). Its legitimate empty-art branch already emits the box/art structure required by the current placed-text writer. Supply explicit `lines: []`, `importedImages: []`, and `designArt` with empty `path` plus width/height equal to the requested frame. Preserve requested resolution/FPS and full-frame origin. Set `sizeScale` to the inverse of the existing resolution factor `min(width / 1920, height / 1080)`, so generated coordinates have unit scale rather than being scaled a second time. Use only the existing constructor option names and semantics; do not change its assembler, runtime or geometry helpers.
+
+Set the resulting top-level template name to `Untitled graphic` using the established wizard naming convention (`wizard/draft/core.ts`); retain the constructor’s honest existing source/type contract. Preserve its existing bundled font/runtime behavior and ordinary future styling. No migration or rewrite of an existing saved graphic or production copy belongs here.
+
+The empty art branch currently emits a known `background: var(--panel-bg)` stand-in. A transparent palette alone is insufficient: optional branding legitimately replaces `panel-bg`. Adjust only that declaration in this newly generated factory output to a nonpainting literal, independently of brand palette values. It remains an ordinary editable declaration. Do not append a permanent cascade override, suppress future styling, change global CSS or alter the shared constructor. If the known generated declaration cannot be qualified narrowly, stop instead of substituting a broader rewrite.
+
+No shared writer, source-qualification, router, runtime, geometry, ownership or E4 correction is admitted by this source-family choice. Do not change core audio, remove fonts, alter the unchanged sound request-count oracle or reinterpret fixture failure as product success. Prior global-factory regression, exact-source controls and compatibility evidence retain their original scopes. All execution of this proposed factory correction remains unverified.
 
 ## B4. Useful optional starters
 
@@ -100,7 +110,9 @@ Use maintained UI/router actions and isolated durable-receipt barriers. Derive e
 | Accepted creation; refusal/newer edit/account change | Existing preservation/refusal semantics, no false success/navigation; only own gate/busy released. A later request cannot revive the older lifetime. |
 | Actual surface/document departure or later legitimate gate owner | Old local continuation stays inert; cleanup cannot remove the newer owner's gate. Accepted storage is not claimed cancelled. |
 
-Prove controls/navigation work again after settlement and Back/Forward is not left stuck. Preserve original Save/Discard/Cancel/newer-write tests, without limits, retries or oracle changes.
+Prove controls/navigation work again after settlement and Back/Forward is not left stuck. Preserve original Save/Discard/Cancel/newer-write tests, without limits, retries or oracle changes. Both shared Escape owners need focused coverage: the unsaved-work confirmation and the first-Save/name dialog, including a held busy Save whose own Escape refuses cancellation. The underlying Entry remains open in each case; shared cancellation never starts a Blank continuation.
+
+After separate admission, first qualify the corrected generated source at representative 720p, 1080p and 2160p formats: requested dimensions/FPS and name, full-frame origin and unit coordinates, no authored fields/layers/art assets and actual zero initial paint unbranded and after a chosen brand. Verify ordinary first text creation, wording edits, shape drawing and exact Undo/Redo, then execute representative existing export paths from the same edited source and inspect rendered text/drawing. This is bounded functional evidence, not a new renderer or device campaign.
 
 After separately admitted implementation, bounded checks must cover both actual doors and the exact `+ New graphic → Blank graphic` path: ordinary painted text/drawing, exact Undo/Redo, first Save/confirmed durable reload, a second independent blank and reopening the first exact source. Cover failed Save/creation intent versus active bundle, production-origin explicit-install independence, meaningful starter purpose/design/settled painted preview and accessibility, keyboard/Entry fit, legacy emission and unchanged sound oracle on the actual built candidate. No local build/full suite allowance is implied. Normal affected/static/catalog/capacity, fresh final full SO, exact-head CI/Codex/configured and queue/post-landing checks remain required.
 
