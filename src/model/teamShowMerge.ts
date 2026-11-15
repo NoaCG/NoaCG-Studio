@@ -78,11 +78,6 @@ export interface TeamCueDraftText {
   after: string;
 }
 
-export function matchingTeamCueDrafts(base: Show, local: Show, drafts: readonly TeamCueDraftText[]): TeamCueDraftText[] {
-  return drafts.filter(({ cueId, before, after }) =>
-    before !== after && cueTextKey(base, cueId) === before && cueTextKey(local, cueId) === after);
-}
-
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 function overlayCueText(cue: ShowCue, text: ShowCue): ShowCue {
@@ -261,8 +256,10 @@ function renameOurNewGraphics(base: Show, ours: Show, theirs: Show): Show {
  * `updatedAt`, so the merged record reads as the newest edit it is.
  */
 export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string, drafts: readonly TeamCueDraftText[] = []): TeamShowMerge {
-  const draftIds = new Set(matchingTeamCueDrafts(base, mine, drafts)
-    .filter(draft => cueTextKey(theirs, draft.cueId) === draft.before).map(draft => draft.cueId));
+  const draftIds = new Set(drafts.filter(({ cueId, before, after }) =>
+    before !== after && cueTextKey(theirs, cueId) === before && cueTextKey(mine, cueId) === after
+    && cueTextKey(base, cueId) !== null,
+  ).map(draft => draft.cueId));
   const baselines = new Map(base.cues?.filter(cue => draftIds.has(cue.id)).map(cue => [cue.id, cue]));
   const draftCues = new Map(mine.cues?.filter(cue => draftIds.has(cue.id)).map(cue => [cue.id, cue]));
   const local = draftCues.size ? {

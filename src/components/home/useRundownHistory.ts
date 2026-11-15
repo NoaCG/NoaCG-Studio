@@ -2,12 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { beginTeamRundownEdit, commitTeamRundownEdit, restoreTeamRundown, subscribeTeamState, getTeamState, type TeamRundownReceipt } from '../../backend/teamProductions';
 import { canAuthorAccount, commitDurableReceipt, captureDurableWrites, libraryInUse, isDurableStoreActive } from '../../model/durableStore';
 import { loadShows, restorePersonalRundown, type Show } from '../../model/shows';
-import type { CueRecord } from '../../control/cueDraft';
+import type { CueFields, CueRecord } from '../../control/cueDraft';
 import { RundownHistory, cueFieldsKey, cueTextKey, landedReplacement, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
 
 type WriteResult = { shows: Show[]; error: string | null; refused?: string | null };
 type Group = { key: string; before: RundownSlice; after: RundownSlice; valid: boolean };
-type Typing = { cueId: string; text: string | null };
+type Typing = {
+  cueId: string;
+  text: string | null;
+  staged?: { text: string };
+  retaining?: Promise<boolean>;
+};
 type PendingTeamEdit = { before: RundownSlice; after: RundownSlice; label: string; receipt: TeamRundownReceipt; group?: Group; closed: boolean; confirming: boolean };
 
 /** One authoring queue and one history per mounted production/account. Persistence stays in
@@ -152,6 +157,9 @@ export function useRundownHistory(
     const intendedShow = result.shows.find(s => s.id === current.id && s.teamId === current.teamId);
     const intended = intendedShow ? rundownSlice(intendedShow) : null;
     let error = result.refused ?? result.error;
+    const stagedText = draft && !error && intended ? cueTextKey(intended, draft.cueId) : null;
+    const staged = stagedText === null ? undefined : { text: stagedText };
+    if (draft && staged) draft.staged = staged;
     for (const receipt of captured.receipts) {
       const failed = await commitDurableReceipt(receipt);
       error ??= failed;
@@ -160,6 +168,7 @@ export function useRundownHistory(
     if (!ownsWrite()) return false;
     const locallyAccepted = !error;
     if (!error && team && intended && (pending || !sameRundown(before, intended))) error = await commitTeamRundownEdit(team, intended);
+    if (draft && draft.staged === staged) draft.staged = undefined;
     if (!ownsWrite()) return false;
     const accepted = fresh();
     const acceptedSlice = accepted ? rundownSlice(accepted) : null;
@@ -229,10 +238,38 @@ export function useRundownHistory(
     const draft = recoveredFrom ? { cueId, text: cueFieldsKey(recoveredFrom) } : typing.current;
     if (draft?.cueId !== cueId) return Promise.resolve(false);
     const held = group.current ?? undefined, label = held ? 'Edit cue' : 'Save cue';
-    return enqueue(() => {
+    const session = lifetime.current.generation, queueAtWrite = queue.current;
+    return enqueue(async () => {
+      if (draft.retaining) await draft.retaining;
       const expectedText = draft.text;
-      return expectedText === null ? Promise.resolve(false) : perform(() => write(expectedText), label, held, label, draft);
+      if (session !== lifetime.current.generation || queueAtWrite !== queue.current || expectedText === null) return false;
+      return perform(() => write(expectedText), label, held, label, draft);
     }, false, true);
+  };
+  /** A closing write may follow the exact local result of this draft's checked write. */
+  const retainDraft = (cueId: string, write: (expectedText: string) => WriteResult): false | Promise<boolean> => {
+    const draft = typing.current;
+    const current = fresh(), account = libraryInUse();
+    if (!current || draft?.cueId !== cueId || draft.text === null || JSON.stringify([current.id, current.teamId, account]) !== identity) return false;
+    const before = cueTextKey(current, cueId);
+    if (before === null || (before !== draft.text && before !== draft.staged?.text)) return false;
+    const key = current.teamId ? 'spx-gfx-team-outbox' : 'spx-gfx-shows';
+    const { result, receipts } = captureDurableWrites(key, () => write(before));
+    const text = cueTextKey(result.shows.find(show => show.id === current.id && show.teamId === current.teamId) ?? {}, cueId);
+    if (result.error || result.refused || text === null || (!receipts.length && text !== before)) return false;
+    const staged = { text };
+    draft.staged = staged;
+    const settled = Promise.all(receipts.map(commitDurableReceipt)).then(errors => {
+      const accepted = libraryInUse() === account && !errors.some(Boolean) && cueTextKey(fresh() ?? {}, cueId) === text;
+      if (draft.staged === staged) {
+        draft.staged = undefined;
+        if (accepted && draft.text !== null) draft.text = text;
+      }
+      return accepted;
+    });
+    draft.retaining = settled;
+    void settled.then(() => { if (draft.retaining === settled) draft.retaining = undefined; });
+    return settled;
   };
   const write = (mutation: () => WriteResult, label: string, failed = label): Promise<boolean> => {
     void closeGroup();
@@ -291,8 +328,8 @@ export function useRundownHistory(
     return true;
   };
   return {
-    write, writeDraft, beginGroup, closeGroup, restore, press,
-    draftText: (cueId: string) => typing.current?.cueId === cueId ? typing.current.text : null,
+    write, writeDraft, retainDraft, beginGroup, closeGroup, restore, press,
+    hasUnstoredDraft: (cueId: string, text: CueFields) => cueTextKey(fresh() ?? {}, cueId) !== cueFieldsKey(text),
     settle: async () => { await queue.current.tail; },
   };
 }

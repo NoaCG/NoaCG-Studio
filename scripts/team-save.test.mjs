@@ -28,7 +28,7 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
   const requests = [];
   const answers = [];
   let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics };
-  let retained = local;
+  let retained = { local };
   const stubs = {
     './supabase': { getSupabase: async () => ({ storage, rpc: async (_name, args) => { requests.push(args); return answers.length ? answers.shift() : request.promise; } }) },
     './teams': {},
@@ -47,9 +47,10 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     '../model/teamOutbox': {
       retainTeamEdit: (_owner, _id, edit) => {
         if (retainFails.left > 0) { retainFails.left -= 1; throw new Error('Browser storage is full.'); }
-        retained = edit.local;
+        retained = edit;
       },
-      acknowledgeTeamEdit: (_owner, _id, sent) => { if (JSON.stringify(retained) === JSON.stringify(sent)) retained = null; },
+      pendingTeamEdits: () => retained ? { show: retained } : {},
+      acknowledgeTeamEdit: (_owner, _id, sent) => { if (JSON.stringify(retained?.local) === JSON.stringify(sent)) retained = null; },
     },
   };
   // Only seed the controller's existing revision and announce real edits. No save implementation
@@ -77,7 +78,7 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     controller: exports, disk, request, requests, answers,
     local: () => local,
     edit(name) { local = { ...local, name }; exports.editForTest(local.id); },
-    retained: () => retained,
+    retained: () => retained?.local ?? null,
   };
 }
 

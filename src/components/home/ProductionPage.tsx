@@ -1639,10 +1639,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           draftOwner.current === session.key
             ? historyRef.current!.writeDraft(cueId, (expectedText) => updateShowCueChecked(session.key, cueId, fields, expectedText), recoveredFrom)
             : Promise.resolve(false),
-        retainCue: (cueId, fields) => {
-          const expectedText = historyRef.current?.draftText(cueId);
-          return expectedText != null && !updateShowCueChecked(session.key, cueId, fields, expectedText).error;
-        },
+        retainCue: (cueId, fields) => historyRef.current?.retainDraft(cueId,
+          (expectedText) => updateShowCueChecked(session.key, cueId, fields, expectedText)) ?? false,
+        hasUnstoredDraft: (cueId, fields) => historyRef.current?.hasUnstoredDraft(cueId, fields) ?? false,
         record: (cueId) => cuesRef.current.find((c) => c.id === cueId),
         owed: {
           keep: (edit) => keepOwedCueEdit(session.key, edit),

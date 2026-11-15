@@ -363,6 +363,133 @@ test('leaving a production drops its queued draft write (#2572, D6)', async ({ p
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
+test('leaving keeps the last keystroke over a team draft save still in flight (#2572, D6)', async ({ page }) => {
+  const { ids, state } = await teamBackend(page);
+  await select(page, 'Alpha');
+  const input = page.getByTestId('cue-label');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('First draft');
+    await expect.poll(() => state.calls).toBeGreaterThan(calls);
+    await input.fill('Last keystroke');
+    await page.evaluate(id => { window.location.hash = '/production/' + id; }, ids.other);
+    await expect(page.getByTestId('production-page')).toBeVisible();
+    await expect(row(page, 'Beta')).toHaveCount(0);
+  } finally { release(); }
+  await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[0])?.label, { timeout: 15_000 }).toBe('Last keystroke');
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an ordinary team save in flight keeps the checked draft that follows it (#2572, D1, D5)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  await select(page, 'Alpha');
+  let releaseOrdinary!: () => void;
+  let releaseDraft!: () => void;
+  state.hold = new Promise<void>(resolve => { releaseOrdinary = resolve; });
+  const calls = state.calls;
+  try {
+    await page.evaluate(async ids => {
+      const shows = await __noacgImport('/src/model/shows.ts');
+      shows.updateShowCueChecked(ids.show, ids.cues[0], { label: 'Ordinary update' });
+    }, ids);
+    await expect.poll(() => state.calls).toBeGreaterThan(calls);
+    await expect(page.getByTestId('cue-label')).toHaveValue('Ordinary update');
+    await page.getByTestId('cue-label').fill('Checked draft');
+    await expect.poll(() => page.evaluate(async ids => {
+      const shows = await __noacgImport('/src/model/shows.ts');
+      return shows.loadShows().find(show => show.id === ids.show)?.cues?.find(c => c.id === ids.cues[0])?.label;
+    }, ids)).toBe('Checked draft');
+    await settleDurableWrites(page);
+    // The draft must remain recoverable from the outbox before the earlier request is answered.
+    await expect.poll(() => page.evaluate(async ({ show, cues }) => {
+      const { durable } = await __noacgImport('/src/model/durableStore.ts');
+      const pending = JSON.parse(durable.getItem('spx-gfx-team-outbox') ?? '{}').edits?.[show];
+      return (pending?.cueDrafts ?? []).some((proof: { cueId: string; before: string; after: string }) =>
+        proof.cueId === cues[0] && JSON.parse(proof.before).label === 'Ordinary update' && JSON.parse(proof.after).label === 'Checked draft');
+    }, ids)).toBe(true);
+    state.hold = new Promise<void>(resolve => { releaseDraft = resolve; });
+    releaseOrdinary();
+    await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[0])?.label).toBe('Ordinary update');
+    await expect.poll(() => state.calls).toBeGreaterThan(calls + 1);
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[0] ? { ...c, accentColor: '#6600CC' } : c)) };
+    advance();
+  } finally {
+    releaseOrdinary();
+    releaseDraft?.();
+  }
+  await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[0]), { timeout: 15_000 })
+    .toMatchObject({ label: 'Checked draft', accentColor: '#6600CC' });
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an ordinary cue write cannot persist a rejected draft from the mirror (#2572, D3)', async ({ page }) => {
+  const ids = await seed(page);
+  await select(page, 'Alpha');
+  await page.evaluate(async ids => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    const original = IDBObjectStore.prototype.get;
+    const key = 'spx-gfx-shows';
+    const committedElsewhere = JSON.parse(durable.getItem(key)!) as Show[];
+    committedElsewhere.find(show => show.id === ids.show)!.cues!.find(cue => cue.id === ids.cues[0])!.label = 'Remote Alpha';
+    // Write straight to IndexedDB to hold the mirror notification from the other tab.
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('noacg-studio');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(JSON.stringify(committedElsewhere), key);
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error);
+    });
+    db.close();
+    // Start the ordinary save while the draft's optimistic text is still in the mirror.
+    IDBObjectStore.prototype.get = function(k) {
+      if (k === key) {
+        IDBObjectStore.prototype.get = original;
+        queueMicrotask(() => {
+          shows.updateShowCueChecked(ids.show, ids.cues[1], { label: 'Ordinary Beta' });
+          const opaque = JSON.parse(durable.getItem(key)!) as Show[];
+          const show = opaque.find(show => show.id === ids.show)!;
+          show.name = 'First dependent write';
+          durable.setItem(key, JSON.stringify(opaque));
+          show.name = 'Second dependent write';
+          durable.setItem(key, JSON.stringify(opaque));
+        });
+      }
+      return original.call(this, k);
+    };
+  }, ids);
+  await page.getByTestId('cue-label').fill('Rejected Alpha');
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush')));
+  await expect(row(page, 'Ordinary Beta')).toBeVisible();
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(row(page, 'Remote Alpha')).toBeVisible();
+  await expect(row(page, 'Ordinary Beta')).toBeVisible();
+  await expect(row(page, 'Rejected Alpha')).toHaveCount(0);
+  const name = () => page.evaluate(async id => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    return shows.loadShows().find(show => show.id === id)?.name;
+  }, ids.show);
+  expect(await name()).toBe('History');
+  await page.evaluate(async id => {
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    const current = JSON.parse(durable.getItem('spx-gfx-shows')!) as Show[];
+    current.find(show => show.id === id)!.name = 'Fresh production write';
+    durable.setItem('spx-gfx-shows', JSON.stringify(current));
+  }, ids.show);
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(row(page, 'Remote Alpha')).toBeVisible();
+  await expect(row(page, 'Ordinary Beta')).toBeVisible();
+  expect(await name()).toBe('Fresh production write');
+});
+
 test('a change elsewhere to the cue being typed itself keeps today\'s rule: the typed text gives way (#2572, D3)', async ({ page }) => {
   const ids = await seed(page);
   await select(page, 'Alpha'); const input = page.getByTestId('cue-label');

@@ -578,6 +578,13 @@ async function migrateFromLocalStorage(
  * each; everything about their error handling still works, because `setItem` throws on a
  * refused write exactly as localStorage does.
  */
+const guardedShowsWrites = new Map<string, number>();
+const SHOWS_CHANGED_BEFORE_SAVE = 'The production changed before this save. Try the edit again.';
+
+export function hasPendingShowsRebase(): boolean {
+  return guardedShowsWrites.has(accountKey('spx-gfx-shows', namespace));
+}
+
 export const durable = {
   getItem(key: string): string | null {
     if (!durableKeySet.has(key)) return lsGet(key);
@@ -595,6 +602,11 @@ export const durable = {
     if (!hydrated || !usingIndexedDb) {
       lsSet(physical(key), value);
       recordReceipt({ sequence: ++writeSeq, key, value, account: namespace, settled: Promise.resolve(null) });
+      return;
+    }
+    if (key === 'spx-gfx-shows' && hasPendingShowsRebase()) {
+      // This whole-list replacement was built from the pending write's optimistic mirror.
+      rebasedDurableSet(key, value, () => ({ refused: SHOWS_CHANGED_BEFORE_SAVE }));
       return;
     }
     const previous = mirror.get(key) ?? null;
@@ -728,6 +740,7 @@ export function rebasedDurableSet(
   const seq = writeSeq;
   const account = namespace, storedKey = accountKey(key, account);
   latestWrite.set(key, seq);
+  if (key === 'spx-gfx-shows') guardedShowsWrites.set(storedKey, seq);
   const settled = new Promise<string | null>((resolve) => {
     let refusal: string | null = null, stored: string | null = null, accepted = previous, done = false;
     const current = (): boolean => namespace === account && latestWrite.get(key) === seq;
@@ -771,6 +784,9 @@ export function rebasedDurableSet(
     const failed = () => fail(refusal ?? (isQuotaError(tx.error) ? FULL_MESSAGE : FAILED_MESSAGE));
     tx.onerror = failed;
     tx.onabort = failed;
+  });
+  if (key === 'spx-gfx-shows') void settled.then(() => {
+    if (guardedShowsWrites.get(storedKey) === seq) guardedShowsWrites.delete(storedKey);
   });
   trackWrite({ sequence: seq, key, value, account, settled });
 }

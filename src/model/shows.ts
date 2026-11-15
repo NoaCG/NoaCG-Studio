@@ -29,7 +29,7 @@ import type { ShowProfile } from './profile';
 import { put, readShowProfile, serializeShowProfile } from './profile';
 import { actionArgsOf, actionSchemaOf, migrateToTyped, nativeOf, readJson, readOgrafDeclared, readTypedArgs, TYPED_ARGS_VERSION, TYPED_MAX_DEPTH, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedAction, type TypedArgs, type TypedReceipt, type TypedValues } from './ografTyped';
 import type { JsonValue } from './productionData';
-import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
+import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, hasPendingShowsRebase, type ConditionalWriteResult } from './durableStore';
 import { cueFieldsKey, replaceRundown, RUNDOWN_CHANGED, type RundownSlice } from './rundownHistory';
 import type { TeamCueDraftText } from './teamShowMerge';
 import { uuid } from './id';
@@ -1590,10 +1590,17 @@ export function updateShowCueChecked(
   expectedDraftText?: string,
 ): { shows: Show[]; error: string | null } {
   const draft = expectedDraftText === undefined ? undefined : { cueId, before: expectedDraftText };
+  const guardOrdinary = !draft && hasPendingShowsRebase();
+  let ordinaryBase: string | undefined;
   return patchShowChecked(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
     if (draft && (!cue || cueFieldsKey(cue) !== draft.before)) return RUNDOWN_CHANGED;
     if (!cue) return patch.stagedFrom ? 'This cue was removed.' : false;
+    if (guardOrdinary) {
+      const text = cueFieldsKey(cue);
+      ordinaryBase ??= text;
+      if (ordinaryBase !== text) return RUNDOWN_CHANGED;
+    }
     const source = show.graphics.find((g) => g.id === cue.sourceId);
     const refused = source && boundMessageField(show, source, patch.stagedFrom);
     if (refused) return refused;
@@ -1607,7 +1614,7 @@ export function updateShowCueChecked(
     if (patch.note === null) delete cue.note;
     else if (patch.note !== undefined) cue.note = patch.note;
     return true;
-  }, !!draft || Boolean(patch.stagedFrom), undefined, undefined, draft);
+  }, !!draft || guardOrdinary || Boolean(patch.stagedFrom), undefined, undefined, draft);
 }
 
 /** Asked inside the selection writer's write, on the record that door is writing: why this cue may

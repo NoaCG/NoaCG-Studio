@@ -95,7 +95,9 @@ export interface CueDraftIo {
   /** Save through the rundown history, answering whether the store confirmed it. */
   writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord) => Promise<boolean>;
   /** Save at once, with no history and nothing to await: whether the store accepted it. */
-  retainCue: (cueId: string, fields: CueFields) => boolean;
+  retainCue: (cueId: string, fields: CueFields) => boolean | Promise<boolean>;
+  /** A queued handoff still needs retaining when its value has never reached the local record. */
+  hasUnstoredDraft?: (cueId: string, fields: CueFields) => boolean;
   /** The newest record of a cue, if the production holds it. */
   record: (cueId: string) => CueRecord | undefined;
   /** The owed edit kept where a reload cannot drop it (model/owedCueEdit.ts): record it, read it
@@ -314,19 +316,28 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
    *  out through the history is owed too: the history would write it only after the page is gone. */
   const retain = (hiding = false) => {
     const d = part.get();
-    if (!d || !(pending || (hiding && out === d)) || !io.canWrite()) return;
+    if (!d || !io.canWrite()) return;
+    const fields = fieldsOf(d);
+    const queued = out === d && io.hasUnstoredDraft?.(d.cueId, fields);
+    if (!pending && !queued && !(hiding && out === d)) return;
     // Recorded where a reload cannot drop it: the store's write may still be committing when the
     // page goes, and a reload aborts it.
     if (hiding && startedFrom && startedFrom.cueId === d.cueId) {
-      io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts.map((t) => t.text), fields: fieldsOf(d) });
+      io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts.map((t) => t.text), fields });
       recorded = JSON.stringify(io.owed.read());
     }
-    if (io.retainCue(d.cueId, fieldsOf(d))) {
-      pending = false;
-      if (out === d) out = null;
-      // The store is given this text (the record above covers a page that goes before it lands):
-      // typing on in this cue may be applied over it.
-      handed(d);
+    const saved = io.retainCue(d.cueId, fields);
+    if (saved === false) return;
+    pending = false;
+    if (out === d) out = null;
+    handed(d);
+    if (saved !== true) {
+      void saved.then(accepted => {
+        if (accepted) {
+          confirmed(d);
+          if (part.get() === d) forgetOwn();
+        } else if (part.get() === d && session.alive()) pending = true;
+      });
     }
   };
 
