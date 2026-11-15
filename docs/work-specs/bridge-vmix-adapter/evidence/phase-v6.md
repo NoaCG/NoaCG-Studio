@@ -112,6 +112,17 @@ legacy Pause or Resume when its held occurrence is confirmed. A trimmed Resume p
 Running in range, finishes the intended fader reset while still muted and reveals once.
 An ongoing entrance carries its original ramp. An originally muted Clip remains muted.
 
+The first compact proof also covers an own SelectIndex from an empty list when that
+Take needs compact evidence. A known stopped exit can survive the outgoing request
+expiry as an observation on its original occurrence and mixer connection. A manual
+Pause or ending change rechecks that same frozen state and position before taking
+over the settled output. It captures mute before restoring the level when the
+outgoing operation had only blacked the picture. An unresolved cover or a moved
+stop grants no reveal. Both Resume forms cover and reset a stopped active exit
+before Play, then prove Running and the intended fader before reveal. A trim at
+its out point still refuses Resume. A caller requiring Running cannot substitute
+a native Completed sample as authority for its reset.
+
 The covered Loop rechecks its boundary before setting alpha and before the separately keyed
 mute write. A naturally completed clip can finish its original entrance on an ending change.
 An interrupted fade retains its physical presentation even when an alpha write is refused after
