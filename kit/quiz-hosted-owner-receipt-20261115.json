@@ -1,0 +1,12 @@
+{
+  "observedAt": "2026-11-15T10:28:52.511Z",
+  "run": "plan-editor-r1-5-2026-11-08",
+  "pr": 2569,
+  "deployedSource": "3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0",
+  "url": "https://noacg.studio/app?editor=foundation#/editor-foundation",
+  "question": "In a fresh tab and a disposable quiz graphic, ask Edit to change Paris to Helsinki in Answer A, review and Apply it, then Undo. Do the edit and Undo work now? Please include any error message.",
+  "answer": "it works",
+  "provenance": "Owner answered in this same chat both directly and as the exact pending question reply. One reported task, not two test executions.",
+  "result": "OWNER-REPORTED PASS for this hosted Edit/review/Apply/Undo task. Earlier hosted Help success retained separately.",
+  "limits": "No observed browser recording, no task duration/device/zoom/source/export/save/install/other-graphic acceptance inferred; no full E5F phase PASS."
+}
