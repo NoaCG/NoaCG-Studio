@@ -1501,7 +1501,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Same builder readonly blank pending-creation Rules amendment, then SAME reviewer focused grade; no code admitted",
+    "what": "Samebuilder newowned DOCS-only Rules checkpoint, then SAMEreviewer; no code admitted",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4363,7 +4363,7 @@
       }
     },
     "blankIsolationAssessment": {
-      "status": "Readonly Rules amendment to resolve saved Aminus; hosted assistant task now confirmed; no code admitted",
+      "status": "v2 readonlyamendment complete; DOCS-ONLY newownedbranch checkpoint admitted, productcode remainsblocked pendingSAMEreviewer",
       "actor": "/root/editor_e5f_cloud_builder",
       "native": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
@@ -4397,6 +4397,18 @@
         "brief": "briefs/e5f-blank-rules-amendment-20261115.txt",
         "sha256": "bde9e51e9b86248e9daee13867d0ffdbba23de69b4a2433eb048117915677d0d",
         "status": "Native samebuilder followup running; actual startup acknowledged6af840/action13, briefhashverified; no code/test"
+      },
+      "v2": {
+        "receipt": "blank-isolation-assessment-v2-20261115.md",
+        "sha256": "2fcc931b6a34a75aba36a4f7435f8f168fd660a9890e6237850dfe90a32aec43"
+      },
+      "docsIntent": {
+        "actor": "/root/editor_e5f_cloud_builder",
+        "brief": "briefs/e5f-blank-docs-checkpoint-20261115.txt",
+        "sha256": "80fbec5c49c44c10e793659481360ad0a34920bfccd0d9dbba3841187ded3f06",
+        "worktree": "/workspace/noacg-editor-r1-5-e5f-blank",
+        "branch": "codex/plan-editor-r1-5-e5f-blank",
+        "scope": "DOCS ONLY precodeRules push; no productcode/PR/reviewer"
       }
     }
   },
