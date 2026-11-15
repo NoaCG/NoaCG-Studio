@@ -46,12 +46,12 @@
   },
   "inFlight": [
     {
-      "pr": 2575,
-      "phase": "v6",
-      "step": "build",
-      "note": "V6 wait confirmed. Local isolated one-test reproduction on #2573 CI tree d3d2e29d failed j-5273, exact base e3bd018e passed j-5274. Source and other run jobs untouched. ProductionPage still held by live-publishing #2361. Clean V6 and its existing local passing evidence retained.",
-      "head": "29b3fdbfba8ea12a9c426861c12df4947159a1a1",
-      "session": "/root/v6_builder"
+      "head": "1a8881f992b112bfa21b5bd337d5fd64be349887",
+      "pr": 2573,
+      "note": "Verified handoff of the existing PR only. Windows reproduction failed on the exact previous merge and passed on its first parent. The local repair passed the same quiz assertion, 62 focused unit tests, ESLint and TypeScript. Windows rundown checks and fresh independent review are in flight. V6 remains on PR #2575 waiting for this dependency.",
+      "step": "Dependency repair and review",
+      "phase": "V6",
+      "session": "01a1bb0e-ec06-7111-ae29-89b778de221e"
     }
   ],
   "owner": [],
