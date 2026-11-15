@@ -74,19 +74,19 @@
       "actor": "/root/editor_e5f_cloud_builder",
       "thread": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
-      "status": "Queued; rootactive monitoringgroup/allpost",
+      "status": "READONLY blank/previews assessment; quiz partial delivery complete",
       "source": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
       "deliveryBranch": "codex/plan-editor-r1-5-e5f-quiz-edit",
       "deliverySource": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
-      "note": "QuizPR2569 merged3b06 at07:11:12Z; normaldeployment+deeplink/publicversionexact verified. Postland/quarantinePASS; CI/configured/CodeQLrunning. OwnerhostedEditUndoquestionpending; no phasePASS/retained2552SVGstop.",
-      "monitorOwner": "root active through merge andallpost/deploy viaGitHubconnector; no durablewake claimed",
+      "note": "PR2569 actual3b06 deployed, all6postworkflowsSUCCESS. OwnerhostedEditApplyUndo pending. Samebuilder readonlyblank/previews proposal beforecode; no phasePASS, retained2552/SVGstop.",
+      "monitorOwner": "Quiz repair monitoring COMPLETE after all exactmerge results; same root retains broader run",
       "pr": 2569
     }
   ],
   "owner": [
     "No recruitment or downloaded build is requested. Owner will review fixes through hosted Studio after engineering verification.",
     "Actual receiving-system, rights and candidate-specific release decisions retain their existing gates; do not infer completion from usability feedback.",
-    "Hosted Help answered; quiz Paris→Helsinki Edit refused. Apply/Undo remains unverified; engineer correction first, no recruitment or localbuild."
+    "Hosted Help answered. Quiz Edit correction is live via PR2569; owner Paris→Helsinki reviewed Apply/Undo answer pending. No recruitment or local build."
   ],
   "fixes": [
     {
@@ -1501,7 +1501,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Exactmerge3b06 CI43688806825/configured43688806801/CodeQL43688806769; ownerhostedquizEditApplyUndo reply independently pending",
+    "what": "Same builder readonly blank/previews isolation assessment; hosted owner quiz Paris→Helsinki Apply/Undo reply independently pending",
     "eta": null
   },
   "completedCausalityReviews": [
