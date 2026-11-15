@@ -1504,7 +1504,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Originalbuilder executesADMITTED boundedBUILT APIcase diagnostic only; stopfirstfailure/INCONCLUSIVEifallpass; no implementation",
+    "what": "Sameoriginalbuilder resumes diagnosticafterreviewedownedfolderIO correction; stillbasefirst/stopfirstfailure/noimplementation",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4702,6 +4702,13 @@
               "reason": "Smallboundedtracecollection only; zeroINCONCLUSIVE notrateproof",
               "budget": "Atmost2sequentialcap5jobs incloneE2Ebuild/head; anyfailurestops beforefeature ifbasefails",
               "scope": "Diagnostic only; no productrepair or phasecheckallowance"
+            },
+            "diagnosticSetup": {
+              "failure": "Ownedignoredmkdir ENOENT under nonexistentchild filesystemgrant BEFOREGit/network/config/worktree/build/browser/job; originalerror retained native6af840",
+              "counts": "0/2jobs,0/20samples; no productattempt/reset",
+              "rootReconciliation": "Actualexistingparent e5f.local directory0700; childabsent, sourceclean62e. RootcreatedONLYignoredchild underrequire_escalated anddisposableIO passed; no sourcewrite",
+              "correction": "Useactualexistingownedevidenceparent/child scope orqualifiedrequire_escalated forownedstate/worktree mutations; do notrepeatknownnetworkdenial",
+              "resume": "SAME exactadmission64cfe5b0/count/caps; beforefirst enqueue, no test/buildretry ornewcampaign"
             }
           }
         },
