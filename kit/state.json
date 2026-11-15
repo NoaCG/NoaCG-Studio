@@ -1504,7 +1504,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Coordinatorenableauto exact62e withheadbefore/after; observequeue thenexactmergeposts/deploy",
+    "what": "Mergegroup43750083365 exactf295, thenactualPR2579 merge andallpostchecks/deploy; rootactive",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4594,7 +4594,7 @@
             "has_unresolved_findings": false,
             "status": "completed"
           },
-          "status": "Queueenableintent bysolecoordinator; exacthead allgatesgreen",
+          "status": "QUEUED actualtimeline19:01:41Z",
           "codeql": 43714187035,
           "configuredSelection": "Actualplanjob132812059552: all63active on4localstacks",
           "capacity": "ActualGitHubWARN131.8/204.5; partial43201149088 judgednewestcomplete43014542120, normal line; noexception",
@@ -4630,6 +4630,15 @@
           "reconciliation": {
             "file": "blank-pr2579-reconciliation-1759-20261115.json",
             "sha256": "64d10bebe887d1b65f1cf206a9e5ff5ed7608d717e6216e5b54064d58496a1c5"
+          },
+          "queue": {
+            "event": "added_to_merge_queue",
+            "at": "2026-11-15T19:01:41Z",
+            "beforeHead": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+            "afterHead": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+            "mergeGroupRun": 43750083365,
+            "mergeGroupHead": "f2954d1c2c94e412c71707a6d928e17228f48267",
+            "autoMerge": "Session-owned connector accepted; actualqueue confirmed, RESTauto null notmistakenforabsence"
           }
         },
         "proofArchive": {
