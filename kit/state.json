@@ -4338,7 +4338,12 @@
           "sha256": "55ef3f8e0823aae926dd1da15b3cd28b73e26f289366190f08dbe2847f07b9a1",
           "ownerComment": 6885285874,
           "repairMonitoring": "COMPLETE; all owned post results terminal; attempts preserved0",
-          "hostedQA": "pending"
+          "hostedQA": "pending",
+          "logReadback": {
+            "configuredJob": 132738614025,
+            "result": "Whole43KBlogread;15blobs merged; actual E2E retryjobSKIPPED, no testretryexecuted",
+            "offlineReportJob": 132737160455
+          }
         }
       },
       "queueResumeBlock": {
