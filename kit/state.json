@@ -46,12 +46,12 @@
   },
   "inFlight": [
     {
-      "note": "V6 remains checkpointed on the existing shared-file dependency. #2573 open and blocked at c9cc8682 with no merge queued. Local 29b3fdbf retains 202 focused Bridge, 198 Studio, build/typecheck and exact owned vMix evidence. Finish live ending page wiring and combined independent checks after release. Existing draft remains 31815116.",
-      "session": "/root/v6_builder",
       "phase": "v6",
+      "note": "Existing V6 remains parked at clean local 29b3fdbf, same draft 31815116. #2573 remains open and blocked at c9cc8682 without auto-merge or release of ProductionPage. Existing 202 Bridge, 198 Studio, build/typecheck and exact native PASS evidence preserved. Live ending wiring and combined checks await that file.",
+      "pr": 2575,
       "head": "29b3fdbfba8ea12a9c426861c12df4947159a1a1",
-      "step": "build",
-      "pr": 2575
+      "session": "/root/v6_builder",
+      "step": "build"
     }
   ],
   "owner": [],
