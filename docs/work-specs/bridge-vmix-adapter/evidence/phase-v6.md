@@ -185,7 +185,13 @@ and transport writes, including faded Out and Resume. After its own acknowledged
 seek, the Bridge carries the confirmed local position through covered Play
 and reveal before committing the new checkpoint. Removal requires the same
 exact stopped position as its final state and hard-zero check, when required.
-Native Loop wraps remain supported.
+An acknowledged list edit identifies its predecessor and successor. Append
+and prefix removal keep the selected item's timing. SelectIndex can establish
+a new clock and verified emptying retires the old one. A live Loop change uses
+the previous verified Loop mode to check continuity until the accepted new
+mode is observed. A verified native wrap can start the next nonloop checkpoint.
+A guarded cut checks the expected instance again after its optional mute read
+before removing the list.
 
 ## Verification, release and rollback
 

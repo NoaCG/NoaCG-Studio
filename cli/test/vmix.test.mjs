@@ -5089,6 +5089,136 @@ test('AC-12: acknowledged Ending does not exempt a confirmed same-list rewind', 
   assert.equal(fixture.fake.functions.length, before + 1);
 });
 
+test('AC-12: LoopOn cannot change the rewind basis before its continuing sample is verified', async t => {
+  for (const mode of ['plain Hold', 'timed Hold', 'delayed prior Off']) {
+    await t.test(mode, async t => {
+      let checking = false;
+      let priorOff = false;
+      const fixture = await timedFixture(t, {
+        afterFunction(name) {
+          if (checking && name === 'LoopOn') fixture.row().position = 900;
+          return false;
+        },
+        transformXml(body) {
+          if (!checking || mode !== 'delayed prior Off' || priorOff || !fixture.row().loop) return body;
+          priorOff = true;
+          return body.replace('loop="True"', 'loop="False"').replace('position="900"', 'position="1900"');
+        },
+      });
+      const take = await fixture.take('clip B.mp4', mode === 'plain Hold' ? {} : { playback: { end: 'clear' } });
+      assert.equal(take.ok, true);
+      fixture.row().position = mode === 'delayed prior Off' ? 1000 : 1900;
+      assert.equal((await fixture.adapter.status(fixture.target)).ok, true);
+      const before = fixture.fake.functions.length;
+      checking = true;
+      assert.equal((await fixture.expected(take.instance, 'ending', { playback: { end: 'loop' } })).ok, false);
+      assert.equal(priorOff, mode === 'delayed prior Off');
+      assert.deepEqual(fixture.fake.functions.slice(before).map(fn => fn.name), ['LoopOn']);
+      assert.equal((await fixture.read()).instance, undefined);
+      assert.equal((await fixture.expected(take.instance, 'out')).ok, false);
+      assert.equal(fixture.fake.functions.length, before + 1);
+    });
+  }
+});
+
+test('AC-12: LoopOff accepts an observed wrap from the prior verified Loop and starts a new nonloop checkpoint', async t => {
+  let changing = false;
+  const fixture = await timedFixture(t, {
+    afterFunction(name) {
+      if (changing && name === 'LoopOff') fixture.row().position = 40;
+      return false;
+    },
+  });
+  const take = await fixture.take('clip B.mp4', { playback: { end: 'loop' } });
+  assert.equal(take.ok, true);
+  fixture.row().position = 3950;
+  assert.equal((await fixture.adapter.status(fixture.target)).ok, true);
+  changing = true;
+  assert.equal((await fixture.expected(take.instance, 'ending', { playback: { end: 'hold' } })).ok, true);
+  const after = await fixture.read();
+  assert.equal(after.instance, take.instance);
+  assert.equal(after.loop, false);
+  assert.equal(after.position, 0.04);
+  assert.equal((await fixture.expected(take.instance, 'out')).ok, true);
+});
+
+test('AC-12: an acknowledged append or prefix cleanup must retain the selected duration and continuity', async t => {
+  for (const mode of ['append duration', 'prefix duration', 'prefix rewind']) {
+    await t.test(mode, async t => {
+      let checking = false;
+      let pending = false;
+      let observed;
+      const fixture = await timedFixture(t, {
+        afterFunction(name) {
+          if (!checking) return false;
+          if (name === 'Play') fixture.row().position = 1600;
+          if (name === (mode === 'append duration' ? 'ListAdd' : 'ListRemove')) pending = true;
+          return false;
+        },
+        transformXml(body) {
+          if (!pending || observed !== undefined) return body;
+          observed = fixture.fake.functions.length;
+          return mode === 'prefix rewind' ? body.replace('position="1600"', 'position="650"')
+            : body.replace('duration="4000"', 'duration="3900"');
+        },
+      });
+      assert.equal((await fixture.take('clip A.mp4', { playback: { trim: { in: 0.25, out: 3 } } })).ok, true);
+      const before = fixture.fake.functions.length;
+      checking = true;
+      const replacement = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 2.8 } } });
+      assert.equal(replacement.ok, false);
+      assert.ok(observed > before);
+      assert.equal(fixture.fake.functions.length, observed);
+      assert.equal(fixture.row().alpha, 0);
+      assert.equal(fixture.row().muted, true);
+      assert.equal(fixture.fake.functions.slice(before).some(fn => fn.name === 'AudioOn'), false);
+    });
+  }
+});
+
+test('AC-12: the optional muted cut sample cannot clear an instance it has just retired', async t => {
+  let resuming = false;
+  let cutting = false;
+  let rewind = false;
+  const fixture = await timedFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips', muted: false }],
+    afterFunction(name, params, socket) {
+      if (resuming && name === 'Play') fixture.row().fader = 0;
+      if (resuming && name === 'SetVolume' && params.Value === '100') {
+        fixture.row().fader = 0;
+        socket.write('FUNCTION ER Fader restore refused\r\n');
+        return true;
+      }
+      return false;
+    },
+    hook(line) {
+      if (cutting && !rewind && line.endsWith('/@position') && line.includes("'true']")) {
+        fixture.row().position = 900;
+        rewind = true;
+      }
+      return false;
+    },
+  });
+  const take = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 2.5 } } });
+  assert.equal(take.ok, true);
+  assert.equal((await fixture.expected(take.instance, 'pause')).ok, true);
+  fixture.row().position = 1900;
+  assert.equal((await fixture.adapter.status(fixture.target)).ok, true);
+  resuming = true;
+  assert.equal((await fixture.expected(take.instance, 'resume')).ok, false);
+  resuming = false;
+  assert.equal(fixture.row().muted, true);
+  const before = fixture.fake.functions.length;
+  cutting = true;
+  assert.equal((await fixture.expected(take.instance, 'out')).ok, false);
+  assert.equal(rewind, true);
+  assert.deepEqual(fixture.fake.functions.slice(before).map(fn => fn.name), ['Pause']);
+  assert.equal(fixture.row().list.length, 1);
+  assert.equal((await fixture.adapter.act(fixture.target, { verb: 'out', slot: fixture.player() })).ok, true);
+  assert.deepEqual(fixture.fake.functions.slice(before + 1).map(fn => fn.name), ['Pause', 'ListRemoveAll']);
+  assert.equal(fixture.row().muted, true);
+});
+
 test('AC-12: an exact compact rewind grants no faded Out ramp or covered Resume command', async t => {
   for (const mode of ['faded Out', 'guarded Resume', 'legacy Resume']) {
     await t.test(mode, async t => {
