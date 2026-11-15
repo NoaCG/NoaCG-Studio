@@ -45,11 +45,11 @@
   "inFlight": [
     {
       "session": "/root/v6_builder",
-      "step": "build",
+      "note": "Same coordinator and active block 20. Clean local candidate 5cdfda91 includes verified native audio routing after covered Resume and final exact readback before rearming trim. 94 focused tests and Windows j-5267 (24/24) passed. Owned vMix AC-12 native proof passed and restored settings. Fresh full independent exact /root/v6_audio_exact_so underway. Existing PR remains draft, remote 31815116. No queue or release dispatched.",
       "pr": 2575,
-      "head": "318151166087a1ceda38249e2d53ce55494a6e4d",
-      "note": "Resumed V6 grouped handoff/transport repair at clean unpublished 3284e22a. Exact native AC-12, 51 focused tests and 35 legacy regressions, and shared Windows browser j-5264 (24/24, exit 0) passed. Fresh exact-head independent review running; no product push, queue, or release.",
-      "phase": "v6"
+      "head": "5cdfda91ba0db1ad9d4b0d56f865a7d18a42f933",
+      "phase": "v6",
+      "step": "build"
     }
   ],
   "owner": [],
