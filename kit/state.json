@@ -74,15 +74,16 @@
       "actor": "/root/editor_e5f_cloud_builder",
       "thread": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
-      "status": "Blank62e finalcheck/fullSOA; rootpublishesexacthead thennormalGitHubCI",
+      "status": "Publishedblank2579 exact62e; CI/Codex running, rootsole active repair owner",
       "source": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
-      "deliveryBranch": "codex/plan-editor-r1-5-e5f-quiz-edit",
-      "deliverySource": "f51865995aac9bca790f32ac6a3cf34b01c02bae",
+      "deliveryBranch": "codex/plan-editor-r1-5-e5f-blank",
+      "deliverySource": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
       "note": "Sameaction13; allfailures/RulesAminus/SVG/E4/2552/exhaustedattempts preserved. QuizownerhostedPASS separately.",
       "monitorOwner": "Quiz repair monitoring COMPLETE after all exactmerge results; same root retains broader run",
       "worktree": "/workspace/noacg-editor-r1-5-e5f-blank",
       "branch": "codex/plan-editor-r1-5-e5f-blank",
-      "previousDeliveredPr": 2569
+      "previousDeliveredPr": 2569,
+      "activePr": 2579
     }
   ],
   "owner": [
@@ -1503,7 +1504,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Root publication of exactblank62e, thenactualGitHubCI/Codex/configured/queue/postmerge andhostedblank acceptance",
+    "what": "PR2579 exact62e CI/Codex and selectedconfigured results; rootactive owns throughqueue/posts",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4578,7 +4579,18 @@
         "ciPlan": "174blocking incl editededitor-projects+unchangedproduction-sounds; all63activeconfigured+2quarantined",
         "limits": "No builtCI/Codex/hostedblank/nativehost/device/fullE5FPASS",
         "outage": "Execserverdisconnected beforeprocess; sameWTrecovered12:26 clean62e; no mutationsreplayed/no infrastructureattemptspent",
-        "publication": "INTENT exact62e only; remote docs-onlycd84, GitHub PRcollectionconfirmedempty; no PR/CI yet"
+        "publication": "Publishedexact62e; PR2579open, noauto/noqueue",
+        "pr": {
+          "number": 2579,
+          "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2579",
+          "head": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
+          "repairOwner": "/root",
+          "repairOwnerComment": 6894344307,
+          "repairs": 0,
+          "ci": 43714190234,
+          "codex": 43714187035,
+          "status": "CI/Codex running"
+        }
       }
     }
   },
