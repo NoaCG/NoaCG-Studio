@@ -1,0 +1,47 @@
+{
+  "capturedAt": "2026-11-15T08:59:50.2210275+00:00",
+  "head": "9e1d50e6c9212e161c8cdcaff25ecab4f033e18d",
+  "cleanWorktree": true,
+  "build": {
+    "exitCode": 0,
+    "command": "npm run build --prefix cli"
+  },
+  "scope": {
+    "file": "check-scope.json",
+    "diffCheck": "passed",
+    "base": "6da76c942cc19136b67ed0235d8074733b129257",
+    "paths": 21
+  },
+  "focused": {
+    "bridge": {
+      "passed": 183,
+      "log": "focused-bridge.log",
+      "failed": 0
+    },
+    "studio": {
+      "passed": 168,
+      "log": "focused-studio.log",
+      "failed": 0
+    }
+  },
+  "browser": {
+    "passed": 23,
+    "failureContext": "windows-j-5271-failure.md",
+    "baseQuarantineRun": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43657752399",
+    "failed": 1,
+    "log": "windows-j-5271.log",
+    "failureScreenshot": "windows-j-5271-failure.png",
+    "report": "windows-j-5271-report.json",
+    "job": "j-5271",
+    "failureSummary": "After a simulated connection re-pair, the next Take left the cue in PVW rather than ON AIR. This browser case uses the old Bridge HTTP fake only.",
+    "timedEditorScreenshot": "windows-j-5271-editor.png",
+    "failureLine": "e2e/playout-cues.spec.ts:1330",
+    "durationSeconds": 50
+  },
+  "realVmix": {
+    "replies": "v6-product-replies.json",
+    "tcp": "v6-product-tcp.json",
+    "result": "passed",
+    "proof": "v6-product-proof.json"
+  }
+}

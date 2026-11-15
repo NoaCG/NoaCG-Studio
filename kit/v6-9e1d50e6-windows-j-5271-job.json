@@ -1,0 +1,19 @@
+{
+ "id": "j-5271",
+ "kind": "gate",
+ "command": "npm run test:e2e -- e2e/playout-cues.spec.ts",
+ "checkout": "C:\\claude\\Temp\\vmix-v6-build-1108",
+ "branch": "codex/plan-vmix-v6-build",
+ "after": [],
+ "capMinutes": 12,
+ "retryOf": null,
+ "retryCount": 0,
+ "enqueuedAt": 1794733039143,
+ "state": "failed",
+ "startedAt": 1794733042622,
+ "finishedAt": 1794733093831,
+ "exitCode": 1,
+ "pid": 83092,
+ "logPath": "C:\\claude\\NoaCG-Studio\\.git\\noacg-jobs\\logs\\j-5271.log",
+ "giveUpReason": "auto-merge refused it (exit 1) - read the log for which check said no"
+}
