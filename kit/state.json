@@ -4598,6 +4598,14 @@
           "codeql": 43714187035,
           "configuredSelection": "Actualplanjob132812059552: all63active on4localstacks",
           "capacity": "ActualGitHubWARN131.8/204.5; partial43201149088 judgednewestcomplete43014542120, normal line; noexception"
+        },
+        "proofArchive": {
+          "path": "blank-proof-20261115.tar.xz",
+          "manifest": "blank-proof-20261115-manifest.json",
+          "sha256": "149c6c7974202dcd87a9f422abd543e7a01e112634075eb7d6430f1d03103cb6",
+          "files": 88,
+          "bytes": 455992,
+          "verified": "Everyrawmember roundtrip SHA; includesoriginalfailedlogs/visuals/2exportreceipts; kit8229649 <8388608; no limit modified"
         }
       }
     }
