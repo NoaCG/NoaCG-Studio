@@ -48,8 +48,8 @@
       "step": "build",
       "phase": "v6",
       "session": "/root/v6_builder",
-      "note": "Independent Rules review complete after native 25p probes documented transient seek, guarded XMLTEXT and ramp supersession. Approved exact Rules published; builder implementing V6, real verification stays on isolated Windows vMix. Separate quarantine change on main is untouched; explicit local browser evidence still required.",
-      "pr": 2575
+      "pr": 2575,
+      "note": "Unpublished V6 candidate ddff59d7 passed 24 Windows browser checks and isolated native AC-12 measurements. Fresh exact review reproduced adjacent Trim Resume, final zero/identity predicate, and fade lifetime defects. Reassessing the shared model before the next grouped repair. Required Bridge release and landing still pending."
     }
   ],
   "owner": [],
