@@ -1,0 +1,65 @@
+{
+  "capturedAt": "2026-11-15T07:51:48.598Z",
+  "head": "5cdfda91ba0db1ad9d4b0d56f865a7d18a42f933",
+  "cleanWorktree": true,
+  "build": {
+    "command": "npm run build --prefix cli",
+    "exitCode": 0
+  },
+  "focused": {
+    "command": "node --test --test-name-pattern 'AC-12|FUNCTION replies|reply with bare LF' cli/test/vmix.test.mjs",
+    "tests": 94,
+    "passed": 94,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 26248.0553,
+    "source": "Observed tool receipt from session 22338 and its final write_stdin result"
+  },
+  "legacy": {
+    "command": "node --test --test-name-pattern 'AC-8|AC-9|AC-11' cli/test/vmix.test.mjs",
+    "tests": 35,
+    "passed": 35,
+    "failed": 0,
+    "skipped": 0,
+    "log": "../legacy-player-5cdfda91.log"
+  },
+  "browser": {
+    "job": "j-5267",
+    "tests": 24,
+    "passed": 24,
+    "failed": 0,
+    "durationSeconds": 46.2,
+    "report": "windows-j-5267-report.json",
+    "log": "windows-j-5267.log"
+  },
+  "realVmix": {
+    "result": "passed",
+    "file": "v6-product-proof.json",
+    "tcp": "v6-product-tcp.json",
+    "replies": "v6-product-replies.json"
+  },
+  "scope": {
+    "file": "check-scope.json",
+    "base": "6da76c942cc19136b67ed0235d8074733b129257",
+    "paths": 21,
+    "diffCheck": "passed"
+  },
+  "earlierChecks": {
+    "studio": {
+      "file": "../studio-regression.log",
+      "passed": 168,
+      "sourceMatchesLaterStudioChanges": true
+    },
+    "selectedGateRun": {
+      "file": "../affected-gates-1eff5c53.log",
+      "head": "1eff5c53afb8064f2d94801b971fd5a96cb47a3c",
+      "result": "Two unchanged Windows checkout CRLF mismatches; gate tests did not run.",
+      "canonicalLf": {
+        "preloader": "../canonical-e2e-source.mjs",
+        "registryModules": 240,
+        "devServerSpecs": 29,
+        "result": "passed"
+      }
+    }
+  }
+}

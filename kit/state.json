@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "session": "/root/v6_builder",
-      "note": "Same coordinator and active block 20. Clean local candidate 5cdfda91 includes verified native audio routing after covered Resume and final exact readback before rearming trim. 94 focused tests and Windows j-5267 (24/24) passed. Owned vMix AC-12 native proof passed and restored settings. Fresh full independent exact /root/v6_audio_exact_so underway. Existing PR remains draft, remote 31815116. No queue or release dispatched.",
       "pr": 2575,
+      "session": "/root/v6_builder",
+      "note": "Clean V6 candidate; build, native acceptance, 94 focused Bridge, 35 legacy Bridge, 117 Studio and 24 Windows Chromium passed. Fresh independent review confirmed product findings in Audio mute authority across Take, Resume and Loop, including a repeat Take overriding a known external mute. Worktree frozen. Fresh read-only rule reassessment underway before one grouped repair on same draft. PR stays draft, remote 31815116. No queue or release.",
+      "step": "build",
       "head": "5cdfda91ba0db1ad9d4b0d56f865a7d18a42f933",
-      "phase": "v6",
-      "step": "build"
+      "phase": "v6"
     }
   ],
   "owner": [],
