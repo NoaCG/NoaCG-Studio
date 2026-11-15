@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuthState } from '../../auth/useAuthState';
 import { useAuthUi } from '../../auth/authUi';
+import { useAuthoringProjects } from '../../../store/authoringProjects';
 import { Svg } from '../../icons';
 import { preloadCatalog } from '../../catalogOnDemand';
 import { loadGraphics } from '../../../model/library';
@@ -9,6 +10,9 @@ import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/v
 
 interface Props {
   onTemplates: () => void;
+  onBlankGraphic: () => void;
+  pendingBlank: boolean;
+  canLeave: () => boolean;
   onImportGraphic: () => void;
   onAi: () => void;
   onVideo: () => void;
@@ -38,13 +42,15 @@ interface Props {
  *    docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18, 2026-07-23);
  *  - a card ACTS ON CLICK; the reference draws radio dots and a Continue button, which is a
  *    second press for a choice that has already been made unambiguously;
- *  - there is no Blank card. Blank's only outcome was the old code editor, which no door opens
- *    any more (owner, 2026-09-24).
+ *  - blank authoring is a separate editor door, without adding another start card.
  *
  * "Import graphics" is deliberately its own card and a MANUAL path — no AI anywhere in it.
  */
 export default function EntryStep({
   onTemplates,
+  onBlankGraphic,
+  pendingBlank,
+  canLeave,
   onImportGraphic,
   onAi,
   onVideo,
@@ -53,6 +59,8 @@ export default function EntryStep({
   onNewProduction,
 }: Props) {
   const { needsSignIn } = useAuthState();
+  const creatingBlank = useAuthoringProjects(s => s.busy), blankError = useAuthoringProjects(s => s.error);
+  const run = (action: () => void) => { if (canLeave()) action(); };
   const openSignIn = useAuthUi((s) => s.openSignIn);
   /** Is there anything to continue? Home holds graphics, productions and videos, so any of
    *  them counts. On a first-ever visit there is nothing, and offering the loudest card on
@@ -99,9 +107,11 @@ export default function EntryStep({
         </h1>
         {/* A normal link opts into the alpha on a fresh boot and is bookmarkable on any host.
             It opens the current graphic; it never creates or replaces a document. */}
-        <a className="wz-editor-alpha" href="/app?editor=foundation#/editor-foundation">
+        <div className="wz-editor-doors"><button onClick={onBlankGraphic} disabled={pendingBlank || creatingBlank}>Blank graphic</button>
+        <a className="wz-editor-alpha" aria-disabled={pendingBlank || undefined} onClick={e => { if (!canLeave()) e.preventDefault(); }} href="/app?editor=foundation#/editor-foundation">
           Open editor <span className="wz-beta-tag">Alpha</span>
-        </a>
+        </a></div>
+        {blankError && <p role="alert">{blankError}</p>}
         {/* THE INTRO IS THE OWNER'S, VERBATIM (2026-09-28): the product flow in reading order -
             make graphics first (the three ways the cards below offer), then use them however
             the production works. It names EVERY route to air - the browser source NoaCG plays
@@ -126,7 +136,7 @@ export default function EntryStep({
       {hasSavedWork && (
       <div className="wz-continue" data-testid="wz-continue">
         <div className="wz-continue-row">
-          <button className="wz-entry-card wz-continue-card" onClick={() => onHome(null)} data-entry="continue">
+          <button className="wz-entry-card wz-continue-card" disabled={pendingBlank} onClick={() => run(() => onHome(null))} data-entry="continue">
             <IconHome />
             <span className="wz-continue-text">
               <strong>Home</strong>
@@ -136,8 +146,8 @@ export default function EntryStep({
             </span>
           </button>
           <span className="wz-continue-jump">
-            <button onClick={() => onHome('graphics')} data-entry="continue-graphics">Graphics</button>
-            <button onClick={() => onHome('productions')} data-entry="continue-productions">Productions</button>
+            <button disabled={pendingBlank} onClick={() => run(() => onHome('graphics'))} data-entry="continue-graphics">Graphics</button>
+            <button disabled={pendingBlank} onClick={() => run(() => onHome('productions'))} data-entry="continue-productions">Productions</button>
           </span>
         </div>
       </div>
@@ -161,7 +171,7 @@ export default function EntryStep({
           first screen that hedges its doors is not understandable at once; the grey is the
           Video card's whole signal. */}
       <div className="wz-entry">
-        <button className="wz-entry-card" onClick={onTemplates} onPointerEnter={preloadCatalog} onFocus={preloadCatalog} data-entry="template">
+        <button className="wz-entry-card" disabled={pendingBlank} onClick={() => run(onTemplates)} onPointerEnter={preloadCatalog} onFocus={preloadCatalog} data-entry="template">
           <span className="wz-entry-head">
             <IconTemplate />
             <strong>Start from a template</strong>
@@ -172,7 +182,7 @@ export default function EntryStep({
             Pick a design, one graphic or a whole kit.
           </span>
         </button>
-        <button className="wz-entry-card" onClick={onImportGraphic} data-entry="import-graphic">
+        <button className="wz-entry-card" disabled={pendingBlank} onClick={() => run(onImportGraphic)} data-entry="import-graphic">
           <span className="wz-entry-head">
             <IconVector />
             <strong>Import graphics</strong>
@@ -186,7 +196,7 @@ export default function EntryStep({
             work too.
           </span>
         </button>
-        <button className="wz-entry-card" onClick={onAi} data-entry="ai">
+        <button className="wz-entry-card" disabled={pendingBlank} onClick={() => run(onAi)} data-entry="ai">
           <span className="wz-entry-head">
             <IconAgent />
             <strong>Create with AI</strong>
@@ -210,7 +220,8 @@ export default function EntryStep({
             as the description. */}
         <button
           className="wz-entry-card wz-entry-card--muted"
-          onClick={needsSignIn ? () => openSignIn('Sign in to try video or animation with AI.') : onVideo}
+          disabled={pendingBlank}
+          onClick={() => run(needsSignIn ? () => openSignIn('Sign in to try video or animation with AI.') : onVideo)}
           aria-label="Video or animation with AI"
           aria-describedby="wz-video-note"
           data-entry="video"
@@ -239,7 +250,8 @@ export default function EntryStep({
       <div className="wz-continue-row wz-playout" data-testid="wz-playout">
         <button
           className="wz-entry-card wz-continue-card"
-          onClick={() => onOpenPlayout(lastProduction?.id ?? null)}
+          disabled={pendingBlank}
+          onClick={() => run(() => onOpenPlayout(lastProduction?.id ?? null))}
           data-entry="open-playout"
         >
           <IconRundown />
@@ -262,7 +274,7 @@ export default function EntryStep({
           </span>
         </button>
         <span className="wz-continue-jump">
-          <button onClick={onNewProduction} data-entry="new-production">New production</button>
+          <button disabled={pendingBlank} onClick={() => run(onNewProduction)} data-entry="new-production">New production</button>
         </span>
       </div>
     </div>

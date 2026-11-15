@@ -2,6 +2,7 @@
 // covers: src/components/editorFoundation/projects.css, src/components/home/sections/ProjectsSection.tsx
 // covers: src/model/{project,authoringDocument,brandApplication,projectInstallation}.ts
 // covers: src/store/{authoringProjects,templateStore,saveActions}.ts, src/control/projectInstallation.ts
+// covers: src/templates/blank.ts, src/components/editorFoundation/startBlankGraphic.ts, src/components/wizard/steps/EntryStep.tsx
 // focus
 import { test, expect, type Page, type Locator } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -9,7 +10,8 @@ import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import { decodePng, findPixelsNear } from '../scripts/png-decode.mjs';
 import { seedAuthoringProject, editProjectText, flushAuthoringProject } from './_authoringProject';
-import { awaitDurableReady } from './_durable';
+import { ready as readyArtwork } from './_layerProperty';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage, durableValue } from './_storage';
 import { install as installHeldWrite, arm as armHeldWrite, releasable as heldWriteReady, release as releaseHeldWrite } from './_saveMatrix';
 
@@ -234,6 +236,21 @@ test('Home starts three chosen registry graphics and a created brand without cod
   await starter.getByRole('button', { name: 'Save brand', exact: true }).click();
   await expect(starter.getByLabel('Project brand', { exact: true }).locator('option:checked')).toHaveText('Harbour TV');
   await expect(starter.getByRole('checkbox', { checked: true })).toHaveCount(3);
+  const lowerThird = starter.locator('.project-starter-list label').filter({ has: page.locator('strong', { hasText: /^Lower third$/ }) });
+  await expect(lowerThird.getByRole('checkbox')).toHaveAccessibleName(/^Lower third\s+\S/);
+  await expect(lowerThird.locator('iframe')).toHaveAttribute('title', 'Underline preview');
+  await expect(lowerThird.frameLocator('iframe').locator('#f0')).toHaveText(/\S/);
+  const previewText = lowerThird.frameLocator('iframe').locator('#f0');
+  await expect.poll(() => previewText.evaluate(el => {
+    for (let node: Element | null = el; node; node = node.parentElement) {
+      const css = getComputedStyle(node);
+      if (Number(css.opacity) !== 1 || css.visibility === 'hidden' || css.display === 'none') return false;
+    }
+    return el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+  })).toBe(true);
+  const color = await previewText.evaluate(el => getComputedStyle(el).color.match(/\d+/g)!.slice(0, 3).map(Number));
+  const paintedPreview = decodePng(await lowerThird.locator('.wz-mini').screenshot({ path: info.outputPath('starter-settled-preview.png') }));
+  expect(findPixelsNear(paintedPreview, color as [number, number, number], 0).count, 'the real settled preview paints its field glyphs').toBeGreaterThan(0);
   await page.screenshot({ path: info.outputPath('starter-branded-three.png') });
   await starter.getByRole('button', { name: 'Create project · 3', exact: true }).click();
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
@@ -655,6 +672,7 @@ test('refused external retention and cancelled Home/starter switches keep the un
   await page.getByRole('button', { name: /^Project/ }).first().click();
   await page.getByRole('button', { name: 'New project', exact: true }).click();
   await expect(page.getByTestId('project-starter')).toBeVisible();
+  await page.getByTestId('project-starter').getByLabel('Starter collection', { exact: true }).selectOption('sports');
   await page.getByTestId('project-starter').getByRole('button', { name: /^Create project/ }).click();
   await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await page.getByTestId('switch-cancel').click();
@@ -1624,4 +1642,499 @@ for (const retirement of ['private-away-back', 'baseline-away-back', 'public-awa
     return { error: h.error, id: h.S.useTemplateStore.getState().documentId, template: h.S.useTemplateStore.getState().template,
       submissions: (window as unknown as { discardSubmissions: number }).discardSubmissions }; });
   expect(after.error).toBeTruthy(); expect(after.submissions).toBe(0); expect(after.id).toBe(before.id); expect(after.template).toEqual(before.template);
+});
+
+
+test('blank creation opens usable authoring directly', async ({ page }, info) => {
+  await page.goto('/app#/new');
+  await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Blank graphic', exact: true }).click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  const blank = await page.evaluate(async () => {
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { id: s.documentId, template: s.template, history: s.history, saved: s.saved };
+  });
+  expect(blank.template.name).toBe('Untitled graphic'); expect(blank.template.fields).toEqual([]);
+  expect(blank.history).toEqual([]); expect(blank.saved.graphicId).toBeNull();
+  await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
+  await readyArtwork(page);
+  const box = await page.locator('.ef-artboard').boundingBox(); expect(box).toBeTruthy();
+  await page.mouse.move(box!.x + box!.width * .35, box!.y + box!.height * .3); await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width * .6, box!.y + box!.height * .65, { steps: 5 }); await page.mouse.up();
+  await expect.poll(() => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.html)).not.toBe(blank.template.html);
+  await readyArtwork(page);
+  await page.getByRole('button', { name: 'text tool', exact: true }).click();
+  await page.mouse.move(box!.x + box!.width * .15, box!.y + box!.height * .2); await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width * .5, box!.y + box!.height * .35, { steps: 5 }); await page.mouse.up();
+  await page.getByRole('textbox', { name: 'Artwork text', exact: true }).fill('Blank stage artwork');
+  await page.getByRole('button', { name: 'Apply text', exact: true }).click();
+  const preview = page.frameLocator('iframe[title="Foundation graphic preview"]');
+  await expect(preview.getByText('Blank stage artwork', { exact: true })).toBeVisible();
+  const drawn = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(preview.getByText('Blank stage artwork', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect(preview.getByText('Blank stage artwork', { exact: true })).toBeVisible();
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(drawn);
+  await page.screenshot({ path: info.outputPath('blank-authored-text-and-drawing.png') });
+  await page.getByRole('button', { name: /New graphic/ }).click();
+  await page.getByTestId('switch-cancel').click();
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(drawn);
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Blank stage'); await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+  const saved = await page.evaluate(async () => {
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const w = (await __noacgImport('/src/store/authoringProjects.ts')).workspace();
+    return { template: s.template, graphic: s.saved.graphicId, project: w.projects.find(p => p.documents.includes(s.documentId))!.id };
+  });
+  expect(saved.graphic).toBeTruthy(); await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(saved.template);
+  await page.getByRole('button', { name: /New graphic/ }).click(); await page.getByRole('button', { name: 'Blank graphic', exact: true }).click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  const second = await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { id: s.documentId, fields: s.template.fields, history: s.history, graphic: s.saved.graphicId }; });
+  expect(second.id).not.toBe(blank.id); expect(second.fields).toEqual([]); expect(second.history).toEqual([]); expect(second.graphic).toBeNull();
+  await page.getByRole('button', { name: /^Project/ }).first().click(); await page.getByLabel('Open project', { exact: true }).selectOption(saved.project);
+  await page.locator(`[data-document="${blank.id}"]`).click();
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(saved.template);
+  await blankRenderedExports(page, info);
+});
+
+
+test('new project defaults to a durable blank graphic', async ({ page }) => {
+  await page.goto('/app?editor=foundation#/home');
+  await page.getByTestId('home-projects').getByRole('button', { name: 'New project', exact: true }).click();
+  const starter = page.getByTestId('project-starter');
+  await expect(starter.getByLabel('Starter collection', { exact: true })).toHaveValue('');
+  await starter.getByLabel('Project name', { exact: true }).fill('Empty show');
+  await starter.getByRole('button', { name: 'Create blank project', exact: true }).click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  const state = await page.evaluate(async () => {
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const w = (await __noacgImport('/src/store/authoringProjects.ts')).workspace();
+    return { id: s.documentId, source: s.template, project: w.projects.find(p => p.name === 'Empty show') };
+  });
+  expect(state.project?.documents).toEqual([state.id]); expect(state.source.fields).toEqual([]);
+  await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(state.source);
+});
+
+test('blank creation reports a durable refusal without replacing the current graphic', async ({ page }) => {
+  await armStorageFailure(page); await page.goto('/app#/new'); await awaitDurableReady(page);
+  const before = await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { id: s.documentId, source: s.template, history: s.history }; });
+  await fillStorage(page); await page.getByRole('button', { name: 'Blank graphic', exact: true }).click();
+  await expect(page.getByTestId('creation-wizard').getByRole('alert')).toBeVisible();
+  const after = await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { id: s.documentId, source: s.template, history: s.history }; });
+  expect(after).toEqual(before); await freeStorage(page);
+});
+
+async function blankState(page: Page) {
+  return page.evaluate(async () => {
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
+    return { id: s.documentId, source: s.template, baseline: s.baseline, history: s.history, future: s.future,
+      saved: s.saved, workspace: P.workspace(), busy: P.useAuthoringProjects.getState().busy };
+  });
+}
+
+async function blankEntry(page: Page, dirty = false) {
+  await page.goto('/app?editor=foundation#/home');
+  await page.getByTestId('home-page').locator('[data-door="new-graphic"]').click();
+  await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeVisible();
+  if (dirty) {
+    // Controlled unsaved-source setup, not navigation: every departure below uses the UI/router.
+    await page.evaluate(async () => {
+      const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+      s.applyTemplate({ ...s.template, css: s.template.css + '\n/* Original requested draft */' }, { keepGalleryOpen: true });
+      (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject();
+    });
+  }
+  // Establish the exact current compatibility slot before arming I. On a first boot the
+  // core's preliminary slot write is outside its awaited workspace receipt capture.
+  await page.evaluate(async () => {
+    const S = await __noacgImport('/src/store/templateStore.ts');
+    const M = await __noacgImport('/src/model/project.ts');
+    const s = S.useTemplateStore.getState();
+    M.saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility, S.captureProjectDocument(s, false));
+  });
+  await settleDurableWrites(page);
+}
+
+for (const cancel of ['button', 'escape', 'close-name', 'escape-name'] as const) test(`requested blank ${cancel} keeps the original bundle`, async ({ page }) => {
+  await blankEntry(page, true);
+  const before = await blankState(page);
+  await page.getByRole('button', { name: 'Blank graphic', exact: true }).click();
+  await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  if (cancel === 'button') await page.getByTestId('switch-cancel').click();
+  else if (cancel === 'escape') await page.keyboard.press('Escape');
+  else {
+    await page.getByTestId('switch-save').click();
+    if (cancel === 'escape-name') await page.keyboard.press('Escape');
+    else await page.getByTestId('save-dialog').getByTitle('Cancel', { exact: true }).click();
+  }
+  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeEnabled();
+  expect(await blankState(page)).toEqual(before);
+  // A fresh request is possible and does not inherit the cancelled destination.
+  await page.getByRole('button', { name: 'Blank graphic', exact: true }).click();
+  await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await page.getByTestId('switch-cancel').click();
+});
+
+test('requested blank held Save cannot revive after accepted Home and back to Entry', async ({ page }, info) => {
+  await blankEntry(page, true);
+  const before = await blankState(page);
+  await installHeldWrite(page); await armHeldWrite(page, 'L', 'hold');
+  await page.getByRole('button', { name: 'Blank graphic', exact: true }).click();
+  await page.getByTestId('switch-save').click();
+  await page.getByTestId('save-name').fill('Original requested draft');
+  await page.getByTestId('save-confirm').click(); await heldWriteReady(page);
+  // Both moves must actually be accepted; matching the final path alone proves nothing.
+  await page.evaluate(() => history.back());
+  await expect(page).toHaveURL(/#\/home$/);
+  await expect(page.getByTestId('creation-wizard')).toHaveCount(0);
+  await page.evaluate(() => history.forward());
+  await expect(page).toHaveURL(/#\/new$/);
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await releaseHeldWrite(page);
+  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+  const after = await blankState(page);
+  expect(after.id).toBe(before.id); expect(after.source.css).toBe(before.source.css);
+  expect(after.workspace.projects).toEqual(before.workspace.projects);
+  expect(after.workspace.documents.map(d => d.id)).toEqual(before.workspace.documents.map(d => d.id));
+  expect(after.busy).toBe(false); expect(after.saved.graphicId).toBeTruthy();
+  await expect(page).toHaveURL(/#\/new$/);
+  await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeEnabled();
+  writeFileSync(info.outputPath('requested-blank-away-back.json'), JSON.stringify({ before, after }, null, 2));
+});
+
+test('accepted blank held creation declines competing controls and routing without replay', async ({ page }, info) => {
+  await blankEntry(page);
+  // Leave a real forward Home entry as well as a backward Home entry.
+  await page.getByTestId('wz-home').click();
+  await expect(page).toHaveURL(/#\/home$/);
+  await page.evaluate(() => history.back());
+  await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeVisible();
+  await settleDurableWrites(page);
+  const before = await blankState(page);
+  await installHeldWrite(page); await armHeldWrite(page, 'I', 'hold');
+  await page.getByRole('button', { name: 'Blank graphic', exact: true }).click(); await heldWriteReady(page);
+  await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeDisabled();
+  await expect(page.getByTestId('wz-home')).toBeDisabled();
+  await expect(page.getByTestId('creation-wizard').locator('.gallery-close')).toBeDisabled();
+  for (const entry of ['template', 'import-graphic', 'ai', 'video', 'open-playout', 'new-production']) {
+    await expect(page.locator(`[data-entry="${entry}"]`)).toBeDisabled();
+    await page.locator(`[data-entry="${entry}"]`).evaluate((el: HTMLButtonElement) => el.click());
+  }
+  await page.getByRole('button', { name: 'Blank graphic', exact: true }).evaluate((el: HTMLButtonElement) => el.click());
+  await page.keyboard.press('Escape');
+  for (const direction of ['forward', 'back'] as const) {
+    await page.evaluate(direction => new Promise<void>(resolve => {
+      window.addEventListener('popstate', () => resolve(), { once: true }); history[direction]();
+    }), direction);
+    await expect(page).toHaveURL(/#\/new$/);
+  }
+  await page.evaluate(() => new Promise<void>(resolve => {
+    window.addEventListener('hashchange', () => resolve(), { once: true }); location.hash = '#/home';
+  }));
+  await expect(page).toHaveURL(/#\/new$/);
+  const held = await blankState(page);
+  expect(held.id).toBe(before.id); expect(held.source).toEqual(before.source); expect(held.history).toEqual(before.history);
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await releaseHeldWrite(page);
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  const after = await blankState(page);
+  expect(after.id).not.toBe(before.id); expect(after.saved.graphicId).toBeNull();
+  expect(after.history).toEqual([]); expect(after.future).toEqual([]); expect(after.source).toEqual(after.baseline);
+  expect(after.workspace.projects).toHaveLength(before.workspace.projects.length + 1);
+  expect(after.workspace.projects.at(-1)!.documents).toEqual([after.id]); expect(after.busy).toBe(false);
+  // The declined moves were not queued; an explicit post-settlement Home/New works normally.
+  await page.getByTestId('open-home').click(); await expect(page).toHaveURL(/#\/home$/);
+  await page.getByTestId('home-page').locator('[data-door="new-graphic"]').click();
+  await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeEnabled();
+  writeFileSync(info.outputPath('accepted-blank-held-creation.json'), JSON.stringify({ before, held, after }, null, 2));
+});
+
+for (const changed of ['source', 'newer-gate'] as const) test(`accepted blank ${changed} refuses stale presentation and releases only its gate`, async ({ page }) => {
+  await blankEntry(page);
+  await installHeldWrite(page); await armHeldWrite(page, 'I', 'hold');
+  await page.getByRole('button', { name: 'Blank graphic', exact: true }).click(); await heldWriteReady(page);
+  const changedSource = await page.evaluate(async changed => {
+    if (changed === 'newer-gate') {
+      const { guardNavigation } = await __noacgImport('/src/app/router.ts');
+      const host = window as unknown as { releaseBlankTestGate: () => void; blankTestGateCalls: number };
+      host.blankTestGateCalls = 0;
+      host.releaseBlankTestGate = guardNavigation(() => { host.blankTestGateCalls++; });
+    }
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    s.applyTemplate({ ...s.template, css: s.template.css + '\n/* Newer live draft stays */' }, { keepGalleryOpen: true });
+    return s.documentId;
+  }, changed);
+  await releaseHeldWrite(page);
+  await expect(page.getByTestId('creation-wizard').getByRole('alert')).toContainText('changed');
+  const after = await blankState(page);
+  expect(after.id).toBe(changedSource); expect(after.source.css).toContain('Newer live draft stays'); expect(after.busy).toBe(false);
+  await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeEnabled();
+  await page.evaluate(async () => (await __noacgImport('/src/app/router.ts')).useRouter.getState().navigate({ view: 'home' }));
+  if (changed === 'newer-gate') {
+    await expect(page).toHaveURL(/#\/new$/);
+    expect(await page.evaluate(() => (window as unknown as { blankTestGateCalls: number }).blankTestGateCalls)).toBe(1);
+    await page.evaluate(() => (window as unknown as { releaseBlankTestGate: () => void }).releaseBlankTestGate());
+    await page.getByTestId('wz-home').click();
+  }
+  await expect(page).toHaveURL(/#\/home$/);
+});
+
+async function blankRenderedExports(page: Page, info: import('@playwright/test').TestInfo) {
+  const source = (await blankState(page)).source;
+  const outputs = await page.evaluate(async () => {
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const targets = (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS;
+    const out = [];
+    for (const id of ['spx', 'casparcg', 'html-overlay', 'ograf']) {
+      const zip = await targets.find(t => t.id === id)!.build(t);
+      out.push({ id, base64: await zip.generateAsync({ type: 'base64' }) });
+    }
+    return out;
+  });
+  const receipts = [];
+  for (const output of outputs) {
+    const bytes = Buffer.from(output.base64, 'base64');
+    writeFileSync(info.outputPath(`blank-${output.id}.zip`), bytes);
+    const zip = await JSZip.loadAsync(bytes), names = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+    const files = Object.fromEntries(await Promise.all(names.map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('nodebuffer')])));
+    const receiver = await page.context().newPage();
+    await receiver.setViewportSize(source.resolution);
+    const errors: string[] = [], missing: string[] = [];
+    receiver.on('pageerror', error => errors.push(error.message));
+    await receiver.route('http://blank-output.invalid/**', route => {
+      const name = decodeURIComponent(new URL(route.request().url()).pathname.slice(1)), body = files[name];
+      if (!body && name && name !== 'relay/ping' && name !== 'favicon.ico') missing.push(name);
+      return route.fulfill({ status: body ? 200 : name ? 404 : 200,
+        contentType: /\.m?js$/.test(name) ? 'text/javascript' : /\.css$/.test(name) ? 'text/css' : /\.woff2$/.test(name) ? 'font/woff2' : 'text/html',
+        body: body ?? '' });
+    });
+    try {
+      if (output.id === 'ograf') {
+        await receiver.goto('http://blank-output.invalid/');
+        await receiver.evaluate(async () => {
+          const mod = await import('http://blank-output.invalid/graphic.mjs');
+          customElements.define('blank-graphic', mod.default);
+          const el = document.createElement('blank-graphic') as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown> };
+          document.body.appendChild(el); await el.load({ data: {} }); await el.playAction({});
+        });
+      } else {
+        await receiver.goto('http://blank-output.invalid/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
+        await receiver.evaluate(() => (window as unknown as { play(): void }).play());
+      }
+      await receiver.evaluate(() => document.fonts.ready);
+      await expect(receiver.getByText('Blank stage artwork', { exact: true })).toBeVisible();
+      const text = receiver.getByText('Blank stage artwork', { exact: true });
+      const textImage = decodePng(await text.screenshot({ path: info.outputPath(`blank-${output.id}-text.png`), omitBackground: true }));
+      expect(findPixelsNear(textImage, [255, 255, 255], 0).count, 'export paints authored text').toBeGreaterThan(0);
+      await expect(receiver.locator('#rectangle-1')).toBeVisible();
+      const frame = decodePng(await receiver.screenshot({ path: info.outputPath(`blank-${output.id}-frame.png`), omitBackground: true }));
+      expect([frame.width, frame.height]).toEqual([source.resolution.width, source.resolution.height]);
+      const geometry = await text.evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height, font: getComputedStyle(el).fontFamily }; });
+      expect(geometry.width).toBeGreaterThan(0); expect(geometry.height).toBeGreaterThan(0);
+      const host = await receiver.locator(output.id === 'ograf' ? 'blank-graphic' : 'body').evaluate(el => {
+        const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height, bodyMargin: getComputedStyle(document.body).margin };
+      });
+      const normalized = { ...geometry, x: geometry.x - host.x, y: geometry.y - host.y };
+      const rectangle = await receiver.locator('#rectangle-1').evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+      expect({ ...rectangle, x: rectangle.x - host.x, y: rectangle.y - host.y }).toEqual({ x: 672, y: 324, width: 480, height: 378 });
+      if (receipts.length) expect(normalized).toEqual(receipts[0].normalized);
+      if (output.id === 'ograf') await receiver.evaluate(async () => {
+        await (document.querySelector('blank-graphic') as HTMLElement & { stopAction(p: unknown): Promise<unknown> }).stopAction({});
+      });
+      else await receiver.evaluate(() => (window as unknown as { stop(): void }).stop());
+      expect(errors).toEqual([]); expect(missing).toEqual([]);
+      receipts.push({ target: output.id, host, normalized, rectangle, zipSha256: createHash('sha256').update(bytes).digest('hex'), geometry,
+        bundledFonts: names.filter(n => n.endsWith('.woff2')).map(n => ({ path: n, sha256: createHash('sha256').update(files[n.slice(n.indexOf('/') + 1)]).digest('hex') })) });
+    } finally { await receiver.close(); }
+  }
+  expect((await blankState(page)).source).toEqual(source);
+  writeFileSync(info.outputPath('blank-export-receipt.json'), JSON.stringify({ source, receipts, browserOnly: true }, null, 2));
+}
+
+for (const [width, height, fps] of [[1280, 720, 25], [1920, 1080, 25], [3840, 2160, 60]] as const) test(`blank generated source is empty transparent and unit-coordinate ${width}x${height}@${fps}`, async ({ page }, info) => {
+  await page.goto('/app#/home');
+  const generated = await page.evaluate(async ({ width, height, fps }) => {
+    const { createAuthoringBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
+    const { createLook } = await __noacgImport('/src/model/packets.ts');
+    const { applyDocumentBrand } = await __noacgImport('/src/model/brandApplication.ts');
+    const { setCssDeclaration } = await __noacgImport('/src/blocks/edit.ts');
+    const t = createAuthoringBlankTemplate({ width, height }, fps);
+    const look = createLook('Blank studio', { styleTag: 'minimal', fontId: 'inter', customFont: null,
+      palette: { id: 'custom', name: 'Opaque brand', styleTags: ['minimal'], accent: '#16bb99', text: '#ffffff', textDim: '#b8c4d6', panel: '#c02040' } });
+    const branded = applyDocumentBrand(t, look);
+    const target = (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === 'html-overlay')!;
+    const result = [];
+    for (const [kind, template] of [['plain', t], ['branded', branded]] as const) {
+      const zip = await target.build(template);
+      result.push({ kind, template, files: Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')]))),
+        styled: setCssDeclaration(template.css, '.imported-design-art', 'background', '#c02040') });
+    }
+    return result;
+  }, { width, height, fps });
+  const receipts = [];
+  for (const item of generated) {
+    expect(item.template.name).toBe('Untitled graphic'); expect(item.template.type).toBe('imported-design');
+    expect(item.template.resolution).toEqual({ width, height }); expect(item.template.fps).toBe(fps);
+    expect(item.template.fields).toEqual([]); expect(item.template.layers).toEqual([]); expect(item.template.assets).toEqual([]);
+    expect(item.styled).toContain('background: #c02040'); expect(item.styled).not.toContain('!important');
+    const receiver = await page.context().newPage(); await receiver.setViewportSize({ width, height });
+    await receiver.route('http://empty-blank.invalid/**', route => {
+      const name = decodeURIComponent(new URL(route.request().url()).pathname.slice(1)), body = item.files[name];
+      return route.fulfill({ status: body ? 200 : 404,
+        contentType: /\.m?js$/.test(name) ? 'text/javascript' : /\.css$/.test(name) ? 'text/css' : /\.woff2$/.test(name) ? 'font/woff2' : 'text/html',
+        body: body ? Buffer.from(body, 'base64') : '' });
+    });
+    try {
+      await receiver.goto('http://empty-blank.invalid/' + Object.keys(item.files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
+      await receiver.evaluate(() => { (window as unknown as { play(): void }).play(); });
+      await expect(receiver.locator('.imported-design')).toHaveCSS('opacity', '1');
+      await expect(receiver.locator('.imported-design-box')).toHaveCSS('opacity', '1');
+      const geometry = await receiver.locator('.imported-design-art').evaluate(el => {
+        const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height,
+          scale: Number(getComputedStyle(el).getPropertyValue('--scale')), background: getComputedStyle(el).backgroundColor };
+      });
+      expect(geometry).toEqual({ x: 0, y: 0, width, height, scale: 1, background: 'rgba(0, 0, 0, 0)' });
+      const png = decodePng(await receiver.screenshot({ path: info.outputPath(`blank-${item.kind}-empty.png`), omitBackground: true }));
+      let painted = 0;
+      for (let y = 0; y < png.height; y++) for (let x = 0; x < png.width; x++) if (png.pixel(x, y)[3] !== 0) painted++;
+      expect(painted, 'the fully entered unbranded/branded blank paints no content').toBe(0);
+      receipts.push({ kind: item.kind, geometry, painted });
+    } finally { await receiver.close(); }
+  }
+  writeFileSync(info.outputPath('blank-zero-paint-receipt.json'), JSON.stringify(receipts, null, 2));
+});
+
+for (const dialog of ['save', 'confirm'] as const) test(`requested blank busy ${dialog} exclusively owns Escape`, async ({ page }) => {
+  await blankEntry(page, true);
+  if (dialog === 'confirm') {
+    // A linked draft uses the confirmation's own busy Save path; no router state is mocked.
+    await page.evaluate(async () => {
+      const r = await (await __noacgImport('/src/store/saveActions.ts')).saveGraphicAs('Original linked draft', { kind: 'standalone' });
+      if (!r.ok) throw new Error(r.error!);
+      const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+      s.setCss(s.template.css + '\n/* New linked draft */');
+      (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject();
+    });
+    await settleDurableWrites(page);
+  }
+  await installHeldWrite(page); await armHeldWrite(page, 'L', 'hold');
+  await page.getByRole('button', { name: 'Blank graphic', exact: true }).click();
+  await page.getByTestId('switch-save').click();
+  if (dialog === 'save') { await page.getByTestId('save-name').fill('Held blank prerequisite'); await page.getByTestId('save-confirm').click(); }
+  await heldWriteReady(page); const held = await blankState(page);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId(dialog === 'save' ? 'save-dialog' : 'confirm-switch')).toBeVisible();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  expect((await blankState(page)).id).toBe(held.id); expect((await blankState(page)).workspace.projects).toEqual(held.workspace.projects);
+  await releaseHeldWrite(page); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  expect((await blankState(page)).id).not.toBe(held.id);
+});
+
+test('blank legacy factory retains exact historical emissions', async ({ page }, info) => {
+  await page.goto('/app#/home');
+  const actual = await page.evaluate(async () => {
+    const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
+    return [createBlankTemplate(), createBlankTemplate({ width: 1280, height: 720 }, 25), createBlankTemplate({ width: 3840, height: 2160 }, 60)].map(t => JSON.stringify(t));
+  });
+  // Frozen pre-feature outputs: these are callers' legacy contract, not new authoring blanks.
+  const expected = [[2714, '8c599674e99888947be22cefb51cbc7c21108099e57d6cb7dff165e565f17d37'],
+    [2683, '7fe44286d307d489236741b83c9689d984e32aa46eff574f60c63b875180f4e5'],
+    [2685, '8a27a70f1de1bf06b8deec9baad2b5be919c5ddb571eff81b6307b6254ccddf7']];
+  const measured = actual.map(t => [Buffer.byteLength(t), createHash('sha256').update(t).digest('hex')]);
+  expect(measured).toEqual(expected);
+  writeFileSync(info.outputPath('blank-legacy-emissions.json'), JSON.stringify(measured, null, 2));
+});
+
+test('production-origin blank authoring preserves installed copies until explicit installation', async ({ page }, info) => {
+  await seedAuthoringProject(page, ['lt01']);
+  const setup = await page.evaluate(async () => {
+    const A = await __noacgImport('/src/store/saveActions.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
+    const D = await __noacgImport('/src/model/durableStore.ts');
+    const L = await __noacgImport('/src/model/library.ts');
+    const saved = await A.saveGraphicAs('Existing installed master', { kind: 'standalone' });
+    if (!saved.ok) throw new Error(saved.error!);
+    const show = S.createShowNamedChecked('Production blank boundary').show;
+    await D.commitDurableWrites();
+    await (await __noacgImport('/src/control/projectInstallation.ts')).installProjectGraphics(show.id, [saved.graphicId!]);
+    const installed = structuredClone(S.loadShows().find(s => s.id === show.id)!);
+    (await __noacgImport('/src/app/router.ts')).useRouter.getState().navigate({ view: 'production', id: show.id });
+    return { show: installed, master: L.graphicById(saved.graphicId!)! };
+  });
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-new-graphic').click();
+  await page.getByRole('button', { name: 'Blank graphic', exact: true }).click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible(); await readyArtwork(page);
+  await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
+  const art = (await page.locator('.ef-artboard').boundingBox())!;
+  await page.mouse.move(art.x + art.width * .2, art.y + art.height * .2); await page.mouse.down();
+  await page.mouse.move(art.x + art.width * .4, art.y + art.height * .4, { steps: 5 }); await page.mouse.up(); await readyArtwork(page);
+  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('New production blank'); await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  const saved = await blankState(page);
+  const untouched = await page.evaluate(async id => {
+    const S = await __noacgImport('/src/model/shows.ts'), L = await __noacgImport('/src/model/library.ts');
+    return { show: S.loadShows().find(s => s.id === id.show)!, master: L.graphicById(id.master)! };
+  }, { show: setup.show.id, master: setup.master.id });
+  expect(untouched).toEqual(setup);
+  await page.getByRole('button', { name: /^Project/ }).first().click();
+  await page.locator(`[data-document="${saved.id}"]`).locator('..').getByRole('checkbox').check();
+  await page.getByLabel('Install into production', { exact: true }).selectOption(setup.show.id);
+  await page.getByRole('button', { name: 'Install selected', exact: true }).click();
+  await expect(page.getByTestId('project-note')).toHaveText('Installed 1 selected graphics.');
+  const installed = await page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, setup.show.id);
+  expect(installed.graphics).toHaveLength(2); expect(installed.graphics[0]).toEqual(setup.show.graphics[0]);
+  expect(installed.graphics[1].template).toEqual(saved.source); expect(installed.graphics[1].graphicId).toBe(saved.saved.graphicId);
+  await page.getByRole('button', { name: /^Project/ }).first().click();
+  // First-Save name adoption is an external source reset. Exercise a fresh ordinary edit
+  // in the current binding, rather than assuming private Undo crosses that older boundary.
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
+  await page.getByTestId('foundation-canvas').focus(); await page.keyboard.press('ArrowRight'); await readyArtwork(page);
+  const edited = (await blankState(page)).source;
+  expect(edited).not.toEqual(saved.source);
+  await page.getByTestId('save-graphic').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  const masters = await page.evaluate(async ids => {
+    const L = await __noacgImport('/src/model/library.ts');
+    return { old: L.graphicById(ids.old)!, edited: L.graphicById(ids.edited)! };
+  }, { old: setup.master.id, edited: saved.saved.graphicId! });
+  expect(masters.old).toEqual(setup.master); expect(masters.edited.template).toEqual(edited);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await readyArtwork(page);
+  expect((await blankState(page)).source).toEqual(saved.source);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click(); await readyArtwork(page);
+  expect((await blankState(page)).source).toEqual(edited);
+  expect(await page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, setup.show.id)).toEqual(installed);
+  expect(await page.evaluate(async id => (await __noacgImport('/src/model/library.ts')).graphicById(id)!, setup.master.id)).toEqual(setup.master);
+  await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  expect((await blankState(page)).source).toEqual(edited);
+  expect(await page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, setup.show.id)).toEqual(installed);
+  writeFileSync(info.outputPath('blank-production-independence.json'), JSON.stringify({ setup, saved, installed, edited, masters }, null, 2));
+});
+
+test('accepted blank owner change preserves the live draft and refuses stale presentation', async ({ page }, info) => {
+  await blankEntry(page); const before = await blankState(page);
+  await installHeldWrite(page); await armHeldWrite(page, 'I', 'hold');
+  await page.getByRole('button', { name: 'Blank graphic', exact: true }).click(); await heldWriteReady(page);
+  // Isolated local IndexedDB owner fixture, not authentication or a real account operation.
+  const owner = await page.evaluate(async () => {
+    const D = await __noacgImport('/src/model/durableStore.ts');
+    if (!D.isDurableStoreActive() || D.libraryInUse() !== null) throw new Error('Owner fixture requires isolated signed-out IndexedDB.');
+    const adopted = await D.adoptSignedOutLibrary('blank-owner-fixture');
+    return { adopted, owner: D.libraryInUse() };
+  });
+  expect(owner).toEqual({ adopted: true, owner: 'blank-owner-fixture' });
+  const current = await blankState(page); // The adopted owner's legitimate live bundle, before old completion.
+  await releaseHeldWrite(page);
+  await expect(page.getByTestId('creation-wizard').getByRole('alert')).toContainText('library changed');
+  const after = await blankState(page);
+  expect(after.id).toBe(current.id); expect(after.source).toEqual(current.source); expect(after.baseline).toEqual(current.baseline);
+  expect(after.history).toEqual(current.history); expect(after.future).toEqual(current.future); expect(after.saved).toEqual(current.saved);
+  expect(after.busy).toBe(false); await expect(page).toHaveURL(/#\/new$/);
+  await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeEnabled();
+  writeFileSync(info.outputPath('blank-owner-change.json'), JSON.stringify({ before, current, after, owner, fixtureOnly: true }, null, 2));
 });
