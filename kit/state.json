@@ -1504,7 +1504,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Originalbuilder preparesboundedbuilt diagnosticprotocol only afterCANNOTJUDGE; noimplementation/phasePASS",
+    "what": "Originalbuilder executesADMITTED boundedBUILT APIcase diagnostic only; stopfirstfailure/INCONCLUSIVEifallpass; no implementation",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4691,7 +4691,18 @@
               },
               "limits": "Historicalmatchdoesnotproveidenticalcause or nofailure-rate effect; currentbaseonepassnotcausalabsenceproof; noqueuewaiver"
             },
-            "artifactTransport": "Twoexplicitpermissionroutes URLError/OSError beforebytes; stoproute, no localtrace or artifactsourceclaim"
+            "artifactTransport": "Twoexplicitpermissionroutes URLError/OSError beforebytes; stoproute, no localtrace or artifactsourceclaim",
+            "diagnosticAdmission": {
+              "actor": "/root/editor_e5f_cloud_builder",
+              "proposal": "blank-pr2579-built-diagnostic-proposal-20261115.md",
+              "proposalSHA256": "5f03ced623aabc21d7caa1f0559c03a6d33fe5dd0469591fcfaeb926021373b7",
+              "brief": "briefs/e5f-blank-built-diagnostic-admission-20261115.txt",
+              "briefSHA256": "64cfe5b00797536665398a409ea049fdd7149cd96aecbb4e0fe76168338be1cf",
+              "repeatCount": "10initial/head, basefirst; atmost20;1worker/maxfailures1",
+              "reason": "Smallboundedtracecollection only; zeroINCONCLUSIVE notrateproof",
+              "budget": "Atmost2sequentialcap5jobs incloneE2Ebuild/head; anyfailurestops beforefeature ifbasefails",
+              "scope": "Diagnostic only; no productrepair or phasecheckallowance"
+            }
           }
         },
         "proofArchive": {
