@@ -1,0 +1,5 @@
+{
+  "at": "2026-11-15T20:42:00Z",
+  "ownerWords": "yes. and Resume editor-r1-5, issue #2295, PR #2579. Read /workspace/noacg-editor-r1-5-state/a0e9aa58/LOCAL-STOP-20261115.json first. Reconcile the final causal assessment and checkpoint-publication block before further work. Preserve every stop and attempt; keep local work last. Inherit model/effort. No parallel E4 edits while failed WIP remains retained.",
+  "scope": "Explicit answer yes to publishing the saved checkpoint including internal diagnostics/session metadata to existing PUBLIC repository recovery branch; no new diagnostic/patch/requeue or E4 allowance."
+}

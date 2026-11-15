@@ -1,0 +1,26 @@
+CANNOT JUDGE
+
+The new evidence identifies the immediate failure in base diagnostic j-0239: Chromium rejected the original API evaluation with Promise was collected. It does not establish why that promise became collectible, a missing application completion, or the original queue failure’s underlying cause.
+
+I inspected the frozen base worktree at 3b06afdf39905ea728d2fd846de3ed7b7bbb7dd0; it remains clean. Feature head remains 62e4523…. This is a focused causal delta under action13, not another full review.
+
+- Original API call: whole-log line2566 sends Runtime.callFunctionOn id50 using main-frame context3. Line2618 returns -32000 Promise was collected. No destruction of context3 is recorded.
+- Separate screenshot call: line2646 sends id54 in child-frame utility context16. That context is destroyed at line2658; line2676 returns Cannot find context with specified id. This later error does not explain id50.
+- Playwright coreBundle.js:35099 error rewriting converts id50's rejection into the misleading generic navigation message.
+
+The bounded source review found no concrete missing-settlement path:
+- src/store/authoringProjects.ts:147 openProjectDocument awaits persistence before restoring target.
+- src/store/authoringProjects.ts:102 persist awaits captured durable receipts.
+- src/model/durableStore.ts:219 commitDurableReceipt awaits each receipt; :673 trackWrite retains unsettled receipts and pending writes.
+- src/model/durableStore.ts:371 IndexedDB write handles synchronous failures and transaction completion/error/abort.
+- src/store/authoringProjects.ts:120 action awaits operation, catches errors and clears busy in finally.
+
+These source paths do not prove that this occurrence completed. Raw protocol lacks application-level evidence locating its final completed or pending step.
+
+The saved Playwright maintainer warning https://github.com/microsoft/playwright/issues/41826#issuecomment-5020745031 is relevant caution, not attribution to NoaCG: retaining an otherwise unresolvable promise can replace evaluation error with a hang. Promise-retention patch unsupported, as are changes to preview replacement, persistence or test assertions.
+
+Established classification: pre-existing failure signature, observed promise-collection rejection at automation boundary. Application state-rule defect, faulty oracle, infrastructure outage, E4 defect and identical queue mechanism remain unproven.
+
+Terminal recommendation: no implementation change from this evidence. Preserve original red; give coordinator existing incident/base-control evidence for established disposition. No concrete defect warrants further source expansion/repair from this bounded review. No queue waiver or E4 repair authority.
+
+Both diagnostic jobs exhausted:3base samples1PASS2FAIL,onebundle;feature0. No new execution, edits, agents, phase checks or allowance resets occurred.
