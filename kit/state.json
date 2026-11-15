@@ -1504,7 +1504,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Sameoriginalbuilder resumes diagnosticafterreviewedownedfolderIO correction; stillbasefirst/stopfirstfailure/noimplementation",
+    "what": "Sameoriginalbuilder correctsconfirmedignoredmanifestABSENT semantics beforefirstdiagnosticjob; originalcaps/counts unchanged",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -4709,6 +4709,12 @@
               "rootReconciliation": "Actualexistingparent e5f.local directory0700; childabsent, sourceclean62e. RootcreatedONLYignoredchild underrequire_escalated anddisposableIO passed; no sourcewrite",
               "correction": "Useactualexistingownedevidenceparent/child scope orqualifiedrequire_escalated forownedstate/worktree mutations; do notrepeatknownnetworkdenial",
               "resume": "SAME exactadmission64cfe5b0/count/caps; beforefirst enqueue, no test/buildretry ornewcampaign"
+            },
+            "diagnosticManifestStop": {
+              "error": "Manifestauthoring FileNotFoundError: newfeature-onlystartBlankGraphic.ts correctlyabsent atbase3b; beforefirstjob/build/browser",
+              "rootRead": "ControlHEAD3b/clean; filesystemfalse +gitcatfilefalse fornewhelper; expectedABSENT confirmed. Controlonly3ignoredobserver/configfiles; depsdistinctcopy completed.",
+              "counts": "0/2jobs,0/20samples; exceptionretained, no productattemptreset",
+              "correction": "RecordABSENT onlywhereexactGitcommitdoesnotcontainpath; validatepresence matchesworktree. Nevercopynewhelperintobase. Finishsameignoredmanifests/configs andhashbeforeenqueue. PassiveURLobserver preserveonlyeditor=foundation flagratherthanincorrecteditor=1, no secrets."
             }
           }
         },
