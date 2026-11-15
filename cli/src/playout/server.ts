@@ -367,7 +367,9 @@ export function readAction(body: Record<string, unknown>): VmixAction {
     throw new UsageError('A vMix take or out can name the current input by key. Only take can expect an empty overlay.');
   }
   const expectedPlayer = a.expectedPlayerInstance;
-  const guardedPlayer = a.verb === 'out-player-instance' || a.verb === 'out-player-held' ||
+  const fadedPlayerOut = a.verb === 'out-player-fade-held';
+  const playerEnding = a.verb === 'ending-player-held';
+  const guardedPlayer = fadedPlayerOut || playerEnding || a.verb === 'out-player-instance' || a.verb === 'out-player-held' ||
     a.verb === 'pause-player-held' || a.verb === 'resume-player-held';
   if ((guardedPlayer || expectedPlayer !== undefined) && (!guardedPlayer || slot.adapter !== 'vmix' || !('player' in slot) ||
     typeof expectedPlayer !== 'string' || !/^[a-z0-9._-]{1,128}$/i.test(expectedPlayer))) {
@@ -376,8 +378,9 @@ export function readAction(body: Record<string, unknown>): VmixAction {
   if (a.imageFit !== undefined && (a.verb !== 'take' || (a.imageFit !== 'fit' && a.imageFit !== 'stretch') || slot.adapter !== 'casparcg')) throw new UsageError('imageFit is Fit or Stretch on a CasparCG media Take.');
   // A field on the wrong verb is refused rather than dropped: a level on an update would otherwise
   // look applied and change nothing (docs/CLIP_PLAYBACK_PLAN.md §6.6, a level applies at the next Take).
-  if (a.playback !== undefined && a.verb !== 'take' && a.verb !== 'ending') throw new UsageError(`A ${String(a.verb)} carries no playback: a clip's ending, fades, level and trim go with its Take.`);
-  if (a.fadeOut !== undefined && a.verb !== 'out') throw new UsageError(`A ${String(a.verb)} carries no fadeOut: only Out fades a clip away.`);
+  if (a.playback !== undefined && a.verb !== 'take' && a.verb !== 'ending' && !playerEnding) throw new UsageError(`A ${String(a.verb)} carries no playback: a clip's ending, fades, level and trim go with its Take.`);
+  if (fadedPlayerOut && a.fadeOut === undefined) throw new UsageError('A faded vMix Out requires its fade duration.');
+  if (a.fadeOut !== undefined && a.verb !== 'out' && !fadedPlayerOut) throw new UsageError(`A ${String(a.verb)} carries no fadeOut: only Out fades a clip away.`);
   // A take's `loop` is the server's own LOOP on one file; only a sequence's plays its files again.
   if (a.loop !== undefined && a.loop !== false && a.verb !== 'take' && a.verb !== 'sequence') throw new UsageError(`A ${String(a.verb)} carries no loop.`);
   switch (a.verb) {
@@ -407,13 +410,14 @@ export function readAction(body: Record<string, unknown>): VmixAction {
     }
     case 'out-player-instance':
     case 'out-player-held':
+    case 'out-player-fade-held':
     case 'out': {
       const item = isRecord(a.item) ? readItem(a.item) : undefined;
       return {
         verb: 'out', slot, item, ...(a.fadeOut !== undefined ? { fadeOut: readFade(a.fadeOut, 'fadeOut') } : {}),
         ...(typeof expected === 'string' ? { expectedOverlayInput: expected } : {}),
         ...(typeof expectedPlayer === 'string' ? { expectedPlayerInstance: expectedPlayer } : {}),
-        ...(a.verb === 'out-player-held' ? { requireMeasuredPlayer: true } : {}),
+        ...(a.verb === 'out-player-held' || fadedPlayerOut ? { requireMeasuredPlayer: true } : {}),
       };
     }
     case 'pause-player-held':
@@ -437,6 +441,7 @@ export function readAction(body: Record<string, unknown>): VmixAction {
       const loop = a.loop === true;
       return { verb: 'sequence', slot, entries: entries.map((e, i) => readEntry(e, i, entries.length, loop)), ...(loop ? { loop: true } : {}) };
     }
+    case 'ending-player-held':
     case 'ending': {
       const item = readItem(a.item);
       if (item.kind !== 'media') throw new UsageError(`Only a clip has an ending; this is a ${item.kind}.`);
@@ -445,6 +450,10 @@ export function readAction(body: Record<string, unknown>): VmixAction {
         throw new UsageError('A changed ending carries only the end and the fade out it clears on: fades in, level and trim apply at the next Take.');
       }
       if (playback?.fadeOut !== undefined && playback.end !== 'clear') throw new UsageError('A fade out goes with a Clear at the end.');
+      if (playerEnding) {
+        if (a.then !== undefined) throw new UsageError('A live vMix ending controls one held clip.');
+        return { verb: 'ending', slot, item, ...playbackField(playback), expectedPlayerInstance: expectedPlayer as string, requireMeasuredPlayer: true };
+      }
       if (a.then === undefined) return { verb: 'ending', slot, item, ...playbackField(playback) };
       if (playback) throw new UsageError('A clip that plays the next file has no ending of its own: send the playback or the files after it, not both.');
       const then = a.then;
@@ -533,7 +542,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
     if (url === '/health' && req.method === 'GET') {
       send(
         200,
-        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const, 'vmix-player-out-guard' as const, 'vmix-player-transport-guard' as const] : [])] } satisfies BridgeWireReply<'/health'>,
+        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const, 'vmix-player-out-guard' as const, 'vmix-player-transport-guard' as const, 'vmix-player-timed' as const] : [])] } satisfies BridgeWireReply<'/health'>,
         true,
       );
       return;

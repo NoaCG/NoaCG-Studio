@@ -185,7 +185,7 @@ export type PlayoutAction =
    *  new ending and the fade a Clear ends on (absent = hold its last frame); `then` instead plays
    *  these files after it, run as a sequence whose first entry is the clip already on air. Needs the
    *  `ending` feature: a Bridge without it refuses the verb. */
-  | { verb: 'ending'; slot: Slot; item: ItemRef; playback?: Pick<MediaPlayback, 'end' | 'fadeOut'>; then?: SequenceEntry[] };
+  | { verb: 'ending'; slot: Slot; item: ItemRef; playback?: Pick<MediaPlayback, 'end' | 'fadeOut'>; then?: SequenceEntry[]; expectedPlayerInstance?: string };
 
 export type PlayoutVerb = PlayoutAction['verb'];
 
@@ -242,7 +242,14 @@ export interface AgentError {
  *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
  *  `ending` is the `ending` verb: a clip's ending changed while it plays. `channels` is `/channels`:
  *  the channels a server reports it has. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard' | 'vmix-player-transport-guard';
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard' | 'vmix-player-transport-guard' | 'vmix-player-timed';
+
+export type VmixPlayerReadContract = 'staged' | 'current' | 'timed';
+
+export function vmixPlayerReadContract(features: readonly string[]): VmixPlayerReadContract {
+  if (!features.includes('vmix-player-transport-guard')) return 'staged';
+  return features.includes('vmix-player-timed') ? 'timed' : 'current';
+}
 
 /** Prefix the paired token for keyed vMix verbs so a legacy Bridge refuses the request even if it
  * replaced the new Bridge after the browser's capability probe. The token itself is unchanged. */

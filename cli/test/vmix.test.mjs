@@ -225,7 +225,7 @@ test('AC-1: /status reports the version, edition, overlay channels and inputs, a
       assert.equal(r.ok, true);
       assert.equal(r.version, '29.0.0.49');
       assert.deepEqual(r.vmix, { version: '29.0.0.49', edition: 'Trial', overlays: 8, inputs: 1 });
-      assert.deepEqual(r.capabilities, ['state']);
+      assert.deepEqual(r.capabilities, ['state', 'end', 'fade', 'trim', 'level']);
       // Connect is the same reading, and Try again on the page.
       const c = await post('/connect', { target: { adapter: 'vmix' } });
       assert.deepEqual([c.ok, c.vmix.overlays, c.servers], [true, 8, []]);
@@ -1764,7 +1764,7 @@ test('AC-8: Take configures one keyed player and its full list, then replaces wi
   assert.equal(fake.functions.filter(fn => fn.name === 'AddInput').length, 1);
   assert.equal(fake.functions.filter(fn => fn.name === 'SetAlpha').length, 2);
   assert.ok(fake.functions.filter(fn => fn.params.Input).every(fn => GUID.test(fn.params.Input)));
-  assert.ok(fake.functions.every(fn => /^(AddInput|SetInputName|AutoPlayOff|AutoPauseOff|AutoRestartOff|AutoPlayNextOff|LoopOn|LoopOff|SetAlpha|ListAdd|SelectIndex|Play|ListRemove)$/.test(fn.name)));
+  assert.ok(fake.functions.every(fn => /^(AddInput|SetInputName|AutoPlayOff|AutoPauseOff|AutoRestartOff|AutoPlayNextOff|LoopOn|LoopOff|SetAlpha|SetVolume|SetGain|ListAdd|SelectIndex|Play|ListRemove)$/.test(fn.name)));
   const paused = await adapter.act(target, { verb: 'pause', slot: player() });
   assert.equal(paused.ok, true);
   const pausedState = await adapter.overlays(target);
@@ -1915,7 +1915,7 @@ test('native vMix duration gaps preserve the Studio cue and its first completed 
     assert.equal(take.ok, true, JSON.stringify(take));
     const input = fake.inputs[0];
     async function apply(now) {
-      const { reply, result } = await readVmixPlayers(settings, 'current');
+      const { reply, result } = await readVmixPlayers(settings, 'timed');
       assert.ok(reply, JSON.stringify(result));
       const row = reply.players.find(reading => reading.player === 'clips');
       parts = applyVmixReading(parts, row, reply.session, { ...ctx, now });
@@ -2218,7 +2218,8 @@ test('AC-7: unsupported player actions, ambiguous slots and output-keyed tokens 
     { verb: 'next', slot: player() },
     { verb: 'take', slot: player(), item: { kind: 'template', name: 'x' } },
     { verb: 'take', slot: player(), item: { kind: 'media', name: 'clip A.mp4' }, imageFit: 'fit' },
-    { verb: 'take', slot: player(), item: { kind: 'media', name: 'clip A.mp4' }, playback: { gain: 0.5 } },
+    { verb: 'out', slot: player(), item: { kind: 'media', name: 'clip A.mp4' }, fadeOut: 0.5 },
+    { verb: 'ending', slot: player(), item: { kind: 'media', name: 'clip A.mp4' }, playback: { end: 'clear' } },
     { verb: 'take', slot: player(), item: { kind: 'media', name: '../clip A.mp4' } },
   ]) assert.equal((await adapter.act(target, action)).ok, false);
   assert.equal((await adapter.thumbnail(target, 'clip A.mp4')).ok, false);
@@ -3252,7 +3253,7 @@ test('AC-8: native empty-list Loop ACK leaves loop false, so Take applies it aft
   const result = await take('clip A.mp4', { loop: true });
   assert.equal(result.ok, true, JSON.stringify(result));
   assert.equal(input.loop, true);
-  assert.deepEqual(fake.functions.slice(-5).map(fn => fn.name), ['ListAdd', 'LoopOn', 'SetAlpha', 'SelectIndex', 'Play']);
+  assert.deepEqual(fake.functions.slice(-7).map(fn => fn.name), ['ListAdd', 'LoopOn', 'SetAlpha', 'SetVolume', 'SetGain', 'SelectIndex', 'Play']);
 });
 
 test('AC-8: an acknowledged populated Loop no-op never selects or plays the replacement', async t => {
@@ -3270,4 +3271,257 @@ test('AC-8: an acknowledged populated Loop no-op never selects or plays the repl
   assert.equal(input.state, 'Running');
   assert.equal(input.loop, false);
   assert.deepEqual(fake.functions.slice(-3).map(fn => fn.name), ['ListAdd', 'LoopOn', 'SetAlpha']);
+});
+
+/** The fake media and Bridge timers share a controllable clock. An explicit read joins each port turn. */
+async function timedFixture(t, fakeOptions) {
+  let now = 0;
+  const callbacks = new Map();
+  const clock = {
+    now: () => now,
+    schedule(delay, callback) {
+      const at = now + delay;
+      callbacks.set(callback, at);
+      return () => callbacks.delete(callback);
+    },
+  };
+  const fixture = await playerFixture(t, { now: clock.now, ...fakeOptions }, { clipClock: clock });
+  const { adapter, target, fake, player } = fixture;
+  const joinTurn = () => adapter.overlays(target);
+  async function advance(ms) {
+    const end = now + ms;
+    for (let i = 0; callbacks.size && i < 500; i++) {
+      const [callback, at] = [...callbacks].sort((left, right) => left[1] - right[1])[0];
+      if (at > end) break;
+      now = at;
+      callbacks.delete(callback);
+      callback();
+      await joinTurn();
+    }
+    now = end;
+  }
+  const row = () => fake.inputs.find(input => input.title === 'NoaCG Clips');
+  const read = async () => (await joinTurn()).value.players.find(input => input.player === 'clips');
+  const expected = (instance, verb, settings = {}) => adapter.act(target, {
+    verb, slot: player(), item: { kind: 'media', name: 'clip B.mp4' }, expectedPlayerInstance: instance,
+    requireMeasuredPlayer: true, ...settings,
+  });
+  return { ...fixture, row, read, expected, advance, joinTurn, callbacks };
+}
+
+test('AC-12: trimmed Take covers a stopped selection, confirms the seek, and holds the measured segment', async t => {
+  const selected = [];
+  const plays = [];
+  const fixture = await timedFixture(t, {
+    selectDelayMs: 90,
+    afterFunction(name) {
+      const input = fixture.row();
+      if (name === 'SelectIndex') selected.push({ selected: input.selectedIndex, state: input.state, alpha: input.alpha, fader: input.fader });
+      if (name === 'Play') plays.push({ file: input.list[input.selectedIndex - 1], position: input.position, alpha: input.alpha });
+      return false;
+    },
+  });
+  assert.equal((await fixture.take('clip A.mp4')).ok, true);
+  const then = fixture.fake.functions.length;
+  const held = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.25, out: 0.85 }, gain: 0.0625 } });
+  assert.equal(held.ok, true, JSON.stringify(held));
+  const names = fixture.fake.functions.slice(then).map(fn => fn.name);
+  assert.ok(names.indexOf('Pause') < names.indexOf('ListAdd'));
+  assert.ok(names.indexOf('SelectIndex') < names.indexOf('SetPosition'));
+  assert.ok(names.indexOf('SetPosition') < names.indexOf('Play'));
+  assert.deepEqual(selected.at(-1), { selected: 1, state: 'Paused', alpha: 0, fader: 0 });
+  assert.deepEqual(plays.at(-1), { file: join(fixture.root, 'clip B.mp4'), position: 250, alpha: 0 });
+  assert.deepEqual((await fixture.read()).segment, { start: 0.25, length: 0.6 });
+  assert.equal((await fixture.read()).position, 0);
+  assert.equal(fixture.row().fader, 50);
+  assert.equal(fixture.row().gain, 0);
+  await fixture.advance(1100);
+  assert.equal(fixture.row().state, 'Paused');
+  assert.ok(fixture.row().position >= 850 && fixture.row().position <= 890);
+  assert.equal((await fixture.read()).instance, held.instance);
+  assert.ok(fixture.fake.functions.slice(then).every(fn => ['Pause', 'AutoPlayNextOff', 'ListAdd', 'LoopOff', 'SetAlpha', 'SetVolume', 'SetGain', 'SelectIndex', 'SetPosition', 'Play', 'ListRemove'].includes(fn.name)));
+});
+
+test('AC-12: a transient vMix seek sample and a still trim cannot reveal or play the replacement', async t => {
+  const fixture = await timedFixture(t, {
+    afterFunction(name) {
+      if (name === 'SetPosition') setTimeout(() => { fixture.row().position = 0; }, 35);
+      return false;
+    },
+  });
+  assert.equal((await fixture.take('clip A.mp4')).ok, true);
+  const then = fixture.fake.functions.length;
+  const result = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 1.5 } } });
+  assert.equal(result.ok, false);
+  assert.equal(fixture.row().alpha, 0);
+  assert.equal(fixture.row().fader, 0);
+  assert.equal(fixture.fake.functions.slice(then).some(fn => fn.name === 'Play'), false);
+  const end = fixture.fake.lines.length;
+  const still = await fixture.take('still.png', { playback: { trim: { out: 1 } } });
+  assert.equal(still.ok, false);
+  assert.equal(fixture.fake.lines.length, end);
+});
+
+test('AC-12: a guarded Loop rewinds within its segment, and changing it to Clear disarms Loop', async t => {
+  const fixture = await timedFixture(t);
+  const current = await fixture.take('clip B.mp4', { playback: { end: 'loop', trim: { in: 0.5, out: 1.1 } } });
+  assert.equal(current.ok, true, JSON.stringify(current));
+  assert.equal(fixture.row().loop, false);
+  assert.equal((await fixture.read()).loop, true);
+  await fixture.advance(625);
+  assert.equal(fixture.row().state, 'Running');
+  assert.equal((await fixture.read()).instance, current.instance);
+  assert.deepEqual(fixture.fake.functions.filter(fn => fn.name === 'SetPosition').map(fn => fn.params.Value), ['500', '500']);
+  assert.equal((await fixture.expected(current.instance, 'ending', { playback: { end: 'clear' } })).ok, true);
+  await fixture.advance(750);
+  assert.equal((await fixture.read()).producer, 'empty');
+  assert.equal(fixture.fake.functions.filter(fn => fn.name === 'ListRemoveAll').length, 1);
+});
+
+test('AC-12: one audio ramp and one alpha step per control frame, then faded Out confirms removal', async t => {
+  const fixture = await timedFixture(t);
+  const take = await fixture.take('clip B.mp4', { playback: { fadeIn: 0.2, gain: 10 ** (6 / 20) } });
+  assert.equal(take.ok, true, JSON.stringify(take));
+  assert.equal(fixture.row().alpha, 0);
+  assert.equal(fixture.row().fader, 0);
+  assert.ok(Math.abs(fixture.row().gain - 6) < 0.0001);
+  await fixture.advance(200);
+  assert.equal(fixture.row().alpha, 255);
+  assert.equal(fixture.row().fader, 100);
+  assert.deepEqual(fixture.fake.functions.filter(fn => fn.name === 'SetAlpha').map(fn => Number(fn.params.Value)), [0, 51, 102, 153, 204, 255]);
+  assert.deepEqual(fixture.fake.functions.filter(fn => fn.name === 'SetVolumeFade').map(fn => fn.params.Value), ['100,200']);
+  const out = fixture.expected(take.instance, 'out', { fadeOut: 0.2 });
+  await fixture.joinTurn();
+  await fixture.advance(199);
+  assert.equal(fixture.row().list.length, 1);
+  await fixture.advance(41);
+  assert.equal((await out).ok, true);
+  assert.equal(fixture.row().fader, 0);
+  assert.equal(fixture.row().alpha, 0);
+  assert.deepEqual(fixture.fake.functions.filter(fn => fn.name === 'SetVolumeFade').map(fn => fn.params.Value), ['100,200', '0,200']);
+  const next = await fixture.take('clip B.mp4');
+  assert.equal(next.ok, true);
+  assert.equal(fixture.row().gain, 0);
+  assert.equal(fixture.row().fader, 100);
+});
+
+test('AC-12: a late Clear settles a conflicting audio ramp without airing past the trimmed boundary', async t => {
+  const fixture = await timedFixture(t);
+  const take = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.1 }, fadeIn: 0.5 } });
+  assert.equal(take.ok, true, JSON.stringify(take));
+  await fixture.advance(80);
+  const ending = await fixture.expected(take.instance, 'ending', { playback: { end: 'clear', fadeOut: 0.2 } });
+  assert.equal(ending.ok, true, JSON.stringify(ending));
+  await fixture.advance(45);
+  assert.equal(fixture.row().alpha, 0);
+  assert.equal(fixture.row().state, 'Paused');
+  assert.equal(fixture.row().list.length, 1);
+  assert.deepEqual(fixture.fake.functions.filter(fn => fn.name === 'SetVolumeFade').map(fn => fn.params.Value), ['100,500', '0,40']);
+  await fixture.advance(60);
+  assert.equal(fixture.row().fader, 0);
+  assert.equal((await fixture.read()).producer, 'empty');
+});
+
+test('AC-12: an untrimmed clip can arm or disarm Clear, and stale same-file commands send nothing', async t => {
+  const fixture = await timedFixture(t);
+  const first = await fixture.take('clip B.mp4');
+  assert.equal((await fixture.expected(first.instance, 'ending', { playback: { end: 'clear' } })).ok, true);
+  assert.equal((await fixture.expected(first.instance, 'ending', { playback: { end: 'hold' } })).ok, true);
+  await fixture.advance(4100);
+  assert.equal((await fixture.read()).playerCompleted, true);
+  assert.equal(fixture.row().state, 'Completed');
+  assert.equal(fixture.row().list.length, 1);
+  const next = await fixture.take('clip B.mp4');
+  assert.notEqual(next.instance, first.instance);
+  const before = fixture.fake.functions.length;
+  const stale = await fixture.expected(first.instance, 'ending', { playback: { end: 'clear' } });
+  assert.equal(stale.ok, false);
+  assert.equal(fixture.fake.functions.length, before);
+  assert.equal((await fixture.expected(next.instance, 'ending', { playback: { end: 'clear' } })).ok, true);
+  await fixture.advance(4200);
+  assert.equal((await fixture.read()).producer, 'empty');
+});
+
+test('AC-12: an applied unknown automatic write disarms without sending later frames', async t => {
+  let lost = false;
+  const fixture = await timedFixture(t, {
+    afterFunction(name, params, socket) {
+      if (name === 'SetAlpha' && Number(params.Value) > 0 && Number(params.Value) < 255) {
+        lost = true;
+        socket.destroy();
+        return true;
+      }
+      return false;
+    },
+  });
+  const initial = await fixture.take('clip B.mp4', { playback: { fadeIn: 0.5, end: 'clear' } });
+  assert.equal(initial.ok, true);
+  await fixture.advance(50);
+  await fixture.joinTurn();
+  assert.equal(lost, true);
+  const count = fixture.fake.functions.length;
+  await fixture.advance(5000);
+  assert.equal(fixture.fake.functions.length, count);
+  assert.equal(fixture.row().list.length, 1);
+});
+
+test('AC-12: work queued before a later Take does not read or write the later generation', async t => {
+  const fixture = await timedFixture(t);
+  const first = await fixture.take('clip B.mp4', { playback: { trim: { out: 0.25 } } });
+  assert.equal(first.ok, true);
+  const [stale] = fixture.callbacks.keys();
+  assert.equal(typeof stale, 'function');
+  const next = fixture.take('clip A.mp4');
+  stale();
+  const replaced = await next;
+  assert.equal(replaced.ok, true);
+  const stop = fixture.fake.lines.length;
+  await fixture.advance(1000);
+  assert.equal((await fixture.read()).instance, replaced.instance);
+  assert.ok(!fixture.fake.lines.slice(stop).some(line => line.startsWith('FUNCTION ') || line.startsWith('XMLTEXT ')));
+  assert.equal(fixture.row().state, 'Running');
+});
+
+test('AC-12: pausing a guarded clip holds its trim clock and Resume uses fresh media time', async t => {
+  const fixture = await timedFixture(t);
+  const result = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 1.1 } } });
+  assert.equal(result.ok, true);
+  await fixture.advance(250);
+  assert.equal((await fixture.expected(result.instance, 'pause')).ok, true);
+  const paused = await fixture.read();
+  await fixture.advance(2000);
+  assert.equal((await fixture.read()).position, paused.position);
+  assert.equal((await fixture.expected(result.instance, 'resume')).ok, true);
+  await fixture.advance(420);
+  assert.equal((await fixture.read()).paused, true);
+  assert.equal((await fixture.read()).position, 0.6);
+});
+
+test('AC-12: HTTP advertises timed playback and binds new verbs to the exact held instance', async t => {
+  const fixture = await timedFixture(t);
+  await withBridge(fixture.adapter, async post => {
+    const { target, player, fake } = fixture;
+    const status = await post('/status', { target });
+    assert.deepEqual(status.capabilities, ['state', 'end', 'fade', 'trim', 'level']);
+    const action = { slot: player(), item: { kind: 'media', name: 'clip B.mp4' } };
+    const current = await post('/act', { target, action: { ...action, verb: 'take' } });
+    assert.equal(current.ok, true, JSON.stringify(current));
+    const previous = fake.functions.length;
+    for (const refused of [
+      { ...action, verb: 'ending-player-held', expectedPlayerInstance: 'stale', playback: { end: 'clear' } },
+      { ...action, verb: 'out-player-held', expectedPlayerInstance: current.instance, fadeOut: 0.5 },
+      { ...action, verb: 'out-player-fade-held', expectedPlayerInstance: current.instance },
+    ]) {
+      assert.equal((await post('/act', { target, action: refused })).ok, false);
+    }
+    assert.equal(fake.functions.length, previous);
+    const updated = await post('/act', {
+      target, action: { ...action, verb: 'ending-player-held', expectedPlayerInstance: current.instance, playback: { end: 'clear' } },
+    });
+    assert.equal(updated.ok, true, JSON.stringify(updated));
+    assert.equal(updated.instance, current.instance);
+    assert.ok(updated.generation > current.generation);
+    await fixture.advance(4300);
+    assert.equal((await fixture.read()).producer, 'empty');
+  });
 });

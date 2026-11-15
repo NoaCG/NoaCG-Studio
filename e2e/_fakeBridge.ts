@@ -1,5 +1,5 @@
 import { type Page, type Route } from '@playwright/test';
-import { PLAYOUT_V, VMIX_BROWSER_LOAD_PROBLEM, VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type ListItem, type SlotState, type VmixInfo, type VmixInput, type VmixPlayerSlot } from '../src/control/playoutProtocol';
+import { PLAYOUT_V, VMIX_BROWSER_LOAD_PROBLEM, VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type ListItem, type MediaPlayback, type SlotState, type VmixInfo, type VmixInput, type VmixPlayerSlot } from '../src/control/playoutProtocol';
 
 // A FAKE NOACG BRIDGE AT THE NETWORK LAYER, for the playout specs that drive server clips
 // (docs/CLIP_PLAYBACK_PLAN.md §10): `/health`, `/status`, `/list`, `/act` and `/state`, answered from
@@ -30,11 +30,13 @@ export interface FakeVmixRequest {
 }
 
 interface FakeVmixMediaAction {
-  verb: 'take' | 'out' | 'out-player-instance' | 'pause' | 'resume' | 'out-player-held' | 'pause-player-held' | 'resume-player-held';
+  verb: 'take' | 'out' | 'out-player-instance' | 'pause' | 'resume' | 'out-player-held' | 'pause-player-held' | 'resume-player-held' | 'out-player-fade-held';
   slot: VmixPlayerSlot;
   item: ItemRef;
   cueId?: string;
   loop?: boolean;
+  playback?: MediaPlayback;
+  fadeOut?: number;
   expectedPlayerInstance?: string;
 }
 
@@ -49,6 +51,7 @@ interface FakeVmixMediaRequest {
 export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
   folder: string;
   files: Record<string, Record<string, ListItem[]>>;
+  timedPlayback?: boolean;
 }) {
   const media = library && {
     ...library, choice: null as string | null, paths: [] as string[], actions: [] as FakeVmixMediaRequest[],
@@ -117,7 +120,7 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
     for (const row of Object.values(held)) if (row) inputKeys.add(row.input.key);
     const vmix = { ...info, inputs: Math.max(info.inputs, inputKeys.size) };
     if (path === '/status' || path === '/connect') return {
-      ok: true, v: PLAYOUT_V, vmix, version: info.version, raw: 'VERSION OK', capabilities: ['state'],
+      ok: true, v: PLAYOUT_V, vmix, version: info.version, raw: 'VERSION OK', capabilities: media?.timedPlayback ? ['state', 'end', 'fade', 'trim', 'level'] : ['state'],
       ...(path === '/connect' ? { servers: [] } : {}),
     };
     const remembered = body.outputUrl === undefined ? undefined : kept.get(outputId(body.outputUrl));
@@ -143,10 +146,13 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
         const file = playerAction.item.name;
         const slash = file.lastIndexOf('/');
         const entry = media.files[media.folder]?.[slash < 0 ? '' : file.slice(0, slash)]?.find(item => item.name === file);
-        const length = entry?.frames && entry.fps ? entry.frames / entry.fps : 0;
+        const whole = entry?.frames && entry.fps ? entry.frames / entry.fps : 0;
+        const trim = media.timedPlayback ? playerAction.playback?.trim : undefined;
+        const start = trim?.in ?? 0;
+        const length = trim ? playedSeconds(whole, start, trim.out) ?? 0 : whole;
         players[player] = {
           player, layer: 0, producer: entry?.kind === 'still' ? 'still' : 'video', generation, paused: false, loop: !!playerAction.loop,
-          file, playerSource: file, position: 0, segment: { start: 0, length }, cueId: playerAction.cueId, instance: `test.media-${generation}`,
+          file, playerSource: file, position: 0, segment: { start, length }, cueId: playerAction.cueId, instance: `test.media-${generation}`,
         };
       } else if (verb.startsWith('out')) {
         players[player] = { player, layer: 0, producer: 'empty', playerOccupied: false, generation, paused: false, loop: false };
@@ -290,7 +296,7 @@ export async function fakeBridge(page: Pick<Page, 'route'>, init: Partial<Omit<F
     stateGate: () => {},
     list: [],
     features: ['state', 'playback', 'sequence'],
-    version: init.vmix ? '0.11.0' : '0.5.0',
+    version: init.vmix?.media?.timedPlayback ? '0.13.0' : init.vmix ? '0.11.0' : '0.5.0',
     capabilities: ['state', 'end', 'fade', 'trim', 'level', 'sequence'],
     lengths: {},
     refuse: () => null,
@@ -343,7 +349,7 @@ export async function fakeBridge(page: Pick<Page, 'route'>, init: Partial<Omit<F
       return json(route, {
         ok: true, agent: 'noacg-bridge', v: 2, version: fake.version,
         adapters: fake.vmix ? ['casparcg', 'vmix'] : ['casparcg'],
-        features: fake.vmix ? [...fake.features, 'vmix-output-key', ...(fake.vmix.media ? ['vmix-media', 'vmix-player-out-guard', 'vmix-player-transport-guard'] : [])] : fake.features,
+        features: fake.vmix ? [...fake.features, 'vmix-output-key', ...(fake.vmix.media ? ['vmix-media', 'vmix-player-out-guard', 'vmix-player-transport-guard'] : []), ...(fake.vmix.media?.timedPlayback ? ['vmix-player-timed'] : [])] : fake.features,
       });
     }
     const body = JSON.parse(req.postData() || '{}') as { channel?: number; kind?: string; action?: FakeAction; target?: { adapter: string } };

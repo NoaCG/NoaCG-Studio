@@ -394,7 +394,7 @@ function ClipSettings({
     end === 'hold'
       ? 'Holds its last frame until Out'
       : end === 'clear'
-        ? `Clears the layer at its end${fadeOutWords}`
+        ? `Clears the ${item.adapter === 'vmix' ? 'player' : 'layer'} at its end${fadeOutWords}`
         : end === 'loop'
           ? 'Repeats until Out'
           : playNext?.ok

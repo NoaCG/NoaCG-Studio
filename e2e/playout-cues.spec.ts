@@ -1559,3 +1559,68 @@ test('an accepted vMix All out finishes both original players after leaving the 
     finish.resolve();
   }
 });
+
+test('vMix timed capabilities offer cue playback controls and send trimmed Take and guarded faded Out', async ({ page }, info) => {
+  const folder = 'C:/Videos';
+  const movie = 'Timed clip.mp4';
+  const vmix = fakeVmix(8, {
+    folder, timedPlayback: true, files: { [folder]: { '': [{ name: movie, kind: 'movie', frames: 250, fps: 25 }] } },
+  });
+  const media = vmix.media!;
+  await slotBridge(page.context(), { vmix });
+  await seedSettings(page);
+  await productionPage(page);
+  const cue = await evaluateInPage(page, async (name: string) => {
+    const { addPlayoutItem, loadShows } = await __noacgImport('/src/model/shows.ts');
+    const show = loadShows().find(row => row.name === 'Evening News')!;
+    const saved = addPlayoutItem(show.id, { adapter: 'vmix', kind: 'media', name, mediaKind: 'movie', layer: 0, frames: 250, fps: 25 });
+    await new Promise(resolve => setTimeout(resolve));
+    const itemId = saved.shows.find(row => row.id === show.id)?.cues?.find(row => row.id === saved.cueId)?.sourceId;
+    if (!saved.cueId || !itemId) throw new Error('The timed cue was not saved.');
+    return { showId: show.id, cueId: saved.cueId, itemId };
+  }, movie);
+  await settleDurableWrites(page);
+  await page.getByTestId('production-status').click();
+  await page.getByTestId('production-status-panel').getByTestId('vmix-switch').click();
+  await page.keyboard.press('Escape');
+  const row = page.getByTestId('cue-' + cue.cueId);
+  await row.getByTestId('select-cue').click();
+
+  await page.getByTestId('clip-end-clear').click();
+  await page.getByTestId('clip-fade-in-long').click();
+  await page.getByTestId('clip-fade-out-short').click();
+  await page.getByTestId('clip-level').press('ArrowRight');
+  await expect(page.getByTestId('clip-level-value')).toHaveText('+1 dB');
+  await expect(page.getByTestId('clip-end-next')).toBeDisabled();
+  await page.getByTestId('clip-advanced-toggle').click();
+  await page.getByTestId('clip-trim-in').fill('1');
+  await page.getByTestId('clip-trim-out').fill('5');
+  await page.getByTestId('clip-trim-out').press('Enter');
+  await expect(row.getByTestId('cue-length')).toHaveText('0:04');
+  await page.screenshot({ path: info.outputPath('vmix-timed-cue-editor.png') });
+
+  await page.getByTestId('verb-take').click();
+  await expect(row).toContainText('ON AIR');
+  await expect(page.getByTestId('clip-clock')).toBeVisible();
+  expect(media.actions[0].action).toEqual({
+    verb: 'take', item: { kind: 'media', name: movie }, slot: { adapter: 'vmix', player: 'clips' },
+    cueId: 'vmix:' + JSON.stringify([cue.showId, cue.cueId, cue.itemId]),
+    playback: { end: 'clear', fadeOut: 0.5, fadeIn: 1, gain: 10 ** (1 / 20), trim: { in: 1, out: 5 } },
+  });
+  const instance = vmix.players.clips.instance;
+  await page.getByTestId('verb-out').click();
+  await expect(row).not.toContainText('ON AIR');
+  expect(media.actions[1].action).toEqual({
+    verb: 'out-player-fade-held', item: { kind: 'media', name: movie }, slot: { adapter: 'vmix', player: 'clips' },
+    expectedPlayerInstance: instance, fadeOut: 0.5,
+  });
+
+  await page.getByTestId('verb-take').click();
+  await expect(row).toContainText('ON AIR');
+  await page.getByTestId('verb-out-all').click();
+  await expect(row).not.toContainText('ON AIR');
+  expect(media.actions[3].action).toEqual({
+    verb: 'out-player-held', item: { kind: 'media', name: movie }, slot: { adapter: 'vmix', player: 'clips' },
+    expectedPlayerInstance: expect.any(String),
+  });
+});

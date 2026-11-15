@@ -40,6 +40,8 @@ import {
   readStudio,
   vmixMediaKind,
   vmixOverlayCount,
+  vmixPlayerReadContract,
+  type VmixPlayerReadContract,
   type AdapterId,
   type AgentError,
   type BridgeFeature,
@@ -574,7 +576,7 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
  *  current Bridge's (in memory, this page load only). A server action to an address here does not
  *  ask `/health` first (live-publishing W1); its failure asks again (`through`). */
 const currentBridges = new Map<string, BridgeFeature[]>();
-export type VmixPlayerReadContract = 'current' | 'staged';
+export type { VmixPlayerReadContract } from './playoutProtocol';
 
 interface VmixMediaEvidence {
   requested: number;
@@ -1145,7 +1147,7 @@ async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
         hasOnlyPayloadFields(body, ['agent', 'version', 'adapters', 'features']) &&
         Array.isArray(adapters) && adapters.every(adapter => typeof adapter === 'string') &&
         (features === undefined || (Array.isArray(features) && features.every(feature => typeof feature === 'string'))) &&
-        (adapters.includes('vmix') || !features?.some(feature => feature === 'vmix-output-key' || feature === 'vmix-media' || feature === 'vmix-player-out-guard' || feature === 'vmix-player-transport-guard'))) {
+        (adapters.includes('vmix') || !features?.some(feature => feature === 'vmix-output-key' || feature === 'vmix-media' || feature === 'vmix-player-out-guard' || feature === 'vmix-player-transport-guard' || feature === 'vmix-player-timed'))) {
         return { kind: 'current', adapters, features: features ?? [] };
       }
     }
@@ -1169,7 +1171,7 @@ async function probeVmixMediaPairing(settings: PlayoutSettings): Promise<VmixHea
   if (currentVmixMediaPairings.get(pairing) === evidence && request > (evidence.latest?.request ?? 0)) {
     evidence.latest = { request, health };
     const contract = health.kind === 'current' && health.adapters.includes('vmix') && health.features.includes('vmix-media')
-      ? (health.features.includes('vmix-player-transport-guard') ? 'current' : 'staged')
+      ? vmixPlayerReadContract(health.features)
       : undefined;
     if (evidence.playerReading?.contract !== contract) evidence.playerReading = contract ? { contract } : undefined;
   }
@@ -1401,8 +1403,10 @@ function validVmixPlayerReading(row: SlotState, session: string, contract: VmixP
   const kind = vmixMediaKind(row.file);
   if (!kind || row.producer !== (kind === 'still' ? 'still' : 'video') ||
     row.player !== (kind === 'audio' ? 'audio' : 'clips') ||
-    !row.segment || row.segment.start !== 0 || !Number.isFinite(row.segment.length) || row.segment.length < 0 ||
+    !row.segment || !Number.isFinite(row.segment.start) || row.segment.start < 0 ||
+    !Number.isFinite(row.segment.length) || row.segment.length < 0 ||
     row.position === undefined || !Number.isFinite(row.position) || row.position < 0 || row.position > row.segment.length) return false;
+  if (row.segment.start > 0 && (contract !== 'timed' || kind === 'still' || !row.instance || row.segment.length === 0)) return false;
   if (row.instance === undefined) return row.cueId === undefined && row.playerSource === undefined;
   return row.generation > 0 && vmixInstance(row.instance, session) &&
     (row.cueId === undefined || (nonblank(row.cueId) && row.cueId.length <= 200)) &&
@@ -1571,19 +1575,30 @@ export async function actVmixMedia(
   const transport = guardedTransport && (action.verb === 'out' || action.verb === 'pause' || action.verb === 'resume');
   if (transport && !guarded) return { state: 'config', detail: 'This cue has no confirmed vMix playback instance.' };
   const guardedOut = guarded && action.verb === 'out' && !transport;
+  const timed = vmixPlayerReadContract(health.features) === 'timed';
+  const ending = action.verb === 'ending';
+  if (ending && !guarded) return { state: 'config', detail: 'This cue has no confirmed vMix playback instance.' };
+  if (ending && !timed) return { state: 'outdated', detail: 'Update NoaCG Bridge to change a vMix clip’s ending while it plays.' };
   if ((transport && !health.features.includes('vmix-player-transport-guard')) ||
     (guardedOut && !health.features.includes('vmix-player-out-guard'))) {
     return { state: 'outdated', detail: 'Update NoaCG Bridge to safely control the vMix player.' };
   }
   if (!canSend()) return null;
   // A Bridge that lost this capability since health rejects the distinct wire verb outright.
-  const request = transport ? { ...action, verb: action.verb + '-player-held' }
+  let request = ending ? { ...action, verb: 'ending-player-held' }
+    : transport ? { ...action, verb: action.verb + '-player-held' }
     : guardedOut ? { ...action, verb: 'out-player-instance' } : action;
+  const faded = action.verb === 'out' && action.fadeOut !== undefined;
+  if (faded) {
+    if (!guarded) return { state: 'config', detail: 'This cue has no confirmed vMix playback instance.' };
+    const { fadeOut, ...cut } = action;
+    request = timed ? { ...cut, fadeOut, verb: 'out-player-fade-held' } : { ...cut, verb: request.verb };
+  }
   const call = await counted(() => callBridge(
     settings.agentUrl, '/act', { target: vmixTarget, action: request }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix',
   ));
   const { result: reply } = readVmixReply(settings, call, '/act', action.verb === 'take', true);
-  const inconsistent = (transport || (guardedTransport && action.verb === 'take'))
+  const inconsistent = (transport || ending || (faded && timed) || (guardedTransport && action.verb === 'take'))
     && reply.state === 'ok' && !validVmixTransportSuccess(reply, action);
   const result: VmixActionResult = inconsistent
     ? { state: 'bridge', detail: 'The vMix action result is unknown. Check the player before trying again.', unknownAction: true }

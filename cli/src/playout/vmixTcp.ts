@@ -54,6 +54,7 @@ export class VmixConnection {
   private readonly replyMs: number;
   private socket?: Socket;
   private version?: string;
+  private opened = 0;
   private opening?: Promise<VmixOpen>;
   private buf: Buffer = Buffer.alloc(0);
   private body?: { line: string; status: string; data: Buffer; got: number };
@@ -75,6 +76,11 @@ export class VmixConnection {
       this.opening = undefined;
     });
     return this.opening;
+  }
+
+  /** Identity of the current greeted socket, for work bound to an existing mixer connection. */
+  get connectionId(): number | undefined {
+    return this.socket && !this.socket.destroyed && this.version ? this.opened : undefined;
   }
 
   /** Close it, answering whatever waits as lost. */
@@ -173,6 +179,7 @@ export class VmixConnection {
           return;
         }
         this.version = m[1].trim();
+        this.opened += 1;
         greeted({ ok: true });
         continue;
       }
@@ -197,6 +204,13 @@ export class VmixConnection {
           s.destroy();
           return;
         }
+      }
+      if (word === 'XMLTEXT' && status !== 'OK' && status !== 'ER') {
+        // The player guard asks for a single numeric or state value. A length header can
+        // precede multiline data, so close before any of that data can answer a later turn.
+        this.finish({ ok: true, status, line });
+        s.destroy();
+        return;
       }
       this.finish({ ok: true, status, line });
     }
@@ -287,6 +301,8 @@ export interface VmixVideoList {
   loop: boolean;
   /** Omitted when this input did not report audio mute state. */
   muted?: boolean;
+  /** vMix's measured amplitude in percent, when the XML reports one. */
+  volume?: number;
 }
 
 const MAX_XML_DEPTH = 128;
@@ -303,6 +319,13 @@ function stateInteger(value: string | undefined): number | undefined {
 function stateBoolean(value: string | undefined): boolean | undefined {
   if (value?.toLowerCase() === 'true') return true;
   if (value?.toLowerCase() === 'false') return false;
+}
+
+function nativeVolume(value: string | undefined): number | undefined {
+  if (value !== undefined && /^\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(value)) {
+    const volume = Number(value);
+    if (Number.isFinite(volume) && volume <= 100) return volume;
+  }
 }
 
 function positiveInteger(value: string | undefined): number | undefined {
@@ -387,8 +410,9 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
         // An unreadable mute field cannot prove audio readiness. The other list fields still
         // identify the selected occurrence independently of that setting.
         const muted = stateBoolean(attribute('muted'));
+        const volume = nativeVolume(attribute('volume'));
         const value = selected !== undefined && positionMs !== undefined && durationMs !== undefined && state && loop !== undefined
-          ? { items: [], selected, state, positionMs, durationMs, loop, ...(muted !== undefined ? { muted } : {}) }
+          ? { items: [], selected, state, positionMs, durationMs, loop, ...(muted !== undefined ? { muted } : {}), ...(volume !== undefined ? { volume } : {}) }
           : undefined;
         videoList = { key, value, seen: false, invalid: false, marked: [] };
       }

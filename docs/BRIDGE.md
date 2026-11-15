@@ -284,6 +284,17 @@ cue that this running Bridge started for it. If the player switches to someone e
 the previous cue says **replaced on the server** and its transport controls stop applying.
 After restarting Bridge, check any still-playing input in vMix before taking the cue again.
 
+Bridge 0.13.0 adds **At the end**, **Fade**, **Level** and trim for vMix clips. Trim is
+under **Advanced** and the clock counts the trimmed part. **Out** uses the cue's fade and
+**All out** cuts. A trimmed Take can pass through black while vMix settles at the in point.
+If vMix cannot settle at the chosen point, Bridge keeps the replacement black and silent
+and reports the failure. Check trims on your media before the show.
+
+Bridge runs the clip's boundaries and fades on the owned Video List while it is running.
+A restarted Bridge will not resume the prior timed work. Picture fades update at 25 steps per
+second because the TCP state omits the mixer's configured rate. Program and Preview stay with
+the vMix operator.
+
 ## 3. The Bridge (`noacg bridge`, `cli/src/playout/`)
 
 It lives in the existing `noacg` CLI rather than as a second local process, for the reason

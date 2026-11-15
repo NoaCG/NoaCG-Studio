@@ -19,7 +19,7 @@ export async function startFakeVmix(options = {}) {
   const version = options.version ?? '29.0.0.49';
   const edition = options.edition ?? 'Trial';
   /** Inputs in order (a number is a position); overlays hold KEYS, rendered as numbers. */
-  const makeInput = (i) => ({ key: randomUUID(), ...(i.type === 'VideoList' ? { list: [], selectedIndex: 1, state: 'Completed', position: 0, duration: 0, loop: false, autoPlay: true, autoPause: true, autoRestart: true, autoPlayNext: true, audioAuto: true, muted: true, alpha: 255 } : {}), ...i });
+  const makeInput = (i) => ({ key: randomUUID(), ...(i.type === 'VideoList' ? { list: [], selectedIndex: 1, state: 'Completed', position: 0, duration: 0, loop: false, autoPlay: true, autoPause: true, autoRestart: true, autoPlayNext: true, audioAuto: true, muted: true, alpha: 255, fader: 100, gain: 0, clockAt: options.now?.() } : {}), ...i });
   const inputs = (options.inputs ?? []).map(makeInput);
   const overlays = new Map();
   const lines = [];
@@ -28,14 +28,66 @@ export async function startFakeVmix(options = {}) {
   let connections = 0;
   let subscribers = new Set();
 
+
+  function updateClock(input) {
+    if (!input.list || !options.now) return;
+    const now = options.now();
+    const since = now - (input.clockAt ?? now);
+    input.clockAt = now;
+    if (input.state === 'Running' && input.duration > 0 && since > 0) {
+      input.position += since;
+      if (input.position >= input.duration) {
+        if (input.loop) input.position %= input.duration;
+        else {
+          input.position = input.duration;
+          input.state = 'Completed';
+        }
+      }
+    }
+    const ramp = input.volumeRamp;
+    if (ramp) {
+      const progress = Math.min(1, (now - ramp.at) / ramp.duration);
+      input.fader = ramp.from + (ramp.to - ramp.from) * progress;
+      if (progress === 1) delete input.volumeRamp;
+    }
+  }
+
+  const amplitude = (input) => 100 * (input.fader / 100) ** 4;
+
+  function xmlText(line) {
+    const selector = line.slice('XMLTEXT '.length);
+    const key = /@key='([^']+)'/.exec(selector)?.[1];
+    const input = inputs.find(row => row.key === key && row.type === 'VideoList');
+    if (!input || !selector.includes("[@type='VideoList']")) return;
+    updateClock(input);
+    const fields = {
+      selectedIndex: input.selectedIndex, duration: input.duration, state: input.state,
+      position: input.position, volume: amplitude(input),
+    };
+    for (const [, attr, value] of selector.matchAll(/\[@(selectedIndex|duration|state)='([^']+)'\]/g)) {
+      if (String(fields[attr]) !== value) return;
+    }
+    const count = /\[count\(list\/item\)=(\d+)\]/.exec(selector)?.[1];
+    if (input.list.length !== Number(count)) return;
+    for (const [, attr, value] of selector.matchAll(/\[translate\(@(loop|muted),[^)]+\)='(true|false)'\]/g)) {
+      if (String(input[attr]) !== value) return;
+    }
+    for (const [, at, single, double] of selector.matchAll(/\[list\/item\[(\d+)\]=(?:'([^']+)'|"([^"]+)")\]/g)) {
+      if (input.list[Number(at) - 1] !== (single ?? double)) return;
+    }
+    const field = /\/@(position|volume|state)$/.exec(selector)?.[1];
+    if (field) return fields[field];
+  }
+
   const numberOf = (key) => inputs.findIndex((i) => i.key === key) + 1;
   const xml = () =>
     `<vmix><version>${version}</version><edition>${esc(edition)}</edition><inputs>${inputs
       .map((i, n) => {
+        updateClock(i);
         const selected = i.list?.[i.selectedIndex - 1];
         const title = i.type === 'VideoList' && selected ? i.title + ' - ' + path.basename(selected) : i.title;
         const list = i.list ? '<list>' + i.list.map((file, index) => '<item' + (index === i.selectedIndex - 1 ? ' selected="true"' : '') + '>' + esc(file) + '</item>').join('') + '</list>' : '';
-        return '<input key="' + i.key + '" number="' + (n + 1) + '" type="' + i.type + '" title="' + esc(title) + '" shortTitle="' + esc(i.title) + '" state="' + (i.state ?? 'Paused') + '" position="' + (i.position ?? 0) + '" duration="' + (i.duration ?? 0) + '" muted="' + (i.muted ? 'True' : 'False') + '" loop="' + (i.loop ? 'True' : 'False') + '"' + (i.list ? ' selectedIndex="' + i.selectedIndex + '"' : '') + '>' + list + esc(i.title) + '</input>';
+        return '<input key="' + i.key + '" number="' + (n + 1) + '" type="' + i.type + '" title="' + esc(title) + '" shortTitle="' + esc(i.title) + '" state="' + (i.state ?? 'Paused') + '" position="' + (i.position ?? 0) + '" duration="' + (i.duration ?? 0) + '"' + (i.list ? ' volume="' + amplitude(i) + '"' : '') + ' muted="' + (i.muted ? 'True' : 'False') + '" loop="' + (i.loop ? 'True' : 'False') + '"' + (i.list ? ' selectedIndex="' + i.selectedIndex + '"' : '') + '>' + list + esc(i.title) + '</input>';
       })
       .join('')}</inputs><overlays>${Array.from({ length: 16 }, (_, c) => {
       const key = overlays.get(c + 1);
@@ -62,6 +114,7 @@ export async function startFakeVmix(options = {}) {
       else add();
     } else if (inputs.find(i => i.key === key)?.list && name !== 'SetInputName' && name !== 'RemoveInput') {
       const input = inputs.find(i => i.key === key);
+      updateClock(input);
       if (options.ignore?.includes(name)) return;
       const value = Number(params.Value);
       if (name === 'ListAdd') {
@@ -101,7 +154,13 @@ export async function startFakeVmix(options = {}) {
         input.position = 0;
         input.duration = 0;
       } else if (name === 'SetAlpha') input.alpha = value;
-      else {
+      else if (name === 'SetPosition') input.position = Math.min(value, input.duration);
+      else if (name === 'SetVolume' && !input.volumeRamp) input.fader = value;
+      else if (name === 'SetGain') input.gain = value;
+      else if (name === 'SetVolumeFade') {
+        const [to, duration] = params.Value.split(',').map(Number);
+        input.volumeRamp = { at: options.now?.() ?? 0, from: input.fader, to, duration };
+      } else {
         const flags = { AutoPlayOff: ['autoPlay', false], AutoPauseOff: ['autoPause', false], AutoRestartOff: ['autoRestart', false], AutoPlayNextOff: ['autoPlayNext', false], AudioAutoOff: ['audioAuto', false], AudioOn: ['muted', false] };
         const setting = flags[name];
         if (setting) input[setting[0]] = setting[1];
@@ -163,6 +222,9 @@ export async function startFakeVmix(options = {}) {
           const send = () => sock.write(`XML ${Buffer.byteLength(body, 'utf8')}\r\n${body}`);
           if (options.xmlDelayMs) setTimeout(send, options.xmlDelayMs);
           else send();
+        } else if (line.startsWith('XMLTEXT ')) {
+          const value = xmlText(line);
+          sock.write(value === undefined ? 'XMLTEXT ER XML Entry Not Found\r\n' : 'XMLTEXT OK ' + value + '\r\n');
         } else if (line === 'SUBSCRIBE ACTS') {
           subscribers.add(sock);
           sock.write('SUBSCRIBE OK ACTS Subscribed\r\n');

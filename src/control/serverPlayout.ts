@@ -135,7 +135,7 @@ export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, va
     };
   }
   if (verb === 'update') return { verb, slot, data: values };
-  const fade = verb === 'out' && slot.adapter !== 'vmix' && item.kind === 'media' ? outFade(cue) : undefined;
+  const fade = verb === 'out' && (slot.adapter !== 'vmix' || 'player' in slot) && item.kind === 'media' ? outFade(cue) : undefined;
   return { verb, slot, item: itemRef, ...(fade !== undefined ? { fadeOut: fade } : {}) } as PlayoutAction;
 }
 

@@ -816,6 +816,13 @@ picker from the unsigned exe; a preset saved with the players.
 
 ## Phase notes
 
+### V6 build notes
+
+Bridge 0.13.0 gives one owned vMix player occurrence its trim, Hold, Loop, Clear, fades and
+level. The clock reports the actual segment. The [V6 evidence](evidence/phase-v6.md) records
+native seek and fade observations, the bounded cover, and the previous verified main and revert
+command. Folder and sequence playback remain in V7.
+
 ### V5 build notes
 
 V5 reads the vMix rundown's player slots for its clock and recovers a playing cue by production,

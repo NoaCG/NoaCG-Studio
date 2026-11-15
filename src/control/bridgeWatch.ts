@@ -68,6 +68,7 @@ import type { SlotReading, StatusCheck } from './playoutStatus';
 import type { ServerPlayoutStore } from './serverPlayoutStore';
 import { folderMode } from '../model/showFolders.ts';
 import { mediaKindOf } from './cuePlayback.ts';
+import { vmixPlayerReadContract } from './playoutProtocol.ts';
 import { slotHolds } from './prepareLive.ts';
 import { casparOutputTarget, vmixPairing } from './playoutStatus.ts';
 import { applyReading, applyVmixReading } from './serverState.ts';
@@ -909,7 +910,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (filesAvailable) learnFacts(i);
     if (i.vmixOn && i.vmixPairing && i.showId && answers && now?.features?.includes('vmix-media')) {
       const production = i.showId;
-      const contract = now.features.includes('vmix-player-transport-guard') ? 'current' : 'staged';
+      const contract = vmixPlayerReadContract(now.features);
       state.run(JSON.stringify(['vmix', production, i.vmixPairing, i.mediaRev, contract]), () => startVmixState(i, production, contract));
     } else {
       const reads = readable && i.playoutItems.some(item => item.adapter !== 'vmix');

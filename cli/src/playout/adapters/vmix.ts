@@ -13,7 +13,8 @@ import { VMIX_BROWSER_LOAD_PROBLEM, VMIX_INPUT_KEY, vmixOverlayCount, type Agent
 import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, type VmixXml } from '../vmixTcp.js';
 import { newVmixBrowser, vmixOutputAddress, vmixOutputId, vmixOutputStore, vmixRedirectRequest, type VmixOutputStore } from '../vmixOutputs.js';
 import { createVmixMedia, VmixDeadline, VmixPublicationUncertain, type VmixMedia } from '../vmixMedia.js';
-import { createVmixPlayers, unsupportedPlayerAction, type VmixAction, type VmixActResult } from '../vmixPlayers.js';
+import { createVmixPlayers, unsupportedPlayerAction, type VmixAction, type VmixActResult, type PlayerMixer } from '../vmixPlayers.js';
+import type { VmixClipClock } from '../vmixClipTimer.js';
 import type { ActContext, ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
 
 /** The time ONE verb may take, all its commands together, inside the page's 9 s for `/act`. */
@@ -144,12 +145,14 @@ export function createVmixAdapter(options: {
   ownershipProblem?: () => string | undefined;
   media?: VmixMedia;
   mediaFile?: string;
+  clipClock?: VmixClipClock;
 } = {}): VmixAdapter {
   const defaultPort = options.port ?? DEFAULT_VMIX_PORT;
   const timeoutMs = options.timeoutMs ?? VMIX_TIMEOUT_MS;
   const outputs = options.outputs ?? vmixOutputStore();
   const media = options.media ?? createVmixMedia({ file: options.mediaFile, ownershipProblem: options.ownershipProblem });
-  const players = createVmixPlayers(media);
+  let closed = false;
+  const players = createVmixPlayers(media, timerTurn, options.clipClock);
   const connections = new Map<number, VmixConnection>();
   const portOf = (target: VmixTarget) => target.port ?? defaultPort;
   // A Browser can navigate while AddInput is still being confirmed. Only committed aliases
@@ -248,7 +251,7 @@ export function createVmixAdapter(options: {
     port: defaultPort,
 
     capabilities() {
-      return { lists: ['media'], thumbnails: false, verbs: ['take', 'out', 'clear', 'pause', 'resume', 'ending'], target: ['state'] };
+      return { lists: ['media'], thumbnails: false, verbs: ['take', 'out', 'clear', 'pause', 'resume', 'ending'], target: ['state', 'end', 'fade', 'trim', 'level'] };
     },
 
     async status(target, receivedAt = Date.now()) {
@@ -348,22 +351,18 @@ export function createVmixAdapter(options: {
         const problem = options.ownershipProblem?.();
         if (problem) return refused(problem);
         const until = (context?.receivedAt ?? Date.now()) + timeoutMs;
-        return exclusive(portOf(target), async () => {
+        const result = await exclusive(portOf(target), async () => {
           try {
             const s = await begin(target, until, 'diagnostic');
             if (!('conn' in s)) return s;
             return await players.act(portOf(target), slot.player, action, {
-              before: s.xml, until, session: context?.session,
-              read: () => read(s.conn, until, 'diagnostic'),
-              send: async (name, params) => {
-                const storageProblem = options.ownershipProblem?.();
-                return storageProblem ? refused(storageProblem) : fn(s.conn, name, params, until, true);
-              },
+              ...playerMixer(s.conn, until), before: s.xml, session: context?.session,
             });
           } catch (error) {
             return mediaFailure(error, 'The vMix player setup could not be read or kept.');
           }
         });
+        return 'settled' in result ? result.settled : result;
       }
       // Everything vMix cannot do from here is refused before anything is sent: the cues play inside
       // the output, so the only things the Bridge puts on a channel are that page and nothing else.
@@ -388,11 +387,42 @@ export function createVmixAdapter(options: {
     },
 
     close() {
+      closed = true;
+      players.close();
       media.close();
       for (const c of connections.values()) c.close();
       connections.clear();
     },
   };
+
+  function playerMixer(conn: VmixConnection, until: number): PlayerMixer {
+    const connectionId = conn.connectionId;
+    return {
+      connectionId, until,
+      read: () => read(conn, until, 'diagnostic'),
+      async readText(xpath) {
+        if (closed || conn.connectionId !== connectionId || /[\r\n]/.test(xpath)) return;
+        const reply = await conn.command('XMLTEXT ' + xpath, until);
+        if (reply.ok && reply.status === 'OK') return /^XMLTEXT OK ([^\r\n]+)$/.exec(reply.line)?.[1];
+      },
+      async send(name, params) {
+        const storageProblem = options.ownershipProblem?.();
+        if (storageProblem) return refused(storageProblem);
+        if (closed || conn.connectionId !== connectionId) return timedOut();
+        return fn(conn, name, params, until, true);
+      },
+    };
+  }
+
+  async function timerTurn(port: number, connectionId: number, run: (mixer: PlayerMixer) => Promise<void>) {
+    const until = Date.now() + timeoutMs;
+    return exclusive(port, async () => {
+      const conn = connections.get(port);
+      if (closed || Date.now() >= until || !conn || conn.connectionId !== connectionId) return false;
+      await run(playerMixer(conn, until));
+      return true;
+    });
+  }
 
   /** Wait for an observable change without repeating a function. */
   async function observe<T>(

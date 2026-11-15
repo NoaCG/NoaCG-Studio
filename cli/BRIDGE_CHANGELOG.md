@@ -15,6 +15,16 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.13.0 - 2026-11-15
+
+vMix cues can now play a trimmed section, fade in or out, and use their own level.
+Choose Hold, Loop or Clear for a clip's ending. The rundown clock counts the part
+of the file you selected. **Out** uses your saved fade, and **All out** cuts immediately.
+
+Check your trim points before the broadcast. Some files cannot seek accurately in
+vMix. If Bridge cannot confirm the chosen start, it keeps the replacement black
+and silent and reports the failed Take. Download and start Bridge 0.13.0 between broadcasts.
+
 ## 0.12.0 - 2026-11-14
 
 You can now take clips, stills and audio from the NoaCG rundown into vMix. In **Settings >
