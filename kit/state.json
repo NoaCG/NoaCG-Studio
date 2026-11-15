@@ -4391,6 +4391,12 @@
         "sha256": "f16f1a52cfbfdf0936c6436a98db6fc68bdd63c806a9e8eef2fa90ddc05963a4",
         "finding": "New Blank completion may override accepted Home/Cancel/newwalk; no source-loss/E4 attribution; analogous oldProjectStarter preexisting",
         "next": "Amend B1/localcontinuation departure outcome and deterministicheldreceipt oracle; SAME reviewer focused re-evaluation before anycode"
+      },
+      "amendmentIntent": {
+        "actor": "/root/editor_e5f_cloud_builder",
+        "brief": "briefs/e5f-blank-rules-amendment-20261115.txt",
+        "sha256": "bde9e51e9b86248e9daee13867d0ffdbba23de69b4a2433eb048117915677d0d",
+        "status": "intent before followup; readonly amendment only"
       }
     }
   },
