@@ -178,8 +178,14 @@ own seek or reveal with positive confirmation rebases the nonloop checkpoint. Un
 timing or loss of expected Audio mute readback disarms work and preserves the
 passive instance and position checkpoint. A readable change from a frozen exit
 state or position ends its restoration authority even if that state later
-returns. An acknowledged change and a native Loop wrap retain their existing
-confirmation paths.
+returns. An acknowledged live ending permits the planned Loop flag change.
+The same sample still confirms the selection, duration, route, position and
+any frozen stop. Exact compact witnesses check continuity before presentation
+and transport writes, including faded Out and Resume. After its own acknowledged
+seek, the Bridge carries the confirmed local position through covered Play
+and reveal before committing the new checkpoint. Removal requires the same
+exact stopped position as its final state and hard-zero check, when required.
+Native Loop wraps remain supported.
 
 ## Verification, release and rollback
 

@@ -3615,8 +3615,8 @@ test('AC-12: Clear rechecks stopped state and exact zero in the same final scala
       let fixture;
       fixture = await timedFixture(t, {
         hook(line) {
-          if (line.startsWith('XMLTEXT ') && line.includes("[@state='Paused' or @state='Completed']") &&
-              line.includes('@position >= 500 or') && line.includes('number(@volume)=0')) {
+          if (line.startsWith('XMLTEXT ') && line.includes("[@state='Paused']") &&
+              line.includes('@position >= 500 or') && /\[@position=\d+\]/.test(line) && line.includes('number(@volume)=0')) {
             injected = true;
             if (changed === 'volume') fixture.row().fader = 25;
             else fixture.row().state = 'Running';
@@ -4268,13 +4268,14 @@ test('AC-12: the first compact read waits for own empty-list SelectIndex in untr
 });
 
 test('AC-12: an exactly stopped settling Out can transfer to Pause or ending without risking removal', async t => {
-  for (const mode of ['guarded pause', 'legacy pause', 'guarded ending', 'completed stop', 'moved stop', 'restored position', 'restored state']) {
+  for (const mode of ['guarded pause', 'legacy pause', 'guarded ending', 'completed stop', 'moved stop', 'restored position', 'restored state', 'moved after Ending']) {
     await t.test(mode, async t => {
       let restoring = false;
       const fixture = await timedFixture(t, {
         inputs: [{ type: 'VideoList', title: 'NoaCG Clips', muted: false }],
         afterFunction(name, params) {
           if (name === 'SetVolumeFade' && params.Value === '0,1000') fixture.row().volumeRamp.duration = 1250;
+          if (restoring && mode === 'moved after Ending' && name === 'LoopOff') fixture.row().position += 80;
           if (restoring && name === 'SetVolumeFade' && params.Value === '100,40') {
             assert.equal(fixture.row().muted, true);
             assert.equal(fixture.row().alpha, 0);
@@ -4311,12 +4312,13 @@ test('AC-12: an exactly stopped settling Out can transfer to Pause or ending wit
         const start = fake.functions.length;
         restoring = true;
         const result = await act(mode === 'guarded pause' || restored ? { verb: 'pause-player-held', expectedPlayerInstance }
-          : mode === 'guarded ending' ? { verb: 'ending-player-held', item, expectedPlayerInstance, playback: { end: 'hold' } }
+          : mode === 'guarded ending' || mode === 'moved after Ending'
+            ? { verb: 'ending-player-held', item, expectedPlayerInstance, playback: { end: 'hold' } }
             : { verb: 'pause' });
-        const shouldRestore = mode !== 'moved stop' && !restored;
+        const shouldRestore = mode !== 'moved stop' && mode !== 'moved after Ending' && !restored;
         assert.equal(result.ok, shouldRestore, JSON.stringify(result));
         if (!shouldRestore) {
-          assert.equal(fake.functions.length, start);
+          assert.deepEqual(fake.functions.slice(start).map(fn => fn.name), mode === 'moved after Ending' ? ['LoopOff'] : []);
         } else {
           assert.equal(fixture.row().state, mode === 'completed stop' ? 'Completed' : 'Paused');
           assert.equal(fixture.row().fader, 100);
@@ -5063,6 +5065,94 @@ test('AC-12: an acknowledged live ending may change the measured Loop mode', asy
   await fixture.advance(4200);
   assert.equal((await fixture.read()).instance, take.instance);
   assert.equal(fixture.row().state, 'Running');
+});
+
+test('AC-12: acknowledged Ending does not exempt a confirmed same-list rewind', async t => {
+  let checking = false;
+  const fixture = await timedFixture(t, {
+    afterFunction(name) {
+      if (checking && name === 'LoopOff') fixture.row().position = 900;
+      return false;
+    },
+  });
+  const take = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 2.5 } } });
+  assert.equal(take.ok, true);
+  fixture.row().position = 1800;
+  assert.equal((await fixture.adapter.status(fixture.target)).ok, true);
+  checking = true;
+  const before = fixture.fake.functions.length;
+  assert.equal((await fixture.expected(take.instance, 'ending', { playback: { end: 'clear' } })).ok, false);
+  assert.deepEqual(fixture.fake.functions.slice(before).map(fn => fn.name), ['LoopOff']);
+  fixture.row().position = 1800;
+  assert.equal((await fixture.read()).instance, undefined);
+  assert.equal((await fixture.expected(take.instance, 'out')).ok, false);
+  assert.equal(fixture.fake.functions.length, before + 1);
+});
+
+test('AC-12: an exact compact rewind grants no faded Out ramp or covered Resume command', async t => {
+  for (const mode of ['faded Out', 'guarded Resume', 'legacy Resume']) {
+    await t.test(mode, async t => {
+      let checking = false;
+      let hit = false;
+      const fixture = await timedFixture(t, {
+        hook(line) {
+          if (checking && !hit && line.endsWith('/@position')) {
+            hit = true;
+            fixture.row().position = 900;
+          }
+          return false;
+        },
+      });
+      const take = await fixture.take('clip B.mp4', { playback: { trim: { in: 0.5, out: 2.5 } } });
+      assert.equal(take.ok, true);
+      if (mode !== 'faded Out') assert.equal((await fixture.expected(take.instance, 'pause')).ok, true);
+      fixture.row().position = 1800;
+      assert.equal((await fixture.adapter.status(fixture.target)).ok, true);
+      const before = fixture.fake.functions.length;
+      checking = true;
+      const result = mode === 'faded Out' ? await fixture.expected(take.instance, 'out', { fadeOut: 0.5 })
+        : mode === 'guarded Resume' ? await fixture.expected(take.instance, 'resume')
+          : await fixture.adapter.act(fixture.target, { verb: 'resume', slot: fixture.player() });
+      assert.equal(hit, true);
+      assert.equal(result.ok, false);
+      assert.equal(fixture.fake.functions.length, before);
+      fixture.row().position = 1800;
+      assert.equal((await fixture.read()).instance, undefined);
+    });
+  }
+});
+
+test('AC-12: hard-zero removal requires the exact measured stopped position', async t => {
+  for (const mode of ['Out rewind', 'Clear moved past boundary']) {
+    await t.test(mode, async t => {
+      let checking = false;
+      let hit = false;
+      const fixture = await timedFixture(t, {
+        hook(line) {
+          if (checking && !hit && line.endsWith('/@position') && line.includes('number(@volume)=0')) {
+            hit = true;
+            fixture.row().position += mode === 'Out rewind' ? -40 : 40;
+          }
+          return false;
+        },
+      });
+      const outMode = mode === 'Out rewind';
+      const playback = { trim: { in: 0.5, out: 1 }, ...(outMode ? {} : { end: 'clear', fadeOut: 0.1 }) };
+      const take = await fixture.take('clip B.mp4', { playback });
+      assert.equal(take.ok, true);
+      const out = outMode ? fixture.expected(take.instance, 'out', { fadeOut: 0.1 }) : undefined;
+      await fixture.joinTurn();
+      checking = true;
+      await fixture.advance(650);
+      assert.equal(hit, true);
+      assert.equal(fixture.row().alpha, 0);
+      assert.equal(fixture.row().state, 'Paused');
+      assert.equal(fixture.row().fader, 0);
+      assert.equal(fixture.row().list.length, 1);
+      assert.equal(fixture.fake.functions.some(fn => fn.name === 'ListRemoveAll'), false);
+      if (out) assert.equal((await out).ok, false);
+    });
+  }
 });
 
 test('AC-12: an own index handoff cannot regress to its predecessor after first successor evidence', async t => {
