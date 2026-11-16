@@ -144,101 +144,102 @@ import * as m140 from './export/targets/ografSchema.ts';
 import * as m141 from './export/targets/spxStarter.ts';
 import * as m142 from './format/formatCode.ts';
 import * as m143 from './model/brand.ts';
-import * as m144 from './model/contentHash.ts';
-import * as m145 from './model/cssVars.ts';
-import * as m146 from './model/cueClipboard.ts';
-import * as m147 from './model/durableStore.ts';
-import * as m148 from './model/editorOrganization.ts';
-import * as m149 from './model/fonts.ts';
-import * as m150 from './model/foreignPackage.ts';
-import * as m151 from './model/generationSpec.ts';
-import * as m152 from './model/graphicDoc.ts';
-import * as m153 from './model/importTemplate.ts';
-import * as m154 from './model/library.ts';
-import * as m155 from './model/outputSetup.ts';
-import * as m156 from './model/ownReaderHolds.ts';
-import * as m157 from './model/packets.ts';
-import * as m158 from './model/prefs.ts';
-import * as m159 from './model/productionData.ts';
-import * as m160 from './model/productionState.ts';
-import * as m161 from './model/profile.ts';
-import * as m162 from './model/project.ts';
-import * as m163 from './model/projectFormat.ts';
-import * as m164 from './model/projectInstallation.ts';
-import * as m165 from './model/readyMemory.ts';
-import * as m166 from './model/rundownHistory.ts';
-import * as m167 from './model/shows.ts';
-import * as m168 from './model/slug.ts';
-import * as m169 from './model/spxDefinition.ts';
-import * as m170 from './model/structure.ts';
-import * as m171 from './model/svgGroupTransform.ts';
-import * as m172 from './model/taxonomy.ts';
-import * as m173 from './model/teamOutbox.ts';
-import * as m174 from './model/teamShows.ts';
-import * as m175 from './model/types.ts';
-import * as m176 from './model/videoTypes.ts';
-import * as m177 from './model/wizard.ts';
-import * as m178 from './ograf/starters.ts';
-import * as m179 from './output/foreignOgraf.ts';
-import * as m180 from './output/prepare.ts';
-import * as m181 from './output/stage.ts';
-import * as m182 from './packs/graphicsPack.ts';
-import * as m183 from './preview/composeDocument.ts';
-import * as m184 from './preview/previewProtocol.ts';
-import * as m185 from './render/limits.ts';
-import * as m186 from './render/schedule.ts';
-import * as m187 from './showchat/chatGraphicBlock.ts';
-import * as m188 from './store/docKindStore.ts';
-import * as m189 from './store/saveActions.ts';
-import * as m190 from './store/templateStore.ts';
-import * as m191 from './store/videoProjectStore.ts';
-import * as m192 from './templates/behaviours/clock.ts';
-import * as m193 from './templates/behaviours/registry.ts';
-import * as m194 from './templates/blank.ts';
-import * as m195 from './templates/catalog.ts';
-import * as m196 from './templates/cornerBug/index.ts';
-import * as m197 from './templates/defaultTemplate.ts';
-import * as m198 from './templates/gameTimers/index.ts';
-import * as m199 from './templates/importedDesign/creditsRoll.ts';
-import * as m200 from './templates/importedDesign/reimport.ts';
-import * as m201 from './templates/importedDesign/stretch.ts';
-import * as m202 from './templates/importedDesign/svg.ts';
-import * as m203 from './templates/infoCards/index.ts';
-import * as m204 from './templates/infographics/index.ts';
-import * as m205 from './templates/kit.ts';
-import * as m206 from './templates/lowerThirds/animPresets.ts';
-import * as m207 from './templates/lowerThirds/index.ts';
-import * as m208 from './templates/lowerThirds/lt01.ts';
-import * as m209 from './templates/packs.ts';
-import * as m210 from './templates/picture.ts';
-import * as m211 from './templates/quiz/index.ts';
-import * as m212 from './templates/scoreboards/index.ts';
-import * as m213 from './templates/search.ts';
-import * as m214 from './templates/shared/animRuntime.ts';
-import * as m215 from './templates/shared/animRuntimeLegacy.ts';
-import * as m216 from './templates/shared/base.ts';
-import * as m217 from './templates/shared/clock.ts';
-import * as m218 from './templates/shared/easeRuntime.ts';
-import * as m219 from './templates/shared/textFit.ts';
-import * as m220 from './templates/startingSoon/index.ts';
-import * as m221 from './templates/structuralAnchor.ts';
-import * as m222 from './templates/templateMeta.ts';
-import * as m223 from './templates/tickers/index.ts';
-import * as m224 from './templates/types/graphicType.ts';
-import * as m225 from './templates/types/recipeTemplate.ts';
-import * as m226 from './templates/types/registry.ts';
-import * as m227 from './validation/designRulesWarnings.ts';
-import * as m228 from './validation/fieldPaint.ts';
-import * as m229 from './validation/productionGate.ts';
-import * as m230 from './validation/publishGate.ts';
-import * as m231 from './validation/runtimeBench.ts';
-import * as m232 from './validation/structuralIntentCheck.ts';
-import * as m233 from './validation/templateBench.ts';
-import * as m234 from './validation/validateTemplate.ts';
-import * as m235 from './video/bridgeRegistry.ts';
-import * as m236 from './video/compile.ts';
-import * as m237 from './video/hyperframes/bridge.ts';
-import * as m238 from './video/hyperframes/validate.ts';
+import * as m144 from './model/brandApplication.ts';
+import * as m145 from './model/contentHash.ts';
+import * as m146 from './model/cssVars.ts';
+import * as m147 from './model/cueClipboard.ts';
+import * as m148 from './model/durableStore.ts';
+import * as m149 from './model/editorOrganization.ts';
+import * as m150 from './model/fonts.ts';
+import * as m151 from './model/foreignPackage.ts';
+import * as m152 from './model/generationSpec.ts';
+import * as m153 from './model/graphicDoc.ts';
+import * as m154 from './model/importTemplate.ts';
+import * as m155 from './model/library.ts';
+import * as m156 from './model/outputSetup.ts';
+import * as m157 from './model/ownReaderHolds.ts';
+import * as m158 from './model/packets.ts';
+import * as m159 from './model/prefs.ts';
+import * as m160 from './model/productionData.ts';
+import * as m161 from './model/productionState.ts';
+import * as m162 from './model/profile.ts';
+import * as m163 from './model/project.ts';
+import * as m164 from './model/projectFormat.ts';
+import * as m165 from './model/projectInstallation.ts';
+import * as m166 from './model/readyMemory.ts';
+import * as m167 from './model/rundownHistory.ts';
+import * as m168 from './model/shows.ts';
+import * as m169 from './model/slug.ts';
+import * as m170 from './model/spxDefinition.ts';
+import * as m171 from './model/structure.ts';
+import * as m172 from './model/svgGroupTransform.ts';
+import * as m173 from './model/taxonomy.ts';
+import * as m174 from './model/teamOutbox.ts';
+import * as m175 from './model/teamShows.ts';
+import * as m176 from './model/types.ts';
+import * as m177 from './model/videoTypes.ts';
+import * as m178 from './model/wizard.ts';
+import * as m179 from './ograf/starters.ts';
+import * as m180 from './output/foreignOgraf.ts';
+import * as m181 from './output/prepare.ts';
+import * as m182 from './output/stage.ts';
+import * as m183 from './packs/graphicsPack.ts';
+import * as m184 from './preview/composeDocument.ts';
+import * as m185 from './preview/previewProtocol.ts';
+import * as m186 from './render/limits.ts';
+import * as m187 from './render/schedule.ts';
+import * as m188 from './showchat/chatGraphicBlock.ts';
+import * as m189 from './store/docKindStore.ts';
+import * as m190 from './store/saveActions.ts';
+import * as m191 from './store/templateStore.ts';
+import * as m192 from './store/videoProjectStore.ts';
+import * as m193 from './templates/behaviours/clock.ts';
+import * as m194 from './templates/behaviours/registry.ts';
+import * as m195 from './templates/blank.ts';
+import * as m196 from './templates/catalog.ts';
+import * as m197 from './templates/cornerBug/index.ts';
+import * as m198 from './templates/defaultTemplate.ts';
+import * as m199 from './templates/gameTimers/index.ts';
+import * as m200 from './templates/importedDesign/creditsRoll.ts';
+import * as m201 from './templates/importedDesign/reimport.ts';
+import * as m202 from './templates/importedDesign/stretch.ts';
+import * as m203 from './templates/importedDesign/svg.ts';
+import * as m204 from './templates/infoCards/index.ts';
+import * as m205 from './templates/infographics/index.ts';
+import * as m206 from './templates/kit.ts';
+import * as m207 from './templates/lowerThirds/animPresets.ts';
+import * as m208 from './templates/lowerThirds/index.ts';
+import * as m209 from './templates/lowerThirds/lt01.ts';
+import * as m210 from './templates/packs.ts';
+import * as m211 from './templates/picture.ts';
+import * as m212 from './templates/quiz/index.ts';
+import * as m213 from './templates/scoreboards/index.ts';
+import * as m214 from './templates/search.ts';
+import * as m215 from './templates/shared/animRuntime.ts';
+import * as m216 from './templates/shared/animRuntimeLegacy.ts';
+import * as m217 from './templates/shared/base.ts';
+import * as m218 from './templates/shared/clock.ts';
+import * as m219 from './templates/shared/easeRuntime.ts';
+import * as m220 from './templates/shared/textFit.ts';
+import * as m221 from './templates/startingSoon/index.ts';
+import * as m222 from './templates/structuralAnchor.ts';
+import * as m223 from './templates/templateMeta.ts';
+import * as m224 from './templates/tickers/index.ts';
+import * as m225 from './templates/types/graphicType.ts';
+import * as m226 from './templates/types/recipeTemplate.ts';
+import * as m227 from './templates/types/registry.ts';
+import * as m228 from './validation/designRulesWarnings.ts';
+import * as m229 from './validation/fieldPaint.ts';
+import * as m230 from './validation/productionGate.ts';
+import * as m231 from './validation/publishGate.ts';
+import * as m232 from './validation/runtimeBench.ts';
+import * as m233 from './validation/structuralIntentCheck.ts';
+import * as m234 from './validation/templateBench.ts';
+import * as m235 from './validation/validateTemplate.ts';
+import * as m236 from './video/bridgeRegistry.ts';
+import * as m237 from './video/compile.ts';
+import * as m238 from './video/hyperframes/bridge.ts';
+import * as m239 from './video/hyperframes/validate.ts';
 
 export const MODULES: Record<string, unknown> = {
   '/e2e/_env-probe.ts': m0,
@@ -385,101 +386,102 @@ export const MODULES: Record<string, unknown> = {
   '/src/export/targets/spxStarter.ts': m141,
   '/src/format/formatCode.ts': m142,
   '/src/model/brand.ts': m143,
-  '/src/model/contentHash.ts': m144,
-  '/src/model/cssVars.ts': m145,
-  '/src/model/cueClipboard.ts': m146,
-  '/src/model/durableStore.ts': m147,
-  '/src/model/editorOrganization.ts': m148,
-  '/src/model/fonts.ts': m149,
-  '/src/model/foreignPackage.ts': m150,
-  '/src/model/generationSpec.ts': m151,
-  '/src/model/graphicDoc.ts': m152,
-  '/src/model/importTemplate.ts': m153,
-  '/src/model/library.ts': m154,
-  '/src/model/outputSetup.ts': m155,
-  '/src/model/ownReaderHolds.ts': m156,
-  '/src/model/packets.ts': m157,
-  '/src/model/prefs.ts': m158,
-  '/src/model/productionData.ts': m159,
-  '/src/model/productionState.ts': m160,
-  '/src/model/profile.ts': m161,
-  '/src/model/project.ts': m162,
-  '/src/model/projectFormat.ts': m163,
-  '/src/model/projectInstallation.ts': m164,
-  '/src/model/readyMemory.ts': m165,
-  '/src/model/rundownHistory.ts': m166,
-  '/src/model/shows.ts': m167,
-  '/src/model/slug.ts': m168,
-  '/src/model/spxDefinition.ts': m169,
-  '/src/model/structure.ts': m170,
-  '/src/model/svgGroupTransform.ts': m171,
-  '/src/model/taxonomy.ts': m172,
-  '/src/model/teamOutbox.ts': m173,
-  '/src/model/teamShows.ts': m174,
-  '/src/model/types.ts': m175,
-  '/src/model/videoTypes.ts': m176,
-  '/src/model/wizard.ts': m177,
-  '/src/ograf/starters.ts': m178,
-  '/src/output/foreignOgraf.ts': m179,
-  '/src/output/prepare.ts': m180,
-  '/src/output/stage.ts': m181,
-  '/src/packs/graphicsPack.ts': m182,
-  '/src/preview/composeDocument.ts': m183,
-  '/src/preview/previewProtocol.ts': m184,
-  '/src/render/limits.ts': m185,
-  '/src/render/schedule.ts': m186,
-  '/src/showchat/chatGraphicBlock.ts': m187,
-  '/src/store/docKindStore.ts': m188,
-  '/src/store/saveActions.ts': m189,
-  '/src/store/templateStore.ts': m190,
-  '/src/store/videoProjectStore.ts': m191,
-  '/src/templates/behaviours/clock.ts': m192,
-  '/src/templates/behaviours/registry.ts': m193,
-  '/src/templates/blank.ts': m194,
-  '/src/templates/catalog.ts': m195,
-  '/src/templates/cornerBug/index.ts': m196,
-  '/src/templates/defaultTemplate.ts': m197,
-  '/src/templates/gameTimers/index.ts': m198,
-  '/src/templates/importedDesign/creditsRoll.ts': m199,
-  '/src/templates/importedDesign/reimport.ts': m200,
-  '/src/templates/importedDesign/stretch.ts': m201,
-  '/src/templates/importedDesign/svg.ts': m202,
-  '/src/templates/infoCards/index.ts': m203,
-  '/src/templates/infographics/index.ts': m204,
-  '/src/templates/kit.ts': m205,
-  '/src/templates/lowerThirds/animPresets.ts': m206,
-  '/src/templates/lowerThirds/index.ts': m207,
-  '/src/templates/lowerThirds/lt01.ts': m208,
-  '/src/templates/packs.ts': m209,
-  '/src/templates/picture.ts': m210,
-  '/src/templates/quiz/index.ts': m211,
-  '/src/templates/scoreboards/index.ts': m212,
-  '/src/templates/search.ts': m213,
-  '/src/templates/shared/animRuntime.ts': m214,
-  '/src/templates/shared/animRuntimeLegacy.ts': m215,
-  '/src/templates/shared/base.ts': m216,
-  '/src/templates/shared/clock.ts': m217,
-  '/src/templates/shared/easeRuntime.ts': m218,
-  '/src/templates/shared/textFit.ts': m219,
-  '/src/templates/startingSoon/index.ts': m220,
-  '/src/templates/structuralAnchor.ts': m221,
-  '/src/templates/templateMeta.ts': m222,
-  '/src/templates/tickers/index.ts': m223,
-  '/src/templates/types/graphicType.ts': m224,
-  '/src/templates/types/recipeTemplate.ts': m225,
-  '/src/templates/types/registry.ts': m226,
-  '/src/validation/designRulesWarnings.ts': m227,
-  '/src/validation/fieldPaint.ts': m228,
-  '/src/validation/productionGate.ts': m229,
-  '/src/validation/publishGate.ts': m230,
-  '/src/validation/runtimeBench.ts': m231,
-  '/src/validation/structuralIntentCheck.ts': m232,
-  '/src/validation/templateBench.ts': m233,
-  '/src/validation/validateTemplate.ts': m234,
-  '/src/video/bridgeRegistry.ts': m235,
-  '/src/video/compile.ts': m236,
-  '/src/video/hyperframes/bridge.ts': m237,
-  '/src/video/hyperframes/validate.ts': m238,
+  '/src/model/brandApplication.ts': m144,
+  '/src/model/contentHash.ts': m145,
+  '/src/model/cssVars.ts': m146,
+  '/src/model/cueClipboard.ts': m147,
+  '/src/model/durableStore.ts': m148,
+  '/src/model/editorOrganization.ts': m149,
+  '/src/model/fonts.ts': m150,
+  '/src/model/foreignPackage.ts': m151,
+  '/src/model/generationSpec.ts': m152,
+  '/src/model/graphicDoc.ts': m153,
+  '/src/model/importTemplate.ts': m154,
+  '/src/model/library.ts': m155,
+  '/src/model/outputSetup.ts': m156,
+  '/src/model/ownReaderHolds.ts': m157,
+  '/src/model/packets.ts': m158,
+  '/src/model/prefs.ts': m159,
+  '/src/model/productionData.ts': m160,
+  '/src/model/productionState.ts': m161,
+  '/src/model/profile.ts': m162,
+  '/src/model/project.ts': m163,
+  '/src/model/projectFormat.ts': m164,
+  '/src/model/projectInstallation.ts': m165,
+  '/src/model/readyMemory.ts': m166,
+  '/src/model/rundownHistory.ts': m167,
+  '/src/model/shows.ts': m168,
+  '/src/model/slug.ts': m169,
+  '/src/model/spxDefinition.ts': m170,
+  '/src/model/structure.ts': m171,
+  '/src/model/svgGroupTransform.ts': m172,
+  '/src/model/taxonomy.ts': m173,
+  '/src/model/teamOutbox.ts': m174,
+  '/src/model/teamShows.ts': m175,
+  '/src/model/types.ts': m176,
+  '/src/model/videoTypes.ts': m177,
+  '/src/model/wizard.ts': m178,
+  '/src/ograf/starters.ts': m179,
+  '/src/output/foreignOgraf.ts': m180,
+  '/src/output/prepare.ts': m181,
+  '/src/output/stage.ts': m182,
+  '/src/packs/graphicsPack.ts': m183,
+  '/src/preview/composeDocument.ts': m184,
+  '/src/preview/previewProtocol.ts': m185,
+  '/src/render/limits.ts': m186,
+  '/src/render/schedule.ts': m187,
+  '/src/showchat/chatGraphicBlock.ts': m188,
+  '/src/store/docKindStore.ts': m189,
+  '/src/store/saveActions.ts': m190,
+  '/src/store/templateStore.ts': m191,
+  '/src/store/videoProjectStore.ts': m192,
+  '/src/templates/behaviours/clock.ts': m193,
+  '/src/templates/behaviours/registry.ts': m194,
+  '/src/templates/blank.ts': m195,
+  '/src/templates/catalog.ts': m196,
+  '/src/templates/cornerBug/index.ts': m197,
+  '/src/templates/defaultTemplate.ts': m198,
+  '/src/templates/gameTimers/index.ts': m199,
+  '/src/templates/importedDesign/creditsRoll.ts': m200,
+  '/src/templates/importedDesign/reimport.ts': m201,
+  '/src/templates/importedDesign/stretch.ts': m202,
+  '/src/templates/importedDesign/svg.ts': m203,
+  '/src/templates/infoCards/index.ts': m204,
+  '/src/templates/infographics/index.ts': m205,
+  '/src/templates/kit.ts': m206,
+  '/src/templates/lowerThirds/animPresets.ts': m207,
+  '/src/templates/lowerThirds/index.ts': m208,
+  '/src/templates/lowerThirds/lt01.ts': m209,
+  '/src/templates/packs.ts': m210,
+  '/src/templates/picture.ts': m211,
+  '/src/templates/quiz/index.ts': m212,
+  '/src/templates/scoreboards/index.ts': m213,
+  '/src/templates/search.ts': m214,
+  '/src/templates/shared/animRuntime.ts': m215,
+  '/src/templates/shared/animRuntimeLegacy.ts': m216,
+  '/src/templates/shared/base.ts': m217,
+  '/src/templates/shared/clock.ts': m218,
+  '/src/templates/shared/easeRuntime.ts': m219,
+  '/src/templates/shared/textFit.ts': m220,
+  '/src/templates/startingSoon/index.ts': m221,
+  '/src/templates/structuralAnchor.ts': m222,
+  '/src/templates/templateMeta.ts': m223,
+  '/src/templates/tickers/index.ts': m224,
+  '/src/templates/types/graphicType.ts': m225,
+  '/src/templates/types/recipeTemplate.ts': m226,
+  '/src/templates/types/registry.ts': m227,
+  '/src/validation/designRulesWarnings.ts': m228,
+  '/src/validation/fieldPaint.ts': m229,
+  '/src/validation/productionGate.ts': m230,
+  '/src/validation/publishGate.ts': m231,
+  '/src/validation/runtimeBench.ts': m232,
+  '/src/validation/structuralIntentCheck.ts': m233,
+  '/src/validation/templateBench.ts': m234,
+  '/src/validation/validateTemplate.ts': m235,
+  '/src/video/bridgeRegistry.ts': m236,
+  '/src/video/compile.ts': m237,
+  '/src/video/hyperframes/bridge.ts': m238,
+  '/src/video/hyperframes/validate.ts': m239,
 };
 
 export const LAZY: Record<string, () => Promise<unknown>> = {
