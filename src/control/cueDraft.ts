@@ -249,7 +249,6 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
    *  take whose write is not yet confirmed may be asked again; the same text written twice is
    *  harmless, and the first write can be dropped (a remount moves the history on). */
   let recovered = false;
-  let recovering = false;
   let eligibility = 0;
   let authoring = 0;
   const copyOf = (d: DraftPart): CueFields => ({ ...fieldsOf(d), values: { ...d.values } });
@@ -276,6 +275,11 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       if (JSON.stringify(io.owed.read()) === JSON.stringify(ended)) recorded = JSON.stringify(ended);
     }
     prune(stream);
+  };
+  const forgetCommitted = (commit?: DraftRevision) => {
+    if (!commit || io.commit?.account() !== commit.stream.account) return;
+    const owed = io.owed.read()?.commit;
+    if (owed?.stream === commit.id.stream && owed.revision === commit.id.revision) forgetOwn();
   };
   const started = (d: DraftPart) => {
     retire(startedFrom?.stream);
@@ -361,6 +365,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     return io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
       confirmedByReceipt = true;
       confirmed(write, cue);
+      forgetCommitted(commit);
     }, commit?.id).then((saved) => {
       if (out === d) out = null;
       // Typing went on during the save, or the session ended: the newer draft is still owed.
@@ -403,6 +408,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     const saved = io.retainCue(d.cueId, fields, cue => {
       confirmedByReceipt = true;
       confirmed(write, cue);
+      forgetCommitted(commit);
     }, commit?.id);
     if (saved === false) {
       if (startedFrom) startedFrom.texts = startedFrom.texts.filter(entry => entry !== write);
@@ -510,7 +516,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
         recovered = true;
         return;
       }
-      if (!io.canWrite() || recovering) return;
+      if (!io.canWrite()) return;
       const same = JSON.stringify(e), account = io.commit?.account();
       const sameOwed = () => io.commit?.account() === account && JSON.stringify(io.owed.read()) === same;
       const clear = () => {
@@ -523,11 +529,9 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
         if (!io.commit || eligibility !== 0) return;
         const generation = eligibility, permission = authoring;
         const valid = () => eligibility === generation && authoring === permission && session.alive() && io.canWrite() && sameOwed();
-        recovering = true;
         void io.commit.recover({ ...e, commit: e.commit }, valid).then(settled => {
-          recovering = false;
           if (settled) clear();
-        }, () => { recovering = false; });
+        }, () => {});
         return;
       }
       const cue = io.record(e.cueId);

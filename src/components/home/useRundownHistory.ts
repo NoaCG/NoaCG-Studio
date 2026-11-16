@@ -346,9 +346,9 @@ export function useRundownHistory(
     const staged = stagedCue(text, receipt, current, cueId, commit);
     draft.staged = staged;
     const settled = Promise.all(receipts.map(commitDurableReceipt)).then(errors => {
-      const cue = ownsWrite() && !errors.some(Boolean) ? committedCue(receipt, current, cueId) : undefined;
+      const cue = libraryInUse() === account && !errors.some(Boolean) ? committedCue(receipt, current, cueId) : undefined;
       const actual = cue ? cueFieldsKey(cue) : null;
-      const accepted = actual !== null && cueTextKey(fresh() ?? {}, cueId) === actual;
+      const accepted = ownsWrite() && actual !== null && cueTextKey(fresh() ?? {}, cueId) === actual;
       if (cue && (!current.teamId || accepted)) confirm?.(cue);
       if (draft.staged === staged) {
         draft.staged = undefined;
