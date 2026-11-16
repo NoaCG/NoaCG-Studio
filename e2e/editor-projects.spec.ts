@@ -604,6 +604,8 @@ for (const door of ['api', 'document', 'brand', 'save', 'create'] as const) test
     const P = await __noacgImport('/src/store/authoringProjects.ts');
     const ok = door === 'api' ? await P.openProjectDocument(id) : await P.createAuthoringProject('Second project', [P.workspace().documents[0].template]);
     if (!ok) throw new Error(P.useAuthoringProjects.getState().error);
+    // Answer in a later task so Chromium can report the result after the editor updates (#2371).
+    await new Promise(resolve => setTimeout(resolve));
   }, { id: ids[1], door });
   else {
     await page.getByRole('button', { name: /^Project/ }).first().click();
@@ -624,8 +626,9 @@ for (const door of ['api', 'document', 'brand', 'save', 'create'] as const) test
     const P = await __noacgImport('/src/store/authoringProjects.ts');
     if (!await P.openProjectDocument(id)) throw new Error(P.useAuthoringProjects.getState().error);
     const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
-    const draft = s.port.read(); s.undo(); const undo = s.port.read(); s.redo();
-    return { draft, undo, redo: s.port.read() };
+    const draft = s.port.read(); s.undo(); const undo = s.port.read(); s.redo(); const redo = s.port.read();
+    await new Promise(resolve => setTimeout(resolve));
+    return { draft, undo, redo };
   }, external.id);
   expect(reopened.draft).toEqual(before.template); expect(reopened.undo.html).not.toContain('External source must survive'); expect(reopened.redo).toEqual(before.template);
 });
