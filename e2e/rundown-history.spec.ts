@@ -601,8 +601,11 @@ for (const scenario of ['continued typing', 'a separate optimistic write', 'page
       await expect(page.locator('html')).toHaveAttribute('data-aborted-closing-draft', 'true');
       await expect.poll(savedText).toEqual(['Words', words]);
       const owed = await page.evaluate(async id => {
-        const { readOwedCueEdit } = await __noacgImport('/src/model/owedCueEdit.ts');
-        return readOwedCueEdit(id);
+        const { libraryInUse } = await __noacgImport('/src/model/durableStore.ts');
+        const account = libraryInUse();
+        const key = 'spx-gfx-owed-cue-edits' + (account ? '@' + account : '');
+        return JSON.parse(localStorage.getItem(key) ?? '{}').shows?.[id] as
+          { fields: { label: string }; bases: { label: string; values: Record<string, string> }[] } | undefined;
       }, ids.show);
       expect(owed?.fields.label).toBe('Kept typing');
       expect(owed?.bases.some(base => base.label === 'Words' && base.values.f2 === words)).toBe(true);
