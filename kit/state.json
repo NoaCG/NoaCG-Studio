@@ -46,12 +46,12 @@
   },
   "inFlight": [
     {
-      "step": "Dependency repair limit",
-      "head": "3c498fb55eecd56687e132f6564fc2bb1d09b8fe",
-      "note": "PR #2573 is at the repair limit for checked cue text across team save retries. Exact local candidate 3c498fb5 passed 524 affected tests and all 35 Windows browser checks, but its fresh full review graded B. On pinned Windows code, a held team save omitted a hidden word as required and lost the remaining typed word after an accent-only second refusal. See 3c498fb5-word-normalization-repro.log. The three recurring team-retry repair candidates were 493b45e6, 35ec1ffb and 3c498fb5. V6 stays on the same PR #2575 and needs #2573 to clear before wiring ProductionPage.tsx.",
+      "step": "Authorized dependency normalization repair",
+      "head": "2c0b495bd5c8445d3bfbdaac23f56c44fb0b6615",
+      "pr": 2573,
       "session": "01a1bb0e-ec06-7111-ae29-89b778de221e",
-      "phase": "V6",
-      "pr": 2573
+      "note": "Owner authorized one focused repair after the prior checkpoint. Existing coordinator opened block 21. Unit tests cover the confirmed word normalization and retry cases. Fresh independent review is in progress and Windows browser job j-5297 is using the shared queue. V6 stays parked pending the same dependency.",
+      "phase": "V6"
     }
   ],
   "owner": [],
