@@ -56,6 +56,7 @@ import { useDocKindStore } from '../../store/docKindStore';
 import { useModalGate } from '../spaceKey';
 import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
+import { useBlankGraphic } from '../editorFoundation/startBlankGraphic';
 import { openNewEditor } from '../editorFoundation/openNewEditor';
 import NewGraphicButton from '../NewGraphicButton';
 import { walkLibrary } from './shell/walkLibrary';
@@ -127,15 +128,7 @@ const STUDIO_DOOR_IO = {
   raiseStorageAlert, publishGate, loadShows, createShowNamedChecked, commitDurableWrites, addGraphicToShow,
   setShowLook, captureLookFromTemplate, saveTemplateSetToProduction, trackEvent,
 };
-
-
-/**
- * The choose-first creation wizard (replaces the old template gallery). Six steps —
- * Entry → Browse → Fields → Style → Animation → Finish — with a persistent live preview
- * from step 2 on. Creating writes the complete, teachable template code; Finish decides
- * where that lands: the editor (and the live panels) take over, or the graphic is saved
- * and goes straight to its export packages with the editor never opening.
- */
+/** Entry offers direct blank authoring or the existing guided creation walks. */
 export default function CreationWizard() {
   const open = useTemplateStore((s) => s.galleryOpen);
   // Mounted for the session, rendering null when closed — so the gate keys on `open`, not on
@@ -165,6 +158,7 @@ export default function CreationWizard() {
   const [walk, dispatch] = useReducer(reduce, undefined, emptyWalk);
   const { draft, mode, step, browseFilters, aiResult, aiThread, importedFile, importedFileError } = walk;
   const { contextProductionId, brandChoices, brandId, buildMode } = walk;
+  const blank = useBlankGraphic(open, walk, closeGallery);
   const kit = activeKit(walk);
   const brand = brandOf(walk);
   useDraftHoldsReload(walk);
@@ -493,6 +487,7 @@ export default function CreationWizard() {
    * is the same door on every topbar in the product.
    */
   const leaveStep = () => {
+    if (!blank.canLeave()) return;
     if (step === 0) closeGallery();
     else rewind();
   };
@@ -847,8 +842,10 @@ export default function CreationWizard() {
             <button
               className="shell-door wz-home"
               data-testid="wz-home"
+              disabled={blank.pending}
               title="Home: your graphics, productions, control panels and videos"
               onClick={() => {
+                if (!blank.canLeave()) return;
                 leaveGallery();
                 useRouter.getState().navigate({ view: 'home', section: null });
               }}
@@ -908,6 +905,7 @@ export default function CreationWizard() {
           <button
             className="gallery-close"
             onClick={leaveStep}
+            disabled={blank.pending}
             title={step > 0 ? 'Back to the start (discards this draft)' : 'Cancel (keep current project)'}
           >
             ✕
@@ -979,6 +977,7 @@ export default function CreationWizard() {
             {needsCatalog && !catalog ? <CatalogLoading /> : <>
             {stepId === 'start' && (
               <EntryStep
+                onBlankGraphic={blank.start} pendingBlank={blank.pending} canLeave={blank.canLeave}
                 onTemplates={() => dispatch({ type: 'walk', mode: 'template', step: 1 })}
                 onImportGraphic={() => {
                   // Entering the flow again starts it: a template file left over from a
