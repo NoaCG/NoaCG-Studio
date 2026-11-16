@@ -42,15 +42,19 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "PR #2573 still owns the V6 shared file. The latest local 851c9a949 passed 539 affected checks and Playwright reported all seven focused Windows cases passed in j-5311; the queue did not retain that process exit status. Fresh independent review graded B+. Exact controller probes show an older tab render can discard a valid newer owed draft and a successful hide can leave stranded commit proof. After RAM returned, Windows j-5313 reproduced the stale-tab race on 851c9a949 and exited 1 on the newer-typing assertion. The single resumed repair attempt is used. Original V6 draft #2575 remains checkpointed; V7 and V8 are pending."
+    "what": "Existing #2573 dependency is in the authorized atomic cue recovery and receipt cleanup repair."
   },
-  "inFlight": [],
-  "owner": [
+  "inFlight": [
     {
-      "where": "Same run and PR #2573",
-      "what": "Authorize one further focused recovery repair if desired, using the actual stored cue with its receipt and closing orphaned receipts"
+      "pr": 2573,
+      "step": "Authorized storage-first recovery and cleanup repair",
+      "note": "Windows j-5314 caught React startup remount and hide settlement problems before final review. Exact corrected and reconciled source is running Windows j-5315 and affected gates. 136 focused Node checks passed. V6 remains parked on original #2575.",
+      "head": "ee6aadfc11c46af026c8a83665249f16e0c5bc43",
+      "phase": "V6",
+      "session": "01a1bb0e-ec06-7111-ae29-89b778de221e"
     }
   ],
+  "owner": [],
   "fixes": [],
   "triggers": []
 }
