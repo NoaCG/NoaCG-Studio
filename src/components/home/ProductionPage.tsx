@@ -1635,12 +1635,12 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         },
         // The history is the page's, which moves on with the page: a draft of a production the
         // page has left is not written through it, and is saved at its session's end instead.
-        writeCue: (cueId, fields, recoveredFrom, confirm) =>
+        writeCue: (cueId, fields, recoveredFrom, confirm, observe) =>
           draftOwner.current === session.key
-            ? historyRef.current!.writeDraft(cueId, (expectedText) => updateShowCueChecked(session.key, cueId, fields, expectedText), recoveredFrom, confirm)
+            ? historyRef.current!.writeDraft(cueId, (expectedText, options) => updateShowCueChecked(session.key, cueId, fields, expectedText, options), recoveredFrom, confirm, observe)
             : Promise.resolve(false),
-        retainCue: (cueId, fields, confirm) => historyRef.current?.retainDraft(cueId,
-          (expectedText) => updateShowCueChecked(session.key, cueId, fields, expectedText), confirm) ?? false,
+        retainCue: (cueId, fields, confirm, observe) => historyRef.current?.retainDraft(cueId,
+          (expectedText, options) => updateShowCueChecked(session.key, cueId, fields, expectedText, options), confirm, observe) ?? false,
         hasUnstoredDraft: (cueId, fields) => historyRef.current?.hasUnstoredDraft(cueId, fields) ?? false,
         record: (cueId) => cuesRef.current.find((c) => c.id === cueId),
         owed: {

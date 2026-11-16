@@ -86,6 +86,8 @@ function holds(cue: CueRecord, text: CueFields): boolean {
     && Object.keys(cue.values).length === entries.length && entries.every(([k, v]) => cue.values[k] === v);
 }
 
+type ObserveCue = (cue: CueRecord) => void;
+
 /** The browser half the page hands in. */
 export interface CueDraftIo {
   /** Whether this account may write the record now. */
@@ -93,9 +95,9 @@ export interface CueDraftIo {
   /** Start or continue an edit group. A fresh draft passes the cue record it starts from. */
   editing: (group: string, freshCue: CueRecord | null) => void;
   /** Save through the rundown history, answering whether the store confirmed it. */
-  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord, confirm?: (cue: CueRecord) => void) => Promise<boolean>;
+  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord, confirm?: ObserveCue, observe?: ObserveCue) => Promise<boolean>;
   /** Save at once, with no history and nothing to await: whether the store accepted it. */
-  retainCue: (cueId: string, fields: CueFields, confirm?: (cue: CueRecord) => void) => boolean | Promise<boolean>;
+  retainCue: (cueId: string, fields: CueFields, confirm?: ObserveCue, observe?: ObserveCue) => boolean | Promise<boolean>;
   /** A queued handoff still needs retaining when its value has never reached the local record. */
   hasUnstoredDraft?: (cueId: string, fields: CueFields) => boolean;
   /** The newest record of a cue, if the production holds it. */
@@ -204,6 +206,7 @@ export function unsentNow(
 }
 
 const fieldsOf = (d: DraftPart): CueFields => ({ label: d.label, note: d.note || null, values: d.values });
+type DraftHandoff = { text: CueFields; rebased?: CueFields };
 
 export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraft {
   const part = session.draft;
@@ -215,7 +218,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   /** The texts the draft's cue may hold under it: the text when the draft started, then each
    *  part of the typing handed to the store (it may or may not have landed when the page goes).
    *  What a recorded edit may be applied over on the next visit, and nothing else. */
-  let startedFrom: { cueId: string; texts: { from: DraftPart | null; text: CueFields }[] } | null = null;
+  let startedFrom: { cueId: string; texts: DraftHandoff[] } | null = null;
   /** The owed-edit record this page last wrote when it hid, as stored, or null. */
   let recorded: string | null = null;
   /** Remove the record only if it is still the one this page wrote: another tab of the same
@@ -232,25 +235,39 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   let recovered = false;
   const copyOf = (d: DraftPart): CueFields => ({ ...fieldsOf(d), values: { ...d.values } });
   const started = (d: DraftPart) => {
-    startedFrom = { cueId: d.cueId, texts: [{ from: null, text: copyOf(d) }] };
+    startedFrom = { cueId: d.cueId, texts: [{ text: copyOf(d) }] };
   };
   /** The store was given `d`'s text while typing in its cue goes on. */
   const handed = (d: DraftPart) => {
-    if (startedFrom?.cueId !== d.cueId) return;
-    startedFrom = { cueId: d.cueId, texts: [...startedFrom.texts, { from: d, text: copyOf(d) }] };
+    const entry: DraftHandoff = { text: copyOf(d) };
+    if (startedFrom?.cueId === d.cueId) startedFrom.texts.push(entry);
+    return entry;
   };
-  /** The store confirmed `d`'s save while typing goes on: the store can no longer hold a text
-   *  listed before it, so only it and later ones stay listed. */
-  const confirmed = (d: DraftPart, actual?: CueRecord) => {
-    const at = startedFrom?.texts.findIndex((t) => t.from === d) ?? -1;
-    if (!startedFrom || at < 0) return;
-    const texts = startedFrom.texts.slice(at);
-    if (actual) texts[0] = { from: d, text: { label: actual.label, note: actual.note ?? null, values: { ...actual.values } } };
-    startedFrom = { cueId: startedFrom.cueId, texts };
+  const bases = () => startedFrom?.texts.flatMap(({ text, rebased }) => rebased ? [text, rebased] : [text]) ?? [];
+  const textOf = (cue: CueRecord): CueFields => ({ label: cue.label, note: cue.note ?? null, values: { ...cue.values } });
+  const refreshOwn = (cueId: string) => {
     const owed = recorded !== null && io.owed.read();
-    if (actual && owed && owed.cueId === d.cueId && JSON.stringify(owed) === recorded) {
-      io.owed.keep({ ...owed, bases: texts.map(entry => entry.text) });
+    if (owed && owed.cueId === cueId && JSON.stringify(owed) === recorded) {
+      io.owed.keep({ ...owed, bases: bases() });
       recorded = JSON.stringify(io.owed.read());
+    }
+  };
+  /** A rebased put can finish as the document goes, with no completion callback. Remember both
+   *  possible outcomes until a receipt identifies the committed one. */
+  const offered = (entry: DraftHandoff, cue: CueRecord) => {
+    if (!startedFrom?.texts.includes(entry) || holds(cue, entry.text)) return;
+    entry.rebased = textOf(cue);
+    refreshOwn(cue.id);
+  };
+  /** Only the confirmed handoff and later ones can still be present in storage. */
+  const confirmed = (entry: DraftHandoff, actual?: CueRecord) => {
+    const at = startedFrom?.texts.indexOf(entry) ?? -1;
+    if (!startedFrom || at < 0) return;
+    startedFrom.texts = startedFrom.texts.slice(at);
+    if (actual) {
+      entry.text = textOf(actual);
+      entry.rebased = undefined;
+      refreshOwn(actual.id);
     }
   };
   let timer: unknown = null;
@@ -301,9 +318,12 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     out = d;
     // The store may hold this text from here on, before the history confirms it (a team
     // production's local outbox lands before the server answers): typing on may be applied over it.
-    handed(d);
-    let actual: CueRecord | undefined;
-    return io.writeCue(d.cueId, fieldsOf(d), undefined, cue => { actual = cue; }).then((saved) => {
+    const write = handed(d);
+    let confirmedByReceipt = false;
+    return io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
+      confirmedByReceipt = true;
+      confirmed(write, cue);
+    }, cue => offered(write, cue)).then((saved) => {
       if (out === d) out = null;
       // Typing went on during the save, or the session ended: the newer draft is still owed.
       if (part.get() === d && session.alive()) {
@@ -313,8 +333,8 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
           forgetOwn();
         }
         else pending = true;
-      } else if (saved) {
-        confirmed(d, actual);
+      } else if (saved && !confirmedByReceipt) {
+        confirmed(write);
       }
       return saved;
     });
@@ -332,19 +352,25 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     // Recorded where a reload cannot drop it: the store's write may still be committing when the
     // page goes, and a reload aborts it.
     if (hiding && startedFrom && startedFrom.cueId === d.cueId) {
-      io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts.map((t) => t.text), fields });
+      io.owed.keep({ cueId: d.cueId, bases: bases(), fields });
       recorded = JSON.stringify(io.owed.read());
     }
-    let actual: CueRecord | undefined;
-    const saved = io.retainCue(d.cueId, fields, cue => { actual = cue; });
-    if (saved === false) return;
+    const write = handed(d);
+    let confirmedByReceipt = false;
+    const saved = io.retainCue(d.cueId, fields, cue => {
+      confirmedByReceipt = true;
+      confirmed(write, cue);
+    }, cue => offered(write, cue));
+    if (saved === false) {
+      if (startedFrom) startedFrom.texts = startedFrom.texts.filter(entry => entry !== write);
+      return;
+    }
     pending = false;
     if (out === d) out = null;
-    handed(d);
     if (saved !== true) {
       void saved.then(accepted => {
         if (accepted) {
-          confirmed(d, actual);
+          if (!confirmedByReceipt) confirmed(write);
           if (part.get() === d) forgetOwn();
         } else if (part.get() === d && session.alive()) pending = true;
       });

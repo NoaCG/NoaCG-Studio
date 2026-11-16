@@ -440,7 +440,21 @@ function noteSave(failed: boolean): void {
 
 /** What the server last said about each production: its token and document - the BASE a local
  *  edit started from, which the merge needs. */
-const server = new Map<string, { token: string; doc: Show; updatedBy: string | null; teamId: string; normalizedCueDrafts?: LocalCueDraft[] }>();
+type ServerProduction = { token: string; doc: Show; updatedBy: string | null; teamId: string; normalizedCueDrafts?: LocalCueDraft[] };
+const server = new Map<string, ServerProduction>();
+
+/** An acknowledgement follows the exact text through unrelated revisions. It is never merge input. */
+function rememberTeamHead(id: string, head: ServerProduction, accepted: readonly LocalCueDraft[] = []): void {
+  const prior = server.get(id);
+  const acknowledgements = new Map<string, LocalCueDraft>();
+  const carried = prior?.teamId === head.teamId ? prior.normalizedCueDrafts ?? [] : [];
+  for (const draft of [...carried, ...accepted]) {
+    if (draft[submittedText] !== undefined && cueTextKey(head.doc, draft.cueId) === draft.after) {
+      acknowledgements.set(draft.cueId, draft);
+    }
+  }
+  server.set(id, { ...head, normalizedCueDrafts: [...acknowledgements.values()] });
+}
 const dirty = new Set<string>();
 const sendingShows = new Map<string, Show>();
 const submittedText = Symbol();
@@ -659,7 +673,7 @@ async function refreshOnce(): Promise<void> {
   for (const id of [...dirty, ...inflight, ...changed]) keep.add(id);
   for (const row of docs.rows) {
     if (keep.has(row.id)) continue;
-    server.set(row.id, {
+    rememberTeamHead(row.id, {
       token: row.updated_at,
       doc: teamDoc(teamRecord(row.doc, row)),
       updatedBy: row.updated_by,
@@ -809,8 +823,8 @@ async function pushSave(id: string): Promise<void> {
       }
       if (answer.saved) {
         acknowledgeTeamEdit(owner.userId, id, sent);
-        server.set(id, { token: answer.updatedAt, doc, updatedBy: answer.updatedBy, teamId: known.teamId,
-          normalizedCueDrafts: [...cueDrafts, ...normalizedNoops].filter(draft => draft[submittedText] !== undefined) });
+        rememberTeamHead(id, { token: answer.updatedAt, doc, updatedBy: answer.updatedBy, teamId: known.teamId },
+          [...cueDrafts, ...normalizedNoops]);
         const current = loadTeamShows().find(show => show.id === id);
         const newer = pendingTeamEdits(owner.userId)[id];
         const proofs = remainingCueDrafts(localCueDrafts.get(id) ?? [], base, doc);
@@ -829,7 +843,7 @@ async function pushSave(id: string): Promise<void> {
       }
       // Refused: a teammate saved first. Their document is the new base.
       const theirs = teamDoc(teamRecord(answer.doc, { id, team_id: known.teamId, updated_at: answer.updatedAt, updated_by: answer.updatedBy }));
-      server.set(id, { token: answer.updatedAt, doc: theirs, updatedBy: answer.updatedBy, teamId: known.teamId });
+      rememberTeamHead(id, { token: answer.updatedAt, doc: theirs, updatedBy: answer.updatedBy, teamId: known.teamId });
       const now = loadTeamShows().find((s) => s.id === id);
       const latestDrafts = (localCueDrafts.get(id) ?? []).filter(proof =>
         cueTextKey(now ?? {}, proof.cueId) === proof.after);

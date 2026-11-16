@@ -711,6 +711,7 @@ export function rebasedDurableSet(
   key: DurableKey,
   value: string,
   rebase: (current: string | null) => { value: string } | { refused: string },
+  options?: { validateStored?: boolean; onRebasedWrite?: (value: string) => void },
 ): void {
   assertAccountAuthoring();
   conditionalWrites.get(key)?.();
@@ -762,7 +763,7 @@ export function rebasedDurableSet(
       accepted = typeof request.result === 'string' ? request.result : null;
       try {
         // Nothing landed since this tab's copy, so this tab's answer is the stored answer.
-        const next = accepted === previous ? { value } : rebase(accepted);
+        const next = accepted === previous && !options?.validateStored ? { value } : rebase(accepted);
         if ('refused' in next) { refusal = next.refused; tx.abort(); return; }
         stored = next.value;
       } catch {
@@ -775,7 +776,11 @@ export function rebasedDurableSet(
       } catch (error) {
         refusal = isQuotaError(error) ? FULL_MESSAGE : FAILED_MESSAGE;
         try { tx.abort(); } catch { /* already aborting */ }
+        return;
       }
+      // The page can go after the put commits and before its completion handler runs. A draft
+      // can record these exact possible bytes now without treating them as a confirmed save.
+      if (namespace === account) options?.onRebasedWrite?.(stored);
     };
     tx.oncomplete = () => {
       done = true;

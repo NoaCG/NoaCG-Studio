@@ -183,6 +183,66 @@ for (const scenario of ['two refusals', 'typing during the first save', 'only th
   });
 }
 
+test('an unrelated follow-up acknowledgement preserves the exact normalized team receipt', async () => {
+  const words = f2 => ({ f0: 'YOUR WORDS', f1: 'One word?', f2 });
+  const cue = { id: 'c-word', sourceId: 'g-cloud', label: 'Words', values: words('keep | 1') };
+  const other = { id: 'c-other', sourceId: 'g-cloud', label: 'Other', values: words('other | 1') };
+  const fields = ['Label', 'Question', 'Words'].map((title, index) => ({ field: 'f' + index, title, ftype: 'textfield' }));
+  const graphic = { id: 'g-cloud', name: 'House Word Cloud', type: 'x', savedAt: '', template: { name: 'House Word Cloud', fields } };
+  const question = { id: 'q-word', type: 'word', text: 'One word?' };
+  const h = harness(false, [graphic], undefined, undefined, undefined, [cue, other], {
+    questions: [question], resultCues: { 'q-word': cue.id },
+  });
+  const base = h.local(), receipt = h.controller.beginTeamRundownEdit(base.id);
+  h.typeCue(cue.id, cue.label, words('keep | 1\napple | 1\nnew | 1'));
+  const submitted = history.cueTextKey(h.local(), cue.id);
+  h.controller.bindTeamCueDraft(receipt, cue.id, submitted);
+  const saved = h.controller.commitTeamRundownEdit(receipt, history.rundownSlice(h.local()));
+  h.disk.resolve(null);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.requests.length, 1);
+  const retryResponse = deferred();
+  h.answers.push(retryResponse.promise);
+  const them = { ...base, questions: [{ ...question, hidden: ['apple'] }] };
+  h.request.resolve({ data: { saved: false, updated_at: '2026-11-15T12:01:00Z', doc: them }, error: null });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.requests.length, 2);
+  assert.equal(h.requests[1].p_doc.cues[0].values.f2, 'keep | 1\nnew | 1');
+  const accepted = history.cueTextKey(h.requests[1].p_doc, cue.id);
+  h.edit('Unrelated production edit');
+  retryResponse.resolve({ data: { saved: true, updated_at: '2026-11-15T12:02:00Z' }, error: null });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.controller.confirmedTeamCueText(receipt, cue.id, submitted), accepted, 'owned retry initially acknowledged');
+  h.answers.push({ data: { saved: true, updated_at: '2026-11-15T12:03:00Z' }, error: null });
+  await h.controller.pushForTest(base.id);
+  assert.equal(await saved, history.RUNDOWN_CHANGED);
+  assert.equal(h.requests.length, 3);
+  assert.equal(h.requests[2].p_doc.name, 'Unrelated production edit');
+  assert.equal(history.cueTextKey(h.requests[2].p_doc, cue.id), accepted, 'follow-up kept normalized cue bytes');
+  assert.equal(h.controller.confirmedTeamCueText(receipt, cue.id, submitted), accepted, 'original flush should still have its exact normalization receipt');
+  assert.equal(h.controller.confirmedTeamCueText({ ...receipt, draftLineage: Symbol() }, cue.id, submitted), null);
+
+  // An observed conflicting cue revokes the acknowledgement even if the next revision has
+  // the exact old text again. This proof never gets into a write or authorizes a retry.
+  const confirmed = h.requests[2].p_doc;
+  const foreignCue = { ...confirmed.cues[0], label: 'Edited elsewhere' };
+  h.edit('Second unrelated production edit');
+  h.answers.push(
+    { data: { saved: false, updated_at: '2026-11-15T12:04:00Z', doc: { ...confirmed, cues: [foreignCue, other] } }, error: null },
+    { data: { saved: true, updated_at: '2026-11-15T12:05:00Z' }, error: null },
+  );
+  await h.controller.pushForTest(base.id);
+  assert.equal(h.controller.confirmedTeamCueText(receipt, cue.id, submitted), null);
+  h.edit('Third unrelated production edit');
+  h.answers.push(
+    { data: { saved: false, updated_at: '2026-11-15T12:06:00Z', doc: confirmed }, error: null },
+    { data: { saved: true, updated_at: '2026-11-15T12:07:00Z' }, error: null },
+  );
+  await h.controller.pushForTest(base.id);
+  assert.equal(history.cueTextKey(h.requests.at(-1).p_doc, cue.id), accepted);
+  assert.equal(h.controller.confirmedTeamCueText(receipt, cue.id, submitted), null);
+});
+
 test('per-edit receipt requires an advanced revision and the exact intended rundown', async () => {
   const h = harness();
   const receipt = h.controller.beginTeamRundownEdit('show');

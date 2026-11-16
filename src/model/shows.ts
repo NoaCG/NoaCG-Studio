@@ -1200,13 +1200,14 @@ export function separateMergedScenes(doc: Show, base: Show): Show {
  *  this database and keeps the ordinary write; its merge keeps the rule (teamShowMerge.ts). */
 function patchShowChecked(
   showId: string,
-  mutate: (show: Show, at: string) => boolean | string,
+  mutate: (show: Show, at: string, fromStorage?: true) => boolean | string,
   rebased = false,
   /** The selection writer's allowance (productionData `SelectionWrite`); every other write has none. */
   write?: SelectionWrite,
   /** The typed writer's allowance (`setCueTyped`): cue id to the envelope bytes it writes. */
   typedWrite?: ReadonlyMap<string, string | null>,
   draft?: { cueId: string; before: string },
+  draftOptions?: CueDraftWriteOptions,
 ): { shows: Show[]; error: string | null } {
   const all = readEditable();
   const visible = () => all.filter((s) => !s.deleted);
@@ -1239,7 +1240,7 @@ function patchShowChecked(
     const scenesFresh = sceneSnapshot(fresh);
     const keptFresh = selectionKeep(fresh);
     const typedFresh = typedKeep(fresh);
-    const again = mutate(fresh, at);
+    const again = mutate(fresh, at, true);
     if (typeof again === 'string') return { refused: again };
     const separatedFresh = again ? separateAfterWrite(fresh, scenesFresh) : null;
     if (separatedFresh) return { refused: separatedFresh };
@@ -1248,7 +1249,7 @@ function patchShowChecked(
     if (frozenFresh) return { refused: frozenFresh };
     if (again) fresh.updatedAt = at;
     return { value: JSON.stringify(list) };
-  });
+  }, { validateStored: !!draftOptions?.committedPredecessor, onRebasedWrite: draftOptions?.onRebasedWrite });
   notifyDataChanged();
   return { shows: visible(), error: null };
 }
@@ -1582,19 +1583,27 @@ export function updateShowCue(
   return updateShowCueChecked(showId, cueId, patch).shows;
 }
 
+export interface CueDraftWriteOptions {
+  /** A closing write made over this page's optimistic prior draft must check its actual commit. */
+  committedPredecessor?: () => string | null;
+  onRebasedWrite?: (value: string) => void;
+}
+
 /** A draft is cleared only after this write succeeds; a refused write keeps it recoverable. */
 export function updateShowCueChecked(
   showId: string,
   cueId: string,
   patch: { label?: string; values?: Record<string, string>; note?: string | null; stagedFrom?: MessageReceipt },
   expectedDraftText?: string,
+  options?: CueDraftWriteOptions,
 ): { shows: Show[]; error: string | null } {
   const draft = expectedDraftText === undefined ? undefined : { cueId, before: expectedDraftText };
   const guardOrdinary = !draft && hasPendingShowsRebase();
   let ordinaryBase: string | undefined;
-  return patchShowChecked(showId, (show) => {
+  return patchShowChecked(showId, (show, _at, fromStorage) => {
     const cue = show.cues?.find((c) => c.id === cueId);
-    if (draft && (!cue || cueFieldsKey(cue) !== draft.before)) return RUNDOWN_CHANGED;
+    const expected = fromStorage && options?.committedPredecessor ? options.committedPredecessor() : draft?.before;
+    if (draft && (!cue || cueFieldsKey(cue) !== expected)) return RUNDOWN_CHANGED;
     if (!cue) return patch.stagedFrom ? 'This cue was removed.' : false;
     if (guardOrdinary) {
       const text = cueFieldsKey(cue);
@@ -1614,7 +1623,7 @@ export function updateShowCueChecked(
     if (patch.note === null) delete cue.note;
     else if (patch.note !== undefined) cue.note = patch.note;
     return true;
-  }, !!draft || guardOrdinary || Boolean(patch.stagedFrom), undefined, undefined, draft);
+  }, !!draft || guardOrdinary || Boolean(patch.stagedFrom), undefined, undefined, draft, options);
 }
 
 /** Asked inside the selection writer's write, on the record that door is writing: why this cue may

@@ -54,9 +54,10 @@ function harness() {
       groups.push(group);
       freshCues.push(freshCue);
     },
-    writeCue: (cueId, fields, _recoveredFrom, confirm) =>
+    writeCue: (cueId, fields, _recoveredFrom, confirm, observe) =>
       new Promise(resolve => writes.push({
-        cueId, fields: structuredClone(fields), answer: (saved, record) => {
+        cueId, fields: structuredClone(fields), offer: record => observe?.(record),
+        answer: (saved, record) => {
           if (record) confirm?.(record);
           resolve(saved);
         },
@@ -136,7 +137,7 @@ test('ten keystrokes then a flush save once, with the latest text, through the h
   assert.equal(h.writes.length, 0);
   const flushed = h.draft.flush();
   assert.equal(h.writes.length, 1);
-  assert.deepEqual(h.writes[0], { cueId: 'c1', fields: { label: 'Opener', note: null, values: { f0: 'Typed text', f1: 'Host' } }, answer: h.writes[0].answer });
+  assert.deepEqual(h.writes[0], { cueId: 'c1', fields: { label: 'Opener', note: null, values: { f0: 'Typed text', f1: 'Host' } }, answer: h.writes[0].answer, offer: h.writes[0].offer });
   assert.equal(h.timers.size, 0, 'the idle save is not also owed');
   assert.equal(await Promise.race([flushed.then(() => 'answered'), settle().then(() => 'waiting')]), 'waiting', 'the flush waits for the save');
   assert.equal(await h.draft.flush(), true, 'a second flush owes nothing while the save is out');
@@ -458,8 +459,11 @@ test('a normalized acknowledgement updates the recovery baseline for newer typin
   h.draft.edit(OPENER, { values: { f0: 'Newer typing' } });
   for (const run of h.listeners.hide) run(true);
   const actual = { ...OPENER, values: { ...OPENER.values, f0: 'After cleanup' } };
-  h.writes[0].answer(true, actual);
-  await saving;
+  h.writes[0].offer(actual);
+  assert.deepEqual(h.owed?.bases.map(base => base.values.f0), ['Anna Riva', 'Before cleanup', 'After cleanup']);
+  // The newer mirror can make this save's visible verdict false despite the acknowledged put.
+  h.writes[0].answer(false, actual);
+  assert.equal(await saving, false);
   assert.deepEqual(h.owed?.bases, [{ label: OPENER.label, note: OPENER.note ?? null, values: actual.values }]);
   assert.equal(h.owed?.fields.values.f0, 'Newer typing');
   stop();
