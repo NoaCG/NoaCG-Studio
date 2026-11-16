@@ -42,19 +42,15 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "PR #2573 still holds ProductionPage.tsx. Its checked team retry repair reached the limit. Explicit authorization for another repair and a fresh independent review are needed before landing."
+    "what": "PR #2573 still holds ProductionPage.tsx. The additional owner-authorized normalization repair at 2c0b495b passed 106 focused tests and Windows j-5299 with a corrected fixture, then received B on fresh independent review. The team replay proved a subsequent successful ordinary save clears the original checked receipt even though its cue is unchanged. Independent review also traced newer personal text lost when pagehide overlaps a normalized IndexedDB commit. The one extra attempt is used. The same run and exact V6 draft #2575 are checkpointed."
   },
-  "inFlight": [
+  "inFlight": [],
+  "owner": [
     {
-      "step": "Authorized dependency normalization repair",
-      "head": "2c0b495bd5c8445d3bfbdaac23f56c44fb0b6615",
-      "pr": 2573,
-      "session": "01a1bb0e-ec06-7111-ae29-89b778de221e",
-      "note": "Owner authorized one focused repair after the prior checkpoint. Existing coordinator opened block 21. Unit tests cover the confirmed word normalization and retry cases. Fresh independent review is in progress and Windows browser job j-5297 is using the shared queue. V6 stays parked pending the same dependency.",
-      "phase": "V6"
+      "what": "Authorize a further focused #2573 repair for the two independently reviewed save paths and a fresh review, or leave V6 parked",
+      "where": "Same vMix run and PR"
     }
   ],
-  "owner": [],
   "fixes": [],
   "triggers": []
 }
