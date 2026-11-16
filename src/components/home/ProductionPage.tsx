@@ -39,7 +39,8 @@ import {
 } from '../../model/shows';
 import { folderMode } from '../../model/showFolders';
 import { cursorRowId, folderName, rangeCueIds, rowCueIds, rowTestId, rundownView, type RundownRow } from '../../model/rundownRows';
-import { canAuthorAccount, commitDurableWrites } from '../../model/durableStore';
+import { canAuthorAccount, commitDurableWrites, forgetCueDraftCommit, isDurableStoreActive, readCueDraftCommit } from '../../model/durableStore';
+import { uuid } from '../../model/id';
 import { accountCasparDefault, destinationUrl, readOutputSetup, routeColor, wantsAccountOutputDefault, withCasparSwitch, withPlayoutSystem } from '../../model/outputSetup';
 import { readDefaultOutput } from '../../backend/auth';
 import { CueAccentControl } from './RundownColors';
@@ -1625,6 +1626,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const historySafety = useRef<(expected: RundownSlice, replacement: RundownSlice) => string | null>(() => 'Wait for the production to finish loading.');
   /** The rundown's cues as the last render held them: the record a draft falls back to. */
   const cuesRef = useRef<readonly ShowCue[]>([]);
+  const personal = useRef(false); personal.current = !!show && !show.teamId;
   const cueDraft = useMemo(
     () =>
       createCueDraft(session, {
@@ -1635,18 +1637,23 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         },
         // The history is the page's, which moves on with the page: a draft of a production the
         // page has left is not written through it, and is saved at its session's end instead.
-        writeCue: (cueId, fields, recoveredFrom, confirm, observe) =>
+        writeCue: (cueId, fields, recoveredFrom, confirm, commit) =>
           draftOwner.current === session.key
-            ? historyRef.current!.writeDraft(cueId, (expectedText, options) => updateShowCueChecked(session.key, cueId, fields, expectedText, options), recoveredFrom, confirm, observe)
+            ? historyRef.current!.writeDraft(cueId, (expectedText, options) => updateShowCueChecked(session.key, cueId, fields, expectedText, options), recoveredFrom, confirm, commit)
             : Promise.resolve(false),
-        retainCue: (cueId, fields, confirm, observe) => historyRef.current?.retainDraft(cueId,
-          (expectedText, options) => updateShowCueChecked(session.key, cueId, fields, expectedText, options), confirm, observe) ?? false,
+        retainCue: (cueId, fields, confirm, commit) => historyRef.current?.retainDraft(cueId,
+          (expectedText, options) => updateShowCueChecked(session.key, cueId, fields, expectedText, options), confirm, commit) ?? false,
         hasUnstoredDraft: (cueId, fields) => historyRef.current?.hasUnstoredDraft(cueId, fields) ?? false,
         record: (cueId) => cuesRef.current.find((c) => c.id === cueId),
         owed: {
           keep: (edit) => keepOwedCueEdit(session.key, edit),
           read: () => readOwedCueEdit(session.key),
           forget: () => forgetOwedCueEdit(session.key),
+        },
+        commit: {
+          start: () => personal.current && isDurableStoreActive() ? uuid() : undefined,
+          read: stream => readCueDraftCommit(session.key, stream),
+          forget: stream => forgetCueDraftCommit(session.key, stream),
         },
         setTimeout: (run, ms) => setTimeout(run, ms),
         clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),

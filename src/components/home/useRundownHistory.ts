@@ -3,6 +3,7 @@ import { beginTeamRundownEdit, bindTeamCueDraft, commitTeamRundownEdit, restoreT
 import { canAuthorAccount, commitDurableReceipt, captureDurableWrites, libraryInUse, isDurableStoreActive, unsettledWrites, type DurableWriteReceipt } from '../../model/durableStore';
 import { loadShows, restorePersonalRundown, type CueDraftWriteOptions, type Show } from '../../model/shows';
 import type { CueFields, CueRecord } from '../../control/cueDraft';
+import type { DraftCommitId } from '../../model/cueDraftCommit';
 import { RundownHistory, cueFieldsKey, cueTextKey, landedReplacement, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
 
 type WriteResult = { shows: Show[]; error: string | null; refused?: string | null };
@@ -10,14 +11,14 @@ type Group = { key: string; before: RundownSlice; after: RundownSlice; valid: bo
 type Typing = {
   cueId: string;
   text: string | null;
-  staged?: { text: string; committedText?: () => string | null };
+  staged?: { text: string; committedText?: () => string | null; commit?: DraftCommitId };
   retaining?: Promise<boolean>;
 };
 type PendingTeamEdit = { before: RundownSlice; after: RundownSlice; label: string; receipt: TeamRundownReceipt; group?: Group; closed: boolean; confirming: boolean };
 
 type ObserveCue = (cue: CueRecord) => void;
 type DraftWrite = (expectedText: string, options?: CueDraftWriteOptions) => WriteResult;
-type DraftSave = { typing: Typing; confirm?: ObserveCue; observe?: ObserveCue };
+type DraftSave = { typing: Typing; confirm?: ObserveCue; commit?: DraftCommitId };
 
 function receiptCue(bytes: string | null, show: Show, cueId: string): CueRecord | undefined {
   try {
@@ -40,19 +41,12 @@ function committedCue(receipt: DurableWriteReceipt, show: Show, cueId: string) {
   return receiptCue(receipt.committedValue ? receipt.committedValue() : receipt.value, show, cueId);
 }
 
-function stagedCue(text: string, receipt: DurableWriteReceipt, show: Show, cueId: string): NonNullable<Typing['staged']> {
+function stagedCue(text: string, receipt: DurableWriteReceipt, show: Show, cueId: string, commit?: DraftCommitId): NonNullable<Typing['staged']> {
   const stored = receipt.committedValue;
-  return { text, committedText: !show.teamId && stored ? () => {
+  return { text, commit, committedText: !show.teamId && stored ? () => {
     const cue = receiptCue(stored(), show, cueId);
     return cue ? cueFieldsKey(cue) : null;
   } : undefined };
-}
-
-function observeRebase(show: Show, cueId: string, owns: () => boolean, observe?: ObserveCue) {
-  return observe && !show.teamId ? (value: string) => {
-    const cue = owns() ? receiptCue(value, show, cueId) : undefined;
-    if (cue) observe(cue);
-  } : undefined;
 }
 
 /** One authoring queue and one history per mounted production/account. Persistence stays in
@@ -193,8 +187,7 @@ export function useRundownHistory(
     const ownsWrite = () => session === lifetime.current.generation && queueAtWrite === queue.current;
     const team = current.teamId ? beginTeamRundownEdit(current.id) : null;
     const key = team ? 'spx-gfx-team-outbox' : 'spx-gfx-shows';
-    const onRebasedWrite = draft ? observeRebase(current, draft.cueId, ownsWrite, save?.observe) : undefined;
-    const captured = captureDurableWrites(key, () => write({ onRebasedWrite }));
+    const captured = captureDurableWrites(key, () => write({ commit: save?.commit }));
     const result = captured.result;
     callbacks.current.update(result.shows);
     const intendedShow = result.shows.find(s => s.id === current.id && s.teamId === current.teamId);
@@ -205,7 +198,7 @@ export function useRundownHistory(
     if (!error && draft && !receipt) {
       error = 'This rundown save has not been confirmed.';
     }
-    const staged = !error && draft && receipt && stagedText !== null ? stagedCue(stagedText, receipt, current, draft.cueId) : undefined;
+    const staged = !error && draft && receipt && stagedText !== null ? stagedCue(stagedText, receipt, current, draft.cueId, save?.commit) : undefined;
     if (draft && staged) {
       draft.staged = staged;
       if (team) bindTeamCueDraft(team, draft.cueId, staged.text);
@@ -300,7 +293,7 @@ export function useRundownHistory(
     if (typing.current?.cueId !== cueId) typing.current = { cueId, text: cueTextKey(slice, cueId) };
     changed();
   };
-  const writeDraft = (cueId: string, write: DraftWrite, recoveredFrom?: CueRecord, confirm?: ObserveCue, observe?: ObserveCue): Promise<boolean> => {
+  const writeDraft = (cueId: string, write: DraftWrite, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId): Promise<boolean> => {
     const draft = recoveredFrom ? { cueId, text: cueFieldsKey(recoveredFrom) } : typing.current;
     if (draft?.cueId !== cueId) return Promise.resolve(false);
     const held = group.current ?? undefined, label = held ? 'Edit cue' : 'Save cue';
@@ -309,11 +302,11 @@ export function useRundownHistory(
       if (draft.retaining) await draft.retaining;
       const expectedText = draft.text;
       if (session !== lifetime.current.generation || queueAtWrite !== queue.current || expectedText === null) return false;
-      return perform(options => write(expectedText, options), label, held, label, { typing: draft, confirm, observe });
+      return perform(options => write(expectedText, options), label, held, label, { typing: draft, confirm, commit });
     }, false, true);
   };
   /** A closing write may follow the exact local result of this draft's checked write. */
-  const retainDraft = (cueId: string, write: DraftWrite, confirm?: ObserveCue, observe?: ObserveCue): false | Promise<boolean> => {
+  const retainDraft = (cueId: string, write: DraftWrite, confirm?: ObserveCue, commit?: DraftCommitId): false | Promise<boolean> => {
     const draft = typing.current;
     const current = fresh(), account = libraryInUse();
     if (!current || draft?.cueId !== cueId || draft.text === null || JSON.stringify([current.id, current.teamId, account]) !== identity) return false;
@@ -321,16 +314,16 @@ export function useRundownHistory(
     if (before === null || (before !== draft.text && before !== draft.staged?.text)) return false;
     const key = current.teamId ? 'spx-gfx-team-outbox' : 'spx-gfx-shows';
     const prior = draft.staged;
-    const committedPredecessor = before === prior?.text ? prior.committedText : undefined;
+    const predecessor = before === prior?.text ? prior : undefined;
     const session = lifetime.current.generation;
     const ownsWrite = () => libraryInUse() === account && owner.current === identity && session === lifetime.current.generation;
     const { result, receipts } = captureDurableWrites(key, () => write(before, {
-      committedPredecessor, onRebasedWrite: observeRebase(current, cueId, ownsWrite, observe),
+      committedPredecessor: predecessor?.committedText, expectedPredecessor: predecessor?.commit?.revision, commit,
     }));
     const text = cueTextKey(result.shows.find(show => show.id === current.id && show.teamId === current.teamId) ?? {}, cueId);
     const receipt = text === null ? undefined : draftReceipt(receipts, current, cueId, text);
     if (result.error || result.refused || text === null || !receipt) return false;
-    const staged = stagedCue(text, receipt, current, cueId);
+    const staged = stagedCue(text, receipt, current, cueId, commit);
     draft.staged = staged;
     const settled = Promise.all(receipts.map(commitDurableReceipt)).then(errors => {
       const cue = ownsWrite() && !errors.some(Boolean) ? committedCue(receipt, current, cueId) : undefined;

@@ -29,8 +29,9 @@ import type { ShowProfile } from './profile';
 import { put, readShowProfile, serializeShowProfile } from './profile';
 import { actionArgsOf, actionSchemaOf, migrateToTyped, nativeOf, readJson, readOgrafDeclared, readTypedArgs, TYPED_ARGS_VERSION, TYPED_MAX_DEPTH, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedAction, type TypedArgs, type TypedReceipt, type TypedValues } from './ografTyped';
 import type { JsonValue } from './productionData';
-import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, hasPendingShowsRebase, type ConditionalWriteResult } from './durableStore';
-import { cueFieldsKey, replaceRundown, RUNDOWN_CHANGED, type RundownSlice } from './rundownHistory';
+import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, hasPendingShowsRebase, isDurableStoreActive, type ConditionalWriteResult } from './durableStore';
+import { cueFieldsKey, cueTextKey, replaceRundown, RUNDOWN_CHANGED, type RundownSlice } from './rundownHistory';
+import { followCueCommit, type CueFields, type DraftCommitId } from './cueDraftCommit';
 import type { TeamCueDraftText } from './teamShowMerge';
 import { uuid } from './id';
 import { sceneCopyRefusal, sceneSnapshot, separateSceneGraphics, type SceneCopyGuard, type SceneSnapshot } from './obsScenes';
@@ -1200,7 +1201,7 @@ export function separateMergedScenes(doc: Show, base: Show): Show {
  *  this database and keeps the ordinary write; its merge keeps the rule (teamShowMerge.ts). */
 function patchShowChecked(
   showId: string,
-  mutate: (show: Show, at: string, fromStorage?: true) => boolean | string,
+  mutate: (show: Show, at: string) => boolean | string,
   rebased = false,
   /** The selection writer's allowance (productionData `SelectionWrite`); every other write has none. */
   write?: SelectionWrite,
@@ -1208,12 +1209,17 @@ function patchShowChecked(
   typedWrite?: ReadonlyMap<string, string | null>,
   draft?: { cueId: string; before: string },
   draftOptions?: CueDraftWriteOptions,
+  draftText?: { submitted: CueFields; apply: (fields: CueFields) => (show: Show, at: string) => boolean | string },
 ): { shows: Show[]; error: string | null } {
   const all = readEditable();
   const visible = () => all.filter((s) => !s.deleted);
   if (!canAuthorAccount()) return { shows: visible(), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: visible(), error: null };
+  if (draftOptions?.commit && (show.teamId || teamShowIds().has(showId) || !isDurableStoreActive())) {
+    return { shows: visible(), error: RUNDOWN_CHANGED };
+  }
+  if (draft && cueTextKey(show, draft.cueId) !== draft.before) return { shows: visible(), error: RUNDOWN_CHANGED };
   const at = nowIso();
   const scenes = sceneSnapshot(show);
   const kept = selectionKeep(show);
@@ -1231,16 +1237,25 @@ function patchShowChecked(
     return { shows: visible(), error: saveAll(all, draft && edited ? { showId, text: { ...draft, after: cueFieldsKey(edited) } } : undefined) };
   }
   const personal = loadAllShows().map((s) => (s.id === showId ? show : s));
-  rebasedDurableSet(SHOWS_KEY, JSON.stringify(personal), (current) => {
+  const mutateOptimistic = mutate;
+  rebasedDurableSet(SHOWS_KEY, JSON.stringify(personal), (current, previousCommit) => {
     const raw = JSON.parse(current ?? '[]') as Show[];
     if (!Array.isArray(raw)) return { refused: 'The stored productions could not be read safely.' };
     const list = readShape(raw);
     const fresh = list.find((s) => s.id === showId && !s.deleted);
     if (!fresh) return { refused: 'This production was removed in another tab.' };
+    const confirmed = draftOptions?.expectedPredecessor;
+    const expected = confirmed !== undefined
+      ? previousCommit?.revision === confirmed ? cueFieldsKey(previousCommit.text) : null
+      : draftOptions?.committedPredecessor ? draftOptions.committedPredecessor() : draft?.before;
+    if (draft && (expected === null || cueTextKey(fresh, draft.cueId) !== expected)) return { refused: RUNDOWN_CHANGED };
+    const mutate = draftText && previousCommit && cueFieldsKey(previousCommit.text) === expected
+      ? draftText.apply(followCueCommit(draftText.submitted, previousCommit.submitted, previousCommit.text))
+      : mutateOptimistic;
     const scenesFresh = sceneSnapshot(fresh);
     const keptFresh = selectionKeep(fresh);
     const typedFresh = typedKeep(fresh);
-    const again = mutate(fresh, at, true);
+    const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
     const separatedFresh = again ? separateAfterWrite(fresh, scenesFresh) : null;
     if (separatedFresh) return { refused: separatedFresh };
@@ -1249,7 +1264,16 @@ function patchShowChecked(
     if (frozenFresh) return { refused: frozenFresh };
     if (again) fresh.updatedAt = at;
     return { value: JSON.stringify(list) };
-  }, { validateStored: !!draftOptions?.committedPredecessor, onRebasedWrite: draftOptions?.onRebasedWrite });
+  }, {
+    validateStored: !!draftOptions?.committedPredecessor,
+    cueCommit: draft && draftOptions?.commit && draftText ? {
+      showId, cueId: draft.cueId, id: draftOptions.commit, submitted: draftText.submitted,
+      text: bytes => {
+        const cue = (JSON.parse(bytes) as Show[]).find(record => record.id === showId)?.cues?.find(item => item.id === draft.cueId);
+        return cue && { label: cue.label, note: cue.note ?? null, values: cue.values };
+      },
+    } : undefined,
+  });
   notifyDataChanged();
   return { shows: visible(), error: null };
 }
@@ -1586,7 +1610,8 @@ export function updateShowCue(
 export interface CueDraftWriteOptions {
   /** A closing write made over this page's optimistic prior draft must check its actual commit. */
   committedPredecessor?: () => string | null;
-  onRebasedWrite?: (value: string) => void;
+  expectedPredecessor?: number;
+  commit?: DraftCommitId;
 }
 
 /** A draft is cleared only after this write succeeds; a refused write keeps it recoverable. */
@@ -1600,10 +1625,10 @@ export function updateShowCueChecked(
   const draft = expectedDraftText === undefined ? undefined : { cueId, before: expectedDraftText };
   const guardOrdinary = !draft && hasPendingShowsRebase();
   let ordinaryBase: string | undefined;
-  return patchShowChecked(showId, (show, _at, fromStorage) => {
+  const submitted = patch.label !== undefined && patch.note !== undefined && patch.values
+    ? { label: patch.label, note: patch.note, values: patch.values } : undefined;
+  const apply = (patch: Parameters<typeof updateShowCueChecked>[2]) => (show: Show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
-    const expected = fromStorage && options?.committedPredecessor ? options.committedPredecessor() : draft?.before;
-    if (draft && (!cue || cueFieldsKey(cue) !== expected)) return RUNDOWN_CHANGED;
     if (!cue) return patch.stagedFrom ? 'This cue was removed.' : false;
     if (guardOrdinary) {
       const text = cueFieldsKey(cue);
@@ -1623,7 +1648,9 @@ export function updateShowCueChecked(
     if (patch.note === null) delete cue.note;
     else if (patch.note !== undefined) cue.note = patch.note;
     return true;
-  }, !!draft || guardOrdinary || Boolean(patch.stagedFrom), undefined, undefined, draft, options);
+  };
+  return patchShowChecked(showId, apply(patch), !!draft || guardOrdinary || Boolean(patch.stagedFrom),
+    undefined, undefined, draft, options, submitted ? { submitted, apply } : undefined);
 }
 
 /** Asked inside the selection writer's write, on the record that door is writing: why this cue may

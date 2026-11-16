@@ -58,6 +58,7 @@
 // stays where it is. A build from before this change sees only the plain
 // names - an account's library is invisible to it, never damaged by it.
 
+import { isCueDraftFields, type CueFields, type DraftCommit, type DraftCommitId } from './cueDraftCommit';
 import { accountKey, libraryAccount, unscopedKey } from './accountScope';
 
 const DB_NAME = 'noacg-studio';
@@ -66,6 +67,40 @@ const DB_NAME = 'noacg-studio';
 const DB_VERSION = 1;
 const STORE = 'kv';
 const MIGRATED_KEY = '__migrated-from-localstorage';
+const CUE_COMMIT_PREFIX = '__cue-draft-v1:';
+const cueCommitKey = (showId: string, stream: string, account: string | null) =>
+  accountKey(CUE_COMMIT_PREFIX + encodeURIComponent(showId) + ':' + stream, account);
+
+function cueCommit(raw: unknown): DraftCommit | null {
+  try {
+    const value = typeof raw === 'string' ? JSON.parse(raw) : null;
+    if (value?.v === 1 && typeof value.cueId === 'string' && Number.isSafeInteger(value.revision)
+      && value.revision > 0 && isCueDraftFields(value.text) && isCueDraftFields(value.submitted)) return value;
+  } catch { /* Unreadable proof cannot grant authority. */ }
+  return null;
+}
+
+export async function readCueDraftCommit(showId: string, stream: string): Promise<DraftCommit | null | undefined> {
+  const account = namespace;
+  if (!db || !usingIndexedDb) return undefined;
+  try {
+    const raw = await idbReadRecord(db, cueCommitKey(showId, stream, account));
+    if (namespace !== account) return undefined;
+    return raw === undefined ? null : cueCommit(raw) ?? undefined;
+  } catch { return undefined; }
+}
+
+export function forgetCueDraftCommit(showId: string, stream: string): void {
+  if (db && usingIndexedDb) void idbWrite(db, [[cueCommitKey(showId, stream, namespace), null]]).catch(() => {});
+}
+
+type CueCommitWrite = {
+  showId: string;
+  cueId: string;
+  id: DraftCommitId;
+  submitted: CueFields;
+  text: (value: string) => CueFields | undefined;
+};
 
 /**
  * The keys this store owns. Everything else stays in localStorage. Kept explicit rather than
@@ -358,11 +393,16 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 /** One key's current value, straight from the database - what another tab's write left there. */
-function idbReadKey(target: IDBDatabase, key: string): Promise<string | null> {
+async function idbReadKey(target: IDBDatabase, key: string): Promise<string | null> {
+  const raw = await idbReadRecord(target, key);
+  return typeof raw === 'string' ? raw : null;
+}
+
+function idbReadRecord(target: IDBDatabase, key: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const tx = target.transaction(STORE, 'readonly');
     const request = tx.objectStore(STORE).get(key);
-    tx.oncomplete = () => resolve(typeof request.result === 'string' ? request.result : null);
+    tx.oncomplete = () => resolve(request.result);
     tx.onerror = () => reject(tx.error ?? new Error('IndexedDB read failed'));
     tx.onabort = () => reject(tx.error ?? new Error('IndexedDB read was aborted'));
   });
@@ -370,7 +410,7 @@ function idbReadKey(target: IDBDatabase, key: string): Promise<string | null> {
 
 /** One transaction applying a batch of puts/deletes. Rejects with the transaction's error, so
  *  a quota failure keeps its `QuotaExceededError` name for the caller to recognise. */
-function idbWrite(target: IDBDatabase, entries: [string, string | null][], audioMove?: { from: string | null; to: string | null }): Promise<void> {
+function idbWrite(target: IDBDatabase, entries: [string, string | null][], libraryMove?: { from: string | null; to: string | null }): Promise<void> {
   return new Promise((resolve, reject) => {
     let tx: IDBTransaction;
     try {
@@ -385,14 +425,16 @@ function idbWrite(target: IDBDatabase, entries: [string, string | null][], audio
         if (value === null) store.delete(key);
         else store.put(value, key);
       }
-      if (audioMove) {
+      if (libraryMove) {
         const request = store.openCursor();
         request.onsuccess = () => {
           const cursor = request.result;
           if (!cursor) return;
           const key = String(cursor.key), plain = unscopedKey(key);
-          if (/^__audio:[a-f0-9]{64}$/.test(plain) && key === accountKey(plain,audioMove.from) && cursor.value instanceof Blob) {
-            store.put(cursor.value, accountKey(plain,audioMove.to)); cursor.delete();
+          const audio = /^__audio:[a-f0-9]{64}$/.test(plain) && cursor.value instanceof Blob;
+          const commit = plain.startsWith(CUE_COMMIT_PREFIX);
+          if ((audio || commit) && key === accountKey(plain, libraryMove.from)) {
+            store.put(cursor.value, accountKey(plain, libraryMove.to)); cursor.delete();
           }
           cursor.continue();
         };
@@ -710,8 +752,8 @@ function trackWrite(receipt: DurableWriteReceipt): void {
 export function rebasedDurableSet(
   key: DurableKey,
   value: string,
-  rebase: (current: string | null) => { value: string } | { refused: string },
-  options?: { validateStored?: boolean; onRebasedWrite?: (value: string) => void },
+  rebase: (current: string | null, previousCommit?: DraftCommit) => { value: string } | { refused: string },
+  options?: { validateStored?: boolean; cueCommit?: CueCommitWrite },
 ): void {
   assertAccountAuthoring();
   conditionalWrites.get(key)?.();
@@ -759,11 +801,27 @@ export function rebasedDurableSet(
     try { tx = target.transaction(STORE, 'readwrite'); }
     catch { fail(FAILED_MESSAGE); return; }
     const store = tx.objectStore(STORE), request = store.get(storedKey);
-    request.onsuccess = () => {
+    const proof = options?.cueCommit;
+    const proofKey = proof && cueCommitKey(proof.showId, proof.id.stream, account);
+    const prior = proofKey ? store.get(proofKey) : undefined;
+    let writing = false;
+    const write = () => {
+      if (writing || request.readyState !== 'done' || (prior && prior.readyState !== 'done')) return;
+      writing = true;
       accepted = typeof request.result === 'string' ? request.result : null;
+      const previousCommit = prior && cueCommit(prior.result);
+      if (proof && prior) {
+        if ((prior.result !== undefined && !previousCommit)
+          || (previousCommit && (previousCommit.cueId !== proof.cueId || previousCommit.revision >= proof.id.revision))
+          || (proof.id.stillOwed && !proof.id.stillOwed())
+          || (proof.id.expectedRevision !== undefined && (previousCommit?.revision ?? null) !== proof.id.expectedRevision)) {
+          refusal = SHOWS_CHANGED_BEFORE_SAVE; tx.abort(); return;
+        }
+      }
       try {
         // Nothing landed since this tab's copy, so this tab's answer is the stored answer.
-        const next = accepted === previous && !options?.validateStored ? { value } : rebase(accepted);
+        const next = accepted === previous && !options?.validateStored && !previousCommit
+          ? { value } : rebase(accepted, previousCommit ?? undefined);
         if ('refused' in next) { refusal = next.refused; tx.abort(); return; }
         stored = next.value;
       } catch {
@@ -773,15 +831,18 @@ export function rebasedDurableSet(
       }
       try {
         store.put(stored, storedKey);
+        if (proof && proofKey) {
+          const text = proof.text(stored);
+          if (!text) { refusal = UNREADABLE_MESSAGE; tx.abort(); return; }
+          store.put(JSON.stringify({ v: 1, cueId: proof.cueId, revision: proof.id.revision, text, submitted: proof.submitted }), proofKey);
+        }
       } catch (error) {
         refusal = isQuotaError(error) ? FULL_MESSAGE : FAILED_MESSAGE;
         try { tx.abort(); } catch { /* already aborting */ }
-        return;
       }
-      // The page can go after the put commits and before its completion handler runs. A draft
-      // can record these exact possible bytes now without treating them as a confirmed save.
-      if (namespace === account) options?.onRebasedWrite?.(stored);
     };
+    request.onsuccess = write;
+    if (prior) prior.onsuccess = write;
     tx.oncomplete = () => {
       done = true;
       committed = stored;

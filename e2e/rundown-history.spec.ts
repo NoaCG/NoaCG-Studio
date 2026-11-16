@@ -500,7 +500,11 @@ test('an ordinary cue write cannot persist a rejected draft from the mirror (#25
   expect(await name()).toBe('Fresh production write');
 });
 
-for (const scenario of ['continued typing', 'a separate optimistic write', 'page close', 'page close with an aborted successor', 'page close with a competing cue edit']) {
+for (const scenario of [
+  'continued typing', 'a separate optimistic write', 'page close', 'page close with an aborted successor',
+  'page close with a competing cue edit', 'page close after an aborted predecessor and matching foreign text',
+  'page close after a final commit with no completion callback',
+]) {
   test(`typing survives a normalized IndexedDB write during ${scenario} (#2572, D5)`, async ({ page, context }) => {
     const ids = await seed(page);
     const cueId = await page.evaluate(async id => {
@@ -555,10 +559,35 @@ for (const scenario of ['continued typing', 'a separate optimistic write', 'page
           return result;
         };
       }
+      if (scenario === 'page close after an aborted predecessor and matching foreign text') {
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function(value, key) {
+          const result = put.call(this, value, key);
+          if (typeof key === 'string' && key.startsWith('__cue-draft-v1:')) {
+            IDBObjectStore.prototype.put = put;
+            result.addEventListener('success', () => {
+              document.documentElement.dataset.abortedPredecessor = 'true';
+              this.transaction.abort();
+            });
+          }
+          return result;
+        };
+      }
       const original = IDBObjectStore.prototype.get;
       IDBObjectStore.prototype.get = function(key) {
         if (key === storageKey) {
           IDBObjectStore.prototype.get = original;
+          if (scenario === 'page close after a final commit with no completion callback') {
+            const transaction = this.transaction;
+            transaction.addEventListener('complete', () => {
+              document.documentElement.dataset.committedWithoutCallback = 'true';
+            });
+            queueMicrotask(() => {
+              transaction.oncomplete = null;
+              window.dispatchEvent(new PageTransitionEvent('pagehide'));
+            });
+            return original.call(this, key);
+          }
           // Start the next edit while the first transaction is still open.
           queueMicrotask(() => {
             const label = document.querySelector<HTMLInputElement>('[data-testid="cue-label"]')!;
@@ -597,18 +626,62 @@ for (const scenario of ['continued typing', 'a separate optimistic write', 'page
       return [cue?.label, cue?.values.f2];
     };
     const words = 'keep | 1\nnew | 1';
-    if (scenario === 'page close with an aborted successor') {
+    const final = scenario === 'page close after a final commit with no completion callback';
+    const foreign = scenario === 'page close after an aborted predecessor and matching foreign text';
+    const owed = () => page.evaluate(async id => {
+      const { libraryInUse, readCueDraftCommit } = await __noacgImport('/src/model/durableStore.ts');
+      const account = libraryInUse();
+      const key = 'spx-gfx-owed-cue-edits' + (account ? '@' + account : '');
+      const edit = JSON.parse(localStorage.getItem(key) ?? '{}').shows?.[id];
+      const proof = edit?.commit && await readCueDraftCommit(id, edit.commit.stream);
+      return { edit, proof };
+    }, ids.show);
+    if (final || foreign) {
+      if (final) {
+        await expect(page.locator('html')).toHaveAttribute('data-committed-without-callback', 'true');
+        const { edit, proof } = await owed();
+        expect(proof?.revision).toBe(edit.commit.revision);
+        expect(proof?.text.values.f2).toBe(words);
+      } else {
+        await expect(page.locator('html')).toHaveAttribute('data-aborted-predecessor', 'true');
+        await settleDurableWrites(page);
+        const { edit, proof } = await owed();
+        expect(edit?.fields.label).toBe('Kept typing');
+        expect(proof).toBeNull();
+      }
+      // The separate writer never possesses the cue draft's commit identity. In the final
+      // case Unhide changes only metadata, leaving the committed Words field untouched.
+      await page.evaluate(async ({ id, cueId, final, words }) => {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('noacg-studio');
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const tx = db.transaction('kv', 'readwrite');
+            const store = tx.objectStore('kv'), key = 'spx-gfx-shows';
+            const request = store.get(key);
+            request.onsuccess = () => {
+              const rows = JSON.parse(request.result) as Show[];
+              const show = rows.find(row => row.id === id)!;
+              if (final) delete show.questions![0].hidden;
+              else show.cues!.find(cue => cue.id === cueId)!.values.f2 = words;
+              store.put(JSON.stringify(rows), key);
+            };
+            tx.oncomplete = () => resolve();
+            tx.onabort = () => reject(tx.error);
+          });
+        } finally { db.close(); }
+      }, { id: ids.show, cueId, final, words });
+    } else if (scenario === 'page close with an aborted successor') {
       await expect(page.locator('html')).toHaveAttribute('data-aborted-closing-draft', 'true');
       await expect.poll(savedText).toEqual(['Words', words]);
-      const owed = await page.evaluate(async id => {
-        const { libraryInUse } = await __noacgImport('/src/model/durableStore.ts');
-        const account = libraryInUse();
-        const key = 'spx-gfx-owed-cue-edits' + (account ? '@' + account : '');
-        return JSON.parse(localStorage.getItem(key) ?? '{}').shows?.[id] as
-          { fields: { label: string }; bases: { label: string; values: Record<string, string> }[] } | undefined;
-      }, ids.show);
-      expect(owed?.fields.label).toBe('Kept typing');
-      expect(owed?.bases.some(base => base.label === 'Words' && base.values.f2 === words)).toBe(true);
+      const { edit, proof } = await owed();
+      expect(edit?.fields.label).toBe('Kept typing');
+      expect(proof?.revision).toBeLessThan(edit.commit.revision);
+      expect(proof?.text).toMatchObject({ label: 'Words', values: { f2: words } });
+      expect(edit.bases.map((base: { values: Record<string, string> }) => base.values.f2)).toEqual(['keep | 1']);
     } else if (scenario === 'page close with a competing cue edit') {
       await expect.poll(savedText).toEqual(['Competing edit', words]);
     } else {
@@ -623,7 +696,13 @@ for (const scenario of ['continued typing', 'a separate optimistic write', 'page
       reopened.on('pageerror', error => pageFaults.get(page)!.push(error.message));
       await reopened.goto(url);
     }
-    await select(reopened, scenario === 'page close with a competing cue edit' ? 'Competing edit' : 'Kept typing');
+    const label = final || foreign ? 'Words' : scenario === 'page close with a competing cue edit' ? 'Competing edit' : 'Kept typing';
+    await select(reopened, label);
+    if (final || foreign) {
+      await expect.poll(() => reopened.evaluate(id =>
+        JSON.parse(localStorage.getItem('spx-gfx-owed-cue-edits') ?? '{}').shows?.[id] ?? null, ids.show)).toBeNull();
+      await expect(row(reopened, 'Kept typing')).toHaveCount(0);
+    }
     await expect(reopened.getByTestId('cue-field-f2')).toHaveValue(words);
     if (scenario === 'page close with a competing cue edit') await expect(row(reopened, 'Kept typing')).toHaveCount(0);
     if (scenario === 'a separate optimistic write') await expect(row(reopened, 'Other tab-local edit')).toBeVisible();

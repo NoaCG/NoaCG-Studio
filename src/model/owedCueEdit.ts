@@ -9,6 +9,7 @@
 // on its next visit (control/cueDraft.ts `recover`). Device-local, never synced, one key per
 // account (accountScope.ts `ACCOUNT_LOCAL_KEYS`).
 
+import type { DraftCommitId } from './cueDraftCommit';
 import { accountKey } from './accountScope.ts';
 
 /** A cue's text, as a save writes it. */
@@ -23,6 +24,7 @@ export interface OwedCueEdit {
   cueId: string;
   bases: OwedCueText[];
   fields: OwedCueText;
+  commit?: DraftCommitId;
 }
 
 export const OWED_CUE_EDITS_KEY = 'spx-gfx-owed-cue-edits';
@@ -73,7 +75,11 @@ export function readOwedCueEdit(showId: string): OwedCueEdit | null {
   if (!e || typeof e.cueId !== 'string') return null;
   const bases = Array.isArray(e.bases) ? e.bases.map(text) : [], fields = text(e.fields);
   if (!fields || bases.length === 0 || bases.some((b) => b === null)) return null;
-  return { cueId: e.cueId, bases: bases as OwedCueText[], fields };
+  const commit = e.commit;
+  if (commit !== undefined && (!commit || typeof commit.stream !== 'string'
+    || !/^[a-f0-9-]{36}$/i.test(commit.stream) || !Number.isSafeInteger(commit.revision) || commit.revision < 1)) return null;
+  return { cueId: e.cueId, bases: bases as OwedCueText[], fields,
+    ...(commit && { commit: { stream: commit.stream, revision: commit.revision } }) };
 }
 
 /** Remove a production's record. Never throws. */
