@@ -23,12 +23,12 @@ const deferred = () => {
 };
 
 /** Execute the real save controller with a delayed disk and RPC, without an account/server. */
-function harness(pending = true, graphics = [], storage = undefined, settle = { settleGraphics: (graphics) => ({ graphics, changed: false }) }, retainFails = { left: 0 }, cues = undefined) {
+function harness(pending = true, graphics = [], storage = undefined, settle = { settleGraphics: (graphics) => ({ graphics, changed: false }) }, retainFails = { left: 0 }, cues = undefined, extra = {}) {
   const disk = deferred();
   const request = deferred();
   const requests = [];
   const answers = [];
-  let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics, ...(cues ? { cues } : {}) };
+  let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics, ...(cues ? { cues } : {}), ...extra };
   let retained = { local };
   const stubs = {
     './supabase': { getSupabase: async () => ({ storage, rpc: async (_name, args) => { requests.push(args); return answers.length ? answers.shift() : request.promise; } }) },
@@ -80,9 +80,14 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     controller: exports, disk, request, requests, answers,
     local: () => local,
     edit(name) { local = { ...local, name }; exports.editForTest(local.id); },
-    typeCue(cueId, label) {
+    connectWords(recipe) {
       const previous = local;
-      local = { ...local, cues: local.cues.map(cue => cue.id === cueId ? { ...cue, label } : cue) };
+      local = { ...local, collections: [recipe] };
+      exports.editForTest(local.id, undefined, previous);
+    },
+    typeCue(cueId, label, values) {
+      const previous = local;
+      local = { ...local, cues: local.cues.map(cue => cue.id === cueId ? { ...cue, label, values: values ?? cue.values } : cue) };
       exports.editForTest(local.id, {
         cueId, before: history.cueTextKey(previous, cueId), after: history.cueTextKey(local, cueId),
       }, previous);
@@ -126,6 +131,57 @@ test('two CAS refusals retire the observed prefix of a still-checked cue draft',
   assert.deepEqual(h.requests.map(request => request.p_doc.cues[0]?.label), ['B', 'C', 'A']);
   assert.equal(h.requests[2].p_doc.cues[0].accentColor, '#6600CC');
 });
+
+for (const scenario of ['two refusals', 'typing during the first save', 'only the hidden word', 'competing text', 'connected after first merge']) {
+  test('a team draft follows the stored words after hidden-word cleanup: ' + scenario, async () => {
+    const words = f2 => ({ f0: 'YOUR WORDS', f1: 'One word?', f2 });
+    const connected = scenario === 'connected after first merge';
+    const recipe = { id: 'r-words', v: 1, fields: {} };
+    const cue = {
+      id: 'c-word', sourceId: 'g-cloud', label: 'Words: One word?', values: words('keep | 1'),
+      ...(connected ? { selection: { v: 1, recipe: recipe.id, key: ['words'] } } : {}),
+    };
+    const fields = ['Label', 'Question', 'Words'].map((title, index) => ({ field: 'f' + index, title, ftype: 'textfield' }));
+    const graphic = { id: 'g-cloud', name: 'House Word Cloud', type: 'x', savedAt: '', template: { name: 'House Word Cloud', fields } };
+    const question = { id: 'q-word', type: 'word', text: 'One word?' };
+    const h = harness(false, [graphic], undefined, undefined, undefined, [cue], {
+      questions: [question], resultCues: { 'q-word': cue.id }, ...(connected ? { collections: [recipe] } : {}),
+    });
+    const base = h.local(), receipt = h.controller.beginTeamRundownEdit(base.id);
+    const onlyHidden = scenario === 'only the hidden word';
+    const initial = onlyHidden ? 'keep | 1\napple | 1' : 'keep | 1\napple | 1\nnew | 1';
+    h.typeCue(cue.id, cue.label, words(initial));
+    const submitted = history.cueTextKey(h.local(), cue.id);
+    h.controller.bindTeamCueDraft(receipt, cue.id, submitted);
+    h.disk.resolve(null);
+    const pushed = h.controller.pushForTest(base.id);
+    await new Promise(resolve => setImmediate(resolve));
+    if (scenario === 'typing during the first save') h.typeCue(cue.id, cue.label, words(initial + '\nnewer | 1'));
+    if (connected) h.connectWords({ ...recipe, fields: { f2: { from: 'words' } } });
+    const first = {
+      ...base,
+      questions: [{ ...question, hidden: ['apple'] }],
+      cues: scenario === 'competing text' ? [{ ...cue, values: words('changed elsewhere | 3') }] : [cue],
+    };
+    const second = { ...first, cues: [{ ...first.cues[0], accentColor: '#6600CC' }] };
+    h.answers.push(
+      { data: { saved: false, updated_at: '2026-11-15T12:02:00.000Z', doc: second }, error: null },
+      { data: { saved: true, updated_at: '2026-11-15T12:03:00.000Z' }, error: null },
+    );
+    h.request.resolve({ data: { saved: false, updated_at: '2026-11-15T12:01:00.000Z', doc: first }, error: null });
+    await pushed;
+    let expected = 'keep | 1\nnew | 1';
+    if (scenario === 'typing during the first save') expected += '\nnewer | 1';
+    if (onlyHidden || connected) expected = 'keep | 1';
+    if (scenario === 'competing text') expected = 'changed elsewhere | 3';
+    assert.deepEqual(h.requests.map(request => request.p_doc.cues[0].values.f2), [initial, expected, expected]);
+    assert.equal(h.requests.at(-1).p_doc.cues[0].accentColor, '#6600CC');
+    const confirmed = h.controller.confirmedTeamCueText(receipt, cue.id, submitted);
+    const accepted = history.cueTextKey(h.requests.at(-1).p_doc, cue.id);
+    assert.equal(confirmed, scenario === 'two refusals' || onlyHidden ? accepted : null);
+    assert.equal(h.controller.confirmedTeamCueText({ ...receipt, draftLineage: Symbol() }, cue.id, submitted), null);
+  });
+}
 
 test('per-edit receipt requires an advanced revision and the exact intended rundown', async () => {
   const h = harness();

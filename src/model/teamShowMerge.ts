@@ -69,6 +69,7 @@ export interface TeamShowMerge {
   lost: string[];
   /** A folder the two sides had torn apart, emptied or orphaned was put back together. */
   gathered: boolean;
+  appliedDrafts?: AppliedTeamCueDraft[];
 }
 
 /** Before and after text of a native cue draft that passed the local write checks. */
@@ -79,6 +80,12 @@ export interface TeamCueDraftText {
 }
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+export interface AppliedTeamCueDraft {
+  cueId: string;
+  input: string;
+  after: string;
+}
 
 function overlayCueText(cue: ShowCue, text: ShowCue): ShowCue {
   const result = { ...cue, label: text.label, values: text.values };
@@ -94,23 +101,30 @@ function draftTextAllowed(cue: ShowCue, text: ShowCue, baseline: ShowCue, collec
 }
 
 /** A second merge may attach a recipe after a first pass applied the draft. Recheck the final cue. */
-export function guardMergedCueDrafts(doc: Show, theirs: Show, drafts: readonly TeamCueDraftText[]): string[] {
+export function guardMergedCueDrafts(
+  doc: Show, theirs: Show, drafts: readonly Pick<TeamCueDraftText, 'cueId' | 'after'>[],
+): string[] {
   if (!drafts.length || !doc.cues) return [];
   const baselines = new Map(theirs.cues?.map(cue => [cue.id, cue]));
   const checkedIds = new Set(drafts.map(proof => proof.cueId));
+  const fallback = { ...doc, cues: doc.cues.map(cue => {
+    const baseline = baselines.get(cue.id);
+    return checkedIds.has(cue.id) && baseline ? overlayCueText(cue, baseline) : { ...cue };
+  }) };
+  scrubHiddenWords(fallback);
+  const fallbackById = new Map(fallback.cues.map(cue => [cue.id, cue]));
   let refused = false;
   doc.cues = doc.cues.map(cue => {
     if (!checkedIds.has(cue.id)) return cue;
-    const baseline = baselines.get(cue.id);
+    const baseline = fallbackById.get(cue.id);
     if (!baseline) return cue;
     const after = cueFieldsKey(cue);
     if (!drafts.some(proof => proof.cueId === cue.id && proof.after === after)
       || cueFieldsKey(baseline) === after
       || draftTextAllowed(cue, cue, baseline, doc.collections)) return cue;
     refused = true;
-    return overlayCueText(cue, baseline);
+    return baseline;
   });
-  if (refused) scrubHiddenWords(doc);
   return refused ? [FIELD_LABEL.cues] : [];
 }
 
@@ -282,7 +296,10 @@ function renameOurNewGraphics(base: Show, ours: Show, theirs: Show): Show {
  * Merge a refused local document onto the one a teammate saved. `at` becomes the result's
  * `updatedAt`, so the merged record reads as the newest edit it is.
  */
-export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string, drafts: readonly TeamCueDraftText[] = []): TeamShowMerge {
+export function mergeTeamShow(
+  base: Show, mine: Show, theirs: Show, at: string,
+  drafts: readonly TeamCueDraftText[] = [], inherited: readonly AppliedTeamCueDraft[] = [],
+): TeamShowMerge {
   const draftIds = new Set(drafts.filter(({ cueId, before, after }) =>
     before !== after && cueTextKey(theirs, cueId) === before && cueTextKey(mine, cueId) === after
     && cueTextKey(base, cueId) !== null,
@@ -342,8 +359,10 @@ export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string, 
     if (settled.folders.length) doc.folders = settled.folders;
     else delete doc.folders;
   }
+  const merged = doc as unknown as Show;
+  const applied = new Map(inherited.filter(draft => cueTextKey(merged, draft.cueId) === draft.after)
+    .map(draft => [draft.cueId, draft]));
   if (draftCues.size) {
-    const merged = doc as unknown as Show;
     merged.cues = merged.cues?.map(cue => {
       const draft = draftCues.get(cue.id);
       if (!draft) return cue;
@@ -352,19 +371,27 @@ export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string, 
         if (!lost.includes(FIELD_LABEL.cues)) lost.push(FIELD_LABEL.cues);
         return cue;
       }
+      const input = cueFieldsKey(draft);
+      applied.set(cue.id, { cueId: cue.id, input, after: input });
       return overlayCueText(cue, draft);
     });
     if (draftCues.size && !lost.includes(FIELD_LABEL.cues)) lost.push(FIELD_LABEL.cues);
   }
   // W11 (interaction phase 6): a cue taken from one side cannot carry a word the merged question
   // list hides, whichever side hid it.
-  scrubHiddenWords(doc as unknown as Show);
+  // The three-way merge can reuse input cues. Keep the returned server baseline intact.
+  if (merged.cues) merged.cues = merged.cues.map(cue => ({ ...cue }));
+  scrubHiddenWords(merged);
   const dropped = dropBindingsOnPreparedFields(doc as unknown as Show);
   if ((dropBindingsOnStoppedReaders(doc as unknown as Show) || dropped) && !lost.includes(FIELD_LABEL.bindings)) {
     lost.push(FIELD_LABEL.bindings);
   }
   doc.updatedAt = at;
-  return { doc: doc as unknown as Show, lost, gathered: settled.changed };
+  const appliedDrafts = [...applied.values()].flatMap(draft => {
+    const after = cueTextKey(merged, draft.cueId);
+    return after === null ? [] : [{ ...draft, after }];
+  });
+  return { doc: merged, lost, gathered: settled.changed, ...(appliedDrafts.length ? { appliedDrafts } : {}) };
 }
 
 /**

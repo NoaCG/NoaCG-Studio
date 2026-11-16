@@ -500,6 +500,73 @@ test('an ordinary cue write cannot persist a rejected draft from the mirror (#25
   expect(await name()).toBe('Fresh production write');
 });
 
+test('typing continues from the words an IndexedDB rebase actually committed (#2572, D5)', async ({ page }) => {
+  const ids = await seed(page);
+  const cueId = await page.evaluate(async id => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    shows.addGraphicToShow(id, { ...variantsFor('word-cloud')[0].create({}), name: 'Words' });
+    const records = shows.loadShows(), show = records.find(item => item.id === id)!;
+    const cue = show.cues!.at(-1)!;
+    cue.label = 'Words';
+    cue.values = { ...cue.values, f1: 'One word?', f2: 'keep | 1' };
+    show.questions = [{ id: 'q-word', type: 'word', text: 'One word?' }];
+    show.resultCues = { 'q-word': cue.id };
+    durable.setItem('spx-gfx-shows', JSON.stringify(records));
+    return cue.id;
+  }, ids.show);
+  await settleDurableWrites(page);
+  await page.reload();
+  await select(page, 'Words');
+  const field = page.getByTestId('cue-field-f2');
+  await expect(field).toHaveValue('keep | 1');
+  await page.evaluate(async id => {
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    const storageKey = 'spx-gfx-shows';
+    const records = JSON.parse(durable.getItem(storageKey)!) as Show[];
+    records.find(show => show.id === id)!.questions = [{ id: 'q-word', type: 'word', text: 'One word?', hidden: ['apple'] }];
+    // The other tab committed Hide. Hold the mirror notification until this tab rebases.
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('noacg-studio');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(JSON.stringify(records), storageKey);
+        tx.oncomplete = () => resolve();
+        tx.onabort = () => reject(tx.error);
+      });
+    } finally { db.close(); }
+    const original = IDBObjectStore.prototype.get;
+    IDBObjectStore.prototype.get = function(key) {
+      if (key === storageKey) {
+        IDBObjectStore.prototype.get = original;
+        // Start the next edit while the first transaction is still open.
+        queueMicrotask(() => {
+          const label = document.querySelector<HTMLInputElement>('[data-testid="cue-label"]')!;
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(label, 'Kept typing');
+          label.dispatchEvent(new Event('input', { bubbles: true }));
+          window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+        });
+      }
+      return original.call(this, key);
+    };
+  }, ids.show);
+  await field.fill('keep | 1\napple | 1\nnew | 1');
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush')));
+  await expect.poll(async () => {
+    const saved = JSON.parse(await snapshot(page, ids.show)) as Pick<Show, 'cues'>;
+    const cue = saved.cues?.find(row => row.id === cueId);
+    return [cue?.label, cue?.values.f2];
+  }).toEqual(['Kept typing', 'keep | 1\nnew | 1']);
+  await page.reload();
+  await select(page, 'Kept typing');
+  await expect(field).toHaveValue('keep | 1\nnew | 1');
+});
+
 test('ordinary cue writes back to the sent draft text revoke draft-only merge authority (#2572, D6)', async ({ page }) => {
   const { ids, state, advance } = await teamBackend(page);
   await select(page, 'Alpha');

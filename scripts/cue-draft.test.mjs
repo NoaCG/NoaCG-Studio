@@ -54,8 +54,13 @@ function harness() {
       groups.push(group);
       freshCues.push(freshCue);
     },
-    writeCue: (cueId, fields) =>
-      new Promise((resolve) => writes.push({ cueId, fields: structuredClone(fields), answer: resolve })),
+    writeCue: (cueId, fields, _recoveredFrom, confirm) =>
+      new Promise(resolve => writes.push({
+        cueId, fields: structuredClone(fields), answer: (saved, record) => {
+          if (record) confirm?.(record);
+          resolve(saved);
+        },
+      })),
     retainCue: (cueId, fields) => {
       retained.push({ cueId, fields: structuredClone(fields) });
       return h.retainOk;
@@ -442,6 +447,22 @@ test('P3: a page that recorded nothing leaves a record alone when it drops a dra
   h.draft.edit(OPENER, { values: { f0: 'x' } });
   h.draft.cancel();
   assert.notEqual(h.owed, null);
+});
+
+test('a normalized acknowledgement updates the recovery baseline for newer typing', async () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.retainOk = false;
+  h.draft.edit(OPENER, { values: { f0: 'Before cleanup' } });
+  const saving = h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: 'Newer typing' } });
+  for (const run of h.listeners.hide) run(true);
+  const actual = { ...OPENER, values: { ...OPENER.values, f0: 'After cleanup' } };
+  h.writes[0].answer(true, actual);
+  await saving;
+  assert.deepEqual(h.owed?.bases, [{ label: OPENER.label, note: OPENER.note ?? null, values: actual.values }]);
+  assert.equal(h.owed?.fields.values.f0, 'Newer typing');
+  stop();
 });
 
 test('P1: a save handed to the history is listed under the edit before the store confirms it', () => {

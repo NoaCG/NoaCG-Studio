@@ -93,9 +93,9 @@ export interface CueDraftIo {
   /** Start or continue an edit group. A fresh draft passes the cue record it starts from. */
   editing: (group: string, freshCue: CueRecord | null) => void;
   /** Save through the rundown history, answering whether the store confirmed it. */
-  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord) => Promise<boolean>;
+  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord, confirm?: (cue: CueRecord) => void) => Promise<boolean>;
   /** Save at once, with no history and nothing to await: whether the store accepted it. */
-  retainCue: (cueId: string, fields: CueFields) => boolean | Promise<boolean>;
+  retainCue: (cueId: string, fields: CueFields, confirm?: (cue: CueRecord) => void) => boolean | Promise<boolean>;
   /** A queued handoff still needs retaining when its value has never reached the local record. */
   hasUnstoredDraft?: (cueId: string, fields: CueFields) => boolean;
   /** The newest record of a cue, if the production holds it. */
@@ -241,9 +241,17 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   };
   /** The store confirmed `d`'s save while typing goes on: the store can no longer hold a text
    *  listed before it, so only it and later ones stay listed. */
-  const confirmed = (d: DraftPart) => {
+  const confirmed = (d: DraftPart, actual?: CueRecord) => {
     const at = startedFrom?.texts.findIndex((t) => t.from === d) ?? -1;
-    if (startedFrom && at > 0) startedFrom = { cueId: startedFrom.cueId, texts: startedFrom.texts.slice(at) };
+    if (!startedFrom || at < 0) return;
+    const texts = startedFrom.texts.slice(at);
+    if (actual) texts[0] = { from: d, text: { label: actual.label, note: actual.note ?? null, values: { ...actual.values } } };
+    startedFrom = { cueId: startedFrom.cueId, texts };
+    const owed = recorded !== null && io.owed.read();
+    if (actual && owed && owed.cueId === d.cueId && JSON.stringify(owed) === recorded) {
+      io.owed.keep({ ...owed, bases: texts.map(entry => entry.text) });
+      recorded = JSON.stringify(io.owed.read());
+    }
   };
   let timer: unknown = null;
   const set = (draft: DraftPart | null) => session.apply((parts) => ({ ...parts, draft }));
@@ -294,7 +302,8 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     // The store may hold this text from here on, before the history confirms it (a team
     // production's local outbox lands before the server answers): typing on may be applied over it.
     handed(d);
-    return io.writeCue(d.cueId, fieldsOf(d)).then((saved) => {
+    let actual: CueRecord | undefined;
+    return io.writeCue(d.cueId, fieldsOf(d), undefined, cue => { actual = cue; }).then((saved) => {
       if (out === d) out = null;
       // Typing went on during the save, or the session ended: the newer draft is still owed.
       if (part.get() === d && session.alive()) {
@@ -305,7 +314,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
         }
         else pending = true;
       } else if (saved) {
-        confirmed(d);
+        confirmed(d, actual);
       }
       return saved;
     });
@@ -326,7 +335,8 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts.map((t) => t.text), fields });
       recorded = JSON.stringify(io.owed.read());
     }
-    const saved = io.retainCue(d.cueId, fields);
+    let actual: CueRecord | undefined;
+    const saved = io.retainCue(d.cueId, fields, cue => { actual = cue; });
     if (saved === false) return;
     pending = false;
     if (out === d) out = null;
@@ -334,7 +344,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     if (saved !== true) {
       void saved.then(accepted => {
         if (accepted) {
-          confirmed(d);
+          confirmed(d, actual);
           if (part.get() === d) forgetOwn();
         } else if (part.get() === d && session.alive()) pending = true;
       });

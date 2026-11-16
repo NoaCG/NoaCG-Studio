@@ -169,6 +169,8 @@ export interface DurableWriteReceipt {
   readonly sequence: number;
   readonly key: string;
   readonly value: string | null;
+  /** The exact rebased value after this transaction settles successfully. */
+  readonly committedValue?: () => string | null;
   readonly account: string | null;
   readonly settled: Promise<string | null>;
 }
@@ -730,7 +732,8 @@ export function rebasedDurableSet(
       reportError(key, message, writeSeq);
       return;
     }
-    recordReceipt({ sequence: ++writeSeq, key, value: next.value, account: namespace, settled: Promise.resolve(null) });
+    const committed = next.value;
+    recordReceipt({ sequence: ++writeSeq, key, value, committedValue: () => committed, account: namespace, settled: Promise.resolve(null) });
     return;
   }
   const target = db!;
@@ -741,6 +744,7 @@ export function rebasedDurableSet(
   const account = namespace, storedKey = accountKey(key, account);
   latestWrite.set(key, seq);
   if (key === 'spx-gfx-shows') guardedShowsWrites.set(storedKey, seq);
+  let committed: string | null = null;
   const settled = new Promise<string | null>((resolve) => {
     let refusal: string | null = null, stored: string | null = null, accepted = previous, done = false;
     const current = (): boolean => namespace === account && latestWrite.get(key) === seq;
@@ -775,6 +779,7 @@ export function rebasedDurableSet(
     };
     tx.oncomplete = () => {
       done = true;
+      committed = stored;
       if (current() && stored !== null) {
         mirror.set(key, stored);
         if (stored !== value && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
@@ -788,7 +793,7 @@ export function rebasedDurableSet(
   if (key === 'spx-gfx-shows') void settled.then(() => {
     if (guardedShowsWrites.get(storedKey) === seq) guardedShowsWrites.delete(storedKey);
   });
-  trackWrite({ sequence: seq, key, value, account, settled });
+  trackWrite({ sequence: seq, key, value, committedValue: () => committed, account, settled });
 }
 
 export type ConditionalWriteResult = { status: 'saved' | 'refused' | 'failed'; value: string | null; error: string | null };

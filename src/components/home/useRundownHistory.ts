@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { beginTeamRundownEdit, commitTeamRundownEdit, restoreTeamRundown, subscribeTeamState, getTeamState, teamCueTextConfirmed, type TeamRundownReceipt } from '../../backend/teamProductions';
+import { beginTeamRundownEdit, bindTeamCueDraft, commitTeamRundownEdit, restoreTeamRundown, subscribeTeamState, getTeamState, confirmedTeamCueText, type TeamRundownReceipt } from '../../backend/teamProductions';
 import { canAuthorAccount, commitDurableReceipt, captureDurableWrites, libraryInUse, isDurableStoreActive, type DurableWriteReceipt } from '../../model/durableStore';
 import { loadShows, restorePersonalRundown, type Show } from '../../model/shows';
 import type { CueFields, CueRecord } from '../../control/cueDraft';
@@ -15,16 +15,23 @@ type Typing = {
 };
 type PendingTeamEdit = { before: RundownSlice; after: RundownSlice; label: string; receipt: TeamRundownReceipt; group?: Group; closed: boolean; confirming: boolean };
 
-function hasDraftReceipt(receipts: readonly DurableWriteReceipt[], show: Show, cueId: string, text: string): boolean {
-  return receipts.some(receipt => {
-    try {
-      const value = JSON.parse(receipt.value ?? 'null');
-      const stored = show.teamId ? value?.edits?.[show.id]?.local : value?.find((candidate: Show) => candidate.id === show.id);
-      return stored?.id === show.id && stored.teamId === show.teamId && cueTextKey(stored, cueId) === text;
-    } catch {
-      return false;
-    }
-  });
+type ConfirmCue = (cue: CueRecord) => void;
+
+function receiptCue(bytes: string | null, show: Show, cueId: string): CueRecord | undefined {
+  try {
+    const value = JSON.parse(bytes ?? 'null');
+    const stored: Show | undefined = show.teamId
+      ? value?.edits?.[show.id]?.local : value?.find((candidate: Show) => candidate.id === show.id);
+    if (stored?.id === show.id && stored.teamId === show.teamId) return stored.cues?.find(cue => cue.id === cueId);
+  } catch { /* An unreadable snapshot cannot confirm a draft. */ }
+}
+
+function draftReceipt(receipts: readonly DurableWriteReceipt[], show: Show, cueId: string, text: string) {
+  for (let index = receipts.length - 1; index >= 0; index--) {
+    const receipt = receipts[index], cue = receiptCue(receipt.value, show, cueId);
+    if (cue && cueFieldsKey(cue) === text) return receipt;
+  }
+  return undefined;
 }
 
 /** One authoring queue and one history per mounted production/account. Persistence stays in
@@ -140,7 +147,7 @@ export function useRundownHistory(
     if (result === 'too-large') callbacks.current.note('This edit is too large to undo. Undo history was cleared.');
     changed();
   }
-  const perform = async (write: () => WriteResult, label: string, held?: Group, failed = label, draft: Typing | null = null): Promise<boolean> => {
+  const perform = async (write: () => WriteResult, label: string, held?: Group, failed = label, draft: Typing | null = null, confirm?: ConfirmCue): Promise<boolean> => {
     const current = fresh(); if (!current) return false;
     const before = rundownSlice(current);
     // A typing group whose history was cleared no longer says what the rundown should be (D5).
@@ -170,11 +177,15 @@ export function useRundownHistory(
     const intended = intendedShow ? rundownSlice(intendedShow) : null;
     let error = result.refused ?? result.error;
     const stagedText = draft && !error && intended ? cueTextKey(intended, draft.cueId) : null;
-    if (!error && draft && (stagedText === null || !hasDraftReceipt(captured.receipts, current, draft.cueId, stagedText))) {
+    const receipt = draft && stagedText !== null ? draftReceipt(captured.receipts, current, draft.cueId, stagedText) : undefined;
+    if (!error && draft && !receipt) {
       error = 'This rundown save has not been confirmed.';
     }
     const staged = !error && stagedText !== null ? { text: stagedText } : undefined;
-    if (draft && staged) draft.staged = staged;
+    if (draft && staged) {
+      draft.staged = staged;
+      if (team) bindTeamCueDraft(team, draft.cueId, staged.text);
+    }
     for (const receipt of captured.receipts) {
       const failed = await commitDurableReceipt(receipt);
       error ??= failed;
@@ -187,12 +198,19 @@ export function useRundownHistory(
     if (!ownsWrite()) return false;
     const accepted = fresh();
     const acceptedSlice = accepted ? rundownSlice(accepted) : null;
-    const typedLanded = !!draft && !!intended && !!acceptedSlice && cueTextKey(acceptedSlice, draft.cueId) === cueTextKey(intended, draft.cueId);
+    const localCue = draft && receipt && locallyAccepted
+      ? receiptCue(receipt.committedValue ? receipt.committedValue() : receipt.value, current, draft.cueId)
+      : undefined;
+    const confirmedText = draft && team && stagedText !== null && error === RUNDOWN_CHANGED
+      ? confirmedTeamCueText(team, draft.cueId, stagedText) : localCue ? cueFieldsKey(localCue) : null;
+    const actualCue = draft && accepted?.cues?.find(cue => cue.id === draft.cueId);
+    const typedLanded = Boolean(actualCue && confirmedText !== null && cueFieldsKey(actualCue) === confirmedText);
+    if (actualCue && typedLanded && locallyAccepted && (!error || error === RUNDOWN_CHANGED)) confirm?.(actualCue);
     // Advance only the drafts this write knew, over text that is still the accepted text.
     if (locallyAccepted && intended && acceptedSlice) {
       for (const saved of new Set([draft, activeAtWrite])) {
         if (!saved || !matchesTyping(saved, before)) continue;
-        const text = cueTextKey(intended, saved.cueId);
+        const text = saved === draft && confirmedText !== null ? confirmedText : cueTextKey(intended, saved.cueId);
         if (cueTextKey(acceptedSlice, saved.cueId) === text) saved.text = text;
       }
     }
@@ -206,8 +224,7 @@ export function useRundownHistory(
       // network failure, or a refusal, is as today (D6).
       if (draft && error === RUNDOWN_CHANGED) {
         changedElsewhere(acceptedSlice);
-        return !!team && locallyAccepted && typedLanded && stagedText !== null
-          && teamCueTextConfirmed(team, draft.cueId, stagedText);
+        return !!team && locallyAccepted && typedLanded;
       }
       if (team && intended && accepted && acceptedSlice && sameRundown(acceptedSlice, intended) && !sameRundown(before, intended)) {
         pendingTeam.current = { before: pending?.before ?? held?.before ?? before, after: intended, label, receipt: team, group: held, closed: !held, confirming: false };
@@ -250,7 +267,7 @@ export function useRundownHistory(
     if (typing.current?.cueId !== cueId) typing.current = { cueId, text: cueTextKey(slice, cueId) };
     changed();
   };
-  const writeDraft = (cueId: string, write: (expectedText: string) => WriteResult, recoveredFrom?: CueRecord): Promise<boolean> => {
+  const writeDraft = (cueId: string, write: (expectedText: string) => WriteResult, recoveredFrom?: CueRecord, confirm?: ConfirmCue): Promise<boolean> => {
     const draft = recoveredFrom ? { cueId, text: cueFieldsKey(recoveredFrom) } : typing.current;
     if (draft?.cueId !== cueId) return Promise.resolve(false);
     const held = group.current ?? undefined, label = held ? 'Edit cue' : 'Save cue';
@@ -259,11 +276,11 @@ export function useRundownHistory(
       if (draft.retaining) await draft.retaining;
       const expectedText = draft.text;
       if (session !== lifetime.current.generation || queueAtWrite !== queue.current || expectedText === null) return false;
-      return perform(() => write(expectedText), label, held, label, draft);
+      return perform(() => write(expectedText), label, held, label, draft, confirm);
     }, false, true);
   };
   /** A closing write may follow the exact local result of this draft's checked write. */
-  const retainDraft = (cueId: string, write: (expectedText: string) => WriteResult): false | Promise<boolean> => {
+  const retainDraft = (cueId: string, write: (expectedText: string) => WriteResult, confirm?: ConfirmCue): false | Promise<boolean> => {
     const draft = typing.current;
     const current = fresh(), account = libraryInUse();
     if (!current || draft?.cueId !== cueId || draft.text === null || JSON.stringify([current.id, current.teamId, account]) !== identity) return false;
@@ -272,14 +289,18 @@ export function useRundownHistory(
     const key = current.teamId ? 'spx-gfx-team-outbox' : 'spx-gfx-shows';
     const { result, receipts } = captureDurableWrites(key, () => write(before));
     const text = cueTextKey(result.shows.find(show => show.id === current.id && show.teamId === current.teamId) ?? {}, cueId);
-    if (result.error || result.refused || text === null || !hasDraftReceipt(receipts, current, cueId, text)) return false;
+    const receipt = text === null ? undefined : draftReceipt(receipts, current, cueId, text);
+    if (result.error || result.refused || text === null || !receipt) return false;
     const staged = { text };
     draft.staged = staged;
     const settled = Promise.all(receipts.map(commitDurableReceipt)).then(errors => {
-      const accepted = libraryInUse() === account && !errors.some(Boolean) && cueTextKey(fresh() ?? {}, cueId) === text;
+      const cue = receiptCue(receipt.committedValue ? receipt.committedValue() : receipt.value, current, cueId);
+      const actual = cue ? cueFieldsKey(cue) : null;
+      const accepted = libraryInUse() === account && !errors.some(Boolean) && actual !== null && cueTextKey(fresh() ?? {}, cueId) === actual;
+      if (accepted && cue) confirm?.(cue);
       if (draft.staged === staged) {
         draft.staged = undefined;
-        if (accepted && draft.text !== null) draft.text = text;
+        if (accepted && draft.text !== null) draft.text = actual;
       }
       return accepted;
     });
