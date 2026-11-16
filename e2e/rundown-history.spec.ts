@@ -776,7 +776,16 @@ test('tracked cue draft receipt survives a temporary hide and is removed on disp
     };
   });
   await page.getByTestId('cue-label').fill('Saved on hide');
-  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
+  await page.evaluate(() => {
+    // The synchronous change notification normally retires this editor's group. Hold it
+    // during this save to exercise a temporary hide with the draft stream still active.
+    const dispatch = window.dispatchEvent;
+    window.dispatchEvent = function(event) {
+      return event.type === 'spx-data-changed' ? true : dispatch.call(this, event);
+    };
+    try { window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })); }
+    finally { window.dispatchEvent = dispatch; }
+  });
   await settleDurableWrites(page);
   const stream = await page.locator('html').getAttribute('data-owned-draft');
   expect(stream).toMatch(/^[a-f0-9-]{36}$/);
