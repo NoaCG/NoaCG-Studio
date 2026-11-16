@@ -67,7 +67,7 @@ function harness(commitStore) {
       return h.retainOk;
     },
     record: (cueId) => records.get(cueId),
-    commit: commitStore,
+    commit: commitStore && { unused: stream => h.owed?.commit?.stream !== stream, ...commitStore },
     owed: {
       keep: (edit) => {
         h.owed = structuredClone(edit);
@@ -468,44 +468,79 @@ test('a normalized acknowledgement updates the recovery baseline for newer typin
   stop();
 });
 
-const DRY = 'keep | 1';
-const SUBMITTED_WORDS = 'keep | 1\napple | 1\nnew | 1';
-const SAVED_WORDS = 'keep | 1\nnew | 1';
 const STREAM = '00000000-0000-4000-8000-000000000001';
+const tracked = { stream: STREAM, revision: 2 };
 
-for (const scenario of ['aborted then foreign match', 'committed final then Unhide', 'committed predecessor then Unhide']) {
-  test('personal recovery requires the commit of its own edit: ' + scenario, async () => {
-    const fields = values => ({ label: 'Words', note: null, values: { words: values } });
-    const final = scenario === 'committed final then Unhide';
-    const receipt = scenario === 'aborted then foreign match' ? null : {
-      cueId: 'c1', revision: 1, text: fields(SAVED_WORDS), submitted: fields(SUBMITTED_WORDS),
-    };
-    const released = [];
-    const h = harness({ start: () => STREAM, read: async () => receipt, forget: stream => released.push(stream) });
-    h.records.set('c1', { id: 'c1', ...fields(SAVED_WORDS) });
-    h.owed = {
-      cueId: 'c1', bases: [fields(DRY)], commit: { stream: STREAM, revision: final ? 1 : 2 },
-      fields: { ...fields(SUBMITTED_WORDS), label: final ? 'Words' : 'Later label' },
-    };
+test('tracked recovery delegates to storage even when the rendered cue is stale', async () => {
+  const requests = [], released = [];
+  const h = harness({
+    start: () => STREAM, account: () => null,
+    recover: async (edit, valid) => { requests.push({ edit, valid: valid() }); return true; },
+    forget: (id, canRelease) => { if (canRelease()) released.push(id); },
+  });
+  const before = { label: 'Earlier durable cue', note: null, values: {} };
+  h.owed = { cueId: 'c1', bases: [before], fields: { ...before, label: 'Later draft' }, commit: tracked, retired: true };
+  const expected = structuredClone(h.owed);
+  h.draft.recover();
+  await settle();
+  assert.deepEqual(requests, [{ edit: expected, valid: true }]);
+  assert.equal(h.writes.length, 0);
+  assert.equal(h.owed, null);
+  assert.deepEqual(released, [tracked]);
+});
+
+for (const interruption of ['type and cancel', 'hide and show', 'replacement', 'account changed']) {
+  test('a delayed tracked recovery loses authority after ' + interruption, async () => {
+    let ready, validAtWrite, account = null;
+    const h = harness({
+      start: () => STREAM, account: () => account, forget: () => assert.fail('unsettled recovery released proof'),
+      recover: (_edit, valid) => new Promise(resolve => { ready = () => { validAtWrite = valid(); resolve(validAtWrite); }; }),
+    });
+    h.owed = { cueId: 'c1', bases: [OPENER], fields: { ...OPENER, label: 'Recover this' }, commit: tracked };
+    const stop = h.draft.listen(h.adapters);
     h.draft.recover();
+    if (interruption === 'type and cancel') {
+      h.draft.edit(OPENER, { label: 'Started another draft' });
+      h.draft.cancel();
+    } else if (interruption === 'hide and show') {
+      for (const hide of h.listeners.hide) hide(true);
+      for (const shown of h.listeners.shown) shown();
+    } else if (interruption === 'replacement') {
+      h.owed = { ...h.owed, commit: { ...tracked, revision: 3 } };
+    } else account = 'another account';
+    const owed = structuredClone(h.owed);
+    ready();
     await settle();
-    if (!receipt || final) {
-      assert.equal(h.writes.length, 0);
-    } else {
-      assert.equal(h.writes.length, 1);
-      assert.equal(h.writes[0].fields.label, 'Later label');
-      assert.equal(h.writes[0].fields.values.words, SAVED_WORDS);
-      assert.equal(h.writes[0].commit.expectedRevision, 1);
-      assert.equal(h.writes[0].commit.stillOwed(), true);
-      h.writes[0].answer(true);
-      await settle();
-    }
-    assert.equal(h.owed, null);
-    assert.deepEqual(released, [STREAM]);
+    assert.equal(validAtWrite, false);
+    assert.deepEqual(h.owed, owed);
+    stop();
   });
 }
+
+test('a trackable save on temporary hide keeps the receipt until the draft stream is disposed', async () => {
+  const released = [];
+  const h = harness({
+    start: () => STREAM, account: () => null, recover: async () => false,
+    forget: (id, canRelease) => { if (canRelease()) released.push(id); },
+  });
+  let accepted;
+  h.retainOk = new Promise(resolve => { accepted = resolve; });
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { label: 'Retained' });
+  for (const hide of h.listeners.hide) hide(true);
+  assert.equal(h.owed.commit.revision, 1);
+  assert.equal(h.owed.retired, undefined);
+  h.session.dispose();
+  assert.equal(h.owed.retired, true);
+  assert.deepEqual(released, []);
+  accepted(true);
+  await settle();
+  assert.equal(h.owed, null);
+  assert.deepEqual(released, [{ stream: STREAM, revision: 1 }]);
+});
+
 test('retries of a personal edit reuse their revision and persist only the original uncommitted baseline', async () => {
-  const h = harness({ start: () => STREAM, read: async () => null, forget: () => {} });
+  const h = harness({ start: () => STREAM, account: () => null, recover: async () => false, forget: () => {} });
   const stop = h.draft.listen(h.adapters);
   h.draft.edit(OPENER, { label: 'First edit' });
   const saving = h.draft.flush();

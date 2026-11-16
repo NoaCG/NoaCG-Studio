@@ -30,8 +30,9 @@ import { put, readShowProfile, serializeShowProfile } from './profile';
 import { actionArgsOf, actionSchemaOf, migrateToTyped, nativeOf, readJson, readOgrafDeclared, readTypedArgs, TYPED_ARGS_VERSION, TYPED_MAX_DEPTH, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedAction, type TypedArgs, type TypedReceipt, type TypedValues } from './ografTyped';
 import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, hasPendingShowsRebase, isDurableStoreActive, type ConditionalWriteResult } from './durableStore';
-import { cueFieldsKey, cueTextKey, replaceRundown, RUNDOWN_CHANGED, type RundownSlice } from './rundownHistory';
+import { cueFieldsKey, cueTextKey, rundownSlice, replaceRundown, RUNDOWN_CHANGED, type RundownSlice } from './rundownHistory';
 import { followCueCommit, type CueFields, type DraftCommitId } from './cueDraftCommit';
+import type { OwedCueEdit } from './owedCueEdit';
 import type { TeamCueDraftText } from './teamShowMerge';
 import { uuid } from './id';
 import { sceneCopyRefusal, sceneSnapshot, separateSceneGraphics, type SceneCopyGuard, type SceneSnapshot } from './obsScenes';
@@ -1252,17 +1253,8 @@ function patchShowChecked(
     const mutate = draftText && previousCommit && cueFieldsKey(previousCommit.text) === expected
       ? draftText.apply(followCueCommit(draftText.submitted, previousCommit.submitted, previousCommit.text))
       : mutateOptimistic;
-    const scenesFresh = sceneSnapshot(fresh);
-    const keptFresh = selectionKeep(fresh);
-    const typedFresh = typedKeep(fresh);
-    const again = mutate(fresh, at);
-    if (typeof again === 'string') return { refused: again };
-    const separatedFresh = again ? separateAfterWrite(fresh, scenesFresh) : null;
-    if (separatedFresh) return { refused: separatedFresh };
-    if (again) scrubHiddenWords(fresh); // W11, on the stored record this pass lands on
-    const frozenFresh = again ? (selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite)) : null;
-    if (frozenFresh) return { refused: frozenFresh };
-    if (again) fresh.updatedAt = at;
+    const refusal = storedPatch(mutate, write, typedWrite)(fresh, at);
+    if (refusal) return { refused: refusal };
     return { value: JSON.stringify(list) };
   }, {
     validateStored: !!draftOptions?.committedPredecessor,
@@ -1276,6 +1268,29 @@ function patchShowChecked(
   });
   notifyDataChanged();
   return { shows: visible(), error: null };
+}
+
+/** Apply the same checked mutation on a stored show for a rebase or a recovery. */
+function storedPatch(
+  mutate: (show: Show, at: string) => boolean | string,
+  write?: SelectionWrite,
+  typedWrite?: ReadonlyMap<string, string | null>,
+) {
+  return (fresh: Show, at: string): string | null => {
+    const scenesFresh = sceneSnapshot(fresh);
+    const keptFresh = selectionKeep(fresh);
+    const typedFresh = typedKeep(fresh);
+    const again = mutate(fresh, at);
+    if (typeof again === 'string') return again;
+    if (!again) return null;
+    const separatedFresh = separateAfterWrite(fresh, scenesFresh);
+    if (separatedFresh) return separatedFresh;
+    scrubHiddenWords(fresh); // W11 uses the stored rule, including after a cross-tab change.
+    const frozenFresh = selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite);
+    if (frozenFresh) return frozenFresh;
+    fresh.updatedAt = at;
+    return null;
+  };
 }
 
 /** A cue's starting values: the template's own field defaults (what update() falls back to). */
@@ -1635,22 +1650,66 @@ export function updateShowCueChecked(
       ordinaryBase ??= text;
       if (ordinaryBase !== text) return RUNDOWN_CHANGED;
     }
-    const source = show.graphics.find((g) => g.id === cue.sourceId);
-    const refused = source && boundMessageField(show, source, patch.stagedFrom);
-    if (refused) return refused;
-    // A live candidate's fields come from its source, never from typing (E7.1): a correction
-    // comes from the source, and Fill makes a detached copy.
-    const live = patch.values ? selectedFields(cue, show.collections).filter((f) => patch.values![f] !== undefined && patch.values![f] !== cue.values[f]) : [];
-    if (live.length) return 'This cue shows a live candidate, so its connected fields cannot be typed into.';
-    if (patch.label !== undefined) cue.label = patch.label;
-    if (patch.values) cue.values = { ...cue.values, ...patch.values };
-    if (patch.stagedFrom) cue.stagedFrom = { ...patch.stagedFrom, fields: [...patch.stagedFrom.fields] };
-    if (patch.note === null) delete cue.note;
-    else if (patch.note !== undefined) cue.note = patch.note;
-    return true;
+    return patchCueFields(show, cue, patch);
   };
   return patchShowChecked(showId, apply(patch), !!draft || guardOrdinary || Boolean(patch.stagedFrom),
     undefined, undefined, draft, options, submitted ? { submitted, apply } : undefined);
+}
+
+function patchCueFields(show: Show, cue: ShowCue, patch: Parameters<typeof updateShowCueChecked>[2]): boolean | string {
+  const source = show.graphics.find((g) => g.id === cue.sourceId);
+  const refused = source && boundMessageField(show, source, patch.stagedFrom);
+  if (refused) return refused;
+  // A live candidate's fields come from its source, never from typing (E7.1): a correction
+  // comes from the source, and Fill makes a detached copy.
+  const live = patch.values ? selectedFields(cue, show.collections).filter((f) => patch.values![f] !== undefined && patch.values![f] !== cue.values[f]) : [];
+  if (live.length) return 'This cue shows a live candidate, so its connected fields cannot be typed into.';
+  if (patch.label !== undefined) cue.label = patch.label;
+  if (patch.values) cue.values = { ...cue.values, ...patch.values };
+  if (patch.stagedFrom) cue.stagedFrom = { ...patch.stagedFrom, fields: [...patch.stagedFrom.fields] };
+  if (patch.note === null) delete cue.note;
+  else if (patch.note !== undefined) cue.note = patch.note;
+  return true;
+}
+
+/** Tracked recovery never authorizes from this tab's rendered or optimistic cue. */
+export async function recoverPersonalCueDraft(
+  showId: string,
+  edit: OwedCueEdit & { commit: DraftCommitId },
+  stillOwed: () => boolean,
+): Promise<{ settled: boolean; change?: { before: RundownSlice; after: RundownSlice }; error?: string }> {
+  let change: { before: RundownSlice; after: RundownSlice } | undefined;
+  const result = await conditionalDurableWrite(SHOWS_KEY, (bytes, prior) => {
+    if (prior && prior.cueId !== edit.cueId) return { refused: 'The saved cue draft could not be read safely.' };
+    if (prior && prior.revision >= edit.commit.revision) return { unchanged: true };
+    const raw = JSON.parse(bytes ?? '[]') as Show[];
+    if (!Array.isArray(raw)) return { refused: 'The stored productions could not be read safely.' };
+    const list = readShape(raw);
+    const current = list.find(show => show.id === showId && !show.deleted && !show.teamId);
+    const cue = current?.cues?.find(candidate => candidate.id === edit.cueId);
+    if (!current || !cue) return { unchanged: true };
+    const actual = cueFieldsKey(cue);
+    const baseline = prior ? [prior.text] : edit.bases.slice(0, 1);
+    if (actual === cueFieldsKey(edit.fields) || !baseline.some(text => cueFieldsKey(text) === actual)) {
+      return { unchanged: true };
+    }
+    const fields = prior ? followCueCommit(edit.fields, prior.submitted, prior.text) : edit.fields;
+    const before = rundownSlice(current);
+    const refused = storedPatch(show => {
+      const target = show.cues?.find(candidate => candidate.id === edit.cueId);
+      return target ? patchCueFields(show, target, fields) : 'This cue was removed.';
+    })(current, nowIso());
+    if (refused) return { refused };
+    const saved = current.cues?.find(candidate => candidate.id === edit.cueId);
+    if (!saved) return { refused: 'This cue was removed.' };
+    change = { before, after: rundownSlice(current) };
+    return { value: JSON.stringify(list), receipt: {
+      cueId: saved.id, revision: edit.commit.revision, submitted: fields,
+      text: { label: saved.label, note: saved.note ?? null, values: saved.values },
+    } };
+  }, stillOwed, { showId, stream: edit.commit.stream });
+  if (result.status === 'saved') return { settled: true, change };
+  return { settled: false, error: result.error ?? undefined };
 }
 
 /** Asked inside the selection writer's write, on the record that door is writing: why this cue may

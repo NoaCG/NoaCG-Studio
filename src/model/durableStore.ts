@@ -90,8 +90,18 @@ export async function readCueDraftCommit(showId: string, stream: string): Promis
   } catch { return undefined; }
 }
 
-export function forgetCueDraftCommit(showId: string, stream: string): void {
-  if (db && usingIndexedDb) void idbWrite(db, [[cueCommitKey(showId, stream, namespace), null]]).catch(() => {});
+export function forgetCueDraftCommit(showId: string, id: DraftCommitId, canRelease: () => boolean): void {
+  if (!db || !usingIndexedDb || !canRelease()) return;
+  const account = namespace;
+  try {
+    const store = db.transaction(STORE, 'readwrite').objectStore(STORE);
+    const key = cueCommitKey(showId, id.stream, account);
+    const request = store.get(key);
+    request.onsuccess = () => {
+      const receipt = cueCommit(request.result);
+      if (receipt && receipt.revision <= id.revision && namespace === account && canRelease()) store.delete(key);
+    };
+  } catch { /* A cleanup failure leaves the proof available. */ }
 }
 
 type CueCommitWrite = {
@@ -812,9 +822,7 @@ export function rebasedDurableSet(
       const previousCommit = prior && cueCommit(prior.result);
       if (proof && prior) {
         if ((prior.result !== undefined && !previousCommit)
-          || (previousCommit && (previousCommit.cueId !== proof.cueId || previousCommit.revision >= proof.id.revision))
-          || (proof.id.stillOwed && !proof.id.stillOwed())
-          || (proof.id.expectedRevision !== undefined && (previousCommit?.revision ?? null) !== proof.id.expectedRevision)) {
+          || (previousCommit && (previousCommit.cueId !== proof.cueId || previousCommit.revision >= proof.id.revision))) {
           refusal = SHOWS_CHANGED_BEFORE_SAVE; tx.abort(); return;
         }
       }
@@ -863,13 +871,15 @@ export function rebasedDurableSet(
 }
 
 export type ConditionalWriteResult = { status: 'saved' | 'refused' | 'failed'; value: string | null; error: string | null };
+type ConditionalUpdate = { value: string; receipt?: DraftCommit } | { unchanged: true } | { refused: string };
 
 /** Read, compare and replace in one transaction. The callback is synchronous: no await can
  * separate the comparison from the put. A newer ordinary write cancels the inverse. */
 export async function conditionalDurableWrite(
   key: DurableKey,
-  update: (current: string | null) => { value: string } | { refused: string },
+  update: (current: string | null, receipt?: DraftCommit) => ConditionalUpdate,
   stillValid: () => boolean,
+  draft?: { showId: string; stream: string },
 ): Promise<ConditionalWriteResult> {
   const account = namespace, target = db, queued = latestWrite.get(key);
   const refused = (error: string): ConditionalWriteResult => ({ status: 'refused', value: null, error });
@@ -883,39 +893,59 @@ export async function conditionalDurableWrite(
     const seq = ++writeSeq;
     latestWrite.set(key, seq);
     let value: string | null = null, refusal: string | null = null, writeError: unknown;
+    let wrote = false;
     let tx: IDBTransaction;
     try { tx = target.transaction(STORE, 'readwrite'); }
     catch { resolve({ status: 'failed', value, error: 'Browser storage is unavailable.' }); return; }
     const cancel = () => { refusal = 'A newer edit arrived. Undo was not saved.'; try { tx.abort(); } catch { /* already settled */ } };
     conditionalWrites.set(key, cancel);
+    const storedKey = accountKey(key, account);
+    if (draft && key === 'spx-gfx-shows') guardedShowsWrites.set(storedKey, seq);
     const finish = (result: ConditionalWriteResult) => {
       if (conditionalWrites.get(key) === cancel) conditionalWrites.delete(key);
+      if (draft && guardedShowsWrites.get(storedKey) === seq) guardedShowsWrites.delete(storedKey);
       resolve(result);
     };
-    const store = tx.objectStore(STORE), request = store.get(accountKey(key, account));
-    request.onsuccess = () => {
-      if (refusal) return;
+    const store = tx.objectStore(STORE), request = store.get(storedKey);
+    const proofKey = draft && cueCommitKey(draft.showId, draft.stream, account);
+    const proof = proofKey ? store.get(proofKey) : undefined;
+    let decided = false;
+    const decide = () => {
+      if (refusal || decided || request.readyState !== 'done' || (proof && proof.readyState !== 'done')) return;
+      decided = true;
       try {
         if (namespace !== account || !canAuthorAccount() || !stillValid() || latestWrite.get(key) !== seq) {
           refusal = 'The editing session changed. Undo was not saved.'; tx.abort(); return;
         }
-        const next = update(typeof request.result === 'string' ? request.result : null);
+        const receipt = proof && cueCommit(proof.result);
+        if (proof?.result !== undefined && !receipt) { refusal = UNREADABLE_MESSAGE; tx.abort(); return; }
+        const stored = typeof request.result === 'string' ? request.result : null;
+        if (draft && request.result !== undefined && stored === null) { refusal = UNREADABLE_MESSAGE; tx.abort(); return; }
+        const next = update(stored, receipt ?? undefined);
         if ('refused' in next) { refusal = next.refused; tx.abort(); return; }
+        if ('unchanged' in next) { value = stored; return; }
         value = next.value;
-        store.put(value, accountKey(key, account));
+        store.put(value, storedKey);
+        if (proofKey && next.receipt) store.put(JSON.stringify({ v: 1, ...next.receipt }), proofKey);
+        wrote = true;
       } catch (error) {
         writeError = error;
         refusal = isQuotaError(error) ? null : UNREADABLE_MESSAGE;
         try { tx.abort(); } catch { /* already aborting */ }
       }
     };
+    request.onsuccess = decide;
+    if (proof) proof.onsuccess = decide;
     tx.oncomplete = () => {
       if (namespace !== account || latestWrite.get(key) !== seq) {
-        finish(refused('A newer edit arrived. Undo history was cleared.')); return;
+        finish(draft ? { status: 'saved', value, error: null } : refused('A newer edit arrived. Undo history was cleared.'));
+        return;
       }
-      mirror.set(key, value!);
-      announceWrite(key);
-      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
+      const changed = (mirror.get(key) ?? null) !== value;
+      if (value === null) mirror.delete(key);
+      else mirror.set(key, value);
+      if (wrote) announceWrite(key);
+      if ((changed || wrote) && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
       finish({ status: 'saved', value, error: null });
     };
     const failed = () => finish(refusal ? refused(refusal) : {

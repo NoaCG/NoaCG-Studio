@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { beginTeamRundownEdit, bindTeamCueDraft, commitTeamRundownEdit, restoreTeamRundown, subscribeTeamState, getTeamState, confirmedTeamCueText, type TeamRundownReceipt } from '../../backend/teamProductions';
 import { canAuthorAccount, commitDurableReceipt, captureDurableWrites, libraryInUse, isDurableStoreActive, unsettledWrites, type DurableWriteReceipt } from '../../model/durableStore';
-import { loadShows, restorePersonalRundown, type CueDraftWriteOptions, type Show } from '../../model/shows';
-import type { CueFields, CueRecord } from '../../control/cueDraft';
+import { loadShows, recoverPersonalCueDraft, restorePersonalRundown, type CueDraftWriteOptions, type Show } from '../../model/shows';
+import type { CueFields, CueRecord, OwedEdit } from '../../control/cueDraft';
 import type { DraftCommitId } from '../../model/cueDraftCommit';
 import { RundownHistory, cueFieldsKey, cueTextKey, landedReplacement, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
 
@@ -305,6 +305,26 @@ export function useRundownHistory(
       return perform(options => write(expectedText, options), label, held, label, { typing: draft, confirm, commit });
     }, false, true);
   };
+  const recoverDraft = (edit: OwedEdit & { commit: DraftCommitId }, stillOwed: () => boolean): Promise<boolean> => {
+    const id = show?.id, scope = lifetime.current.generation;
+    if (!id || show?.teamId) return Promise.resolve(false);
+    const owns = () => owner.current === identity && lifetime.current.generation === scope;
+    const valid = () => owns() && stillOwed();
+    return enqueue(async () => {
+      if (!valid()) return false;
+      const result = await recoverPersonalCueDraft(id, edit, valid);
+      if (!owns()) return result.settled;
+      callbacks.current.update(loadShows());
+      if (!result.settled && valid() && result.error) callbacks.current.note(result.error);
+      if (result.change && valid()) {
+        const current = fresh();
+        if (current && sameRundown(rundownSlice(current), result.change.after)) {
+          record(result.change.before, result.change.after, 'Save cue');
+        }
+      }
+      return result.settled;
+    }, false, true);
+  };
   /** A closing write may follow the exact local result of this draft's checked write. */
   const retainDraft = (cueId: string, write: DraftWrite, confirm?: ObserveCue, commit?: DraftCommitId): false | Promise<boolean> => {
     const draft = typing.current;
@@ -397,7 +417,7 @@ export function useRundownHistory(
     return true;
   };
   return {
-    write, writeDraft, retainDraft, beginGroup, closeGroup, restore, press,
+    write, writeDraft, recoverDraft, retainDraft, beginGroup, closeGroup, restore, press,
     hasUnstoredDraft: (cueId: string, text: CueFields) => cueTextKey(fresh() ?? {}, cueId) !== cueFieldsKey(text),
     settle: async () => { await queue.current.tail; },
   };

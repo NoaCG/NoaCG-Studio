@@ -39,7 +39,7 @@ import {
 } from '../../model/shows';
 import { folderMode } from '../../model/showFolders';
 import { cursorRowId, folderName, rangeCueIds, rowCueIds, rowTestId, rundownView, type RundownRow } from '../../model/rundownRows';
-import { canAuthorAccount, commitDurableWrites, forgetCueDraftCommit, isDurableStoreActive, readCueDraftCommit } from '../../model/durableStore';
+import { canAuthorAccount, commitDurableWrites, forgetCueDraftCommit, isDurableStoreActive, libraryInUse } from '../../model/durableStore';
 import { uuid } from '../../model/id';
 import { accountCasparDefault, destinationUrl, readOutputSetup, routeColor, wantsAccountOutputDefault, withCasparSwitch, withPlayoutSystem } from '../../model/outputSetup';
 import { readDefaultOutput } from '../../backend/auth';
@@ -177,7 +177,7 @@ import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/live
 import { canonical } from '../../model/publishedRecord';
 import { droppedFields, setSceneAirCues, updateCopyFromLibrary } from '../../model/shows';
 import { setCueSelection, setCueTyped, setCueTypedArgs, setCueTypedValues, setGraphicSounds } from '../../model/shows';
-import { forgetOwedCueEdit, keepOwedCueEdit, readOwedCueEdit } from '../../model/owedCueEdit';
+import { cueDraftReceiptUnused, forgetOwedCueEdit, keepOwedCueEdit, readOwedCueEdit } from '../../model/owedCueEdit';
 import ProductionSounds from './ProductionSounds';
 import { soundTopology } from '../../assets/productionSounds';
 import {
@@ -309,7 +309,7 @@ const DRAFT_ADAPTERS: CueDraftAdapters = {
     const hidden = () => {
       if (document.visibilityState === 'hidden') run(true);
     };
-    const going = () => run(true);
+    const going = (event: PageTransitionEvent) => run(true, !event.persisted);
     const pausing = () => run(false);
     window.addEventListener('noacg-account-authoring-pausing', pausing);
     window.addEventListener('pagehide', going);
@@ -1646,14 +1646,17 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         hasUnstoredDraft: (cueId, fields) => historyRef.current?.hasUnstoredDraft(cueId, fields) ?? false,
         record: (cueId) => cuesRef.current.find((c) => c.id === cueId),
         owed: {
-          keep: (edit) => keepOwedCueEdit(session.key, edit),
-          read: () => readOwedCueEdit(session.key),
-          forget: () => forgetOwedCueEdit(session.key),
+          keep: (edit) => keepOwedCueEdit(session.key, edit, libraryInUse()),
+          read: () => readOwedCueEdit(session.key, libraryInUse()),
+          forget: () => forgetOwedCueEdit(session.key, libraryInUse()),
         },
         commit: {
           start: () => personal.current && isDurableStoreActive() ? uuid() : undefined,
-          read: stream => readCueDraftCommit(session.key, stream),
-          forget: stream => forgetCueDraftCommit(session.key, stream),
+          account: libraryInUse,
+          unused: stream => cueDraftReceiptUnused(session.key, stream, libraryInUse()),
+          recover: (edit, valid) => draftOwner.current === session.key
+            ? historyRef.current!.recoverDraft(edit, valid) : Promise.resolve(false),
+          forget: (id, canRelease) => forgetCueDraftCommit(session.key, id, canRelease),
         },
         setTimeout: (run, ms) => setTimeout(run, ms),
         clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),

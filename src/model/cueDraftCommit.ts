@@ -7,8 +7,6 @@ export interface CueFields {
 export interface DraftCommitId {
   stream: string;
   revision: number;
-  expectedRevision?: number | null;
-  stillOwed?: () => boolean;
 }
 
 export interface DraftCommit {
@@ -38,4 +36,3 @@ export function followCueCommit(fields: CueFields, submitted: CueFields, text: C
     values,
   };
 }
-

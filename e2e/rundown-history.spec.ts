@@ -709,6 +709,87 @@ for (const scenario of [
   });
 }
 
+test('tracked cue draft recovery reads the stored predecessor when the production mirror is stale', async ({ page }) => {
+  const ids = await seed(page);
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const result = await page.evaluate(async ({ showId, cueId, otherCueId }) => {
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    const key = 'spx-gfx-shows';
+    const docs = JSON.parse(durable.getItem(key)!) as Show[];
+    const show = docs.find(doc => doc.id === showId)!;
+    const cue = show.cues!.find(item => item.id === cueId)!;
+    const base = { label: cue.label, note: cue.note ?? null, values: cue.values };
+    const accepted = { ...base, label: 'First revision committed elsewhere' };
+    const stream = '00000000-0000-4000-8000-000000000002';
+    localStorage.setItem('spx-gfx-owed-cue-edits', JSON.stringify({ v: 1, shows: {
+      [showId]: { cueId, bases: [base], fields: { ...accepted, label: 'Newer owed revision' }, commit: { stream, revision: 2 }, retired: true },
+    } }));
+    cue.label = accepted.label;
+    show.cues!.find(item => item.id === otherCueId)!.label = 'Other stored edit';
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('noacg-studio');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    // Commit as a second tab would, withholding its mirror notification to the original tab.
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('kv', 'readwrite');
+        const store = tx.objectStore('kv');
+        store.put(JSON.stringify(docs), key);
+        store.put(JSON.stringify({ v: 1, cueId, revision: 1, text: accepted, submitted: accepted }),
+          '__cue-draft-v1:' + encodeURIComponent(showId) + ':' + stream);
+        tx.oncomplete = () => resolve();
+        tx.onabort = () => reject(tx.error);
+      });
+    } finally { db.close(); }
+    const raw = JSON.parse(durable.getItem(key)!) as Show[];
+    return raw.find(doc => doc.id === showId)!.cues!.find(cue => cue.id === cueId)!.label;
+  }, { showId: ids.show, cueId: ids.cues[0], otherCueId: ids.cues[1] });
+  expect(result).toBe('Alpha');
+  await page.goto('/app#/production/' + ids.show);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(row(page, 'Newer owed revision')).toBeVisible();
+  await expect(row(page, 'Other stored edit')).toBeVisible();
+  await expect.poll(() => page.evaluate(async id => {
+    const { readCueDraftCommit } = await __noacgImport('/src/model/durableStore.ts');
+    return await readCueDraftCommit(id, '00000000-0000-4000-8000-000000000002');
+  }, ids.show)).toBeNull();
+  await key(page, 'Control+z');
+  await expect(row(page, 'First revision committed elsewhere')).toBeVisible();
+  await expect(row(page, 'Other stored edit')).toBeVisible();
+});
+
+test('tracked cue draft receipt survives a temporary hide and is removed on disposal', async ({ page }) => {
+  const ids = await seed(page);
+  await select(page, 'Alpha');
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      const result = put.call(this, value, key);
+      if (typeof key === 'string' && key.startsWith('__cue-draft-v1:')) {
+        document.documentElement.dataset.ownedDraft = key.split(':').pop();
+        IDBObjectStore.prototype.put = put;
+      }
+      return result;
+    };
+  });
+  await page.getByTestId('cue-label').fill('Saved on hide');
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
+  await settleDurableWrites(page);
+  const stream = await page.locator('html').getAttribute('data-owned-draft');
+  expect(stream).toMatch(/^[a-f0-9-]{36}$/);
+  const receipt = () => page.evaluate(async ({ id, stream }) => {
+    const { readCueDraftCommit } = await __noacgImport('/src/model/durableStore.ts');
+    return await readCueDraftCommit(id, stream!);
+  }, { id: ids.show, stream });
+  await expect.poll(receipt).toMatchObject({ text: { label: 'Saved on hide' } });
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect.poll(receipt).toBeNull();
+});
+
 test('ordinary cue writes back to the sent draft text revoke draft-only merge authority (#2572, D6)', async ({ page }) => {
   const { ids, state, advance } = await teamBackend(page);
   await select(page, 'Alpha');

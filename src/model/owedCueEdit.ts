@@ -10,7 +10,7 @@
 // account (accountScope.ts `ACCOUNT_LOCAL_KEYS`).
 
 import type { DraftCommitId } from './cueDraftCommit';
-import { accountKey } from './accountScope.ts';
+import { accountKey, libraryAccount } from './accountScope.ts';
 
 /** A cue's text, as a save writes it. */
 export interface OwedCueText {
@@ -25,6 +25,7 @@ export interface OwedCueEdit {
   bases: OwedCueText[];
   fields: OwedCueText;
   commit?: DraftCommitId;
+  retired?: true;
 }
 
 export const OWED_CUE_EDITS_KEY = 'spx-gfx-owed-cue-edits';
@@ -33,9 +34,9 @@ const VERSION = 1;
 
 type Stored = { v: number; shows: Record<string, OwedCueEdit> };
 
-function load(): Stored | null {
+function load(account: string | null): Stored | null {
   try {
-    const raw = localStorage.getItem(accountKey(OWED_CUE_EDITS_KEY));
+    const raw = localStorage.getItem(accountKey(OWED_CUE_EDITS_KEY, account));
     if (!raw) return { v: VERSION, shows: {} };
     const s = JSON.parse(raw) as Partial<Stored> | null;
     if (!s || s.v !== VERSION || typeof s.shows !== 'object' || s.shows === null) return null;
@@ -45,9 +46,9 @@ function load(): Stored | null {
   }
 }
 
-function save(s: Stored): void {
+function save(s: Stored, account: string | null): void {
   try {
-    const key = accountKey(OWED_CUE_EDITS_KEY);
+    const key = accountKey(OWED_CUE_EDITS_KEY, account);
     if (Object.keys(s.shows).length === 0) localStorage.removeItem(key);
     else localStorage.setItem(key, JSON.stringify(s));
   } catch {
@@ -62,16 +63,16 @@ const text = (t: unknown): OwedCueText | null => {
 };
 
 /** Record a production's owed edit, replacing any earlier one. Never throws. */
-export function keepOwedCueEdit(showId: string, edit: OwedCueEdit): void {
-  const s = load();
+export function keepOwedCueEdit(showId: string, edit: OwedCueEdit, account = libraryAccount()): void {
+  const s = load(account);
   if (!s) return;
   s.shows[showId] = edit;
-  save(s);
+  save(s, account);
 }
 
 /** A production's record, if a readable one is there. */
-export function readOwedCueEdit(showId: string): OwedCueEdit | null {
-  const e = load()?.shows[showId];
+export function readOwedCueEdit(showId: string, account = libraryAccount()): OwedCueEdit | null {
+  const e = load(account)?.shows[showId];
   if (!e || typeof e.cueId !== 'string') return null;
   const bases = Array.isArray(e.bases) ? e.bases.map(text) : [], fields = text(e.fields);
   if (!fields || bases.length === 0 || bases.some((b) => b === null)) return null;
@@ -79,13 +80,22 @@ export function readOwedCueEdit(showId: string): OwedCueEdit | null {
   if (commit !== undefined && (!commit || typeof commit.stream !== 'string'
     || !/^[a-f0-9-]{36}$/i.test(commit.stream) || !Number.isSafeInteger(commit.revision) || commit.revision < 1)) return null;
   return { cueId: e.cueId, bases: bases as OwedCueText[], fields,
-    ...(commit && { commit: { stream: commit.stream, revision: commit.revision } }) };
+    ...(commit && { commit: { stream: commit.stream, revision: commit.revision } }),
+    ...(e.retired === true && { retired: true }) };
 }
 
 /** Remove a production's record. Never throws. */
-export function forgetOwedCueEdit(showId: string): void {
-  const s = load();
+export function forgetOwedCueEdit(showId: string, account = libraryAccount()): void {
+  const s = load(account);
   if (!s || !(showId in s.shows)) return;
   delete s.shows[showId];
-  save(s);
+  save(s, account);
+}
+
+/** Unknown local storage must not grant permission to delete needed commit proof. */
+export function cueDraftReceiptUnused(showId: string, stream: string, account = libraryAccount()): boolean {
+  const stored = load(account);
+  if (!stored) return false;
+  const edit = stored.shows[showId];
+  return edit === undefined || (!!edit && typeof edit === 'object' && edit.commit?.stream !== stream);
 }
