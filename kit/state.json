@@ -42,15 +42,19 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "PR #2573 remains unqueued and holds V6 ProductionPage.tsx. The one further repair was used and fresh exact review graded B for recovery relying on an unconfirmed IndexedDB write. Both unsafe schedules reproduced in controlled production-source probes. One existing OGraf typed-data assertion also failed. With RAM restored, Windows baseline j-5308 reproduced lost typing after reload. Playwright reported five passed on local 420786356 in j-5309, but the queue lost the process exit status and marked the job failed. That focused coverage does not clear the review. V6 #2575 remains checkpointed and V7–V8 are pending."
+    "what": "Existing #2573 dependency is in the authorized focused IndexedDB recovery repair."
   },
-  "inFlight": [],
-  "owner": [
+  "inFlight": [
     {
-      "where": "Same vMix run and PR #2573",
-      "what": "Authorize a further scoped repair using proof committed in the same IndexedDB transaction and a fresh independent review, if desired"
+      "note": "Current main reconciled. The 111 focused Node checks passed. Exact fresh full review and local affected checks underway. Windows j-5311 waits in the shared browser queue. V6 stays on the existing draft #2575.",
+      "pr": 2573,
+      "session": "01a1bb0e-ec06-7111-ae29-89b778de221e",
+      "step": "Authorized committed recovery proof repair",
+      "phase": "V6",
+      "head": "851c9a949bbd5eadbaeae70e2d3171f4d1a058b7"
     }
   ],
+  "owner": [],
   "fixes": [],
   "triggers": []
 }
