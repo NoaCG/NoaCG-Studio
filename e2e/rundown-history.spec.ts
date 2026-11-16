@@ -504,9 +504,9 @@ test('typing continues from the words an IndexedDB rebase actually committed (#2
   const ids = await seed(page);
   const cueId = await page.evaluate(async id => {
     const shows = await __noacgImport('/src/model/shows.ts');
-    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const { durable } = await __noacgImport('/src/model/durableStore.ts');
-    shows.addGraphicToShow(id, { ...variantsFor('word-cloud')[0].create({}), name: 'Words' });
+    shows.addGraphicToShow(id, { ...variantById('wc01')!.create({}), name: 'Words' });
     const records = shows.loadShows(), show = records.find(item => item.id === id)!;
     const cue = show.cues!.at(-1)!;
     cue.label = 'Words';
