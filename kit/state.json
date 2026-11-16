@@ -7,7 +7,7 @@
   "coordinator": {
     "return": "Return native receipts to this active Codex desktop chat",
     "session": "01a1e379-346f-7c53-bb88-72190ef844f7",
-    "status": "Local coordinator owns the restored project while it waits for quarantine release. Previous builder terminal per saved native receipt; owner confirmed previous coordinator stopped. No wake."
+    "status": "Active Codex desktop coordinator. Quarantine dependency cleared and PR #2579 queued. No wake."
   },
   "authorization": {
     "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
@@ -26,7 +26,7 @@
   "execution": {
     "harness": "codex",
     "mode": "active",
-    "activity": "Paused E5F checkpoint restored in Codex desktop. PR #2583 landed and passed terminal checks. PR #2579 remains at the saved head until the affected spec returns to blocking CI.",
+    "activity": "Active on the existing E5F action 13. The approved single-spec early release and blocking main CI resolved the quarantine dependency. Waiting on the existing #2579 merge queue entry.",
     "continuation": "Active local coordinator. Reconcile the existing PR and qualify native workers before resuming execution. No unattended wake.",
     "block": {
       "id": "f4fd958d-26a1-429a-9657-22f852cb0d95",
@@ -80,7 +80,7 @@
       "actor": "/root/editor_e5f_cloud_builder",
       "thread": "6af8403d-0d00-8191-804b-4923b3338071",
       "actionId": "plan-editor-r1-5-2026-11-08:13",
-      "status": "STOPPED: exact62e remains PR2579 OPEN/unmerged; queue red;2/2diagnosticjobs consumed; finalreviewCANNOTJUDGE; no patch or new execution admitted.",
+      "status": "Original builder terminal. Existing reviewed PR #2579 requeued after editor-projects returned to and passed blocking main CI; no new edit or diagnostic attempt.",
       "source": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
       "deliveryBranch": "codex/plan-editor-r1-5-e5f-blank",
       "deliverySource": "62e4523eba23696960bb2c50f68bab2b9ba4e1c5",
@@ -1509,7 +1509,7 @@
     },
     "currentPublicUpdate": 6831775749
   },
-  "waitingOn": "Issue #2371 editor-projects spec remains in quarantine despite verified repair #2583 on main d5d8dc68. Release check 43852568932 counted 6 of 20 required consecutive passes. Do not requeue PR #2579 before release.",
+  "waitingOn": "PR #2579 queued on existing reviewed head 62e4523e. Release #2585 landed at 6e07560b. Main blocking CI 43944864533 passed, including editor-projects in shard 14.",
   "completedCausalityReviews": [
     {
       "id": "6af4b05b-8a1c-8191-b931-182efca3b062",
