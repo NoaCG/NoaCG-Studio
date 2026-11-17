@@ -108,6 +108,17 @@ reverted in a local scratch copy (j-0140, never pushed): every record held `#119
 owed after 30 s (one 8-minute run each; the reverted one was never pushed). So the backlog comes with #2573; nothing typed was discarded in either run. It is
 #2589's to fix; AC-6, at five people, is met with #2573 in place.
 
+The scene changed after these runs, on the final review (head 9fec97a9): the editor that reloads
+now types and reloads at once and must find that text, the editor that loses its connection stops
+typing once back so its last text is one typed offline, and a Take's "ran" ignores the output
+frames already on air at the end of set-up. The configured check on that head, local stack: 4 of
+4 passed (j-0142, j-0143; about 102 s each, under the 120 s ceiling). The soaks and pairs above
+were not repeated on it; their timing path is unchanged.
+
+On hosted staging the configured check skips (it mints accounts and writes the switches), and the
+hosted verdict reports it as an unexpected skip, as it does `publish-guard.spec.ts`'s local-only
+test; #2592 asks for a per-test allowance.
+
 **AC-6: met.** No command lost (every Take ran, every Goal counted, every message a cue), no
 different cue overwritten (each editor's last text in the record, the publication and every page;
 no conflicted copy), press to ran within 50 ms p95 of a
