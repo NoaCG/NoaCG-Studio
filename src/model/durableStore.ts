@@ -222,6 +222,22 @@ export interface DurableWriteReceipt {
 const receipts = new Map<string, DurableWriteReceipt>();
 const receiptObservers = new Set<(receipt: DurableWriteReceipt) => void>();
 const conditionalWrites = new Map<string, () => void>();
+// A cue recovery (a conditional write with a draft) still in flight, by its cancel.
+const cueRecoveries = new Set<() => void>();
+let librarySwitching = false;
+
+/**
+ * An account switch has started (backend/accountLibrary.ts): the library in use is about to be
+ * left. A cue recovery that has not yet decided must not land there and consume the owed edit,
+ * which stays owed under that account; one in flight is aborted and a new one refuses. Ordinary
+ * writes still flush. The switch reloads the page; the returned function undoes this for a
+ * switch that failed before it reloaded.
+ */
+export function revokeCueRecoveryForSwitch(): () => void {
+  librarySwitching = true;
+  for (const cancel of [...cueRecoveries]) cancel();
+  return () => { librarySwitching = false; };
+}
 
 function recordReceipt(receipt: DurableWriteReceipt): void {
   receipts.set(receipt.key, receipt);
@@ -870,6 +886,7 @@ export function rebasedDurableSet(
   trackWrite({ sequence: seq, key, value, committedValue: () => committed, account, settled });
 }
 
+const SWITCH_MESSAGE = 'The account is switching. The cue edit is kept for when this library opens again.';
 export type ConditionalWriteResult = { status: 'saved' | 'refused' | 'failed'; value: string | null; error: string | null };
 type ConditionalUpdate = { value: string; receipt?: DraftCommit } | { unchanged: true } | { refused: string };
 
@@ -884,7 +901,10 @@ export async function conditionalDurableWrite(
   const account = namespace, target = db, queued = latestWrite.get(key);
   const refused = (error: string): ConditionalWriteResult => ({ status: 'refused', value: null, error });
   if (!target || !usingIndexedDb) return refused('Undo needs browser storage. Enable IndexedDB and reopen.');
+  const switching = () => draft !== undefined && librarySwitching;
+  if (switching()) return refused(SWITCH_MESSAGE);
   await flushDurableStore();
+  if (switching()) return refused(SWITCH_MESSAGE);
   if (namespace !== account || !canAuthorAccount() || !stillValid() || latestWrite.get(key) !== queued) {
     return refused('The rundown changed while saving. Try again after it settles.');
   }
@@ -898,11 +918,14 @@ export async function conditionalDurableWrite(
     try { tx = target.transaction(STORE, 'readwrite'); }
     catch { resolve({ status: 'failed', value, error: 'Browser storage is unavailable.' }); return; }
     const cancel = () => { refusal = 'A newer edit arrived. Undo was not saved.'; try { tx.abort(); } catch { /* already settled */ } };
+    const revoke = () => { refusal = SWITCH_MESSAGE; try { tx.abort(); } catch { /* already settled */ } };
     conditionalWrites.set(key, cancel);
+    if (draft) cueRecoveries.add(revoke);
     const storedKey = accountKey(key, account);
     if (draft && key === 'spx-gfx-shows') guardedShowsWrites.set(storedKey, seq);
     const finish = (result: ConditionalWriteResult) => {
       if (conditionalWrites.get(key) === cancel) conditionalWrites.delete(key);
+      cueRecoveries.delete(revoke);
       if (draft && guardedShowsWrites.get(storedKey) === seq) guardedShowsWrites.delete(storedKey);
       resolve(result);
     };
@@ -914,6 +937,7 @@ export async function conditionalDurableWrite(
       if (refusal || decided || request.readyState !== 'done' || (proof && proof.readyState !== 'done')) return;
       decided = true;
       try {
+        if (switching()) { refusal = SWITCH_MESSAGE; tx.abort(); return; }
         if (namespace !== account || !canAuthorAccount() || !stillValid() || latestWrite.get(key) !== seq) {
           refusal = 'The editing session changed. Undo was not saved.'; tx.abort(); return;
         }
