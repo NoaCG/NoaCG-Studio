@@ -93,8 +93,10 @@ export interface CueDraftIo {
   canWrite: () => boolean;
   /** Start or continue an edit group. A fresh draft passes the cue record it starts from. */
   editing: (group: string, freshCue: CueRecord | null) => void;
-  /** Save through the rundown history, answering whether the store confirmed it. */
-  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId) => Promise<boolean>;
+  /** Save through the rundown history, answering whether the store confirmed it. `overtaken`
+   *  answers whether a later save of the same typing has been handed over since: the history then
+   *  writes nothing for this one when its turn comes, since the later one carries newer text (#2589). */
+  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId, overtaken?: () => boolean) => Promise<boolean>;
   /** Save at once, with no history and nothing to await: whether the store accepted it. */
   retainCue: (cueId: string, fields: CueFields, confirm?: ObserveCue, commit?: DraftCommitId) => boolean | Promise<boolean>;
   /** A queued handoff still needs retaining when its value has never reached the local record. */
@@ -232,7 +234,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   /** The texts the draft's cue may hold under it: the text when the draft started, then each
    *  part of the typing handed to the store (it may or may not have landed when the page goes).
    *  What a recorded edit may be applied over on the next visit, and nothing else. */
-  let startedFrom: { cueId: string; original: CueFields; texts: DraftHandoff[]; stream?: DraftStream } | null = null;
+  let startedFrom: { cueId: string; original: CueFields; texts: DraftHandoff[]; stream?: DraftStream; sends: number } | null = null;
   const commits = new WeakMap<DraftPart, DraftRevision>();
   /** The owed-edit record this page last wrote when it hid, as stored, or null. */
   let recorded: string | null = null;
@@ -285,7 +287,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     retire(startedFrom?.stream);
     const original = copyOf(d), id = io.commit?.start();
     const stream = id && io.commit ? { id, account: io.commit.account(), revision: 0, writes: 0, retired: false } : undefined;
-    startedFrom = { cueId: d.cueId, original, texts: [{ text: original }], stream };
+    startedFrom = { cueId: d.cueId, original, texts: [{ text: original }], stream, sends: 0 };
   };
   /** The store was given `d`'s text while typing in its cue goes on. */
   const handed = (d: DraftPart) => {
@@ -351,31 +353,26 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     heldWait = io.setTimeout(() => runHeld(false), FLUSH_DELAY_MS);
   }
 
-  /** The save out now, and the one save waiting for it to answer (#2589, D9). */
-  let sending: Promise<boolean> | null = null;
-  let waiting: Promise<boolean> | null = null;
   const flush = (): Promise<boolean> => {
     stopTimer();
     const d = part.get();
     // After the session's end nothing is owed: the end saved it, and an edit starts nothing.
     if (!d || !pending || !io.canWrite()) return Promise.resolve(true);
-    // One save out at a time: text typed meanwhile goes as one save with the newest text once it
-    // answers, never one save per text (a team save can take longer than the typing gap).
-    if (sending) {
-      waiting ??= sending.then(() => undefined, () => undefined).then(() => { waiting = null; return flush(); });
-      return waiting;
-    }
     pending = false;
     out = d;
     // The store may hold this text from here on, before the history confirms it (a team
     // production's local outbox lands before the server answers): typing on may be applied over it.
     const write = handed(d), commit = commits.get(d), finish = track(commit);
+    // One save per typed text queued behind a slow team save put the record dozens of texts
+    // behind; a save still queued when a newer one of this typing is handed over writes nothing.
+    const typing = startedFrom?.cueId === d.cueId ? startedFrom : null;
+    const turn = typing ? ++typing.sends : 0;
     let confirmedByReceipt = false;
-    const result = io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
+    return io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
       confirmedByReceipt = true;
       confirmed(write, cue);
       forgetCommitted(commit);
-    }, commit?.id).then((saved) => {
+    }, commit?.id, typing ? () => typing.sends !== turn : undefined).then((saved) => {
       if (out === d) out = null;
       // Typing went on during the save, or the session ended: the newer draft is still owed.
       if (part.get() === d && session.alive()) {
@@ -391,10 +388,6 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       }
       return saved;
     }).finally(finish);
-    sending = result;
-    const done = () => { if (sending === result) sending = null; };
-    result.then(done, done);
-    return result;
   };
 
   /** Save synchronously what is owed: pausing and teardown cannot await a microtask. The draft

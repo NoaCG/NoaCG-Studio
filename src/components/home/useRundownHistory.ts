@@ -293,13 +293,15 @@ export function useRundownHistory(
     if (typing.current?.cueId !== cueId) typing.current = { cueId, text: cueTextKey(slice, cueId) };
     changed();
   };
-  const writeDraft = (cueId: string, write: DraftWrite, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId): Promise<boolean> => {
+  const writeDraft = (cueId: string, write: DraftWrite, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId, overtaken?: () => boolean): Promise<boolean> => {
     const draft = recoveredFrom ? { cueId, text: cueFieldsKey(recoveredFrom) } : typing.current;
     if (draft?.cueId !== cueId) return Promise.resolve(false);
     const held = group.current ?? undefined, label = held ? 'Edit cue' : 'Save cue';
     const session = lifetime.current.generation, queueAtWrite = queue.current;
     return enqueue(async () => {
       if (draft.retaining) await draft.retaining;
+      // A later save of this typing is queued behind this one with newer text (#2589, D9).
+      if (overtaken?.()) return false;
       const expectedText = draft.text;
       if (session !== lifetime.current.generation || queueAtWrite !== queue.current || expectedText === null) return false;
       return perform(options => write(expectedText, options), label, held, label, { typing: draft, confirm, commit });

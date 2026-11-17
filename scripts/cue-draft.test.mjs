@@ -54,14 +54,14 @@ function harness(commitStore) {
       groups.push(group);
       freshCues.push(freshCue);
     },
-    writeCue: (cueId, fields, _recoveredFrom, confirm, commit) =>
-      new Promise(resolve => writes.push({
+    writeCue: (cueId, fields, _recoveredFrom, confirm, commit, overtaken) =>
+      new Promise(resolve => writes.push(Object.defineProperty({
         cueId, fields: structuredClone(fields), ...(commit && { commit }),
         answer: (saved, record) => {
           if (record) confirm?.(record);
           resolve(saved);
         },
-      })),
+      }, 'overtaken', { value: overtaken }))),
     retainCue: (cueId, fields) => {
       retained.push({ cueId, fields: structuredClone(fields) });
       return h.retainOk;
@@ -709,21 +709,15 @@ test('P2: while the account may not write, the record stays for a later visit', 
   assert.equal(h.writes.length, 1);
 });
 
-test('P1: every save handed over and not yet confirmed stays listed, however many', async () => {
+test('P1: every save handed over and not yet confirmed stays listed, however many', () => {
   // PR review of b584860: a team production's saves can wait on the server while each is already
   // in its local outbox, so none of them may fall off the list before a later one is confirmed.
-  // One save is out at a time (#2589, D9): each next text is handed over once the one before answers.
   const h = harness();
   const stop = h.draft.listen(h.adapters);
-  h.draft.edit(OPENER, { values: { f0: 'T1' } });
-  void h.draft.flush();
-  for (let i = 2; i <= 10; i++) {
+  for (let i = 1; i <= 10; i++) {
     h.draft.edit(OPENER, { values: { f0: `T${i}` } });
     void h.draft.flush();
-    h.writes.at(-1).answer(false);
-    await new Promise(resolve => setImmediate(resolve));
   }
-  assert.deepEqual(h.writes.map(w => w.fields.values.f0), ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10']);
   h.draft.edit(OPENER, { values: { f0: 'Last' } });
   for (const run of h.listeners.hide) run(true);
   assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['Anna Riva', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10']);
@@ -731,15 +725,13 @@ test('P1: every save handed over and not yet confirmed stays listed, however man
 });
 
 test('P1: a confirmed save keeps every text handed over after it listed', async () => {
-  // Delta review of 6a53c40: T2 may still wait in a team outbox when T1 is confirmed. With one save
-  // out at a time (#2589, D9), T2 reaches the store beside T1 through a pause's synchronous save.
+  // Delta review of 6a53c40: T2 may still wait in a team outbox when T1 is confirmed.
   const h = harness();
   const stop = h.draft.listen(h.adapters);
   h.draft.edit(OPENER, { values: { f0: 'T1' } });
   const first = h.draft.flush();
   h.draft.edit(OPENER, { values: { f0: 'T2' } });
-  for (const run of h.listeners.hide) run(false);
-  assert.deepEqual(h.retained.map(r => r.fields.values.f0), ['T2']);
+  void h.draft.flush();
   h.draft.edit(OPENER, { values: { f0: 'T3' } });
   h.writes[0].answer(true);
   await first;
@@ -1022,48 +1014,86 @@ test('the editor moving to another cue starts the save of the draft it left, onc
   assert.deepEqual(h.retained.map((r) => r.fields.values.f0), ['Typed on air'], 'and the page going saves it');
 });
 
-for (const answer of [false, true]) {
-  test(`#2589 D9: one save out at a time; text typed meanwhile goes as one save of the newest text (first save ${answer ? 'confirmed' : 'refused'})`, async () => {
-    // Seven people saving one team production: each save waits through refusals and merges and can
-    // take longer than the typing gap. One save per typed text queued behind it put the record
-    // dozens of texts behind; the newest text must go next, alone.
-    const h = harness();
-    const stop = h.draft.listen(h.adapters);
-    h.draft.edit(OPENER, { values: { f0: '#1' } });
-    const first = h.draft.flush();
-    const waits = [];
-    for (let i = 2; i <= 6; i++) {
-      h.draft.edit(OPENER, { values: { f0: `#${i}` } });
-      h.tick(); // the idle save falls due while #1 is still out
-      waits.push(h.draft.flush());
-    }
+/** The history's queue as it treats draft saves: one at a time, in order, and a save overtaken by a
+ *  later save of the same typing writes nothing when its turn comes (`writeDraft`, #2589). Each
+ *  save that runs is confirmed after `slow` turns, as a team save waiting on refusals would be. */
+async function drainLikeTheHistory(h, written) {
+  for (let i = 0; i < h.writes.length; i++) {
+    const w = h.writes[i];
+    if (w.overtaken?.()) { w.answer(false); continue; }
+    written.push(w.fields.values.f0 ?? w.fields.label);
+    w.answer(true);
     await new Promise(resolve => setImmediate(resolve));
-    assert.deepEqual(h.writes.map(w => w.fields.values.f0), ['#1'], 'nothing else is sent while a save is out');
-    h.writes[0].answer(answer);
-    assert.equal(await first, answer);
-    await new Promise(resolve => setImmediate(resolve));
-    assert.deepEqual(h.writes.map(w => w.fields.values.f0), ['#1', '#6'], 'the newest text goes as one save');
-    h.writes[1].answer(true);
-    assert.deepEqual(await Promise.all(waits), waits.map(() => true), 'every caller waits for the newest text');
-    await new Promise(resolve => setImmediate(resolve));
-    assert.equal(h.writes.length, 2);
-    assert.equal(h.session.draft.get(), null, 'nothing is owed');
-    stop();
-  });
+  }
 }
 
-test('#2589 D9: the page going while a save is out saves the newest text at once', async () => {
+test('#2589 D9: texts typed while a slow save is out are written once, as the newest text', async () => {
+  // Seven people saving one team production: each save waits through refusals and merges and can
+  // take longer than the typing gap. Each typed text queued its own save behind it, and the record
+  // walked through every old text long after the typing stopped.
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  for (let i = 1; i <= 6; i++) {
+    h.draft.edit(OPENER, { values: { f0: `#${i}` } });
+    h.tick(); // the idle save falls due while the saves before it are still queued
+  }
+  assert.deepEqual(h.writes.map(w => w.fields.values.f0), ['#1', '#2', '#3', '#4', '#5', '#6'], 'every save is handed over at once');
+  assert.deepEqual(h.writes.map(w => w.overtaken?.()), [true, true, true, true, true, false]);
+  const written = [];
+  // #1 is already out: it was handed over first and the history started it then.
+  written.push('#1'); h.writes[0].answer(true); await new Promise(resolve => setImmediate(resolve));
+  await drainLikeTheHistory({ writes: h.writes.slice(1) }, written);
+  assert.deepEqual(written, ['#1', '#6'], 'the newest text goes next, alone');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.session.draft.get(), null, 'nothing is owed');
+  stop();
+});
+
+test('#2589 D9: another cue selected right after typing still writes the typed text (Codex P1)', async () => {
   const h = harness();
   const stop = h.draft.listen(h.adapters);
   h.draft.edit(OPENER, { values: { f0: '#1' } });
   void h.draft.flush();
   h.draft.edit(OPENER, { values: { f0: '#2' } });
-  const waiting = h.draft.flush();
-  for (const run of h.listeners.hide) run(true);
-  assert.deepEqual(h.retained.map(r => r.fields.values.f0), ['#2']);
-  assert.equal(h.owed?.fields.values.f0, '#2');
+  // selectCue: the save, then the draft cleared, in one call.
+  void h.draft.flush();
+  h.draft.cancel();
+  // Typing in the next cue never overtakes the last cue's save.
+  h.draft.edit(CLOSER, { label: 'Closer edited' });
+  void h.draft.flush();
+  assert.deepEqual(h.writes.map(w => [w.cueId, w.cueId === 'c1' ? w.fields.values.f0 : w.fields.label, w.overtaken?.()]),
+    [['c1', '#1', true], ['c1', '#2', false], ['c2', 'Closer edited', false]]);
+  stop();
+});
+
+test('#2589 D9: a save of the same text handed over again after a refusal still goes once', async () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: '#1' } });
+  void h.draft.flush();
   h.writes[0].answer(false);
-  assert.equal(await waiting, true, 'the retained text is no longer owed');
-  assert.equal(h.writes.length, 1);
+  await new Promise(resolve => setImmediate(resolve));
+  void h.draft.flush();
+  assert.deepEqual(h.writes.map(w => [w.fields.values.f0, w.overtaken?.()]), [['#1', true], ['#1', false]]);
+  stop();
+});
+
+test('#2589 D9: a draft dropped a task after its save, or left for another cue on air, keeps its typed text (final /so)', async () => {
+  // dropDraft: flush, then cancel after a task, before a slow save before it answers.
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: '#1' } });
+  void h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: '#2' } });
+  void h.draft.flush();
+  await new Promise(resolve => setImmediate(resolve));
+  h.draft.cancel();
+  // The editor follows air to the other cue and typing starts there while #1 is still out.
+  h.draft.edit(OPENER, { values: { f0: '#3' } });
+  h.draft.showing('c2', () => void h.draft.flush());
+  h.draft.edit(CLOSER, { label: 'On air next' });
+  assert.deepEqual(h.writes.map(w => [w.cueId, w.cueId === 'c1' ? w.fields.values.f0 : w.fields.label]),
+    [['c1', '#1'], ['c1', '#2'], ['c1', '#3']], 'each text is handed over before its draft goes');
+  assert.deepEqual(h.writes.map(w => w.overtaken?.()), [true, false, false], 'only a save overtaken by its own typing is skipped');
   stop();
 });
