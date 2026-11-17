@@ -132,6 +132,25 @@
     "switchTool": "node scripts/production-switch.mjs [--set <key> on|off] (production_copies, auto_publish, partial_writes only)",
     "pending": "import-svg-credits quarantine PR"
    }
+  },
+  {
+   "2573": {
+    "builder": "session_017SdbwLeHh18DGQderX1H5K",
+    "nonce": "fix-2573-f-acct",
+    "from": "ed5c59b7",
+    "owner": "Claude coordinator since 2026-11-17",
+    "landed": "67d04688 (PR 2573, closes #2572)",
+    "postLanding": "CI 44064034317, configured 44064034080, post-land 44064034154, quarantine 44064034118 all success",
+    "confirmed": "PR comment 2026-11-17; Codex may resume V6-V8",
+    "archived": true
+   }
+  },
+  {
+   "2589": {
+    "builder": "session_017SdbwPpJn4fUqzsQLxqTGZ",
+    "nonce": "fix-2589-f-coal",
+    "why": "regression from #2573: team save backlog at 7 typists; fix forward (coalesce)"
+   }
   }
  ],
  "triggers": {
@@ -217,7 +236,9 @@
   "Coordinator (delegated) 2026-11-13T20:46Z: phase 6 AC-4 typical judged on pooled p95 difference over 20 interleaved pairs at 5 s edits, pass at <= 50 ms; bootstrap range and per-pair values reported. First 10 pairs: +38 ms (90% +24..+56).",
   "2026-11-14 owner: workers use the existing check accounts, never create test accounts.",
   "2026-11-14 owner A: large AC-4 gap (+125 ms) and D1 (7.6 s) recorded as known gaps; auto updates stay off in production; phase 8 goes ahead; owner judges in phase 9.",
-  "2026-11-14 owner: the production keys (Supabase access token, service key) stay in the environment; find a way to keep them but prevent misuse."
+  "2026-11-14 owner: the production keys (Supabase access token, service key) stay in the environment; find a way to keep them but prevent misuse.",
+  "2026-11-17 owner C: PR #2573 (fix #2572) transferred back to this run from Codex coordinator 01a1bb0e; start from ed5c59b7 (handoff branch, evidence 9771a7cc); fix the account-switch race; Windows checks via the Codex Windows queue (a); confirm merge and post-landing on #2573 before Codex resumes V6-V8.",
+  "Coordinator 2026-11-17: AC-6 PR proceeds without waiting for #2573 (five-person evidence on main shows no loss); ten-page loss reported against #2572/#2573."
  ],
  "phase2": {
   "builderCostUSD": "about 50",
@@ -231,7 +252,9 @@
   "Phase 6: builder's single-pair AC-4 measurement (+1.9 ms) did not reproduce for the checker (+260 pooled, bimodal). Briefs for timing criteria must require several interleaved on/off pairs and report the spread.",
   "Fix #2495 (test guard) cost about 473 USD over nine /so rounds (1.36M output tokens): a small guard grew through review rounds until the round cap forced a smaller scope. Briefs for tooling fixes should cap scope up front and split follow-ups early.",
   "2026-11-14: the phase 7 repairer sat idle 07:55-18:53 waiting on its own /so and CI with no wake; the coordinator's only check-in was 12 h away. Keep check-ins at most 4 h apart while a worker is active.",
-  "2026-11-14: the phase 8 builder and a separate fix worker both fixed #2565 in parallel (PR #2570 duplicate of #2567). When the coordinator launches a fix for an issue a builder found, tell that builder at once that the fix is taken."
+  "2026-11-14: the phase 8 builder and a separate fix worker both fixed #2565 in parallel (PR #2570 duplicate of #2567). When the coordinator launches a fix for an issue a builder found, tell that builder at once that the fix is taken.",
+  "Never detach the coordinator worktree: checkpoint publish requires its HEAD to be the recorded coordinator branch revision.",
+  "2026-11-17: #2573 passed its five-person checks and Windows checks but regressed team saves at seven typists (#2589). Fixes to shared save paths need a multi-editor load run before landing, not only after."
  ],
  "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open).",
  "phase3": {
@@ -280,10 +303,10 @@
   "costUSD": "about 106 (builder 88, checker 18) plus /so sessions"
  },
  "block": {
-  "epoch": 5,
-  "deadline": "2026-11-15T18:53:08.776Z"
+  "epoch": 6,
+  "deadline": "2026-11-18T06:37:38.684Z"
  },
- "nextCheckin": "2026-11-15T02:50:00Z",
+ "nextCheckin": "2026-11-17T14:40:00Z",
  "traps5": [
   "the job queue runs two browser jobs on one port and one account",
   "graphic frames are sandboxed (checker 5-c-b19d)"
@@ -360,7 +383,9 @@
   "builder": "session_017SdbwM7tc89anLiMDvD9zd",
   "nonce": "8-b-23a0",
   "source": "d2d35f4a7cfd44d61f0807bfe35d7323aacfd3bf",
-  "interim": "AC-6 five people pass: 476 Takes none lost, +36.6 ms pooled p95 (90% +29.6..+39.6) over 12 pairs; #2562 #2557 not hit; 10-page run lost 3 of 7 editors' last edits -> #2565"
+  "interim": "AC-6 five people pass: 476 Takes none lost, +36.6 ms pooled p95 (90% +29.6..+39.6) over 12 pairs; #2562 #2557 not hit; 10-page run lost 3 of 7 editors' last edits -> #2565",
+  "onMain": "2026-11-17 without #2573: AC-6 check 8/8 no loss, soaks 2/2 no loss (472/469 takes 0 lost), pairs +18.0 ms (90% +14.8..+22.3)"
  },
- "productionCheck": "2026-11-14T23:00Z via scripts/production-switch.mjs: production_copies on, auto_publish off, partial_writes unset"
+ "productionCheck": "2026-11-14T23:00Z via scripts/production-switch.mjs: production_copies on, auto_publish off, partial_writes unset",
+ "pause": "2026-11-15 to 2026-11-17 06:37Z: weekly usage limit reached; all workers stopped; resumed after reset"
 }
