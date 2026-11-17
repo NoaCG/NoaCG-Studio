@@ -5,30 +5,21 @@ import type { FileHandle } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { VMIX_INPUT_KEY, type ListItem, type VmixPlayer } from './protocol.js';
+import { VMIX_INPUT_KEY, vmixMediaKind, type ListItem, type VmixPlayer } from './protocol.js';
+export { vmixMediaKind } from './protocol.js';
 
 const run = promisify(execFile);
 const WINDOWS = process.platform === 'win32';
 const VIDEOS = path.join(homedir(), 'Videos');
-const MEDIA_KINDS = {
-  movie: new Set(['.avi', '.m4v', '.mov', '.mp4', '.mpeg', '.mpg', '.mxf', '.qt', '.wmv']),
-  still: new Set(['.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff']),
-  audio: new Set(['.mp3', '.wav']),
-};
-type MediaKind = keyof typeof MEDIA_KINDS;
 export const VMIX_PLAYERS: readonly VmixPlayer[] = ['clips', 'audio'];
 export const VMIX_PLAYER_TITLE: Record<VmixPlayer, string> = { clips: 'NoaCG Clips', audio: 'NoaCG Audio' };
-
-export function vmixMediaKind(name: string): MediaKind | undefined {
-  const ext = path.extname(name).toLowerCase();
-  return (Object.keys(MEDIA_KINDS) as MediaKind[]).find(kind => MEDIA_KINDS[kind].has(ext));
-}
 
 const errorCode = (error: unknown) => (error as NodeJS.ErrnoException).code;
 const missing = (error: unknown) => errorCode(error) === 'ENOENT';
 const isRecord = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 export class VmixMediaError extends Error {}
+class VmixOutsideFolder extends VmixMediaError {}
 
 export class VmixDeadline extends VmixMediaError {}
 export class VmixPublicationUncertain extends VmixMediaError {}
@@ -54,7 +45,7 @@ export async function withinVmixDeadline<T>(until: number, read: () => Promise<T
   }
 }
 
-const badPath = () => new VmixMediaError('Use a path inside the vMix media folder.');
+const badPath = () => new VmixOutsideFolder('Use a path inside the vMix media folder.');
 const unavailable = () => new VmixMediaError('NoaCG Bridge could not read or keep its vMix setup. Check vmix-setup.json.');
 
 function safePart(part: string): boolean {
@@ -173,17 +164,11 @@ async function resolveChild(root: string, name: string, allowMissingLeaf = false
       await fs.lstat(child);
     } catch (error) {
       if (allowMissingLeaf && leaf && missing(error)) return { file: child };
-      throw badPath();
+      throw error;
     }
-    let file: string;
-    let stat: Stats;
-    try {
-      file = await fs.realpath(child);
-      if (!relativeName(root, file)) throw badPath();
-      stat = await fs.stat(file);
-    } catch {
-      throw badPath();
-    }
+    const file = await fs.realpath(child);
+    if (!relativeName(root, file)) throw badPath();
+    const stat = await fs.stat(file);
     if (leaf) return { file, stat };
     if (!stat.isDirectory()) throw badPath();
     parent = file;
@@ -384,9 +369,10 @@ export function createVmixMedia(options: {
       }
     },
 
-    async relativeFile(port: number, file: string): Promise<string | undefined> {
+    async relativeFile(port: number, file: string, strict = false): Promise<string | undefined> {
+      const currentRoot = strict ? await root(port) : undefined;
       try {
-        const dir = await root(port);
+        const dir = currentRoot ?? await root(port);
         if (!path.isAbsolute(file) || file.split(/[\\/]/).some(part => part === '.' || part === '..')) return;
         // Windows folds case in relative(). Treat that only as a candidate. Verify the root
         // from the actual reported path before resolving the candidate under our canonical root.
@@ -398,8 +384,19 @@ export function createVmixMedia(options: {
         if (!sameVmixPath(dir, await fs.realpath(rawRoot))) return;
         const resolved = await resolveChild(dir, name);
         if (resolved.stat?.isFile()) return relativeName(dir, resolved.file);
-      } catch {
-        // An external or now-missing path is not a media name Bridge can publish.
+      } catch (error) {
+        // A player snapshot distinguishes a foreign or missing selection from I/O failure.
+        if (strict && !(error instanceof VmixOutsideFolder) && !missing(error)) throw error;
+      }
+    },
+
+    async playerSourceFile(port: number, name: string): Promise<string | undefined> {
+      const dir = await root(port);
+      try {
+        const { file, stat } = await resolveChild(dir, name);
+        return stat?.isFile() ? file : undefined;
+      } catch (error) {
+        if (!(error instanceof VmixOutsideFolder) && !missing(error)) throw error;
       }
     },
 

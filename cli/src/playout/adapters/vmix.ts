@@ -13,7 +13,7 @@ import { VMIX_BROWSER_LOAD_PROBLEM, VMIX_INPUT_KEY, vmixOverlayCount, type Agent
 import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, type VmixXml } from '../vmixTcp.js';
 import { newVmixBrowser, vmixOutputAddress, vmixOutputId, vmixOutputStore, vmixRedirectRequest, type VmixOutputStore } from '../vmixOutputs.js';
 import { createVmixMedia, VmixDeadline, VmixPublicationUncertain, type VmixMedia } from '../vmixMedia.js';
-import { createVmixPlayers, unsupportedPlayerAction, type VmixActResult } from '../vmixPlayers.js';
+import { createVmixPlayers, unsupportedPlayerAction, type VmixAction, type VmixActResult } from '../vmixPlayers.js';
 import type { ActContext, ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
 
 /** The time ONE verb may take, all its commands together, inside the page's 9 s for `/act`. */
@@ -45,7 +45,7 @@ export interface VmixAdapter extends PlayoutAdapter<VmixTarget> {
   readonly port: number;
   status(target: VmixTarget, receivedAt?: number): Promise<AdapterResult<{ version: string; vmix: VmixInfo }>>;
   overlays(target: VmixTarget, outputUrl?: string, context?: { receivedAt?: number; vmixBridgePort?: number }): Promise<AdapterResult<Pick<VmixStateReply, 'vmix' | 'overlays' | 'loadProblem' | 'players'>>>;
-  act: (target: VmixTarget, action: PlayoutAction, context?: ActContext & { session?: string }) => Promise<VmixActResult>;
+  act: (target: VmixTarget, action: VmixAction, context?: ActContext & { session?: string }) => Promise<VmixActResult>;
   mediaFolder(target: VmixTarget): Promise<string>;
   chooseFolder(target: VmixTarget): Promise<{ mediaFolder: string; cancelled?: true }>;
   outputRedirect(host: string | undefined, path: string | undefined, port: number): Promise<string | undefined>;
@@ -339,7 +339,7 @@ export function createVmixAdapter(options: {
       if (digest === request.digest) return request.output;
     },
 
-    async act(target, action: PlayoutAction, context) {
+    async act(target, action, context) {
       if (action.slot.adapter === 'vmix' && 'player' in action.slot) {
         const slot = action.slot;
         if ('overlay' in slot || (slot.player !== 'clips' && slot.player !== 'audio')) return usage('A vMix slot names exactly one overlay or player.');

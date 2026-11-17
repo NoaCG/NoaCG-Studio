@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { artworkText } from '../../blocks/artworkEdits';
+import { publicTextDefaults, type PublicTextDefaults } from '../../blocks/publicTextDefaults';
 import { baseValues } from '../../blocks/baseEdits';
 import { animationSource, keyAuthoringReason, sequenceAuthoringReason, writeChannel } from '../../blocks/editorAnimation';
 import type { SpxTemplate } from '../../model/types';
@@ -69,11 +70,16 @@ function selectorFor(template: SpxTemplate, id: string): string {
   }
   return matches[0].selector;
 }
-function operation(template: SpxTemplate, id: CommandId, raw: unknown): EditorOperation {
+function operation(template: SpxTemplate, id: CommandId, raw: unknown, defaults: () => PublicTextDefaults): EditorOperation {
   const args = raw as Record<string, unknown>; // The complete request was decoded by applySchema.
   if (id === 'layer.create') return { kind: id, geometry: args.geometry } as EditorOperation;
   if (id === 'step.add' || id === 'out.set') return { kind: id, time: args.time } as EditorOperation;
-  const selector = selectorFor(template, args.targetId as string);
+  const target = args.targetId as string;
+  if (id === 'text.set' && !readTimeline(template).parts.some(p => p.selector === '#' + target)) {
+    if (!defaults().get(target)) throw new Refusal('unsupported_target', 'This field has no safely editable public text default. Its source is preserved.');
+    return { kind: 'field.default', fieldId: target, text: args.text as string };
+  }
+  const selector = selectorFor(template, target);
   if (id === 'text.set' && !artworkText(template, selector)) throw new Refusal('unsupported_target', 'Use a plain text layer. Styled runs, outlined and driven values retain their source.');
   if (id === 'animation.key') {
     const data = animationSource(template), reason = keyAuthoringReason(template, data, selector, args.property as string);
@@ -123,7 +129,20 @@ export class EditorCommands {
     try {
       const { offset, limit } = decode(inspectSchema, input);
       const expected = this.snapshot(), template = this.session.port.read(), view = readTimeline(template);
-      const targets = view.parts.slice(offset, offset + limit).map(part => {
+      const defaults = publicTextDefaults(template);
+      const artworkIds = new Set(view.parts.map(part => part.selector));
+      const inventory = [...view.parts.map(part => ({ kind: 'artwork' as const, part })),
+        ...defaults.candidates.filter(field => !artworkIds.has('#' + field.id)).map(field => ({ kind: 'field' as const, field }))];
+      const targets = inventory.slice(offset, offset + limit).map(item => {
+        if (item.kind === 'field') {
+          const info = defaults.get(item.field.id);
+          const textOnly = { supported: false as const, reason: 'A public field default supports text only, not artwork position, animation or selection.' };
+          return { id: info?.id ?? null, label: item.field.label, stable: !!info, kind: 'field' as const, selectable: false,
+            text: info ? { default: info.value, fieldId: info.id } : null, position: null,
+            capabilities: { 'text.set': info ? { supported: true as const } : { supported: false as const, reason: 'This public text default cannot be changed without rewriting unsupported source.' },
+              'base.set': textOnly, 'animation.key': textOnly } };
+        }
+        const part = item.part;
         const stable = part.selector.startsWith('#') && part.selector.length <= 201 && capability(() => selectorFor(template, part.selector.slice(1))).supported;
         const id = stable ? part.selector.slice(1) : null;
         const info = capability(() => { const text = artworkText(template, part.selector); if (!text) throw new Error('Use plain text. Styled runs, outlined and driven text retain their source.'); applyOperations(template, [{ kind: 'text.set', selector: part.selector, text: text.text }], false); return text; });
@@ -143,7 +162,7 @@ export class EditorCommands {
       return { ok: true as const, expected, view: { selectedIds: this.session.port.view().selectedParts.map(s => s.startsWith('#') ? s.slice(1) : null),
         time: this.session.port.view().time, cue: this.session.port.view().cue ?? null }, history: this.session.commandState().history,
         document: { name: template.name, resolution: template.resolution, fps: template.fps },
-        targets, nextOffset: offset + limit < view.parts.length ? offset + limit : null,
+        targets, nextOffset: offset + limit < inventory.length ? offset + limit : null,
         capabilities: { 'layer.create': global, 'step.add': timeline, 'out.set': timeline },
         timeline: { speed: view.data?.speed, segments: view.segments.slice(0, 100), totalSegments: view.segments.length, reason: view.reason }, preview: this.previewReceipt() };
     } catch (cause) { return outcome(cause); }
@@ -153,7 +172,8 @@ export class EditorCommands {
     try {
       const request = decode(applySchema, input); this.guard(request.expected);
       const template = this.session.port.read();
-      const operations = request.commands.map(c => operation(template, c.id, c.args));
+      let defaults: PublicTextDefaults | undefined;
+      const operations = request.commands.map(c => operation(template, c.id, c.args, () => defaults ??= publicTextDefaults(template)));
       const patch = applyOperations(template, operations, false);
       this.guard(request.expected);
       return { ok: true as const, expected: request.expected,
@@ -165,7 +185,8 @@ export class EditorCommands {
     try {
       const request = decode(applySchema, input); this.guard(request.expected);
       const template = this.session.port.read();
-      const operations = request.commands.map(c => operation(template, c.id, c.args));
+      let defaults: PublicTextDefaults | undefined;
+      const operations = request.commands.map(c => operation(template, c.id, c.args, () => defaults ??= publicTextDefaults(template)));
       // The existing pipeline validates the entire patch before the single session commit.
       // Guard once more at commit; source handlers contain no asynchronous gap.
       this.guard(request.expected);
@@ -182,7 +203,12 @@ export class EditorCommands {
       const request = decode(viewSchema, input); this.guard(request.expected);
       if (!this.views) throw new Refusal('validation_failed', 'This editor view is unavailable.');
       const template = this.session.port.read();
-      if (request.action === 'select') this.views.select(request.targetIds.map(id => selectorFor(template, id)));
+      if (request.action === 'select') this.views.select(request.targetIds.map(id => {
+        if (template.fields.some(field => field.field === id) && !readTimeline(template).parts.some(part => part.selector === '#' + id)) {
+          throw new Refusal('unsupported_target', 'Public field defaults are text-only targets. Select artwork through the canvas or layer list.');
+        }
+        return selectorFor(template, id);
+      }));
       else {
         const timeline = readTimeline(template);
         if (request.time > timeline.duration || (request.cue !== undefined && !timeline.segments[request.cue])) throw new Refusal('invalid_input', 'Seek within the inspected timeline and an existing cue.');

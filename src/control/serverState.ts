@@ -19,6 +19,7 @@
 
 import type { PlayoutItem, ShowCue } from '../model/shows';
 import { playedSeconds, type CasparSlot, type SequenceEntry, type Slot, type SlotState, type StateReply } from './playoutProtocol.ts';
+import type { VmixPlayerSlot } from './playoutProtocol';
 import type { AcceptedVerb, ServerLive, ServerOnAir } from './serverPlayout';
 import { withoutItem, withTaken } from './serverPlayout.ts';
 import { slotAddress } from './playoutSlots.ts';
@@ -82,6 +83,8 @@ export interface SlotTiming {
   loop: boolean;
   /** `performance.now()` on this page when the position was true. */
   at: number;
+  /** vMix has completed the selected playback, even if Loop is still enabled. */
+  completed?: true;
   /** When a holding clip reached its end, on this page's clock: HOLDING counts up from here. */
   endedAt?: number;
   /** `server`: the Bridge read it off the server. `estimate`: this page counted from its own Take,
@@ -141,12 +144,12 @@ function holdsSomething(s: SlotState | undefined): s is SlotState {
 }
 
 /** The timing a reading gives a slot, carrying a hold's start across readings. */
-function timingOf(s: SlotState, prev: SlotTiming | undefined, now: number): SlotTiming {
+function timingOf(s: SlotState, prev: SlotTiming | undefined, now: number, completed = false): SlotTiming {
   const sameClip = !!prev && prev.file === s.file && (!s.segment || same(prev.segment, s.segment));
   const valid = !!s.segment && Number.isFinite(s.segment.length) && s.segment.length > 0 && Number.isFinite(s.position) && s.position! >= 0;
-  const frozen = valid && sameClip && !s.paused && !s.loop && s.position === prev?.position && s.position! < s.segment!.length - 0.001;
+  const frozen = !completed && valid && sameClip && !s.paused && !s.loop && s.position === prev?.position && s.position! < s.segment!.length - 0.001;
   const progressedAt = frozen ? prev?.progressedAt ?? prev?.at ?? now : now;
-  if ((!valid || (frozen && now - progressedAt > STALE_MS)) && sameClip && prev?.segment && prev.position !== undefined) {
+  if (!completed && !prev?.completed && (!valid || (frozen && now - progressedAt > STALE_MS)) && sameClip && prev?.segment && prev.position !== undefined) {
     // Retain the last usable anchor, explicitly estimated. No inferred timing changes ownership.
     return { ...prev, producer: s.producer, paused: s.paused, loop: s.loop, source: 'estimate', provisional: false, progressedAt };
   }
@@ -156,12 +159,15 @@ function timingOf(s: SlotState, prev: SlotTiming | undefined, now: number): Slot
     ...(valid ? { segment: s.segment, position: s.position } : {}),
     paused: s.paused,
     loop: s.loop,
+    ...(completed ? { completed: true as const } : {}),
     at: now,
     source: 'server',
     progressedAt,
   };
-  if (valid && s.segment && !s.loop && s.position! >= s.segment.length - 0.001) {
-    const sameClip = !!prev && prev.file === t.file && same(prev.segment, t.segment);
+  if (completed) {
+    t.endedAt = prev?.completed ? prev.endedAt ?? now : now;
+  } else if (valid && s.segment && !s.loop && s.position! >= s.segment.length - 0.001) {
+    const sameClip = !!prev && !prev.completed && prev.file === t.file && same(prev.segment, t.segment);
     t.endedAt =
       sameClip && prev.endedAt !== undefined
         ? prev.endedAt
@@ -329,6 +335,74 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
   };
 }
 
+/** The vMix wire cue field is opaque to Bridge, and its reader caps it at 200 characters. */
+export function vmixCueIdentity(showId: string, cueId: string, itemId: string): string | undefined {
+  const identity = 'vmix:' + JSON.stringify([showId, cueId, itemId]);
+  return showId && cueId && itemId && identity.length <= 200 ? identity : undefined;
+}
+
+export function vmixCueItem(cue: ShowCue | undefined, items: readonly PlayoutItem[]): PlayoutItem | undefined {
+  return cue?.source === 'playout' ? items.find(item => item.id === cue.sourceId && item.adapter === 'vmix' && item.kind === 'media') : undefined;
+}
+
+/** One admitted player observation. The fold never sends, and keeps the live object when only its
+ * clock moves so a queued cut still recognizes the instance captured at the press. */
+export function applyVmixReading(
+  parts: ServerParts, reading: SlotState, session: string,
+  ctx: Pick<ReadingContext, 'cues' | 'items' | 'slotOf' | 'now'> & { showId: string },
+): ServerParts {
+  if (!reading.player) return parts;
+  const slot: VmixPlayerSlot = { adapter: 'vmix', player: reading.player };
+  const address = slotAddress(slot);
+  const { ownership, timing } = parts;
+  const mine = Object.entries(ownership.onAir).find(([, live]) => slotAddress(live.slot) === address);
+  if (!holdsSomething(reading)) return applyClearedSlot(parts, { slot });
+
+  const cue = reading.instance && reading.cueId
+    ? ctx.cues.find(c => vmixCueIdentity(ctx.showId, c.id, c.sourceId) === reading.cueId)
+    : undefined;
+  const item = vmixCueItem(cue, ctx.items);
+  const sameOwner = mine && reading.instance === mine[1].instance && cue?.id === mine[1].cueId && item?.id === mine[0];
+  const attested = item && item.name === reading.playerSource;
+  const nextTiming = (sameInstance: boolean) => ({
+    ...timing,
+    [address]: timingOf(reading, sameInstance ? timing[address] : undefined, ctx.now, reading.playerCompleted === true),
+  });
+  if (sameOwner && (attested || (reading.playerSource === undefined && item?.name === reading.file))) {
+    return { ownership, timing: nextTiming(true) };
+  }
+  // A staged Bridge's existing instance can update this page's clock on an exact path.
+  // Without lexical attestation it cannot recover a cue or disprove that its alias still plays.
+  if (sameOwner && reading.playerSource === undefined) return parts;
+
+  const cleared = applyClearedSlot(parts, { slot });
+  if (cue && item && attested && slotAddress(ctx.slotOf(item)) === address) {
+    const onAir = withTaken(cleared.ownership.onAir, item.id, cue.id, slot, {
+      instance: reading.instance,
+      takenAt: ctx.now,
+      ...(reading.loop ? { end: 'loop' as const } : {}),
+    });
+    return { ownership: settle(ownership, { ...cleared.ownership, onAir }), timing: nextTiming(false) };
+  }
+
+  const replaced = mine && mine[1].instance?.startsWith(session + '.')
+    ? { ...cleared.ownership.replaced, [mine[0]]: { cueId: mine[1].cueId, slot, ...(reading.file ? { file: reading.file } : {}) } }
+    : { ...cleared.ownership.replaced, ...Object.fromEntries(Object.entries(ownership.replaced).filter(([, old]) => slotAddress(old.slot) === address)) };
+  return { ownership: settle(ownership, { ...cleared.ownership, replaced }), timing: cleared.timing };
+}
+
+/** Discard both players' observations and action counters when their shared Bridge changes. */
+export function clearVmixState(parts: ServerParts): ServerParts {
+  let next = parts;
+  const generations = { ...parts.ownership.generations };
+  for (const player of ['clips', 'audio'] as const) {
+    const slot = { adapter: 'vmix', player } as const;
+    next = applyClearedSlot(next, { slot });
+    delete generations[slotAddress(slot)];
+  }
+  return { ...next, ownership: settle(parts.ownership, { ...next.ownership, generations }) };
+}
+
 /**
  * One action the Bridge accepted (./serverPlayout.ts `runServerVerb`), folded into both parts: a
  * take starts the clip's own count at once - from its length in the server's list - so the clock
@@ -389,8 +463,17 @@ export function applyAccepted(
     delete nextTiming[at];
   } else if ((a.verb === 'pause' || a.verb === 'resume') && nextTiming[at]) {
     const t = nextTiming[at];
-    const position = positionAt(t, a.now);
-    nextTiming[at] = { ...t, ...(position === undefined ? {} : { position }), paused: a.verb === 'pause', at: a.now };
+    const { completed, ...previous } = t;
+    if (completed) delete previous.endedAt;
+    if (completed && a.verb === 'resume') {
+      // The next player reading supplies the actual position after restarting playback.
+      delete previous.segment;
+      delete previous.position;
+      nextTiming[at] = { ...previous, source: 'estimate', paused: false, at: a.now };
+    } else {
+      const position = positionAt(t, a.now);
+      nextTiming[at] = { ...previous, ...(position === undefined ? {} : { position }), paused: a.verb === 'pause', at: a.now };
+    }
   }
   return {
     ownership: settle(ownership, { onAir, generations, replaced, unidentified, queued: ownership.queued, sequences }),
@@ -466,6 +549,7 @@ export function airClash(
 /** Seconds into the segment at `now`, counted on from the reading. */
 export function positionAt(t: SlotTiming, now: number): number | undefined {
   if (!t.segment || t.position === undefined) return undefined;
+  if (t.completed) return t.position;
   const p = t.position + (t.paused ? 0 : Math.max(0, now - t.at) / 1000);
   if (t.loop) return t.segment.length > 0 ? p % t.segment.length : p;
   return p;
@@ -475,7 +559,7 @@ export function positionAt(t: SlotTiming, now: number): number | undefined {
 export function remainingAt(t: SlotTiming | undefined, now: number): number | null {
   const p = t ? positionAt(t, now) : undefined;
   if (!t?.segment || p === undefined) return null;
-  return Math.max(0, t.segment.length - p);
+  return t.completed ? 0 : Math.max(0, t.segment.length - p);
 }
 
 /** Whether the time shown for a slot is the page's own count rather than the server's word. */
@@ -600,7 +684,7 @@ export function clipClock(
   const cueOnAir = cues.find((c) => c.id === best.live.cueId);
   // What the Take sent for its end; after a reload, what its cue says now.
   const cueEnd: ClipEnd = best.live.end ?? (cueOnAir ? effectiveEnd(cueOnAir, best.item) : best.item.loop ? 'loop' : 'hold');
-  const loop = t ? t.loop : cueEnd === 'loop';
+  const loop = t ? t.loop && !t.completed : cueEnd === 'loop';
   const remaining = remainingAt(t, now);
   const ahead = ownership.sequences[slot];
   const following = ahead?.next ?? [];

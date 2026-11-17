@@ -61,6 +61,7 @@ import {
   loadPlayoutSettings,
   playoutConfigured,
   readState,
+  readVmixPlayers,
   slotAddress,
   slotOf,
   stateReadable,
@@ -96,7 +97,7 @@ import { readExternalRegistration } from '../../control/externalSource';
 import { createFileReader } from '../../control/fileSource';
 import { loadFileHandle } from '../../control/fileHandles';
 import { useStorePart } from './useStorePart';
-import { applyClearedSlot, clipClock, followedClip } from '../../control/serverState';
+import { applyClearedSlot, clipClock, followedClip, vmixCueItem } from '../../control/serverState';
 import { segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, type FolderStep, type StepMember } from '../../control/folderStep';
@@ -381,6 +382,7 @@ const BRIDGE_IO: BridgeWatchIo = {
   readable: stateReadable,
   subscribeTargetStatus,
   readState,
+  readVmixPlayers,
   listLibrary,
   listVmixMedia,
   vmixMediaRevision: vmixMediaFolderRevision,
@@ -1566,9 +1568,17 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const reloadRef = useRef<() => Promise<PlayoutResult | null>>(async () => null);
   const rundownRef = useRef({ cues, playoutItems, folders });
   rundownRef.current = { cues, playoutItems, folders };
+  const vmixPlaybackDefaults = useRef({ legacyCasparActivity, accountCaspar });
+  vmixPlaybackDefaults.current = { legacyCasparActivity, accountCaspar };
   useEffect(() => {
     const watch = startBridgeWatch(session, BRIDGE_IO, {
       rundown: () => rundownRef.current,
+      vmixRundown: production => {
+        if (mountedSession.current !== session || !session.alive() || production !== session.key) return null;
+        const { legacyCasparActivity: legacy, accountCaspar: account } = vmixPlaybackDefaults.current;
+        const record = currentProductionPlayout(production, legacy, account ?? null, 'vmix');
+        return record ? { cues: record.cues ?? [], playoutItems: record.playoutItems ?? [] } : null;
+      },
       slots: { itemSlot, folderSlot },
       serverPlayout,
       settingsChanged: () => {
@@ -3364,16 +3374,20 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     const { vmixCut } = options;
     const vmixSettings = vmix ? vmixCut?.settings ?? loadPlayoutSettings() : null;
     const pairing = vmixCut?.pairing ?? serverPlayout.vmixBinding();
-    const currentVmix = () => !!(vmixSettings && pairing && (!vmixCut || vmixCut.current()) &&
-      currentVmixShow(vmixSettings, pairing, !!vmixCut));
+    const currentVmix = () => {
+      if (!vmixSettings || !pairing || (vmixCut && !vmixCut.current())) return false;
+      const current = currentVmixShow(vmixSettings, pairing, !!vmixCut);
+      const saved = vmixCueItem(current?.cues?.find(row => row.id === cue.id), current?.playoutItems ?? []);
+      return !!saved && saved.id === item.id && saved.name === item.name
+        && slotAddress(itemSlot(vmixSettings, saved)) === slotAddress(itemSlot(vmixSettings, item));
+    };
     const canSendVmix = () => currentVmix() && (!vmixCut || vmixCut.owns());
     if (vmix ? !canSendVmix() : !(acceptedAllOut ? casparAllowed() : canSendCaspar())) return null;
     const live = acceptedAllOut ? serverPlayout.ownership.get().onAir[item.id] : undefined;
     const io: ServerVerbIo = {
-      act: async (settings, action) => {
+      act: async (settings, action, current = () => true) => {
         if (vmix) {
-          const guarded = vmixCut && action.verb === 'out' ? { ...action, expectedPlayerInstance: vmixCut.instance } : action;
-          return await actVmixMedia(settings, guarded, canSendVmix)
+          return await actVmixMedia(settings, action, () => current() && canSendVmix(), true)
             ?? { state: 'config', detail: 'The vMix action was cancelled.' };
         }
         const result = acceptedAllOut
@@ -3394,7 +3408,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       readable: stateReadable(bridgeStatus),
       rundown: takeContext,
     };
-    return vmix ? runVmixAndRecord(serverPlayout, io, intent, currentVmix) : runAndRecord(serverPlayout, io, intent);
+    return vmix ? runVmixAndRecord(serverPlayout, io, intent, currentVmix, show.id) : runAndRecord(serverPlayout, io, intent);
   };
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
   const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {

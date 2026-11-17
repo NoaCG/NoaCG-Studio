@@ -448,6 +448,8 @@ test('the Home row answers a hover like an entry card, and its shortcuts do not'
   // does not trap focus at all is a separate, pre-existing thing.)
   await page.locator('.wz-header .gallery-close').evaluate((el: HTMLElement) => el.focus());
   await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Blank graphic', exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Open editor Alpha', exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   expect(

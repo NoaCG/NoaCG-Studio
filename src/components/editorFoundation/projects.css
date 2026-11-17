@@ -20,3 +20,9 @@
 .wz-modal.project-starter { width: min(780px, 94vw); height: auto; max-height: 90vh; }
 
 .ef-project-error { color: var(--warn); max-width: 65%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.project-starter-list .wz-mini { width: 100%; height: 110px; margin-bottom: 8px; pointer-events: none; }
+.project-starter-list .dlg-check > span { min-width: 0; width: 100%; }
+.project-starter-list strong { display: block; font-size: 12px; }
+
+.project-starter-list small { display: block; margin-top: 3px; color: var(--text-dim); }

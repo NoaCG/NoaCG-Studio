@@ -1,3 +1,4 @@
+import { IMPORTED_DESIGN, PREFIX } from './importedDesign/shared';
 import { parseDefinition } from '../model/spxDefinition';
 import { DEFAULT_SETTINGS, type Resolution, type SpxTemplate } from '../model/types';
 import { DEFAULT_GRAPHICS_FORMAT, DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
@@ -101,4 +102,21 @@ function next() {}
     assets: [],
     layers: [],
   };
+}
+
+/** Empty placed artwork keeps the existing first-text and drawing source contract. */
+export function createAuthoringBlankTemplate(res: Resolution = DEFAULT_GRAPHICS_RESOLUTION, fps = DEFAULT_GRAPHICS_FORMAT.fps): SpxTemplate {
+  const template = IMPORTED_DESIGN.create({
+    lines: [], importedImages: [], resolution: res, fps,
+    designArt: { path: '', width: res.width, height: res.height },
+    sizeScale: 1 / Math.min(res.width / 1920, res.height / 1080),
+  });
+  // Only this freshly generated empty-art stand-in changes. A literal remains editable
+  // and stays transparent when a later brand legitimately replaces its panel palette.
+  const placeholder = 'background: var(--panel-bg);      /* stand-in until the artwork is imported */';
+  const artRule = template.css.match(new RegExp('\\.' + PREFIX + '-art\\s*\\{[^{}]*\\}'));
+  if (!artRule?.[0].includes(placeholder) || template.css.split(placeholder).length !== 2) {
+    throw new Error('The empty artwork source could not be prepared.');
+  }
+  return { ...template, name: 'Untitled graphic', css: template.css.replace(placeholder, 'background: transparent;') };
 }

@@ -61,8 +61,8 @@
 // Node resolves them (scripts/bridge-watch.test.mjs); everything else is a type.
 
 import type { PlayoutItem, PlayoutMediaKind, ShowCue, ShowFolder } from '../model/shows';
-import type { PlayoutResult, PlayoutSettings, StudioSync } from './playoutLink';
-import type { CasparSlot, ItemKind, ListItem, SlotState, StateReply, VmixPlayerSlot } from './playoutProtocol';
+import type { PlayoutResult, PlayoutSettings, StudioSync, VmixPlayerReadContract, VmixPlayerReading } from './playoutLink';
+import type { CasparSlot, ItemKind, ListItem, SlotState, StateReply, VmixPlayer, VmixPlayerSlot } from './playoutProtocol';
 import type { BridgePart, PlayoutSession } from './playoutSession';
 import type { SlotReading, StatusCheck } from './playoutStatus';
 import type { ServerPlayoutStore } from './serverPlayoutStore';
@@ -70,7 +70,7 @@ import { folderMode } from '../model/showFolders.ts';
 import { mediaKindOf } from './cuePlayback.ts';
 import { slotHolds } from './prepareLive.ts';
 import { casparOutputTarget, vmixPairing } from './playoutStatus.ts';
-import { applyReading } from './serverState.ts';
+import { applyReading, applyVmixReading } from './serverState.ts';
 import { pollServerState } from './serverStatePoll.ts';
 
 /** How often the output's slot is read while it may be read. */
@@ -99,6 +99,7 @@ export interface BridgeWatchIo {
   /** The Bridge's word on the server, every few seconds; answers the unsubscribe. */
   subscribeTargetStatus: (settings: PlayoutSettings, onStatus: (result: PlayoutResult) => void, intervalMs?: number, adapter?: 'casparcg' | 'vmix') => () => void;
   readState: (settings: PlayoutSettings, channel: number) => Promise<{ result: PlayoutResult; reply?: StateReply }>;
+  readVmixPlayers: (settings: PlayoutSettings, contract: VmixPlayerReadContract) => Promise<{ result: PlayoutResult; reply?: VmixPlayerReading }>;
   listLibrary: (settings: PlayoutSettings, kind: ItemKind) => Promise<{ result: PlayoutResult; items?: ListItem[] }>;
   listVmixMedia: (settings: PlayoutSettings, path: string) => Promise<{ result: PlayoutResult; items?: ListItem[] }>;
   vmixMediaRevision?: () => number;
@@ -172,7 +173,9 @@ export interface BridgeWatchAdapters {
     folderSlot: (settings: PlayoutSettings, folder: Pick<ShowFolder, 'slot'>) => CasparSlot;
   };
   /** The server's ownership and timing, which each reading folds into. */
-  serverPlayout: Pick<ServerPlayoutStore, 'ownership' | 'apply' | 'bindVmix'>;
+  serverPlayout: Pick<ServerPlayoutStore, 'ownership' | 'apply' | 'bindVmix' | 'observeVmix'>;
+  /** Current saved rundown, only for this mounted production while it still uses vMix. */
+  vmixRundown: (showId: string) => { cues: readonly ShowCue[]; playoutItems: readonly PlayoutItem[] } | null;
   /** The Bridge's studio setup changed this browser's: the page re-reads its settings. */
   settingsChanged: () => void;
   /** The server's list filled in facts an older clip was missing (model/shows.ts `fillPlayoutItemFacts`). */
@@ -830,6 +833,53 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
         );
       },
     });
+    return followState(poll);
+  };
+
+  const startVmixState = (i: BridgeInputs, production: string, contract: VmixPlayerReadContract) => {
+    const store = adapters.serverPlayout;
+    const settings = io.loadSettings();
+    const current = () => alive && inputs?.showId === production && inputs.vmixOn
+      && inputs.vmixPairing === i.vmixPairing && inputs.mediaRev === i.mediaRev
+      && currentMediaSource(i.vmixPairing, i.mediaRev ?? 0);
+    const playersUsed = (rundown: NonNullable<ReturnType<BridgeWatchAdapters['vmixRundown']>>) => {
+      const players = new Set<VmixPlayer>();
+      const refs = new Set(rundown.cues.filter(c => c.source === 'playout').map(c => c.sourceId));
+      for (const item of rundown.playoutItems) {
+        if (item.adapter !== 'vmix' || item.kind !== 'media' || !refs.has(item.id)) continue;
+        const slot = adapters.slots.itemSlot(settings, item);
+        if (slot.adapter === 'vmix') players.add(slot.player);
+      }
+      const ownership = store.ownership.get();
+      for (const live of Object.values(ownership.onAir)) {
+        if (live.slot.adapter === 'vmix' && 'player' in live.slot) players.add(live.slot.player);
+      }
+      return players;
+    };
+    return followState(pollServerState({
+      channels: () => {
+        const rundown = current() && adapters.vmixRundown(production);
+        return rundown && playersUsed(rundown).size ? ['vmix'] : [];
+      },
+      busy: () => Object.values(store.ownership.get().onAir).some(live => live.slot.adapter === 'vmix'),
+      read: async () => {
+        const admit = store.observeVmix();
+        const { result, reply } = await io.readVmixPlayers(settings, contract);
+        return { result, reply: reply && { admit, ...reply } };
+      },
+      onReading: (_, reply, now) => {
+        const rundown = current() && reply.current() && adapters.vmixRundown(production);
+        if (!rundown) return;
+        const used = playersUsed(rundown);
+        const rows = reply.admit(reply.session, reply.observedAt, reply.players.filter(row => row.player && used.has(row.player)));
+        if (!rows.length || !current() || !reply.current()) return;
+        const context = { showId: production, now, cues: rundown.cues, items: rundown.playoutItems, slotOf: (item: PlayoutItem) => adapters.slots.itemSlot(settings, item) };
+        store.apply(parts => rows.reduce((next, row) => applyVmixReading(next, row, reply.session, context), parts));
+      },
+    }));
+  };
+
+  const followState = (poll: ReturnType<typeof pollServerState>) => {
     wakeState = poll.wake;
     const stopVisible = io.onVisible(poll.wake);
     return () => {
@@ -857,14 +907,21 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       if (casparAnswers && io.loadSettings().studioPending) void io.syncStudio();
     });
     if (filesAvailable) learnFacts(i);
-    const reads = readable && i.playoutItems.some(item => item.adapter !== 'vmix');
-    state.run(JSON.stringify([reads, i.settingsRev]), () => (reads ? startState() : undefined));
+    if (i.vmixOn && i.vmixPairing && i.showId && answers && now?.features?.includes('vmix-media')) {
+      const production = i.showId;
+      const contract = now.features.includes('vmix-player-transport-guard') ? 'current' : 'staged';
+      state.run(JSON.stringify(['vmix', production, i.vmixPairing, i.mediaRev, contract]), () => startVmixState(i, production, contract));
+    } else {
+      const reads = readable && i.playoutItems.some(item => item.adapter !== 'vmix');
+      state.run(JSON.stringify([reads, i.settingsRev]), () => (reads ? startState() : undefined));
+    }
   };
 
   const stopPairing = io.watchPlayoutPairing?.(() => {
     if (!alive || !inputs?.vmixOn) return;
     status.end();
     files.end();
+    state.end();
     adapters.serverPlayout.bindVmix(null);
     writeBridge(session, { status: null, serverFiles: null });
     adapters.settingsChanged();
@@ -874,7 +931,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     update: (next) => {
       if (!alive) return;
       inputs = next;
-      adapters.serverPlayout.bindVmix(next.vmixPairing ?? null);
+      if (next.showId !== showId) adapters.serverPlayout.bindVmix(null);
+      adapters.serverPlayout.bindVmix(next.vmixOn ? next.vmixPairing ?? null : null);
       // WHAT THIS BROWSER LOADED (#2245) is read for the production the page names. A Load or
       // Unload that landed before it named one is the newer word, and is kept for it.
       if (next.showId !== showId) {
