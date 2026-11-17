@@ -84,6 +84,15 @@ Per pair (everyone / alone, p95 ms), first set: 85/38, 99/35, 105/44, 105/31, 88
 63/35, 80/32, 74/32, 104/32, 111/34; second set: 78/31, 68/32, 69/38, 81/33, 58/29, 70/29, 60/32,
 65/36, 60/33, 58/32, 56/39, 64/32.
 
+Ten pages with #2573 (j-0138, branch b0977da9, settle 30 s), reported, not judged: 151 Takes, 0
+lost; press to ran p50 95.7, p95 199.4, max 460.9 ms; 199 Goals, score 199; 39 of 39 messages are
+cues; one reload; offline 360.6 to 380.6 s; no conflicted copy; no role error. **No editor's last
+text stood (0 of 7).** Each cue's record stopped partway, at `#86` to `#117` of 149, and every page,
+the typist's own included, showed about the same number, never `#149`. The earlier ten-page runs
+kept 4 of 7 (no fix) and 1 of 7 (#2565's fix only). Whether this is the machine (eleven browser
+pages on four CPUs; 151 Takes fit where 216 did) or the team save stalling under load is not known
+yet.
+
 **AC-6: met.** No command lost (every Take ran, every Goal counted, every message a cue), no
 different cue overwritten (each editor's last text in the record, the publication and every page;
 the cues nobody edited kept their text; no conflicted copy), press to ran within 50 ms p95 of a
