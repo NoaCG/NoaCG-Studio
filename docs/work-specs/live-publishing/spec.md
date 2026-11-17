@@ -597,7 +597,7 @@ Filled in by each phase's pull request.
 
 ### Phase 8: Five people at once
 
-- Previous verified `main`: d2d35f4a7cfd44d61f0807bfe35d7323aacfd3bf.
+- Previous verified `main`: fa5b142bf (the base this pull request's final runs and checks used).
 - Revert: `git revert -m 1 <this pull request's merge commit>` removes the scene, its configured
   spec, its measurement, the evidence, the checklist and the tested numbers in
   `docs/CLOUD_PLAYOUT.md`; no product file and nothing persisted changed, so no data step goes with it.
@@ -611,8 +611,10 @@ Filled in by each phase's pull request.
   person's page closed, alternated with everyone working, in rounds whose order alternates.
   #2562 and #2557 were not met. Two lost-edit defects were: #2565 (an edit made while the page
   reads teammates' changes), fixed on `main` by #2567 during the phase, and #2572 (a change made
-  elsewhere discarded the cue being typed), fixed first as its own Risky pull request (#2573); this
-  one lands after it.
+  elsewhere discarded the cue being typed), fixed by #2573 (its own Risky pull request, landed as
+  67d04688). Without #2573, AC-6's own check lost an editor's last text in 1 of 6 runs; with it, 12
+  of 12 held, and AC-6 is judged on those runs. #2586 (a team walk that assumes partial writes off)
+  was filed for the phase 9 switch-on decision.
 - Traps: in the evidence, "Traps met".
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-8.md`; the owner's final check:
   `docs/work-specs/live-publishing/phase-9-checklist.md`.
