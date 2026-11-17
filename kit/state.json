@@ -42,15 +42,10 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "PR #2573 still owns the V6 shared file. On ed5c59b7d, 542 affected checks passed. Windows Playwright j-5316 reported nine passes including stale-tab recovery, correct Undo and receipt cleanup; the wrapper lost its exit status. Windows j-5317 passed the original quiz and storage checks with exit 0. Fresh full review graded B because recovery can still write to the old library once an account switch has started. Exact Windows j-5318 reproduced it with exit 1. The authorized focused attempt is used. Original V6 PR #2575 remains checkpointed, with V7 and V8 pending."
+    "what": "V6 remains blocked on PR #2573. The repository owner transferred #2573 repair custody to Claude Code live-publishing coordinator session_017SdbwQ3odeX4g6yc2nYsLZ (run #2361) through merge and passing post-landing checks. The handoff branch preserves product head ed5c59b7d577514097ff0e68c46c1bb208e1f37b and evidence commit 9771a7cc8421558e6b012cef62fd7d5b1bf900c9. Codex has only the shared Windows verification role when Claude names an exact candidate on #2573. The original #2575 remains checkpointed. Resume V6 through V8 after the actual merge and Claude confirmation of passing post-landing checks on #2573."
   },
   "inFlight": [],
-  "owner": [
-    {
-      "what": "Authorize one focused repair to revoke pending recovery as soon as an account switch starts, with the held Windows regression and fresh review",
-      "where": "Same run and PR #2573"
-    }
-  ],
+  "owner": [],
   "fixes": [],
   "triggers": []
 }
