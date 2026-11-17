@@ -54,7 +54,10 @@ From the coordinator's brief (#2361), before any timing was read:
   `teams.spec.ts` mints its third account, and deleted after the run.
 
 "Press": the Take button's `click` event. "Ran": the output's graphic calls `play()` for that Take
-(the W3 "ran"), on the same time origin (one Playwright run, one machine).
+(the W3 "ran"), on the same time origin (one Playwright run, one machine). It is the first play in
+any of the output's frames after the press: during a run only the taker takes (the score goes on air
+in set-up and then only updates), so no other play is expected, and a Take with no play within
+10 s counts as lost.
 
 ## Where it ran
 
