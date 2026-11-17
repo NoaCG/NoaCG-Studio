@@ -935,7 +935,8 @@ test.describe('teams: the share door', () => {
 // part way through; the other loses its connection and gets it back. Afterwards: no command lost
 // (every Take ran on the output, the score moved once per Goal, every message became a cue), no
 // different cue overwritten (each editor's last text is in the team's record, in the publication
-// and on every page; the cues nobody edited keep their text), and no conflicted copy anywhere.
+// and on every page; the reloaded editor finds its text, the reconnected editor's offline text
+// arrives), and no conflicted copy anywhere.
 // This is the 30 s run the suite can afford; the ten-minute run, press to ran against a single page
 // and the 10 and 15 page runs use the same scene (e2e/configured/_five.ts) from
 // e2e/configured/measure/five.measure.ts, with their numbers in
@@ -1000,7 +1001,7 @@ test.describe('five accounts at once', () => {
       ),
     );
     const state = await serverState(s);
-    for (const label of [...s.takes, s.score]) expect(state.cues[label], `${label} was edited by nobody and keeps its text`).toBe(before.cues[label]);
+    for (const label of [...s.takes, s.score]) expect(state.cues[label], `${label}, which nobody writes, keeps its text`).toBe(before.cues[label]);
     for (const m of report.messages) expect(state.labels, `a cue from "${m.body}"`).toContain(m.body);
     expect(state.conflicted, 'no conflicted copy anywhere').toEqual([]);
     test.info().annotations.push({ type: 'press to ran (ms, not judged here)', description: JSON.stringify(report.takes.map((t) => Math.round(t.ranAt! - t.pressAt))) });

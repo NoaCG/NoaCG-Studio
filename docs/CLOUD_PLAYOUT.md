@@ -939,7 +939,8 @@ Order of concern if the target ever becomes real: (1) audience poll volume vs co
 
 Live-publishing AC-6, measured 2026-11-14 and 2026-11-17 on one cloud machine (4 CPUs) against a local backend,
 every page and one output in one browser run, automatic updates and partial writes on, the bundled
-build. One team production, ten minutes, every person a signed-in account: one takes and outs,
+build. One team production, ten minutes (the single-page row and the pairs: 45 s rounds,
+interleaved), every person a signed-in account: one takes and outs,
 one adds messages, one presses a quick button, the rest edit a cue of their own every 4 s; one page
 reloads, one goes offline for 20 s. Evidence: `work-specs/live-publishing/evidence/phase-8.md`.
 
@@ -947,14 +948,14 @@ reloads, one goes offline for 20 s. Evidence: `work-specs/live-publishing/eviden
 |---|---|---|---|---|---|
 | 1 (the taker alone) | 0 | 35 ms (24 interleaved pairs) | | | |
 | 5 | 0 | 73 to 82 ms (72 ms in 24 interleaved pairs) | all | all | 2 of 2, in every run |
-| 10 | 0 | 186 to 255 ms; 199 ms with #2573 | all | all | 4 of 7 before any fix, 1 of 7 with #2567, 0 of 7 with #2567 and #2573: texts on screen, saves behind (#2589) |
+| 10 | 0 | 186 to 255 ms; 199 ms with #2573 | all | all | 4 of 7 before any fix, 1 of 7 with #2565's first fix (#2570), 0 of 7 with #2567 and #2573: texts on screen, saves behind (#2589) |
 | 15 | 0 of 91 (the test machine stalled after 6.5 min) | 560 ms | not run | 38 of 39 | 2 of 12 |
 
 These are what was tested, not a limit: a hosted backend, the studio network and people on separate
 computers were not part of it, and every page shared one machine's CPUs (at 15 pages that machine,
 not the product, was the limit). At 10 pages with #2573 the editors' saves fall behind (the text
-stays on screen with a note); without #2573 they keep up, so it is a defect (#2589), not a capacity
-limit. #2565 and #2572, met on the way, are fixed (#2567, #2573).
+stays on screen with a note); in one 8-minute run without #2573 they kept up, so it is taken for a
+defect (#2589), not a capacity limit. #2565 and #2572, met on the way, are fixed (#2567, #2573).
 
 ## Publication lifecycle (what staying published costs, and when a publication ends)
 

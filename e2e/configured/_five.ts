@@ -48,6 +48,8 @@ export interface Scene {
   people: Person[];
   output: Page;
   outputContext: BrowserContext;
+  /** Output frames that had already played when set-up ended (the score): never a Take's "ran". */
+  onAir: string[];
   minted: string[];
 }
 
@@ -281,7 +283,8 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
   // MEASURE_NET=slow (the measurement only): every page and the output at 20 Mbit/s and 50 ms from
   // here on. Set-up is not timed. A page taken offline and back loses its throttle (one CDP setting).
   if (NET === 'slow') for (const p of [...people.map((x) => x.page), output]) await throttle(p, 'slow');
-  return { ...built, slug, key, people, output, outputContext, minted };
+  const onAir = (await framePlays(output)).filter((f) => f.plays.length > 0).map((f) => f.url);
+  return { ...built, slug, key, people, output, outputContext, minted, onAir };
   } catch (e) {
     // The caller holds no scene to tear down yet: close what was opened, here.
     await tearDown({ teamId: built.teamId, people: [], outputContext: null, minted }, owner);
@@ -348,7 +351,11 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
       let ranAt: number | null = null;
       const deadline = Date.now() + 10_000;
       while (ranAt === null && Date.now() < deadline) {
-        const plays = (await framePlays(scene.output)).flatMap((f) => f.plays).filter((p) => p.playAt > pressAt).sort((a, b) => a.playAt - b.playAt);
+        const plays = (await framePlays(scene.output))
+          .filter((f) => !scene.onAir.includes(f.url))
+          .flatMap((f) => f.plays)
+          .filter((p) => p.playAt > pressAt)
+          .sort((a, b) => a.playAt - b.playAt);
         if (plays.length) ranAt = plays[0].playAt;
         else await page.waitForTimeout(20);
       }
@@ -413,13 +420,22 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
     const offlineAt = opts.offlineAt != null && n === 1 ? start + opts.ms * opts.offlineAt : null;
     let reloaded = false, wentOffline = false;
     let back: Promise<void> | null = null;
+    let isBack = false;
     for (let k = 1; live(); k++) {
       await sleepUntil(page, start + k * tick);
       if (!live()) break;
+      // The editor that lost its connection stops once it is back, so its last text is one typed
+      // offline: what reaches the record then is what the reconnect carried.
+      if (isBack) break;
+      const text = `${p.cue} by ${n} #${k}`;
+      await textBox(page).fill(text);
+      record.typed.push(text);
       if (reloadAt !== null && !reloaded && Date.now() >= reloadAt) {
+        // Reload straight after typing, then find the text again on the reloaded page.
         reloaded = true;
         await page.reload();
         await openProduction(page, scene.showId);
+        await expect.poll(async () => (await pageCues(page, scene.showId))[p.cue!], { timeout: 15_000, message: `the text typed before the reload (${text}) is still there` }).toBe(text);
         await selectCue(page, p.cue!);
         report.reloads += 1;
       }
@@ -433,11 +449,9 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
           await p.context.setOffline(false);
           if (NET === 'slow') await throttle(page, 'slow');
           window.to = Date.now() - start;
+          isBack = true;
         });
       }
-      const text = `${p.cue} by ${n} #${k}`;
-      await textBox(page).fill(text);
-      record.typed.push(text);
     }
     if (back) await back;
   };
@@ -540,8 +554,9 @@ export async function openScene(browser: Browser, owner: Page, pages: number): P
 /** Take the scene down and switch both back off, whatever happened. */
 export async function closeScene(scene: Scene | null, owner: Page): Promise<void> {
   await tearDown(scene, owner);
-  await setSwitch('auto_publish', false).catch(() => undefined);
-  await setSwitch('partial_writes', false).catch(() => undefined);
+  // A switch left on breaks other configured specs (#2586), so a failed switch-off is reported.
+  const failed = (await Promise.allSettled([setSwitch('auto_publish', false), setSwitch('partial_writes', false)])).filter((r) => r.status === 'rejected');
+  if (failed.length) throw new Error(`a switch was left on: ${failed.map((r) => String((r as PromiseRejectedResult).reason)).join('; ')}`);
 }
 
 /** Each editor's last typed text, by cue. */

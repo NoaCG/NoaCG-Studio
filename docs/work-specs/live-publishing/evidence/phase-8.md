@@ -8,7 +8,8 @@ and regains its connection. No command lost, no different cue overwritten, press
 p95 of a single page. The same run with 10 and 15 pages is reported in `docs/CLOUD_PLAYOUT.md` as
 tested numbers, not a limit. Layer: a configured spec."
 
-Base: `origin/main` d2d35f4a7cfd44d61f0807bfe35d7323aacfd3bf. No file under `src/`, `api/`,
+Base: `origin/main` fa5b142bf (the runs judged below used 67d04688 and later, with no file under
+`src/`, `api/` or `supabase/` differing up to fa5b142bf). No file under `src/`, `api/`,
 `supabase/` or any workflow changed. Hardware checks: none in this phase; every one the run could
 not do is in `../phase-9-checklist.md`, none counted as passed.
 
@@ -42,8 +43,13 @@ From the coordinator's brief (#2361), before any timing was read:
   flow, extended in its file; a new configured file is also priced as backend-tier growth). A 30-second run with
   everything above, judged on correctness: every Take ran on the output, the score moved once per
   Goal, every message became a cue, each editor's last text is in the team's record, in the
-  publication and on every page, the taker's and the score's cues keep their text, and no
-  "(conflicted copy)" exists in any account. It fits the suite's 120 s per-test ceiling.
+  publication and on every page, and no "(conflicted copy)" exists in any account. The two
+  editors type into different cues on the same tick, which is the case "no different cue
+  overwritten" is about. The editor that reloads types, reloads at once and must find that text
+  on the reloaded page; the editor that loses its connection stops typing once it is back, so its
+  last text is one typed offline and must reach the record. The taker's and the score's cues are
+  also checked unchanged, but nobody writes them, so that check cannot catch an overwrite. It fits
+  the suite's 120 s per-test ceiling.
 - `e2e/configured/measure/five.measure.ts` (`soak`, `pair`) and `summarize-five.mjs`: the same
   scene run long and timed; `*.measure.ts` is never run by the suite.
 - Automatic updates (`auto_publish`) and partial writes (`partial_writes`) are switched on in the
@@ -99,20 +105,21 @@ own page at the end and 30 s later. With #2573 (j-0139): every editor's box held
 every save was pending with an edit owed, several showed "Teammates keep saving this production -
 your edit is on screen but not saved yet.", and the records stood at `#81` to `#113`. With #2573
 reverted in a local scratch copy (j-0140, never pushed): every record held `#119` and nothing was
-owed after 30 s. So the backlog comes with #2573; nothing typed was discarded in either run. It is
+owed after 30 s (one 8-minute run each; the reverted one was never pushed). So the backlog comes with #2573; nothing typed was discarded in either run. It is
 #2589's to fix; AC-6, at five people, is met with #2573 in place.
 
 **AC-6: met.** No command lost (every Take ran, every Goal counted, every message a cue), no
 different cue overwritten (each editor's last text in the record, the publication and every page;
-the cues nobody edited kept their text; no conflicted copy), press to ran within 50 ms p95 of a
+no conflicted copy), press to ran within 50 ms p95 of a
 single page (+37.0 ms pooled over 24 pairs, the rule fixed before the runs; the coordinator set the
 24-pair pool when the first 12 came out near the limit).
 
 The same machine measured +28.2 ms without #2573 and +18.0 ms with an earlier version of it. The
 first 12 pairs with #2573 (+48.3 ms) were the slowest set of the day; the second 12 (+30.4 ms) are
-close to the run without it. Both sets share one 4-CPU machine with every page and the servers, so
-the difference between the sets is within what this machine varies by; it is not shown that #2573
-costs the five-page case more.
+close to the run without it. The two sets' ranges do not overlap, so the pooled range (+32.6 to
++43.1 ms) understates how much a set moves on this machine: today's sets went from +18.0 to +48.3
+ms. The verdict stands on the rule as fixed; whether #2573 costs the five-page case more is not
+shown either way.
 
 ### On `main` with #2567, and #2573 at c9cc8682 (2026-11-17)
 
@@ -155,8 +162,8 @@ branch head 24f109bc). Same machine, local stack, bundled build for the timed ru
 | Interleaved pairs | j-0114 to j-0119 | 12 pairs; five pages p95 62.2 ms, a single page 34.0 ms; pooled p95 difference +28.2 ms (bootstrap 5 to 95 %: +25.5 to +30.6 ms); 0 lost, no role error |
 
 So without #2573, AC-6's "no different cue overwritten" does not hold every time at five people
-(1 of 6 short runs lost an editor's last text). This pull request waits for #2573; the runs are
-repeated on `main` once it lands.
+(1 of 6 short runs lost an editor's last text). This pull request waited for #2573; the runs above
+were repeated on `main` once it landed.
 
 ### Ten minutes, five people (`soak`, job j-0022)
 
@@ -172,7 +179,7 @@ first tick at least 20 s later (20 to 24 s; a later commit brings it back on its
 | Quick button | 199 Goals pressed; the production's score reads 199 |
 | Messages | 39 pasted, 39 prepared; every one is a cue in the team's record |
 | Editors | 149 texts each; each cue's last text (`#149`) is in the team's record, in the publication and on all five pages, 9.5 s after the run ended |
-| Cues nobody edited | the three lower thirds and the score keep their text |
+| Cues nobody edited | the three lower thirds and the score keep their text (nobody writes them, so this cannot show an overwrite) |
 | Conflicted copies | none in any of the five accounts |
 | Role errors | none |
 
@@ -233,7 +240,7 @@ still lost the last text of 6 of 7 editors. A shorter diagnostic run (j-0040, 2.
 lost) read each editor's own page 60 s after the typing stopped: the cue editor's input itself
 showed the previous text (`#36` where `#37` was typed), with nothing unsent, no save pending and no
 note. So the typed text is dropped on the typist's page before or while it becomes the record, not
-during the team read. Filed as #2572 (P1) and reported to the coordinator; its fix is #2573, which this phase waits for before the 10-page run is repeated.
+during the team read. Filed as #2572 (P1) and reported to the coordinator; its fix is #2573, which landed during the phase; the 10-page run with it is above (j-0138).
 The five-page runs never met it (ten minutes, twelve pairs, the configured check three times).
 
 ### The configured spec
