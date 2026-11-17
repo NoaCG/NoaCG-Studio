@@ -65,6 +65,37 @@ served by `vite preview`), as phases 6 and 7 judged timing on a bundled build. U
 
 ## Results
 
+### On `main` with #2567 and #2573 (2026-11-17): the judged runs
+
+`origin/main` with #2573 landed (67d04688) merged into the branch; no file under `src/` differs from
+`main`. Same machine, local stack, bundled build for the timed runs. These are the runs AC-6 is
+judged on.
+
+| Run | Jobs | Result |
+|---|---|---|
+| Configured five-person check | j-0120, j-0121 (branch db32b7d9); j-0129, j-0130 (8d2d677e, the final scene) | **12 of 12 passed**; no run lost any editor's last text |
+| Ten minutes, five people (`soak`) | j-0122 (db32b7d9) | 398 Takes, 0 lost; press to ran p50 42.2, p95 81.8, max 196.5 ms; 199 Goals, score 199; 39 of 39 messages are cues; both editors' `#149` in the record, the publication and all five pages, 12.4 s after the run; one reload; offline 360.1 to 380.1 s; no conflicted copy; no role error |
+| Ten minutes, five people, again | j-0131 (8d2d677e) | 432 Takes, 0 lost; press to ran p50 38.3, p95 72.9, max 156.5 ms; 199 Goals, score 199; 39 of 39 messages are cues; both editors' `#149` in the record, the publication and all five pages, 11.8 s after the run; one reload; offline 360.0 to 380.1 s; no conflicted copy; no role error |
+| Interleaved pairs, first 12 | j-0123 to j-0128 (db32b7d9) | five pages p95 84.4 ms, a single page 36.1 ms; difference +48.3 ms (bootstrap 5 to 95 %: +37.5 to +53.5 ms) |
+| Interleaved pairs, second 12 | j-0132 to j-0137 (8d2d677e) | five pages p95 64.3 ms, a single page 33.9 ms; difference +30.4 ms (+26.6 to +36.1 ms) |
+| **All 24 pairs, pooled** | | five pages p95 71.8 ms (918 Takes), a single page 34.8 ms (1159 Takes); **pooled p95 difference +37.0 ms** (bootstrap 5 to 95 %: +32.6 to +43.1 ms); 0 lost, no role error: **met** |
+
+Per pair (everyone / alone, p95 ms), first set: 85/38, 99/35, 105/44, 105/31, 88/35, 77/33, 95/47,
+63/35, 80/32, 74/32, 104/32, 111/34; second set: 78/31, 68/32, 69/38, 81/33, 58/29, 70/29, 60/32,
+65/36, 60/33, 58/32, 56/39, 64/32.
+
+**AC-6: met.** No command lost (every Take ran, every Goal counted, every message a cue), no
+different cue overwritten (each editor's last text in the record, the publication and every page;
+the cues nobody edited kept their text; no conflicted copy), press to ran within 50 ms p95 of a
+single page (+37.0 ms pooled over 24 pairs, the rule fixed before the runs; the coordinator set the
+24-pair pool when the first 12 came out near the limit).
+
+The same machine measured +28.2 ms without #2573 and +18.0 ms with an earlier version of it. The
+first 12 pairs with #2573 (+48.3 ms) were the slowest set of the day; the second 12 (+30.4 ms) are
+close to the run without it. Both sets share one 4-CPU machine with every page and the servers, so
+the difference between the sets is within what this machine varies by; it is not shown that #2573
+costs the five-page case more.
+
 ### On `main` with #2567, and #2573 at c9cc8682 (2026-11-17)
 
 Merged `origin/main` b1fb1b9e (branch head 10fc5ed8), which holds #2567 (#2565's fix). The branch
