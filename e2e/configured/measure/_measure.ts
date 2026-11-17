@@ -1,4 +1,4 @@
-import type { BrowserContext, CDPSession, Page } from '@playwright/test';
+import type { BrowserContext, CDPSession, Frame, Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
@@ -150,12 +150,12 @@ export const clearLpm = (page: Page): Promise<void> =>
 export const nowOn = (page: Page): Promise<number> => page.evaluate(() => performance.timeOrigin + performance.now());
 
 /** Every output frame's play stamps, keyed by nothing: the caller knows which graphic it took. */
-export async function framePlays(output: Page): Promise<{ url: string; plays: { playAt: number; dispatchAt: number | null }[] }[]> {
+export async function framePlays(output: Page): Promise<{ url: string; frame: Frame; plays: { playAt: number; dispatchAt: number | null }[] }[]> {
   const out = [];
   for (const frame of output.frames()) {
     if (frame === output.mainFrame()) continue;
     const plays = await frame.evaluate(() => (window as unknown as { __lpmFrame?: { playAt: number; dispatchAt: number | null }[] }).__lpmFrame ?? []).catch(() => []);
-    out.push({ url: frame.url(), plays });
+    out.push({ url: frame.url(), frame, plays });
   }
   return out;
 }

@@ -594,3 +594,27 @@ Filled in by each phase's pull request.
   A box kept in this browser and taken after a reload (K2, K3) counts as this page's own
   measurement: like a fresh measurement on `main`, it may replace a teammate's box.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-7.md`.
+
+### Phase 8: Five people at once
+
+- Previous verified `main`: fa5b142bf (the base this pull request's final runs and checks used).
+- Revert: `git revert -m 1 <this pull request's merge commit>` removes the scene, its configured
+  spec, its measurement, the evidence, the checklist and the tested numbers in
+  `docs/CLOUD_PLAYOUT.md`; no product file and nothing persisted changed, so no data step goes with it.
+- Decisions: five people are five accounts on a team production (one production, five accounts
+  needs a team): the suite's own account and four minted on the local stack only, deleted after
+  each run, the way `teams.spec.ts` mints its third. Set-up reaches the app through the
+  test door; every role acts through the page as a person would. The configured spec runs the scene
+  for 30 s to fit the suite's 120 s per-test ceiling and judges correctness only; the ten-minute run
+  and the timing use the same scene from `e2e/configured/measure/five.measure.ts` on the bundled e2e
+  build, as phases 6 and 7 judged timing. "A single page" is the taker's page with every other
+  person's page closed, alternated with everyone working, in rounds whose order alternates.
+  #2562 and #2557 were not met. Two lost-edit defects were: #2565 (an edit made while the page
+  reads teammates' changes), fixed on `main` by #2567 during the phase, and #2572 (a change made
+  elsewhere discarded the cue being typed), fixed by #2573 (its own Risky pull request, landed as
+  67d04688). Without #2573, AC-6's own check lost an editor's last text in 1 of 6 runs; with it, 12
+  of 12 held, and AC-6 is judged on those runs. #2586 (a team walk that assumes partial writes off)
+  was filed for the phase 9 switch-on decision.
+- Traps: in the evidence, "Traps met".
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-8.md`; the owner's final check:
+  `docs/work-specs/live-publishing/phase-9-checklist.md`.

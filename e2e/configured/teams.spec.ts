@@ -23,8 +23,11 @@
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
 // covers: src/backend/teamProductions.ts, src/backend/assets.ts, src/backend/pacing.ts
+// covers: src/backend/savedRevision.ts, src/control/autoPublish.ts, src/components/home/useAutoPublish.ts
+// covers: src/control/publishParts.ts, src/control/publishRevision.ts, src/control/messageStaging.ts
 
 import { publishProduction } from '../_publish';
+import { closeScene, isLocalStack, lastTexts, openScene, pageCues, run, serverState, type Scene } from './_five';
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import {
   dismissWizard,
@@ -923,4 +926,88 @@ test.describe('teams: the share door', () => {
       }
     });
   });
+});
+
+// FIVE PEOPLE AT ONCE (docs/work-specs/live-publishing/spec.md, AC-6). Five signed-in accounts in
+// browser contexts of their own work one team production with automatic updates and partial writes
+// on: one takes and outs, one pastes messages and prepares cues from them, one presses the score's
+// Goal, and two type into their own cues at the same instant each tick. One editor's page reloads
+// part way through; the other loses its connection and gets it back. Afterwards: no command lost
+// (every Take ran on the output, the score moved once per Goal, every message became a cue), no
+// different cue overwritten (each editor's last text is in the team's record, in the publication
+// and on every page; the reloaded editor finds its text, the reconnected editor's offline text
+// arrives), and no conflicted copy anywhere.
+// This is the 30 s run the suite can afford; the ten-minute run, press to ran against a single page
+// and the 10 and 15 page runs use the same scene (e2e/configured/_five.ts) from
+// e2e/configured/measure/five.measure.ts, with their numbers in
+// docs/work-specs/live-publishing/evidence/phase-8.md.
+test.describe('five accounts at once', () => {
+  test.skip(!haveCreds || !SERVICE_ROLE_KEY || !isLocalStack(), 'five people: needs the local stack, its accounts and its service key (it mints accounts and writes the switches)');
+
+  let scene: Scene | null = null;
+  test.afterEach(async ({ page }, testInfo) => {
+    // On a failure, keep what each person's own page shows before the scene goes: a lost text is
+    // diagnosed from the typist's page (its record, its open cue editor), never from the record alone.
+    if (scene && testInfo.status !== testInfo.expectedStatus) {
+      for (const [i, p] of scene.people.entries()) {
+        const cues = await pageCues(p.page, scene.showId).catch((e) => String(e));
+        const editing = await p.page.getByTestId('cue-editor').locator('input[type="text"]').first().inputValue({ timeout: 2_000 }).catch(() => null);
+        await testInfo.attach(`person-${i}-${p.role}.json`, { body: JSON.stringify({ email: p.email, cue: p.cue, editing, cues }, null, 2), contentType: 'application/json' });
+        await testInfo.attach(`person-${i}-${p.role}.png`, { body: await p.page.screenshot().catch(() => Buffer.from('')), contentType: 'image/png' });
+      }
+    }
+    await closeScene(scene, page);
+    scene = null;
+  });
+
+  test('five people on one production: no command lost, no different cue overwritten', async ({ page, browser }) => {
+    test.setTimeout(120_000);
+    scene = await openScene(browser, page, 5);
+    const before = await serverState(scene);
+    const report = await run(scene, { ms: 30_000, tickMs: 3_000, messageEveryMs: 9_000, reloadAt: 0.3, offlineAt: 0.5, offlineMs: 8_000 });
+    expect(report.errors, 'every role ran to the end').toEqual([]);
+    expect(report.reloads, 'one page reloaded').toBe(1);
+    expect(report.offline, 'one page lost its connection and got it back').not.toBeNull();
+
+    // No command lost.
+    expect(report.takes.length).toBeGreaterThan(5);
+    expect(report.takes.filter((t) => t.ranAt === null).map((t) => t.label), 'every Take ran on the output').toEqual([]);
+    expect(report.goals).toBeGreaterThan(3);
+    expect(report.messages.filter((m) => !m.prepared), 'every message became a cue').toEqual([]);
+
+    // Everything settles: the record, the publication and every page.
+    const last = lastTexts(report);
+    const s = scene;
+    await expect
+      .poll(async () => (await serverState(s)).score, { timeout: 20_000, message: 'the score moved once per Goal' })
+      .toBe(report.goals);
+    await expect
+      .poll(
+        async () => {
+          const state = await serverState(s);
+          return Object.fromEntries(Object.keys(last).map((cue) => [cue, { record: state.cues[cue], published: state.published.includes(last[cue]) }]));
+        },
+        { timeout: 30_000, message: "each editor's last text is in the team's record and in the publication" },
+      )
+      .toEqual(Object.fromEntries(Object.entries(last).map(([cue, text]) => [cue, { record: text, published: true }])));
+    await Promise.all(
+      s.people.map((p) =>
+        expect
+          .poll(async () => pickCues(await pageCues(p.page, s.showId), Object.keys(last)), {
+            timeout: 30_000,
+            message: `${p.email}'s page holds each editor's last text`,
+          })
+          .toEqual(last),
+      ),
+    );
+    const state = await serverState(s);
+    for (const label of [...s.takes, s.score]) expect(state.cues[label], `${label}, which nobody writes, keeps its text`).toBe(before.cues[label]);
+    for (const m of report.messages) expect(state.labels, `a cue from "${m.body}"`).toContain(m.body);
+    expect(state.conflicted, 'no conflicted copy anywhere').toEqual([]);
+    test.info().annotations.push({ type: 'press to ran (ms, not judged here)', description: JSON.stringify(report.takes.map((t) => Math.round(t.ranAt! - t.pressAt))) });
+  });
+
+  function pickCues(cues: Record<string, string>, labels: string[]): Record<string, string> {
+    return Object.fromEntries(labels.map((l) => [l, cues[l]]));
+  }
 });
