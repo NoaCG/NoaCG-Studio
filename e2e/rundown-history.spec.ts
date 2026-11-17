@@ -177,6 +177,755 @@ test('metadata survives inverse; remote rundown changes, another production and 
   await page.goto(`/app#/production/${ids.show}`); await expect(row(page, 'Last character')).toBeVisible();
 });
 
+test('a change elsewhere in the rundown never discards the cue being typed (#2572)', async ({ page }) => {
+  const ids = await seed(page);
+  await select(page, 'Alpha'); const input = page.getByTestId('cue-label');
+  // Typed, and before its idle save another tab or a teammate renames a different cue.
+  await input.fill('Typed here');
+  await page.evaluate(async ids => { const m = await __noacgImport('/src/model/shows.ts'); m.updateShowCue(ids.show, ids.cues[1], { label: 'Renamed elsewhere' }); }, ids);
+  await expect(row(page, 'Renamed elsewhere')).toBeVisible();
+  await expect(page.getByTestId('rundown-note')).toContainText('changed elsewhere');
+  await expect(input).toHaveValue('Typed here');
+  await expect(row(page, 'Typed here')).toBeVisible();
+  await settleDurableWrites(page);
+  await expect(page.getByTestId('rundown-note')).toContainText('changed elsewhere');
+  // Typed again after its idle save landed, and the other cue changes while the save is still queued.
+  await input.fill('Typed again');
+  await page.waitForTimeout(320);
+  await page.evaluate(async ids => { const m = await __noacgImport('/src/model/shows.ts'); m.updateShowCue(ids.show, ids.cues[1], { label: 'Renamed twice' }); }, ids);
+  await expect(row(page, 'Renamed twice')).toBeVisible();
+  await expect(input).toHaveValue('Typed again');
+  const labels = async () => { await settleDurableWrites(page); return page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!.cues!.map(c => c.label), ids.show); };
+  await expect.poll(labels).toEqual(['Typed again', 'Renamed twice', 'Gamma']);
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  // D7: Undo takes back the typing only; the change made elsewhere stays.
+  await key(page, 'Control+z');
+  await expect.poll(labels).toEqual(['Typed here', 'Renamed twice', 'Gamma']);
+});
+
+test('a teammate\'s save to another cue, adopted while a cue is typed, keeps both (#2572, D1, D5)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  await select(page, 'Alpha');
+  await page.getByTestId('cue-label').fill('Team typed');
+  // Before its idle save: a teammate's save renaming a different cue lands and this page adopts it,
+  // as the team read does (model/teamShows.ts applyServerTeamShows).
+  state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[1] ? { ...c, label: 'Teammate rename' } : c)) };
+  advance();
+  await page.evaluate(async ({ id, doc }) => {
+    const teamShows = await __noacgImport('/src/model/teamShows.ts');
+    const held = teamShows.loadTeamShows().find(s => s.id === id)!;
+    teamShows.applyServerTeamShows([{ ...held, cues: doc.cues }], new Set());
+  }, { id: ids.show, doc: state.doc });
+  await expect(row(page, 'Teammate rename')).toBeVisible();
+  await expect(page.getByTestId('cue-label')).toHaveValue('Team typed');
+  await expect.poll(() => state.doc?.cues?.map(c => c.label)).toEqual(['Team typed', 'Teammate rename', 'Gamma']);
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('after a change elsewhere kept the typing, a change to the typed cue itself still wins (#2572, D1 then D3)', async ({ page }) => {
+  const ids = await seed(page);
+  await select(page, 'Alpha'); const input = page.getByTestId('cue-label');
+  await input.fill('Typed here');
+  // Before the idle save: first a different cue, then the typed cue itself, renamed elsewhere.
+  await page.evaluate(async ids => {
+    const m = await __noacgImport('/src/model/shows.ts');
+    m.updateShowCue(ids.show, ids.cues[1], { label: 'Renamed elsewhere' });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    m.updateShowCue(ids.show, ids.cues[0], { label: 'Theirs' });
+  }, ids);
+  await expect(row(page, 'Theirs')).toBeVisible();
+  await expect(input).toHaveValue('Theirs');
+  await page.waitForTimeout(700);
+  await settleDurableWrites(page);
+  expect(await page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!.cues!.map(c => c.label), ids.show)).toEqual(['Theirs', 'Renamed elsewhere', 'Gamma']);
+});
+
+test('deleting the cue just typed in stays one undoable step, with no note of a change elsewhere (#2572, D6)', async ({ page }) => {
+  const ids = await seed(page);
+  await select(page, 'Gamma'); await page.getByTestId('cue-label').fill('Typed then deleted');
+  await parkFocusOffControls(page); await expect(row(page, 'Typed then deleted')).toBeVisible();
+  await settleDurableWrites(page);
+  const typed = await snapshot(page, ids.show);
+  await select(page, 'Typed then deleted'); await key(page, 'Delete');
+  await expect(row(page, 'Typed then deleted')).toHaveCount(0);
+  await settleDurableWrites(page);
+  await expect(page.getByTestId('rundown-note').filter({ hasText: 'changed elsewhere' })).toHaveCount(0);
+  await key(page, 'Control+z'); await expectSlice(page, ids.show, typed);
+});
+
+test('a typed save that storage refuses keeps the typed text and says why (#2572, D6)', async ({ page }) => {
+  await seed(page);
+  await select(page, 'Alpha'); const input = page.getByTestId('cue-label');
+  await failNextPut(page);
+  await input.fill('Typed while full');
+  await expect(page.getByTestId('rundown-note')).toContainText('storage is full');
+  await page.waitForTimeout(500);
+  await expect(input).toHaveValue('Typed while full');
+  await expect(page.getByTestId('rundown-note')).not.toContainText('changed elsewhere');
+  // Storage has room again: typing on saves, and the refused write is not taken for a change elsewhere.
+  await input.fill('Typed while full, then saved');
+  await parkFocusOffControls(page);
+  await expect(row(page, 'Typed while full, then saved')).toBeVisible();
+  await expect(input).toHaveValue('Typed while full, then saved');
+  await expect(page.getByTestId('rundown-note').filter({ hasText: 'changed elsewhere' })).toHaveCount(0);
+});
+
+test('typing queued behind a held team save survives a teammate\'s change to another cue (#2572, D5)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  await select(page, 'Alpha'); const input = page.getByTestId('cue-label');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('One');
+    await expect.poll(() => state.calls, { message: 'the first save is out' }).toBeGreaterThan(calls);
+    // Typing goes on: its save waits in the page's queue behind the held one.
+    await input.fill('One two');
+    await page.waitForTimeout(400);
+    // A teammate's save renaming a different cue lands meanwhile.
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[1] ? { ...c, label: 'Teammate rename' } : c)) };
+    advance();
+  } finally { release(); }
+  await expect.poll(() => state.doc?.cues?.map(c => c.label), { timeout: 15_000 }).toEqual(['One two', 'Teammate rename', 'Gamma']);
+  await expect(input).toHaveValue('One two');
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a held team draft keeps its text when a teammate changes that cue’s accent (#2572, D1, D5)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  await select(page, 'Alpha');
+  const input = page.getByTestId('cue-label');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('Local Alpha');
+    await expect.poll(() => state.calls, { message: 'the draft save is out' }).toBeGreaterThan(calls);
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[0] ? { ...c, accentColor: '#6600CC' } : c)) };
+    advance();
+  } finally { release(); }
+  await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[0]), { timeout: 15_000 })
+    .toMatchObject({ label: 'Local Alpha', accentColor: '#6600CC' });
+  await expect(input).toHaveValue('Local Alpha');
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a queued draft checks its own cue after the editor moves to another cue (#2572, D3)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  const input = page.getByTestId('cue-label');
+  await select(page, 'Gamma');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('Local Gamma');
+    await expect.poll(() => state.calls, { message: 'the first save is out' }).toBeGreaterThan(calls);
+    await select(page, 'Alpha');
+    await input.fill('Local Alpha');
+    await select(page, 'Beta');
+    await input.fill('Local Beta');
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[0] ? { ...c, label: 'Teammate Alpha' } : c)) };
+    advance();
+  } finally { release(); }
+  await expect.poll(() => state.doc?.cues?.map(c => c.label), { timeout: 15_000 }).toEqual(['Teammate Alpha', 'Local Beta', 'Local Gamma']);
+  await expect(input).toHaveValue('Local Beta');
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('leaving a production drops its queued draft write (#2572, D6)', async ({ page }) => {
+  const { ids, state } = await teamBackend(page);
+  const input = page.getByTestId('cue-label');
+  await select(page, 'Gamma');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('Local Gamma');
+    await expect.poll(() => state.calls, { message: 'the first save is out' }).toBeGreaterThan(calls);
+    await select(page, 'Alpha');
+    await input.fill('Queued Alpha');
+    await select(page, 'Beta');
+    await page.evaluate(id => { window.location.hash = '/production/' + id; }, ids.other);
+    await expect(page.getByTestId('production-page')).toBeVisible();
+    await expect(row(page, 'Beta')).toHaveCount(0);
+  } finally { release(); }
+  await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[2])?.label).toBe('Local Gamma');
+  await expect.poll(() => page.evaluate(async id => {
+    const m = await __noacgImport('/src/backend/teamProductions.ts');
+    return m.getTeamState().saving[id] ?? null;
+  }, ids.show)).toBeNull();
+  await settleDurableWrites(page);
+  expect(state.doc?.cues?.find(c => c.id === ids.cues[0])?.label).toBe('Alpha');
+  expect(state.calls).toBe(calls + 1);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('leaving keeps the last keystroke over a team draft save still in flight (#2572, D6)', async ({ page }) => {
+  const { ids, state } = await teamBackend(page);
+  await select(page, 'Alpha');
+  const input = page.getByTestId('cue-label');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('First draft');
+    await expect.poll(() => state.calls).toBeGreaterThan(calls);
+    await input.fill('Last keystroke');
+    await page.evaluate(id => { window.location.hash = '/production/' + id; }, ids.other);
+    await expect(page.getByTestId('production-page')).toBeVisible();
+    await expect(row(page, 'Beta')).toHaveCount(0);
+  } finally { release(); }
+  await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[0])?.label, { timeout: 15_000 }).toBe('Last keystroke');
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an ordinary team save in flight keeps the checked draft that follows it (#2572, D1, D5)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  await select(page, 'Alpha');
+  let releaseOrdinary!: () => void;
+  let releaseDraft!: () => void;
+  state.hold = new Promise<void>(resolve => { releaseOrdinary = resolve; });
+  const calls = state.calls;
+  try {
+    await page.evaluate(async ids => {
+      const shows = await __noacgImport('/src/model/shows.ts');
+      shows.updateShowCueChecked(ids.show, ids.cues[0], { label: 'Ordinary update' });
+    }, ids);
+    await expect.poll(() => state.calls).toBeGreaterThan(calls);
+    await expect(page.getByTestId('cue-label')).toHaveValue('Ordinary update');
+    await page.getByTestId('cue-label').fill('Checked draft');
+    await expect.poll(() => page.evaluate(async ids => {
+      const shows = await __noacgImport('/src/model/shows.ts');
+      return shows.loadShows().find(show => show.id === ids.show)?.cues?.find(c => c.id === ids.cues[0])?.label;
+    }, ids)).toBe('Checked draft');
+    await settleDurableWrites(page);
+    // The draft must remain recoverable from the outbox before the earlier request is answered.
+    await expect.poll(() => page.evaluate(async ({ show, cues }) => {
+      const { durable } = await __noacgImport('/src/model/durableStore.ts');
+      const pending = JSON.parse(durable.getItem('spx-gfx-team-outbox') ?? '{}').edits?.[show];
+      return (pending?.cueDrafts ?? []).some((proof: { cueId: string; before: string; after: string }) =>
+        proof.cueId === cues[0] && JSON.parse(proof.before).label === 'Ordinary update' && JSON.parse(proof.after).label === 'Checked draft');
+    }, ids)).toBe(true);
+    state.hold = new Promise<void>(resolve => { releaseDraft = resolve; });
+    releaseOrdinary();
+    await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[0])?.label).toBe('Ordinary update');
+    await expect.poll(() => state.calls).toBeGreaterThan(calls + 1);
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[0] ? { ...c, accentColor: '#6600CC' } : c)) };
+    advance();
+  } finally {
+    releaseOrdinary();
+    releaseDraft?.();
+  }
+  await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[0]), { timeout: 15_000 })
+    .toMatchObject({ label: 'Checked draft', accentColor: '#6600CC' });
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an ordinary cue write cannot persist a rejected draft from the mirror (#2572, D3)', async ({ page }) => {
+  const ids = await seed(page);
+  await select(page, 'Alpha');
+  await page.evaluate(async ids => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const store = await __noacgImport('/src/model/durableStore.ts');
+    const { durable } = store;
+    const original = IDBObjectStore.prototype.get;
+    const key = 'spx-gfx-shows';
+    let reportRefusals!: (errors: (string | null)[]) => void;
+    (window as unknown as { dependentWriteErrors: Promise<(string | null)[]> }).dependentWriteErrors =
+      new Promise(resolve => { reportRefusals = resolve; });
+    const committedElsewhere = JSON.parse(durable.getItem(key)!) as Show[];
+    committedElsewhere.find(show => show.id === ids.show)!.cues!.find(cue => cue.id === ids.cues[0])!.label = 'Remote Alpha';
+    // Write straight to IndexedDB to hold the mirror notification from the other tab.
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('noacg-studio');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(JSON.stringify(committedElsewhere), key);
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error);
+    });
+    db.close();
+    // Start the ordinary save while the draft's optimistic text is still in the mirror.
+    IDBObjectStore.prototype.get = function(k) {
+      if (k === key) {
+        IDBObjectStore.prototype.get = original;
+        queueMicrotask(() => {
+          shows.updateShowCueChecked(ids.show, ids.cues[1], { label: 'Ordinary Beta' });
+          const opaque = JSON.parse(durable.getItem(key)!) as Show[];
+          const show = opaque.find(show => show.id === ids.show)!;
+          const { receipts } = store.captureDurableWrites(key, () => {
+            show.name = 'First dependent write';
+            durable.setItem(key, JSON.stringify(opaque));
+            show.name = 'Second dependent write';
+            durable.setItem(key, JSON.stringify(opaque));
+          });
+          void Promise.all(receipts.map(store.commitDurableReceipt)).then(reportRefusals);
+        });
+      }
+      return original.call(this, k);
+    };
+  }, ids);
+  await page.getByTestId('cue-label').fill('Rejected Alpha');
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush')));
+  await expect(row(page, 'Ordinary Beta')).toBeVisible();
+  const errors = await page.evaluate(() =>
+    (window as unknown as { dependentWriteErrors: Promise<(string | null)[]> }).dependentWriteErrors);
+  expect(errors).toEqual(Array(2).fill('The production changed before this save. Try the edit again.'));
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(row(page, 'Remote Alpha')).toBeVisible();
+  await expect(row(page, 'Ordinary Beta')).toBeVisible();
+  await expect(row(page, 'Rejected Alpha')).toHaveCount(0);
+  const name = () => page.evaluate(async id => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    return shows.loadShows().find(show => show.id === id)?.name;
+  }, ids.show);
+  expect(await name()).toBe('History');
+  await page.evaluate(async id => {
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    const current = JSON.parse(durable.getItem('spx-gfx-shows')!) as Show[];
+    current.find(show => show.id === id)!.name = 'Fresh production write';
+    durable.setItem('spx-gfx-shows', JSON.stringify(current));
+  }, ids.show);
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(row(page, 'Remote Alpha')).toBeVisible();
+  await expect(row(page, 'Ordinary Beta')).toBeVisible();
+  expect(await name()).toBe('Fresh production write');
+});
+
+for (const scenario of [
+  'continued typing', 'a separate optimistic write', 'page close', 'page close with an aborted successor',
+  'page close with a competing cue edit', 'page close after an aborted predecessor and matching foreign text',
+  'page close after a final commit with no completion callback',
+]) {
+  test(`typing survives a normalized IndexedDB write during ${scenario} (#2572, D5)`, async ({ page, context }) => {
+    const ids = await seed(page);
+    const cueId = await page.evaluate(async id => {
+      const shows = await __noacgImport('/src/model/shows.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { durable } = await __noacgImport('/src/model/durableStore.ts');
+      shows.addGraphicToShow(id, { ...variantById('wc01')!.create({}), name: 'Words' });
+      const records = shows.loadShows(), show = records.find(item => item.id === id)!;
+      const cue = show.cues!.at(-1)!;
+      cue.label = 'Words';
+      cue.values = { ...cue.values, f1: 'One word?', f2: 'keep | 1' };
+      show.questions = [{ id: 'q-word', type: 'word', text: 'One word?' }];
+      show.resultCues = { 'q-word': cue.id };
+      durable.setItem('spx-gfx-shows', JSON.stringify(records));
+      return cue.id;
+    }, ids.show);
+    await settleDurableWrites(page);
+    await page.reload();
+    await select(page, 'Words');
+    const field = page.getByTestId('cue-field-f2');
+    await expect(field).toHaveValue('keep | 1');
+    await page.evaluate(async ({ id, scenario, cueId, otherId }) => {
+      const { durable } = await __noacgImport('/src/model/durableStore.ts');
+      const shows = await __noacgImport('/src/model/shows.ts');
+      const storageKey = 'spx-gfx-shows';
+      const records = JSON.parse(durable.getItem(storageKey)!) as Show[];
+      records.find(show => show.id === id)!.questions = [{ id: 'q-word', type: 'word', text: 'One word?', hidden: ['apple'] }];
+      // The other tab committed Hide. Hold the mirror notification until this tab rebases.
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('noacg-studio');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction('kv', 'readwrite');
+          tx.objectStore('kv').put(JSON.stringify(records), storageKey);
+          tx.oncomplete = () => resolve();
+          tx.onabort = () => reject(tx.error);
+        });
+      } finally {
+        if (scenario !== 'page close with a competing cue edit') db.close();
+      }
+      if (scenario === 'page close with an aborted successor') {
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function(value, key) {
+          const result = put.call(this, value, key);
+          if (key === storageKey && typeof value === 'string' && value.includes('Kept typing')) {
+            document.documentElement.dataset.abortedClosingDraft = 'true';
+            this.transaction.abort();
+          }
+          return result;
+        };
+      }
+      if (scenario === 'page close after an aborted predecessor and matching foreign text') {
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function(value, key) {
+          const result = put.call(this, value, key);
+          if (typeof key === 'string' && key.startsWith('__cue-draft-v1:')) {
+            IDBObjectStore.prototype.put = put;
+            result.addEventListener('success', () => {
+              document.documentElement.dataset.abortedPredecessor = 'true';
+              this.transaction.abort();
+            });
+          }
+          return result;
+        };
+      }
+      const original = IDBObjectStore.prototype.get;
+      IDBObjectStore.prototype.get = function(key) {
+        if (key === storageKey) {
+          IDBObjectStore.prototype.get = original;
+          if (scenario === 'page close after a final commit with no completion callback') {
+            const transaction = this.transaction;
+            transaction.addEventListener('complete', () => {
+              document.documentElement.dataset.committedWithoutCallback = 'true';
+            });
+            queueMicrotask(() => {
+              transaction.oncomplete = null;
+              window.dispatchEvent(new PageTransitionEvent('pagehide'));
+            });
+            return original.call(this, key);
+          }
+          // Start the next edit while the first transaction is still open.
+          queueMicrotask(() => {
+            const label = document.querySelector<HTMLInputElement>('[data-testid="cue-label"]')!;
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(label, 'Kept typing');
+            label.dispatchEvent(new Event('input', { bubbles: true }));
+            if (scenario === 'a separate optimistic write') {
+              shows.updateShowCueChecked(id, otherId, { label: 'Other tab-local edit' });
+            }
+            if (scenario === 'page close with a competing cue edit') {
+              const tx = db.transaction('kv', 'readwrite');
+              const otherTab = tx.objectStore('kv');
+              const current = otherTab.get(storageKey);
+              current.onsuccess = () => {
+                const records = JSON.parse(current.result) as Show[];
+                const cue = records.find(show => show.id === id)!.cues!.find(cue => cue.id === cueId)!;
+                cue.label = 'Competing edit';
+                otherTab.put(JSON.stringify(records), storageKey);
+              };
+              tx.oncomplete = () => db.close();
+            }
+            if (scenario.startsWith('page close')) {
+              window.dispatchEvent(new PageTransitionEvent('pagehide'));
+            } else {
+              window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+            }
+          });
+        }
+        return original.call(this, key);
+      };
+    }, { id: ids.show, scenario, cueId, otherId: ids.cues[1] });
+    await field.fill('keep | 1\napple | 1\nnew | 1');
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush')));
+    const savedText = async () => {
+      const saved = JSON.parse(await snapshot(page, ids.show)) as Pick<Show, 'cues'>;
+      const cue = saved.cues?.find(row => row.id === cueId);
+      return [cue?.label, cue?.values.f2];
+    };
+    const words = 'keep | 1\nnew | 1';
+    const final = scenario === 'page close after a final commit with no completion callback';
+    const foreign = scenario === 'page close after an aborted predecessor and matching foreign text';
+    const owed = () => page.evaluate(async id => {
+      const { libraryInUse, readCueDraftCommit } = await __noacgImport('/src/model/durableStore.ts');
+      const account = libraryInUse();
+      const key = 'spx-gfx-owed-cue-edits' + (account ? '@' + account : '');
+      const edit = JSON.parse(localStorage.getItem(key) ?? '{}').shows?.[id];
+      const proof = edit?.commit && await readCueDraftCommit(id, edit.commit.stream);
+      return { edit, proof };
+    }, ids.show);
+    if (final || foreign) {
+      if (final) {
+        await expect(page.locator('html')).toHaveAttribute('data-committed-without-callback', 'true');
+        const { edit, proof } = await owed();
+        expect(proof?.revision).toBe(edit.commit.revision);
+        expect(proof?.text.values.f2).toBe(words);
+      } else {
+        await expect(page.locator('html')).toHaveAttribute('data-aborted-predecessor', 'true');
+        await settleDurableWrites(page);
+        const { edit, proof } = await owed();
+        expect(edit?.fields.label).toBe('Kept typing');
+        expect(proof).toBeNull();
+      }
+      // The separate writer never possesses the cue draft's commit identity. In the final
+      // case Unhide changes only metadata, leaving the committed Words field untouched.
+      await page.evaluate(async ({ id, cueId, final, words }) => {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('noacg-studio');
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const tx = db.transaction('kv', 'readwrite');
+            const store = tx.objectStore('kv'), key = 'spx-gfx-shows';
+            const request = store.get(key);
+            request.onsuccess = () => {
+              const rows = JSON.parse(request.result) as Show[];
+              const show = rows.find(row => row.id === id)!;
+              if (final) delete show.questions![0].hidden;
+              else show.cues!.find(cue => cue.id === cueId)!.values.f2 = words;
+              store.put(JSON.stringify(rows), key);
+            };
+            tx.oncomplete = () => resolve();
+            tx.onabort = () => reject(tx.error);
+          });
+        } finally { db.close(); }
+      }, { id: ids.show, cueId, final, words });
+    } else if (scenario === 'page close with an aborted successor') {
+      await expect(page.locator('html')).toHaveAttribute('data-aborted-closing-draft', 'true');
+      await expect.poll(savedText).toEqual(['Words', words]);
+      const { edit, proof } = await owed();
+      expect(edit?.fields.label).toBe('Kept typing');
+      expect(proof?.revision).toBeLessThan(edit.commit.revision);
+      expect(proof?.text).toMatchObject({ label: 'Words', values: { f2: words } });
+      expect(edit.bases.map((base: { values: Record<string, string> }) => base.values.f2)).toEqual(['keep | 1']);
+    } else if (scenario === 'page close with a competing cue edit') {
+      await expect.poll(savedText).toEqual(['Competing edit', words]);
+    } else {
+      await expect.poll(savedText).toEqual(['Kept typing', words]);
+    }
+    const url = page.url();
+    let reopened = page;
+    if (!scenario.startsWith('page close')) await page.reload();
+    else {
+      await page.close();
+      reopened = await context.newPage();
+      reopened.on('pageerror', error => pageFaults.get(page)!.push(error.message));
+      await reopened.goto(url);
+    }
+    const label = final || foreign ? 'Words' : scenario === 'page close with a competing cue edit' ? 'Competing edit' : 'Kept typing';
+    await select(reopened, label);
+    if (final || foreign) {
+      await expect.poll(() => reopened.evaluate(id =>
+        JSON.parse(localStorage.getItem('spx-gfx-owed-cue-edits') ?? '{}').shows?.[id] ?? null, ids.show)).toBeNull();
+      await expect(row(reopened, 'Kept typing')).toHaveCount(0);
+    }
+    await expect(reopened.getByTestId('cue-field-f2')).toHaveValue(words);
+    if (scenario === 'page close with a competing cue edit') await expect(row(reopened, 'Kept typing')).toHaveCount(0);
+    if (scenario === 'a separate optimistic write') await expect(row(reopened, 'Other tab-local edit')).toBeVisible();
+  });
+}
+
+test('tracked cue draft recovery reads the stored predecessor when the production mirror is stale', async ({ page }) => {
+  const ids = await seed(page);
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const result = await page.evaluate(async ({ showId, cueId, otherCueId }) => {
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    const key = 'spx-gfx-shows';
+    const docs = JSON.parse(durable.getItem(key)!) as Show[];
+    const show = docs.find(doc => doc.id === showId)!;
+    const cue = show.cues!.find(item => item.id === cueId)!;
+    const base = { label: cue.label, note: cue.note ?? null, values: cue.values };
+    const accepted = { ...base, label: 'First revision committed elsewhere' };
+    const stream = '00000000-0000-4000-8000-000000000002';
+    localStorage.setItem('spx-gfx-owed-cue-edits', JSON.stringify({ v: 1, shows: {
+      [showId]: { cueId, bases: [base], fields: { ...accepted, label: 'Newer owed revision' }, commit: { stream, revision: 2 }, retired: true },
+    } }));
+    cue.label = accepted.label;
+    show.cues!.find(item => item.id === otherCueId)!.label = 'Other stored edit';
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('noacg-studio');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    // Commit as a second tab would, withholding its mirror notification to the original tab.
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('kv', 'readwrite');
+        const store = tx.objectStore('kv');
+        store.put(JSON.stringify(docs), key);
+        store.put(JSON.stringify({ v: 1, cueId, revision: 1, text: accepted, submitted: accepted }),
+          '__cue-draft-v1:' + encodeURIComponent(showId) + ':' + stream);
+        tx.oncomplete = () => resolve();
+        tx.onabort = () => reject(tx.error);
+      });
+    } finally { db.close(); }
+    const raw = JSON.parse(durable.getItem(key)!) as Show[];
+    return raw.find(doc => doc.id === showId)!.cues!.find(cue => cue.id === cueId)!.label;
+  }, { showId: ids.show, cueId: ids.cues[0], otherCueId: ids.cues[1] });
+  expect(result).toBe('Alpha');
+  await page.goto('/app#/production/' + ids.show);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(row(page, 'Newer owed revision')).toBeVisible();
+  await expect(row(page, 'Other stored edit')).toBeVisible();
+  await expect.poll(() => page.evaluate(async id => {
+    const { readCueDraftCommit } = await __noacgImport('/src/model/durableStore.ts');
+    return await readCueDraftCommit(id, '00000000-0000-4000-8000-000000000002');
+  }, ids.show)).toBeNull();
+  await key(page, 'Control+z');
+  await expect(row(page, 'First revision committed elsewhere')).toBeVisible();
+  await expect(row(page, 'Other stored edit')).toBeVisible();
+});
+
+test('tracked cue draft receipt survives a temporary hide and is removed on disposal', async ({ page }) => {
+  const ids = await seed(page);
+  await select(page, 'Alpha');
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      const result = put.call(this, value, key);
+      if (typeof key === 'string' && key.startsWith('__cue-draft-v1:')) {
+        document.documentElement.dataset.ownedDraft = key.split(':').pop();
+        IDBObjectStore.prototype.put = put;
+      }
+      return result;
+    };
+  });
+  await page.getByTestId('cue-label').fill('Saved on hide');
+  await page.evaluate(() => {
+    // The synchronous change notification normally retires this editor's group. Hold it
+    // during this save to exercise a temporary hide with the draft stream still active.
+    const dispatch = window.dispatchEvent;
+    window.dispatchEvent = function(event) {
+      return event.type === 'spx-data-changed' ? true : dispatch.call(this, event);
+    };
+    try { window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })); }
+    finally { window.dispatchEvent = dispatch; }
+  });
+  await settleDurableWrites(page);
+  const stream = await page.locator('html').getAttribute('data-owned-draft');
+  expect(stream).toMatch(/^[a-f0-9-]{36}$/);
+  const receipt = () => page.evaluate(async ({ id, stream }) => {
+    const { readCueDraftCommit } = await __noacgImport('/src/model/durableStore.ts');
+    return await readCueDraftCommit(id, stream!);
+  }, { id: ids.show, stream });
+  await expect.poll(receipt).toMatchObject({ text: { label: 'Saved on hide' } });
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect.poll(receipt).toBeNull();
+});
+
+test('ordinary cue writes back to the sent draft text revoke draft-only merge authority (#2572, D6)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  await select(page, 'Alpha');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  const calls = state.calls;
+  try {
+    await page.getByTestId('cue-label').fill('Sent draft');
+    await expect.poll(() => state.calls).toBeGreaterThan(calls);
+    await page.evaluate(async ids => {
+      const shows = await __noacgImport('/src/model/shows.ts');
+      shows.updateShowCueChecked(ids.show, ids.cues[0], { label: 'Ordinary edit' });
+      shows.updateShowCueChecked(ids.show, ids.cues[0], { label: 'Sent draft' });
+    }, ids);
+    await settleDurableWrites(page);
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[0] ? { ...c, accentColor: '#6600CC' } : c)) };
+    advance();
+  } finally { release(); }
+  await expect.poll(() => state.calls).toBeGreaterThan(calls + 1);
+  await expect.poll(() => page.evaluate(async id => {
+    const team = await __noacgImport('/src/backend/teamProductions.ts');
+    return team.getTeamState().saving[id] ?? null;
+  }, ids.show)).toBeNull();
+  expect(state.doc?.cues?.find(c => c.id === ids.cues[0])).toMatchObject({ label: 'Alpha', accentColor: '#6600CC' });
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an ordinary team edit cannot inherit another tab’s draft proof (#2572, D6)', async ({ page }) => {
+  const { ids, state } = await teamBackend(page);
+  const proofs = await page.evaluate(async ({ ids, token }) => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const history = await __noacgImport('/src/model/rundownHistory.ts');
+    const { durable, libraryInUse } = await __noacgImport('/src/model/durableStore.ts');
+    const base = shows.loadShows().find(show => show.id === ids.show)!;
+    const local = structuredClone(base);
+    const cueId = ids.cues[0];
+    local.cues!.find(cue => cue.id === cueId)!.label = 'Same bytes';
+    const cueDrafts = [{ cueId, before: history.cueTextKey(base, cueId), after: history.cueTextKey(local, cueId) }];
+    // As an adopted account-scoped outbox write arrives, this tab still holds its own base.
+    const key = 'spx-gfx-team-outbox';
+    durable.setItem(key, JSON.stringify({ v: 1, owner: libraryInUse(), edits: {
+      [ids.show]: { token, base, local, teamId: base.teamId, updatedBy: null, cueDrafts },
+    } }));
+    shows.updateShowCueChecked(ids.show, cueId, { label: 'Same bytes' });
+    const edit = JSON.parse(durable.getItem(key)!).edits[ids.show];
+    return edit.cueDrafts ?? [];
+  }, { ids, token: state.token });
+  expect(proofs).toEqual([]);
+  await settleDurableWrites(page);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an acknowledged team draft cannot authorize the next save from its older baseline (#2572, D3)', async ({ page }) => {
+  const { ids, state, advance } = await teamBackend(page);
+  await select(page, 'Alpha');
+  const input = page.getByTestId('cue-label');
+  let releaseFirst!: () => void;
+  let releaseNext!: () => void;
+  state.hold = new Promise<void>(resolve => { releaseFirst = resolve; });
+  const calls = state.calls;
+  try {
+    await input.fill('First draft');
+    await expect.poll(() => state.calls).toBeGreaterThan(calls);
+    await input.fill('Next draft');
+    await page.evaluate(id => { window.location.hash = '/production/' + id; }, ids.other);
+    await expect(row(page, 'Beta')).toHaveCount(0);
+    await settleDurableWrites(page);
+    state.hold = new Promise<void>(resolve => { releaseNext = resolve; });
+    releaseFirst();
+    await expect.poll(() => state.doc?.cues?.find(c => c.id === ids.cues[0])?.label).toBe('First draft');
+    await expect.poll(() => state.calls).toBeGreaterThan(calls + 1);
+    state.doc = { ...state.doc!, cues: state.doc!.cues!.map(c => (c.id === ids.cues[0] ? { ...c, label: 'Alpha', accentColor: '#6600CC' } : c)) };
+    advance();
+  } finally {
+    releaseFirst();
+    releaseNext?.();
+  }
+  await expect.poll(() => state.calls).toBeGreaterThan(calls + 2);
+  await expect.poll(() => page.evaluate(async id => {
+    const team = await __noacgImport('/src/backend/teamProductions.ts');
+    return team.getTeamState().saving[id] ?? null;
+  }, ids.show)).toBeNull();
+  expect(state.doc?.cues?.find(c => c.id === ids.cues[0])).toMatchObject({ label: 'Alpha', accentColor: '#6600CC' });
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('hiding keeps an owed team draft if its local outbox never confirmed it (#2572, D6)', async ({ page }) => {
+  const { ids, state } = await teamBackend(page);
+  await select(page, 'Alpha');
+  let release!: () => void;
+  state.hold = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await page.evaluate(async () => {
+      const { durable } = await __noacgImport('/src/model/durableStore.ts');
+      const put = durable.setItem;
+      durable.setItem = function(key, value) {
+        if (key === 'spx-gfx-team-outbox') throw new DOMException('Injected full store', 'QuotaExceededError');
+        put.call(this, key, value);
+      };
+    });
+    await page.getByTestId('cue-label').fill('Recover this cue');
+    await expect.poll(() => page.evaluate(async ids => {
+      const shows = await __noacgImport('/src/model/shows.ts');
+      return shows.loadShows().find(show => show.id === ids.show)?.cues?.find(c => c.id === ids.cues[0])?.label;
+    }, ids)).toBe('Recover this cue');
+    const owed = await page.evaluate(async id => {
+      const { libraryInUse } = await __noacgImport('/src/model/durableStore.ts');
+      window.dispatchEvent(new PageTransitionEvent('pagehide'));
+      await new Promise(resolve => setTimeout(resolve, 0));
+      return JSON.parse(localStorage.getItem('spx-gfx-owed-cue-edits@' + libraryInUse()) ?? '{}').shows?.[id];
+    }, ids.show);
+    expect(owed?.fields.label).toBe('Recover this cue');
+  } finally { release(); }
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a change elsewhere to the cue being typed itself keeps today\'s rule: the typed text gives way (#2572, D3)', async ({ page }) => {
+  const ids = await seed(page);
+  await select(page, 'Alpha'); const input = page.getByTestId('cue-label');
+  await input.fill('Typed here');
+  await page.evaluate(async ids => { const m = await __noacgImport('/src/model/shows.ts'); m.updateShowCue(ids.show, ids.cues[0], { label: 'Renamed elsewhere' }); }, ids);
+  await expect(page.getByTestId('rundown-note')).toContainText('changed elsewhere');
+  await expect(row(page, 'Renamed elsewhere')).toBeVisible();
+  await expect(input).toHaveValue('Renamed elsewhere');
+  await expect(row(page, 'Typed here')).toHaveCount(0);
+});
+
 test('menus, repeat, composition and hidden workspaces never run application inverse', async ({ page }) => {
   const ids = await seed(page); await duplicate(page); const after = await snapshot(page, ids.show);
   await row(page, 'Alpha').getByTestId('cue-menu').click(); await page.keyboard.press('Control+z'); await expectSlice(page, ids.show, after); await page.keyboard.press('Escape');
@@ -378,4 +1127,70 @@ test('the team production chip is quiet while a save is in flight, amber after a
   await expect(chip).toHaveText('Not synced');
   await expect(chip).toHaveAttribute('data-tone', 'warn');
   await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+/** A tracked owed edit renaming the first cue, and the start of its recovery's read made to fire
+ *  `trigger` before the recovery decides (the Windows j-5318 sequence, PR #2573). */
+async function owedRecoveryInterrupted(page: Page, trigger: 'switch' | 'flush', account: string) {
+  const ids = await seed(page);
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.evaluate(async ({ id, cueId, account, trigger }) => {
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    const { bindLibraryToAccount } = await __noacgImport('/src/backend/accountLibrary.ts');
+    const key = 'spx-gfx-shows';
+    const records = JSON.parse(durable.getItem(key)!) as Show[];
+    const cue = records.find(record => record.id === id)!.cues!.find(cue => cue.id === cueId)!;
+    const before = { label: cue.label, note: cue.note ?? null, values: cue.values };
+    localStorage.setItem('spx-gfx-owed-cue-edits', JSON.stringify({ v: 1, shows: {
+      [id]: { cueId, bases: [before], fields: { ...before, label: 'Owed at switch' },
+        commit: { stream: '00000000-0000-4000-8000-000000000004', revision: 1 }, retired: true },
+    } }));
+    const original = IDBObjectStore.prototype.get;
+    IDBObjectStore.prototype.get = function(storedKey) {
+      const request = original.call(this, storedKey);
+      if (storedKey === key && this.transaction.mode === 'readwrite') {
+        IDBObjectStore.prototype.get = original;
+        request.addEventListener('success', () => {
+          if (trigger === 'switch') void bindLibraryToAccount(account);
+          else window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+        }, { once: true });
+      }
+      return request;
+    };
+  }, { id: ids.show, cueId: ids.cues[0], account, trigger });
+  return ids;
+}
+/** The signed-out library's stored label for the cue, read from IndexedDB itself. */
+const storedSignedOutLabel = (page: Page, ids: { show: string; cues: string[] }) => page.evaluate(async ({ id, cueId }) => {
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open('noacg-studio');
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  try {
+    const records = await new Promise<Show[]>((resolve, reject) => {
+      const request = db.transaction('kv', 'readonly').objectStore('kv').get('spx-gfx-shows');
+      request.onsuccess = () => resolve(JSON.parse(request.result));
+      request.onerror = () => reject(request.error);
+    });
+    return records.find(show => show.id === id)?.cues?.find(cue => cue.id === cueId)?.label;
+  } finally { db.close(); }
+}, { id: ids.show, cueId: ids.cues[0] });
+const owedLabel = (page: Page, id: string) => page.evaluate(id => JSON.parse(localStorage.getItem('spx-gfx-owed-cue-edits') ?? '{}').shows?.[id]?.fields.label ?? null, id);
+
+test('a cue recovery waiting on storage when an account switch starts leaves the old library alone (#2573)', async ({ page }) => {
+  const account = '00000000-0000-4000-8000-000000000005';
+  const ids = await owedRecoveryInterrupted(page, 'switch', account);
+  await Promise.all([page.waitForEvent('load'), page.goto('/app#/production/' + ids.show)]);
+  expect(await page.evaluate(() => localStorage.getItem('spx-gfx-account'))).toBe(account);
+  expect(await storedSignedOutLabel(page, ids)).toBe('Alpha');
+  expect(await owedLabel(page, ids.show)).toBe('Owed at switch');
+});
+
+test('an ordinary save request during a cue recovery lets the recovery land (#2573)', async ({ page }) => {
+  const ids = await owedRecoveryInterrupted(page, 'flush', '');
+  await page.goto('/app#/production/' + ids.show);
+  await expect.poll(() => storedSignedOutLabel(page, ids)).toBe('Owed at switch');
+  await expect.poll(() => owedLabel(page, ids.show)).toBe(null);
 });

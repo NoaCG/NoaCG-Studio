@@ -1,4 +1,4 @@
-// guards: src/control/cueDraft.ts
+// guards: src/control/cueDraft.ts, src/model/cueDraftCommit.ts
 //
 // The cue being typed (production-page refactor spec §2 and D12, phase 13b): an edit echoes in the
 // session's `draft` part at once and is saved once, with the latest text, on a 300 ms idle or when
@@ -17,12 +17,13 @@ const CLOSER = { id: 'c2', label: 'Closer', note: 'last', values: { f0: 'Ben Lun
 
 /** A draft over fakes. `writes` holds every save sent through the history, each answerable with
  *  `answer(true | false)`; `retained` the synchronous saves; `timers` the live timers. */
-function harness() {
+function harness(commitStore) {
   const session = createPlayoutSession('prod-1');
   const records = new Map([OPENER, CLOSER].map((c) => [c.id, c]));
   const writes = [];
   const retained = [];
   const groups = [];
+  const freshCues = [];
   const timers = new Map();
   const listeners = { hide: new Set(), shown: new Set(), flush: new Set(), press: new Set() };
   let nextTimer = 1;
@@ -32,6 +33,7 @@ function harness() {
     writes,
     retained,
     groups,
+    freshCues,
     timers,
     listeners,
     canWrite: true,
@@ -48,14 +50,24 @@ function harness() {
   };
   h.draft = createCueDraft(session, {
     canWrite: () => h.canWrite,
-    editing: (group) => groups.push(group),
-    writeCue: (cueId, fields) =>
-      new Promise((resolve) => writes.push({ cueId, fields: structuredClone(fields), answer: resolve })),
+    editing: (group, freshCue) => {
+      groups.push(group);
+      freshCues.push(freshCue);
+    },
+    writeCue: (cueId, fields, _recoveredFrom, confirm, commit) =>
+      new Promise(resolve => writes.push({
+        cueId, fields: structuredClone(fields), ...(commit && { commit }),
+        answer: (saved, record) => {
+          if (record) confirm?.(record);
+          resolve(saved);
+        },
+      })),
     retainCue: (cueId, fields) => {
       retained.push({ cueId, fields: structuredClone(fields) });
       return h.retainOk;
     },
     record: (cueId) => records.get(cueId),
+    commit: commitStore && { unused: stream => h.owed?.commit?.stream !== stream, ...commitStore },
     owed: {
       keep: (edit) => {
         h.owed = structuredClone(edit);
@@ -134,6 +146,25 @@ test('ten keystrokes then a flush save once, with the latest text, through the h
   h.writes[0].answer(true);
   assert.equal(await flushed, true);
   assert.equal(h.writes.length, 1, 'written once');
+});
+
+test('only a fresh draft reports the cue it started from, even in the same edit group', async () => {
+  const h = harness();
+  h.draft.edit(OPENER, { values: { f0: 'Typed' } });
+  const refused = h.draft.flush();
+  h.draft.edit(OPENER, { label: 'Typed label' });
+  h.writes[0].answer(false);
+  assert.equal(await refused, false);
+  h.draft.edit(OPENER, { values: { f0: 'Edited' } });
+  const accepted = h.draft.flush();
+  h.writes[1].answer(true);
+  assert.equal(await accepted, true);
+
+  const liveCue = { ...OPENER, label: 'Typed label', values: { ...OPENER.values, f0: 'Live action' } };
+  h.records.set(OPENER.id, liveCue);
+  h.draft.edit(liveCue, { values: { f0: 'Fresh edit' } });
+  assert.equal(h.groups.at(-1), h.groups.at(-2));
+  assert.deepEqual(h.freshCues, [OPENER, null, null, liveCue]);
 });
 
 test('the idle save comes 300 ms after the LAST keystroke, once', () => {
@@ -418,6 +449,107 @@ test('P3: a page that recorded nothing leaves a record alone when it drops a dra
   h.draft.edit(OPENER, { values: { f0: 'x' } });
   h.draft.cancel();
   assert.notEqual(h.owed, null);
+});
+
+test('a normalized acknowledgement updates the recovery baseline for newer typing', async () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.retainOk = false;
+  h.draft.edit(OPENER, { values: { f0: 'Before cleanup' } });
+  const saving = h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: 'Newer typing' } });
+  for (const run of h.listeners.hide) run(true);
+  const actual = { ...OPENER, values: { ...OPENER.values, f0: 'After cleanup' } };
+  // The newer mirror can make this save's visible verdict false despite the acknowledged put.
+  h.writes[0].answer(false, actual);
+  assert.equal(await saving, false);
+  assert.deepEqual(h.owed?.bases, [{ label: OPENER.label, note: OPENER.note ?? null, values: actual.values }]);
+  assert.equal(h.owed?.fields.values.f0, 'Newer typing');
+  stop();
+});
+
+const STREAM = '00000000-0000-4000-8000-000000000001';
+const tracked = { stream: STREAM, revision: 2 };
+
+test('tracked recovery delegates to storage even when the rendered cue is stale', async () => {
+  const requests = [], released = [];
+  const h = harness({
+    start: () => STREAM, account: () => null,
+    recover: async (edit, valid) => { requests.push({ edit, valid: valid() }); return true; },
+    forget: (id, canRelease) => { if (canRelease()) released.push(id); },
+  });
+  const before = { label: 'Earlier durable cue', note: null, values: {} };
+  h.owed = { cueId: 'c1', bases: [before], fields: { ...before, label: 'Later draft' }, commit: tracked, retired: true };
+  const expected = structuredClone(h.owed);
+  h.draft.recover();
+  await settle();
+  assert.deepEqual(requests, [{ edit: expected, valid: true }]);
+  assert.equal(h.writes.length, 0);
+  assert.equal(h.owed, null);
+  assert.deepEqual(released, [tracked]);
+});
+
+for (const interruption of ['type and cancel', 'hide and show', 'replacement', 'account changed']) {
+  test('a delayed tracked recovery loses authority after ' + interruption, async () => {
+    let ready, validAtWrite, account = null;
+    const h = harness({
+      start: () => STREAM, account: () => account, forget: () => assert.fail('unsettled recovery released proof'),
+      recover: (_edit, valid) => new Promise(resolve => { ready = () => { validAtWrite = valid(); resolve(validAtWrite); }; }),
+    });
+    h.owed = { cueId: 'c1', bases: [OPENER], fields: { ...OPENER, label: 'Recover this' }, commit: tracked };
+    const stop = h.draft.listen(h.adapters);
+    h.draft.recover();
+    if (interruption === 'type and cancel') {
+      h.draft.edit(OPENER, { label: 'Started another draft' });
+      h.draft.cancel();
+    } else if (interruption === 'hide and show') {
+      for (const hide of h.listeners.hide) hide(true);
+      for (const shown of h.listeners.shown) shown();
+    } else if (interruption === 'replacement') {
+      h.owed = { ...h.owed, commit: { ...tracked, revision: 3 } };
+    } else account = 'another account';
+    const owed = structuredClone(h.owed);
+    ready();
+    await settle();
+    assert.equal(validAtWrite, false);
+    assert.deepEqual(h.owed, owed);
+    stop();
+  });
+}
+
+test('a trackable save on temporary hide keeps the receipt until the draft stream is disposed', async () => {
+  const released = [];
+  const h = harness({
+    start: () => STREAM, account: () => null, recover: async () => false,
+    forget: (id, canRelease) => { if (canRelease()) released.push(id); },
+  });
+  let accepted;
+  h.retainOk = new Promise(resolve => { accepted = resolve; });
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { label: 'Retained' });
+  for (const hide of h.listeners.hide) hide(true);
+  assert.equal(h.owed.commit.revision, 1);
+  assert.equal(h.owed.retired, undefined);
+  h.session.dispose();
+  assert.equal(h.owed.retired, true);
+  assert.deepEqual(released, []);
+  accepted(true);
+  await settle();
+  assert.equal(h.owed, null);
+  assert.deepEqual(released, [{ stream: STREAM, revision: 1 }]);
+});
+
+test('retries of a personal edit reuse their revision and persist only the original uncommitted baseline', async () => {
+  const h = harness({ start: () => STREAM, account: () => null, recover: async () => false, forget: () => {} });
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { label: 'First edit' });
+  const saving = h.draft.flush();
+  for (const hide of h.listeners.hide) hide(true);
+  assert.deepEqual(h.owed.commit, h.writes[0].commit);
+  assert.deepEqual(h.owed.bases.map(base => base.label), ['Opener']);
+  h.writes[0].answer(false);
+  assert.equal(await saving, false);
+  stop();
 });
 
 test('P1: a save handed to the history is listed under the edit before the store confirms it', () => {

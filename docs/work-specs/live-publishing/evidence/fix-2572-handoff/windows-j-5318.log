@@ -1,0 +1,49 @@
+=== j-5318 npm run test:e2e -- e2e/rundown-history.spec.ts --grep=tracked.recovery.preserves.the.old.library --trace retain-on-failure --workers 1
+=== cwd C:\claude\Temp\vmix-state-1108\diagnostic-2573-ci-43655807619\save-receipt-exact-lf
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/rundown-history.spec.ts --grep=tracked.recovery.preserves.the.old.library --trace retain-on-failure --workers 1
+
+[e2e] 3 workers - 4731 MB free
+[WebServer] (node:25788) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:1340) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 [chromium] › e2e\rundown-history.spec.ts:1132:1 › tracked recovery preserves the old library when the account switch begins before the read returns (4.4s)
+
+
+  1) [chromium] › e2e\rundown-history.spec.ts:1132:1 › tracked recovery preserves the old library when the account switch begins before the read returns 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Alpha"
+    Received: "Owed at switch"
+
+      1174 |   }, { id: ids.show, cueId: ids.cues[0] });
+      1175 |   expect(stored.account).toBe(account);
+    > 1176 |   expect(stored.label).toBe('Alpha');
+           |                        ^
+      1177 |   const owed = await page.evaluate(id => JSON.parse(localStorage.getItem('spx-gfx-owed-cue-edits') ?? '{}').shows?.[id], ids.show);
+      1178 |   expect(owed?.fields.label).toBe('Owed at switch');
+      1179 | });
+        at C:\claude\Temp\vmix-state-1108\diagnostic-2573-ci-43655807619\save-receipt-exact-lf\e2e\rundown-history.spec.ts:1176:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\rundown-history-tracked-re-ba186-ins-before-the-read-returns-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\rundown-history-tracked-re-ba186-ins-before-the-read-returns-chromium\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\rundown-history-tracked-re-ba186-ins-before-the-read-returns-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\rundown-history-tracked-re-ba186-ins-before-the-read-returns-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › e2e\rundown-history.spec.ts:1132:1 › tracked recovery preserves the old library when the account switch begins before the read returns 

@@ -1,0 +1,49 @@
+
+test('tracked recovery preserves the old library when the account switch begins before the read returns', async ({ page }) => {
+  const ids = await seed(page);
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const account = '00000000-0000-4000-8000-000000000005';
+  await page.evaluate(async ({ id, cueId, account }) => {
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    const { bindLibraryToAccount } = await __noacgImport('/src/backend/accountLibrary.ts');
+    const key = 'spx-gfx-shows';
+    const records = JSON.parse(durable.getItem(key)!) as Show[];
+    const cue = records.find(record => record.id === id)!.cues!.find(cue => cue.id === cueId)!;
+    const before = { label: cue.label, note: cue.note ?? null, values: cue.values };
+    localStorage.setItem('spx-gfx-owed-cue-edits', JSON.stringify({ v: 1, shows: {
+      [id]: { cueId, bases: [before], fields: { ...before, label: 'Owed at switch' },
+        commit: { stream: '00000000-0000-4000-8000-000000000004', revision: 1 }, retired: true },
+    } }));
+    const original = IDBObjectStore.prototype.get;
+    IDBObjectStore.prototype.get = function(storedKey) {
+      const request = original.call(this, storedKey);
+      if (storedKey === key && this.transaction.mode === 'readwrite') {
+        IDBObjectStore.prototype.get = original;
+        request.addEventListener('success', () => { void bindLibraryToAccount(account); }, { once: true });
+      }
+      return request;
+    };
+  }, { id: ids.show, cueId: ids.cues[0], account });
+  await Promise.all([page.waitForEvent('load'), page.goto('/app#/production/' + ids.show)]);
+  const stored = await page.evaluate(async ({ id, cueId }) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('noacg-studio');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      const records = await new Promise<Show[]>((resolve, reject) => {
+        const request = db.transaction('kv', 'readonly').objectStore('kv').get('spx-gfx-shows');
+        request.onsuccess = () => resolve(JSON.parse(request.result));
+        request.onerror = () => reject(request.error);
+      });
+      const label = records.find(show => show.id === id)?.cues?.find(cue => cue.id === cueId)?.label;
+      return { label, account: localStorage.getItem('spx-gfx-account') };
+    } finally { db.close(); }
+  }, { id: ids.show, cueId: ids.cues[0] });
+  expect(stored.account).toBe(account);
+  expect(stored.label).toBe('Alpha');
+  const owed = await page.evaluate(id => JSON.parse(localStorage.getItem('spx-gfx-owed-cue-edits') ?? '{}').shows?.[id], ids.show);
+  expect(owed?.fields.label).toBe('Owed at switch');
+});
