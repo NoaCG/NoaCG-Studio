@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Pool the AC-6 timing runs (five.measure.ts `pair`): press to ran with everyone working against
 // the taker's page alone. Every result file of one page count is read, its rounds become pairs
 // (one run each way, run back to back), and the judged number is the pooled p95 difference
@@ -51,7 +50,9 @@ export function bootstrap(pairs, rounds = 2000) {
 }
 
 if (process.argv[1] && process.argv[1].endsWith('summarize-five.mjs')) {
-  const files = readdirSync(dir).filter((f) => f.startsWith(`five-pair-${pages}-${net}${build === 'prod' ? '-prod' : ''}-part`) && f.endsWith('.json'));
+  // The same file name five.measure.ts writes (its TAG).
+  const tag = `five-pair-${pages}-${net}` + (build === 'prod' ? '-prod' : '');
+  const files = readdirSync(dir).filter((f) => f.startsWith(`${tag}-part`) && f.endsWith('.json'));
   const pairs = [];
   let lost = 0;
   const errors = [];
@@ -67,7 +68,7 @@ if (process.argv[1] && process.argv[1].endsWith('summarize-five.mjs')) {
     for (const [round, p] of byRound) if (p.all && p.alone) pairs.push({ file: f, round, all: p.all, alone: p.alone });
   }
   if (!pairs.length) {
-    console.error(`no five-pair-${pages}-${net}${build === 'prod' ? '-prod' : ''} results in ${dir} (pass --build dev for development-server runs)`);
+    console.error(`no ${tag} results in ${dir} (pass --build dev for development-server runs)`);
     process.exit(1);
   }
   const p = pooled(pairs);
