@@ -17,10 +17,21 @@ either on; steps 11 and 12 are only for after that.
 4. You should see: both pictures move together; the light goes green only after both outputs ran
    each command; the server cue plays through NoaCG Bridge.
 
+> **Local check, 2026-11-17: ok.** Both pictures matched at all 22 captures; green came 0.9 to
+> 1.1 s after each press, after the browser output had moved (0.16 to 0.6 s); the server clip
+> played through the Bridge 116 ms after Take. Owner: one look at the pictures is still owed.
+> Evidence: `evidence/phase-9-local/notes.md` (step 1), `s1-c25-*`, `s1-bridge-server-cue-log.txt`.
+
 ## 2. CasparCG 2.3 is no worse than before (O11)
 
 1. Do step 1 again with CasparCG 2.3 (its Chromium 71) instead of 2.5.
 2. You should see: every graphic plays as it did before this run; nothing missing, no new pause.
+
+> **Local check, 2026-11-17: failed.** The output in CasparCG 2.3.3 logs `Uncaught (in promise)
+> TypeError: e.matchAll is not a function` 1.4 s after each load and never joins ("still loading");
+> a Take airs on the browser output only and 2.3 stays empty. `String.matchAll` needs Chrome 73.
+> Whether 2.3 worked before this run was not checked. Evidence: `notes.md` (step 2),
+> `s2-c23-casparcg-log.txt`, `s2-c23-lt-take-*`, `s2-c23-after-load-caspar.png`.
 
 ## 3. A Take of a graphic the output is still loading (D1, S4)
 
@@ -35,12 +46,26 @@ either on; steps 11 and 12 are only for after that.
 6. Judge D1: the run measured 7.6 s on the large fixture on a throttled line (parts on), against the
    5 s ceiling. Is that acceptable on your hardware and network?
 
+> **Local check, 2026-11-17: ok on 2.5 for points 1 to 5; 2.3 not run (step 2 failed).** Taking a
+> just-added graphic without Publish changes goes red "it is not published" (automatic updates are
+> off). After Publish changes: under 5 s it came on with its entrance (1.3 s); over 5 s the cue
+> showed LOADING, the light named it, and it cut in at its final state 11.0 s later, no flash. Out,
+> All out and delete while loading: never appeared on either output. D1 for you to judge, large
+> production, browser output on 20 Mbit/s: 6.6, 8.9 and 12.9 s (CasparCG unthrottled 1.8 to
+> 2.7 s); for the 12.9 s credits roll the light was green 3.4 s before the browser picture
+> appeared. Evidence: `notes.md` (step 3), `s3a-*` to `s3d-*`.
+
 ## 4. An output restarts while a Take is held
 
 1. Take a graphic that is still loading, and restart the output machine (or reload CasparCG's
    template) before it appears.
 2. You should see: after the restart the output shows what is on air, and the light is not green
    until it does.
+
+> **Local check, 2026-11-17: failed on the light's timing.** Both restarted outputs then showed
+> what was on air, but green came before the restarted output drew it: 0.35 s early on the
+> reloaded browser output, about 1 s early on CasparCG after its template was reloaded.
+> Evidence: `notes.md` (step 4), `s4a-*`, `s4b-c25-burst-*` (file names carry the grab time).
 
 ## 5. The light on the studio network
 
@@ -51,6 +76,15 @@ either on; steps 11 and 12 are only for after that.
 4. Repeat 1 on a slow line (a phone hotspot, or about 20 Mbit/s). The run timed the light only on
    an unthrottled line (phase 5): note how long it takes to turn green after a Take.
 
+> **Local check, 2026-11-17: ok, with gaps.** Cable pull emulated on the browser output (offline
+> 20 s; CasparCG shares the page's machine). After a press: amber at 5 s naming "Chrome 157",
+> red at 15 s, green by itself 0.93 s after reconnecting, output caught up. With nothing pressed it
+> stayed green for the 6 s before the first press. Data feed not run (no feed configured). Slow
+> line, 20 Mbit/s: green 0.97 to 1.10 s after each of 10 presses. Also: an output that vanished
+> without leaving stayed "Reconnecting…" and held the light grey "Confirming…" with "(0 s)" for
+> over a minute, never amber. Evidence: `notes.md` (step 5 and setup), `s5-after-reconnect-*`,
+> `s1-page-stale-output-confirming.jpg`.
+
 ## 6. A Take never waits (AC-1)
 
 1. With a mouse, then on a touch screen: type into a cue's field and press Take at once (also Next,
@@ -60,6 +94,12 @@ either on; steps 11 and 12 are only for after that.
 4. You should see: the text is still there after the reload.
 5. A physical panel (Stream Deck or a hardware panel through NoaCG Bridge): Take, Next and Out.
    The Bridge's commands work without a health request before each one.
+
+> **Local check, 2026-11-17: ok with a mouse; touch screen and physical panel not run (owner's).**
+> Typed then clicked TAKE at once: on air with the typed text in 0.5 s; Next, the quick button
+> and +1 all landed (score 0, 1, 2). Typed, TAKE, F5 at once with the output on 1 Mbit/s: the text
+> was still there and on air. Seen on the way: "The rundown changed elsewhere. Undo history was
+> cleared." with nobody else editing. Evidence: `notes.md` (step 6), `s6-*`.
 
 ## 7. Two operators typing on a large production (#2494)
 
@@ -72,6 +112,10 @@ either on; steps 11 and 12 are only for after that.
 
 1. Add the output as a browser input in vMix. Take, update and Out on several layers.
 2. You should see: the same picture as the browser output.
+
+> **Local check, 2026-11-17: ok.** vMix 29 Browser input on overlay 1, counted as a third output:
+> lower third and scorebug on separate layers, Update, Out, quiz Take and Next, All out all
+> matched the browser output. Evidence: `notes.md` (step 8), `s8-*-vmix.png` beside `s8-*-browser.png`.
 
 ## 9. Five people at once in the studio (AC-6)
 
