@@ -351,18 +351,27 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     heldWait = io.setTimeout(() => runHeld(false), FLUSH_DELAY_MS);
   }
 
+  /** The save out now, and the one save waiting for it to answer (#2589, D9). */
+  let sending: Promise<boolean> | null = null;
+  let waiting: Promise<boolean> | null = null;
   const flush = (): Promise<boolean> => {
     stopTimer();
     const d = part.get();
     // After the session's end nothing is owed: the end saved it, and an edit starts nothing.
     if (!d || !pending || !io.canWrite()) return Promise.resolve(true);
+    // One save out at a time: text typed meanwhile goes as one save with the newest text once it
+    // answers, never one save per text (a team save can take longer than the typing gap).
+    if (sending) {
+      waiting ??= sending.then(() => undefined, () => undefined).then(() => { waiting = null; return flush(); });
+      return waiting;
+    }
     pending = false;
     out = d;
     // The store may hold this text from here on, before the history confirms it (a team
     // production's local outbox lands before the server answers): typing on may be applied over it.
     const write = handed(d), commit = commits.get(d), finish = track(commit);
     let confirmedByReceipt = false;
-    return io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
+    const result = io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
       confirmedByReceipt = true;
       confirmed(write, cue);
       forgetCommitted(commit);
@@ -382,6 +391,10 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       }
       return saved;
     }).finally(finish);
+    sending = result;
+    const done = () => { if (sending === result) sending = null; };
+    result.then(done, done);
+    return result;
   };
 
   /** Save synchronously what is owed: pausing and teardown cannot await a microtask. The draft

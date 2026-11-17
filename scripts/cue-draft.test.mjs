@@ -709,15 +709,21 @@ test('P2: while the account may not write, the record stays for a later visit', 
   assert.equal(h.writes.length, 1);
 });
 
-test('P1: every save handed over and not yet confirmed stays listed, however many', () => {
+test('P1: every save handed over and not yet confirmed stays listed, however many', async () => {
   // PR review of b584860: a team production's saves can wait on the server while each is already
   // in its local outbox, so none of them may fall off the list before a later one is confirmed.
+  // One save is out at a time (#2589, D9): each next text is handed over once the one before answers.
   const h = harness();
   const stop = h.draft.listen(h.adapters);
-  for (let i = 1; i <= 10; i++) {
+  h.draft.edit(OPENER, { values: { f0: 'T1' } });
+  void h.draft.flush();
+  for (let i = 2; i <= 10; i++) {
     h.draft.edit(OPENER, { values: { f0: `T${i}` } });
     void h.draft.flush();
+    h.writes.at(-1).answer(false);
+    await new Promise(resolve => setImmediate(resolve));
   }
+  assert.deepEqual(h.writes.map(w => w.fields.values.f0), ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10']);
   h.draft.edit(OPENER, { values: { f0: 'Last' } });
   for (const run of h.listeners.hide) run(true);
   assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['Anna Riva', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10']);
@@ -725,13 +731,15 @@ test('P1: every save handed over and not yet confirmed stays listed, however man
 });
 
 test('P1: a confirmed save keeps every text handed over after it listed', async () => {
-  // Delta review of 6a53c40: T2 may still wait in a team outbox when T1 is confirmed.
+  // Delta review of 6a53c40: T2 may still wait in a team outbox when T1 is confirmed. With one save
+  // out at a time (#2589, D9), T2 reaches the store beside T1 through a pause's synchronous save.
   const h = harness();
   const stop = h.draft.listen(h.adapters);
   h.draft.edit(OPENER, { values: { f0: 'T1' } });
   const first = h.draft.flush();
   h.draft.edit(OPENER, { values: { f0: 'T2' } });
-  void h.draft.flush();
+  for (const run of h.listeners.hide) run(false);
+  assert.deepEqual(h.retained.map(r => r.fields.values.f0), ['T2']);
   h.draft.edit(OPENER, { values: { f0: 'T3' } });
   h.writes[0].answer(true);
   await first;
@@ -1012,4 +1020,50 @@ test('the editor moving to another cue starts the save of the draft it left, onc
   assert.equal(h.session.draft.get().values.f0, 'Typed on air', 'a failed save keeps the draft');
   for (const run of h.listeners.hide) run(true);
   assert.deepEqual(h.retained.map((r) => r.fields.values.f0), ['Typed on air'], 'and the page going saves it');
+});
+
+for (const answer of [false, true]) {
+  test(`#2589 D9: one save out at a time; text typed meanwhile goes as one save of the newest text (first save ${answer ? 'confirmed' : 'refused'})`, async () => {
+    // Seven people saving one team production: each save waits through refusals and merges and can
+    // take longer than the typing gap. One save per typed text queued behind it put the record
+    // dozens of texts behind; the newest text must go next, alone.
+    const h = harness();
+    const stop = h.draft.listen(h.adapters);
+    h.draft.edit(OPENER, { values: { f0: '#1' } });
+    const first = h.draft.flush();
+    const waits = [];
+    for (let i = 2; i <= 6; i++) {
+      h.draft.edit(OPENER, { values: { f0: `#${i}` } });
+      h.tick(); // the idle save falls due while #1 is still out
+      waits.push(h.draft.flush());
+    }
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(h.writes.map(w => w.fields.values.f0), ['#1'], 'nothing else is sent while a save is out');
+    h.writes[0].answer(answer);
+    assert.equal(await first, answer);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(h.writes.map(w => w.fields.values.f0), ['#1', '#6'], 'the newest text goes as one save');
+    h.writes[1].answer(true);
+    assert.deepEqual(await Promise.all(waits), waits.map(() => true), 'every caller waits for the newest text');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(h.writes.length, 2);
+    assert.equal(h.session.draft.get(), null, 'nothing is owed');
+    stop();
+  });
+}
+
+test('#2589 D9: the page going while a save is out saves the newest text at once', async () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: '#1' } });
+  void h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: '#2' } });
+  const waiting = h.draft.flush();
+  for (const run of h.listeners.hide) run(true);
+  assert.deepEqual(h.retained.map(r => r.fields.values.f0), ['#2']);
+  assert.equal(h.owed?.fields.values.f0, '#2');
+  h.writes[0].answer(false);
+  assert.equal(await waiting, true, 'the retained text is no longer owed');
+  assert.equal(h.writes.length, 1);
+  stop();
 });
