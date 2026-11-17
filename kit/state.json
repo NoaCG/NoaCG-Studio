@@ -4896,6 +4896,13 @@
     "builder": "/root/editor_panels_builder",
     "verification": "Original divider handler reproduced four bad writes. Corrected handler 5/5, panel units 5/5, affected tests 19/19, lint, app types and diff check passed. Browser targeted cases listed, not run. j-5322 cancelled before source modification due 2.1 GB available versus 3.5 GB queue floor.",
     "cloud": "Cloud CLI could not read original task (404) and cannot resolve saved environment binding. Desktop lists the NoaCG-Studio saved Cloud configuration. No new Cloud task dispatched.",
-    "remaining": "Focused panel browser including rendered bounds, keyboard/pointer, retention, native zoom and unchanged nested SVG witness; exact final independent review; CI and landing. Hosted blank walkthrough remains pending."
+    "remaining": "Focused panel browser including rendered bounds, keyboard/pointer, retention, native zoom and unchanged nested SVG witness; exact final independent review; CI and landing. Hosted blank walkthrough remains pending.",
+    "requestedVerification": {
+      "nonce": "e5f-panels-4ff51a0f-125-svg",
+      "route": "User-requested separate Codex Cloud chat using saved NoaCG-Studio environment configuration",
+      "requestedAt": "2026-11-17T16:33:34.4852219Z",
+      "status": "Intended; no delivery observed yet",
+      "scope": "Exact candidate only. Real 125 percent zoom, unchanged nested SVG test, and independent panel review. Current coordinator owns disposition and landing."
+    }
   }
 }
