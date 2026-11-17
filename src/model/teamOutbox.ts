@@ -1,5 +1,6 @@
 import { durable, libraryInUse } from './durableStore';
 import type { Show } from './shows';
+import type { TeamCueDraftText } from './teamShowMerge';
 
 export interface PendingTeamEdit {
   token: string;
@@ -7,6 +8,7 @@ export interface PendingTeamEdit {
   local: Show;
   teamId: string;
   updatedBy: string | null;
+  cueDrafts?: TeamCueDraftText[];
 }
 const KEY = 'spx-gfx-team-outbox';
 interface Outbox { v: 1; owner: string; edits: Record<string, PendingTeamEdit> }
@@ -23,6 +25,11 @@ function read(owner: string): Outbox {
     if (!edit || typeof edit.token !== 'string' || typeof edit.teamId !== 'string' || edit.base?.id !== id || edit.local?.id !== id || edit.local.teamId !== edit.teamId || !Array.isArray(edit.local.graphics) || !Array.isArray(edit.base.graphics)) {
       throw new Error('Pending team work has an unreadable record. Its saved data is preserved; export it before attempting recovery.');
     }
+    if (edit.cueDrafts !== undefined && (!Array.isArray(edit.cueDrafts) || edit.cueDrafts.some(draft =>
+      !draft || typeof draft.cueId !== 'string' || typeof draft.before !== 'string' || typeof draft.after !== 'string'
+    ))) {
+      throw new Error('Pending cue drafts cannot be read safely; export pending work before attempting recovery.');
+    }
   }
   return parsed;
 }
@@ -36,7 +43,7 @@ export function exportPendingTeamWork(owner: string): string | null {
 }
 export function retainTeamEdit(owner: string, id: string, edit: PendingTeamEdit): void {
   const box = read(owner);
-  box.edits[id] = edit;
+  box.edits[id] = edit.cueDrafts?.length ? edit : { ...edit, cueDrafts: undefined };
   durable.setItem(KEY, JSON.stringify(box));
 }
 /** A late acknowledgement may remove only the revision it actually saved. */

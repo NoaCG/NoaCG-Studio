@@ -30,20 +30,31 @@ import {
   removeTeamShow,
   setTeamShowsStatus,
 } from '../model/teamShows';
-import { mergeTeamShow } from '../model/teamShowMerge';
+import { guardMergedCueDrafts, mergeTeamShow, type TeamCueDraftText } from '../model/teamShowMerge';
 import { settleGraphics } from '../model/copySettle';
 import { canAuthorAccount, commitDurableWrites, libraryInUse } from '../model/durableStore';
 import { acknowledgeTeamEdit, pendingTeamEdits, retainTeamEdit } from '../model/teamOutbox';
-import { replaceRundown, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../model/rundownHistory';
+import { cueTextKey, replaceRundown, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../model/rundownHistory';
 import { blobToDataUrl, classifyAssetRefusal, dataUrlToBlob, externalizeSharedAssets, rehydrateSharedAssets } from './assets';
 import { backoffDelay } from './pacing';
 import { diff, storedMap, type PatchOp, type UnitMap } from './unitPatch';
 import { noteWritten, partialWritesOn, unitPace } from './partialWrites';
 
-export interface TeamRundownReceipt { owner: object | null; token: string | null; id: string }
+export interface TeamRundownReceipt {
+  owner: object | null;
+  token: string | null;
+  id: string;
+  draftLineage?: symbol;
+}
 export function beginTeamRundownEdit(id: string): TeamRundownReceipt {
   return { owner: running, token: server.get(id)?.token ?? null, id };
 }
+/** Capture the lineage synchronously with the draft's checked outbox write. */
+export function bindTeamCueDraft(receipt: TeamRundownReceipt, cueId: string, text: string): void {
+  if (receipt.owner !== running) return;
+  receipt.draftLineage = localCueDrafts.get(receipt.id)?.find(draft => draft.cueId === cueId && draft.after === text)?.lineage;
+}
+
 /** A clean global saving flag alone cannot acknowledge a specific edit. */
 export async function commitTeamRundownEdit(receipt: TeamRundownReceipt, intended: RundownSlice): Promise<string | null> {
   const error = await flushTeamProduction(receipt.id);
@@ -52,6 +63,15 @@ export async function commitTeamRundownEdit(receipt: TeamRundownReceipt, intende
   if (receipt.owner !== running || !receipt.token || !known || known.token === receipt.token) return 'This rundown save has not been confirmed.';
   if (!local || !sameRundown(rundownSlice(known.doc), intended) || !sameRundown(rundownSlice(local), intended)) return RUNDOWN_CHANGED;
   return null;
+}
+
+export function confirmedTeamCueText(receipt: TeamRundownReceipt, cueId: string, text: string): string | null {
+  const known = server.get(receipt.id);
+  if (!known || !receipt.token || receipt.owner !== running || known.token === receipt.token) return null;
+  const actual = cueTextKey(known.doc, cueId);
+  return actual === text || known.normalizedCueDrafts?.some(draft =>
+    draft.cueId === cueId && draft.lineage === receipt.draftLineage
+    && draft[submittedText] === text && draft.after === actual) ? actual : null;
 }
 
 export interface TeamRestoreResult { status: 'saved' | 'refused' | 'failed'; error: string | null }
@@ -83,7 +103,7 @@ export async function restoreTeamRundown(
         // Keep the old base/token if newer work is waiting. Its ordinary save must encounter
         // this accepted inverse as a CAS conflict and merge that newer work onto it.
         if (dirty.has(id) || !current || !sameRundown(rundownSlice(current), expected)) return refused(RUNDOWN_CHANGED);
-        server.set(id, { ...known, token: answer.updatedAt, doc: teamDoc(next.show), updatedBy: answer.updatedBy });
+        server.set(id, { token: answer.updatedAt, doc: teamDoc(next.show), updatedBy: answer.updatedBy, teamId: known.teamId });
         setState({ heads: { ...state.heads, [id]: { id, teamId: known.teamId, updatedAt: answer.updatedAt, updatedBy: answer.updatedBy } } });
         applyServerTeamShow(next.show);
         return { status: 'saved', error: null };
@@ -92,7 +112,7 @@ export async function restoreTeamRundown(
       if (dirty.has(id) || !current || !sameRundown(rundownSlice(current), expected)) return refused(RUNDOWN_CHANGED);
       if (!answer.doc || answer.doc.version !== 2 || !Array.isArray(answer.doc.graphics)) return { status: 'failed', error: 'The team revision could not be read safely.' };
       const fresh = teamDoc(teamRecord(answer.doc, { id, team_id: known.teamId, updated_at: answer.updatedAt, updated_by: answer.updatedBy }));
-      server.set(id, { ...known, token: answer.updatedAt, doc: fresh, updatedBy: answer.updatedBy });
+      server.set(id, { token: answer.updatedAt, doc: fresh, updatedBy: answer.updatedBy, teamId: known.teamId });
       applyServerTeamShow({ ...fresh, teamId: known.teamId });
       setState({ heads: { ...state.heads, [id]: { id, teamId: known.teamId, updatedAt: answer.updatedAt, updatedBy: answer.updatedBy } } });
       if (!sameRundown(rundownSlice(fresh), expected)) return refused(RUNDOWN_CHANGED);
@@ -420,8 +440,26 @@ function noteSave(failed: boolean): void {
 
 /** What the server last said about each production: its token and document - the BASE a local
  *  edit started from, which the merge needs. */
-const server = new Map<string, { token: string; doc: Show; updatedBy: string | null; teamId: string }>();
+type ServerProduction = { token: string; doc: Show; updatedBy: string | null; teamId: string; normalizedCueDrafts?: LocalCueDraft[] };
+const server = new Map<string, ServerProduction>();
+
+/** An acknowledgement follows the exact text through unrelated revisions. It is never merge input. */
+function rememberTeamHead(id: string, head: ServerProduction, accepted: readonly LocalCueDraft[] = []): void {
+  const prior = server.get(id);
+  const acknowledgements = new Map<string, LocalCueDraft>();
+  const carried = prior?.teamId === head.teamId ? prior.normalizedCueDrafts ?? [] : [];
+  for (const draft of [...carried, ...accepted]) {
+    if (draft[submittedText] !== undefined && cueTextKey(head.doc, draft.cueId) === draft.after) {
+      acknowledgements.set(draft.cueId, draft);
+    }
+  }
+  server.set(id, { ...head, normalizedCueDrafts: [...acknowledgements.values()] });
+}
 const dirty = new Set<string>();
+const sendingShows = new Map<string, Show>();
+const submittedText = Symbol();
+type LocalCueDraft = TeamCueDraftText & { lineage: symbol; [submittedText]?: string };
+const localCueDrafts = new Map<string, LocalCueDraft[]>();
 const inflight = new Set<string>();
 /** The line a failed save left in `notes`, to take back when a later save lands. */
 const failureNotes = new Map<string, string>();
@@ -481,6 +519,8 @@ export function stopTeamSync(): void {
   server.clear();
   dirty.clear();
   inflight.clear();
+  sendingShows.clear();
+  localCueDrafts.clear();
   failureNotes.clear();
   knownAssets.clear();
   refusedAssets.clear();
@@ -595,6 +635,13 @@ async function refreshOnce(): Promise<void> {
       }
       server.set(id, { token: edit.token, doc: edit.base, teamId: edit.teamId, updatedBy: edit.updatedBy });
       before.set(id, server.get(id)!); // the pass's own restore is not a change made meanwhile
+      const lineages = new Map<string, symbol>();
+      const drafts = (edit.cueDrafts ?? []).map(proof => {
+        const lineage = lineages.get(proof.cueId) ?? Symbol();
+        lineages.set(proof.cueId, lineage);
+        return { ...proof, lineage };
+      });
+      rememberCueDrafts(id, edit.local, drafts);
       applyServerTeamShow(edit.local);
       dirty.add(id);
       setSaving(id, 'pending');
@@ -626,7 +673,7 @@ async function refreshOnce(): Promise<void> {
   for (const id of [...dirty, ...inflight, ...changed]) keep.add(id);
   for (const row of docs.rows) {
     if (keep.has(row.id)) continue;
-    server.set(row.id, {
+    rememberTeamHead(row.id, {
       token: row.updated_at,
       doc: teamDoc(teamRecord(row.doc, row)),
       updatedBy: row.updated_by,
@@ -667,14 +714,46 @@ function setSaving(id: string, value: 'pending' | 'failed' | null): void {
   setState({ saving });
 }
 
-function scheduleSave(id: string): void {
+/** Keep only proofs for the local snapshot this controller actually adopted. */
+function rememberCueDrafts(id: string, local: Show, drafts: LocalCueDraft[]): LocalCueDraft[] {
+  const applicable = drafts.filter(proof => cueTextKey(local, proof.cueId) === proof.after);
+  if (applicable.length) localCueDrafts.set(id, applicable);
+  else localCueDrafts.delete(id);
+  return applicable;
+}
+
+/** A returned server document consumes already observed text on either CAS outcome. */
+function remainingCueDrafts(drafts: LocalCueDraft[], before: Show, observed: Show): LocalCueDraft[] {
+  return drafts.filter(proof => {
+    const text = cueTextKey(observed, proof.cueId);
+    return text !== null && proof.after !== text && (proof.before === text || text === cueTextKey(before, proof.cueId));
+  });
+}
+
+function scheduleSave(id: string, draft?: TeamCueDraftText, previous?: Show | null): void {
   dirty.add(id);
   setSaving(id, 'pending');
   const known = server.get(id);
   const local = loadTeamShows().find(s => s.id === id);
   try {
     if (!running || !known || !local) throw new Error('No verified team revision is available. The edit has not been saved to cloud.');
-    retainTeamEdit(running.userId, id, { token: known.token, base: known.doc, local, teamId: known.teamId, updatedBy: known.updatedBy });
+    const earlier = (localCueDrafts.get(id) ?? []).filter(proof =>
+      previous === undefined || cueTextKey(previous ?? {}, proof.cueId) === proof.after);
+    const proofs = earlier.filter(proof => cueTextKey(local, proof.cueId) === proof.after);
+    if (draft && draft.before !== draft.after && cueTextKey(local, draft.cueId) === draft.after
+      && cueTextKey(previous ?? {}, draft.cueId) === draft.before) {
+      const cloudText = cueTextKey(known.doc, draft.cueId);
+      const sentText = cueTextKey(sendingShows.get(id) ?? {}, draft.cueId);
+      // Keep contiguous checked transitions from the start, the sent snapshot, and this edit.
+      const chain = earlier.filter(prior => prior.cueId === draft.cueId && prior.after === draft.before);
+      const lineage = chain[0]?.lineage ?? Symbol();
+      const anchors = new Set(chain.filter((prior, index) =>
+        index === 0 || prior.before === cloudText || prior.before === sentText).map(prior => prior.before));
+      anchors.add(draft.before);
+      for (const before of anchors) if (before !== draft.after) proofs.push({ ...draft, before, lineage });
+    }
+    const cueDrafts = rememberCueDrafts(id, local, proofs);
+    retainTeamEdit(running.userId, id, { token: known.token, base: known.doc, local, teamId: known.teamId, updatedBy: known.updatedBy, cueDrafts });
   } catch (error) {
     setSaving(id, 'failed');
     noteFailure(id, error instanceof Error ? error.message : String(error));
@@ -723,14 +802,18 @@ async function pushSave(id: string): Promise<void> {
   let doc = teamDoc(sent);
   let failure: string | null = null;
   try {
+    let cueDrafts = rememberCueDrafts(id, doc, localCueDrafts.get(id) ?? []);
+    let normalizedNoops: LocalCueDraft[] = [];
     const settled = settleGraphics(sent.graphics, base.graphics, new Date().toISOString());
     if (settled.changed) {
       sent = { ...sent, graphics: settled.graphics };
       applyServerTeamShow(sent);
-      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: known.updatedBy, teamId: known.teamId });
       doc = teamDoc(sent);
+      cueDrafts = rememberCueDrafts(id, doc, cueDrafts);
+      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: known.updatedBy, teamId: known.teamId, cueDrafts });
     }
     for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
+      sendingShows.set(id, doc);
       const { answer, error } = await saveTeamProduction(id, token, doc, known.teamId);
       if (running !== owner || owner.userId !== libraryInUse()) return;
       if (!answer) {
@@ -740,7 +823,19 @@ async function pushSave(id: string): Promise<void> {
       }
       if (answer.saved) {
         acknowledgeTeamEdit(owner.userId, id, sent);
-        server.set(id, { token: answer.updatedAt, doc, updatedBy: answer.updatedBy, teamId: known.teamId });
+        rememberTeamHead(id, { token: answer.updatedAt, doc, updatedBy: answer.updatedBy, teamId: known.teamId },
+          [...cueDrafts, ...normalizedNoops]);
+        const current = loadTeamShows().find(show => show.id === id);
+        const newer = pendingTeamEdits(owner.userId)[id];
+        const proofs = remainingCueDrafts(localCueDrafts.get(id) ?? [], base, doc);
+        if (dirty.has(id) && current) {
+          const cueDrafts = rememberCueDrafts(id, current, proofs);
+          if (newer?.token === token && JSON.stringify(current) === JSON.stringify(newer.local)) {
+            retainTeamEdit(owner.userId, id, {
+              ...newer, token: answer.updatedAt, base: doc, updatedBy: answer.updatedBy, cueDrafts,
+            });
+          }
+        } else localCueDrafts.delete(id);
         setState({
           heads: { ...state.heads, [id]: { id, teamId: known.teamId, updatedAt: answer.updatedAt, updatedBy: answer.updatedBy } },
         });
@@ -748,21 +843,41 @@ async function pushSave(id: string): Promise<void> {
       }
       // Refused: a teammate saved first. Their document is the new base.
       const theirs = teamDoc(teamRecord(answer.doc, { id, team_id: known.teamId, updated_at: answer.updatedAt, updated_by: answer.updatedBy }));
-      server.set(id, { token: answer.updatedAt, doc: theirs, updatedBy: answer.updatedBy, teamId: known.teamId });
-      const merged = mergeTeamShow(base, doc, theirs, new Date().toISOString());
+      rememberTeamHead(id, { token: answer.updatedAt, doc: theirs, updatedBy: answer.updatedBy, teamId: known.teamId });
+      const now = loadTeamShows().find((s) => s.id === id);
+      const latestDrafts = (localCueDrafts.get(id) ?? []).filter(proof =>
+        cueTextKey(now ?? {}, proof.cueId) === proof.after);
+      // An ordinary text change can revoke a sent draft even if the text later matches again.
+      const continuing = cueDrafts.filter(sentDraft => latestDrafts.some(draft => draft.lineage === sentDraft.lineage));
+      const merged = mergeTeamShow(base, doc, theirs, new Date().toISOString(), continuing);
       // The operator may have typed on while the save was out; that edit is merged on top rather
       // than overwritten by the result.
-      const now = loadTeamShows().find((s) => s.id === id);
       let next = merged.doc;
+      let applied = merged.appliedDrafts ?? [];
       // What either merge had to give up, and whether either put a folder back together, is said once.
       let lost = merged.lost;
       let gathered = merged.gathered;
       if (now && JSON.stringify(teamDoc(now)) !== JSON.stringify(teamDoc(sent))) {
-        const again = mergeTeamShow(teamDoc(sent), teamDoc(now), merged.doc, new Date().toISOString());
+        const current = teamDoc(now);
+        // The retry can continue checked text that this merge applied over the server's baseline.
+        const newerDrafts = latestDrafts.flatMap(proof => {
+          const remoteText = cueTextKey(theirs, proof.cueId);
+          const first = applied.find(draft => draft.cueId === proof.cueId);
+          const predecessor = first && continuing.some(sentDraft => sentDraft.lineage === proof.lineage
+            && sentDraft.before === remoteText && sentDraft.after === first.input);
+          if (first && predecessor && (proof.before === first.input || proof.before === remoteText)) {
+            return [{ ...proof, before: first.after }];
+          }
+          return remoteText === proof.before ? [proof] : [];
+        });
+        const again = mergeTeamShow(doc, current, merged.doc, new Date().toISOString(), newerDrafts, applied);
         next = again.doc;
+        applied = again.appliedDrafts ?? [];
         lost = [...new Set([...lost, ...again.lost])];
         gathered ||= again.gathered;
       }
+      const guarded = guardMergedCueDrafts(next, theirs, [...continuing, ...latestDrafts, ...applied]);
+      if (guarded.length) lost = [...new Set([...lost, ...guarded])];
       if (lost.length > 0 || gathered) {
         const who = teamMemberName(known.teamId, answer.updatedBy);
         const at = new Date(answer.updatedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -777,10 +892,30 @@ async function pushSave(id: string): Promise<void> {
       next = separateMergedScenes(next, theirs);
       applyServerTeamShow({ ...next, teamId: known.teamId });
       sent = { ...next, teamId: known.teamId };
+      const pending = remainingCueDrafts(latestDrafts, base, theirs);
+      normalizedNoops = normalizedNoops.filter(result =>
+        cueTextKey(now ?? {}, result.cueId) === result.after && cueTextKey(theirs, result.cueId) === result.after
+        && cueTextKey(next, result.cueId) === result.after);
+      for (const result of applied) {
+        const proof = [...latestDrafts, ...continuing].find(draft => draft.cueId === result.cueId && draft.after === result.input);
+        const before = cueTextKey(theirs, result.cueId);
+        if (!proof || before === null || cueTextKey(next, result.cueId) !== result.after) continue;
+        const nextProof = { ...proof, before, after: result.after, [submittedText]: proof[submittedText] ?? result.input };
+        if (before === result.after) {
+          normalizedNoops.push(nextProof);
+        } else {
+          // Replace an identical pending endpoint so its normalization receipt is retained too.
+          const duplicate = pending.findIndex(draft => draft.cueId === result.cueId && draft.lineage === proof.lineage
+            && draft.before === before && draft.after === result.after);
+          if (duplicate >= 0) pending[duplicate] = nextProof;
+          else pending.push(nextProof);
+        }
+      }
       base = theirs;
       token = answer.updatedAt;
       doc = teamDoc(next);
-      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: answer.updatedBy, teamId: known.teamId });
+      cueDrafts = rememberCueDrafts(id, doc, pending);
+      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: answer.updatedBy, teamId: known.teamId, cueDrafts });
       if (attempt === MAX_SAVE_ATTEMPTS - 1) {
         failure = 'Teammates keep saving this production - your edit is on screen but not saved yet.';
         dirty.add(id);
@@ -791,7 +926,10 @@ async function pushSave(id: string): Promise<void> {
     failure = error instanceof Error ? error.message : String(error);
     dirty.add(id);
   } finally {
-    if (running === owner) inflight.delete(id);
+    if (running === owner) {
+      sendingShows.delete(id);
+      inflight.delete(id);
+    }
   }
   if (running !== owner) return;
   noteSave(failure !== null);

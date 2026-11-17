@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import * as history from '../src/model/rundownHistory.ts';
+import * as teamMerge from '../src/model/teamShowMerge.ts';
 import { rolldown } from 'rolldown';
 import * as pacing from '../src/backend/pacing.ts';
 import * as copySettle from '../src/model/copySettle.ts';
@@ -22,13 +23,13 @@ const deferred = () => {
 };
 
 /** Execute the real save controller with a delayed disk and RPC, without an account/server. */
-function harness(pending = true, graphics = [], storage = undefined, settle = { settleGraphics: (graphics) => ({ graphics, changed: false }) }, retainFails = { left: 0 }) {
+function harness(pending = true, graphics = [], storage = undefined, settle = { settleGraphics: (graphics) => ({ graphics, changed: false }) }, retainFails = { left: 0 }, cues = undefined, extra = {}) {
   const disk = deferred();
   const request = deferred();
   const requests = [];
   const answers = [];
-  let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics };
-  let retained = local;
+  let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics, ...(cues ? { cues } : {}), ...extra };
+  let retained = { local };
   const stubs = {
     './supabase': { getSupabase: async () => ({ storage, rpc: async (_name, args) => { requests.push(args); return answers.length ? answers.shift() : request.promise; } }) },
     './teams': {},
@@ -37,19 +38,20 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     // Saves in parts (live-publishing G4) are off here: the whole save these tests pin.
     './partialWrites': { partialWritesOn: async () => false, unitPace: async () => {}, noteWritten: () => {} },
     './unitPatch': {},
-    '../model/shows': {},
+    '../model/shows': { separateMergedScenes: show => show },
     '../model/teamShows': { loadTeamShows: () => [local], applyServerTeamShow: doc => { local = doc; } },
     '../model/rundownHistory': history,
-    '../model/teamShowMerge': {},
+    '../model/teamShowMerge': teamMerge,
     // The send-time settle (live-publishing W2) is copy-settle.test.mjs's; nothing here differs in design.
     '../model/copySettle': settle,
     '../model/durableStore': { canAuthorAccount: () => true, libraryInUse: () => 'owner', commitDurableWrites: () => disk.promise },
     '../model/teamOutbox': {
       retainTeamEdit: (_owner, _id, edit) => {
         if (retainFails.left > 0) { retainFails.left -= 1; throw new Error('Browser storage is full.'); }
-        retained = edit.local;
+        retained = edit;
       },
-      acknowledgeTeamEdit: (_owner, _id, sent) => { if (JSON.stringify(retained) === JSON.stringify(sent)) retained = null; },
+      pendingTeamEdits: () => retained ? { show: retained } : {},
+      acknowledgeTeamEdit: (_owner, _id, sent) => { if (JSON.stringify(retained?.local) === JSON.stringify(sent)) retained = null; },
     },
   };
   // Only seed the controller's existing revision and announce real edits. No save implementation
@@ -60,7 +62,8 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
       server.set(doc.id, { token: 'base', doc, teamId: 'team', updatedBy: 'owner' });
       if (pending) { dirty.add(doc.id); setSaving(doc.id, 'pending'); }
     }
-    export function editForTest(id: string) { scheduleSave(id); }
+    export function editForTest(id: string, draft?: TeamCueDraftText, previous?: Show) { scheduleSave(id, draft, previous); }
+    export function pushForTest(id: string) { return pushSave(id); }
     export function seedBaseForTest(doc: Show) { server.set(doc.id, { token: 'base', doc, teamId: 'team', updatedBy: 'owner' }); }
     export function pacingForTest() { return { readFailures, readsResumeAt, saveFailures, savesResumeAt }; }
     export function noteReadForTest(failed: boolean) { noteRead(failed); }
@@ -77,7 +80,19 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     controller: exports, disk, request, requests, answers,
     local: () => local,
     edit(name) { local = { ...local, name }; exports.editForTest(local.id); },
-    retained: () => retained,
+    connectWords(recipe) {
+      const previous = local;
+      local = { ...local, collections: [recipe] };
+      exports.editForTest(local.id, undefined, previous);
+    },
+    typeCue(cueId, label, values) {
+      const previous = local;
+      local = { ...local, cues: local.cues.map(cue => cue.id === cueId ? { ...cue, label, values: values ?? cue.values } : cue) };
+      exports.editForTest(local.id, {
+        cueId, before: history.cueTextKey(previous, cueId), after: history.cueTextKey(local, cueId),
+      }, previous);
+    },
+    retained: () => retained?.local ?? null,
   };
 }
 
@@ -93,6 +108,139 @@ test('team flush includes an edit made while its browser-storage commit was pend
   assert.equal(await saving, null);
   assert.equal(h.retained(), null);
   assert.equal(h.controller.getTeamState().saving.show, undefined);
+});
+
+test('two CAS refusals retire the observed prefix of a still-checked cue draft', async () => {
+  const cue = { id: 'cue', sourceId: 'g', label: 'A', values: {} };
+  const h = harness(false, [], undefined, undefined, undefined, [cue]);
+  const base = h.local();
+  h.typeCue(cue.id, 'B');
+  h.disk.resolve(null);
+  const pushed = h.controller.pushForTest(base.id);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.requests[0]?.p_doc.cues[0]?.label, 'B');
+  h.typeCue(cue.id, 'C');
+  const advanced = { ...base, cues: [{ ...cue, label: 'B', accentColor: '#9900CC' }] };
+  const remote = { ...base, cues: [{ ...cue, accentColor: '#6600CC' }] };
+  h.answers.push(
+    { data: { saved: false, updated_at: 'second-head', doc: remote }, error: null },
+    { data: { saved: true, updated_at: 'accepted' }, error: null },
+  );
+  h.request.resolve({ data: { saved: false, updated_at: 'first-head', doc: advanced }, error: null });
+  await pushed;
+  assert.deepEqual(h.requests.map(request => request.p_doc.cues[0]?.label), ['B', 'C', 'A']);
+  assert.equal(h.requests[2].p_doc.cues[0].accentColor, '#6600CC');
+});
+
+for (const scenario of ['two refusals', 'typing during the first save', 'only the hidden word', 'competing text', 'connected after first merge']) {
+  test('a team draft follows the stored words after hidden-word cleanup: ' + scenario, async () => {
+    const words = f2 => ({ f0: 'YOUR WORDS', f1: 'One word?', f2 });
+    const connected = scenario === 'connected after first merge';
+    const recipe = { id: 'r-words', v: 1, fields: {} };
+    const cue = {
+      id: 'c-word', sourceId: 'g-cloud', label: 'Words: One word?', values: words('keep | 1'),
+      ...(connected ? { selection: { v: 1, recipe: recipe.id, key: ['words'] } } : {}),
+    };
+    const fields = ['Label', 'Question', 'Words'].map((title, index) => ({ field: 'f' + index, title, ftype: 'textfield' }));
+    const graphic = { id: 'g-cloud', name: 'House Word Cloud', type: 'x', savedAt: '', template: { name: 'House Word Cloud', fields } };
+    const question = { id: 'q-word', type: 'word', text: 'One word?' };
+    const h = harness(false, [graphic], undefined, undefined, undefined, [cue], {
+      questions: [question], resultCues: { 'q-word': cue.id }, ...(connected ? { collections: [recipe] } : {}),
+    });
+    const base = h.local(), receipt = h.controller.beginTeamRundownEdit(base.id);
+    const onlyHidden = scenario === 'only the hidden word';
+    const initial = onlyHidden ? 'keep | 1\napple | 1' : 'keep | 1\napple | 1\nnew | 1';
+    h.typeCue(cue.id, cue.label, words(initial));
+    const submitted = history.cueTextKey(h.local(), cue.id);
+    h.controller.bindTeamCueDraft(receipt, cue.id, submitted);
+    h.disk.resolve(null);
+    const pushed = h.controller.pushForTest(base.id);
+    await new Promise(resolve => setImmediate(resolve));
+    if (scenario === 'typing during the first save') h.typeCue(cue.id, cue.label, words(initial + '\nnewer | 1'));
+    if (connected) h.connectWords({ ...recipe, fields: { f2: { from: 'words' } } });
+    const first = {
+      ...base,
+      questions: [{ ...question, hidden: ['apple'] }],
+      cues: scenario === 'competing text' ? [{ ...cue, values: words('changed elsewhere | 3') }] : [cue],
+    };
+    const second = { ...first, cues: [{ ...first.cues[0], accentColor: '#6600CC' }] };
+    h.answers.push(
+      { data: { saved: false, updated_at: '2026-11-15T12:02:00.000Z', doc: second }, error: null },
+      { data: { saved: true, updated_at: '2026-11-15T12:03:00.000Z' }, error: null },
+    );
+    h.request.resolve({ data: { saved: false, updated_at: '2026-11-15T12:01:00.000Z', doc: first }, error: null });
+    await pushed;
+    let expected = 'keep | 1\nnew | 1';
+    if (scenario === 'typing during the first save') expected += '\nnewer | 1';
+    if (onlyHidden || connected) expected = 'keep | 1';
+    if (scenario === 'competing text') expected = 'changed elsewhere | 3';
+    assert.deepEqual(h.requests.map(request => request.p_doc.cues[0].values.f2), [initial, expected, expected]);
+    assert.equal(h.requests.at(-1).p_doc.cues[0].accentColor, '#6600CC');
+    const confirmed = h.controller.confirmedTeamCueText(receipt, cue.id, submitted);
+    const accepted = history.cueTextKey(h.requests.at(-1).p_doc, cue.id);
+    assert.equal(confirmed, scenario === 'two refusals' || onlyHidden ? accepted : null);
+    assert.equal(h.controller.confirmedTeamCueText({ ...receipt, draftLineage: Symbol() }, cue.id, submitted), null);
+  });
+}
+
+test('an unrelated follow-up acknowledgement preserves the exact normalized team receipt', async () => {
+  const words = f2 => ({ f0: 'YOUR WORDS', f1: 'One word?', f2 });
+  const cue = { id: 'c-word', sourceId: 'g-cloud', label: 'Words', values: words('keep | 1') };
+  const other = { id: 'c-other', sourceId: 'g-cloud', label: 'Other', values: words('other | 1') };
+  const fields = ['Label', 'Question', 'Words'].map((title, index) => ({ field: 'f' + index, title, ftype: 'textfield' }));
+  const graphic = { id: 'g-cloud', name: 'House Word Cloud', type: 'x', savedAt: '', template: { name: 'House Word Cloud', fields } };
+  const question = { id: 'q-word', type: 'word', text: 'One word?' };
+  const h = harness(false, [graphic], undefined, undefined, undefined, [cue, other], {
+    questions: [question], resultCues: { 'q-word': cue.id },
+  });
+  const base = h.local(), receipt = h.controller.beginTeamRundownEdit(base.id);
+  h.typeCue(cue.id, cue.label, words('keep | 1\napple | 1\nnew | 1'));
+  const submitted = history.cueTextKey(h.local(), cue.id);
+  h.controller.bindTeamCueDraft(receipt, cue.id, submitted);
+  const saved = h.controller.commitTeamRundownEdit(receipt, history.rundownSlice(h.local()));
+  h.disk.resolve(null);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.requests.length, 1);
+  const retryResponse = deferred();
+  h.answers.push(retryResponse.promise);
+  const them = { ...base, questions: [{ ...question, hidden: ['apple'] }] };
+  h.request.resolve({ data: { saved: false, updated_at: '2026-11-15T12:01:00Z', doc: them }, error: null });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.requests.length, 2);
+  assert.equal(h.requests[1].p_doc.cues[0].values.f2, 'keep | 1\nnew | 1');
+  const accepted = history.cueTextKey(h.requests[1].p_doc, cue.id);
+  h.edit('Unrelated production edit');
+  retryResponse.resolve({ data: { saved: true, updated_at: '2026-11-15T12:02:00Z' }, error: null });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.controller.confirmedTeamCueText(receipt, cue.id, submitted), accepted, 'owned retry initially acknowledged');
+  h.answers.push({ data: { saved: true, updated_at: '2026-11-15T12:03:00Z' }, error: null });
+  await h.controller.pushForTest(base.id);
+  assert.equal(await saved, history.RUNDOWN_CHANGED);
+  assert.equal(h.requests.length, 3);
+  assert.equal(h.requests[2].p_doc.name, 'Unrelated production edit');
+  assert.equal(history.cueTextKey(h.requests[2].p_doc, cue.id), accepted, 'follow-up kept normalized cue bytes');
+  assert.equal(h.controller.confirmedTeamCueText(receipt, cue.id, submitted), accepted, 'original flush should still have its exact normalization receipt');
+  assert.equal(h.controller.confirmedTeamCueText({ ...receipt, draftLineage: Symbol() }, cue.id, submitted), null);
+
+  // An observed conflicting cue revokes the acknowledgement even if the next revision has
+  // the exact old text again. This proof never gets into a write or authorizes a retry.
+  const confirmed = h.requests[2].p_doc;
+  const foreignCue = { ...confirmed.cues[0], label: 'Edited elsewhere' };
+  h.edit('Second unrelated production edit');
+  h.answers.push(
+    { data: { saved: false, updated_at: '2026-11-15T12:04:00Z', doc: { ...confirmed, cues: [foreignCue, other] } }, error: null },
+    { data: { saved: true, updated_at: '2026-11-15T12:05:00Z' }, error: null },
+  );
+  await h.controller.pushForTest(base.id);
+  assert.equal(h.controller.confirmedTeamCueText(receipt, cue.id, submitted), null);
+  h.edit('Third unrelated production edit');
+  h.answers.push(
+    { data: { saved: false, updated_at: '2026-11-15T12:06:00Z', doc: confirmed }, error: null },
+    { data: { saved: true, updated_at: '2026-11-15T12:07:00Z' }, error: null },
+  );
+  await h.controller.pushForTest(base.id);
+  assert.equal(history.cueTextKey(h.requests.at(-1).p_doc, cue.id), accepted);
+  assert.equal(h.controller.confirmedTeamCueText(receipt, cue.id, submitted), null);
 });
 
 test('per-edit receipt requires an advanced revision and the exact intended rundown', async () => {
@@ -351,7 +499,7 @@ function refreshHarness() {
       setTeamShowsStatus: () => {},
     },
     '../model/rundownHistory': history,
-    '../model/teamShowMerge': {},
+    '../model/teamShowMerge': teamMerge,
     '../model/copySettle': { settleGraphics: (graphics) => ({ graphics, changed: false }) },
     '../model/durableStore': { canAuthorAccount: () => true, libraryInUse: () => 'owner', commitDurableWrites: async () => null },
     '../model/teamOutbox': { retainTeamEdit: () => {}, acknowledgeTeamEdit: () => {}, pendingTeamEdits: () => outbox },

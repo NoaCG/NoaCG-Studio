@@ -23,6 +23,7 @@
 // This module imports only the Show TYPE, so it can be imported by shows.ts without a cycle.
 
 import type { Show } from './shows';
+import type { TeamCueDraftText } from './teamShowMerge';
 import { assertAccountAuthoring } from './durableStore';
 import { scrubHiddenWords } from './wordCues';
 
@@ -34,7 +35,8 @@ export type TeamShowsStatus = 'off' | 'loading' | 'ready';
 
 const records = new Map<string, string>();
 let status: TeamShowsStatus = 'off';
-const editListeners = new Set<(showId: string) => void>();
+type TeamShowEdit = (showId: string, draft: TeamCueDraftText | undefined, previous: Show | null) => void;
+const editListeners = new Set<TeamShowEdit>();
 
 function notifyDataChanged(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
@@ -66,13 +68,15 @@ export function setTeamShowsStatus(next: TeamShowsStatus): void {
  * ignored - the envelope saves every record it read, and only the one the mutator touched should
  * cost a round trip. The data-changed event is the envelope's to send, not this function's.
  */
-export function writeTeamShow(show: Show): void {
+export function writeTeamShow(show: Show, draft?: TeamCueDraftText): void {
   assertAccountAuthoring();
   if (!show.teamId) return;
   const json = JSON.stringify(show);
-  if (records.get(show.id) === json) return;
+  const before = records.get(show.id);
+  if (before === json) return;
+  const previous = before ? JSON.parse(before) as Show : null;
   records.set(show.id, json);
-  for (const listener of editListeners) listener(show.id);
+  for (const listener of editListeners) listener(show.id, draft, previous);
 }
 
 /**
@@ -122,7 +126,7 @@ export function clearTeamShows(): void {
 }
 
 /** Subscribe to LOCAL edits (the one subscriber is the save pump in backend/teamProductions.ts). */
-export function onTeamShowEdit(listener: (showId: string) => void): () => void {
+export function onTeamShowEdit(listener: TeamShowEdit): () => void {
   editListeners.add(listener);
   return () => editListeners.delete(listener);
 }

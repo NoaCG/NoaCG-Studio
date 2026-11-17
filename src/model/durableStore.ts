@@ -58,6 +58,7 @@
 // stays where it is. A build from before this change sees only the plain
 // names - an account's library is invisible to it, never damaged by it.
 
+import { isCueDraftFields, type CueFields, type DraftCommit, type DraftCommitId } from './cueDraftCommit';
 import { accountKey, libraryAccount, unscopedKey } from './accountScope';
 
 const DB_NAME = 'noacg-studio';
@@ -66,6 +67,50 @@ const DB_NAME = 'noacg-studio';
 const DB_VERSION = 1;
 const STORE = 'kv';
 const MIGRATED_KEY = '__migrated-from-localstorage';
+const CUE_COMMIT_PREFIX = '__cue-draft-v1:';
+const cueCommitKey = (showId: string, stream: string, account: string | null) =>
+  accountKey(CUE_COMMIT_PREFIX + encodeURIComponent(showId) + ':' + stream, account);
+
+function cueCommit(raw: unknown): DraftCommit | null {
+  try {
+    const value = typeof raw === 'string' ? JSON.parse(raw) : null;
+    if (value?.v === 1 && typeof value.cueId === 'string' && Number.isSafeInteger(value.revision)
+      && value.revision > 0 && isCueDraftFields(value.text) && isCueDraftFields(value.submitted)) return value;
+  } catch { /* Unreadable proof cannot grant authority. */ }
+  return null;
+}
+
+export async function readCueDraftCommit(showId: string, stream: string): Promise<DraftCommit | null | undefined> {
+  const account = namespace;
+  if (!db || !usingIndexedDb) return undefined;
+  try {
+    const raw = await idbReadRecord(db, cueCommitKey(showId, stream, account));
+    if (namespace !== account) return undefined;
+    return raw === undefined ? null : cueCommit(raw) ?? undefined;
+  } catch { return undefined; }
+}
+
+export function forgetCueDraftCommit(showId: string, id: DraftCommitId, canRelease: () => boolean): void {
+  if (!db || !usingIndexedDb || !canRelease()) return;
+  const account = namespace;
+  try {
+    const store = db.transaction(STORE, 'readwrite').objectStore(STORE);
+    const key = cueCommitKey(showId, id.stream, account);
+    const request = store.get(key);
+    request.onsuccess = () => {
+      const receipt = cueCommit(request.result);
+      if (receipt && receipt.revision <= id.revision && namespace === account && canRelease()) store.delete(key);
+    };
+  } catch { /* A cleanup failure leaves the proof available. */ }
+}
+
+type CueCommitWrite = {
+  showId: string;
+  cueId: string;
+  id: DraftCommitId;
+  submitted: CueFields;
+  text: (value: string) => CueFields | undefined;
+};
 
 /**
  * The keys this store owns. Everything else stays in localStorage. Kept explicit rather than
@@ -169,12 +214,30 @@ export interface DurableWriteReceipt {
   readonly sequence: number;
   readonly key: string;
   readonly value: string | null;
+  /** The exact rebased value after this transaction settles successfully. */
+  readonly committedValue?: () => string | null;
   readonly account: string | null;
   readonly settled: Promise<string | null>;
 }
 const receipts = new Map<string, DurableWriteReceipt>();
 const receiptObservers = new Set<(receipt: DurableWriteReceipt) => void>();
 const conditionalWrites = new Map<string, () => void>();
+// A cue recovery (a conditional write with a draft) still in flight, by its cancel.
+const cueRecoveries = new Set<() => void>();
+let librarySwitching = false;
+
+/**
+ * An account switch has started (backend/accountLibrary.ts): the library in use is about to be
+ * left. A cue recovery that has not yet decided must not land there and consume the owed edit,
+ * which stays owed under that account; one in flight is aborted and a new one refuses. Ordinary
+ * writes still flush. The switch reloads the page; the returned function undoes this for a
+ * switch that failed before it reloaded.
+ */
+export function revokeCueRecoveryForSwitch(): () => void {
+  librarySwitching = true;
+  for (const cancel of [...cueRecoveries]) cancel();
+  return () => { librarySwitching = false; };
+}
 
 function recordReceipt(receipt: DurableWriteReceipt): void {
   receipts.set(receipt.key, receipt);
@@ -356,11 +419,16 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 /** One key's current value, straight from the database - what another tab's write left there. */
-function idbReadKey(target: IDBDatabase, key: string): Promise<string | null> {
+async function idbReadKey(target: IDBDatabase, key: string): Promise<string | null> {
+  const raw = await idbReadRecord(target, key);
+  return typeof raw === 'string' ? raw : null;
+}
+
+function idbReadRecord(target: IDBDatabase, key: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const tx = target.transaction(STORE, 'readonly');
     const request = tx.objectStore(STORE).get(key);
-    tx.oncomplete = () => resolve(typeof request.result === 'string' ? request.result : null);
+    tx.oncomplete = () => resolve(request.result);
     tx.onerror = () => reject(tx.error ?? new Error('IndexedDB read failed'));
     tx.onabort = () => reject(tx.error ?? new Error('IndexedDB read was aborted'));
   });
@@ -368,7 +436,7 @@ function idbReadKey(target: IDBDatabase, key: string): Promise<string | null> {
 
 /** One transaction applying a batch of puts/deletes. Rejects with the transaction's error, so
  *  a quota failure keeps its `QuotaExceededError` name for the caller to recognise. */
-function idbWrite(target: IDBDatabase, entries: [string, string | null][], audioMove?: { from: string | null; to: string | null }): Promise<void> {
+function idbWrite(target: IDBDatabase, entries: [string, string | null][], libraryMove?: { from: string | null; to: string | null }): Promise<void> {
   return new Promise((resolve, reject) => {
     let tx: IDBTransaction;
     try {
@@ -383,14 +451,16 @@ function idbWrite(target: IDBDatabase, entries: [string, string | null][], audio
         if (value === null) store.delete(key);
         else store.put(value, key);
       }
-      if (audioMove) {
+      if (libraryMove) {
         const request = store.openCursor();
         request.onsuccess = () => {
           const cursor = request.result;
           if (!cursor) return;
           const key = String(cursor.key), plain = unscopedKey(key);
-          if (/^__audio:[a-f0-9]{64}$/.test(plain) && key === accountKey(plain,audioMove.from) && cursor.value instanceof Blob) {
-            store.put(cursor.value, accountKey(plain,audioMove.to)); cursor.delete();
+          const audio = /^__audio:[a-f0-9]{64}$/.test(plain) && cursor.value instanceof Blob;
+          const commit = plain.startsWith(CUE_COMMIT_PREFIX);
+          if ((audio || commit) && key === accountKey(plain, libraryMove.from)) {
+            store.put(cursor.value, accountKey(plain, libraryMove.to)); cursor.delete();
           }
           cursor.continue();
         };
@@ -578,6 +648,13 @@ async function migrateFromLocalStorage(
  * each; everything about their error handling still works, because `setItem` throws on a
  * refused write exactly as localStorage does.
  */
+const guardedShowsWrites = new Map<string, number>();
+const SHOWS_CHANGED_BEFORE_SAVE = 'The production changed before this save. Try the edit again.';
+
+export function hasPendingShowsRebase(): boolean {
+  return guardedShowsWrites.has(accountKey('spx-gfx-shows', namespace));
+}
+
 export const durable = {
   getItem(key: string): string | null {
     if (!durableKeySet.has(key)) return lsGet(key);
@@ -595,6 +672,11 @@ export const durable = {
     if (!hydrated || !usingIndexedDb) {
       lsSet(physical(key), value);
       recordReceipt({ sequence: ++writeSeq, key, value, account: namespace, settled: Promise.resolve(null) });
+      return;
+    }
+    if (key === 'spx-gfx-shows' && hasPendingShowsRebase()) {
+      // This whole-list replacement was built from the pending write's optimistic mirror.
+      rebasedDurableSet(key, value, () => ({ refused: SHOWS_CHANGED_BEFORE_SAVE }));
       return;
     }
     const previous = mirror.get(key) ?? null;
@@ -696,7 +778,8 @@ function trackWrite(receipt: DurableWriteReceipt): void {
 export function rebasedDurableSet(
   key: DurableKey,
   value: string,
-  rebase: (current: string | null) => { value: string } | { refused: string },
+  rebase: (current: string | null, previousCommit?: DraftCommit) => { value: string } | { refused: string },
+  options?: { validateStored?: boolean; cueCommit?: CueCommitWrite },
 ): void {
   assertAccountAuthoring();
   conditionalWrites.get(key)?.();
@@ -718,7 +801,8 @@ export function rebasedDurableSet(
       reportError(key, message, writeSeq);
       return;
     }
-    recordReceipt({ sequence: ++writeSeq, key, value: next.value, account: namespace, settled: Promise.resolve(null) });
+    const committed = next.value;
+    recordReceipt({ sequence: ++writeSeq, key, value, committedValue: () => committed, account: namespace, settled: Promise.resolve(null) });
     return;
   }
   const target = db!;
@@ -728,6 +812,8 @@ export function rebasedDurableSet(
   const seq = writeSeq;
   const account = namespace, storedKey = accountKey(key, account);
   latestWrite.set(key, seq);
+  if (key === 'spx-gfx-shows') guardedShowsWrites.set(storedKey, seq);
+  let committed: string | null = null;
   const settled = new Promise<string | null>((resolve) => {
     let refusal: string | null = null, stored: string | null = null, accepted = previous, done = false;
     const current = (): boolean => namespace === account && latestWrite.get(key) === seq;
@@ -741,21 +827,49 @@ export function rebasedDurableSet(
     try { tx = target.transaction(STORE, 'readwrite'); }
     catch { fail(FAILED_MESSAGE); return; }
     const store = tx.objectStore(STORE), request = store.get(storedKey);
-    request.onsuccess = () => {
+    const proof = options?.cueCommit;
+    const proofKey = proof && cueCommitKey(proof.showId, proof.id.stream, account);
+    const prior = proofKey ? store.get(proofKey) : undefined;
+    let writing = false;
+    const write = () => {
+      if (writing || request.readyState !== 'done' || (prior && prior.readyState !== 'done')) return;
+      writing = true;
       accepted = typeof request.result === 'string' ? request.result : null;
+      const previousCommit = prior && cueCommit(prior.result);
+      if (proof && prior) {
+        if ((prior.result !== undefined && !previousCommit)
+          || (previousCommit && (previousCommit.cueId !== proof.cueId || previousCommit.revision >= proof.id.revision))) {
+          refusal = SHOWS_CHANGED_BEFORE_SAVE; tx.abort(); return;
+        }
+      }
       try {
         // Nothing landed since this tab's copy, so this tab's answer is the stored answer.
-        const next = accepted === previous ? { value } : rebase(accepted);
+        const next = accepted === previous && !options?.validateStored && !previousCommit
+          ? { value } : rebase(accepted, previousCommit ?? undefined);
         if ('refused' in next) { refusal = next.refused; tx.abort(); return; }
         stored = next.value;
-        store.put(stored, storedKey);
       } catch {
         refusal = UNREADABLE_MESSAGE;
         try { tx.abort(); } catch { /* already aborting */ }
+        return;
+      }
+      try {
+        store.put(stored, storedKey);
+        if (proof && proofKey) {
+          const text = proof.text(stored);
+          if (!text) { refusal = UNREADABLE_MESSAGE; tx.abort(); return; }
+          store.put(JSON.stringify({ v: 1, cueId: proof.cueId, revision: proof.id.revision, text, submitted: proof.submitted }), proofKey);
+        }
+      } catch (error) {
+        refusal = isQuotaError(error) ? FULL_MESSAGE : FAILED_MESSAGE;
+        try { tx.abort(); } catch { /* already aborting */ }
       }
     };
+    request.onsuccess = write;
+    if (prior) prior.onsuccess = write;
     tx.oncomplete = () => {
       done = true;
+      committed = stored;
       if (current() && stored !== null) {
         mirror.set(key, stored);
         if (stored !== value && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
@@ -766,22 +880,31 @@ export function rebasedDurableSet(
     tx.onerror = failed;
     tx.onabort = failed;
   });
-  trackWrite({ sequence: seq, key, value, account, settled });
+  if (key === 'spx-gfx-shows') void settled.then(() => {
+    if (guardedShowsWrites.get(storedKey) === seq) guardedShowsWrites.delete(storedKey);
+  });
+  trackWrite({ sequence: seq, key, value, committedValue: () => committed, account, settled });
 }
 
+const SWITCH_MESSAGE = 'The account is switching. The cue edit is kept for when this library opens again.';
 export type ConditionalWriteResult = { status: 'saved' | 'refused' | 'failed'; value: string | null; error: string | null };
+type ConditionalUpdate = { value: string; receipt?: DraftCommit } | { unchanged: true } | { refused: string };
 
 /** Read, compare and replace in one transaction. The callback is synchronous: no await can
  * separate the comparison from the put. A newer ordinary write cancels the inverse. */
 export async function conditionalDurableWrite(
   key: DurableKey,
-  update: (current: string | null) => { value: string } | { refused: string },
+  update: (current: string | null, receipt?: DraftCommit) => ConditionalUpdate,
   stillValid: () => boolean,
+  draft?: { showId: string; stream: string },
 ): Promise<ConditionalWriteResult> {
   const account = namespace, target = db, queued = latestWrite.get(key);
   const refused = (error: string): ConditionalWriteResult => ({ status: 'refused', value: null, error });
   if (!target || !usingIndexedDb) return refused('Undo needs browser storage. Enable IndexedDB and reopen.');
+  const switching = () => draft !== undefined && librarySwitching;
+  if (switching()) return refused(SWITCH_MESSAGE);
   await flushDurableStore();
+  if (switching()) return refused(SWITCH_MESSAGE);
   if (namespace !== account || !canAuthorAccount() || !stillValid() || latestWrite.get(key) !== queued) {
     return refused('The rundown changed while saving. Try again after it settles.');
   }
@@ -790,39 +913,63 @@ export async function conditionalDurableWrite(
     const seq = ++writeSeq;
     latestWrite.set(key, seq);
     let value: string | null = null, refusal: string | null = null, writeError: unknown;
+    let wrote = false;
     let tx: IDBTransaction;
     try { tx = target.transaction(STORE, 'readwrite'); }
     catch { resolve({ status: 'failed', value, error: 'Browser storage is unavailable.' }); return; }
     const cancel = () => { refusal = 'A newer edit arrived. Undo was not saved.'; try { tx.abort(); } catch { /* already settled */ } };
+    const revoke = () => { refusal = SWITCH_MESSAGE; try { tx.abort(); } catch { /* already settled */ } };
     conditionalWrites.set(key, cancel);
+    if (draft) cueRecoveries.add(revoke);
+    const storedKey = accountKey(key, account);
+    if (draft && key === 'spx-gfx-shows') guardedShowsWrites.set(storedKey, seq);
     const finish = (result: ConditionalWriteResult) => {
       if (conditionalWrites.get(key) === cancel) conditionalWrites.delete(key);
+      cueRecoveries.delete(revoke);
+      if (draft && guardedShowsWrites.get(storedKey) === seq) guardedShowsWrites.delete(storedKey);
       resolve(result);
     };
-    const store = tx.objectStore(STORE), request = store.get(accountKey(key, account));
-    request.onsuccess = () => {
-      if (refusal) return;
+    const store = tx.objectStore(STORE), request = store.get(storedKey);
+    const proofKey = draft && cueCommitKey(draft.showId, draft.stream, account);
+    const proof = proofKey ? store.get(proofKey) : undefined;
+    let decided = false;
+    const decide = () => {
+      if (refusal || decided || request.readyState !== 'done' || (proof && proof.readyState !== 'done')) return;
+      decided = true;
       try {
+        if (switching()) { refusal = SWITCH_MESSAGE; tx.abort(); return; }
         if (namespace !== account || !canAuthorAccount() || !stillValid() || latestWrite.get(key) !== seq) {
           refusal = 'The editing session changed. Undo was not saved.'; tx.abort(); return;
         }
-        const next = update(typeof request.result === 'string' ? request.result : null);
+        const receipt = proof && cueCommit(proof.result);
+        if (proof?.result !== undefined && !receipt) { refusal = UNREADABLE_MESSAGE; tx.abort(); return; }
+        const stored = typeof request.result === 'string' ? request.result : null;
+        if (draft && request.result !== undefined && stored === null) { refusal = UNREADABLE_MESSAGE; tx.abort(); return; }
+        const next = update(stored, receipt ?? undefined);
         if ('refused' in next) { refusal = next.refused; tx.abort(); return; }
+        if ('unchanged' in next) { value = stored; return; }
         value = next.value;
-        store.put(value, accountKey(key, account));
+        store.put(value, storedKey);
+        if (proofKey && next.receipt) store.put(JSON.stringify({ v: 1, ...next.receipt }), proofKey);
+        wrote = true;
       } catch (error) {
         writeError = error;
         refusal = isQuotaError(error) ? null : UNREADABLE_MESSAGE;
         try { tx.abort(); } catch { /* already aborting */ }
       }
     };
+    request.onsuccess = decide;
+    if (proof) proof.onsuccess = decide;
     tx.oncomplete = () => {
       if (namespace !== account || latestWrite.get(key) !== seq) {
-        finish(refused('A newer edit arrived. Undo history was cleared.')); return;
+        finish(draft ? { status: 'saved', value, error: null } : refused('A newer edit arrived. Undo history was cleared.'));
+        return;
       }
-      mirror.set(key, value!);
-      announceWrite(key);
-      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
+      const changed = (mirror.get(key) ?? null) !== value;
+      if (value === null) mirror.delete(key);
+      else mirror.set(key, value);
+      if (wrote) announceWrite(key);
+      if ((changed || wrote) && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
       finish({ status: 'saved', value, error: null });
     };
     const failed = () => finish(refusal ? refused(refusal) : {

@@ -35,8 +35,9 @@
 //
 // Browser IO comes in through `io` (the history's write, the store's synchronous write, the account
 // gate, the newest record) and the browser's events and timers through adapters, so a Node test
-// drives it with fakes. Only types are imported.
+// drives it with fakes.
 
+import type { CueFields, DraftCommitId } from '../model/cueDraftCommit.ts';
 import type { DraftPart, PlayoutSession } from './playoutSession';
 
 /** How long typing must pause before the draft is saved. */
@@ -65,11 +66,7 @@ export interface CueRecord {
 export type CueEdit = Partial<Pick<CueText, 'label' | 'note'>> & { values?: Record<string, string> };
 
 /** What a save writes. */
-export interface CueFields {
-  label: string;
-  note: string | null;
-  values: Record<string, string>;
-}
+export type { CueFields } from '../model/cueDraftCommit.ts';
 
 /** An owed edit as kept over a reload: the cue, the texts it may hold under the edit (its text
  *  when the typing started, then each part of the typing handed to the store), the typed text. */
@@ -77,23 +74,31 @@ export interface OwedEdit {
   cueId: string;
   bases: CueFields[];
   fields: CueFields;
+  commit?: DraftCommitId;
+  retired?: true;
 }
 
 /** Whether `cue` holds `text`: the label, the note and each of the text's values. */
 function holds(cue: CueRecord, text: CueFields): boolean {
-  return cue.label === text.label && (cue.note || null) === (text.note || null) && Object.entries(text.values).every(([k, v]) => cue.values[k] === v);
+  const entries = Object.entries(text.values);
+  return cue.label === text.label && (cue.note || null) === (text.note || null)
+    && Object.keys(cue.values).length === entries.length && entries.every(([k, v]) => cue.values[k] === v);
 }
+
+type ObserveCue = (cue: CueRecord) => void;
 
 /** The browser half the page hands in. */
 export interface CueDraftIo {
   /** Whether this account may write the record now. */
   canWrite: () => boolean;
-  /** An edit is starting: tell the account's sync, and open (or continue) the history's edit group. */
-  editing: (group: string) => void;
+  /** Start or continue an edit group. A fresh draft passes the cue record it starts from. */
+  editing: (group: string, freshCue: CueRecord | null) => void;
   /** Save through the rundown history, answering whether the store confirmed it. */
-  writeCue: (cueId: string, fields: CueFields) => Promise<boolean>;
+  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId) => Promise<boolean>;
   /** Save at once, with no history and nothing to await: whether the store accepted it. */
-  retainCue: (cueId: string, fields: CueFields) => boolean;
+  retainCue: (cueId: string, fields: CueFields, confirm?: ObserveCue, commit?: DraftCommitId) => boolean | Promise<boolean>;
+  /** A queued handoff still needs retaining when its value has never reached the local record. */
+  hasUnstoredDraft?: (cueId: string, fields: CueFields) => boolean;
   /** The newest record of a cue, if the production holds it. */
   record: (cueId: string) => CueRecord | undefined;
   /** The owed edit kept where a reload cannot drop it (model/owedCueEdit.ts): record it, read it
@@ -103,6 +108,13 @@ export interface CueDraftIo {
     read: () => OwedEdit | null;
     forget: () => void;
   };
+  commit?: {
+    start: () => string | undefined;
+    account: () => string | null;
+    unused: (stream: string) => boolean;
+    recover: (edit: OwedEdit & { commit: DraftCommitId }, stillOwed: () => boolean) => Promise<boolean>;
+    forget: (id: DraftCommitId, canRelease: () => boolean) => void;
+  };
   setTimeout: (run: () => void, ms: number) => unknown;
   clearTimeout: (timer: unknown) => void;
 }
@@ -111,7 +123,7 @@ export interface CueDraftIo {
 export interface CueDraftAdapters {
   /** The page may be gone before a promise settles: it is hidden or closing (`going`), or the
    *  account pauses (the page stays). */
-  onPageHide: (run: (going: boolean) => void) => () => void;
+  onPageHide: (run: (going: boolean, closing?: boolean) => void) => () => void;
   /** The page is shown again after it was hidden: it did not go. */
   onPageShown: (run: () => void) => () => void;
   /** The account asks every surface to save what it holds. */
@@ -200,6 +212,15 @@ export function unsentNow(
 }
 
 const fieldsOf = (d: DraftPart): CueFields => ({ label: d.label, note: d.note || null, values: d.values });
+type DraftHandoff = { text: CueFields };
+type DraftStream = {
+  id: string;
+  account: string | null;
+  revision: number;
+  writes: number;
+  retired: boolean;
+};
+type DraftRevision = { id: DraftCommitId; stream: DraftStream };
 
 export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraft {
   const part = session.draft;
@@ -211,13 +232,15 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   /** The texts the draft's cue may hold under it: the text when the draft started, then each
    *  part of the typing handed to the store (it may or may not have landed when the page goes).
    *  What a recorded edit may be applied over on the next visit, and nothing else. */
-  let startedFrom: { cueId: string; texts: { from: DraftPart | null; text: CueFields }[] } | null = null;
+  let startedFrom: { cueId: string; original: CueFields; texts: DraftHandoff[]; stream?: DraftStream } | null = null;
+  const commits = new WeakMap<DraftPart, DraftRevision>();
   /** The owed-edit record this page last wrote when it hid, as stored, or null. */
   let recorded: string | null = null;
+  let recordedAccount: string | null | undefined;
   /** Remove the record only if it is still the one this page wrote: another tab of the same
    *  production may have written its own since. */
   const forgetOwn = () => {
-    if (recorded !== null && JSON.stringify(io.owed.read()) === recorded) io.owed.forget();
+    if (recorded !== null && io.commit?.account() === recordedAccount && JSON.stringify(io.owed.read()) === recorded) io.owed.forget();
     recorded = null;
   };
   /** Whether this page is hidden or going: from its hide until it is shown again. */
@@ -226,23 +249,71 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
    *  take whose write is not yet confirmed may be asked again; the same text written twice is
    *  harmless, and the first write can be dropped (a remount moves the history on). */
   let recovered = false;
+  let eligibility = 0;
+  let authoring = 0;
   const copyOf = (d: DraftPart): CueFields => ({ ...fieldsOf(d), values: { ...d.values } });
+  const releaseCommit = (id: DraftCommitId, account: string | null) => {
+    const canRelease = () => io.commit?.account() === account && !!io.commit?.unused(id.stream);
+    if (canRelease()) io.commit?.forget(id, canRelease);
+  };
+  const prune = (stream: DraftStream) => {
+    if (stream.retired && stream.writes === 0) releaseCommit({ stream: stream.id, revision: stream.revision }, stream.account);
+  };
+  const track = (commit: DraftRevision | undefined) => {
+    if (!commit) return () => {};
+    const { stream } = commit;
+    stream.writes++;
+    return () => { stream.writes--; prune(stream); };
+  };
+  const retire = (stream: DraftStream | undefined) => {
+    if (!stream) return;
+    stream.retired = true;
+    const owed = io.commit?.account() === stream.account ? io.owed.read() : null;
+    if (owed?.commit?.stream === stream.id && !owed.retired && JSON.stringify(owed) === recorded) {
+      const ended: OwedEdit = { ...owed, retired: true };
+      io.owed.keep(ended);
+      if (JSON.stringify(io.owed.read()) === JSON.stringify(ended)) recorded = JSON.stringify(ended);
+    }
+    prune(stream);
+  };
+  const forgetCommitted = (commit?: DraftRevision) => {
+    if (!commit || io.commit?.account() !== commit.stream.account) return;
+    const owed = io.owed.read()?.commit;
+    if (owed?.stream === commit.id.stream && owed.revision === commit.id.revision) forgetOwn();
+  };
   const started = (d: DraftPart) => {
-    startedFrom = { cueId: d.cueId, texts: [{ from: null, text: copyOf(d) }] };
+    retire(startedFrom?.stream);
+    const original = copyOf(d), id = io.commit?.start();
+    const stream = id && io.commit ? { id, account: io.commit.account(), revision: 0, writes: 0, retired: false } : undefined;
+    startedFrom = { cueId: d.cueId, original, texts: [{ text: original }], stream };
   };
   /** The store was given `d`'s text while typing in its cue goes on. */
   const handed = (d: DraftPart) => {
-    if (startedFrom?.cueId !== d.cueId) return;
-    startedFrom = { cueId: d.cueId, texts: [...startedFrom.texts, { from: d, text: copyOf(d) }] };
+    const entry: DraftHandoff = { text: copyOf(d) };
+    if (startedFrom?.cueId === d.cueId) startedFrom.texts.push(entry);
+    return entry;
   };
-  /** The store confirmed `d`'s save while typing goes on: the store can no longer hold a text
-   *  listed before it, so only it and later ones stay listed. */
-  const confirmed = (d: DraftPart) => {
-    const at = startedFrom?.texts.findIndex((t) => t.from === d) ?? -1;
-    if (startedFrom && at > 0) startedFrom = { cueId: startedFrom.cueId, texts: startedFrom.texts.slice(at) };
+  const bases = () => startedFrom ? startedFrom.stream ? [startedFrom.original] : startedFrom.texts.map(entry => entry.text) : [];
+  const textOf = (cue: CueRecord): CueFields => ({ label: cue.label, note: cue.note ?? null, values: { ...cue.values } });
+  const refreshOwn = (cueId: string) => {
+    const owed = recorded !== null && io.owed.read();
+    if (owed && owed.cueId === cueId && JSON.stringify(owed) === recorded) {
+      io.owed.keep({ ...owed, bases: bases() });
+      recorded = JSON.stringify(io.owed.read());
+    }
+  };
+  /** Only the confirmed handoff and later ones can still be present in storage. */
+  const confirmed = (entry: DraftHandoff, actual?: CueRecord) => {
+    const at = startedFrom?.texts.indexOf(entry) ?? -1;
+    if (!startedFrom || at < 0) return;
+    startedFrom.texts = startedFrom.texts.slice(at);
+    if (actual) {
+      entry.text = textOf(actual);
+      if (!startedFrom.stream) refreshOwn(actual.id);
+    }
   };
   let timer: unknown = null;
-  const set = (draft: DraftPart | null) => session.apply((parts) => ({ ...parts, draft }));
+  const replaceDraft = (draft: DraftPart | null) => session.apply((parts) => ({ ...parts, draft }));
   const stopTimer = () => {
     if (timer !== null) io.clearTimeout(timer);
     timer = null;
@@ -289,22 +360,28 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     out = d;
     // The store may hold this text from here on, before the history confirms it (a team
     // production's local outbox lands before the server answers): typing on may be applied over it.
-    handed(d);
-    return io.writeCue(d.cueId, fieldsOf(d)).then((saved) => {
+    const write = handed(d), commit = commits.get(d), finish = track(commit);
+    let confirmedByReceipt = false;
+    return io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
+      confirmedByReceipt = true;
+      confirmed(write, cue);
+      forgetCommitted(commit);
+    }, commit?.id).then((saved) => {
       if (out === d) out = null;
       // Typing went on during the save, or the session ended: the newer draft is still owed.
       if (part.get() === d && session.alive()) {
         if (saved) {
-          set(null);
+          replaceDraft(null);
           // The store holds the latest text: a record of it must never be applied over later work.
           forgetOwn();
+          retire(commit?.stream);
         }
         else pending = true;
-      } else if (saved) {
-        confirmed(d);
+      } else if (saved && !confirmedByReceipt) {
+        confirmed(write);
       }
       return saved;
-    });
+    }).finally(finish);
   };
 
   /** Save synchronously what is owed: pausing and teardown cannot await a microtask. The draft
@@ -312,20 +389,42 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
    *  out through the history is owed too: the history would write it only after the page is gone. */
   const retain = (hiding = false) => {
     const d = part.get();
-    if (!d || !(pending || (hiding && out === d)) || !io.canWrite()) return;
+    if (!d || !io.canWrite()) return;
+    const fields = fieldsOf(d);
+    const queued = out === d && io.hasUnstoredDraft?.(d.cueId, fields);
+    if (!pending && !queued && !(hiding && out === d)) return;
     // Recorded where a reload cannot drop it: the store's write may still be committing when the
     // page goes, and a reload aborts it.
     if (hiding && startedFrom && startedFrom.cueId === d.cueId) {
-      io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts.map((t) => t.text), fields: fieldsOf(d) });
-      recorded = JSON.stringify(io.owed.read());
+      const commit = commits.get(d)?.id;
+      const owed: OwedEdit = { cueId: d.cueId, bases: bases(), fields, ...(commit && { commit }) };
+      io.owed.keep(owed);
+      const exact = JSON.stringify(owed);
+      recorded = JSON.stringify(io.owed.read()) === exact ? exact : null;
+      recordedAccount = io.commit?.account();
     }
-    if (io.retainCue(d.cueId, fieldsOf(d))) {
-      pending = false;
-      if (out === d) out = null;
-      // The store is given this text (the record above covers a page that goes before it lands):
-      // typing on in this cue may be applied over it.
-      handed(d);
+    const write = handed(d), commit = commits.get(d), finish = track(commit);
+    let confirmedByReceipt = false;
+    const saved = io.retainCue(d.cueId, fields, cue => {
+      confirmedByReceipt = true;
+      confirmed(write, cue);
+      forgetCommitted(commit);
+    }, commit?.id);
+    if (saved === false) {
+      if (startedFrom) startedFrom.texts = startedFrom.texts.filter(entry => entry !== write);
+      finish();
+      return;
     }
+    pending = false;
+    if (out === d) out = null;
+    if (saved !== true) {
+      void saved.then(accepted => {
+        if (accepted) {
+          if (!confirmedByReceipt) confirmed(write);
+          if (part.get() === d) forgetOwn();
+        } else if (part.get() === d && session.alive()) pending = true;
+      }).finally(finish);
+    } else finish();
   };
 
   const view = (cue: CueRecord) => viewOf(part.get(), io.record(cue.id) ?? cue);
@@ -334,6 +433,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   // after this changes nothing (the part takes no fold once the session ended).
   session.onDispose(() => {
     retain();
+    retire(startedFrom?.stream);
     stopTimer();
     dropHeld();
     pending = false;
@@ -343,6 +443,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     part,
     edit: (cue, patch) => {
       if (!session.alive() || !io.canWrite()) return;
+      eligibility++;
       // Typing again after the press, before the held save ran: the typing carries on in the same
       // draft and history group, saved on its own idle delay. Nothing here starts a write: a write
       // queued in the same call as `editing` opens a group would land after that group's snapshot,
@@ -350,11 +451,15 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       // owed: the page saves and clears it when the selection moves, `selectCue`.)
       if (held && !pressing) dropHeld();
       const d = part.get();
-      io.editing(editGroup(cue.id, patch));
-      const base: DraftPart = d && d.cueId === cue.id ? d : { cueId: cue.id, label: cue.label, note: cue.note ?? '', values: { ...cue.values } };
+      const continuing = d?.cueId === cue.id;
+      io.editing(editGroup(cue.id, patch), continuing ? null : cue);
+      const base: DraftPart = continuing ? d : { cueId: cue.id, label: cue.label, note: cue.note ?? '', values: { ...cue.values } };
       if (base !== d) started(base);
       // Set before the timer, so a flush in this same tick sees the edit.
-      set({ ...base, ...patch, values: { ...base.values, ...(patch.values ?? {}) } });
+      const next = { ...base, ...patch, values: { ...base.values, ...(patch.values ?? {}) } };
+      const stream = startedFrom?.stream;
+      if (stream) commits.set(next, { stream, id: { stream: stream.id, revision: ++stream.revision } });
+      replaceDraft(next);
       pending = true;
       stopTimer();
       // The idle save does not land on a press that sends first either: it waits for it.
@@ -368,13 +473,15 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     // Nothing is owed without a draft, and the next edit owes its own.
     cancel: () => {
       stopTimer();
-      set(null);
+      replaceDraft(null);
       // A draft this page recorded is dropped by the operator (an undo, another cue selected): an
       // undo puts the cue back to a text listed under the edit, so the record must not bring it
       // back next visit. Not while the page is hidden or going: the history drops the draft then
       // too, when its queued save finds the cue the hide's save rewrote. A page that recorded
       // nothing (one just opened, before `recover`) leaves the record alone.
       if (!leaving) forgetOwn();
+      retire(startedFrom?.stream);
+      startedFrom = null;
     },
     showing: (cueId, save) => {
       if (cueId === shown) return;
@@ -410,29 +517,38 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
         return;
       }
       if (!io.canWrite()) return;
-      const cue = io.record(e.cueId);
-      // Saved after all, or changed since the typing started (another tab, a teammate, an undo):
-      // what the cue holds stands.
-      if (!cue || holds(cue, e.fields) || !e.bases.some((b) => holds(cue, b))) {
+      const same = JSON.stringify(e), account = io.commit?.account();
+      const sameOwed = () => io.commit?.account() === account && JSON.stringify(io.owed.read()) === same;
+      const clear = () => {
         recovered = true;
+        if (!sameOwed()) return;
         io.owed.forget();
+        if (e.commit && e.retired && account !== undefined) releaseCommit(e.commit, account);
+      };
+      if (e.commit) {
+        if (!io.commit || eligibility !== 0) return;
+        const generation = eligibility, permission = authoring;
+        const valid = () => eligibility === generation && authoring === permission && session.alive() && io.canWrite() && sameOwed();
+        void io.commit.recover({ ...e, commit: e.commit }, valid).then(settled => {
+          if (settled) clear();
+        }, () => {});
         return;
       }
-      // Through the history, so the store confirms it; the record goes only then, and only if no
-      // later hide has recorded a newer edit meanwhile. Unconfirmed, it is tried again next visit.
-      const same = JSON.stringify(e);
-      void io.writeCue(e.cueId, e.fields).then((saved) => {
-        if (!saved) return;
-        recovered = true;
-        if (JSON.stringify(io.owed.read()) === same) io.owed.forget();
-      });
+      const cue = io.record(e.cueId);
+      if (!cue || holds(cue, e.fields) || !e.bases.some(base => holds(cue, base))) {
+        clear();
+        return;
+      }
+      void io.writeCue(e.cueId, e.fields, cue).then(saved => { if (saved) clear(); });
     },
     listen: (adapters) => {
       // Hidden, going or pausing: what is owed is saved; when the page may go it is also recorded
       // where a reload cannot drop it.
-      const offHide = adapters.onPageHide((going) => {
-        if (going) leaving = true;
+      const offHide = adapters.onPageHide((going, closing) => {
+        if (going) { leaving = true; eligibility++; }
+        else authoring++;
         retain(going);
+        if (closing) retire(startedFrom?.stream);
       });
       // Back: the record stays (the hide's save may still be committing), and the operator's own
       // drops count again.

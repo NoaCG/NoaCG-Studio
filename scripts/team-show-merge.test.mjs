@@ -10,7 +10,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
+const { guardMergedCueDrafts, mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
+const { cueTextKey } = await import('../src/model/rundownHistory.ts');
 
 const AT = '2026-09-27T00:00:00.000Z';
 const graphic = (id, layer) => ({ id, name: id, layer });
@@ -84,6 +85,52 @@ const folder = (id, extra = {}) => ({ id, name: id, mode: 'manual', ...extra });
 const rundown = (cues, folders) => show([graphic('g', 20)], { cues, ...(folders ? { folders } : {}) });
 /** The rundown as `A(F) C B(F)`: each cue, and its folder in brackets. */
 const order = (doc) => doc.cues.map((c) => (c.folderId ? `${c.id}(${c.folderId})` : c.id)).join(' ');
+
+test('only a checked draft can retain text over metadata on the same cue', () => {
+  const original = { ...cue('A'), values: { f0: 'Original', f1: 'Untouched' } };
+  const base = rundown([original, cue('B')]);
+  const edited = { ...original, label: 'Local', values: { ...original.values, f0: 'Draft' } };
+  const ours = rundown([edited, cue('B')]);
+  const meta = { ...original, folderId: 'F' };
+  const theirs = rundown([meta, cue('B', 'F')], [folder('F')]);
+  const draft = { cueId: 'A', before: cueTextKey(base, 'A'), after: cueTextKey(ours, 'A') };
+  const accepted = mergeTeamShow(base, ours, theirs, AT, [draft]);
+  assert.deepEqual(accepted.doc.cues[0], { ...edited, folderId: 'F' });
+  assert.deepEqual(accepted.lost, []);
+
+  for (const proof of [[], [{ ...draft, after: draft.before }]]) {
+    const ordinary = mergeTeamShow(base, ours, theirs, AT, proof);
+    assert.deepEqual(ordinary.doc.cues[0], meta);
+    assert.deepEqual(ordinary.lost, ['the rundown']);
+  }
+  const conflict = { ...meta, values: { ...meta.values, f1: 'Teammate' } };
+  const remoteEdit = mergeTeamShow(base, ours, { ...theirs, cues: [conflict, cue('B', 'F')] }, AT, [draft]);
+  assert.deepEqual(remoteEdit.doc.cues[0], conflict);
+  assert.deepEqual(remoteEdit.lost, ['the rundown']);
+  const removed = mergeTeamShow(base, ours, rundown([cue('B')]), AT, [draft]);
+  assert.deepEqual(removed.doc.cues.map(c => c.id), ['B']);
+});
+
+test('a teammate mapping a connected field blocks a draft edit to that field', () => {
+  const original = { ...cue('A'), values: { f0: 'Existing' }, selection: { v: 1, recipe: 'cands', key: ['D1', 7] } };
+  const recipe = { v: 1, id: 'cands', fields: {} };
+  const base = { ...rundown([original]), collections: [recipe] };
+  const ours = { ...base, cues: [{ ...original, values: { f0: 'Draft' } }] };
+  const theirs = { ...base, collections: [{ ...recipe, fields: { f0: { from: 'name' } } }] };
+  const draft = { cueId: 'A', before: cueTextKey(base, 'A'), after: cueTextKey(ours, 'A') };
+  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT, [draft]);
+  assert.deepEqual(doc.cues[0], original);
+  assert.deepEqual(doc.collections, theirs.collections);
+  assert.deepEqual(lost, ['the rundown']);
+
+  // A later local edit can attach the mapping after the first merge accepted the text.
+  const later = { ...ours, collections: theirs.collections };
+  const newer = { ...ours, cues: [{ ...original, values: { f0: 'Newer draft' } }] };
+  const newerProof = { ...draft, after: cueTextKey(newer, 'A') };
+  assert.deepEqual(guardMergedCueDrafts(later, base, [draft, newerProof]), ['the rundown']);
+  assert.deepEqual(later.cues[0], original);
+  assert.deepEqual(later.collections, theirs.collections);
+});
 
 test('one teammate folders A and B while the other orders A, C, B, D: the folder is gathered and reported', () => {
   const base = rundown([cue('A'), cue('B'), cue('C'), cue('D')]);

@@ -158,18 +158,18 @@ test('cloud confirmation never rewrites a saved cue draft or replaces a teammate
 test('a refused cue draft write stays on screen and can be flushed after storage recovers', async ({ page }) => {
   const { id, question } = await rehearsal(page);
   const field = page.getByTestId('cue-field-f0');
-  await page.evaluate(async () => {
-    const { durable } = await __noacgImport('/src/model/durableStore.ts');
-    const original = durable.setItem;
-    durable.setItem = (key, value) => {
-      if (key === 'spx-gfx-shows') throw new Error('Injected full store');
-      original(key, value);
+  await page.evaluate(() => {
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (key === 'spx-gfx-shows') throw new DOMException('Injected full store', 'QuotaExceededError');
+      return original.call(this, value, key);
     };
-    (window as unknown as { restoreCueWrite: () => void }).restoreCueWrite = () => { durable.setItem = original; };
+    (window as unknown as { restoreCueWrite: () => void }).restoreCueWrite = () => { IDBObjectStore.prototype.put = original; };
   });
   await field.fill('RECOVER THIS QUESTION');
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush')));
   await expect(field).toHaveValue('RECOVER THIS QUESTION');
+  await expect(page.getByTestId('rundown-note')).toContainText('storage is full');
   const heldValue = () => page.evaluate(async ({ id, question }) => {
     const show = (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!;
     return show.cues!.find(c => c.id === question)!.values.f0;
