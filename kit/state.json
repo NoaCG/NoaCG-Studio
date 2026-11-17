@@ -42,8 +42,8 @@
  ],
  "inFlight": {
   "phase": 8,
-  "step": "build; fix #2508/#2560 in parallel",
-  "asOf": "2026-11-14T20:45Z"
+  "step": "check 8-c-b394; fix #2589 PR 2591 awaiting Windows",
+  "asOf": "2026-11-17T14:55Z"
  },
  "owner": [
   {
@@ -384,7 +384,14 @@
   "nonce": "8-b-23a0",
   "source": "d2d35f4a7cfd44d61f0807bfe35d7323aacfd3bf",
   "interim": "AC-6 five people pass: 476 Takes none lost, +36.6 ms pooled p95 (90% +29.6..+39.6) over 12 pairs; #2562 #2557 not hit; 10-page run lost 3 of 7 editors' last edits -> #2565",
-  "onMain": "2026-11-17 without #2573: AC-6 check 8/8 no loss, soaks 2/2 no loss (472/469 takes 0 lost), pairs +18.0 ms (90% +14.8..+22.3)"
+  "onMain": "2026-11-17 without #2573: AC-6 check 8/8 no loss, soaks 2/2 no loss (472/469 takes 0 lost), pairs +18.0 ms (90% +14.8..+22.3)",
+  "landed": "ee0e2d75a95ca9081e53b9a34d4c19967fa7a3cd (PR 2590)",
+  "checker": "session_017SdbwR6KUFT7Uwd8ANKDhh nonce 8-c-b394",
+  "issues": [
+   "#2586",
+   "#2589",
+   "#2592"
+  ]
  },
  "productionCheck": "2026-11-14T23:00Z via scripts/production-switch.mjs: production_copies on, auto_publish off, partial_writes unset",
  "pause": "2026-11-15 to 2026-11-17 06:37Z: weekly usage limit reached; all workers stopped; resumed after reset"
