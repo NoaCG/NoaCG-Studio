@@ -62,7 +62,7 @@ async function admin(path: string, init: RequestInit): Promise<Response> {
   });
 }
 
-/** Create an account, or accept that it already exists. */
+/** Create an account. A leftover one from a run that died is deleted first (`dropMinted`), so every run starts clean. */
 async function mint(email: string): Promise<void> {
   const res = await admin('users', { method: 'POST', body: JSON.stringify({ email, password: E2E_PASSWORD, email_confirm: true }) });
   if (res.ok) return;
@@ -86,7 +86,7 @@ const t0 = Date.now();
 export const log = (...a: unknown[]) => console.log(`[five ${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
 
 const row = (page: Page, label: string) =>
-  page.locator('.pd-cue').filter({ has: page.locator('.pd-cue-label > strong', { hasText: new RegExp(`^${label}$`) }) });
+  page.locator('.pd-cue').filter({ has: page.locator('.pd-cue-label > strong', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) });
 
 export async function selectCue(page: Page, label: string): Promise<void> {
   await row(page, label).getByTestId('select-cue').click();
@@ -232,8 +232,11 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
   const roles: Person['role'][] = ['taker', 'messages', 'quick', ...Array.from({ length: editors }, () => 'editor' as const)];
   const emails = roles.map((_, i) => (i === 0 ? E2E_EMAIL : memberEmail(i)));
   const minted = emails.slice(1);
+  await dropMinted(minted);
   for (const e of minted) await mint(e);
   const people: Person[] = [{ role: 'taker', email: E2E_EMAIL, context: owner.context(), page: owner }];
+  const contexts: BrowserContext[] = [];
+  try {
   await instrument(owner.context());
   await owner.reload();
   await openProduction(owner, built.showId);
@@ -245,6 +248,7 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
       ...(await Promise.all(
         joiners.slice(at, at + 4).map(async ({ role, email, i }) => {
           const context = await browser.newContext();
+          contexts.push(context);
           await installDoor(context);
           const page = await context.newPage();
           await join(page, email, built.code, built.showId, `Five ${role} ${i}`);
@@ -277,6 +281,7 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
     { key, start: SCORE_START },
   );
   const outputContext = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  contexts.push(outputContext);
   await instrument(outputContext);
   await outputContext.addInitScript(FRAME_LOADS);
   const output = await outputContext.newPage();
@@ -295,6 +300,12 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
   // here on. Set-up is not timed. A page taken offline and back loses its throttle (one CDP setting).
   if (NET === 'slow') for (const p of [...people.map((x) => x.page), output]) await throttle(p, 'slow');
   return { ...built, slug, key, people, output, outputContext, minted };
+  } catch (e) {
+    // The caller holds no scene to tear down yet: close what was opened, here.
+    await tearDown({ teamId: built.teamId, people: [], outputContext: null, minted }, owner);
+    for (const c of contexts) await c.close().catch(() => undefined);
+    throw e;
+  }
 }
 
 /** Everything the run did, for the caller to judge. */
@@ -313,9 +324,9 @@ export interface RunReport {
 export interface RunOptions {
   /** How long the roles run. */
   ms: number;
-  /** One tick: editors type together on it; the quick button presses on every other one. */
+  /** One tick: editors type together on it; the quick button presses every three quarters of one. */
   tickMs?: number;
-  /** Seconds between messages. */
+  /** Milliseconds between messages. */
   messageEveryMs?: number;
   /** Reload one editor's page at this fraction of the run, and take another offline at that one. */
   reloadAt?: number | null;
@@ -369,7 +380,6 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
   const quickLoop = async (p: Person) => {
     const page = p.page;
     await selectCue(page, p.cue!);
-    // The score goes on air once; from then on its Goal button is the quick button pressed.
     // The score went on air in set-up; its Goal button is the quick button.
     const goal = page.getByTestId('cue-action-goalA');
     await expect(goal).toBeEnabled({ timeout: 20_000 });
@@ -513,10 +523,13 @@ export async function pageCues(page: Page, showId: string): Promise<Record<strin
 }
 
 /** Take the scene down: the team (with its production) and the minted accounts. */
-export async function tearDown(scene: Scene | null, owner: Page): Promise<void> {
+export async function tearDown(
+  scene: (Pick<Scene, 'teamId' | 'people' | 'minted'> & { outputContext: BrowserContext | null }) | null,
+  owner: Page,
+): Promise<void> {
   if (scene) {
     for (const p of scene.people.slice(1)) await p.context.close().catch(() => undefined);
-    await scene.outputContext.close().catch(() => undefined);
+    await scene.outputContext?.close().catch(() => undefined);
     await owner
       .evaluate(async (teamId) => {
         const { deleteTeam } = await __noacgImport('/src/backend/teams.ts');
