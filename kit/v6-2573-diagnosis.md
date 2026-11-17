@@ -79,3 +79,6 @@ The repository owner directed transfer of the single repair ownership record to 
 Handoff files https://github.com/NoaCG/NoaCG-Studio/tree/9771a7cc8421558e6b012cef62fd7d5b1bf900c9/docs/work-specs/live-publishing/evidence/fix-2572-handoff
 Ownership https://github.com/NoaCG/NoaCG-Studio/pull/2573#issuecomment-6899954398
 Codex waits for the exact candidate before the agreed shared Windows checks and posts each result with its job ID on #2573. The original V6 #2575 stays parked until the actual #2573 merge and passing post-landing confirmation from Claude. No reporting scheduler or other wake was added.
+
+Exact Windows handoff verification on 703bc0d6 passed. j-5319 2/2 exit 0 (account-switch replay and ordinary save), j-5320 2/2 exit 0 (stale tab, Undo and receipt cleanup), j-5321 4/4 exit 0 (original imported quiz and three IndexedDB safeguards). The checkout was clean before and after. Results posted on #2573. No source edits or pushes.
+https://github.com/NoaCG/NoaCG-Studio/pull/2573#issuecomment-6944874235
