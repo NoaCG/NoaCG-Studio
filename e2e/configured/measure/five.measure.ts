@@ -67,13 +67,40 @@ async function settle(s: Scene, report: RunReport, timeoutMs = 90_000) {
   return { state, pages, settledInMs: Math.min(Date.now() - began, timeoutMs), lastOf };
 }
 
+/** What each editor's own page holds of its cue: the editor box, the page's record, and the team
+ *  save's state (#2589). Read on every editor at once. */
+async function probe(s: Scene) {
+  return Promise.all(
+    s.people
+      .filter((p) => p.role === 'editor')
+      .map(async (p) => {
+        const box = await p.page.getByTestId('cue-editor').locator('input[type="text"][data-testid^="cue-field-"]').first().inputValue({ timeout: 2_000 }).catch(() => null);
+        const state = await p.page
+          .evaluate(
+            async ({ id, cue }) => {
+              const { getTeamState, teamEditOwed } = await __noacgImport('/src/backend/teamProductions.ts');
+              const { loadShows } = await __noacgImport('/src/model/shows.ts');
+              const team = getTeamState();
+              const c = loadShows().find((x) => x.id === id)?.cues?.find((x) => x.label === cue);
+              return { record: c ? Object.values(c.values ?? {})[0] ?? '' : null, saving: team.saving[id] ?? null, note: team.notes[id] ?? null, owed: teamEditOwed(id), online: navigator.onLine };
+            },
+            { id: s.showId, cue: p.cue! },
+          )
+          .catch((e) => ({ error: String(e).split('\n')[0] }));
+        return { email: p.email, cue: p.cue, box, ...state };
+      }),
+  );
+}
+
 test('soak', async ({ page, browser }) => {
   const ms = Number(process.env.MEASURE_SOAK_MS ?? 600_000);
   test.setTimeout(ms + 10 * 60_000);
   scene = await openScene(browser, page, PAGES);
   const report = await run(scene, { ms, reloadAt: 0.4, offlineAt: 0.6, offlineMs: 20_000, messageEveryMs: Number(process.env.MEASURE_MESSAGE_MS ?? 15_000) });
   log('run over; settling');
+  const probed = process.env.MEASURE_PROBE ? { atEnd: await probe(scene) } as Record<string, unknown> : null;
   const settled = await settle(scene, report, Number(process.env.MEASURE_SETTLE_MS ?? 90_000));
+  if (probed) probed.afterSettle = await probe(scene);
   const lost = report.takes.filter((t) => t.ranAt === null).length;
   writeResult(`five-soak-${TAG}-part${PART}`, {
     pages: PAGES,
@@ -81,6 +108,7 @@ test('soak', async ({ page, browser }) => {
     report,
     pressToRan: summary(ran(report), lost),
     settled,
+    probed,
   });
   log('takes', report.takes.length, 'lost', lost, 'goals', report.goals, 'score', settled.state.score, 'messages', report.messages.length, 'errors', report.errors);
 });
