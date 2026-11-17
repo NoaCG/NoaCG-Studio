@@ -65,10 +65,11 @@ served by `vite preview`), as phases 6 and 7 judged timing on a bundled build. U
 
 ## Results
 
-### On `main` with #2567, without #2573 (2026-11-17)
+### On `main` with #2567, and #2573 at c9cc8682 (2026-11-17)
 
-Merged `origin/main` b1fb1b9e (branch head 10fc5ed8), which holds #2567 (#2565's fix) but not #2573
-(#2572's). Same machine, local stack, bundled build for the timed runs.
+Merged `origin/main` b1fb1b9e (branch head 10fc5ed8), which holds #2567 (#2565's fix). The branch
+also still held #2573's fix of #2572 as of c9cc8682, merged in on 2026-11-14 for the measurements,
+so these runs had both fixes. Same machine, local stack, bundled build for the timed runs.
 
 | Run | Jobs | Result |
 |---|---|---|
@@ -84,8 +85,8 @@ not change them. j-0094's third pass and j-0102's fourth run were stopped by the
 limit, not failed, and j-0101 by a container restart; none of those is counted.
 
 The earlier report that the five-person check lost a typed text (an editor typed `#9`, every page
-kept `#8` or `#7`) was j-0034, on code without any fix for #2565. With #2567 on `main`, eight runs
-in a row kept every last text.
+kept `#8` or `#7`) was j-0034, on code without any fix for #2565. With #2567 and #2573's fix, eight
+runs in a row kept every last text. The runs without #2573 are in the next section.
 
 ### Ten minutes, five people (`soak`, job j-0022)
 
