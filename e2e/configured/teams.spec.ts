@@ -944,7 +944,17 @@ test.describe('five accounts at once', () => {
   test.skip(!haveCreds || !SERVICE_ROLE_KEY || !isLocalStack(), 'five people: needs the local stack, its accounts and its service key (it mints accounts and writes the switches)');
 
   let scene: Scene | null = null;
-  test.afterEach(async ({ page }) => {
+  test.afterEach(async ({ page }, testInfo) => {
+    // On a failure, keep what each person's own page shows before the scene goes: a lost text is
+    // diagnosed from the typist's page (its record, its open cue editor), never from the record alone.
+    if (scene && testInfo.status !== testInfo.expectedStatus) {
+      for (const [i, p] of scene.people.entries()) {
+        const cues = await pageCues(p.page, scene.showId).catch((e) => String(e));
+        const editing = await p.page.getByTestId('cue-editor').locator('input[type="text"]').first().inputValue({ timeout: 2_000 }).catch(() => null);
+        await testInfo.attach(`person-${i}-${p.role}.json`, { body: JSON.stringify({ email: p.email, cue: p.cue, editing, cues }, null, 2), contentType: 'application/json' });
+        await testInfo.attach(`person-${i}-${p.role}.png`, { body: await p.page.screenshot().catch(() => Buffer.from('')), contentType: 'image/png' });
+      }
+    }
     await tearDown(scene, page);
     scene = null;
     await setSwitch('auto_publish', false).catch(() => undefined);
