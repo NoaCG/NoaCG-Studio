@@ -93,10 +93,10 @@ export interface CueDraftIo {
   canWrite: () => boolean;
   /** Start or continue an edit group. A fresh draft passes the cue record it starts from. */
   editing: (group: string, freshCue: CueRecord | null) => void;
-  /** Save through the rundown history, answering whether the store confirmed it. `overtaken`
-   *  answers whether a later save of the same typing has been handed over since: the history then
-   *  writes nothing for this one when its turn comes, since the later one carries newer text (#2589). */
-  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId, overtaken?: () => boolean) => Promise<boolean>;
+  /** Save through the rundown history, answering whether the store confirmed it. `laterSaves`
+   *  counts the saves of the same typing handed over since this one: the history may then write
+   *  nothing for this one, since the newest carries newer text (#2589, D9). */
+  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId, laterSaves?: () => number) => Promise<boolean>;
   /** Save at once, with no history and nothing to await: whether the store accepted it. */
   retainCue: (cueId: string, fields: CueFields, confirm?: ObserveCue, commit?: DraftCommitId) => boolean | Promise<boolean>;
   /** A queued handoff still needs retaining when its value has never reached the local record. */
@@ -234,7 +234,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   /** The texts the draft's cue may hold under it: the text when the draft started, then each
    *  part of the typing handed to the store (it may or may not have landed when the page goes).
    *  What a recorded edit may be applied over on the next visit, and nothing else. */
-  let startedFrom: { cueId: string; original: CueFields; texts: DraftHandoff[]; stream?: DraftStream; sends: number } | null = null;
+  let startedFrom: { cueId: string; original: CueFields; texts: DraftHandoff[]; stream?: DraftStream; sends: number; latest?: Promise<boolean> } | null = null;
   const commits = new WeakMap<DraftPart, DraftRevision>();
   /** The owed-edit record this page last wrote when it hid, as stored, or null. */
   let recorded: string | null = null;
@@ -364,15 +364,15 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     // production's local outbox lands before the server answers): typing on may be applied over it.
     const write = handed(d), commit = commits.get(d), finish = track(commit);
     // One save per typed text queued behind a slow team save put the record dozens of texts
-    // behind; a save still queued when a newer one of this typing is handed over writes nothing.
+    // behind; a save a newer one of this typing overtook in the queue may write nothing (#2589).
     const typing = startedFrom?.cueId === d.cueId ? startedFrom : null;
     const turn = typing ? ++typing.sends : 0;
     let confirmedByReceipt = false;
-    return io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
+    const result = io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
       confirmedByReceipt = true;
       confirmed(write, cue);
       forgetCommitted(commit);
-    }, commit?.id, typing ? () => typing.sends !== turn : undefined).then((saved) => {
+    }, commit?.id, typing ? () => typing.sends - turn : undefined).then((saved) => {
       if (out === d) out = null;
       // Typing went on during the save, or the session ended: the newer draft is still owed.
       if (part.get() === d && session.alive()) {
@@ -388,6 +388,11 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       }
       return saved;
     }).finally(finish);
+    if (!typing) return result;
+    // Whoever waits on an overtaken save is answered by the save that carries its text.
+    const answer = result.then(saved => !saved && typing.sends !== turn && typing.latest ? typing.latest : saved);
+    typing.latest = answer;
+    return answer;
   };
 
   /** Save synchronously what is owed: pausing and teardown cannot await a microtask. The draft

@@ -1,7 +1,7 @@
 // guards: src/model/rundownHistory.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rundownSlice, replaceRundown, sameRundown, RundownHistory, liveRundownRefusal, typedCueUnchanged, cueTextKey } from '../src/model/rundownHistory.ts';
+import { rundownSlice, replaceRundown, sameRundown, RundownHistory, liveRundownRefusal, typedCueUnchanged, cueTextKey, draftSaveOvertaken } from '../src/model/rundownHistory.ts';
 const show = { id: 'p', version: 2, name: 'Keep this name', data: { score: 7 }, graphics: [{ id: 'g', name: 'Graphic', template: {} }], cues: [{ id: 'c', sourceId: 'g', label: 'First', values: { name: 'Ada' }, folderId: 'f' }], folders: [{ id: 'f', name: 'Guests', mode: 'manual', collapsed: true }] };
 test('inverse preserves metadata/collapse and restores exact source, cue, folder and value ids', () => {
   const before = rundownSlice(show), deleted = { ...show, cues: [], graphics: [], folders: [] };
@@ -82,4 +82,17 @@ test('the typed cue is as it was unless its own text changed or it went (#2572, 
   assert.equal(cueTextKey(rundownSlice({ ...two, cues: two.cues.filter((c) => c.id !== 'c') }), 'c'), null);
   assert.equal(cueTextKey(rundownSlice({ ...two, cues: [...two.cues].reverse() }), 'c'), cueTextKey(expected, 'c'));
   assert.notEqual(cueTextKey(change((c) => ({ ...c, note: 'A note' })), 'c'), cueTextKey(expected, 'c'));
+});
+
+test('a typed save is skipped only when later saves of its typing follow it with nothing between (#2589, D9)', () => {
+  // Saves at 5, 6, 7 of one typing, nothing else queued: 5 and 6 are carried by 7.
+  assert.equal(draftSaveOvertaken(5, 2, 7), true);
+  assert.equal(draftSaveOvertaken(6, 1, 7), true);
+  assert.equal(draftSaveOvertaken(7, 0, 7), false, 'the newest always writes');
+  // A group close, a move or an Undo queued at 7, the next save at 8: 5 and 6 must write first.
+  assert.equal(draftSaveOvertaken(5, 2, 8), false);
+  assert.equal(draftSaveOvertaken(6, 1, 8), false);
+  // The later save never reached the queue (its typing was dropped): this one stays as it is.
+  assert.equal(draftSaveOvertaken(5, 1, 5), false);
+  assert.equal(draftSaveOvertaken(5, 1, undefined), false);
 });

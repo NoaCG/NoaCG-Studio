@@ -47,6 +47,15 @@ export const cueTextKey = (rundown: Pick<Show, 'cues'>, cueId: string): string |
 /** Whether a change made elsewhere left the text of the cue being typed as `expected` held it, the
  *  cue still there (#2572, D1). A move, a folder change or any other cue is elsewhere; its label,
  *  note, any of its values or its removal is not (D3). */
+/** Whether a queued save of the typed cue may write nothing (#2589, D9): `later` saves of the same
+ *  typing were handed over after the one at `position`, and they follow it in the queue with nothing
+ *  else between them (the latest at `latestAt`), so the newest carries the text and no operation
+ *  queued meanwhile, a group close, a move or an Undo, needed this one written first. Positions
+ *  count every operation the history queued, in order. */
+export function draftSaveOvertaken(position: number, later: number, latestAt: number | undefined): boolean {
+  return later > 0 && latestAt === position + later;
+}
+
 export const typedCueUnchanged = (cueId: string, now: RundownSlice, expected: RundownSlice): boolean => {
   const was = cueTextKey(expected, cueId);
   return was !== null && cueTextKey(now, cueId) === was;

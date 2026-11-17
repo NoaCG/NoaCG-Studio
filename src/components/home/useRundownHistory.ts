@@ -4,7 +4,7 @@ import { canAuthorAccount, commitDurableReceipt, captureDurableWrites, libraryIn
 import { loadShows, recoverPersonalCueDraft, restorePersonalRundown, type CueDraftWriteOptions, type Show } from '../../model/shows';
 import type { CueFields, CueRecord, OwedEdit } from '../../control/cueDraft';
 import type { DraftCommitId } from '../../model/cueDraftCommit';
-import { RundownHistory, cueFieldsKey, cueTextKey, landedReplacement, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
+import { RundownHistory, cueFieldsKey, draftSaveOvertaken, cueTextKey, landedReplacement, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
 
 type WriteResult = { shows: Show[]; error: string | null; refused?: string | null };
 type Group = { key: string; before: RundownSlice; after: RundownSlice; valid: boolean };
@@ -13,6 +13,8 @@ type Typing = {
   text: string | null;
   staged?: { text: string; committedText?: () => string | null; commit?: DraftCommitId };
   retaining?: Promise<boolean>;
+  /** Where in the queue the latest save of this typing was handed over (#2589). */
+  lastSaveAt?: number;
 };
 type PendingTeamEdit = { before: RundownSlice; after: RundownSlice; label: string; receipt: TeamRundownReceipt; group?: Group; closed: boolean; confirming: boolean };
 
@@ -64,6 +66,8 @@ export function useRundownHistory(
   const group = useRef<Group | null>(null);
   const pendingTeam = useRef<PendingTeamEdit | null>(null);
   const epoch = useRef({ value: 0 });
+  /** Every operation queued so far, in order: where a typed save stands among them (#2589). */
+  const queued = useRef(0);
   const queue = useRef({ identity, count: 0, tail: Promise.resolve() as Promise<unknown> });
   if (queue.current.identity !== identity) queue.current = { identity, count: 0, tail: Promise.resolve() };
   const callbacks = useRef({ update, note, safety, cancelDraft }); callbacks.current = { update, note, safety, cancelDraft };
@@ -146,7 +150,7 @@ export function useRundownHistory(
   function enqueue<T>(operation: () => Promise<T>, stale: T, draft = false): Promise<T> {
     const generation = epoch.current.value, held = queue.current, session = lifetime.current.generation;
     const canFinish = () => held === queue.current && session === lifetime.current.generation;
-    held.count++; changed();
+    held.count++; queued.current++; changed();
     const result = held.tail.then(async () => {
       if (!canFinish() || (!draft && generation !== epoch.current.value) || !canAuthorAccount()) return stale;
       return operation();
@@ -293,19 +297,23 @@ export function useRundownHistory(
     if (typing.current?.cueId !== cueId) typing.current = { cueId, text: cueTextKey(slice, cueId) };
     changed();
   };
-  const writeDraft = (cueId: string, write: DraftWrite, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId, overtaken?: () => boolean): Promise<boolean> => {
+  const writeDraft = (cueId: string, write: DraftWrite, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId, laterSaves?: () => number): Promise<boolean> => {
     const draft = recoveredFrom ? { cueId, text: cueFieldsKey(recoveredFrom) } : typing.current;
     if (draft?.cueId !== cueId) return Promise.resolve(false);
     const held = group.current ?? undefined, label = held ? 'Edit cue' : 'Save cue';
     const session = lifetime.current.generation, queueAtWrite = queue.current;
-    return enqueue(async () => {
+    let position = 0;
+    const saved = enqueue(async () => {
       if (draft.retaining) await draft.retaining;
-      // A later save of this typing is queued behind this one with newer text (#2589, D9).
-      if (overtaken?.()) return false;
+      // Later saves of this typing follow this one in the queue with newer text (#2589, D9).
+      if (laterSaves && draftSaveOvertaken(position, laterSaves(), draft.lastSaveAt)) return false;
       const expectedText = draft.text;
       if (session !== lifetime.current.generation || queueAtWrite !== queue.current || expectedText === null) return false;
       return perform(options => write(expectedText, options), label, held, label, { typing: draft, confirm, commit });
     }, false, true);
+    position = queued.current;
+    if (laterSaves) draft.lastSaveAt = position;
+    return saved;
   };
   const recoverDraft = (edit: OwedEdit & { commit: DraftCommitId }, stillOwed: () => boolean): Promise<boolean> => {
     const id = show?.id, scope = lifetime.current.generation;

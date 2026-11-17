@@ -54,14 +54,14 @@ function harness(commitStore) {
       groups.push(group);
       freshCues.push(freshCue);
     },
-    writeCue: (cueId, fields, _recoveredFrom, confirm, commit, overtaken) =>
+    writeCue: (cueId, fields, _recoveredFrom, confirm, commit, laterSaves) =>
       new Promise(resolve => writes.push(Object.defineProperty({
         cueId, fields: structuredClone(fields), ...(commit && { commit }),
         answer: (saved, record) => {
           if (record) confirm?.(record);
           resolve(saved);
         },
-      }, 'overtaken', { value: overtaken }))),
+      }, 'laterSaves', { value: laterSaves }))),
     retainCue: (cueId, fields) => {
       retained.push({ cueId, fields: structuredClone(fields) });
       return h.retainOk;
@@ -1014,13 +1014,13 @@ test('the editor moving to another cue starts the save of the draft it left, onc
   assert.deepEqual(h.retained.map((r) => r.fields.values.f0), ['Typed on air'], 'and the page going saves it');
 });
 
-/** The history's queue as it treats draft saves: one at a time, in order, and a save overtaken by a
- *  later save of the same typing writes nothing when its turn comes (`writeDraft`, #2589). Each
- *  save that runs is confirmed after `slow` turns, as a team save waiting on refusals would be. */
+/** The history's queue as it treats draft saves: one at a time, in order, and a save followed only
+ *  by later saves of the same typing writes nothing when its turn comes (`writeDraft` with
+ *  `draftSaveOvertaken`, #2589); nothing else is queued between them here. */
 async function drainLikeTheHistory(h, written) {
   for (let i = 0; i < h.writes.length; i++) {
     const w = h.writes[i];
-    if (w.overtaken?.()) { w.answer(false); continue; }
+    if (w.laterSaves?.() > 0) { w.answer(false); continue; }
     written.push(w.fields.values.f0 ?? w.fields.label);
     w.answer(true);
     await new Promise(resolve => setImmediate(resolve));
@@ -1038,7 +1038,7 @@ test('#2589 D9: texts typed while a slow save is out are written once, as the ne
     h.tick(); // the idle save falls due while the saves before it are still queued
   }
   assert.deepEqual(h.writes.map(w => w.fields.values.f0), ['#1', '#2', '#3', '#4', '#5', '#6'], 'every save is handed over at once');
-  assert.deepEqual(h.writes.map(w => w.overtaken?.()), [true, true, true, true, true, false]);
+  assert.deepEqual(h.writes.map(w => w.laterSaves?.()), [5, 4, 3, 2, 1, 0]);
   const written = [];
   // #1 is already out: it was handed over first and the history started it then.
   written.push('#1'); h.writes[0].answer(true); await new Promise(resolve => setImmediate(resolve));
@@ -1061,8 +1061,8 @@ test('#2589 D9: another cue selected right after typing still writes the typed t
   // Typing in the next cue never overtakes the last cue's save.
   h.draft.edit(CLOSER, { label: 'Closer edited' });
   void h.draft.flush();
-  assert.deepEqual(h.writes.map(w => [w.cueId, w.cueId === 'c1' ? w.fields.values.f0 : w.fields.label, w.overtaken?.()]),
-    [['c1', '#1', true], ['c1', '#2', false], ['c2', 'Closer edited', false]]);
+  assert.deepEqual(h.writes.map(w => [w.cueId, w.cueId === 'c1' ? w.fields.values.f0 : w.fields.label, w.laterSaves?.()]),
+    [['c1', '#1', 1], ['c1', '#2', 0], ['c2', 'Closer edited', 0]]);
   stop();
 });
 
@@ -1074,7 +1074,7 @@ test('#2589 D9: a save of the same text handed over again after a refusal still 
   h.writes[0].answer(false);
   await new Promise(resolve => setImmediate(resolve));
   void h.draft.flush();
-  assert.deepEqual(h.writes.map(w => [w.fields.values.f0, w.overtaken?.()]), [['#1', true], ['#1', false]]);
+  assert.deepEqual(h.writes.map(w => [w.fields.values.f0, w.laterSaves?.()]), [['#1', 1], ['#1', 0]]);
   stop();
 });
 
@@ -1094,6 +1094,37 @@ test('#2589 D9: a draft dropped a task after its save, or left for another cue o
   h.draft.edit(CLOSER, { label: 'On air next' });
   assert.deepEqual(h.writes.map(w => [w.cueId, w.cueId === 'c1' ? w.fields.values.f0 : w.fields.label]),
     [['c1', '#1'], ['c1', '#2'], ['c1', '#3']], 'each text is handed over before its draft goes');
-  assert.deepEqual(h.writes.map(w => w.overtaken?.()), [true, false, false], 'only a save overtaken by its own typing is skipped');
+  assert.deepEqual(h.writes.map(w => w.laterSaves?.()), [1, 0, 0], 'only a later save of the same typing counts');
+  stop();
+});
+
+test('#2589 D9: whoever waits on an overtaken save is answered by the save that carries its text (final /so)', async () => {
+  // A move or an Undo pressed just after typing awaits the save; typing on overtook it in the queue.
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: '#1' } });
+  void h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: '#2' } });
+  const awaited = h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: '#3' } });
+  const newest = h.draft.flush();
+  h.writes[0].answer(true);
+  h.writes[1].answer(false); // overtaken: the history wrote nothing for it
+  h.writes[2].answer(true);
+  assert.equal(await awaited, true, 'its text went with #3');
+  assert.equal(await newest, true);
+  stop();
+});
+
+test('#2589 D9: an overtaken save that the later save fails to carry answers that failure', async () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: '#1' } });
+  const first = h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: '#2' } });
+  void h.draft.flush();
+  h.writes[0].answer(false);
+  h.writes[1].answer(false);
+  assert.equal(await first, false);
   stop();
 });
