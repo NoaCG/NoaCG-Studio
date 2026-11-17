@@ -42,7 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "V6 draft #2575 and local candidate 29b3fdbf are checkpointed. V6 still needs to connect live clip ending changes in src/components/home/ProductionPage.tsx. Live-publishing owns that file for its open #2591 (head fc4e40ba), which is awaiting its exact Windows checks per https://github.com/NoaCG/NoaCG-Studio/issues/2361#issuecomment-6952962064. Resume V6 once that allocation clears, using current main. #2573 already merged and passed its post-landing checks. The #1967 cf13 hold ended."
+    "what": "V6 needs src/components/home/ProductionPage.tsx, which remains allocated to live-publishing PR #2591. Windows jobs j-5323 (account switch), j-5324 (stale-tab recovery, Undo, receipt cleanup), and j-5325 (quiz and IndexedDB safeguards) are queued on confirmed commit a46f3d0f25117cebd4ed95b5c9f9c1c47feaf8cc. Browser admission is waiting for the existing 3.5 GiB free RAM threshold. PR tip fc4e40ba adds evidence only. Post actual results to #2591 and resume V6 after it lands and the allocation clears. Preserve draft #2575 and local checkpoint 29b3fdbf. https://github.com/NoaCG/NoaCG-Studio/pull/2591#issuecomment-6949258498"
   },
   "inFlight": [],
   "owner": [],
