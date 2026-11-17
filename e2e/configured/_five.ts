@@ -1,4 +1,4 @@
-import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type Browser, type BrowserContext, type Frame, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { isLocalStackUrl } from '../../scripts/configured-target.mjs';
 import { installDoor } from '../_door';
@@ -48,8 +48,9 @@ export interface Scene {
   people: Person[];
   output: Page;
   outputContext: BrowserContext;
-  /** Output frames that had already played when set-up ended (the score): never a Take's "ran". */
-  onAir: string[];
+  /** Output frames that had already played when set-up ended (the score): never a Take's "ran".
+   *  Held as the frames themselves: every frame of the output has the same URL. */
+  onAir: Frame[];
   minted: string[];
 }
 
@@ -283,7 +284,7 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
   // MEASURE_NET=slow (the measurement only): every page and the output at 20 Mbit/s and 50 ms from
   // here on. Set-up is not timed. A page taken offline and back loses its throttle (one CDP setting).
   if (NET === 'slow') for (const p of [...people.map((x) => x.page), output]) await throttle(p, 'slow');
-  const onAir = (await framePlays(output)).filter((f) => f.plays.length > 0).map((f) => f.url);
+  const onAir = (await framePlays(output)).filter((f) => f.plays.length > 0).map((f) => f.frame);
   return { ...built, slug, key, people, output, outputContext, minted, onAir };
   } catch (e) {
     // The caller holds no scene to tear down yet: close what was opened, here.
@@ -352,7 +353,7 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
       const deadline = Date.now() + 10_000;
       while (ranAt === null && Date.now() < deadline) {
         const plays = (await framePlays(scene.output))
-          .filter((f) => !scene.onAir.includes(f.url))
+          .filter((f) => !scene.onAir.includes(f.frame))
           .flatMap((f) => f.plays)
           .filter((p) => p.playAt > pressAt)
           .sort((a, b) => a.playAt - b.playAt);
