@@ -1128,3 +1128,69 @@ test('the team production chip is quiet while a save is in flight, amber after a
   await expect(chip).toHaveAttribute('data-tone', 'warn');
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
+
+/** A tracked owed edit renaming the first cue, and the start of its recovery's read made to fire
+ *  `trigger` before the recovery decides (the Windows j-5318 sequence, PR #2573). */
+async function owedRecoveryInterrupted(page: Page, trigger: 'switch' | 'flush', account: string) {
+  const ids = await seed(page);
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.evaluate(async ({ id, cueId, account, trigger }) => {
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
+    const { bindLibraryToAccount } = await __noacgImport('/src/backend/accountLibrary.ts');
+    const key = 'spx-gfx-shows';
+    const records = JSON.parse(durable.getItem(key)!) as Show[];
+    const cue = records.find(record => record.id === id)!.cues!.find(cue => cue.id === cueId)!;
+    const before = { label: cue.label, note: cue.note ?? null, values: cue.values };
+    localStorage.setItem('spx-gfx-owed-cue-edits', JSON.stringify({ v: 1, shows: {
+      [id]: { cueId, bases: [before], fields: { ...before, label: 'Owed at switch' },
+        commit: { stream: '00000000-0000-4000-8000-000000000004', revision: 1 }, retired: true },
+    } }));
+    const original = IDBObjectStore.prototype.get;
+    IDBObjectStore.prototype.get = function(storedKey) {
+      const request = original.call(this, storedKey);
+      if (storedKey === key && this.transaction.mode === 'readwrite') {
+        IDBObjectStore.prototype.get = original;
+        request.addEventListener('success', () => {
+          if (trigger === 'switch') void bindLibraryToAccount(account);
+          else window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+        }, { once: true });
+      }
+      return request;
+    };
+  }, { id: ids.show, cueId: ids.cues[0], account, trigger });
+  return ids;
+}
+/** The signed-out library's stored label for the cue, read from IndexedDB itself. */
+const storedSignedOutLabel = (page: Page, ids: { show: string; cues: string[] }) => page.evaluate(async ({ id, cueId }) => {
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open('noacg-studio');
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  try {
+    const records = await new Promise<Show[]>((resolve, reject) => {
+      const request = db.transaction('kv', 'readonly').objectStore('kv').get('spx-gfx-shows');
+      request.onsuccess = () => resolve(JSON.parse(request.result));
+      request.onerror = () => reject(request.error);
+    });
+    return records.find(show => show.id === id)?.cues?.find(cue => cue.id === cueId)?.label;
+  } finally { db.close(); }
+}, { id: ids.show, cueId: ids.cues[0] });
+const owedLabel = (page: Page, id: string) => page.evaluate(id => JSON.parse(localStorage.getItem('spx-gfx-owed-cue-edits') ?? '{}').shows?.[id]?.fields.label ?? null, id);
+
+test('a cue recovery waiting on storage when an account switch starts leaves the old library alone (#2573)', async ({ page }) => {
+  const account = '00000000-0000-4000-8000-000000000005';
+  const ids = await owedRecoveryInterrupted(page, 'switch', account);
+  await Promise.all([page.waitForEvent('load'), page.goto('/app#/production/' + ids.show)]);
+  expect(await page.evaluate(() => localStorage.getItem('spx-gfx-account'))).toBe(account);
+  expect(await storedSignedOutLabel(page, ids)).toBe('Alpha');
+  expect(await owedLabel(page, ids.show)).toBe('Owed at switch');
+});
+
+test('an ordinary save request during a cue recovery lets the recovery land (#2573)', async ({ page }) => {
+  const ids = await owedRecoveryInterrupted(page, 'flush', '');
+  await page.goto('/app#/production/' + ids.show);
+  await expect.poll(() => storedSignedOutLabel(page, ids)).toBe('Owed at switch');
+  await expect.poll(() => owedLabel(page, ids.show)).toBe(null);
+});
