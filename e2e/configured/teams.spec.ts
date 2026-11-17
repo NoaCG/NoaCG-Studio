@@ -27,7 +27,7 @@
 // covers: src/control/publishParts.ts, src/control/publishRevision.ts, src/control/messageStaging.ts
 
 import { publishProduction } from '../_publish';
-import { isLocalStack, pageCues, run, serverState, setSwitch, setUp, tearDown, type Scene } from './_five';
+import { closeScene, isLocalStack, lastTexts, openScene, pageCues, run, serverState, type Scene } from './_five';
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import {
   dismissWizard,
@@ -955,17 +955,13 @@ test.describe('five accounts at once', () => {
         await testInfo.attach(`person-${i}-${p.role}.png`, { body: await p.page.screenshot().catch(() => Buffer.from('')), contentType: 'image/png' });
       }
     }
-    await tearDown(scene, page);
+    await closeScene(scene, page);
     scene = null;
-    await setSwitch('auto_publish', false).catch(() => undefined);
-    await setSwitch('partial_writes', false).catch(() => undefined);
   });
 
   test('five people on one production: no command lost, no different cue overwritten', async ({ page, browser }) => {
     test.setTimeout(120_000);
-    await setSwitch('partial_writes', true);
-    await setSwitch('auto_publish', true);
-    scene = await setUp(browser, page, 5);
+    scene = await openScene(browser, page, 5);
     const before = await serverState(scene);
     const report = await run(scene, { ms: 30_000, tickMs: 3_000, messageEveryMs: 9_000, reloadAt: 0.3, offlineAt: 0.5, offlineMs: 8_000 });
     expect(report.errors, 'every role ran to the end').toEqual([]);
@@ -979,7 +975,7 @@ test.describe('five accounts at once', () => {
     expect(report.messages.filter((m) => !m.prepared), 'every message became a cue').toEqual([]);
 
     // Everything settles: the record, the publication and every page.
-    const last = Object.fromEntries(report.edits.map((e) => [e.cue, e.typed[e.typed.length - 1]]));
+    const last = lastTexts(report);
     const s = scene;
     await expect
       .poll(async () => (await serverState(s)).score, { timeout: 20_000, message: 'the score moved once per Goal' })
@@ -993,14 +989,16 @@ test.describe('five accounts at once', () => {
         { timeout: 30_000, message: "each editor's last text is in the team's record and in the publication" },
       )
       .toEqual(Object.fromEntries(Object.entries(last).map(([cue, text]) => [cue, { record: text, published: true }])));
-    for (const p of s.people) {
-      await expect
-        .poll(async () => pickCues(await pageCues(p.page, s.showId), Object.keys(last)), {
-          timeout: 30_000,
-          message: `${p.email}'s page holds each editor's last text`,
-        })
-        .toEqual(last);
-    }
+    await Promise.all(
+      s.people.map((p) =>
+        expect
+          .poll(async () => pickCues(await pageCues(p.page, s.showId), Object.keys(last)), {
+            timeout: 30_000,
+            message: `${p.email}'s page holds each editor's last text`,
+          })
+          .toEqual(last),
+      ),
+    );
     const state = await serverState(s);
     for (const label of [...s.takes, s.score]) expect(state.cues[label], `${label} was edited by nobody and keeps its text`).toBe(before.cues[label]);
     for (const m of report.messages) expect(state.labels, `a cue from "${m.body}"`).toContain(m.body);

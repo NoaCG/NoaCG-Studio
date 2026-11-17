@@ -1,6 +1,6 @@
 import { test } from '@playwright/test';
 import { SERVICE_ROLE_KEY } from '../_helpers';
-import { isLocalStack, log, openProduction, pageCues, run, serverState, setSwitch, setUp, tearDown, type RunReport, type Scene } from '../_five';
+import { closeScene, isLocalStack, lastTexts, log, openProduction, openScene, pageCues, run, serverState, type RunReport, type Scene, type Settled } from '../_five';
 import { BUILD, NET, pct, summary, writeResult } from './_measure';
 
 // FIVE PEOPLE AT ONCE, MEASURED (docs/work-specs/live-publishing/spec.md, AC-6). The scene is
@@ -39,23 +39,23 @@ test.beforeEach(async ({ page }) => {
 
 let scene: Scene | null = null;
 test.afterEach(async ({ page }) => {
-  await tearDown(scene, page);
+  await closeScene(scene, page);
   scene = null;
-  await setSwitch('auto_publish', false).catch(() => undefined);
-  await setSwitch('partial_writes', false).catch(() => undefined);
 });
 
 const ran = (r: RunReport) => r.takes.filter((t) => t.ranAt !== null).map((t) => t.ranAt! - t.pressAt);
 
 /** Wait until the server and every page hold each editor's last text, or the time is up. */
 async function settle(s: Scene, report: RunReport, timeoutMs = 90_000) {
-  const lastOf = Object.fromEntries(report.edits.map((e) => [e.cue, e.typed[e.typed.length - 1]]));
-  const end = Date.now() + timeoutMs;
-  let state = await serverState(s);
+  const lastOf = lastTexts(report);
+  const began = Date.now();
+  const end = began + timeoutMs;
+  let state!: Settled;
   const pages: Record<string, Record<string, string>> = {};
   const read = async () => {
-    state = await serverState(s);
-    for (const p of s.people) pages[p.email] = await pageCues(p.page, s.showId).catch(() => ({}));
+    const [got, ...each] = await Promise.all([serverState(s), ...s.people.map((p) => pageCues(p.page, s.showId).catch(() => ({})))]);
+    state = got;
+    s.people.forEach((p, i) => (pages[p.email] = each[i]));
   };
   const ok = () =>
     Object.entries(lastOf).every(([cue, text]) => state.cues[cue] === text && state.published.includes(text) && Object.values(pages).every((c) => c[cue] === text));
@@ -64,15 +64,13 @@ async function settle(s: Scene, report: RunReport, timeoutMs = 90_000) {
     await s.people[0].page.waitForTimeout(2_000);
     await read();
   }
-  return { state, pages, settledInMs: timeoutMs - Math.max(0, end - Date.now()), lastOf };
+  return { state, pages, settledInMs: Math.min(Date.now() - began, timeoutMs), lastOf };
 }
 
 test('soak', async ({ page, browser }) => {
   const ms = Number(process.env.MEASURE_SOAK_MS ?? 600_000);
   test.setTimeout(ms + 10 * 60_000);
-  await setSwitch('partial_writes', true);
-  await setSwitch('auto_publish', true);
-  scene = await setUp(browser, page, PAGES);
+  scene = await openScene(browser, page, PAGES);
   const report = await run(scene, { ms, reloadAt: 0.4, offlineAt: 0.6, offlineMs: 20_000, messageEveryMs: Number(process.env.MEASURE_MESSAGE_MS ?? 15_000) });
   log('run over; settling');
   const settled = await settle(scene, report, Number(process.env.MEASURE_SETTLE_MS ?? 90_000));
@@ -92,9 +90,7 @@ test('pair', async ({ page, browser }) => {
   const roundMs = Number(process.env.MEASURE_ROUND_MS ?? 45_000);
   const firstAlone = process.env.MEASURE_FIRST === 'alone';
   test.setTimeout(rounds * 2 * roundMs + 10 * 60_000);
-  await setSwitch('partial_writes', true);
-  await setSwitch('auto_publish', true);
-  scene = await setUp(browser, page, PAGES);
+  scene = await openScene(browser, page, PAGES);
   const out: { round: number; mode: 'all' | 'alone'; samples: number[]; lost: number; errors: string[] }[] = [];
   for (let r = 0; r < rounds; r++) {
     const order: ('all' | 'alone')[] = (r % 2 === 0) !== firstAlone ? ['all', 'alone'] : ['alone', 'all'];

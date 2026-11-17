@@ -1,9 +1,12 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
+import { isLocalStackUrl } from '../../scripts/configured-target.mjs';
 import { installDoor } from '../_door';
 import { settleDurableWrites } from '../_durable';
 import { publishProduction } from '../_publish';
 import { openWorkspace } from '../_workspace';
-import { clearPublishedShows, dismissWizard, E2E_EMAIL, E2E_PASSWORD, readyOf, SERVICE_ROLE_KEY, signInAs, SUPABASE_URL, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, deleteAccountByEmail, dismissWizard, E2E_EMAIL, E2E_PASSWORD, mintAccount, readyOf, SERVICE_ROLE_KEY, signInAs, SUPABASE_URL, wipeMyGraphics } from './_helpers';
+import { shutStatusPanel } from './_panel';
 import { FRAME_LOADS, framePlays, instrument, NET, nowOn, readLpm, throttle } from './measure/_measure';
 
 // FIVE PEOPLE AT ONCE (docs/work-specs/live-publishing/spec.md, AC-6): one team production, each
@@ -52,35 +55,22 @@ const SCORE_PATH = 'match.home.score';
 const SCORE_START = 0;
 const domain = () => E2E_EMAIL.slice(E2E_EMAIL.indexOf('@'));
 /** The scene's own extra accounts, on the suite's throwaway domain (`@noacg.local` on the local stack). */
-export const memberEmail = (i: number) => `e2e-five-${i}${domain()}`;
+const memberEmail = (i: number) => `e2e-five-${i}${domain()}`;
 
-async function admin(path: string, init: RequestInit): Promise<Response> {
+/** The service client for the scene's own accounts: local stack only. */
+function admin() {
   if (!isLocalStack()) throw new Error('the five-person scene mints accounts: only against a local stack');
-  return fetch(`${SUPABASE_URL}/auth/v1/admin/${path}`, {
-    ...init,
-    headers: { apikey: SERVICE_ROLE_KEY, Authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' },
-  });
+  return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 }
 
-/** Create an account. A leftover one from a run that died is deleted first (`dropMinted`), so every run starts clean. */
-async function mint(email: string): Promise<void> {
-  const res = await admin('users', { method: 'POST', body: JSON.stringify({ email, password: E2E_PASSWORD, email_confirm: true }) });
-  if (res.ok) return;
-  const body = await res.text();
-  if (res.status === 422 && /exist|registered/i.test(body)) return;
-  throw new Error(`could not mint ${email}: ${res.status} ${body}`);
-}
-
-/** Delete the scene's extra accounts (their documents go with them). Best effort. */
-export async function dropMinted(emails: string[]): Promise<void> {
-  if (!emails.length) return;
-  const res = await admin('users?per_page=1000', { method: 'GET' }).catch(() => null);
-  const users = ((await res?.json().catch(() => null)) as { users?: { id: string; email: string }[] } | null)?.users ?? [];
-  for (const u of users) if (emails.includes(u.email)) await admin(`users/${u.id}`, { method: 'DELETE' }).catch(() => undefined);
+/** Delete the scene's extra accounts (their documents go with them). */
+async function dropMinted(emails: string[]): Promise<void> {
+  const sb = admin();
+  await Promise.all(emails.map((e) => deleteAccountByEmail(sb, e)));
 }
 
 /** True when the backend is a local stack: the only place this scene may mint accounts or write switches. */
-export const isLocalStack = () => /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL);
+export const isLocalStack = () => isLocalStackUrl(SUPABASE_URL);
 
 const t0 = Date.now();
 export const log = (...a: unknown[]) => console.log(`[five ${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
@@ -88,7 +78,7 @@ export const log = (...a: unknown[]) => console.log(`[five ${((Date.now() - t0) 
 const row = (page: Page, label: string) =>
   page.locator('.pd-cue').filter({ has: page.locator('.pd-cue-label > strong', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) });
 
-export async function selectCue(page: Page, label: string): Promise<void> {
+async function selectCue(page: Page, label: string): Promise<void> {
   await row(page, label).getByTestId('select-cue').click();
   await expect(page.locator('.pd-cue.selected .pd-cue-label > strong')).toHaveText(label);
 }
@@ -170,11 +160,7 @@ async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people'
   await owner.goto(`/app#/production/${made.id}`);
   await expect(owner.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
   await publishProduction(owner);
-  const panel = owner.getByTestId('production-status-panel');
-  if (await panel.isVisible()) {
-    await owner.getByTestId('production-status').click();
-    await expect(panel).toBeHidden();
-  }
+  await shutStatusPanel(owner);
   return { showId: made.id, teamId: team.id, code: team.code, takes: made.takes, edits: made.edits, score: made.score };
 }
 
@@ -200,11 +186,7 @@ export async function openProduction(page: Page, showId: string): Promise<void> 
   await page.goto(`/app#/production/${showId}`);
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
-  const panel = page.getByTestId('production-status-panel');
-  if (await panel.isVisible()) {
-    await page.getByTestId('production-status').click();
-    await expect(panel).toBeHidden();
-  }
+  await shutStatusPanel(page);
 }
 
 /** The service-role switch writes (`system_settings`), local stack only. */
@@ -232,8 +214,8 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
   const roles: Person['role'][] = ['taker', 'messages', 'quick', ...Array.from({ length: editors }, () => 'editor' as const)];
   const emails = roles.map((_, i) => (i === 0 ? E2E_EMAIL : memberEmail(i)));
   const minted = emails.slice(1);
-  await dropMinted(minted);
-  for (const e of minted) await mint(e);
+  const sb = admin();
+  await Promise.all(minted.map((e) => mintAccount(sb, e, E2E_PASSWORD)));
   const people: Person[] = [{ role: 'taker', email: E2E_EMAIL, context: owner.context(), page: owner }];
   const contexts: BrowserContext[] = [];
   try {
@@ -407,8 +389,10 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
           await expect(r).toBeVisible({ timeout: 20_000 });
           await r.getByTestId('audience-prepare').click();
           const card = r.getByTestId('audience-choose-card').first();
-          if (await card.isVisible({ timeout: 1_000 }).catch(() => false)) await card.click();
-          await expect(ws.getByTestId('audience-note')).toContainText('It airs when you Take it', { timeout: 20_000 });
+          const note = ws.getByTestId('audience-note').filter({ hasText: 'It airs when you Take it' });
+          await expect(card.or(note).first()).toBeVisible({ timeout: 20_000 });
+          if (await card.isVisible()) await card.click();
+          await expect(note).toBeVisible({ timeout: 20_000 });
           entry.prepared = true;
         } catch (e) {
           entry.error = String(e).split('\n')[0].slice(0, 200);
@@ -447,6 +431,7 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
         // Back online on its own clock, not the next tick's, so the window is what it says.
         back = page.waitForTimeout(opts.offlineMs ?? 20_000).then(async () => {
           await p.context.setOffline(false);
+          if (NET === 'slow') await throttle(page, 'slow');
           window.to = Date.now() - start;
         });
       }
@@ -487,10 +472,12 @@ export async function serverState(scene: Scene): Promise<Settled> {
       const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const { fetchProductionData } = await __noacgImport('/src/control/productionDataApi.ts');
       const sb = (await getSupabase())!;
-      const { data: row } = await sb.from('team_productions').select('doc').eq('id', id).maybeSingle();
+      const [{ data: row }, { data: pub }, state] = await Promise.all([
+        sb.from('team_productions').select('doc').eq('id', id).maybeSingle(),
+        sb.from('control_shows').select('output').eq('id', id).maybeSingle(),
+        fetchProductionData(key),
+      ]);
       const doc = (row as { doc?: { cues?: { label: string; values?: Record<string, string> }[] } } | null)?.doc ?? {};
-      const { data: pub } = await sb.from('control_shows').select('output').eq('id', id).maybeSingle();
-      const state = await fetchProductionData(key);
       const score = Number((state?.data as { match?: { home?: { score?: unknown } } } | undefined)?.match?.home?.score);
       const cues: Record<string, string> = {};
       for (const c of doc.cues ?? []) cues[c.label] = Object.values(c.values ?? {})[0] ?? '';
@@ -498,16 +485,19 @@ export async function serverState(scene: Scene): Promise<Settled> {
     },
     { id: scene.showId, key: scene.key },
   );
-  const conflicted: string[] = [];
-  for (const p of scene.people) {
-    const names = await p.page
-      .evaluate(async () => {
-        const { loadShows } = await __noacgImport('/src/model/shows.ts');
-        return loadShows().map((s) => s.name).filter((n) => /conflicted copy/i.test(n));
-      })
-      .catch(() => [] as string[]);
-    conflicted.push(...names.map((n) => `${p.email}: ${n}`));
-  }
+  const conflicted = (
+    await Promise.all(
+      scene.people.map(async (p) => {
+        const names = await p.page
+          .evaluate(async () => {
+            const { loadShows } = await __noacgImport('/src/model/shows.ts');
+            return loadShows().map((s) => s.name).filter((n) => /conflicted copy/i.test(n));
+          })
+          .catch(() => [] as string[]);
+        return names.map((n) => `${p.email}: ${n}`);
+      }),
+    )
+  ).flat();
   return { ...got, conflicted };
 }
 
@@ -528,15 +518,31 @@ export async function tearDown(
   owner: Page,
 ): Promise<void> {
   if (scene) {
-    for (const p of scene.people.slice(1)) await p.context.close().catch(() => undefined);
-    await scene.outputContext?.close().catch(() => undefined);
+    await Promise.all([...scene.people.slice(1).map((p) => p.context), scene.outputContext].map((c) => c?.close().catch(() => undefined)));
     await owner
       .evaluate(async (teamId) => {
         const { deleteTeam } = await __noacgImport('/src/backend/teams.ts');
         await deleteTeam(teamId);
       }, scene.teamId)
       .catch(() => undefined);
-    await dropMinted(scene.minted);
+    await dropMinted(scene.minted).catch(() => undefined);
   }
   await clearPublishedShows(owner).catch(() => undefined);
 }
+
+/** Switch automatic updates and partial writes on, then set the scene up (AC-6 runs with both on). */
+export async function openScene(browser: Browser, owner: Page, pages: number): Promise<Scene> {
+  await setSwitch('partial_writes', true);
+  await setSwitch('auto_publish', true);
+  return setUp(browser, owner, pages);
+}
+
+/** Take the scene down and switch both back off, whatever happened. */
+export async function closeScene(scene: Scene | null, owner: Page): Promise<void> {
+  await tearDown(scene, owner);
+  await setSwitch('auto_publish', false).catch(() => undefined);
+  await setSwitch('partial_writes', false).catch(() => undefined);
+}
+
+/** Each editor's last typed text, by cue. */
+export const lastTexts = (report: RunReport) => Object.fromEntries(report.edits.map((e) => [e.cue, e.typed[e.typed.length - 1]]));
