@@ -1510,7 +1510,7 @@
     },
     "currentPublicUpdate": 6831775749
   },
-  "waitingOn": "Qualified Cloud browser/CLI and exact final independent review for panel-only 4ff51a0f. Run the focused panel cases at native 125 percent and the unchanged nested SVG witness. Preserve prior stops and attempts.",
+  "waitingOn": "Reconcile original Cloud verification launch e5f-panels-4ff51a0f-125-svg. Exact 125 percent rendered panel verification and unchanged SVG witness still pending on 4ff51a0f.",
   "completedCausalityReviews": [
     {
       "id": "6af4b05b-8a1c-8191-b931-182efca3b062",
@@ -4901,7 +4901,7 @@
       "nonce": "e5f-panels-4ff51a0f-125-svg",
       "route": "User-requested separate Codex Cloud chat using saved NoaCG-Studio environment configuration",
       "requestedAt": "2026-11-17T16:33:34.4852219Z",
-      "status": "Intended; no delivery observed yet",
+      "status": "Cloud chat creation submitted once. No acknowledgment or task identifier was returned, and desktop and Cloud CLI inventories showed no matching chat. Delivery remains unknown; reconcile the original submission before any replacement.",
       "scope": "Exact candidate only. Real 125 percent zoom, unchanged nested SVG test, and independent panel review. Current coordinator owns disposition and landing."
     }
   }
