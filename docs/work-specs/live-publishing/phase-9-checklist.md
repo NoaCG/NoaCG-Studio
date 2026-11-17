@@ -99,6 +99,10 @@ each goes on only once `auto_publish_state()` or `partial_writes_state()` report
 - #2586: the team walk "two accounts" in `e2e/configured/teams.spec.ts` fails whenever
   `partial_writes` is on (it expects the older asset key form), so the team asset path is unchecked
   in that state. Close it before `partial_writes` goes on.
+- #2589: seven or more people typing into one team production at once fall behind on saves (the
+  text stays on screen with a note; the record catches up slowly). It came with #2573; without it
+  the saves keep up. Close it, or decide that it is an acceptable limit, before relying on many
+  people editing at once.
 - #2565 and #2572: two ways an edit on a shared production was lost (one while the page read
   teammates' changes, one when any change made elsewhere discarded the cue being typed). Phase 8 met
   both and they were fixed (#2567, #2573); step 9 is the studio check of those fixes.

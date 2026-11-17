@@ -947,13 +947,14 @@ reloads, one goes offline for 20 s. Evidence: `work-specs/live-publishing/eviden
 |---|---|---|---|---|---|
 | 1 (the taker alone) | 0 | 35 ms (24 interleaved pairs) | | | |
 | 5 | 0 | 73 to 82 ms (72 ms in 24 interleaved pairs) | all | all | 2 of 2, in every run |
-| 10 | 0 | 186 to 255 ms; 199 ms with #2573 | all | all | 4 of 7 before any fix, 1 of 7 with #2567, 0 of 7 with #2567 and #2573 (saves stopped partway; under investigation) |
+| 10 | 0 | 186 to 255 ms; 199 ms with #2573 | all | all | 4 of 7 before any fix, 1 of 7 with #2567, 0 of 7 with #2567 and #2573: texts on screen, saves behind (#2589) |
 | 15 | 0 of 91 (the test machine stalled after 6.5 min) | 560 ms | not run | 38 of 39 | 2 of 12 |
 
 These are what was tested, not a limit: a hosted backend, the studio network and people on separate
 computers were not part of it, and every page shared one machine's CPUs (at 15 pages that machine,
-not the product, was the limit). The lost edits at 10 pages are a defect or this machine's limit,
-not yet told apart; #2565 and #2572, met on the way, are fixed (#2567, #2573).
+not the product, was the limit). At 10 pages with #2573 the editors' saves fall behind (the text
+stays on screen with a note); without #2573 they keep up, so it is a defect (#2589), not a capacity
+limit. #2565 and #2572, met on the way, are fixed (#2567, #2573).
 
 ## Publication lifecycle (what staying published costs, and when a publication ends)
 

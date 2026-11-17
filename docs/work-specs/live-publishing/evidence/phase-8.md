@@ -89,9 +89,15 @@ lost; press to ran p50 95.7, p95 199.4, max 460.9 ms; 199 Goals, score 199; 39 o
 cues; one reload; offline 360.6 to 380.6 s; no conflicted copy; no role error. **No editor's last
 text stood (0 of 7).** Each cue's record stopped partway, at `#86` to `#117` of 149, and every page,
 the typist's own included, showed about the same number, never `#149`. The earlier ten-page runs
-kept 4 of 7 (no fix) and 1 of 7 (#2565's fix only). Whether this is the machine (eleven browser
-pages on four CPUs; 151 Takes fit where 216 did) or the team save stalling under load is not known
-yet.
+kept 4 of 7 (no fix) and 1 of 7 (#2565's fix only).
+
+Diagnosed as a save backlog, not loss (#2589, P1). Two 8-minute ten-page runs probed each editor's
+own page at the end and 30 s later. With #2573 (j-0139): every editor's box held the typed `#119`,
+every save was pending with an edit owed, several showed "Teammates keep saving this production -
+your edit is on screen but not saved yet.", and the records stood at `#81` to `#113`. With #2573
+reverted in a local scratch copy (j-0140, never pushed): every record held `#119` and nothing was
+owed after 30 s. So the backlog comes with #2573; nothing typed was discarded in either run. It is
+#2589's to fix; AC-6, at five people, is met with #2573 in place.
 
 **AC-6: met.** No command lost (every Take ran, every Goal counted, every message a cue), no
 different cue overwritten (each editor's last text in the record, the publication and every page;
