@@ -96,6 +96,9 @@ each goes on only once `auto_publish_state()` or `partial_writes_state()` report
   unpublish. Close it before `partial_writes` goes on.
 - #2562: on one account, an edit after another device's edit can go to a conflicted copy and never
   publish. Phase 8's five accounts did not meet it (it needs the same account on two devices).
+- #2586: the team walk "two accounts" in `e2e/configured/teams.spec.ts` fails whenever
+  `partial_writes` is on (it expects the older asset key form), so the team asset path is unchecked
+  in that state. Close it before `partial_writes` goes on.
 - #2565 and #2572: two ways an edit on a shared production was lost (one while the page read
   teammates' changes, one when any change made elsewhere discarded the cue being typed). Phase 8 met
   both and they were fixed (#2567, #2573); step 9 is the studio check of those fixes.
