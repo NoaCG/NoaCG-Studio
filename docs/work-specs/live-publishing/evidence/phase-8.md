@@ -79,9 +79,15 @@ so these runs had both fixes. Same machine, local stack, bundled build for the t
 | Interleaved pairs | j-0096 to j-0100, j-0105 | 12 pairs; five pages p95 41.3 ms, a single page 23.3 ms; **pooled p95 difference +18.0 ms** (bootstrap 5 to 95 %: +14.8 to +22.3 ms); 0 lost, no role error: met |
 
 Not counted: the first pass of j-0094 also ran the file's other team walks, and two of them failed
-on that pass only (the share door's `move-explainer` not shown; a team asset key in the `s256-`
-form where the walk expects the older form), then passed on the next two passes. This branch does
-not change them. j-0094's third pass and j-0102's fourth run were stopped by the queue's 5-minute
+on that pass only, then passed on the next two passes. This branch does not change them.
+- "two accounts" (a team asset key in the `s256-` form where the walk expects the older form):
+  measurement runs killed on 2026-11-14 and by a container restart had left `partial_writes` on in
+  the local stack until the first five-person test's clean-up turned it off. With both switches on
+  it fails every time (j-0110); with them off the whole file passes 6 of 6 (j-0109). The walk
+  assumes `partial_writes` off: #2586, on the phase 9 switch-on list.
+- "signed in" (the share door's `move-explainer` not shown within 20 s): once, on a cold stack just
+  after a restart; it passed with the switches on (j-0110) and off (j-0109, and j-0094's next
+  passes). Noted here; it goes to quarantine only if it fails in CI. j-0094's third pass and j-0102's fourth run were stopped by the queue's 5-minute
 limit, not failed, and j-0101 by a container restart; none of those is counted.
 
 The earlier report that the five-person check lost a typed text (an editor typed `#9`, every page
