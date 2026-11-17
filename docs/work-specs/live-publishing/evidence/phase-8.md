@@ -74,6 +74,7 @@ Merged `origin/main` b1fb1b9e (branch head 10fc5ed8), which holds #2567 (#2565's
 |---|---|---|
 | Configured five-person check | j-0094 (2), j-0102 (3), j-0107 (3) | 8 of 8 passed; no run lost any editor's last text |
 | Ten minutes, five people (`soak`) | j-0104 | 472 Takes, 0 lost; press to ran p50 33.2, p95 62.8, max 224.5 ms; 199 Goals, score 199; 39 of 39 messages are cues; both editors' `#149` in the record, the publication and all five pages, 12.2 s after the run; one reload; offline 360.0 to 380.1 s; no conflicted copy; no role error |
+| Ten minutes, five people, again (`soak`, from commit f12ce841, docs only since j-0104) | j-0108 | 469 Takes, 0 lost; press to ran p50 33.6, p95 60.4, max 192.6 ms; 199 Goals, score 199; 39 of 39 messages are cues; both editors' `#149` in the record and on all five pages, 12.1 s after the run; one reload; offline 360.0 to 380.1 s; no conflicted copy; no role error |
 | Interleaved pairs | j-0096 to j-0100, j-0105 | 12 pairs; five pages p95 41.3 ms, a single page 23.3 ms; **pooled p95 difference +18.0 ms** (bootstrap 5 to 95 %: +14.8 to +22.3 ms); 0 lost, no role error: met |
 
 Not counted: the first pass of j-0094 also ran the file's other team walks, and two of them failed
