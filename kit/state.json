@@ -42,7 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "V6 remains blocked on PR #2573. The repository owner transferred #2573 repair custody to Claude Code live-publishing coordinator session_017SdbwQ3odeX4g6yc2nYsLZ (run #2361) through merge and passing post-landing checks. The handoff branch preserves product head ed5c59b7d577514097ff0e68c46c1bb208e1f37b and evidence commit 9771a7cc8421558e6b012cef62fd7d5b1bf900c9. Codex has only the shared Windows verification role when Claude names an exact candidate on #2573. The original #2575 remains checkpointed. Resume V6 through V8 after the actual merge and Claude confirmation of passing post-landing checks on #2573."
+    "what": "V6 remains blocked on the actual merge and passing post-landing checks for PR #2573 under Claude live-publishing coordinator session_017SdbwQ3odeX4g6yc2nYsLZ. Agreed Windows verification on exact 703bc0d65ab3b6a020ea0e686f40728d31935f4a passed all eight cases in j-5319, j-5320 and j-5321, each exit 0. Results were posted on #2573. Original V6 draft #2575 remains checkpointed. Resume V6 through V8 only after Claude confirms the actual merge and passing post-landing checks. https://github.com/NoaCG/NoaCG-Studio/pull/2573#issuecomment-6944874235"
   },
   "inFlight": [],
   "owner": [],
