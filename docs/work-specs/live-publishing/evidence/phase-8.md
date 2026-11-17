@@ -94,6 +94,21 @@ The earlier report that the five-person check lost a typed text (an editor typed
 kept `#8` or `#7`) was j-0034, on code without any fix for #2565. With #2567 and #2573's fix, eight
 runs in a row kept every last text. The runs without #2573 are in the next section.
 
+### On `main` with #2567, without #2573 (2026-11-17)
+
+The branch with #2573's changes taken out (no file under `src/` differs from `main` b1fb1b9e;
+branch head 24f109bc). Same machine, local stack, bundled build for the timed runs.
+
+| Run | Jobs | Result |
+|---|---|---|
+| Configured five-person check | j-0111 (3), j-0112 (3) | **5 of 6 passed.** In one run the editor whose connection drops typed `#9`; 30 s later the team's record still held `#8` and the publication did not have `#9`. No trace survived to say whether this is #2572 or a separate path. |
+| Ten minutes, five people (`soak`) | j-0113 | 461 Takes, 0 lost; press to ran p50 34.4, p95 64.6, max 122.0 ms; 199 Goals, score 199; 39 of 39 messages are cues; both editors' `#149` in the record and on all five pages, 12.1 s after the run; one reload; offline 360.0 to 380.1 s; no conflicted copy; no role error |
+| Interleaved pairs | j-0114 to j-0119 | 12 pairs; five pages p95 62.2 ms, a single page 34.0 ms; pooled p95 difference +28.2 ms (bootstrap 5 to 95 %: +25.5 to +30.6 ms); 0 lost, no role error |
+
+So without #2573, AC-6's "no different cue overwritten" does not hold every time at five people
+(1 of 6 short runs lost an editor's last text). This pull request waits for #2573; the runs are
+repeated on `main` once it lands.
+
 ### Ten minutes, five people (`soak`, job j-0022)
 
 Five accounts for 600 s, automatic updates and partial writes on; ticks every 4 s (editors type
