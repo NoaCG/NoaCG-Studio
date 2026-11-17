@@ -41,9 +41,9 @@
   }
  ],
  "inFlight": {
-  "phase": 7,
-  "step": "second check 7-c-1644 on 470d6984",
-  "asOf": "2026-11-14T19:32Z"
+  "phase": 8,
+  "step": "build; fix #2508/#2560 in parallel",
+  "asOf": "2026-11-14T20:45Z"
  },
  "owner": [
   {
@@ -114,6 +114,23 @@
      "#2511"
     ],
     "pending": "quarantine PR for operator-outage-not-unpublished and output-debate-clock flakes"
+   }
+  },
+  {
+   "2565": {
+    "builder": "session_017SdbwNtS2t1hRF6DsogA8G",
+    "nonce": "fix-2565-f-42ef",
+    "why": "lost team edits in 10-page run, delegated",
+    "landed": "4f11d145 (PR 2567, closes #2565 #2566)",
+    "followup": "#2568",
+    "archived": true
+   }
+  },
+  {
+   "2508+2560": {
+    "landed": "7be4b007 (PR 2563)",
+    "switchTool": "node scripts/production-switch.mjs [--set <key> on|off] (production_copies, auto_publish, partial_writes only)",
+    "pending": "import-svg-credits quarantine PR"
    }
   }
  ],
@@ -213,7 +230,8 @@
   "Phase 5: Codex on each new head found four real playout defects after /so grade A (stale demand read dropping a Take, seed pruning, hold not released after swap, lost entrance across republish). Wait for Codex on the final head before the receipt, and ask for behaviour tests, not source checks. Builders read the block deadline as their own deadline; say it is renewed.",
   "Phase 6: builder's single-pair AC-4 measurement (+1.9 ms) did not reproduce for the checker (+260 pooled, bimodal). Briefs for timing criteria must require several interleaved on/off pairs and report the spread.",
   "Fix #2495 (test guard) cost about 473 USD over nine /so rounds (1.36M output tokens): a small guard grew through review rounds until the round cap forced a smaller scope. Briefs for tooling fixes should cap scope up front and split follow-ups early.",
-  "2026-11-14: the phase 7 repairer sat idle 07:55-18:53 waiting on its own /so and CI with no wake; the coordinator's only check-in was 12 h away. Keep check-ins at most 4 h apart while a worker is active."
+  "2026-11-14: the phase 7 repairer sat idle 07:55-18:53 waiting on its own /so and CI with no wake; the coordinator's only check-in was 12 h away. Keep check-ins at most 4 h apart while a worker is active.",
+  "2026-11-14: the phase 8 builder and a separate fix worker both fixed #2565 in parallel (PR #2570 duplicate of #2567). When the coordinator launches a fix for an issue a builder found, tell that builder at once that the fix is taken."
  ],
  "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open).",
  "phase3": {
@@ -265,7 +283,7 @@
   "epoch": 5,
   "deadline": "2026-11-15T18:53:08.776Z"
  },
- "nextCheckin": "2026-11-14T22:50:00Z",
+ "nextCheckin": "2026-11-15T02:50:00Z",
  "traps5": [
   "the job queue runs two browser jobs on one port and one account",
   "graphic frames are sandboxed (checker 5-c-b19d)"
@@ -333,7 +351,16 @@
   "checker2": "session_017SdbwQCsKwxXuptimJyHEL nonce 7-c-1644",
   "followups2": [
    "#2557"
-  ]
+  ],
+  "pass": "2026-11-14T20:43Z (second check)",
+  "issue": "#2562 filed (conflicted copy, pre-existing)"
  },
- "morningItems": []
+ "morningItems": [],
+ "phase8": {
+  "builder": "session_017SdbwM7tc89anLiMDvD9zd",
+  "nonce": "8-b-23a0",
+  "source": "d2d35f4a7cfd44d61f0807bfe35d7323aacfd3bf",
+  "interim": "AC-6 five people pass: 476 Takes none lost, +36.6 ms pooled p95 (90% +29.6..+39.6) over 12 pairs; #2562 #2557 not hit; 10-page run lost 3 of 7 editors' last edits -> #2565"
+ },
+ "productionCheck": "2026-11-14T23:00Z via scripts/production-switch.mjs: production_copies on, auto_publish off, partial_writes unset"
 }
