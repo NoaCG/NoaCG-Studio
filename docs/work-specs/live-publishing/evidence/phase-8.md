@@ -65,6 +65,27 @@ served by `vite preview`), as phases 6 and 7 judged timing on a bundled build. U
 
 ## Results
 
+### On `main` with #2567, without #2573 (2026-11-17)
+
+Merged `origin/main` b1fb1b9e (branch head 10fc5ed8), which holds #2567 (#2565's fix) but not #2573
+(#2572's). Same machine, local stack, bundled build for the timed runs.
+
+| Run | Jobs | Result |
+|---|---|---|
+| Configured five-person check | j-0094 (2), j-0102 (3), j-0107 (3) | 8 of 8 passed; no run lost any editor's last text |
+| Ten minutes, five people (`soak`) | j-0104 | 472 Takes, 0 lost; press to ran p50 33.2, p95 62.8, max 224.5 ms; 199 Goals, score 199; 39 of 39 messages are cues; both editors' `#149` in the record, the publication and all five pages, 12.2 s after the run; one reload; offline 360.0 to 380.1 s; no conflicted copy; no role error |
+| Interleaved pairs | j-0096 to j-0100, j-0105 | 12 pairs; five pages p95 41.3 ms, a single page 23.3 ms; **pooled p95 difference +18.0 ms** (bootstrap 5 to 95 %: +14.8 to +22.3 ms); 0 lost, no role error: met |
+
+Not counted: the first pass of j-0094 also ran the file's other team walks, and two of them failed
+on that pass only (the share door's `move-explainer` not shown; a team asset key in the `s256-`
+form where the walk expects the older form), then passed on the next two passes. This branch does
+not change them. j-0094's third pass and j-0102's fourth run were stopped by the queue's 5-minute
+limit, not failed, and j-0101 by a container restart; none of those is counted.
+
+The earlier report that the five-person check lost a typed text (an editor typed `#9`, every page
+kept `#8` or `#7`) was j-0034, on code without any fix for #2565. With #2567 on `main`, eight runs
+in a row kept every last text.
+
 ### Ten minutes, five people (`soak`, job j-0022)
 
 Five accounts for 600 s, automatic updates and partial writes on; ticks every 4 s (editors type
@@ -132,15 +153,15 @@ typed. Cause, read from the code: `refreshOnce` in `src/backend/teamProductions.
 productions with an edit on its way up before it awaits the teammates' documents, then applies the
 fetched record over an edit made during that await. More editors mean more fetches, so it showed
 here first. It is not #2562 (one account on two devices). Filed as #2565 (P1), reported to the
-coordinator, and fixed first in #2570 once AC-6's own check met it too (next section). No conflicted
+coordinator. #2567 fixed it on `main` (merge 4f11d145); this phase's own fix of the same cause (#2570) was closed as a duplicate. No conflicted
 copy, no Goal or message lost, no Take lost.
 
-**A second path, with the fix (#2572).** Run again with #2570 applied (j-0039), the 10-page run
+**A second path, with the fix (#2572).** Run again with #2570's fix of #2565 applied (j-0039), the 10-page run
 still lost the last text of 6 of 7 editors. A shorter diagnostic run (j-0040, 2.5 minutes, 3 of 7
 lost) read each editor's own page 60 s after the typing stopped: the cue editor's input itself
 showed the previous text (`#36` where `#37` was typed), with nothing unsent, no save pending and no
 note. So the typed text is dropped on the typist's page before or while it becomes the record, not
-during the team read. Filed as #2572 (P1) and reported to the coordinator; not fixed in this phase.
+during the team read. Filed as #2572 (P1) and reported to the coordinator; its fix is #2573, which this phase waits for before the 10-page run is repeated.
 The five-page runs never met it (ten minutes, twelve pairs, the configured check three times).
 
 ### The configured spec
@@ -148,7 +169,7 @@ The five-page runs never met it (ten minutes, twelve pairs, the configured check
 The test, run alone with `--repeat-each 2` on the local stack: 2 passed (j-0004, 1.1 and 1.2
 minutes), 2 passed again on the scene after the review fixes (j-0033, 1.3 and 1.2 minutes), both
 when it was its own file, on the development server. Moved into `teams.spec.ts` and run after that
-file's other walks, it failed twice in a row on #2565 (j-0034); with the fix (#2570) the whole file
+file's other walks, it failed twice in a row on #2565 (j-0034); with #2570's fix of #2565 the whole file
 passed 6 of 6 three times (j-0035 to j-0037). The CI run on the pull request's head runs it in the
 configured selection.
 
@@ -160,7 +181,8 @@ configured selection.
   the record and every page kept `#7`). The team read runs on window focus, and each person's typing
   focuses their page, so the window opened often. Fixed first, as its own Risky pull request
   (#2570, rules before code, a Rules-first and a final `/so`); with that fix the whole file passed
-  three times (j-0035 to j-0037). This pull request lands after it.
+  three times (j-0035 to j-0037). #2567 landed the same fix on `main` first, so #2570 was closed as
+  a duplicate; the runs below are on `main` with #2567.
 
 - **#2562** (an edit after another device's edit goes to a conflicted copy): not met. It needs one
   account on two devices; AC-6's five people are five accounts on a team production, whose saves
