@@ -41,9 +41,9 @@
   }
  ],
  "inFlight": {
-  "phase": 8,
-  "step": "check 8-c-b394; fix #2589 PR 2591 awaiting Windows",
-  "asOf": "2026-11-17T14:55Z"
+  "phase": 9,
+  "step": "owner's final check; fix #2589 PR 2591 awaiting Windows",
+  "asOf": "2026-11-17T15:45Z"
  },
  "owner": [
   {
@@ -391,8 +391,13 @@
    "#2586",
    "#2589",
    "#2592"
-  ]
+  ],
+  "pass": "2026-11-17T15:44Z"
  },
  "productionCheck": "2026-11-14T23:00Z via scripts/production-switch.mjs: production_copies on, auto_publish off, partial_writes unset",
- "pause": "2026-11-15 to 2026-11-17 06:37Z: weekly usage limit reached; all workers stopped; resumed after reset"
+ "pause": "2026-11-15 to 2026-11-17 06:37Z: weekly usage limit reached; all workers stopped; resumed after reset",
+ "phase9": {
+  "handedToOwner": "2026-11-17T15:45Z",
+  "checklist": "docs/work-specs/live-publishing/phase-9-checklist.md on main"
+ }
 }
