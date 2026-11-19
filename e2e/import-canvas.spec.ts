@@ -1,4 +1,3 @@
-// runs on: dev server - races the Prepare step's asynchronous baked-text scan (its `if (await ask.count()) await ask.click()`), which the build's speed exposes; kept here until #2536 fixes it
 // covers: src/templates/importedDesign/designTypes.ts, src/components/wizard/import/**
 // covers: src/blocks/designLayout.ts, src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 // covers: src/assets/**
@@ -37,18 +36,25 @@ async function dropCard(page: Page, buffer: Buffer) {
 
 /** Design step -> Prepare, open the erase surface, and drag a rect over it (image fractions).
  *
- *  Two steps are conditional because the Prepare step now SCANS for baked-in text and opens
- *  with a box already drawn when it finds any (eraseRegion.ts proposeEraseRect): on artwork it
- *  reads — the REAL typeset fixture below — the yes/no question is answered by measuring and
- *  never asked, and the proposal has to be dismissed before these cases drag their own
- *  deliberately-off-centre lasso. The bar fixtures carry no stroke edges, so they take neither
- *  branch and behave exactly as before. */
+ *  The Prepare step SCANS for baked-in text on arrival (eraseRegion.ts proposeEraseRect) and
+ *  asks the yes/no question meanwhile. The scan ends in exactly one of two states: a proposal
+ *  drawn, which answers the question and removes it, or a refusal named under the question,
+ *  which leaves it standing. Deciding before then races the scan (#2536): the question can
+ *  vanish between seeing it and clicking it. So settle on both end states first, rule out the
+ *  refusal that means the artwork could not be read at all, then take the one branch: dismiss
+ *  the proposal (the REAL typeset fixture below) so these cases drag their own deliberately
+ *  off-centre lasso, or answer the question (the bar fixtures carry no stroke edges).
+ *  Fault injection, 2026-11-19: a scan that ends on the click's first pointer move fails the
+ *  old count-then-click; this waits it out and passes. */
 async function eraseRect(page: Page, fx0: number, fy0: number, fx1: number, fy1: number) {
   await page.getByRole('button', { name: 'Next →' }).click();
-  const ask = page.getByTestId('baked-yes');
-  if (await ask.count()) await ask.click();
-  const proposed = page.getByTestId('erase-proposal-dismiss');
-  if (await proposed.count()) await proposed.click();
+  const proposal = page.getByTestId('erase-proposal');
+  const refusal = page.getByTestId('erase-scan-refusal');
+  await expect(proposal.or(refusal)).toBeVisible();
+  // A snapshot: a refusal that appears later would read as 0 here, and later steps catch it.
+  expect(await refusal.filter({ hasText: 'could not be' }).count(), 'the scan could not read the artwork').toBe(0);
+  if (await proposal.count()) await page.getByTestId('erase-proposal-dismiss').click();
+  else await page.getByTestId('baked-yes').click();
   const surface = page.getByTestId('erase-surface');
   await expect(surface).toBeVisible();
   await expect.poll(async () => (await surface.boundingBox())?.height ?? 0).toBeGreaterThan(100);

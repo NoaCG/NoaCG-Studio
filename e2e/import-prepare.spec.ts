@@ -348,11 +348,15 @@ test('erase: a mixed-background mark says WHICH text areas took the average fill
   await expect(page.getByTestId('erase-surface')).toBeVisible();
   // Real typeset lines usually earn the scan's own box; this test draws its own mark over
   // BOTH lines, so dismiss the offer when it is there and open the surface when it is not.
-  const dismiss = page.getByTestId('erase-proposal-dismiss');
-  const bakedYes = page.getByTestId('baked-yes');
-  await expect(dismiss.or(bakedYes)).toBeVisible();
-  if (await dismiss.count()) await dismiss.click();
-  else await bakedYes.click();
+  // The question shows while the scan runs and a proposal removes it, so decide only once the
+  // scan has ended: a proposal drawn or a refusal named (#2536). A refusal saying the artwork
+  // could not be read is the failed scan, ruled out here (a snapshot: a later one reads as 0).
+  const proposal = page.getByTestId('erase-proposal');
+  const refusal = page.getByTestId('erase-scan-refusal');
+  await expect(proposal.or(refusal)).toBeVisible();
+  expect(await refusal.filter({ hasText: 'could not be' }).count(), 'the scan could not read the artwork').toBe(0);
+  if (await proposal.count()) await page.getByTestId('erase-proposal-dismiss').click();
+  else await page.getByTestId('baked-yes').click();
   await drawRect(page, 0.1, 0.34, 0.86, 0.7);
 
   // Before applying: the warning already counts areas (1 of 2 not flat).
