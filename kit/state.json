@@ -54,12 +54,8 @@
   "inFlight": [
     {
       "step": "fix #2536",
-      "session": "session_017SdbwQ97N2fxjbZevtddgt",
-      "note": "Prepare-step baked-text race (import-canvas, import-prepare); launched 08:13Z"
-    },
-    {
-      "pr": 2584,
-      "note": "bot shard-durations re-record: stamped (run 44485645165), auto-merge on 08:12Z; coordinator is repair owner"
+      "pr": 2598,
+      "note": "stamped 08:46Z (run 44490376675), auto-merge on; coordinator is repair owner"
     }
   ],
   "owner": [],
@@ -90,7 +86,12 @@
       "session": "session_017SdbwQ97N2fxjbZevtddgt",
       "nonce": "fix-2536-f-fa8f",
       "launchedAt": "2026-11-19T08:13:15Z",
-      "state": "building"
+      "state": "queued",
+      "pr": 2598,
+      "head": "36800fc8797b53f2857d9509e6c8d489de3f7b56",
+      "stamped": "run 44490376675",
+      "so": "A, session_017SdbwLyWpoN2qpQaLawNXi",
+      "note": "miss 43581128114 (import-prepare) is this race; import-prepare stays quarantined until its 20 passes"
     }
   ],
   "triggers": {
@@ -319,6 +320,11 @@
     {
       "item": "landing-first-trim-3",
       "note": "session archived after usage limit; #2505 landed 66fd9b12; suite trim finished by #2530 (handover 6941119238); closed out"
+    },
+    {
+      "pr": 2584,
+      "landed": "82fa70d6d448528d7841ab1a0a49fd3b4a0043fc",
+      "note": "bot shard durations re-record"
     }
   ],
   "decisions": [
