@@ -51,13 +51,7 @@
     "eta": "2026-11-28T03:24:40Z",
     "detail": "miss audit 2026-11-19 on c0038978: latest reset 18c0c25f (#2530) 2026-11-14T03:24:40Z, 20 resets after cf14 none a declared miss fix; status blocked: 3 misses marked flake-investigate (output-debate-clock run 43479066209 culprit c2c539fa8; import-prepare 43581128114 culprit 44afe7c0a; playout-cues 43657752399 culprit 0edd127fb) and 7 open quarantine incidents (#2371, repair dues 2026-11-27..2026-12-01). Clean needs: no reset before 11-28, misses explained, incidents back in the gate. cf18(c) stop: two miss-caused restarts or 2026-12-31."
   },
-  "inFlight": [
-    {
-      "step": "fix #2536",
-      "pr": 2598,
-      "note": "stamped 08:46Z (run 44490376675), auto-merge on; coordinator is repair owner"
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -86,12 +80,18 @@
       "session": "session_017SdbwQ97N2fxjbZevtddgt",
       "nonce": "fix-2536-f-fa8f",
       "launchedAt": "2026-11-19T08:13:15Z",
-      "state": "queued",
+      "state": "landed",
       "pr": 2598,
       "head": "36800fc8797b53f2857d9509e6c8d489de3f7b56",
       "stamped": "run 44490376675",
       "so": "A, session_017SdbwLyWpoN2qpQaLawNXi",
-      "note": "miss 43581128114 (import-prepare) is this race; import-prepare stays quarantined until its 20 passes"
+      "note": "miss 43581128114 (import-prepare) is this race; import-prepare stays quarantined until its 20 passes",
+      "merge": "cfcdb9f9c13c82b88882ad4b231c251319e99d5b",
+      "closed": "auto",
+      "archived": [
+        "session_017SdbwQ97N2fxjbZevtddgt",
+        "session_017SdbwLyWpoN2qpQaLawNXi"
+      ]
     }
   ],
   "triggers": {
@@ -325,6 +325,11 @@
       "pr": 2584,
       "landed": "82fa70d6d448528d7841ab1a0a49fd3b4a0043fc",
       "note": "bot shard durations re-record"
+    },
+    {
+      "fix": 2536,
+      "landed": "cfcdb9f9 (#2598)",
+      "note": "explains miss 43581128114; import-prepare stays quarantined until its 20 passes"
     }
   ],
   "decisions": [
