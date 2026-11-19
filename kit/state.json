@@ -5,9 +5,9 @@
   "spec": "docs/work-specs/cicd-followup/spec.md",
   "issue": 1967,
   "coordinator": {
-    "session": "session_017SdbwPphatUYXtpZ9CHkPu",
+    "session": "session_017SdbwLrHWFsQu2RZhLvyXR",
     "environment": "env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG)",
-    "return": "send it with mcp__claude-code-remote__send_message (or mcp__Claude_Code_Remote__send_message) to session_017SdbwPphatUYXtpZ9CHkPu, and also print it as your final answer"
+    "return": "send it with mcp__claude-code-remote__send_message to session_017SdbwLrHWFsQu2RZhLvyXR, and also print it as your final answer"
   },
   "provider": {
     "name": "Claude Code Cloud",
@@ -46,14 +46,31 @@
     "cf18": "cf18 earliest moves: selection changes after cf14 include ddb0f660 (2026-11-09T16:22Z, e2e planner /j/ route) and #2321 d521e014 (2026-11-09T19:14Z, e2e-affected.mjs). If either counts as a selection change under cf11's audit rule, earliest is about 2026-11-23T19:14Z; cf18 determines it. Audit restarts count toward cf18(c)'s two-restart limit only if caused by selection misses.",
     "cf21": "Brief: change 4 (no /so for Ordinary rows) is owner-authorized (receipt owner-decision-2026-11-07-cf21.md), not a gate weakened under (d); (b),(c): cf21 lands the rules, records the before-side rows (review rounds per PR, share passing after one round, cf03 M1 from ready, reverts and post-landing failures) and the method; cf20 reads the after side. /so on #2282 noted placement after cf13 was a choice (ledger allows after cf13..cf19) justified by more after-rows."
   },
-  "waitingOn": [],
+  "waitingOn": [
+    {
+      "what": "cf18 clean selection-audit window",
+      "eta": "2026-11-28T03:24:40Z",
+      "detail": "miss audit 2026-11-19 on c0038978: latest reset 18c0c25f (#2530) 2026-11-14T03:24:40Z, 20 resets after cf14 none a declared miss fix; status blocked: 3 misses marked flake-investigate (output-debate-clock run 43479066209 culprit c2c539fa8; import-prepare 43581128114 culprit 44afe7c0a; playout-cues 43657752399 culprit 0edd127fb) and 7 open quarantine incidents (#2371, repair dues 2026-11-27..2026-12-01). Clean needs: no reset before 11-28, misses explained, incidents back in the gate. cf18(c) stop: two miss-caused restarts or 2026-12-31."
+    },
+    {
+      "what": "#2447 overhead repayment due",
+      "eta": "2026-11-26"
+    },
+    {
+      "what": "one-push-per-round measurement (land-4.md, mid-run pushes <= 33% else #2423)",
+      "eta": "2026-11-26"
+    }
+  ],
   "inFlight": [
     {
-      "phase": "landing-first-trim-3",
-      "session": "session_017SdbwP19N1Z8CvsquE2yrr",
-      "nonce": "land-trim-3",
-      "launchedAt": "2026-11-13T14:28:46Z",
-      "note": "step 5: #2505 landed 66fd9b12; owner approved C then A 2026-11-13"
+      "item": "fix-2536",
+      "session": "session_017SdbwQ97N2fxjbZevtddgt",
+      "nonce": "fix-2536-f-fa8f",
+      "launchedAt": "2026-11-19T08:13:15Z"
+    },
+    {
+      "item": "bot PR #2584",
+      "note": "stamped (run 44485645165), auto-merge on 08:12Z; coordinator is repair owner"
     }
   ],
   "owner": [],
@@ -77,6 +94,14 @@
       "state": "landed",
       "merge": "a090662aaa5642be312e3c8e3fce0ad3a6b568a2",
       "closed": "auto"
+    },
+    {
+      "issue": 2536,
+      "what": "import-canvas and import-prepare wait for the Prepare step baked-text scan",
+      "session": "session_017SdbwQ97N2fxjbZevtddgt",
+      "nonce": "fix-2536-f-fa8f",
+      "launchedAt": "2026-11-19T08:13:15Z",
+      "state": "building"
     }
   ],
   "triggers": {
@@ -300,6 +325,10 @@
     {
       "at": "2026-11-12T09:16Z",
       "note": "Fix 2 (#2411, owner-only refusals to owner alarm) merged ~09:15Z. Both owner-approved cf22 fixes landed (#2398, #2411). #2381 v3 pending CI."
+    },
+    {
+      "item": "landing-first-trim-3",
+      "note": "session archived after usage limit; #2505 landed 66fd9b12; suite trim finished by #2530 (handover 6941119238); closed out"
     }
   ],
   "decisions": [
@@ -400,6 +429,16 @@
       "at": "2026-11-13T19:55Z",
       "by": "owner",
       "what": "Standing: coordinator decides operational questions (stale reverts, stuck bot PRs, sequencing) itself per its recommendation and reports after; coverage drops and other binding-constraint items still go to the owner"
+    },
+    {
+      "at": "2026-11-19T08:10Z",
+      "by": "coordinator",
+      "what": "New coordinator session_017SdbwLrHWFsQu2RZhLvyXR continued block epoch 16 from recovery ref; prior coordinator archived 2026-11-17, 2026-11-19 restart had no repo access."
+    },
+    {
+      "at": "2026-11-19T08:12Z",
+      "by": "coordinator",
+      "what": "Stamped and queued stale bot PR #2584 (data-only shard durations re-record, CI gate green, Codex no findings), as with #2316."
     }
   ],
   "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
