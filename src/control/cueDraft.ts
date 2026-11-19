@@ -93,8 +93,10 @@ export interface CueDraftIo {
   canWrite: () => boolean;
   /** Start or continue an edit group. A fresh draft passes the cue record it starts from. */
   editing: (group: string, freshCue: CueRecord | null) => void;
-  /** Save through the rundown history, answering whether the store confirmed it. */
-  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId) => Promise<boolean>;
+  /** Save through the rundown history, answering whether the store confirmed it. `laterSaves`
+   *  counts the saves of the same typing handed over since this one: the history may then write
+   *  nothing for this one, since the newest carries newer text (#2589, D9). */
+  writeCue: (cueId: string, fields: CueFields, recoveredFrom?: CueRecord, confirm?: ObserveCue, commit?: DraftCommitId, laterSaves?: () => number) => Promise<boolean>;
   /** Save at once, with no history and nothing to await: whether the store accepted it. */
   retainCue: (cueId: string, fields: CueFields, confirm?: ObserveCue, commit?: DraftCommitId) => boolean | Promise<boolean>;
   /** A queued handoff still needs retaining when its value has never reached the local record. */
@@ -232,7 +234,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   /** The texts the draft's cue may hold under it: the text when the draft started, then each
    *  part of the typing handed to the store (it may or may not have landed when the page goes).
    *  What a recorded edit may be applied over on the next visit, and nothing else. */
-  let startedFrom: { cueId: string; original: CueFields; texts: DraftHandoff[]; stream?: DraftStream } | null = null;
+  let startedFrom: { cueId: string; original: CueFields; texts: DraftHandoff[]; stream?: DraftStream; sends: number; latest?: Promise<boolean> } | null = null;
   const commits = new WeakMap<DraftPart, DraftRevision>();
   /** The owed-edit record this page last wrote when it hid, as stored, or null. */
   let recorded: string | null = null;
@@ -285,7 +287,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     retire(startedFrom?.stream);
     const original = copyOf(d), id = io.commit?.start();
     const stream = id && io.commit ? { id, account: io.commit.account(), revision: 0, writes: 0, retired: false } : undefined;
-    startedFrom = { cueId: d.cueId, original, texts: [{ text: original }], stream };
+    startedFrom = { cueId: d.cueId, original, texts: [{ text: original }], stream, sends: 0 };
   };
   /** The store was given `d`'s text while typing in its cue goes on. */
   const handed = (d: DraftPart) => {
@@ -361,12 +363,16 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     // The store may hold this text from here on, before the history confirms it (a team
     // production's local outbox lands before the server answers): typing on may be applied over it.
     const write = handed(d), commit = commits.get(d), finish = track(commit);
+    // One save per typed text queued behind a slow team save put the record dozens of texts
+    // behind; a save a newer one of this typing overtook in the queue may write nothing (#2589).
+    const typing = startedFrom?.cueId === d.cueId ? startedFrom : null;
+    const turn = typing ? ++typing.sends : 0;
     let confirmedByReceipt = false;
-    return io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
+    const result = io.writeCue(d.cueId, fieldsOf(d), undefined, cue => {
       confirmedByReceipt = true;
       confirmed(write, cue);
       forgetCommitted(commit);
-    }, commit?.id).then((saved) => {
+    }, commit?.id, typing ? () => typing.sends - turn : undefined).then((saved) => {
       if (out === d) out = null;
       // Typing went on during the save, or the session ended: the newer draft is still owed.
       if (part.get() === d && session.alive()) {
@@ -382,6 +388,11 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       }
       return saved;
     }).finally(finish);
+    if (!typing) return result;
+    // Whoever waits on an overtaken save is answered by the save that carries its text.
+    const answer = result.then(saved => !saved && typing.sends !== turn && typing.latest ? typing.latest : saved);
+    typing.latest = answer;
+    return answer;
   };
 
   /** Save synchronously what is owed: pausing and teardown cannot await a microtask. The draft
