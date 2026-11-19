@@ -7,6 +7,11 @@
       "count": 3,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43487230143"
     },
+    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
+      "since": "2026-11-19",
+      "count": 4,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44487794172"
+    },
     "e2e/configured/publish-guard.spec.ts": {
       "since": "2026-11-14",
       "count": 1,
@@ -82,10 +87,6 @@
     "e2e/configured/late-send-abandoned.spec.ts": {
       "count": 16,
       "last": "2026-11-03"
-    },
-    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
-      "count": 3,
-      "last": "2026-11-15"
     },
     "e2e/configured/per-graphic-replacement.spec.ts": {
       "count": 1,
