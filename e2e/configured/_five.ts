@@ -85,7 +85,7 @@ const row = (page: Page, label: string) =>
   page.locator('.pd-cue').filter({ has: page.locator('.pd-cue-label > strong', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) });
 
 async function selectCue(page: Page, label: string): Promise<void> {
-  await row(page, label).getByTestId('select-cue').click();
+  await row(page, label).getByTestId('select-cue').click({ timeout: 15_000 });
   await expect(page.locator('.pd-cue.selected .pd-cue-label > strong')).toHaveText(label);
 }
 
@@ -353,9 +353,14 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
     const page = taker.page;
     for (let i = 0; live(); i++) {
       const label = scene.takes[i % scene.takes.length];
-      await selectCue(page, label);
+      try {
+        await selectCue(page, label);
+      } catch (e) {
+        report.errors.push(`taker select at ${Date.now() - start} ms: ${String(e).split('\n')[0].slice(0, 160)}`);
+        continue;
+      }
       const before = await nowOn(page);
-      await page.getByTestId('verb-take').click();
+      await page.getByTestId('verb-take').click({ timeout: 15_000 });
       const presses = (await readLpm(page)).presses.filter((p) => p.kind === 'click' && p.target === 'verb-take' && p.t >= before);
       const pressAt = presses[0]?.t ?? before;
       let ranAt: number | null = null;
@@ -371,7 +376,11 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
       }
       report.takes.push({ pressAt, ranAt, label });
       await page.waitForTimeout(250);
-      await page.getByTestId('verb-out').click();
+      // PHASE 9 CLOUD: a Take the server never confirmed leaves Out disabled; record it and go on.
+      await page.getByTestId('verb-out').click({ timeout: 15_000 }).catch(async (e) => {
+        const note = (await page.locator('p', { hasText: 'Take is on this monitor only' }).first().textContent({ timeout: 1_000 }).catch(() => null)) ?? '';
+        report.errors.push(`taker out at ${Date.now() - start} ms: ${String(e).split('\n')[0].slice(0, 120)} | ${note.slice(0, 160)}`);
+      });
       await page.waitForTimeout(400);
     }
   };
@@ -401,7 +410,7 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
         report.messages.push(entry);
         try {
           await ws.getByTestId('message-paste-body').fill(body);
-          await ws.getByTestId('message-paste-add').click();
+          await ws.getByTestId('message-paste-add').click({ timeout: 20_000 });
           const r = ws.locator('.pd-aud-row', { hasText: body });
           await expect(r).toBeVisible({ timeout: 20_000 });
           await r.getByTestId('audience-prepare').click();
