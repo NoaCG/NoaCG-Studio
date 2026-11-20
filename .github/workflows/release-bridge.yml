@@ -86,9 +86,30 @@ jobs:
           echo "release=true" >> "$GITHUB_OUTPUT"
           echo "NoaCG Bridge $VERSION is not released yet, so this push releases it."
 
+  # The exe's audio reader: the audio-only LGPL ffmpeg and ffprobe for Windows, cross-built from
+  # cli/ffmpeg/build.sh on Ubuntu (the recipe needs mingw-w64, which Windows runners lack) and
+  # handed to the release job, which packs them into the exe. The licence text, the exact source
+  # and the recipe go on the Release beside it.
+  ffmpeg:
+    name: Build the exe's audio reader
+    needs: decide
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' && needs.decide.outputs.release == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - id: build
+        uses: ./.github/actions/audio-ffmpeg
+        with:
+          target: win64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridge-ffmpeg-win64
+          path: ${{ steps.build.outputs.dir }}
+
   release:
     name: Build and publish the NoaCG Bridge exe
-    needs: decide
+    needs: [decide, ffmpeg]
     # Never on a fork, never on a fork's tag push, and only when `decide` found a version to release.
     if: ${{ github.repository == 'NoaCG/NoaCG-Studio' && needs.decide.outputs.release == 'true' }}
     # The exe is a copy of the runner's own node.exe with the bundle injected, so it is built
@@ -172,8 +193,30 @@ jobs:
 
       # Builds the package, bundles the bridge entry, injects it into a copy of this runner's
       # node.exe, starts the result and asks /health. A build that does not answer is refused.
+      - uses: actions/download-artifact@v4
+        with:
+          name: bridge-ffmpeg-win64
+          path: ${{ runner.temp }}/bridge-ffmpeg
+
+      # Name the licence, recipe and source files for this release, so the Release page says
+      # which exe they belong to.
+      - name: Name the audio reader's licence and source files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          D="$RUNNER_TEMP/bridge-ffmpeg"
+          mkdir -p cli/dist-ffmpeg
+          cp "$D/COPYING.LGPLv2.1" "cli/dist-ffmpeg/NoaCG-Bridge-${VERSION}-ffmpeg-LICENSE.txt"
+          cp "$D/BUILD.txt" "cli/dist-ffmpeg/NoaCG-Bridge-${VERSION}-ffmpeg-BUILD.txt"
+          cp "$D/build.sh" "cli/dist-ffmpeg/NoaCG-Bridge-${VERSION}-ffmpeg-build.sh"
+          cp "$D/ffmpeg-source.tar.gz" "cli/dist-ffmpeg/NoaCG-Bridge-${VERSION}-ffmpeg-source.tar.gz"
+
+      # Also packs the audio reader and proves it: the exe measures a -23 dBFS tone as -23.0 LUFS
+      # from a fresh cache folder, so a release whose reader does not unpack or run is refused.
       - name: Build and prove the exe
-        run: npm --prefix cli run build:exe
+        env:
+          NOACG_FFMPEG_DIR: ${{ runner.temp }}/bridge-ffmpeg
+        run: npm --prefix cli run build:exe -- --require-ffmpeg
 
       - name: Rehearse the Release page (dry run)
         if: ${{ inputs.dry_run }}
@@ -187,6 +230,7 @@ jobs:
           path: |
             cli/dist-exe/NoaCG-Bridge-${{ steps.version.outputs.version }}.exe
             cli/dist-exe/NoaCG-Bridge-${{ steps.version.outputs.version }}.exe.sha256
+            cli/dist-ffmpeg/*
 
       # `--target` matters on a push to main and a manual dispatch, where there is no tag yet: gh
       # creates `bridge-vX.Y.Z` at the commit that was built. On a tag push the tag already exists.
@@ -204,5 +248,6 @@ jobs:
             --title "NoaCG Bridge ${VERSION}" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             --latest \
-            "cli/dist-exe/NoaCG-Bridge-${VERSION}.exe" "cli/dist-exe/NoaCG-Bridge-${VERSION}.exe.sha256"
+            "cli/dist-exe/NoaCG-Bridge-${VERSION}.exe" "cli/dist-exe/NoaCG-Bridge-${VERSION}.exe.sha256" \
+            cli/dist-ffmpeg/*
           echo "::notice title=Released::https://github.com/${GITHUB_REPOSITORY}/releases/tag/bridge-v${VERSION}"

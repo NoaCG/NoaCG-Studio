@@ -56,6 +56,7 @@ import { useAccountAuthoring } from '../AccountAuthoringGate';
 import { useDataProblems } from './SourcesLine';
 import type { SourceStatusStore } from '../../control/sheetSource';
 import { commitDurableWrites } from '../../model/durableStore';
+import { isGraphicCue } from '../../model/controlCue.ts';
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
 export function nameList(names: string[]): string {
@@ -1017,7 +1018,7 @@ export default function CueRundown({
                   <CueAccentControl show={show} cue={cue} setShows={setShows} fallback={routeTone} onPreview={color => onAccentPreview(cue.id, color)} />
                   {(() => {
                     // The row pins its GRAPHIC, never the cue: a quiz with twenty questions has one Reveal.
-                    const graphic = cue.source === 'playout' ? null : cueGraphicName(cue);
+                    const graphic = isGraphicCue(cue) ? cueGraphicName(cue) : null;
                     if (!graphic) return null;
                     const isPinned = pinnedGraphics.includes(graphic);
                     return (

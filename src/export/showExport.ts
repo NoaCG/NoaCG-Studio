@@ -76,6 +76,7 @@ import { graphicLayer, type Show } from '../model/shows';
 import { obsScenesOf, sceneGraphicNames, type ObsScene } from '../model/obsScenes';
 import { preparedCue } from '../model/productionData';
 import { readAuto } from '../control/cueAuto';
+import { isGraphicCue, isServerCue } from '../model/controlCue.ts';
 
 /** Kept for API compatibility with callers/specs that passed backend coordinates; the
  *  production package no longer bakes any hosted receiver (rule 1 above), so the value is
@@ -283,11 +284,11 @@ function spxRundownEntries(
   const cues = show.cues ?? [];
   // A cue showing a live candidate is left out: SPX would play its prepared values (E7.1).
   const entries = cues.flatMap((cue): SpxRundownEntry[] => {
-    const i = cue.source === 'playout' || !preparedCue(cue) ? undefined : poolIndex.get(cue.sourceId);
+    const i = !isGraphicCue(cue) || !preparedCue(cue) ? undefined : poolIndex.get(cue.sourceId);
     if (i === undefined) return [];
     return [{ template: i, description: cue.label || templates[i].settings.description, values: cue.values }];
   });
-  const clipCues = cues.filter((cue) => cue.source === 'playout').length;
+  const clipCues = cues.filter((cue) => isServerCue(cue)).length;
   // The fallback below would bring a candidate's graphic back with its library values.
   if (entries.length || !cues.every(preparedCue)) return { entries, clipCues };
   return {

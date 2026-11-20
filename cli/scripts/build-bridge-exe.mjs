@@ -4,6 +4,12 @@
 //   node scripts/build-bridge-exe.mjs            # dist-exe/NoaCG-Bridge-<version>.exe + .sha256
 //   node scripts/build-bridge-exe.mjs --no-check # skip the start-and-ask-/health proof
 //
+// THE AUDIO READER. NOACG_FFMPEG_DIR (or --ffmpeg-dir <dir>) names the output of
+// cli/ffmpeg/build.sh for the exe's platform. Its ffmpeg and ffprobe go into the exe as
+// single-executable assets with a manifest of their checksums (src/playout/audio/tools.ts), and
+// the proof below then also measures a generated tone. Without one the exe is built with no audio
+// reader, which a release refuses (--require-ffmpeg).
+//
 // HOW. Node's single executable application support (node --experimental-sea-config): esbuild
 // bundles src/playoutEntry.ts and everything it reaches into ONE CommonJS file, Node turns that
 // into a preparation blob, the running node.exe is copied, and postject injects the blob into
@@ -35,6 +41,13 @@ const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 const version = pkg.bridgeVersion;
 if (!/^\d+\.\d+\.\d+$/.test(version ?? '')) throw new Error(`cli/package.json has no bridgeVersion to build (got ${JSON.stringify(version)})`);
 const check = !process.argv.includes('--no-check');
+const flagValue = (name) => {
+  const i = process.argv.indexOf(name);
+  return i >= 0 ? process.argv[i + 1] : undefined;
+};
+const ffmpegDir = flagValue('--ffmpeg-dir') ?? process.env.NOACG_FFMPEG_DIR;
+if (process.argv.includes('--require-ffmpeg') && !ffmpegDir) throw new Error('--require-ffmpeg: set NOACG_FFMPEG_DIR or --ffmpeg-dir to the output of cli/ffmpeg/build.sh');
+const programSuffix = process.platform === 'win32' ? '.exe' : '';
 const exeName = process.platform === 'win32' ? `NoaCG-Bridge-${version}.exe` : 'noacg-bridge';
 
 function step(name, fn) {
@@ -74,9 +87,23 @@ step('bundle src/playoutEntry.ts with esbuild', () => {
 const seaConfig = path.join(outDir, 'sea-config.json');
 const blob = path.join(outDir, 'bridge.blob');
 step('write the single-executable blob', () => {
+  const assets = {};
+  if (ffmpegDir) {
+    const files = {};
+    for (const name of ['ffmpeg', 'ffprobe']) {
+      const file = path.resolve(ffmpegDir, name + programSuffix);
+      if (!existsSync(file)) throw new Error(`${file} is missing: build it with cli/ffmpeg/build.sh`);
+      assets[`ffmpeg/${name}`] = file;
+      files[name] = createHash('sha256').update(readFileSync(file)).digest('hex');
+    }
+    const built = readFileSync(path.resolve(ffmpegDir, 'BUILD.txt'), 'utf8');
+    const manifest = path.join(outDir, 'ffmpeg-manifest.json');
+    writeFileSync(manifest, JSON.stringify({ version: /^FFmpeg (\S+)/.exec(built)?.[1] ?? 'unknown', files }));
+    assets['ffmpeg/manifest.json'] = manifest;
+  }
   writeFileSync(
     seaConfig,
-    JSON.stringify({ main: bundle, output: blob, disableExperimentalSEAWarning: true }, null, 2),
+    JSON.stringify({ main: bundle, output: blob, disableExperimentalSEAWarning: true, assets }, null, 2),
   );
   run(process.execPath, ['--experimental-sea-config', seaConfig]);
 });
@@ -128,8 +155,36 @@ if (check) {
       child.kill();
     }
   });
+  if (ffmpegDir) {
+    step('measure a tone with the embedded audio reader', () => {
+      // A stereo 997 Hz tone at -23 dBFS reads -23.0 LUFS (EBU Tech 3341, case 1).
+      const rate = 48000;
+      const frames = rate * 2;
+      const data = Buffer.alloc(frames * 8);
+      for (let i = 0; i < frames; i++) {
+        const v = 10 ** (-23 / 20) * Math.sin((2 * Math.PI * 997 * i) / rate);
+        data.writeFloatLE(v, i * 8);
+        data.writeFloatLE(v, i * 8 + 4);
+      }
+      const head = Buffer.alloc(44);
+      head.write('RIFF', 0); head.writeUInt32LE(36 + data.length, 4); head.write('WAVEfmt ', 8);
+      head.writeUInt32LE(16, 16); head.writeUInt16LE(3, 20); head.writeUInt16LE(2, 22); head.writeUInt32LE(rate, 24);
+      head.writeUInt32LE(rate * 8, 28); head.writeUInt16LE(8, 32); head.writeUInt16LE(32, 34); head.write('data', 36); head.writeUInt32LE(data.length, 40);
+      const tone = path.join(outDir, 'tone-23.wav');
+      writeFileSync(tone, Buffer.concat([head, data]));
+      // A fresh cache folder, so the proof unpacks the programs as a first start would.
+      const home = path.join(outDir, 'tools-home');
+      const r = spawnSync(exe, ['--measure', tone], { encoding: 'utf8', env: { ...process.env, LOCALAPPDATA: home, XDG_CACHE_HOME: home, NOACG_FFMPEG_DIR: '' } });
+      rmSync(tone, { force: true });
+      rmSync(home, { recursive: true, force: true });
+      const read = /^(-?[\d.]+) LUFS integrated, (-?[\d.]+) dBTP true peak/.exec(r.stdout ?? '');
+      const near = (got, want, within) => got !== undefined && Math.abs(Number(got) - want) <= within;
+      if (r.status !== 0 || !read || !near(read[1], -23, 0.1) || !near(read[2], -23, 0.2)) throw new Error(`--measure answered ${JSON.stringify(r.stdout || r.stderr)}, expected -23.0 LUFS (± 0.1) and -23.0 dBTP (± 0.2)`);
+      process.stdout.write(`[bridge-exe] --measure: ${r.stdout}`);
+    });
+  }
 }
 
-for (const f of [bundle, blob, seaConfig]) if (existsSync(f)) rmSync(f);
+for (const f of [bundle, blob, seaConfig, path.join(outDir, 'ffmpeg-manifest.json')]) if (existsSync(f)) rmSync(f);
 const mb = (readFileSync(exe).length / 1024 / 1024).toFixed(1);
 process.stdout.write(`[bridge-exe] ${path.relative(root, exe)} (${mb} MB, sha256 ${sha.slice(0, 12)}…) - NoaCG Bridge ${version}\n`);

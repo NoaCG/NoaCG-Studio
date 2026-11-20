@@ -19,6 +19,7 @@ import { folderRun, sequenceMembers, takeBlocker, type ThroughRole } from './ser
 import { airClash } from './serverState.ts';
 import { outputSlotRefusal, slotAddress } from './playoutSlots.ts';
 import { effectiveEnd } from './cuePlayback.ts';
+import { isControlCue, isGraphicCue, isServerCue, OSC_NOT_YET } from '../model/controlCue.ts';
 
 /** Where an item, and a Play-through folder, play by the settings given (control/playoutLink.ts). */
 export interface SlotRules {
@@ -60,7 +61,7 @@ export interface TakeContext {
 const selectionRefusal = (target: ShowCue | ShowFolder, ctx: TakeContext): string | null => {
   const cues = 'sourceId' in target ? [target] : (ctx.members.get(target.id) ?? []);
   for (const cue of cues) {
-    const why = cue.source === 'playout' ? null : ctx.graphicOf(cue)?.foreignRefusal || (ctx.selectionBlocker?.(cue) ?? null);
+    const why = isGraphicCue(cue) ? ctx.graphicOf(cue)?.foreignRefusal || (ctx.selectionBlocker?.(cue) ?? null) : null;
     if (why) return 'sourceId' in target ? why : `${cue.label}: ${why}`;
   }
   return null;
@@ -73,7 +74,7 @@ const addressOf = (ctx: TakeContext) => (i: PlayoutItem) => slotAddress(ctx.slot
  *  One-by-one step and dispatcher all use this reason.
  *  An All-together folder still takes its other cues and marks such a member NOT TAKEN. */
 export function serverCueOffRefusal(cue: ShowCue, casparOn: boolean, vmixOn = false, item?: PlayoutItem | null): string | null {
-  if (cue.source !== 'playout') return null;
+  if (!isServerCue(cue)) return null;
   if (item?.adapter === 'vmix') {
     return vmixOn ? null : casparOn ? 'This cue plays on vMix. This production uses CasparCG.' : 'Choose vMix in the Playout panel to take this cue.';
   }
@@ -139,6 +140,7 @@ export const takePlans = (target: ShowCue | ShowFolder, ctx: TakeContext): { slo
  */
 export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeContext): string | null => {
   if (!target) return null;
+  if ('sourceId' in target && isControlCue(target)) return OSC_NOT_YET(target.label);
   const off = 'sourceId' in target ? serverCueOffRefusal(target, ctx.casparOn, ctx.vmixOn, ctx.itemOf(target)) : null;
   if (off) return off;
   if (ctx.vmixOn && !('sourceId' in target) && folderMode(target) === 'through') {
@@ -168,7 +170,8 @@ export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeCon
 /** Direct cues use their own route and end action, independently of their folder or neighbours.
  *  The output slot is judged by `settings` as they stand at the press, which the page reads then. */
 export const directBlocker = (cue: ShowCue, ctx: TakeContext, settings: PlayoutSettings): string | null => {
-  if (cue.source !== 'playout') return !ctx.graphicOf(cue)?.name ? `${cue.label} has no graphic.` : selectionRefusal(cue, ctx);
+  if (isControlCue(cue)) return OSC_NOT_YET(cue.label);
+  if (isGraphicCue(cue)) return !ctx.graphicOf(cue)?.name ? `${cue.label} has no graphic.` : selectionRefusal(cue, ctx);
   const item = ctx.itemOf(cue);
   const off = serverCueOffRefusal(cue, ctx.casparOn, ctx.vmixOn, item);
   if (off) return off;
@@ -181,7 +184,9 @@ export const directBlocker = (cue: ShowCue, ctx: TakeContext, settings: PlayoutS
  *  for a server cue, or its own Take check. Asked before anything of the step is sent, so a press
  *  that cannot take its cue takes nothing else off either. */
 export const stepBlocker = (next: ShowCue, ctx: TakeContext): string | null =>
-  next.source === 'playout'
+  isControlCue(next)
+    ? OSC_NOT_YET(next.label)
+    : isServerCue(next)
     ? !ctx.itemOf(next)
       ? `${next.label} plays a file this production no longer lists.`
       : serverCueAdapterMismatch(next, ctx) ?? (ctx.bridgeDown

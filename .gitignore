@@ -309,6 +309,7 @@ playout-lag-out*/
 
 # NoaCG-Bridge-<version>.exe and its build intermediates (cli/scripts/build-bridge-exe.mjs)
 cli/dist-exe
+cli/dist-ffmpeg
 
 # endurance.yml receipts (scripts/replay-smoke.mjs and later endurance scripts)
 endurance-output/

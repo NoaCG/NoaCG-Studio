@@ -79,6 +79,13 @@ either on; steps 11 and 12 are only for after that.
 > what was on air, but green came before the restarted output drew it: 0.35 s early on the
 > reloaded browser output, about 1 s early on CasparCG after its template was reloaded.
 > Evidence: `notes.md` (step 4), `s4a-*`, `s4b-c25-burst-*` (file names carry the grab time).
+>
+> **Rerun, 2026-11-20, after #2610: ok once the page notices; one gap.** In all six cases (Take
+> still loading, on air with nothing pressed, 15 graphics on air; CasparCG and browser output)
+> green came 0.46 to 3.4 s after the restarted output's picture was back, with grey or amber
+> before. But from the moment the output went blank until the page noticed, the light stayed
+> green: 0.3 to 0.6 s on CasparCG, 2.2 to 2.8 s on the browser output. Evidence: `notes.md`
+> (Steps 4 and 5 rerun).
 
 ## 5. The light on the studio network
 
@@ -105,6 +112,12 @@ either on; steps 11 and 12 are only for after that.
 > without leaving stayed "Reconnecting…" and held the light grey "Confirming…" with "(0 s)" for
 > over a minute, never amber. Evidence: `notes.md` (step 5 and setup), `s5-after-reconnect-*`,
 > `s1-page-stale-output-confirming.jpg`.
+>
+> **Rerun, 2026-11-20: output cut ok; page cut failed.** Output cut 20 s with a press: amber at
+> 5 s, red at 16 s, green 0.9 s after the picture caught up. Silent output, nothing pressed: green
+> for 42.6 s, then red (its age read "80 s"). Production page cut off for 60 s: green the whole
+> 60 s; amber "cannot confirm" only after the network came back. Both cuts were DevTools
+> offline, not a real cable. Evidence: `notes.md` (Steps 4 and 5 rerun).
 
 ## 6. A Take never waits (AC-1)
 

@@ -69,6 +69,7 @@ import { staleSentence } from './seqSend.ts';
 import { SHARED_NOT_MOVED, changedNote, namedOnce, offAirNote, unheldNote } from './liveControls.ts';
 import { typedReadOnly, typedSendRefusal, type TypedActionSend, type TypedSend, type TypedValues } from '../model/ografTyped.ts';
 import type { PressDone } from './panelActions';
+import { isControlCue, isGraphicCue, isServerCue, OSC_NOT_YET } from '../model/controlCue.ts';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
  *  `uncertain`: the server did not answer, so it may still commit; `stale`: the server refused it
@@ -774,7 +775,13 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const take = async (cue: ShowCue) => {
     const s = sender();
     const p = page();
-    if (cue.source === 'playout') {
+    // A control cue is never a graphic: until it can be sent (osc-control-cues phase 3) its Take is
+    // refused with the reason, and nothing goes to the command log.
+    if (isControlCue(cue)) {
+      s.note(`Take was not sent: ${OSC_NOT_YET(cue.label)}`);
+      return;
+    }
+    if (isServerCue(cue)) {
       if (await p.playoutVerb(cue, 'take', 'Take')) {
         p.clearMisses([cue.id]);
         p.noteStep(cue);
@@ -791,7 +798,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const s = sender();
     const p = page();
     const { editingCue, selectedGraphic: graphic } = sel;
-    if (editingCue?.source === 'playout') {
+    if (isServerCue(editingCue)) {
       if (sel.selectedPlayoutLive) await p.playoutVerb(editingCue, 'update', 'Update');
       return;
     }
@@ -933,7 +940,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const s = sender();
     const p = page();
     const { selectedCue, selectedGraphic: graphic } = sel;
-    if (selectedCue?.source === 'playout') {
+    if (isServerCue(selectedCue)) {
       if (sel.selectedPlayoutLive) await p.playoutVerb(selectedCue, 'next', 'Next');
       return;
     }
@@ -960,7 +967,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const s = sender();
     const p = page();
     const { selectedCue, selectedGraphic: graphic } = sel;
-    if (selectedCue?.source === 'playout') {
+    if (isServerCue(selectedCue)) {
       if (sel.selectedPlayoutLive) await p.playoutVerb(selectedCue, 'out', 'Out');
       return;
     }
@@ -1204,7 +1211,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     if (!p.lookAppearanceOf) return result;
     const captured = Object.entries(session.air.get().liveCue).flatMap(([graphic, cueId]) => {
       const cue = p.cueById?.(cueId);
-      return cue && cue.source !== 'playout' ? [{ graphic, cue }] : [];
+      return cue && isGraphicCue(cue) ? [{ graphic, cue }] : [];
     });
     result.of = captured.length;
     await Promise.all(

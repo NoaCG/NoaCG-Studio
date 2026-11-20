@@ -21,6 +21,7 @@ import type { AssetFile, SpxTemplate } from '../model/types.ts';
 import { isForeignGraphic } from '../model/foreignPackage.ts';
 import { contentHash } from '../model/contentHash.ts';
 import type { LookLayer } from './cueAdjust.ts';
+import { isGraphicCue } from '../model/controlCue.ts';
 
 /** The look a production's graphics take: its `look` while it is on, else none. */
 export function productionLookOf(show: { look?: ProjectBrand; lookApplied?: true } | null | undefined): ProjectBrand | null {
@@ -229,7 +230,7 @@ export function lookExceptions(show: { graphics: readonly { id: string; name: st
   const out: LookException[] = [];
   for (const g of show.graphics) if (keeps(g.adjust)) out.push({ graphic: g.name, cue: null });
   for (const c of show.cues ?? []) {
-    if (c.source === 'playout' || !keeps(c.adjust)) continue;
+    if (!isGraphicCue(c) || !keeps(c.adjust)) continue;
     const g = show.graphics.find((x) => x.id === c.sourceId);
     if (g) out.push({ graphic: g.name, cue: c.label });
   }

@@ -8,12 +8,14 @@
 // folder, or a folder no cue names; the reader shows each as it is (`rundownRows`) and nothing
 // reorders on read. The next move gathers it.
 //
-// PURE, AND IMPORTING NOTHING BUT TYPES, so both ./shows.ts and ./teamShowMerge.ts can import it and
-// scripts/team-show-merge.test.mjs and scripts/show-folders.test.mjs run it in Node without a browser.
+// PURE, AND IMPORTING NOTHING BUT TYPES AND THE PURE ./controlCue.ts, so both ./shows.ts and
+// ./teamShowMerge.ts can import it and scripts/team-show-merge.test.mjs and
+// scripts/show-folders.test.mjs run it in Node without a browser.
 // Keep it that way: shows.ts brings the durable store with it. Only what is erasable TypeScript, and
 // ES2020 (tsconfig `lib`).
 
 import type { PlayoutItem, ShowCue, ShowFolder } from './shows';
+import { isControlCue, isGraphicCue, isServerCue } from './controlCue.ts';
 
 /** What these rules need of a cue: its id and the folder it names. */
 export type FolderMember = Pick<ShowCue, 'id' | 'folderId'>;
@@ -149,7 +151,7 @@ export function throughRefusal(
   cue: Pick<ShowCue, 'label' | 'source' | 'sourceId'>,
   items: readonly Pick<PlayoutItem, 'id' | 'adapter' | 'kind' | 'mediaKind'>[],
 ): string | null {
-  if (cue.source === 'playout' && items.some(item => item.id === cue.sourceId && item.adapter === 'vmix')) {
+  if (isServerCue(cue) && items.some(item => item.id === cue.sourceId && item.adapter === 'vmix')) {
     return `${cue.label} plays on vMix. Choose One by one or All together for this folder.`;
   }
   const what = throughMisfit(cue, items);
@@ -161,7 +163,8 @@ export function throughMisfit(
   cue: Pick<ShowCue, 'source' | 'sourceId'>,
   items: readonly Pick<PlayoutItem, 'id' | 'kind' | 'mediaKind'>[],
 ): string | null {
-  if (cue.source !== 'playout') return 'a graphic';
+  if (isControlCue(cue)) return 'an OSC cue';
+  if (isGraphicCue(cue)) return 'a graphic';
   const item = items.find((i) => i.id === cue.sourceId);
   if (!item) return 'a server file this production no longer lists';
   return item.kind !== 'media' ? 'a server template' : item.mediaKind === 'still' ? 'a still, which never ends' : null;

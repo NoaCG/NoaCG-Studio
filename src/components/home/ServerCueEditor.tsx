@@ -39,6 +39,7 @@ import AccountAuthoringGate, { useAccountAuthoring } from '../AccountAuthoringGa
 import { THROUGH_END, type ThroughRole } from '../../control/serverPlayout';
 import { useModalGate } from '../spaceKey';
 import { useDeferredEdits } from './useDeferredEdits';
+import { isServerCue } from '../../model/controlCue.ts';
 
 /** A clip in a Play-through folder: the folder's name, the slot it plays on, and the clip's place. */
 export interface ThroughPlace {
@@ -114,7 +115,7 @@ export default function ServerCueEditor({
   const channel = channelOf(playoutSettings, item);
   const media = item.kind === 'media';
   const vmix = item.adapter === 'vmix';
-  const references = () => loadShows().find(s => s.id === showId)?.cues?.filter(c => c.source === 'playout' && c.sourceId === item.id) ?? [];
+  const references = () => loadShows().find(s => s.id === showId)?.cues?.filter(c => isServerCue(c) && c.sourceId === item.id) ?? [];
   const [routeChange, setRouteChange] = useState<{ field: 'channel' | 'layer'; value: number; cues: ShowCue[] } | null>(null);
   const applyRoute = (field: 'channel' | 'layer', value: number) => setShows(field === 'channel' ? setPlayoutItemChannel(showId, item.id, value) : setPlayoutItemLayer(showId, item.id, value));
   const changeRoute = (field: 'channel' | 'layer', value: number) => {

@@ -25,6 +25,7 @@ import type { FolderStep } from './folderStep';
 import { rowTestId } from '../model/rundownRows.ts';
 import { directCue } from '../model/cueShortcuts.ts';
 import { pauseTarget } from './serverState.ts';
+import { isServerCue } from '../model/controlCue.ts';
 
 /** What the dispatcher reads besides the verb bar's view: the rundown as drawn, the held folder, and
  *  the checks a per-row key asks at the press. */
@@ -91,7 +92,7 @@ export function decideVerb(key: VerbKey, press: Press | undefined, view: Dispatc
     const original = view.cues.find((c) => c.id === press?.cue);
     if (!original) return NONE;
     const cue = directCue(original);
-    const blocked = view.directBlocked(cue) ?? (cue.source === 'playout' && view.bridgeDown ? 'NoaCG Bridge is not connected.' : null);
+    const blocked = view.directBlocked(cue) ?? (isServerCue(cue) && view.bridgeDown ? 'NoaCG Bridge is not connected.' : null);
     // Named as the deck names the key (panelFeedback.ts VERB_WORDS), with the cue, so every note
     // the press writes says which cue it was.
     const label = `Play now ${cue.label}`;
