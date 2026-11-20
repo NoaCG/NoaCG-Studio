@@ -85,6 +85,47 @@ Setup difference, not a product defect: this machine's 2.3 config has one channe
 channel 2 polls answer "Invalid channel specified" and the server clip (on 2-10, and only in 2.5's
 media folder) reads "Server files missing".
 
+### Step 2 rerun, 2026-11-20: pass
+
+After the fix for #2603 (PR #2605, merge 7b4e6e66), on the same laptop. The live `/output` page
+served the fix's Chromium 71 shims (`Promise.allSettled`, `structuredClone` and the #2603 note
+that #2605 added to `output.html`), so the deployment included 7b4e6e66. NoaCG Bridge 0.12.0 was
+built from `main` at 3f79bd7a; the production was a fresh "Phase 9 test" (News lower third C and
+Volt Scorebug from the library), published, with CasparCG as its only output. The Bridge reported
+the 2.3.3 LTS server as "CasparCG 2.3.2 4de6d18f Dev". Deleted afterwards.
+
+1. **Load and log**: Load on 1-20 at 11:46:43.707 UTC; CasparCG 2.3 received the `PLAY 1-20
+   [HTML]` at 11:46:43.747. In the following 40 s (and in the whole session's log) there is no
+   "Uncaught", no "is not a function" and no output-page error line: no `html[...]` line at all
+   after the PLAY. `s2-c23-rerun-casparcg-log.txt` (server start to 40 s after the PLAY, the
+   Bridge's status polls removed). The "Invalid channel specified" lines of 2026-11-17 did not
+   appear either.
+2. **Joins**: the light went from "Not loaded on 1-20" to "● Ready for playout · 1 of 1 output"
+   at 11:46:54.030, 10.3 s after Load.
+3. **Take, Update, Out of the lower third** (CasparCG grabbed by `ADD 1 IMAGE` about every 0.3 s;
+   each time is the window between the last unchanged grab and the first changed one):
+
+   | Press | Press at (UTC) | Picture moved | Press to picture | Light green after press |
+   |---|---|---|---|---|
+   | Take | 11:47:52.049 | by 52.169 (prior grab 51.884, before the press) | at most 0.12 s | 1.02 s |
+   | Update to "Rerun Update 2.3" | 11:48:02.268 | between 02.437 and 02.733 | 0.17 to 0.47 s | 1.34 s |
+   | Out | 11:48:12.581 | between 12.976 and 13.268 | 0.40 to 0.69 s | 1.00 s |
+
+   The update frame shows "Rerun Update 2.3"; after the Out channel 1 is empty.
+4. **CasparCG 2.5, same presses**: the page reloaded the output onto 2.5 by itself ("Reloading on
+   1-20", Ready 9.1 s later).
+
+   | Press | Press at (UTC) | Picture moved | Press to picture | Light green after press |
+   |---|---|---|---|---|
+   | Take | 11:49:55.251 | by 55.318 (prior grab 55.007, before the press) | at most 0.07 s | 0.98 s |
+   | Update to "Rerun Update 2.5" | 11:50:05.469 | between 05.696 and 05.988 | 0.23 to 0.52 s | 1.42 s |
+   | Out | 11:50:15.581 | between 15.820 and 16.110 | 0.24 to 0.53 s | 1.00 s |
+
+   As on 2026-11-17 (green 0.9 to 1.1 s after a Take or Out); nothing changed on 2.5.
+
+The CasparCG frames are in the local archive with the other pictures (`s2r-c23-*`, `s2r-c25-*`,
+named by their grab time), with the full 2.3 log.
+
 ## Step 3: a Take of a graphic the output is still loading (CasparCG 2.5 only)
 
 2.3 not run: step 2's output does not come up.
