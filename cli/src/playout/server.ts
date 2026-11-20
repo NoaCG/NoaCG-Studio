@@ -54,6 +54,7 @@ import { fileServerMemory, readStudio, type ServerMemory } from './servers.js';
 import { SlotMemoryBank } from './slots.js';
 import { PAIRING_TTL_MS, PairingCodes, secretMatches } from './token.js';
 import { noacgUrl } from '../config.js';
+import { OscError, OscSender, readOscRequest } from './osc.js';
 import { UsageError } from '../output.js';
 
 /** The Bridge's default port. Deliberately clear of the dev-port block (5174-5298) and of the
@@ -63,7 +64,7 @@ export const DEFAULT_BRIDGE_PORT = 8899;
 export const DEFAULT_AMCP_PORT = 5250;
 
 /** What this build understands beyond the routes every v2 Bridge answers (`/health`). */
-export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels', 'image-fit'];
+export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels', 'image-fit', 'osc'];
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0:0:0:0:0:0:0:1']);
 
@@ -140,6 +141,11 @@ export interface BridgeOptions {
   /** The Bridge's watch on each CasparCG server's connection (./links.ts). A test hands in its own
    *  to set how soon a lost link is tried again. */
   links?: ServerLinks;
+  /** OSC cues may send to public internet addresses (`noacg bridge --allow-public-osc`). Off, they
+   *  reach this computer, the studio network and VPNs only (docs/work-specs/osc-control-cues D6). */
+  allowPublicOsc?: boolean;
+  /** The OSC sender. A test hands in its own over a fake clock, resolver and socket. */
+  osc?: OscSender;
 }
 
 // --- Request reading -------------------------------------------------------------------------
@@ -467,6 +473,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
   const memory = options.memory ?? new SlotMemoryBank();
   const servers = options.servers ?? fileServerMemory();
   const pairings = options.pairings ?? new PairingCodes();
+  const osc = options.osc ?? new OscSender(options.allowPublicOsc === true);
   /** Remember a server the page connected to, and answer the list. A config folder that cannot be
    *  written costs the memory, never the connection. */
   const rememberServer = async (server: RememberedServer): Promise<RememberedServer[]> => {
@@ -603,6 +610,25 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         // `/pair-link`, a route with no target: it names servers rather than talking to one.
         if (url === '/servers') {
           send(200, { ok: true, v: PLAYOUT_V, servers: await servers.list() }, true);
+          return;
+        }
+
+        // ONE OSC MESSAGE (docs/work-specs/osc-control-cues D1, D6, D7): no playout target, no adapter.
+        // The send id is reserved before anything slow, so a repeat answers the first outcome.
+        if (url === '/osc') {
+          let request;
+          try {
+            request = readOscRequest(body);
+          } catch (e) {
+            if (e instanceof OscError) throw new UsageError(e.message);
+            throw e;
+          }
+          const r = await osc.send(request);
+          log(`osc ${request.host}:${request.port} ${request.address} -> ${r.ok ? `sent ${r.value.bytes} bytes to ${r.value.to}` : `${r.error.code}: ${r.error.message}`}${r.repeat ? ' (repeat, not sent again)' : ''}`);
+          if (!r.ok && r.error.code === 'usage') throw new UsageError(r.error.message);
+          send(200, r.ok
+            ? { ok: true, v: PLAYOUT_V, sent: r.value, ...(r.repeat ? { repeat: true } : {}) }
+            : { ok: false, v: PLAYOUT_V, error: { hop: r.error.code === 'unreachable' ? 'target' : 'agent', code: r.error.code, detail: r.error.message } satisfies AgentError, ...(r.repeat ? { repeat: true } : {}) }, true);
           return;
         }
 

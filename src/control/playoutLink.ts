@@ -450,6 +450,9 @@ interface BridgeReply {
   loadProblem?: string;
   mediaFolder?: string;
   cancelled?: true;
+  /** `/osc`: where the datagram went, and whether this answer repeats an earlier send. */
+  sent?: { to: string; bytes: number };
+  repeat?: true;
 }
 
 // A field added to a Bridge route must be classified here. Unknown additions stay compatible.
@@ -457,7 +460,7 @@ const bridgePayloadFields = {
   adapters: true, agent: true, cancelled: true, capabilities: true, channel: true, channels: true, code: true,
   command: true, expiresIn: true, features: true, generation: true, instance: true, items: true,
   lines: true, link: true, linked: true, loadProblem: true, mediaFolder: true, observedAt: true, overlays: true, players: true,
-  png: true, raw: true, renderers: true, servers: true, session: true, slots: true, status: true,
+  png: true, raw: true, renderers: true, repeat: true, sent: true, servers: true, session: true, slots: true, status: true,
   token: true, version: true, vmix: true, warning: true,
 } satisfies Record<BridgePayloadField, true>;
 const knownPayloadFields = Object.keys(bridgePayloadFields) as BridgePayloadField[];

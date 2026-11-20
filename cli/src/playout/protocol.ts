@@ -241,8 +241,9 @@ export interface AgentError {
  *  servers this Bridge remembers connecting to. `studio` is each remembered server's `studio` and
  *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
  *  `ending` is the `ending` verb: a clip's ending changed while it plays. `channels` is `/channels`:
- *  the channels a server reports it has. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard' | 'vmix-player-transport-guard';
+ *  the channels a server reports it has. `osc` is `/osc`: one OSC message sent as one UDP datagram
+ *  (docs/work-specs/osc-control-cues). */
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard' | 'vmix-player-transport-guard' | 'osc';
 
 /** Prefix the paired token for keyed vMix verbs so a legacy Bridge refuses the request even if it
  * replaced the new Bridge after the browser's capability probe. The token itself is unchanged. */
@@ -579,6 +580,30 @@ interface TerminalAmcpReply extends AmcpReply {
   command: string;
 }
 
+/** One OSC argument as the page sends it: a string, an int32 or a float32, its value as typed. */
+export interface OscArgWire {
+  type: 's' | 'i' | 'f';
+  value: string;
+}
+
+/** What `POST /osc` takes: one message for one destination, under the press's own send id. */
+export interface OscRequestWire {
+  sendId: string;
+  host: string;
+  port: number;
+  address: string;
+  args: OscArgWire[];
+}
+
+/** What `POST /osc` answers when the datagram left this computer: the numeric address it went to
+ *  and its size. UDP has no receipt, so this is never proof a device acted on it. `repeat` says a
+ *  request with this send id was answered before and nothing was sent again. */
+interface OscReply {
+  ok: true;
+  sent: { to: string; bytes: number };
+  repeat?: true;
+}
+
 interface BridgeRepliesByRoute {
   '/health': HealthReply;
   '/status': StatusReply;
@@ -594,6 +619,7 @@ interface BridgeRepliesByRoute {
   '/list': ListReply;
   '/thumbnail': ThumbnailReply;
   '/amcp': TerminalAmcpReply;
+  '/osc': OscReply;
 }
 
 /** Every JSON envelope the current Bridge sends, before the browser validates it. */
