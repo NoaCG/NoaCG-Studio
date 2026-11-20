@@ -26,9 +26,10 @@ const LOOK = { v: 1, frame: { dx: 1270, dy: 0, s: 0.95, ox: 530, oy: 961 } };
 
 /** A graphic with no state machine: update() writes each value as `name=type:json`, play and next
  *  count its entrance and steps, so its document shows the data and the step it holds. */
-const probe = (key: string, layer: number, reports = false) => ({
+const probe = (key: string, layer: number, reports = false, slow = false) => ({
   key,
-  html: '<div id="v"></div><div id="s">off</div>',
+  // `slow`: a picture the stand-in answers late, so the document takes that long to load.
+  html: '<div id="v"></div><div id="s">off</div>' + (slow ? `<img src="${BACKEND}/slow.png" alt="">` : ''),
   css: '',
   js: [
     'var steps = 0;',
@@ -48,6 +49,9 @@ const probe = (key: string, layer: number, reports = false) => ({
   fps: 50,
   layer,
 });
+
+/** A 1x1 transparent PNG. */
+const PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
 
 const envelope = (values: Record<string, unknown>, v = 1) => ({ v, kind: 'values', standard: OGRAF_STANDARD.commit, schema: 'schema-hash', values });
 const TYPED = envelope({ f0: 'Anna', f1: 2, f2: true, f3: { team: ['A', 'B'] } });
@@ -74,6 +78,10 @@ async function standInBackend(page: Page, live: Record<string, unknown>, rows: R
     const req = route.request();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     const path = new URL(req.url()).pathname;
+    if (path === '/slow.png') {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'image/png' }, body: PIXEL });
+    }
     const json = (body: unknown) => route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(body) });
     if (path.endsWith('/rpc/control_output_resolve')) {
       return json({
@@ -279,7 +287,7 @@ test('a graphic put back from another output\'s report is not reported run until
   await sampleRunAndPaint(page);
   const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
   const live = { Strap: { data: { f0: 'Held' }, state: { groups: { main: 'in' } }, event: 1002, seq: 2 } };
-  await standInBackend(page, live, rows, ['Strap'], [probe('Strap', 20, true)]);
+  await standInBackend(page, live, rows, ['Strap'], [probe('Strap', 20, true, true)]);
   await page.goto('/output?production=typed-probe');
   await expectRunNotBeforePaint(page, 2);
 });
