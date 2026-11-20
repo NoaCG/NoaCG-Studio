@@ -39,7 +39,8 @@ const probe = (key: string, layer: number, reports = false) => ({
     // The frame is sandboxed, so a spec reads what it paints from what it posts: its own off-air
     // opacity and its step, every animation frame.
     ...(reports
-      ? ["(function tick() { parent.postMessage({ type: 'probe-paint', key: " + JSON.stringify(key) + ", op: document.documentElement.style.getPropertyValue('opacity'), s: document.getElementById('s').textContent }, '*'); requestAnimationFrame(tick); })();"]
+      ? ["window.noacgSnap = function () { document.getElementById('s').textContent = 'step 0'; };",
+         "(function tick() { parent.postMessage({ type: 'probe-paint', key: " + JSON.stringify(key) + ", op: document.documentElement.style.getPropertyValue('opacity'), s: document.getElementById('s').textContent }, '*'); requestAnimationFrame(tick); })();"]
       : []),
   ].join('\n'),
   assets: [],
@@ -220,12 +221,9 @@ test('by row id (protocol 1, no log head), a typed report puts its graphic back 
   await expect(doc(page, 'Bug').locator('#s')).toHaveText('off');
 });
 
-test('a Take held when the output reloads is not reported run until its graphic is back on air (#2604)', async ({ page }) => {
-  // The phase 9 hardware check: a Take no output had run yet, then the output reloaded. The boot
-  // replays it off air and comes back once it stands still; the run report it gives the production
-  // page (G2 section 1) must not reach the Take before the picture does, or the light turns green
-  // early. Sampled in the page every animation frame from the first script on, against what the
-  // graphic's own document last painted.
+/** Every animation frame from the first script on: what the run report says of the Strap's Take
+ *  (`ranFor`, G2 section 1) and whether the Strap's own document has painted it on air. */
+async function sampleRunAndPaint(page: Page) {
   await page.addInitScript(() => {
     if (window.top !== window) return;
     type Sample = { ran: number | null; onAir: boolean; t: number };
@@ -245,23 +243,43 @@ test('a Take held when the output reloads is not reported run until its graphic 
     };
     requestAnimationFrame(tick);
   });
+}
+
+type RunSample = { ran: number | null; onAir: boolean; t: number };
+/** Wait for the picture and the report, then: the report reached the Take no earlier than the
+ *  picture (the frame says what it painted by a message, a few frames late on a busy runner;
+ *  without the fix the report ran ahead by 0.6 s or more), and the window was really sampled. */
+async function expectRunNotBeforePaint(page: Page, take: number) {
+  const read = () => page.evaluate(() => (window as unknown as { __samples: RunSample[] }).__samples);
+  await expect.poll(async () => (await read()).some((s) => s.onAir), { timeout: 30_000 }).toBe(true);
+  await expect.poll(async () => (await read()).at(-1)?.ran ?? null, { timeout: 15_000 }).toBeGreaterThanOrEqual(take);
+  const samples = await read();
+  const ran = samples.find((s) => s.ran !== null && s.ran >= take);
+  const drawn = samples.find((s) => s.onAir);
+  expect(ran && drawn, JSON.stringify({ ran, drawn })).toBeTruthy();
+  expect(ran!.t, 'the Take was reported run before its picture was on air').toBeGreaterThanOrEqual(drawn!.t - 250);
+  expect(samples.filter((s) => s.ran !== null && !s.onAir).length).toBeGreaterThan(10);
+}
+
+test('a Take held when the output reloads is not reported run until its graphic is back on air (#2604)', async ({ page }) => {
+  // The phase 9 hardware check: a Take no output had run yet, then the output reloaded. The boot
+  // replays it off air and comes back once it stands still; the run report it gives the production
+  // page must not reach the Take before the picture does, or the light turns green early.
+  await sampleRunAndPaint(page);
   const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
   await standInBackend(page, {}, rows, ['Strap'], [probe('Strap', 20, true)]);
   await page.goto('/output?production=typed-probe');
+  await expectRunNotBeforePaint(page, 2);
+});
 
-  await expect(doc(page, 'Strap').locator('#s')).toHaveText('step 0', { timeout: 30_000 });
-  type Sample = { ran: number | null; onAir: boolean; t: number };
-  const read = () => page.evaluate(() => (window as unknown as { __samples: Sample[] }).__samples);
-  // It is drawn, and confirms the Take once on air.
-  await expect.poll(async () => (await read()).some((s) => s.onAir), { timeout: 15_000 }).toBe(true);
-  await expect.poll(async () => (await read()).at(-1)?.ran ?? null, { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
-  const samples = await read();
-  const ran = samples.find((s) => s.ran !== null && s.ran >= 2);
-  const drawn = samples.find((s) => s.onAir);
-  expect(ran && drawn, JSON.stringify({ ran, drawn })).toBeTruthy();
-  // The frame says what it painted by a message, which lands a few frames after the stage brought
-  // it back (more on a busy runner); without the fix the report ran ahead by 0.6 s or more.
-  expect(ran!.t, 'the Take was reported run before its picture was on air').toBeGreaterThanOrEqual(drawn!.t - 250);
-  // The replay really was off air for a while, so the samples above cover that window.
-  expect(samples.filter((s) => s.ran !== null && !s.onAir).length).toBeGreaterThan(10);
+test('a graphic put back from another output\'s report is not reported run until its frame has drawn it (#2604)', async ({ page }) => {
+  // The other half of the hardware case: another output ran the Take and reported it, so the
+  // reloaded output restores the graphic from that report (its pose) and replays nothing; its
+  // cursor already covers the Take before the frame has drawn anything.
+  await sampleRunAndPaint(page);
+  const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
+  const live = { Strap: { data: { f0: 'Held' }, state: { groups: { main: 'in' } }, event: 1002, seq: 2 } };
+  await standInBackend(page, live, rows, ['Strap'], [probe('Strap', 20, true)]);
+  await page.goto('/output?production=typed-probe');
+  await expectRunNotBeforePaint(page, 2);
 });

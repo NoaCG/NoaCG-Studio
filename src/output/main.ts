@@ -1209,12 +1209,33 @@ async function boot(): Promise<void> {
     const from = offAirFrom.get(graphic);
     if (from === undefined || at < from) offAirFrom.set(graphic, at);
   };
-  /** A graphic replayed off air is on air now: what it ran counts, and it reports. */
+  if (seqMode) for (const key of stage.graphics.concat(bootPackages)) ranOffAir(key, 1);
+  /** A graphic that ran off air is on air now: what it ran counts, and one with something to say
+   *  reports it; the rest reach the page through Presence. */
   const backOnAir = (graphic: string) => {
     if (!offAirFrom.delete(graphic)) return;
-    unreportedRun.add(graphic);
-    scheduleReport(graphic);
+    if (touched.has(graphic) || liveGraphics.has(graphic)) {
+      unreportedRun.add(graphic);
+      scheduleReport(graphic);
+    }
     presence.touch();
+  };
+  /** The boot has put back what it knows and the stage is on air again (or never left). */
+  let bootRevealed = false;
+  /** RESTARTING, NOTHING HAS RUN ON AIR YET (G2 section 4, #2604): the boot puts each graphic back
+   *  from its report (a pose, a typed baseline) or the log, all before its frame has drawn, and its
+   *  cursor already covers the Takes it restores. So every graphic reads as placing from the log's
+   *  start until its frame has loaded and the stage is on air. */
+  const revealBoot = () => {
+    bootOffAir = false;
+    bootRevealed = true;
+    offAirFrom.forEach((_from, key) => {
+      if (!bootHidden.has(key) && stage.released(key)) backOnAir(key);
+      // A frame still loading counts when it loads, or, hidden by its own flag, when that lifts.
+      // One that never loads has failed by the stage's watchdog before this backstop, which only
+      // stops the entry staying for good; a frame still being shown late counts by itself.
+      else setTimeout(() => (bootHidden.has(key) && stage.released(key)) || backOnAir(key), FRAME_LOAD_MS + CATCH_UP_TIMING.capMs);
+    });
   };
   /** Graphics whose unsettled work is from before a republish: their `from` reads 0. */
   const staleFrom = new Set<string>();
@@ -1459,6 +1480,8 @@ async function boot(): Promise<void> {
     if (holds.has(graphic)) releaseHold(graphic);
     else if (bootHidden.has(graphic)) void showWhenSettled(graphic);
     else if (following && touched.has(graphic)) primeFrame(graphic);
+    // A boot frame that loads once the stage is on air has drawn what the boot gave it.
+    if (bootRevealed && !bootHidden.has(graphic)) backOnAir(graphic);
   });
   stage.onError((graphic) => {
     if (holds.has(graphic) && !ready(graphic)) giveUpOn(graphic, 'script');
@@ -1785,8 +1808,6 @@ async function boot(): Promise<void> {
         if (!row.graphic || !isCommand(row.msg.t) || !inScope(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, position(row))) continue;
         ranOffAir(row.graphic, position(row));
       }
-      // Played again with no row (its Take is below what was read): none of it has run on air.
-      for (const key of onWithoutPose) ranOffAir(key, 1);
     }
   }
 
@@ -1915,17 +1936,8 @@ async function boot(): Promise<void> {
           }
         }
         stage.setVisible(visible);
-        // Back on air: what ran off air counts now, except on a frame still hidden by its own
-        // flag, which counts when that flag lifts. One that never loads has failed by the stage's
-        // watchdog before this backstop, which only stops the entry staying for good; a frame
-        // that is still being shown late lifts its own flag and counts then.
-        if (visible) {
-          bootOffAir = false;
-          offAirFrom.forEach((_from, key) => {
-            if (!bootHidden.has(key)) backOnAir(key);
-            else setTimeout(() => (bootHidden.has(key) && stage.released(key)) || backOnAir(key), FRAME_LOAD_MS + CATCH_UP_TIMING.capMs);
-          });
-        }
+        // Back on air: what ran off air counts now (`revealBoot`).
+        if (visible) revealBoot();
       },
     };
     void airWhenSettled(revealing)
@@ -1943,7 +1955,7 @@ async function boot(): Promise<void> {
         dbg('catch-up', `failed (${String(error)}) — back on air anyway`);
         console.warn('NoaCG output: the boot catch-up failed; the stage is back on air.', error);
       });
-  }
+  } else revealBoot();
 
   // ── Follow the log live (shared discipline: dedupe, hole → tail, refill on resubscribe, and
   // the CONTROL_POLL_MS floor under all three — every recovery above is driven by an event the
