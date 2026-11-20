@@ -1229,6 +1229,21 @@ test.describe('team designs: one copy of each design per production', () => {
       expect(puts).toEqual([]);
       await expect.poll(async () => (await heldDesigns(second, made.id))['Designs B'], { timeout: 40_000, message: 'the other new page takes the new design on its next read' }).toBe((await heldDesigns(owner, made.id))['Designs B']);
 
+      // Two new pages save at once: one is refused (the token only, #2615), reads the split record
+      // through team_production_changes, makes it whole and merges; both edits stand, the record stays
+      // split, and both pages still hold every design (R1, R9).
+      await Promise.all([
+        editCue(owner, made.id, 'Designs A', 'Both at once A'),
+        editCue(second, made.id, 'Designs B', 'Both at once B'),
+      ]);
+      await expect.poll(async () => (await storedRow(owner, made.id)).cues.map((c) => c.values?.f0), { timeout: 40_000, message: 'both edits stand' })
+        .toEqual(expect.arrayContaining(['Both at once A', 'Both at once B']));
+      expect((await storedRow(owner, made.id)).form).toBe(1);
+      for (const p of [owner, second]) {
+        await expect.poll(async () => heldDesigns(p, made.id), { timeout: 40_000, message: 'each page holds every design whole' }).toEqual(await heldDesigns(owner, made.id));
+        expect(Object.values(await heldDesigns(p, made.id)).every((d) => d.length > 1000)).toBe(true);
+      }
+
       // The older page: every read that would include the split row is refused, as a whole (R6).
       const heads = await rest(older, 'team_productions?select=id,updated_at');
       expect(heads.status).toBeGreaterThanOrEqual(400);
@@ -1256,7 +1271,7 @@ test.describe('team designs: one copy of each design per production', () => {
       await older.getByTestId('verb-take').click();
       await expect.poll(commands, { timeout: 20_000, message: "the older page's Take reached the output's command log" }).toBeGreaterThan(sent);
       // The record kept every new page's edit.
-      expect((await storedRow(owner, made.id)).cues.map((c) => c.values?.f0)).toEqual(expect.arrayContaining(['After the change', 'After reload']));
+      expect((await storedRow(owner, made.id)).cues.map((c) => c.values?.f0)).toEqual(expect.arrayContaining(['Both at once A', 'Both at once B']));
     } finally {
       await setSwitch('team_designs', false).catch(() => undefined);
       for (const c of contexts) await c.close().catch(() => undefined);
