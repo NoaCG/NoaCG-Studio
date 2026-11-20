@@ -223,3 +223,18 @@ runs:
           exit 1
         fi
         echo "Teammate account authenticates."
+
+    # SELF-CHECKS THAT NEED ACCOUNTS. A migration's self-check skips on an instance with no account,
+    # and here the migrations apply before the accounts above exist, so it would otherwise first run
+    # at the hosted apply (production first). Applying the file again now runs it before merge: it
+    # replaces functions with the same bodies and its checks roll themselves back. 0121's check is
+    # #2616's database regression test (a publish must not read the stored output back).
+    - name: Run the self-checks that need accounts
+      shell: bash
+      run: |
+        set -euo pipefail
+        db_container="$(docker ps --filter "label=com.supabase.cli.project=${NOACG_STACK_PROJECT}" --filter 'name=supabase_db_' --format '{{.Names}}')"
+        for f in supabase/migrations/0121_publish_reads_stamp.sql; do
+          docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q < "$f"
+          echo "$(basename "$f"): self-check passed with accounts."
+        done
