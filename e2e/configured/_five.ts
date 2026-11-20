@@ -170,6 +170,10 @@ async function build(owner: Page, editors: number, fill = 0): Promise<Omit<Scene
   // PHASE 9 CLOUD: a large production can still be saving; do what the note says and publish again.
   const t0 = Date.now();
   for (let attempt = 1; ; attempt++) {
+    if (attempt > 1 && !(await owner.getByTestId('production-publish').isVisible())) {
+      log(`publish button gone after ${Date.now() - t0} ms; status ${await owner.getByTestId('production-status').textContent({ timeout: 2_000 }).catch(() => '?')}`);
+      break;
+    }
     try {
       await publishProduction(owner);
       log(`published on attempt ${attempt} after ${Date.now() - t0} ms`);
