@@ -282,6 +282,8 @@ export default tseslint.config(
       globals: {
         __SVG_ALIGN_TOL__: 'readonly',
         __SVG_LINE_HEIGHT__: 'readonly',
+        __SVG_BACKPLATE_SHARE__: 'readonly',
+        __PANEL_SAFE__: 'readonly',
         NOACG_LAYOUT: 'readonly', // the layout table (svgLayout.ts layoutDataJs)
         growSvgLayout: 'readonly', // the growth runtime, when the design has a rule
         growSvgHeights: 'readonly',

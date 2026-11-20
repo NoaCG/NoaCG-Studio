@@ -38,6 +38,8 @@ const TOKENS = {
   PREFIX: constant('src/templates/importedDesign/shared.ts', 'PREFIX'),
   SVG_ALIGN_TOL: constant('src/templates/importedDesign/svg.ts', 'SVG_ALIGN_TOL'),
   SVG_LINE_HEIGHT: constant('src/templates/importedDesign/svg.ts', 'SVG_LINE_HEIGHT'),
+  SVG_BACKPLATE_SHARE: constant('src/templates/importedDesign/svg.ts', 'SVG_BACKPLATE_SHARE'),
+  PANEL_SAFE: constant('src/templates/importedDesign/svgLayout.ts', 'PANEL_SAFE'),
 };
 let FIT = readFileSync(root('src/templates/importedDesign/runtime/svgFit.js'), 'utf8').replace(/\r\n/g, '\n');
 for (const [name, value] of Object.entries(TOKENS)) FIT = FIT.split(`__${name}__`).join(value);

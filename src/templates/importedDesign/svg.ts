@@ -54,7 +54,7 @@ import { escapeHtml, PREFIX } from './shared';
 import { bindSvgMarkup, candidateLabel } from './svgBind';
 import { svgFontCss } from './svgFonts';
 import { hasQrLayer, QR_CSS, QR_HOOK, qrField, qrHolderHtml, qrRuntimeJs } from './svgQr';
-import { LAYOUT_EL_ATTR, layoutDataJs, layoutRules, saidLines } from './svgLayout';
+import { LAYOUT_EL_ATTR, PANEL_SAFE, layoutDataJs, layoutRules, saidLines } from './svgLayout';
 import svgFitSource from './runtime/svgFit.js?raw';
 import svgFitBootSource from './runtime/svgFitBoot.js?raw';
 import svgGrowthSource from './runtime/svgGrowth.js?raw';
@@ -87,6 +87,14 @@ export const SVG_ALIGN_TOL = 0.05;
  * runtime/svgFit.js, owner 2026-09-02). Two spellings of half a line would be two rooms.
  */
 export const SVG_LINE_HEIGHT = 1.2;
+
+/**
+ * A SHAPE THIS MUCH OF THE FRAME IS A BACKPLATE, not a box: it holds every line there is. The
+ * mapping step will not group by one (`withoutBackplates`), and the fit asks one LAST, after the
+ * bar a line sits on - an exporter's unfilled artboard rectangle beat a tall name's bar and the
+ * name ran off the frame (review of 2026-11-20). One number, filled into the runtime.
+ */
+export const SVG_BACKPLATE_SHARE = 0.7;
 
 /** A FIGURE: digits and the marks a score or a clock carries, and no letters. A centred figure
  *  keeps no side margin beyond its own glyphs' bearings (`svgAlignOf`, runtime/svgFit.js), so a
@@ -150,7 +158,7 @@ function fillRuntime(text: string, values: Record<string, string | number>): str
  * The full reasoning is plan §6b "THE ROOM RULE FOR A PLACED LINE".
  */
 // The runtime is `runtime/svgFit.js`; the leading line break is the one the string always began with.
-const SVG_FIT_JS = `\n${fillRuntime(svgFitSource, { PREFIX, SVG_ALIGN_TOL, SVG_LINE_HEIGHT })}`;
+const SVG_FIT_JS = `\n${fillRuntime(svgFitSource, { PREFIX, SVG_ALIGN_TOL, SVG_LINE_HEIGHT, SVG_BACKPLATE_SHARE, PANEL_SAFE })}`;
 
 /**
  * THE FIT'S BOOT - the two load-time passes and the arrives-later observer - emitted LAST in the

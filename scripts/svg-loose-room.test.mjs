@@ -32,6 +32,8 @@ const TOKENS = {
   PREFIX: constant('src/templates/importedDesign/shared.ts', 'PREFIX'),
   SVG_ALIGN_TOL: constant('src/templates/importedDesign/svg.ts', 'SVG_ALIGN_TOL'),
   SVG_LINE_HEIGHT: constant('src/templates/importedDesign/svg.ts', 'SVG_LINE_HEIGHT'),
+  SVG_BACKPLATE_SHARE: constant('src/templates/importedDesign/svg.ts', 'SVG_BACKPLATE_SHARE'),
+  PANEL_SAFE: constant('src/templates/importedDesign/svgLayout.ts', 'PANEL_SAFE'),
 };
 let FIT = readFileSync(root('src/templates/importedDesign/runtime/svgFit.js'), 'utf8').replace(/\r\n/g, '\n');
 for (const [name, value] of Object.entries(TOKENS)) FIT = FIT.split(`__${name}__`).join(value);
@@ -104,4 +106,139 @@ test('wrap: false keeps a long value on one line where the same line otherwise w
   assert.ok(wraps.rows[0].lines > 1, `without it the caption wraps (${wraps.rows[0].lines} lines)`);
   assert.equal(one.rows[0].lines, 1, 'with it the caption stays on one line');
   assert.ok(one.rows[0].size < 24, `and gets smaller instead (${one.rows[0].size})`);
+});
+
+// ── THE SECOND-OPINION CASES (review of 2026-11-20) ──────────────────────────────────────────
+// Each mounts its own artwork on a fresh page, frame-sized, and asks what a long value paints.
+
+/** Mount one artwork, W x H, and fit `id` through each value; the layout table is optional. */
+async function fitOn({ w, h, body, id, values, layout }) {
+  const p = await browser.newPage({ viewport: { width: Math.max(w, 400), height: Math.max(h, 200) } });
+  await p.setContent(`<!doctype html><html><head><style>
+    body{margin:0} .${TOKENS.PREFIX}-art svg{display:block;width:${w}px;height:${h}px}
+  </style></head><body><div class="${TOKENS.PREFIX}-box"><div class="${TOKENS.PREFIX}-art">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" font-family="sans-serif" fill="#fff">${body}</svg>
+  </div></div></body></html>`);
+  if (layout) await p.addScriptTag({ content: `var NOACG_LAYOUT = ${JSON.stringify(layout)};` });
+  await p.addScriptTag({ content: FIT });
+  const got = await p.evaluate(({ id, values }) => {
+    const el = document.getElementById(id);
+    window.svgRestAndMeasure();
+    window.fitSvgText();
+    const drawn = el.getBoundingClientRect();
+    const rows = values.map((value) => {
+      const set = typeof value === 'string' ? { [id]: value } : value;
+      for (const [k, v] of Object.entries(set)) document.getElementById(k).textContent = v;
+      window.fitSvgText();
+      const read = (k) => {
+        const n = document.getElementById(k);
+        const r = n.getBoundingClientRect();
+        return { size: parseFloat(getComputedStyle(n).fontSize), left: r.left, right: r.right, top: r.top, lines: n.querySelectorAll('tspan[data-noacg-line]').length || 1, over: !!window.svgFitOver[k] };
+      };
+      return Object.fromEntries(Object.keys(set).map((k) => [k, read(k)]));
+    });
+    return { rows, drawn: { left: drawn.left, right: drawn.right, top: drawn.top }, room: window.svgFitRoom[id].width, panel: window.svgFitContainer(el)?.id ?? null };
+  }, { id, values });
+  await p.close();
+  return got;
+}
+const LONG = 'Anna Maria Virtanen-Korhonen-Lindqvist af Ekenstam-Wallenberg';
+
+test('1a: a name on a picture bar stops at the bar, whatever else the graphic draws far away', async () => {
+  const got = await fitOn({
+    w: 1920, h: 1080, id: 'f0', values: [LONG],
+    body: `<image x="100" y="840" width="1000" height="130" href="${PIXEL}"/>
+      <rect x="1700" y="40" width="180" height="100" fill="#f60"/>
+      <text id="f0" x="130" y="900" font-size="48">Anna Virtanen</text>`,
+  });
+  const r = got.rows[0].f0;
+  assert.ok(r.right <= 1100 + 0.5, `the name ends on the bar (right ${r.right.toFixed(1)})`);
+});
+
+test('1b: text never leaves the frame, even over a picture that bleeds past it', async () => {
+  const wide = await fitOn({
+    w: 1920, h: 1080, id: 'f0', values: [LONG + ' ' + LONG],
+    body: `<image x="100" y="840" width="2300" height="130" href="${PIXEL}"/>
+      <text id="f0" x="130" y="900" font-size="48">Anna Virtanen</text>`,
+  });
+  assert.ok(wide.rows[0].f0.right <= 1920 + 0.5, `inside a 1920 frame (right ${wide.rows[0].f0.right.toFixed(1)})`);
+  const small = await fitOn({
+    w: 500, h: 200, id: 'f0', values: [LONG],
+    body: `<image x="0" y="60" width="700" height="80" href="${PIXEL}"/>
+      <text id="f0" x="20" y="110" font-size="30">Anna</text>`,
+  });
+  assert.ok(small.rows[0].f0.right <= 500 + 0.5, `inside a 500 frame (right ${small.rows[0].f0.right.toFixed(1)})`);
+});
+
+test('1c: a line that is the widest thing drawn still gets room, up to what is beside it', async () => {
+  const ada = await fitOn({
+    w: 800, h: 300, id: 'f0', values: ['Ada Lovelace'],
+    body: `<circle cx="20" cy="20" r="4" fill="#f60"/>
+      <text id="f0" x="40" y="120" font-size="48">Ada</text>
+      <text id="f1" x="390" y="120" font-size="24">LIVE</text>`,
+  });
+  assert.ok(ada.room > 250, `room reaches towards LIVE at 390, not Ada's own width (room ${ada.room.toFixed(1)})`);
+  assert.equal(ada.rows[0].f0.size, 48, '"Ada Lovelace" keeps 48px');
+  assert.ok(ada.rows[0].f0.right <= 390, 'and stops before LIVE');
+  const caption = await fitOn({
+    w: 1920, h: 1080, id: 'f0', values: ['A caption a little longer than drawn'],
+    body: `<rect x="1800" y="40" width="20" height="20" fill="#f60"/>
+      <text id="f0" x="100" y="900" font-size="30">A caption as drawn</text>`,
+  });
+  assert.equal(caption.rows[0].f0.size, 30, `a slightly longer caption keeps its size (room ${caption.room.toFixed(1)})`);
+});
+
+test('1d: a bar drawn as a stroked line is the room, not the whole frame', async () => {
+  const got = await fitOn({
+    w: 1920, h: 1080, id: 'f0', values: [LONG],
+    body: `<line x1="100" y1="900" x2="1100" y2="900" stroke="#123" stroke-width="120"/>
+      <text id="f0" x="130" y="915" font-size="48">Anna Virtanen</text>`,
+  });
+  assert.ok(got.rows[0].f0.right <= 1100 + 0.5, `the name ends on the stroked bar (right ${got.rows[0].f0.right.toFixed(1)})`);
+});
+
+test('1e: two unboxed lines growing towards each other never overlap', async () => {
+  const facing = await fitOn({
+    w: 800, h: 300, id: 'f0', values: [{ f0: 'Alexandra Montgomery-Smith', f1: 'LIVE FROM HELSINKI' }],
+    body: `<text id="f0" x="40" y="100" font-size="30">Alex</text>
+      <text id="f1" x="420" y="100" font-size="30" text-anchor="end">LIVE</text>`,
+  });
+  const { f0, f1 } = facing.rows[0];
+  assert.ok(f0.right <= f1.left + 0.5, `start line ends ${f0.right.toFixed(1)}, end line starts ${f1.left.toFixed(1)}`);
+  const centred = await fitOn({
+    w: 800, h: 300, id: 'f0', values: [{ f0: 'Alexandra Montgomery-Smith' }],
+    body: `<text id="f0" x="200" y="100" font-size="30" text-anchor="middle">Alex</text>
+      <text id="f1" x="330" y="100" font-size="30">LIVE</text>`,
+  });
+  assert.ok(centred.rows[0].f0.right <= 330 + 0.5, `a centred line stops before what is beside it (right ${centred.rows[0].f0.right.toFixed(1)})`);
+});
+
+test('5a: a loose line sits on the bar under its baseline, not on a badge it grazes', async () => {
+  const got = await fitOn({
+    w: 800, h: 300, id: 'f0', values: [],
+    body: `<rect id="bar" x="100" y="100" width="335" height="46" fill="#123"/>
+      <rect id="badge" x="104" y="161" width="94" height="40" fill="#f60"/>
+      <text id="f0" x="110" y="150" font-size="56">Al</text>`,
+  });
+  assert.equal(got.panel, 'bar');
+});
+
+test('5b: an alignment the author chose moves a loose line', async () => {
+  const body = `<rect id="bar" x="100" y="100" width="500" height="160" fill="#123"/>
+    <text id="f0" x="90" y="150" font-size="40">Anna</text>`;
+  const top = await fitOn({ w: 800, h: 300, id: 'f0', values: ['Anna'], body, layout: { version: 1, rules: [], lines: [{ el: 'f0', h: 'start', v: 'top' }] } });
+  const bottom = await fitOn({ w: 800, h: 300, id: 'f0', values: ['Anna'], body, layout: { version: 1, rules: [], lines: [{ el: 'f0', h: 'start', v: 'bottom' }] } });
+  assert.equal(top.panel, 'bar');
+  assert.ok(bottom.rows[0].f0.top - top.rows[0].f0.top > 40, `bottom (${bottom.rows[0].f0.top.toFixed(1)}) sits well below top (${top.rows[0].f0.top.toFixed(1)})`);
+});
+
+test('6: a frame-sized unfilled rectangle does not beat the bar a tall name sits on', async () => {
+  const got = await fitOn({
+    w: 1920, h: 1080, id: 'f0', values: [LONG],
+    body: `<rect fill="none" width="1920" height="1080"/>
+      <rect id="bar" x="100" y="860" width="1000" height="56" fill="#123"/>
+      <text id="f0" x="130" y="905" font-size="56">Anna Virtanen</text>`,
+  });
+  assert.equal(got.panel, 'bar');
+  assert.ok(got.rows[0].f0.right <= 1100 + 0.5, `the name ends on the bar (right ${got.rows[0].f0.right.toFixed(1)})`);
 });

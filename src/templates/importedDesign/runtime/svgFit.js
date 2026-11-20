@@ -370,17 +370,29 @@ function svgFitContainer(el) {
   var trim = svgEmTrim(el);
   var top = box.top + trim;
   var bottom = box.bottom - trim;
+  // A FRAME-SIZED SHAPE IS ASKED LAST (review of 2026-11-20). An exporter's unfilled artboard
+  // rectangle, or a full-bleed backplate, holds every line outright, so asked first it won over
+  // the bar a tall name sits on and the name ran off the frame. It is still the answer for a
+  // line on nothing else.
+  var frameArea = svgFrameArea(art);
   var shapes = art.querySelectorAll('rect, path, polygon, ellipse, circle');
   var best = null;
   var bestArea = 0;
+  var big = null;
+  var bigArea = 0;
   for (var i = 0; i < shapes.length; i++) {
     var r = shapes[i].getBoundingClientRect();
     // Contains the line, and is genuinely bigger than it - a highlight rule under a word is
     // not the panel the word sits in.
     if (r.left > box.left + 1 || r.right < box.right - 1) continue;
     if (r.top > top + 1 || r.bottom < bottom - 1) continue;
-    if (r.width * r.height <= box.width * box.height) continue;
-    if (!best || r.width * r.height < bestArea) { best = shapes[i]; bestArea = r.width * r.height; }
+    var area = r.width * r.height;
+    if (area <= box.width * box.height) continue;
+    if (frameArea > 0 && area >= frameArea * __SVG_BACKPLATE_SHARE__) {
+      if (!big || area < bigArea) { big = shapes[i]; bigArea = area; }
+      continue;
+    }
+    if (!best || area < bestArea) { best = shapes[i]; bestArea = area; }
   }
   svgFitLoose[el.id] = false;
   if (best) return best;
@@ -390,53 +402,203 @@ function svgFitContainer(el) {
   // and the strict test above then found no panel at all: the room fell to the line's own drawn
   // width, so the first extra letter shrank the name while most of the bar stood empty. Asked
   // only where nothing holds the line outright, so every design that already had a panel keeps
-  // it. The test is the mapping step's own (`lineSitsIn`, wizard/import/stageMeasure.ts): the
-  // shape spans the line's rows, and the line starts inside it, within half its own height -
-  // so the box the step names and the box the ladder measures are one answer.
-  var tol = Math.max(1, box.height / 2);
-  var loose = art.querySelectorAll('rect, path, polygon');
-  for (var j = 0; j < loose.length; j++) {
-    var q = loose[j].getBoundingClientRect();
-    if (!(q.width > 0) || !(q.height > 0)) continue;
-    if (!(box.top < q.bottom && box.bottom > q.top)) continue;
-    if (box.left < q.left - tol || box.left >= q.right) continue;
-    if (q.width * q.height <= box.width * box.height) continue;
-    if (!best || q.width * q.height < bestArea) { best = loose[j]; bestArea = q.width * q.height; }
+  // it. The test is the mapping step's own (`lineSitsIn`, wizard/import/stageMeasure.ts).
+  var loose = svgSitsOnOf(box, art.querySelectorAll('rect, path, polygon'), frameArea);
+  if (loose) {
+    svgFitLoose[el.id] = true;
+    return loose;
   }
-  if (best) svgFitLoose[el.id] = true;
-  return best;
+  return big;
 }
 
 /** Lines whose panel was found by the loose test - drawn hanging over their bar's edge. Their
- *  height is never snapped onto the bar's middle: they were not drawn inside it. */
+ *  height is not snapped onto the bar's middle unless the author chose an alignment. */
 var svgFitLoose = {};
 
-/** THE GRAPHIC'S OWN EXTENT, in screen px: everything drawn, as one rectangle - the room a line
- *  with no panel of its own gets (owner, 2026-11-20: text "becomes smaller when the whole graphic
- *  - the length of the graphic - has been used up", never before). The line itself is part of
- *  it, so its own inset is never negative; with nothing drawn at all it is the artwork's root. */
-function svgArtExtent(el) {
+/** THE SHAPE A LINE SITS ON, where nothing holds it outright: one that covers at least half the
+ *  line's height and that the line starts inside, within half its own height of the shape's
+ *  left edge - the step's `lineSitsIn`, word for word. A shape that merely grazes the line (a
+ *  badge touching its descenders) is not where it sits. The one covering most of the line wins,
+ *  then the smallest. Never a frame-sized shape, and never one no bigger than the line. */
+function svgSitsOnOf(box, shapes, frameArea) {
+  var best = null;
+  var bestCover = 0;
+  var bestArea = 0;
+  for (var j = 0; j < shapes.length; j++) {
+    var q = svgPaintBox(shapes[j]);
+    if (!(q.width > 0) || !(q.height > 0)) continue;
+    var cover = Math.min(box.bottom, q.bottom) - Math.max(box.top, q.top);
+    if (cover < box.height / 2) continue;
+    var tol = Math.max(1, box.height / 2);
+    if (box.left < q.left - tol || box.left >= q.right) continue;
+    var area = q.width * q.height;
+    if (area <= box.width * box.height) continue;
+    if (frameArea > 0 && area >= frameArea * __SVG_BACKPLATE_SHARE__) continue;
+    var c = Math.min(1, cover / box.height);
+    if (!best || c > bestCover + 0.01 || (Math.abs(c - bestCover) <= 0.01 && area < bestArea)) {
+      best = shapes[j];
+      bestCover = c;
+      bestArea = area;
+    }
+  }
+  return best;
+}
+
+/** A drawn thing's PAINTED rectangle in screen px. A stroked line or a hairline path has no
+ *  geometry across its stroke, so its stroke is added on that axis: a bar drawn as one thick
+ *  `<line>` is a bar, not nothing. */
+function svgPaintBox(o) {
+  var r = o.getBoundingClientRect();
+  var out = { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+  if (r.width < 1 || r.height < 1) {
+    var cs = getComputedStyle(o);
+    var sw = cs.stroke && cs.stroke !== 'none' ? parseFloat(cs.strokeWidth) || 0 : 0;
+    var ctm = o.getScreenCTM ? o.getScreenCTM() : null;
+    var half = (sw * (ctm ? Math.sqrt(ctm.a * ctm.a + ctm.b * ctm.b) : 1)) / 2;
+    if (r.height < 1) { out.top -= half; out.bottom += half; }
+    if (r.width < 1) { out.left -= half; out.right += half; }
+  }
+  out.width = out.right - out.left;
+  out.height = out.bottom - out.top;
+  return out;
+}
+
+/** The artwork's root `<svg>`, whichever element carries the art class. */
+function svgArtRoot(art) {
+  return art && art.tagName && art.tagName.toLowerCase() === 'svg' ? art : (art ? art.querySelector('svg') : null);
+}
+
+function svgFrameArea(art) {
+  var root = svgArtRoot(art);
+  var r = root ? root.getBoundingClientRect() : null;
+  return r ? r.width * r.height : 0;
+}
+
+/** WHERE ANYTHING DRAWN CAN STILL BE SEEN, around one line, in screen px: the artwork's own
+ *  viewport, cut by every nested `<svg>` viewport and every clip between the line and the root.
+ *  Text painted past it is cut off with nothing reporting it, so no room ever reaches past it. */
+function svgFrameOf(el) {
+  var art = document.querySelector('.__PREFIX__-art');
+  var root = svgArtRoot(art);
+  var f = root ? root.getBoundingClientRect() : el.getBoundingClientRect();
+  var out = { left: f.left, right: f.right, top: f.top, bottom: f.bottom };
+  for (var a = el.parentNode; a && a !== root && a.nodeType === 1; a = a.parentNode) {
+    if (a.tagName.toLowerCase() === 'svg') svgCut(out, a.getBoundingClientRect());
+    var clip = svgClipRect(a);
+    if (clip) svgCut(out, clip);
+  }
+  out.width = Math.max(0, out.right - out.left);
+  out.height = Math.max(0, out.bottom - out.top);
+  return out;
+}
+
+function svgCut(out, r) {
+  if (r.left > out.left) out.left = r.left;
+  if (r.right < out.right) out.right = r.right;
+  if (r.top > out.top) out.top = r.top;
+  if (r.bottom < out.bottom) out.bottom = r.bottom;
+}
+
+/** An element's clip, as a screen rectangle: the extent of the shapes in the `<clipPath>` it
+ *  names, mapped through its own matrix. Null where it has none or it cannot be read. */
+function svgClipRect(a) {
+  try {
+    var m = /url\(\s*["']?#([^"')\s]+)["']?\s*\)/.exec(getComputedStyle(a).clipPath || a.getAttribute('clip-path') || '');
+    var cp = m ? document.getElementById(m[1]) : null;
+    if (!cp || cp.tagName.toLowerCase() !== 'clippath') return null;
+    if ((cp.getAttribute('clipPathUnits') || 'userSpaceOnUse') !== 'userSpaceOnUse') return null;
+    var ctm = a.getScreenCTM();
+    if (!ctm) return null;
+    var out = null;
+    for (var i = 0; i < cp.children.length; i++) {
+      var c = cp.children[i];
+      if (!c.getBBox) continue;
+      var bb = c.getBBox();
+      var own = c.transform && c.transform.baseVal && c.transform.baseVal.consolidate ? c.transform.baseVal.consolidate() : null;
+      var mm = own ? ctm.multiply(own.matrix) : ctm;
+      var xs = [bb.x, bb.x + bb.width];
+      var ys = [bb.y, bb.y + bb.height];
+      for (var xi = 0; xi < 2; xi++) {
+        for (var yi = 0; yi < 2; yi++) {
+          var px = mm.a * xs[xi] + mm.c * ys[yi] + mm.e;
+          var py = mm.b * xs[xi] + mm.d * ys[yi] + mm.f;
+          if (!out) out = { left: px, right: px, top: py, bottom: py };
+          else {
+            if (px < out.left) out.left = px;
+            if (px > out.right) out.right = px;
+            if (py < out.top) out.top = py;
+            if (py > out.bottom) out.bottom = py;
+          }
+        }
+      }
+    }
+    return out;
+  } catch (err) { // eslint-disable-line no-unused-vars
+    return null;
+  }
+}
+
+/** EVERYTHING DRAWN, as one rectangle cut to the frame: the shapes and the visible text. The
+ *  room a line with nothing under it may WRAP into - drawn room only, so a lone caption keeps to
+ *  one line rather than running down an empty frame. */
+function svgDrawnExtent(el, frame) {
   var art = document.querySelector('.__PREFIX__-art');
   var b = el.getBoundingClientRect();
   var ext = { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
-  var found = false;
-  var shapes = art ? art.querySelectorAll('rect, path, polygon, ellipse, circle, image, line, polyline') : [];
-  for (var i = 0; i < shapes.length; i++) {
-    var r = shapes[i].getBoundingClientRect();
+  var all = art ? art.querySelectorAll('rect, path, polygon, ellipse, circle, image, use, line, polyline, text') : [];
+  for (var i = 0; i < all.length; i++) {
+    var r = svgPaintBox(all[i]);
     if (!(r.width > 0) || !(r.height > 0)) continue;
-    found = true;
+    if (frame && frame.width * frame.height > 0 && r.width * r.height >= frame.width * frame.height * __SVG_BACKPLATE_SHARE__) continue;
     if (r.left < ext.left) ext.left = r.left;
     if (r.right > ext.right) ext.right = r.right;
     if (r.top < ext.top) ext.top = r.top;
     if (r.bottom > ext.bottom) ext.bottom = r.bottom;
   }
-  if (!found && art) {
-    var root = art.getBoundingClientRect();
-    if (root.width > 0 && root.height > 0) ext = { left: root.left, right: root.right, top: root.top, bottom: root.bottom };
-  }
-  ext.width = ext.right - ext.left;
-  ext.height = ext.bottom - ext.top;
+  if (frame) svgCut(ext, frame);
+  ext.width = Math.max(0, ext.right - ext.left);
+  ext.height = Math.max(0, ext.bottom - ext.top);
   return ext;
+}
+
+/** The anchor a line grows from, as the text says it: start, middle or end. */
+function svgAnchorWord(node) {
+  var a = node.getAttribute && node.getAttribute('text-anchor');
+  if (a !== 'middle' && a !== 'end' && a !== 'start') a = getComputedStyle(node).textAnchor || 'start';
+  return a;
+}
+
+/** The bound line a drawn thing belongs to, or null. */
+function svgFitNodeOf(o, nodes) {
+  for (var i = 0; i < nodes.length; i++) if (nodes[i] === o || nodes[i].contains(o) || o.contains(nodes[i])) return nodes[i];
+  return null;
+}
+
+/** WHERE A LINE WITH NO PANEL MUST STOP on one side (dir 1 right, -1 left): the nearest thing
+ *  drawn on its rows inside `ext`, else the edge of `ext`. A bound LINE that grows towards this
+ *  one (an end-anchored or centred one on the right, a start-anchored or centred one on the left)
+ *  shares the gap: each may come half way, so two long values never meet. */
+function svgUnboxedBound(el, box, ext, dir, nodes) {
+  var bound = svgFitNeighbour(el, ext, dir);
+  var edge = bound.edge;
+  var near = bound.near;
+  var penned = dir > 0 ? edge < ext.right - 0.5 : edge > ext.left + 0.5;
+  var other = near ? svgFitNodeOf(near, nodes) : null;
+  if (other && other !== el) {
+    var w = svgAnchorWord(other);
+    var towards = dir > 0 ? (w === 'end' || w === 'middle') : (w === 'start' || w === 'middle');
+    if (towards) edge = ((dir > 0 ? box.right : box.left) + edge) / 2;
+  }
+  return { edge: edge, penned: penned };
+}
+
+/** THE PICTURE OR SHAPE UNDER A LINE NO PANEL HOLDS: a bar drawn as an `<image>`, a `<use>`, a
+ *  stroked `<line>`, an ellipse - the same sitting-on test as a panel. */
+function svgUnderOf(el, box) {
+  var art = document.querySelector('.__PREFIX__-art');
+  if (!art) return null;
+  var o = svgSitsOnOf(box, art.querySelectorAll('image, use, line, polyline, ellipse, circle, rect, path, polygon'), svgFrameArea(art));
+  return o ? svgPaintBox(o) : null;
 }
 
 /** How far, in screen px, a line's box overhangs its EM box at each of its top and bottom: half
@@ -774,7 +936,7 @@ function svgAlignOf(el, panelEl) {
     if (target != null) {
       // A line hanging over its bar's edge was not drawn INSIDE it, so it stays at the height it
       // was drawn, exactly as a kept nudge does.
-      if (svgFitLoose[el.id]) keepNudge = true;
+      if (svgFitLoose[el.id] && !(said && said.v)) keepNudge = true;
       align.snapY = keepNudge ? 0 : target - cy;
       align.nudgeY = cy - target;
       // The middle itself is kept as well, because the snap alone only answers for the block as
@@ -1148,36 +1310,83 @@ function measureSvgRoom() {
         if (symmetric > room.height) room.height = symmetric;
       }
     } else if (!panel && box.width > 0) {
-      // NO PANEL OF ITS OWN: THE GRAPHIC'S LENGTH IS THE ROOM (owner, 2026-11-20). This used to
-      // leave the room at the line's own drawn width, so the first letter past the sample shrank
-      // it - on a bar drawn as a picture, or a name floating over the artwork, with most of the
-      // graphic standing empty beside it. The artwork's own extent stands in for the panel, so
-      // the neighbours and the wrap room are read exactly as they are inside a box. The margin
-      // kept off the far edge is half the type - or the line's own inset where that is tighter -
-      // never the inset mirrored: a caption drawn far to the right of a wide graphic would get
-      // its own width back and nothing more.
-      var ext = svgArtExtent(el);
+      // NO PANEL OF ITS OWN (owner, 2026-11-20; review of the same day). This used to leave the
+      // room at the line's own drawn width, so the first letter past the sample shrank it. The
+      // room is now the PICTURE or shape it sits on (a bar drawn as an image, a stroked line),
+      // else the frame - and either way it stops at whatever is drawn beside it on its rows, and
+      // at the frame and any clip, because text past those is cut off with nothing reporting it.
+      // It may WRAP only into drawn room: the shape under it, else the extent of what is drawn.
+      var frame = svgFrameOf(el);
+      var under = svgUnderOf(el, box);
       var halfGap = ((svgFitSizes[el.id] || 0) * 0.5) / scale;
-      var anchorWord = el.getAttribute('text-anchor') || (getComputedStyle(el).textAnchor || 'start');
+      // With nothing under it, a side is bounded by what is DRAWN where that reaches past the
+      // line - a caption under a logo plate keeps to the plate's width - and by the frame only
+      // where the line is already the outermost thing drawn on that side.
+      var drawnExt = svgDrawnExtent(el, frame);
+      var ext = {
+        left: drawnExt.left < box.left - halfGap ? drawnExt.left : frame.left,
+        right: drawnExt.right > box.right + halfGap ? drawnExt.right : frame.right,
+        top: frame.top,
+        bottom: frame.bottom,
+      };
+      ext.width = ext.right - ext.left;
+      ext.height = ext.bottom - ext.top;
+      if (under) {
+        ext = { left: under.left, right: under.right, top: under.top, bottom: under.bottom };
+        svgCut(ext, frame);
+        ext.width = Math.max(0, ext.right - ext.left);
+        ext.height = Math.max(0, ext.bottom - ext.top);
+      }
+      var anchorWord = svgAnchorWord(el);
+      room.anchorWord = anchorWord;
+      // The margin kept off an OPEN edge: on a picture, the inset the designer left, mirrored, as
+      // a panel keeps it; otherwise the line's own inset but never more than the frame's safe
+      // margin - a caption drawn far from the edge would otherwise get nothing - nor less than
+      // half its type.
+      var safe = __PANEL_SAFE__ * frame.width;
+      // Mirroring the near inset only means something when the near side is drawn too (the
+      // caption under a plate keeps the plate's margin on both sides); a line whose near side is
+      // open and whose far side is something drawn keeps half its type off that thing.
+      var leftDrawn = ext.left > frame.left + 0.5;
+      var rightDrawn = ext.right < frame.right - 0.5;
+      var openPad = function (inset, nearDrawn, farDrawn) {
+        if (under) return inset > 0 ? inset : halfGap;
+        if (farDrawn && !nearDrawn) return halfGap;
+        return Math.max(halfGap, Math.min(Math.max(0, inset), safe));
+      };
       var leftIn = box.left - ext.left;
       var rightIn = ext.right - box.right;
+      var rb = anchorWord !== 'end' ? svgUnboxedBound(el, box, ext, 1, nodes) : null;
+      var lb = anchorWord !== 'start' ? svgUnboxedBound(el, box, ext, -1, nodes) : null;
       var extReach;
       if (anchorWord === 'middle') {
-        // A centred line's gaps are centring, not margin: half its type is kept off each edge.
+        // A centred line fills BOTH ways, so it is bounded on both sides; its gaps are centring,
+        // not margin, so an open edge keeps half its type.
         var cxs = (box.left + box.right) / 2;
-        extReach = 2 * (Math.min(cxs - ext.left, ext.right - cxs) - halfGap);
+        var lEdge = lb.edge + (lb.penned ? halfGap : (under ? openPad(Math.min(leftIn, rightIn), true, true) : halfGap));
+        var rEdge = rb.edge - (rb.penned ? halfGap : (under ? openPad(Math.min(leftIn, rightIn), true, true) : halfGap));
+        extReach = 2 * Math.min(cxs - lEdge, rEdge - cxs);
+        room.penned = lb.penned || rb.penned;
       } else if (anchorWord === 'end') {
-        var lb = svgFitNeighbour(el, ext, -1);
-        room.penned = lb.edge > ext.left + 0.5;
-        extReach = box.right - (room.penned ? halfGap : Math.min(rightIn, halfGap)) - lb.edge;
+        extReach = box.right - (lb.penned ? halfGap : openPad(rightIn, rightDrawn, leftDrawn)) - lb.edge;
+        room.penned = lb.penned;
       } else {
-        var rb = svgFitNeighbour(el, ext, 1);
-        room.penned = rb.edge < ext.right - 0.5;
-        extReach = rb.edge - (room.penned ? halfGap : Math.min(leftIn, halfGap)) - box.left;
+        extReach = rb.edge - (rb.penned ? halfGap : openPad(leftIn, leftDrawn, rightDrawn)) - box.left;
+        room.penned = rb.penned;
       }
       room.width = Math.max(svgFitWidths[el.id], extReach * scale);
-      room.height = Math.max(box.height * scale, (svgFitCeiling(el, ext, svgPanelTopPad(ext, nodes)) - box.top) * scale);
+      var drawnRoom = under ? ext : drawnExt;
+      room.height = Math.max(box.height * scale, (svgFitCeiling(el, drawnRoom, svgPanelTopPad(drawnRoom, nodes)) - box.top) * scale);
       room.top = el.getBBox ? el.getBBox().y : 0;
+    }
+    // NEVER PAST THE FRAME, whatever the box says (review of 2026-11-20): a bar that bleeds off the
+    // artboard, or a clip, cuts off text the room would otherwise grant. Only ever narrows.
+    if (box.width > 0) {
+      var fr = svgFrameOf(el);
+      var aw = room.anchorWord || (align && align.h) || 'start';
+      var cxf = (box.left + box.right) / 2;
+      var most = aw === 'middle' ? 2 * Math.min(cxf - fr.left, fr.right - cxf) : (aw === 'end' ? box.right - fr.left : fr.right - box.left);
+      if (most * scale < room.width) room.width = Math.max(svgFitWidths[el.id], most * scale);
     }
     svgFitRoom[el.id] = room;
   }
