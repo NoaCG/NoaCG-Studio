@@ -344,7 +344,12 @@ test('a failed team save goes again by itself within its backoff, one at a time,
   await expect(page.getByTestId('production-team-note')).toHaveText(/statement timeout/);
   // While saves keep failing, the retries back off: 2 s doubling to 30 s, a quarter either way.
   // Two minutes hold at least 5 and at most 9 more attempts; without a timer there are none.
-  for (let second = 0; second < 120; second++) await step(page, state);
+  // Edits of the failing production during its waits do not send it any sooner.
+  for (let second = 0; second < 120; second++) {
+    if (second % 4 === 2) await edit(page, id, `Retried by itself ${second}`);
+    await step(page, state);
+  }
+  await edit(page, id, 'Retried by itself');
   expect(state.saves - 1).toBeGreaterThanOrEqual(5);
   expect(state.saves - 1).toBeLessThanOrEqual(9);
   // Still failed meanwhile, and the reason still shown.
@@ -354,11 +359,22 @@ test('a failed team save goes again by itself within its backoff, one at a time,
   state.saveTimeout = false;
   const before = state.saves;
   // The next wait is at most 30 s and a quarter, and the debounce.
-  for (let second = 0; second < 40 && cueLabel(state.doc) !== 'Retried by itself'; second++) await step(page, state);
+  for (let second = 0; second < 45 && cueLabel(state.doc) !== 'Retried by itself'; second++) await step(page, state);
   await expect.poll(() => cueLabel(state.doc)).toBe('Retried by itself');
   expect(state.saves).toBe(before + 1);
   expect(state.mostSavesOut).toBe(1);
   await expect(page.getByTestId('production-team-note')).toHaveCount(0);
+  // Signed out, a failed save is not tried again.
+  state.saveTimeout = true;
+  await edit(page, id, 'Not after sign-out');
+  for (let second = 0; second < 3 && state.saves === before + 1; second++) await step(page, state);
+  expect(state.saves).toBe(before + 2);
+  await expect.poll(() => state.savesOut).toBe(0);
+  await signOut(page);
+  // As TeamSync does when the session ends (this spec starts the controller by hand).
+  await page.evaluate(async () => (await __noacgImport('/src/backend/teamProductions.ts')).stopTeamSync());
+  for (let second = 0; second < 45; second++) await step(page, state);
+  expect(state.saves).toBe(before + 2);
 });
 
 test('another production saving meanwhile does not shorten a failing production\'s backoff (#2618)', async ({ page }) => {
@@ -382,6 +398,7 @@ test('another production saving meanwhile does not shorten a failing production\
   // The other production's edits land every 4 s for two minutes.
   for (let second = 0; second < 120; second++) {
     if (second % 4 === 0) await edit(page, other, `Lands ${second}`);
+    if (second % 4 === 2) await edit(page, id, `Keeps failing ${second}`);
     await step(page, state);
   }
   for (let second = 0; second < 10; second++) await step(page, state);
