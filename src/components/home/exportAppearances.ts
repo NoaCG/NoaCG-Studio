@@ -13,6 +13,7 @@ import type { Show } from '../../model/shows';
 import { measureCue, type PreviewStyle } from './measureCue';
 import { assetDataIn, facesCss, resolveStyle } from '../../control/cueStyle';
 import { lookForOf, lookStyleContext, withLookAssets } from '../../control/productionLook';
+import { isGraphicCue } from '../../model/controlCue.ts';
 
 export async function measureExportAppearances(show: Show, targetId: string): Promise<ExportAppearances | undefined> {
   const cues = show.cues ?? [];
@@ -43,7 +44,7 @@ export async function measureExportAppearances(show: Show, targetId: string): Pr
     if (needsBox(g.adjust)) graphics[g.id] = await measure(g.id, targetId === CONTROLLER_TARGET ? activeEntryValues(g, lib) : {}, styleOf(g.id, g.adjust));
     if (targetId !== CONTROLLER_TARGET) continue;
     for (const c of cues) {
-      if (c.sourceId === g.id && c.source !== 'playout' && needsBox(g.adjust, c.adjust)) measured[c.id] = await measure(g.id, c.values, styleOf(g.id, g.adjust, c.adjust));
+      if (c.sourceId === g.id && isGraphicCue(c) && needsBox(g.adjust, c.adjust)) measured[c.id] = await measure(g.id, c.values, styleOf(g.id, g.adjust, c.adjust));
     }
   }
   return exportAppearances(show, (id) => templates.get(id)!.resolution, { graphics, cues: measured }, imported, lookFor);

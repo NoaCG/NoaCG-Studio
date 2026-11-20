@@ -67,6 +67,7 @@ import { preparedCue, type JsonObject } from '../model/productionData';
 import { typedPublishedFields } from '../model/ografTyped';
 import { nextGraphicCue, readAuto, takesNext, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
 import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
+import { isServerCue } from '../model/controlCue.ts';
 
 // The live map's folds live in ./liveCue.ts, which Node can import; re-exported for every caller.
 export { leftAlone, readLiveCue, withLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
@@ -543,7 +544,7 @@ export async function buildOutputPayload(
   const itemById = new Map((show.playoutItems ?? []).map((i) => [i.id, i] as const));
   const playout = loadPlayoutSettings();
   const playoutCues: OutputPlayoutCue[] = (show.cues ?? [])
-    .filter((c) => c.source === 'playout' && itemById.has(c.sourceId))
+    .filter((c) => isServerCue(c) && itemById.has(c.sourceId))
     .map((c) => {
       const item = itemById.get(c.sourceId)!;
       const channel = channelOf(playout, item);

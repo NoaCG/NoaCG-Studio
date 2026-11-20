@@ -72,6 +72,7 @@ import { slotHolds } from './prepareLive.ts';
 import { casparOutputTarget, vmixPairing } from './playoutStatus.ts';
 import { applyReading, applyVmixReading } from './serverState.ts';
 import { pollServerState } from './serverStatePoll.ts';
+import { isServerCue } from '../model/controlCue.ts';
 
 /** How often the output's slot is read while it may be read. */
 export const SLOT_READ_MS = 10_000;
@@ -219,7 +220,7 @@ export function serverFileReferences(
   cues: readonly ShowCue[], items: readonly PlayoutItem[], vmix: boolean,
 ): { items: FileReference[]; refs: string[] } {
   const byId = new Map(items.map(item => [item.id, item]));
-  const refs = cues.filter(cue => cue.source === 'playout' && (byId.get(cue.sourceId)?.adapter === 'vmix') === vmix)
+  const refs = cues.filter(cue => isServerCue(cue) && (byId.get(cue.sourceId)?.adapter === 'vmix') === vmix)
     .map(cue => cue.sourceId);
   const files = new Set(refs);
   return { refs, items: items.filter(item => files.has(item.id)).map(({ id, kind, name, adapter }) => ({ id, kind, name, adapter })) };
@@ -844,7 +845,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       && currentMediaSource(i.vmixPairing, i.mediaRev ?? 0);
     const playersUsed = (rundown: NonNullable<ReturnType<BridgeWatchAdapters['vmixRundown']>>) => {
       const players = new Set<VmixPlayer>();
-      const refs = new Set(rundown.cues.filter(c => c.source === 'playout').map(c => c.sourceId));
+      const refs = new Set(rundown.cues.filter(c => isServerCue(c)).map(c => c.sourceId));
       for (const item of rundown.playoutItems) {
         if (item.adapter !== 'vmix' || item.kind !== 'media' || !refs.has(item.id)) continue;
         const slot = adapters.slots.itemSlot(settings, item);

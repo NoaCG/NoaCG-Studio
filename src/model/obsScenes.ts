@@ -9,6 +9,7 @@ import { freeName, isOwnPictureGraphic } from './poolIdentity.ts';
 import { readShowProfile, withGraphicArrange } from './profile.ts';
 import { deterministicUuid } from './id.ts';
 import { typedReadOnly } from './ografTyped.ts';
+import { isGraphicCue } from './controlCue.ts';
 
 /** One scene as a publish carries it: the graphics are pool graphic names (the wire key). */
 export interface ObsScene {
@@ -58,7 +59,7 @@ function sceneMembers(show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graph
   const out: [string, NonNullable<Show['cues']>][] = [];
   for (const [id, cues] of membersByFolder(show.cues ?? [], show.folders)) {
     if (!flagged.has(id)) continue;
-    out.push([id, cues.filter((c) => c.source !== 'playout' && pool.has(c.sourceId))]);
+    out.push([id, cues.filter((c) => isGraphicCue(c) && pool.has(c.sourceId))]);
   }
   return out;
 }
