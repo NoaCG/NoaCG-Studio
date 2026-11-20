@@ -192,3 +192,11 @@ test('POST /osc sends one datagram per send id to a real listener, with no Caspa
     await desk.close();
   }
 });
+
+test('an IPv6 destination is named as such, and nothing is sent', async () => {
+  const sender = new OscSender(false);
+  const r = await sender.send(req('v6', { host: '::1' }));
+  assert.equal(r.ok, false);
+  assert.equal(r.error.code, 'refused');
+  assert.match(r.error.message, /IPv6/);
+});

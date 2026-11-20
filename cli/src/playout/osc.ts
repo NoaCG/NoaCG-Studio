@@ -160,21 +160,32 @@ export interface OscIo {
 
 const realIo: OscIo = {
   now: () => Date.now(),
-  resolve: async (host) => (isIP(host) === 4 ? host : (await lookup(host, { family: 4 })).address),
+  resolve: async (host) => {
+    if (isIP(host) === 4) return host;
+    if (isIP(host.replace(/^\[|\]$/g, '')) === 6) throw new OscError(`${host} is an IPv6 address. This NoaCG Bridge sends OSC over IPv4.`, 'refused');
+    return (await lookup(host, { family: 4 })).address;
+  },
   send: (packet, ip, port) =>
     new Promise((resolve, reject) => {
       // A fresh socket per send: no state survives between cues, and the broadcast option stays
       // off, so the operating system refuses a broadcast address on its own too.
       const socket = createSocket('udp4');
-      socket.once('error', (e) => {
-        socket.close();
-        reject(e);
-      });
-      socket.send(packet, port, ip, (e) => {
-        socket.close();
+      // An error event and the send callback can both arrive; closing twice throws, and a throw
+      // here would take the whole Bridge down, so the first of them settles and closes.
+      let settled = false;
+      const settle = (e?: Error | null) => {
+        if (settled) return;
+        settled = true;
+        try {
+          socket.close();
+        } catch {
+          // Already closed: nothing left to release.
+        }
         if (e) reject(e);
         else resolve();
-      });
+      };
+      socket.once('error', settle);
+      socket.send(packet, port, ip, settle);
     }),
 };
 
