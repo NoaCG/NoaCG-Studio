@@ -3106,6 +3106,18 @@ test('svg import: a field with room to wrap chooses wrap or one line, and a cent
   // Held to its drawn size, the bar leaves the name no second line: nothing to ask.
   await expect(page.locator('[data-testid^="map-svg-wrap-"]')).toHaveCount(0);
 
+  // A headline on nothing but a full-frame background wraps into it on air, so it is asked too.
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+      <rect width="1920" height="1080" fill="#111"/>
+      <text id="Headline" x="100" y="200" font-size="60" fill="#fff">Season finale</text>
+    </svg>`,
+    'backplate-headline.svg',
+  );
+  await toFields();
+  await expect(page.locator('[data-testid^="map-svg-wrap-"]')).toHaveCount(1);
+
   await dropSvgMarkup(
     page,
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">

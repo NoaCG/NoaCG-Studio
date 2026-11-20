@@ -63,6 +63,8 @@ const CASES = {
   nameOverTitleSerif: svg(`<rect id="Bar" x="100" y="840" width="1000" height="130" fill="#123"/>
     <text id="Name" x="130" y="900" font-size="48" font-family="serif">Anna Virtanen</text>
     <text id="Title" x="130" y="950" font-size="30" font-family="serif">Reporter</text>`),
+  onBackplate: svg(`<rect width="1920" height="1080" fill="#111"/>
+    <text id="Headline" x="100" y="200" font-size="60">Season finale</text>`),
   tallBox: svg(`<rect id="Board" x="100" y="700" width="1000" height="300" fill="#123"/>
     <text id="Question" x="130" y="760" font-size="40">Who won?</text>`),
   curved: svg(`<defs><path id="arc" d="M200,600 Q960,300 1720,600"/></defs>
@@ -94,7 +96,9 @@ const ASK = async (markup) => {
   const banner = S.proposeBannerGrowth(stage, dsvg, on);
   const boxes = S.withoutBackplates(stage, S.panelOfEachLine(stage, dsvg, on));
   const byTitle = Object.fromEntries(draft.svgFields.map((f) => [f.title, label(boxes[f.candidateId] ?? null)]));
-  const wraps = Object.fromEntries(draft.svgFields.map((f) => [f.title, S.lineCanWrap(stage, f.candidateId, boxes[f.candidateId] ?? null, on)]));
+  // The step asks with the line's HOLDER, a backplate included, as the runtime measures it.
+  const holders = S.panelOfEachLine(stage, dsvg, on);
+  const wraps = Object.fromEntries(draft.svgFields.map((f) => [f.title, S.lineCanWrap(stage, f.candidateId, holders[f.candidateId] ?? null, on)]));
   stage.remove();
   style.remove();
   return { banner: label(banner), boxes: byTitle, wraps };
@@ -137,6 +141,8 @@ test('wrap: offered where the room holds two lines, never where both answers pai
   // A serif's line box runs a third taller than its size; two lines still do not fit.
   assert.equal(answers.nameOverTitleSerif.wraps.Name, false, JSON.stringify(answers.nameOverTitleSerif.wraps));
   assert.equal(Object.values(answers.curved.wraps).some(Boolean), false, JSON.stringify(answers.curved.wraps));
+  // A headline on nothing but a full-frame backplate wraps into it on air, so it is asked.
+  assert.equal(answers.onBackplate.wraps.Headline, true, JSON.stringify(answers.onBackplate.wraps));
 });
 
 test('the step and the runtime agree on where a value starts being reported too long', () => {

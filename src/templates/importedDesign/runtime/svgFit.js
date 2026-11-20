@@ -509,13 +509,50 @@ function svgFrameOf(el) {
   var f = root ? root.getBoundingClientRect() : el.getBoundingClientRect();
   var out = { left: f.left, right: f.right, top: f.top, bottom: f.bottom };
   for (var a = el.parentNode; a && a !== root && a.nodeType === 1; a = a.parentNode) {
-    if (a.tagName.toLowerCase() === 'svg') svgCut(out, a.getBoundingClientRect());
+    if (a.tagName.toLowerCase() === 'svg') {
+      var vp = svgViewportRect(a);
+      if (vp) svgCut(out, vp);
+    }
     var clip = svgClipRect(a);
     if (clip) svgCut(out, clip);
   }
   out.width = Math.max(0, out.right - out.left);
   out.height = Math.max(0, out.bottom - out.top);
   return out;
+}
+
+/** A nested `<svg>`'s VIEWPORT in screen px, where it clips (its default). Its own bounding box
+ *  is the box of what it draws, which is not where it stops showing it. */
+function svgViewportRect(a) {
+  try {
+    var ov = getComputedStyle(a).overflow;
+    if (ov === 'visible' || ov === 'auto') return null;
+    var m = a.parentNode && a.parentNode.getScreenCTM ? a.parentNode.getScreenCTM() : null;
+    if (!m) return null;
+    var x = a.x.baseVal.value;
+    var y = a.y.baseVal.value;
+    var w = a.width.baseVal.value;
+    var h = a.height.baseVal.value;
+    var xs = [x, x + w];
+    var ys = [y, y + h];
+    var out = null;
+    for (var i = 0; i < 2; i++) {
+      for (var j = 0; j < 2; j++) {
+        var px = m.a * xs[i] + m.c * ys[j] + m.e;
+        var py = m.b * xs[i] + m.d * ys[j] + m.f;
+        if (!out) out = { left: px, right: px, top: py, bottom: py };
+        else {
+          if (px < out.left) out.left = px;
+          if (px > out.right) out.right = px;
+          if (py < out.top) out.top = py;
+          if (py > out.bottom) out.bottom = py;
+        }
+      }
+    }
+    return out;
+  } catch (err) { // eslint-disable-line no-unused-vars
+    return null;
+  }
 }
 
 function svgCut(out, r) {
@@ -1391,8 +1428,11 @@ function measureSvgRoom() {
     if (box.width > 0) {
       var fr = svgFrameOf(el);
       var aw = room.anchorWord || (align && align.h) || 'start';
-      var cxf = (box.left + box.right) / 2;
-      var most = aw === 'middle' ? 2 * Math.min(cxf - fr.left, fr.right - cxf) : (aw === 'end' ? box.right - fr.left : fr.right - box.left);
+      // Where the line grows FROM: the anchor the snap puts it on, where there is one, else its
+      // drawn edge or middle.
+      var ax = aw === 'middle' ? (box.left + box.right) / 2 : (aw === 'end' ? box.right : box.left);
+      if (!room.anchorWord && align && align.anchor != null && el.getBBox) ax = box.left + (align.anchor - el.getBBox().x) / scale;
+      var most = aw === 'middle' ? 2 * Math.min(ax - fr.left, fr.right - ax) : (aw === 'end' ? ax - fr.left : fr.right - ax);
       if (most * scale < room.width) room.width = Math.max(svgFitWidths[el.id], most * scale);
     }
     svgFitRoom[el.id] = room;

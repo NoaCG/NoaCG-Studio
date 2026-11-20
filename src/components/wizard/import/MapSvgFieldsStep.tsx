@@ -457,7 +457,8 @@ export default function MapSvgFieldsStep({
       return;
     }
     setPanelIds(panelsHoldingText(stage, svg, boundMarkerIds, placedLines));
-    const grouped = withoutBackplates(stage, panelOfEachLine(stage, svg, allMarkerIds));
+    const holders = panelOfEachLine(stage, svg, allMarkerIds);
+    const grouped = withoutBackplates(stage, holders);
     setBoxOfRow(grouped);
     setBoxLooks(boxLooksOf(stage, svg, Object.values(grouped)));
     const fits: Record<string, BoxFit> = {};
@@ -466,7 +467,9 @@ export default function MapSvgFieldsStep({
       if (fit) fits[lineId] = fit;
     }
     setBoxFits(fits);
-    setWrapRoom(new Set(allMarkerIds.filter((id) => lineCanWrap(stage, id, grouped[id] ?? null, boundMarkerIds))));
+    // Asked with the line's HOLDER, a backplate included: that is the room the runtime wraps into,
+    // even though the checklist does not group by a backplate.
+    setWrapRoom(new Set(allMarkerIds.filter((id) => lineCanWrap(stage, id, holders[id] ?? null, boundMarkerIds))));
   }, [svg, boundMarkerIds, allMarkerIds, placedLines, fontKey]);
 
   // ── WHERE EVERY LAYER SITS, FOR THE UNMATCHED COUNT (fieldAutoMap.ts, `isPlate`) ──

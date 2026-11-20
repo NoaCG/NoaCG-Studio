@@ -262,3 +262,15 @@ test('wrap: the runtime wraps where the step offers the choice, and not where it
   const freeSerif = await fitOn({ w: 1920, h: 1080, id: 'f0', values: [long], body: serif });
   assert.equal(freeSerif.rows[0].f0.lines, 1, 'and so does a serif one, whose line box is taller');
 });
+
+test('nested artboard: a line inside a nested <svg> has the room its viewport shows', async () => {
+  const got = await fitOn({
+    w: 1920, h: 1080, id: 'f0', values: ['Anna Virtanen-Korhonen'],
+    body: `<svg x="100" y="800" width="1400" height="200" viewBox="0 0 1400 200">
+        <circle cx="10" cy="10" r="4" fill="#f60"/>
+        <text id="f0" x="30" y="100" font-size="48">Anna</text>
+      </svg>`,
+  });
+  assert.equal(got.rows[0].f0.size, 48, `a longer name keeps its size inside the 1400-wide viewport (room ${got.room.toFixed(1)})`);
+  assert.ok(got.rows[0].f0.right <= 1500 + 0.5, 'and stays inside that viewport');
+});
