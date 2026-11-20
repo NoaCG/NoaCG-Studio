@@ -1,0 +1,52 @@
+Step 9 first run (hosted-latency run 44732295894, 2026-11-20, UTC). Five people 12:02:40-12:12:40, then idle pages.
+Taker page (context 1): every request to the staging project, by minute: count, median ms, max ms.
+12:01 40 median 195 max 680
+12:02 178 median 184 max 1277652
+12:03 92 median 568 max 3060
+12:04 33 median 7578 max 42503
+12:05 55 median 2801 max 21405
+12:06 34 median 2141 max 31080
+12:07 62 median 2887 max 15002
+12:08 44 median 758 max 24755
+12:09 67 median 3465 max 13899
+12:10 47 median 6886 max 19776
+12:11 57 median 1030 max 4250
+12:12 37 median 5182 max 34168
+12:13 44 median 474 max 12835
+12:14 25 median 166 max 338
+12:15 25 median 163 max 198
+12:16 25 median 163 max 177
+12:17 25 median 159 max 180
+12:18 25 median 162 max 177
+12:19 25 median 159 max 177
+12:20 23 median 166 max 216
+12:21 25 median 160 max 222
+12:22 25 median 164 max 191
+12:23 18 median 160 max 191
+
+Taker command sends (rpc control_send_seq): 78, answered 200: 55, aborted by the page (net::ERR_ABORTED): 23
+
+All six pages (five people and the output): requests to staging per minute
+12:01 40
+12:02 580
+12:03 709
+12:04 373
+12:05 456
+12:06 403
+12:07 506
+12:08 449
+12:09 547
+12:10 394
+12:11 531
+12:12 323
+12:13 320
+12:14 189
+12:15 183
+12:16 181
+12:17 180
+12:18 184
+12:19 181
+12:20 182
+12:21 183
+12:22 182
+12:23 147

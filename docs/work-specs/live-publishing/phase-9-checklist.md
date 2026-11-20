@@ -129,6 +129,11 @@ either on; steps 11 and 12 are only for after that.
 2. You should see: the Takes stay prompt, each person's text ends up in the production, and neither
    overwrites the other's cue.
 
+> **Hosted staging, 2026-11-20: not run past set-up.** The 60-graphic team production would not
+> publish on staging: "Your latest change is still saving" once, then five presses over 3.4 minutes
+> each "Publish failed: canceling statement due to statement timeout", with nobody else working.
+> The typing and Takes never started. Evidence: `evidence/phase-9-cloud/README.md` (step 7).
+
 ## 8. vMix
 
 1. Add the output as a browser input in vMix. Take, update and Out on several layers.
@@ -147,6 +152,16 @@ either on; steps 11 and 12 are only for after that.
    stays on its own cue, and nobody finds a "(conflicted copy)" anywhere.
 3. The run's numbers (local backend, one machine) are in `evidence/phase-8.md`; a hosted backend
    and the studio network can differ.
+
+> **Hosted staging, 2026-11-20: failed.** Ten minutes, five accounts, one reload, 20 s offline.
+> 18 of 52 Takes never ran, and 8 times the page said "Take is on this monitor only… Send it
+> again." with Out disabled; press to ran median 1.4 s, p95 9.7 s. 199 Goal presses gave a score of
+> 55. 25 of 39 messages became cues. Ok: each editor's last text stood on its own cue on the server
+> and all five pages (37 s after), the reloaded and the offline editor included; no "(conflicted
+> copy)". Interleaved, 12 pairs: p95 527 ms alone, 5,767 ms with everyone, +5,240 ms (bootstrap
+> +1,578 to +7,273) against 50 ms. Staging's own replies went from about 0.2 s to medians of 0.6 to
+> 7.6 s while five people worked, and back after. Dev server on one GitHub runner. Evidence:
+> `evidence/phase-9-cloud/README.md` (step 9).
 
 ## 10. Decide: switch on automatic updates and partial writes?
 
@@ -168,6 +183,10 @@ each goes on only once `auto_publish_state()` or `partial_writes_state()` report
   on screen with a note; the record catches up slowly; seven is the only count measured). It came
   with #2573; in one 8-minute run without it the saves kept up. Close it, or decide that it is an acceptable limit, before relying on many
   people editing at once.
+  Hosted staging, 2026-11-20, after #2591, all three switches on: seven typists for 8 minutes.
+  120 s after the typing stopped the server held the last text for 1 cue, an older text for 3, and
+  the cue's original text for 3 (overwritten); 6 of 7 pages still had a save pending with
+  "canceling statement due to statement timeout". Evidence: `evidence/phase-9-cloud/README.md`.
 - #2565 and #2572: two ways an edit on a shared production was lost (one while the page read
   teammates' changes, one when any change made elsewhere discarded the cue being typed). Phase 8 met
   both and they were fixed (#2567, #2573); step 9 is the studio check of those fixes.
@@ -184,11 +203,26 @@ against 50 ms) and D1 (step 3). Decide: switch on, switch on for some production
 3. An output opened before the switch reads amber "Reload <output> when nothing is on air" until
    you reload it with nothing on air.
 
+> **Hosted staging dry run, 2026-11-20: ok.** Both switches reported installed and were switched
+> on in staging only, then off. With no press, typed text, an added and a removed graphic reached
+> the server in 3.8 to 7.3 s and both outputs in 4.8 to 12.2 s; amber "Updating outputs", then green
+> "Ready" with current outputs. A change left unpublished on a closed page published 12 to 24 s after
+> another browser opened the production. The older output was named "Reload Old when nothing is on
+> air" 27 to 29 s after the switch; the current one never was. Seen again: "The rundown changed
+> elsewhere. Undo history was cleared." with one editor. Evidence: `evidence/phase-9-cloud/README.md`.
+
 ## 12. After switching on: a graphic updated while on air (O3)
 
 1. Update a graphic's design in the production while it is on air.
 2. You should see: the light stays green with "<graphic>: new design at next Take"; the next Take
    shows the new design; nothing changes mid-air.
+
+> **Hosted staging dry run, 2026-11-20: ok, with a gap.** The frame on air kept its design and the
+> next Take showed the new one (3 runs). With current outputs only, the light went amber "Updating
+> outputs" for about 15 s, then green "House Scorebug: new design at next Take" 22 s after the
+> edit; it did not stay green throughout. With an older output open the note never showed ("Reload
+> Old…"), and after that output closed the light went "Waiting for Old", then red "Old lost".
+> Evidence: `evidence/phase-9-cloud/README.md` (step 12).
 
 ## Not part of this check
 
