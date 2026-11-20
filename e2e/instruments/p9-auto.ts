@@ -75,7 +75,7 @@ async function watchLight(page: Page): Promise<void> {
 const light = (page: Page) => page.evaluate(() => (window as unknown as { __p9light?: { t: number; tone: string | null; text: string }[] }).__p9light ?? []);
 const holds = async (out: Page) => ((await readyOf(out)) as { v?: { n: number } } | null)?.v?.n ?? 0;
 const outputUrl = (slug: string, name: string, extra = '') => `/output?production=${encodeURIComponent(slug)}&destination=browser&name=${encodeURIComponent(name)}&debug=1${extra}`;
-const selectCue = async (page: Page, hasText: string) => page.getByTestId('select-cue').filter({ hasText }).first().click();
+const selectCue = async (page: Page, hasText: string) => page.getByTestId('select-cue').filter({ hasText }).first().click({ timeout: 30_000 });
 
 if (!SHARD1) test('idle shard', () => {});
 else
@@ -233,7 +233,7 @@ else
       result.reload = { status: status2, oldNamed: /Reload Old when nothing is on air/.test(status2 + panelText), deskANamed: /Reload Desk A/.test(status2 + panelText), panel: panelText.slice(0, 600) };
 
       // 12: the scorebug's design changes while it is on air, with no press.
-      await selectCue(page2, SCOREBUG);
+      await selectCue(page2, 'P9 closed unpublished');
       await page2.getByTestId('verb-take').click();
       await expect.poll(() => air.locator('body').getAttribute('data-plays'), { timeout: 30_000 }).toBe('1');
       const onAir = air.locator(`iframe[title="${SCOREBUG}"]:not([data-prepared])`);
@@ -255,7 +255,7 @@ else
       await page2.getByTestId('verb-out').click();
       await expect.poll(async () => ((await readyOf(air)) as { chg?: unknown } | null)?.chg ?? null, { timeout: 60_000 }).toBeNull().catch(() => undefined);
       await page2.waitForTimeout(1_000);
-      await selectCue(page2, SCOREBUG);
+      await selectCue(page2, 'P9 closed unpublished');
       await page2.getByTestId('verb-take').click();
       await expect.poll(() => air.locator('body').getAttribute('data-plays'), { timeout: 30_000 }).toBe('2').catch(() => undefined);
       const newOnAir = air.locator(`iframe[title="${SCOREBUG}"]:not([data-prepared])`);

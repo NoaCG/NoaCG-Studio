@@ -58,8 +58,9 @@ export async function signInOwner(page: Page): Promise<void> {
 export async function restoreSwitches(before: Record<string, unknown>): Promise<Record<string, unknown>> {
   const errors: string[] = [];
   for (const key of ['auto_publish', 'partial_writes'] as const) await setSwitch(key, false).catch((e) => errors.push(`${key}: ${String(e)}`));
-  const copies = (before.production_copies as { on?: boolean } | undefined)?.on;
-  if (copies !== undefined) await setSwitch('production_copies', copies).catch((e) => errors.push(`production_copies: ${String(e)}`));
+  // A missing row reads as off (production_copies_on() coalesces to false), so restore it as off.
+  const copies = (before.production_copies as { on?: boolean } | undefined)?.on ?? false;
+  await setSwitch('production_copies', copies).catch((e) => errors.push(`production_copies: ${String(e)}`));
   const after = await readSwitches().catch((e) => ({ error: String(e) }));
   return { after, errors };
 }
