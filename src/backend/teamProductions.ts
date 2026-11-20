@@ -712,7 +712,8 @@ async function refreshOnce(): Promise<void> {
     members: membersAnswer.members,
     heads: shown,
   });
-  // A save that failed on a dropped connection is retried on the next good read.
+  // A save stopped before it was sent goes on the next good read; a sent save that failed has its
+  // own retry timer (scheduleRetry), which this skips.
   for (const id of dirty) if (!timers.has(id) && !inflight.has(id)) scheduleSave(id);
 }
 

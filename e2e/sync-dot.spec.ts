@@ -305,7 +305,7 @@ test('a team save the cloud never answers says so, gives up, and lands on its re
   await page.getByTestId('sync-action').click();
   state.silent = false;
   await page.clock.fastForward(TO_THE_LIMIT);
-  // A failed save goes again on the next good read, and reads poll.
+  // A failed save goes again on its own timer, and on the next good read.
   await expect.poll(async () => {
     await page.clock.fastForward(5_000);
     return chip(page).textContent();
