@@ -502,7 +502,9 @@ function svgLinesInside(el) {
     // and became a hole the moment it became the line's ANCHOR: an end-anchored line is anchored
     // exactly at its plate's right edge, so a rounding tick dropped it out of its own panel's
     // list and the panel then never grew for the copy it holds.
-    if (sameRows && x >= box.left - 1 && x < box.right + 1) out.push(nodes[i]);
+    // A line starting a little LEFT of its panel still sits on it, within half its own height:
+    // the fit's loose panel test (svgFitContainer) and the mapping step's `lineSitsIn` say so too.
+    if (sameRows && x >= box.left - Math.max(1, r.height / 2) && x < box.right + 1) out.push(nodes[i]);
   }
   return out;
 }

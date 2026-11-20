@@ -382,7 +382,61 @@ function svgFitContainer(el) {
     if (r.width * r.height <= box.width * box.height) continue;
     if (!best || r.width * r.height < bestArea) { best = shapes[i]; bestArea = r.width * r.height; }
   }
+  svgFitLoose[el.id] = false;
+  if (best) return best;
+  // A LINE THAT IS NOT QUITE INSIDE ITS BAR STILL SITS ON IT (owner, 2026-11-20: "we can't be so
+  // pedantic that we couldn't give the basic functionality"). A student's lower third routinely
+  // draws the name a touch taller than its bar, or starts it a few units left of the bar's edge,
+  // and the strict test above then found no panel at all: the room fell to the line's own drawn
+  // width, so the first extra letter shrank the name while most of the bar stood empty. Asked
+  // only where nothing holds the line outright, so every design that already had a panel keeps
+  // it. The test is the mapping step's own (`lineSitsIn`, wizard/import/stageMeasure.ts): the
+  // shape spans the line's rows, and the line starts inside it, within half its own height -
+  // so the box the step names and the box the ladder measures are one answer.
+  var tol = Math.max(1, box.height / 2);
+  var loose = art.querySelectorAll('rect, path, polygon');
+  for (var j = 0; j < loose.length; j++) {
+    var q = loose[j].getBoundingClientRect();
+    if (!(q.width > 0) || !(q.height > 0)) continue;
+    if (!(box.top < q.bottom && box.bottom > q.top)) continue;
+    if (box.left < q.left - tol || box.left >= q.right) continue;
+    if (q.width * q.height <= box.width * box.height) continue;
+    if (!best || q.width * q.height < bestArea) { best = loose[j]; bestArea = q.width * q.height; }
+  }
+  if (best) svgFitLoose[el.id] = true;
   return best;
+}
+
+/** Lines whose panel was found by the loose test - drawn hanging over their bar's edge. Their
+ *  height is never snapped onto the bar's middle: they were not drawn inside it. */
+var svgFitLoose = {};
+
+/** THE GRAPHIC'S OWN EXTENT, in screen px: everything drawn, as one rectangle - the room a line
+ *  with no panel of its own gets (owner, 2026-11-20: text "becomes smaller when the whole graphic
+ *  - the length of the graphic - has been used up", never before). The line itself is part of
+ *  it, so its own inset is never negative; with nothing drawn at all it is the artwork's root. */
+function svgArtExtent(el) {
+  var art = document.querySelector('.__PREFIX__-art');
+  var b = el.getBoundingClientRect();
+  var ext = { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+  var found = false;
+  var shapes = art ? art.querySelectorAll('rect, path, polygon, ellipse, circle, image, line, polyline') : [];
+  for (var i = 0; i < shapes.length; i++) {
+    var r = shapes[i].getBoundingClientRect();
+    if (!(r.width > 0) || !(r.height > 0)) continue;
+    found = true;
+    if (r.left < ext.left) ext.left = r.left;
+    if (r.right > ext.right) ext.right = r.right;
+    if (r.top < ext.top) ext.top = r.top;
+    if (r.bottom > ext.bottom) ext.bottom = r.bottom;
+  }
+  if (!found && art) {
+    var root = art.getBoundingClientRect();
+    if (root.width > 0 && root.height > 0) ext = { left: root.left, right: root.right, top: root.top, bottom: root.bottom };
+  }
+  ext.width = ext.right - ext.left;
+  ext.height = ext.bottom - ext.top;
+  return ext;
 }
 
 /** How far, in screen px, a line's box overhangs its EM box at each of its top and bottom: half
@@ -718,6 +772,9 @@ function svgAlignOf(el, panelEl) {
       target = align.v === 'top' ? band.top + gap + own.height / 2 : band.bottom - gap - own.height / 2;
     }
     if (target != null) {
+      // A line hanging over its bar's edge was not drawn INSIDE it, so it stays at the height it
+      // was drawn, exactly as a kept nudge does.
+      if (svgFitLoose[el.id]) keepNudge = true;
       align.snapY = keepNudge ? 0 : target - cy;
       align.nudgeY = cy - target;
       // The middle itself is kept as well, because the snap alone only answers for the block as
@@ -770,9 +827,17 @@ function svgFrameScale(el) {
  *  line's box from the rest of the artwork, asked with a pixel of tolerance because a plate and
  *  the rule drawn along its edge are flush by intent. Anything hanging out of the panel is
  *  somebody else's furniture and bounds nothing here. */
-function svgInsidePanel(r, panel) {
-  return r.left >= panel.left - 1 && r.right <= panel.right + 1
-    && r.top >= panel.top - 1 && r.bottom <= panel.bottom + 1;
+function svgInsidePanel(r, panel, o) {
+  if (r.left >= panel.left - 1 && r.right <= panel.right + 1
+    && r.top >= panel.top - 1 && r.bottom <= panel.bottom + 1) return true;
+  // For a line that sits on its panel the loose way (svgFitContainer), a TEXT sitting on it the
+  // same way is that panel's furniture too: a name and a role both drawn a few units off their
+  // bar's left edge still bound each other. Passed only for such a line, so a design whose lines
+  // sit inside their boxes reads its neighbours exactly as before.
+  var tag = o && o.tagName ? o.tagName.toLowerCase() : '';
+  if (tag !== 'text' && tag !== 'tspan') return false;
+  return r.top < panel.bottom && r.bottom > panel.top
+    && r.left >= panel.left - Math.max(1, r.height / 2) && r.left < panel.right;
 }
 
 /** THE PANEL'S OWN TOP PADDING - the gap the designer left between the panel's top edge and the
@@ -828,7 +893,7 @@ function svgFitCeiling(el, panel, pad) {
     var r = o.getBoundingClientRect();
     if (!(r.width > 0) || !(r.height > 0)) continue;
     if (r.width * r.height >= panel.width * panel.height) continue;   // that IS the panel
-    if (!svgInsidePanel(r, panel)) continue;                          // drawn outside this box
+    if (!svgInsidePanel(r, panel, svgFitLoose[el.id] ? o : null)) continue;                          // drawn outside this box
     if (r.right < box.left + 1 || r.left > box.right - 1) continue;   // no horizontal overlap
     if (r.top < box.bottom - 1) continue;                             // not below this line
     // The gap the designer drew between the two is kept WHOLE, so the bound is this line's own
@@ -888,7 +953,7 @@ function svgFitNeighbour(el, panel, dir) {
     var r = o.getBoundingClientRect();
     if (!(r.width > 0) || !(r.height > 0)) continue;
     if (r.width * r.height >= panel.width * panel.height) continue;   // that IS the panel
-    if (!svgInsidePanel(r, panel)) continue;                          // drawn outside this box
+    if (!svgInsidePanel(r, panel, svgFitLoose[el.id] ? o : null)) continue;                          // drawn outside this box
     if (r.bottom < box.top + 1 || r.top > box.bottom - 1) continue;   // not on this line's rows
     if (left ? r.right > box.left + 1 : r.left < box.right - 1) continue;   // not on that side
     if (left ? r.right > edge : r.left < edge) {
@@ -977,7 +1042,9 @@ function measureSvgRoom() {
       // labels), the design's own left margin mirrored when the panel - or its cap - is the
       // bound.
       var gap = ((svgFitSizes[el.id] || 0) * 0.5) / scale;
-      var pad = room.penned ? gap : inset;
+      // A line drawn hanging off its bar's left edge (svgFitContainer's loose test) has no left
+      // margin to mirror, so it keeps half its type off the far edge instead.
+      var pad = room.penned || inset < 0 ? gap : inset;
       room.width = Math.max(svgFitWidths[el.id], (edge - pad - box.left) * scale);
       if (room.penned) penNear[el.id] = bound.near;
       measured[el.id] = { box: box, scale: scale, gap: gap };
@@ -1080,7 +1147,39 @@ function measureSvgRoom() {
         // could not see, so a design the mirror already served keeps exactly what it had.
         if (symmetric > room.height) room.height = symmetric;
       }
+    } else if (!panel && box.width > 0) {
+      // NO PANEL OF ITS OWN: THE GRAPHIC'S LENGTH IS THE ROOM (owner, 2026-11-20). This used to
+      // leave the room at the line's own drawn width, so the first letter past the sample shrank
+      // it - on a bar drawn as a picture, or a name floating over the artwork, with most of the
+      // graphic standing empty beside it. The artwork's own extent stands in for the panel, so
+      // the margins, the neighbours and the wrap room are read exactly as they are inside a box.
+      var ext = svgArtExtent(el);
+      var halfGap = ((svgFitSizes[el.id] || 0) * 0.5) / scale;
+      var anchorWord = el.getAttribute('text-anchor') || (getComputedStyle(el).textAnchor || 'start');
+      var leftIn = box.left - ext.left;
+      var rightIn = ext.right - box.right;
+      var reach;
+      if (anchorWord === 'middle') {
+        // A centred line's gaps are centring, not margin: half its type is kept off each edge.
+        var cxs = (box.left + box.right) / 2;
+        reach = 2 * (Math.min(cxs - ext.left, ext.right - cxs) - halfGap);
+      } else if (anchorWord === 'end') {
+        var lb = svgFitNeighbour(el, ext, -1);
+        room.penned = lb.edge > ext.left + 0.5;
+        reach = box.right - (room.penned ? halfGap : rightIn) - lb.edge;
+      } else {
+        var rb = svgFitNeighbour(el, ext, 1);
+        room.penned = rb.edge < ext.right - 0.5;
+        reach = rb.edge - (room.penned ? halfGap : leftIn) - box.left;
+      }
+      room.width = Math.max(svgFitWidths[el.id], reach * scale);
+      room.height = Math.max(box.height * scale, (svgFitCeiling(el, ext, svgPanelTopPad(ext, nodes)) - box.top) * scale);
+      room.top = el.getBBox ? el.getBBox().y : 0;
     }
+    // KEPT ON ONE LINE where the author said so (NOACG_LAYOUT.lines `wrap: false`): the block's
+    // room is its own drawn height, so a long value fills sideways and then gets smaller.
+    var saidWrap = svgSaidAlign(el.id);
+    if (saidWrap && saidWrap.wrap === false) room.height = Math.min(room.height, box.height * scale);
     svgFitRoom[el.id] = room;
   }
   // TWO LINES THAT GROW TOWARDS EACH OTHER SHARE THE GAP between them. A ticker's story fills
