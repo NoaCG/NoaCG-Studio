@@ -193,7 +193,7 @@ export async function openProduction(page: Page, showId: string): Promise<void> 
 }
 
 /** The service-role switch writes (`system_settings`), local stack only. */
-export async function setSwitch(key: 'auto_publish' | 'partial_writes', on: boolean): Promise<void> {
+export async function setSwitch(key: 'auto_publish' | 'partial_writes' | 'team_designs', on: boolean): Promise<void> {
   if (!isLocalStack()) throw new Error('switches are written only on a local stack');
   const res = await fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
     method: 'POST',
