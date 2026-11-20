@@ -42,8 +42,13 @@ import {
   vmixOverlayCount,
   type AdapterId,
   type AgentError,
+  type AudioJobReply,
+  type AudioJobRequest,
+  type AudioMeasure,
+  type AudioWaveform,
   type BridgeFeature,
   type BridgePayloadField,
+  type MediaFolderCheck,
   type ItemKind,
   type CasparSlot,
   type CasparTarget,
@@ -453,6 +458,14 @@ interface BridgeReply {
   /** `/osc`: where the datagram went, and whether this answer repeats an earlier send. */
   sent?: { to: string; bytes: number };
   repeat?: true;
+  check?: MediaFolderCheck;
+  id?: string;
+  state?: AudioJobReply['state'];
+  progress?: number;
+  fileKey?: string;
+  measure?: AudioMeasure;
+  waveform?: AudioWaveform;
+  problem?: AudioJobReply['problem'];
 }
 
 // A field added to a Bridge route must be classified here. Unknown additions stay compatible.
@@ -462,6 +475,7 @@ const bridgePayloadFields = {
   lines: true, link: true, linked: true, loadProblem: true, mediaFolder: true, observedAt: true, overlays: true, players: true,
   png: true, raw: true, renderers: true, repeat: true, sent: true, servers: true, session: true, slots: true, status: true,
   token: true, version: true, vmix: true, warning: true,
+  check: true, id: true, state: true, progress: true, fileKey: true, measure: true, waveform: true, problem: true,
 } satisfies Record<BridgePayloadField, true>;
 const knownPayloadFields = Object.keys(bridgePayloadFields) as BridgePayloadField[];
 
@@ -714,7 +728,7 @@ function readReply(settings: PlayoutSettings, call: Call, at = `${settings.host}
   return { result: { state: 'server', detail: error.detail, raw: error.raw }, body };
 }
 
-type PlayoutRoute = '/status' | '/connect' | '/list' | '/thumbnail' | '/act';
+type PlayoutRoute = '/status' | '/connect' | '/list' | '/thumbnail' | '/act' | '/media-folder' | '/audio/start' | '/audio/job' | '/audio/cancel';
 type RequestFields = Record<string, unknown>;
 type VerifyBeforeAct = () => boolean | Promise<boolean>;
 
@@ -1022,6 +1036,59 @@ export async function listLibrary(settings: PlayoutSettings, kind: ItemKind): Pr
 export async function libraryThumbnail(settings: PlayoutSettings, name: string): Promise<string | null> {
   const { result, body } = await through(settings, '/thumbnail', { name }, 'list');
   return result.state === 'ok' && body?.png ? `data:image/png;base64,${body.png}` : null;
+}
+
+/**
+ * THE SERVER'S SHARED MEDIA FOLDER (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.2): kept by NoaCG Bridge
+ * per server, so every browser paired with it reads the same folder. With `folder`, keep that one
+ * first (null forgets it); either way the reply says whether this computer can read the server's
+ * files there. A Bridge without the `media-folder` feature says so.
+ */
+export async function serverMediaFolder(settings: PlayoutSettings, folder?: string | null): Promise<{ result: PlayoutResult; check?: MediaFolderCheck }> {
+  const lacks = await bridgeLacks(settings, 'media-folder', 'This NoaCG Bridge cannot read the server\'s files yet. Download the current NoaCG Bridge.');
+  if (lacks) return { result: lacks };
+  const { result, body } = await through(settings, '/media-folder', folder === undefined ? {} : { folder }, 'list');
+  if (result.state !== 'ok') return { result };
+  if (!body?.check) return { result: { state: 'bridge', detail: 'NoaCG Bridge gave no media folder check.' } };
+  return { result, check: body.check };
+}
+
+/** Why a paired Bridge cannot answer a route of `feature`, asked before the route is: an older
+ *  Bridge would refuse it in words about the request rather than about itself. Null when it can,
+ *  or when it is not reachable (the route then says why, as every other does). */
+async function bridgeLacks(settings: PlayoutSettings, feature: BridgeFeature, detail: string): Promise<PlayoutResult | null> {
+  if (!playoutConfigured(settings)) return null;
+  const { unreachable, features } = await probeBridge(settings.agentUrl);
+  return unreachable || features.includes(feature) ? null : { state: 'bridge', detail };
+}
+
+/** An audio job as it stands, or why it could not be asked. */
+export type AudioJobAnswer = { result: PlayoutResult; job?: AudioJobReply };
+
+const audioJobOf = (reply: PlayoutReply): AudioJobAnswer => {
+  const b = reply.body;
+  if (reply.result.state !== 'ok') return { result: reply.result };
+  if (!b || typeof b.id !== 'string' || typeof b.state !== 'string') return { result: { state: 'bridge', detail: 'NoaCG Bridge gave an audio job no id.' } };
+  return {
+    result: reply.result,
+    job: { ok: true, id: b.id, state: b.state, progress: typeof b.progress === 'number' ? b.progress : 0, ...(b.fileKey ? { fileKey: b.fileKey } : {}), ...(b.measure ? { measure: b.measure } : {}), ...(b.waveform ? { waveform: b.waveform } : {}), ...(b.problem ? { problem: b.problem } : {}) },
+  };
+};
+
+/** Start a waveform or loudness job on a server file (`audio` feature). */
+export async function startAudioJob(settings: PlayoutSettings, job: AudioJobRequest): Promise<AudioJobAnswer> {
+  const lacks = await bridgeLacks(settings, 'audio', 'This NoaCG Bridge carries no audio reader. Download the current NoaCG Bridge for Windows.');
+  if (lacks) return { result: lacks };
+  return audioJobOf(await through(settings, '/audio/start', { job }, 'list'));
+}
+
+/** How a job stands, or its result once done. */
+export async function readAudioJob(settings: PlayoutSettings, id: string): Promise<AudioJobAnswer> {
+  return audioJobOf(await through(settings, '/audio/job', { id }, 'list'));
+}
+
+export async function cancelAudioJob(settings: PlayoutSettings, id: string): Promise<AudioJobAnswer> {
+  return audioJobOf(await through(settings, '/audio/cancel', { id }, 'list'));
 }
 
 /** One verb on the server. The action carries no page state, so it is exactly what a log row

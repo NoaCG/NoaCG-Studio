@@ -29,6 +29,15 @@ itself. It sends to this computer, your studio network and VPN addresses. Start 
 `--allow-public-osc` only if a device you control is reached over the public internet; OSC has no
 password. Broadcast and multicast addresses are always refused.
 
+Bridge can read the files of a CasparCG server on another computer through a shared folder. In
+**Settings > Playout**, type the server's media folder as this computer reaches it, for example
+`\\PLAYOUT\media`, and press **Link**. The line under it says whether the folder holds the
+server's files, cannot be reached, or refused this Windows user. Bridge keeps it with the server,
+so every browser paired with it uses the same folder.
+
+A clip or audio cue can now play up to 20 dB louder than before (the limit was 6 dB), for quiet
+files brought up to a loudness target.
+
 ## 0.12.0 - 2026-11-14
 
 You can now take clips, stills and audio from the NoaCG rundown into vMix. In **Settings >

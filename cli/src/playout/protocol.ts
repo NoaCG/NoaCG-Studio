@@ -241,9 +241,17 @@ export interface AgentError {
  *  servers this Bridge remembers connecting to. `studio` is each remembered server's `studio` and
  *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
  *  `ending` is the `ending` verb: a clip's ending changed while it plays. `channels` is `/channels`:
- *  the channels a server reports it has. `osc` is `/osc`: one OSC message sent as one UDP datagram
- *  (docs/work-specs/osc-control-cues). */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard' | 'vmix-player-transport-guard' | 'osc';
+ *  the channels a server reports it has. `gain-20` is a take's gain up to +20 dB. `media-folder` is
+ *  `/media-folder`: the shared folder each remembered CasparCG server's files are read from.
+ *  `audio` is `/audio/start`, `/audio/job` and `/audio/cancel`: the waveform and loudness jobs,
+ *  listed only when this Bridge carries its audio reader. `osc` is `/osc`: one OSC message sent as
+ *  one UDP datagram (docs/work-specs/osc-control-cues). */
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard' | 'vmix-player-transport-guard' | 'gain-20' | 'media-folder' | 'audio' | 'osc';
+
+/** The loudest gain a take's `playback.gain` may carry: +20 dB with the `gain-20` feature, +6 dB
+ *  (2) before it. The page asks for `gain-20` before it sends anything above +6 dB. */
+export const MAX_GAIN_20 = 10;
+export const MAX_GAIN_6 = 2;
 
 /** Prefix the paired token for keyed vMix verbs so a legacy Bridge refuses the request even if it
  * replaced the new Bridge after the browser's capability probe. The token itself is unchanged. */
@@ -366,7 +374,13 @@ export interface RememberedServer {
   host: string;
   port: number;
   studio?: StudioSetup;
+  /** With `media-folder`: the folder this computer reads the server's media files from, a network
+   *  share such as `\\PLAYOUT\media` (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.2). */
+  mediaFolder?: string;
 }
+
+/** The longest media folder path a Bridge keeps. */
+export const MAX_MEDIA_FOLDER = 400;
 
 export function isRememberedServerAddress(v: unknown): v is RememberedServer {
   if (!v || typeof v !== 'object') return false;
@@ -435,6 +449,79 @@ export interface ConnectReply extends StatusReply {
 export interface StudioReply {
   ok: true;
   servers: RememberedServer[];
+}
+
+/**
+ * Whether this computer can read a server's files through its linked media folder. `linked`: the
+ * folder holds the server's files. `not-linked`: no folder is set. `access-denied`: Windows refused
+ * this user (sign in to the share). `offline`: the folder cannot be reached. `not-this-server`: the
+ * folder answers but holds none of the files the server lists, or different copies of them.
+ */
+export type MediaFolderState = 'linked' | 'not-linked' | 'access-denied' | 'offline' | 'not-this-server';
+
+export interface MediaFolderCheck {
+  state: MediaFolderState;
+  folder?: string;
+  /** One sentence for the operator. */
+  detail: string;
+}
+
+/** What `POST /media-folder` answers, given `{ target }` to check the folder kept for that server,
+ *  or `{ target, folder }` to keep a new one first (`folder: null` forgets it). */
+export interface MediaFolderReply {
+  ok: true;
+  servers: RememberedServer[];
+  check: MediaFolderCheck;
+}
+
+/** What an audio job reads: the waveform of the whole file, or the loudness of the part that airs. */
+export type AudioJobKind = 'waveform' | 'measure';
+
+/** An audio job, as `/audio/start` asks for it: a media file from the server's list, by name. */
+export interface AudioJobRequest {
+  kind: AudioJobKind;
+  name: string;
+  /** For `measure`: the part that airs, seconds into the file. Absent ends are the file's own. */
+  trimIn?: number;
+  trimOut?: number;
+  /** For `waveform`: how many columns, 100 to 4000. */
+  bins?: number;
+}
+
+/** Why an audio job could not read the file, in words the page shows beside it. The media folder
+ *  states, then the file's own: `missing` (no file of that name), `ambiguous` (more than one),
+ *  `differs` (a file of that name, but not the size the server lists), `changed` (it changed while
+ *  it was read), `unreadable` (the reader could not decode it), `no-reader` (this Bridge has none). */
+export type AudioJobProblem = Exclude<MediaFolderState, 'linked'> | 'missing' | 'ambiguous' | 'differs' | 'changed' | 'unreadable' | 'no-reader';
+
+/** The loudness of the part that airs, on a stereo programme (channels 1 and 2 of every track
+ *  merged, as CasparCG plays it). */
+export type AudioMeasure =
+  | { kind: 'measured'; integrated: number; truePeak: number; seconds: number; layout: 'stereo' }
+  | { kind: 'silent'; seconds: number }
+  | { kind: 'too-short'; seconds: number }
+  | { kind: 'no-audio' };
+
+/** Per column, the lowest and highest sample across every channel, -1 to 1. */
+export interface AudioWaveform {
+  seconds: number;
+  min: number[];
+  max: number[];
+  silentFile?: true;
+}
+
+/** What `/audio/start`, `/audio/job` and `/audio/cancel` answer: the job as it stands. `fileKey` is
+ *  the file's size and date as the server lists them (`bytes:changed`), for the page's cache. */
+export interface AudioJobReply {
+  ok: true;
+  id: string;
+  state: 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+  /** 0 to 1 while running. */
+  progress: number;
+  fileKey?: string;
+  measure?: AudioMeasure;
+  waveform?: AudioWaveform;
+  problem?: { code: AudioJobProblem; detail: string };
 }
 
 export interface VmixStudioReply {
@@ -620,6 +707,10 @@ interface BridgeRepliesByRoute {
   '/thumbnail': ThumbnailReply;
   '/amcp': TerminalAmcpReply;
   '/osc': OscReply;
+  '/media-folder': MediaFolderReply;
+  '/audio/start': AudioJobReply;
+  '/audio/job': AudioJobReply;
+  '/audio/cancel': AudioJobReply;
 }
 
 /** Every JSON envelope the current Bridge sends, before the browser validates it. */

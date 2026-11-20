@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
+import MediaFolderSetting from './MediaFolderSetting';
 import {
   channelLabel,
   bridgePaired,
@@ -513,6 +514,7 @@ export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onO
             ))}
           </select>
         </div>
+        {paired && configured && <MediaFolderSetting settings={settings} />}
       </div>
       {/* WHERE THE SETUP ABOVE IS KEPT (D17): in NoaCG Bridge for this server, so every browser and
           account paired with it opens with it, or in this browser only, and why. */}

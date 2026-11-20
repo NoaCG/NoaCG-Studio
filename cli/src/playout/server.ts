@@ -30,12 +30,14 @@ import type { VmixAdapter } from './adapters/vmix.js';
 import { VmixDeadline, VmixPublicationUncertain } from './vmixMedia.js';
 import type { VmixAction } from './vmixPlayers.js';
 import {
+  MAX_GAIN_20,
   MAX_SEQUENCE_ENTRIES,
   MAX_VMIX_OVERLAYS,
   MIN_SEQUENCE_MEMBER_S,
   PLAYOUT_V,
   playedSeconds,
   type AgentError,
+  type AudioJobRequest,
   type BridgeFeature,
   type BridgeWireReply,
   VMIX_INPUT_KEY,
@@ -50,7 +52,10 @@ import {
 } from './protocol.js';
 import { SequenceRunner } from './runner.js';
 import { ServerLinks } from './links.js';
-import { fileServerMemory, readStudio, type ServerMemory } from './servers.js';
+import { fileServerMemory, readMediaFolder, readStudio, type ServerMemory } from './servers.js';
+import { AudioJobs } from './audio/jobs.js';
+import { checkMediaFolder, MediaFileError, resolveMediaFile } from './audio/mediaFiles.js';
+import { audioTools, type AudioTools } from './audio/tools.js';
 import { SlotMemoryBank } from './slots.js';
 import { PAIRING_TTL_MS, PairingCodes, secretMatches } from './token.js';
 import { noacgUrl } from '../config.js';
@@ -64,7 +69,7 @@ export const DEFAULT_BRIDGE_PORT = 8899;
 export const DEFAULT_AMCP_PORT = 5250;
 
 /** What this build understands beyond the routes every v2 Bridge answers (`/health`). */
-export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels', 'image-fit', 'osc'];
+export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels', 'image-fit', 'gain-20', 'media-folder', 'osc'];
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0:0:0:0:0:0:0:1']);
 
@@ -146,6 +151,9 @@ export interface BridgeOptions {
   allowPublicOsc?: boolean;
   /** The OSC sender. A test hands in its own over a fake clock, resolver and socket. */
   osc?: OscSender;
+  /** The audio reader (./audio/tools.ts). A test hands in its own; null means this Bridge has none,
+   *  and `audio` is not listed. */
+  audio?: () => Promise<AudioTools | null>;
 }
 
 // --- Request reading -------------------------------------------------------------------------
@@ -260,8 +268,8 @@ function readItem(v: unknown): ItemRef {
 
 /** The longest fade a clip takes, seconds. The page offers half a second and a second. */
 const MAX_FADE_S = 10;
-/** The loudest gain: +6 dB is 1.9953, so a level the page allows always fits. */
-const MAX_GAIN = 2;
+/** The loudest gain: +20 dB is 10 (`gain-20`), so a level the page allows always fits. */
+const MAX_GAIN = MAX_GAIN_20;
 
 const PLAYBACK_KEYS = new Set(['end', 'fadeIn', 'fadeOut', 'gain', 'trim']);
 
@@ -464,6 +472,24 @@ export function readAction(body: Record<string, unknown>): VmixAction {
   }
 }
 
+/** An audio job as the page asks for it, validated field by field. */
+function readAudioJob(v: unknown): AudioJobRequest {
+  if (!isRecord(v)) throw new UsageError('An audio job is { kind, name }.');
+  const { kind, name, trimIn, trimOut, bins } = v;
+  if (kind !== 'waveform' && kind !== 'measure') throw new UsageError('An audio job is a waveform or a measure.');
+  if (typeof name !== 'string' || !name.trim() || name.length > 1000) throw new UsageError('An audio job names a media file from the server\'s list.');
+  const point = (p: unknown, field: string) => {
+    if (p === undefined) return undefined;
+    if (typeof p !== 'number' || !Number.isFinite(p) || p < 0) throw new UsageError(`${field} is a number of seconds from 0.`);
+    return p;
+  };
+  const tin = point(trimIn, 'trimIn');
+  const tout = point(trimOut, 'trimOut');
+  if (tin !== undefined && tout !== undefined && tout <= tin) throw new UsageError('trimOut comes after trimIn.');
+  if (bins !== undefined && (typeof bins !== 'number' || !Number.isInteger(bins) || bins < 100 || bins > 4000)) throw new UsageError('A waveform has 100 to 4000 columns.');
+  return { kind, name, ...(tin !== undefined ? { trimIn: tin } : {}), ...(tout !== undefined ? { trimOut: tout } : {}), ...(bins !== undefined ? { bins } : {}) };
+}
+
 // --- The server -------------------------------------------------------------------------------
 
 /** Build the Bridge's HTTP server. Exported so a test can drive it on port 0. */
@@ -485,6 +511,15 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
     }
   };
   const links = options.links ?? new ServerLinks(memory.session);
+  // THE AUDIO READER AND ITS JOBS (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3). The reader is found
+  // (unpacked from the exe) once, at start; a Bridge without one answers everything else as before.
+  const tools = options.audio ?? audioTools;
+  const hasAudio = () => tools().then((t) => !!t, (e: unknown) => {
+    log(`audio reader unavailable: ${e instanceof Error ? e.message : String(e)}`);
+    return false;
+  });
+  void hasAudio();
+  const audioJobs = new AudioJobs({ tools });
   let runner = options.runner;
   if (!runner) {
     runner = new SequenceRunner({ memory, adapters: options.adapters, log });
@@ -538,10 +573,12 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
     // merely started for a different deployment. The reply carries presence, the protocol
     // version and the adapters, and nothing else: no token, no studio, no playout server.
     if (url === '/health' && req.method === 'GET') {
-      send(
-        200,
-        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const, 'vmix-player-out-guard' as const, 'vmix-player-transport-guard' as const] : [])] } satisfies BridgeWireReply<'/health'>,
-        true,
+      void hasAudio().then((audio) =>
+        send(
+          200,
+          { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(audio && byId.has('casparcg') ? ['audio' as const] : []), ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const, 'vmix-player-out-guard' as const, 'vmix-player-transport-guard' as const] : [])] } satisfies BridgeWireReply<'/health'>,
+          true,
+        ),
       );
       return;
     }
@@ -661,6 +698,64 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           log(`${at} studio setup kept (${studio.channels.length} channel${studio.channels.length === 1 ? '' : 's'}, output ${studio.output.channel}-${studio.output.layer})`);
           send(200, { ok: true, v: PLAYOUT_V, servers: list }, true);
           return;
+        }
+
+        // THE SERVER'S SHARED MEDIA FOLDER (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.2), kept per
+        // remembered server like its studio setup, and checked against the files the server lists.
+        if (url === '/media-folder' || url.startsWith('/audio/')) {
+          if (target.adapter !== 'casparcg') throw new UsageError('Only a CasparCG server has a linked media folder.');
+          const remembered = async () => (await servers.list()).find((r) => r.host.toLowerCase() === target.host.toLowerCase() && r.port === target.port);
+          const listed = async () => {
+            const r = await adapter.list(target, 'media');
+            if (!r.ok) throw new MediaFileError('offline', `${at} could not list its files: ${r.error.detail}`);
+            return r.value;
+          };
+          if (url === '/media-folder') {
+            let list = await servers.list();
+            if (body.folder !== undefined) {
+              const folder = body.folder === null ? null : readMediaFolder(body.folder);
+              if (body.folder !== null && !folder) throw new UsageError('A media folder is a path, such as \\\\PLAYOUT\\media.');
+              const kept = await servers.setMediaFolder({ host: target.host, port: target.port }, folder);
+              if (!kept) throw new UsageError(`NoaCG Bridge has not connected to ${at}. Connect to it first, then its media folder is kept.`);
+              list = kept;
+              log(`${at} media folder ${folder ? `linked to ${folder}` : 'forgotten'}`);
+            }
+            const folder = list.find((r) => r.host.toLowerCase() === target.host.toLowerCase() && r.port === target.port)?.mediaFolder;
+            let items: { name: string; bytes?: number }[] = [];
+            if (folder) {
+              const r = await adapter.list(target, 'media');
+              items = r.ok ? r.value : [];
+            }
+            send(200, { ok: true, v: PLAYOUT_V, servers: list, check: await checkMediaFolder(folder, items) }, true);
+            return;
+          }
+          if (url === '/audio/start') {
+            const request = readAudioJob(body.job);
+            const key = `${target.host.toLowerCase()}:${target.port}`;
+            const reply = audioJobs.start(key, request, async () => {
+              const folder = (await remembered())?.mediaFolder;
+              if (!folder) throw new MediaFileError('not-linked', 'Link the server\'s media folder in Settings, Playout to read its files.');
+              const items = await listed();
+              const item = items.find((i) => i.name === request.name) ?? (() => {
+                const same = items.filter((i) => i.name.toLowerCase() === request.name.toLowerCase());
+                return same.length === 1 ? same[0] : undefined;
+              })();
+              if (!item) throw new MediaFileError('missing', `${at} does not list ${request.name}.`);
+              const file = await resolveMediaFile(folder, item.name, item.bytes);
+              return { file, ...(item.bytes !== undefined ? { fileKey: `${item.bytes}:${item.changed ?? ''}` } : {}) };
+            });
+            log(`${at} audio ${request.kind} ${request.name} -> job ${reply.id.slice(0, 8)} ${reply.state}`);
+            send(200, { ...reply, v: PLAYOUT_V }, true);
+            return;
+          }
+          if (url === '/audio/job' || url === '/audio/cancel') {
+            const id = typeof body.id === 'string' ? body.id : '';
+            const reply = url === '/audio/job' ? audioJobs.get(id) : audioJobs.cancel(id);
+            if (!reply) throw new UsageError('This Bridge has no such audio job. It may have restarted: start the job again.');
+            send(200, { ...reply, v: PLAYOUT_V }, true);
+            return;
+          }
+          throw new UsageError(`Unknown route ${url}.`);
         }
 
         // STATUS, and CONNECT: the same VERSION round trip, and on success a Connect makes the server

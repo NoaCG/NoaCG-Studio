@@ -22,6 +22,11 @@
       "count": 3,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43631303258"
     },
+    "e2e/editor-out-step.spec.ts": {
+      "since": "2026-11-20",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44826377734"
+    },
     "e2e/playout-cues.spec.ts": {
       "since": "2026-11-15",
       "count": 2,
