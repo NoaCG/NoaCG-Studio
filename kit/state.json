@@ -42,8 +42,8 @@
  ],
  "inFlight": {
   "phase": 9,
-  "step": "owner's final check; fix #2589 PR 2591 awaiting Windows",
-  "asOf": "2026-11-17T15:45Z"
+  "step": "owner's final check; cloud phase 9 session on staging to start (reports ten-page/seven-typist rerun)",
+  "asOf": "2026-11-19T08:50Z"
  },
  "owner": [
   {
@@ -150,6 +150,14 @@
     "builder": "session_017SdbwPpJn4fUqzsQLxqTGZ",
     "nonce": "fix-2589-f-coal",
     "why": "regression from #2573: team save backlog at 7 typists; fix forward (coalesce)"
+   }
+  },
+  {
+   "2589": {
+    "landed": "de671717 (PR 2591)",
+    "postLanding": "CI 44487794131, configured 44487794172, post-land 44487794099, quarantine 44487794112 all success",
+    "windows": "owner machine, comment 7003555345, 8 passed",
+    "archived": true
    }
   }
  ],
