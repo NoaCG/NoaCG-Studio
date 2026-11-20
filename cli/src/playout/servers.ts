@@ -15,7 +15,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { configDir } from '../config.js';
-import { isRememberedServerAddress, readStudio, type RememberedServer, type StudioSetup } from './protocol.js';
+import { isRememberedServerAddress, MAX_MEDIA_FOLDER, readStudio, type RememberedServer, type StudioSetup } from './protocol.js';
 
 export { readStudio } from './protocol.js';
 
@@ -29,6 +29,13 @@ export interface ServerMemory {
   /** Replace the setup of a server in the list and return the new list, or null when the list does
    *  not hold that server. Its place in the list stays. */
   setStudio(server: RememberedServer, studio: StudioSetup): Promise<RememberedServer[] | null>;
+  /** Keep (or, with null, forget) the media folder of a server in the list, as setStudio does. */
+  setMediaFolder(server: RememberedServer, folder: string | null): Promise<RememberedServer[] | null>;
+}
+
+/** A media folder path as kept: text, not empty, bounded. */
+export function readMediaFolder(v: unknown): string | null {
+  return typeof v === 'string' && v.trim() && v.length <= MAX_MEDIA_FOLDER && !/[\0\r\n]/.test(v) ? v.trim() : null;
 }
 
 const same = (a: RememberedServer, b: RememberedServer) => a.host.toLowerCase() === b.host.toLowerCase() && a.port === b.port;
@@ -40,7 +47,8 @@ type Row = RememberedServer & Record<string, unknown>;
 /** A row as the page sees it: host, port, and the setup when this Bridge can read it. */
 function toServer(row: Row): RememberedServer {
   const studio = readStudio(row.studio);
-  return { host: row.host, port: row.port, ...(studio ? { studio } : {}) };
+  const mediaFolder = readMediaFolder(row.mediaFolder);
+  return { host: row.host, port: row.port, ...(studio ? { studio } : {}), ...(mediaFolder ? { mediaFolder } : {}) };
 }
 
 /** The list kept in a file: `caspar-servers.json` beside the token unless a test names another. */
@@ -85,6 +93,18 @@ export function fileServerMemory(file = path.join(configDir(), 'caspar-servers.j
         const known = rows.find((r) => same(r, server));
         if (!known) return null;
         return write(top, rows.map((r) => (r === known ? { ...r, studio } : r)));
+      });
+    },
+    setMediaFolder(server, folder) {
+      return serial(async () => {
+        const { rows, top } = await read();
+        const known = rows.find((r) => same(r, server));
+        if (!known) return null;
+        const keep = (r: Row): Row => {
+          const { mediaFolder: _gone, ...rest } = r;
+          return (folder ? { ...rest, mediaFolder: folder } : rest) as Row;
+        };
+        return write(top, rows.map((r) => (r === known ? keep(r) : r)));
       });
     },
   };

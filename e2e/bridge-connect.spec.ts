@@ -1,4 +1,4 @@
-// covers: src/components/{SettingsDialog,BridgePairPage,RecentServers,InfoLine,CopyPairingLink}.tsx
+// covers: src/components/{SettingsDialog,BridgePairPage,RecentServers,InfoLine,CopyPairingLink,MediaFolderSetting}.tsx
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // covers: src/control/bridgeWatch.ts
@@ -112,6 +112,9 @@ interface FakeBridge {
    *  error a server that cannot say gives. Answered whatever `/health` lists, as a tripwire: a page
    *  that asked a Bridge without the feature would show what it got. */
   reports?: Record<string, { channel: number; mode: string }[]>;
+  /** With `media-folder`: each server's linked folder, by host. A folder whose path names
+   *  `offline` reads as unreachable, one naming `elsewhere` as another server's. */
+  mediaFolders?: Record<string, string>;
   /** Every action the page sent, in order. */
   actions: unknown[];
   /** Every pairing code presented. */
@@ -223,6 +226,24 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
       known.studio = (body as { studio: Studio }).studio;
       state.studios.push({ host: known.host, port: known.port, studio: known.studio });
       await json(route, 200, { ok: true, v: 2, servers: state.servers });
+      return;
+    }
+    if (path === '/media-folder' && has('media-folder') && aimed?.host) {
+      const folders = (state.mediaFolders ??= {});
+      const asked = (body as { folder?: string | null }).folder;
+      if (asked !== undefined) {
+        if (asked === null) delete folders[aimed.host];
+        else folders[aimed.host] = asked;
+      }
+      const folder = folders[aimed.host];
+      const check = !folder
+        ? { state: 'not-linked', detail: 'No media folder is linked for this server.' }
+        : folder.includes('offline')
+          ? { state: 'offline', folder, detail: `${folder} cannot be reached. Check that the playout computer is on and the share is available.` }
+          : folder.includes('elsewhere')
+            ? { state: 'not-this-server', folder, detail: `None of the server's files were found in ${folder}. Link the folder CasparCG plays its media from.` }
+            : { state: 'linked', folder, detail: `${folder} holds the server's files (3 of 3 checked).` };
+      await json(route, 200, { ok: true, v: 2, servers: state.servers ?? [], check });
       return;
     }
     if (path === '/channels') {
@@ -1853,4 +1874,49 @@ test('an older Bridge hides vMix Settings and offers Update from the production 
   await panel.getByTestId('vmix-switch').click();
   await expect(panel.getByTestId('vmix-bridge-download')).toHaveText('Update');
   await expect(panel.getByTestId('vmix-output')).toHaveCount(0);
+});
+
+// ── The server's shared media folder (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.2) ──────────────
+
+test('a server\'s media folder is linked, checked and forgotten in Playout settings, in the Bridge\'s words', async ({ page }) => {
+  await seedSettings(page);
+  const bridge = await fakeBridge(page, { features: ['servers', 'media-folder'], servers: [{ host: '127.0.0.1', port: 5250 }] });
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  const stateLine = section.getByTestId('caspar-media-folder-state');
+  await expect(stateLine).toHaveAttribute('data-state', 'not-linked');
+  const field = section.getByTestId('caspar-media-folder');
+  const link = section.getByTestId('caspar-media-folder-link');
+  await expect(link).toBeDisabled();
+
+  // A share this computer cannot reach says so, and is still kept for when it comes back.
+  await field.fill('\\\\PLAYOUT-offline\\media');
+  await link.click();
+  await expect(stateLine).toHaveAttribute('data-state', 'offline');
+  await expect(stateLine).toContainText('cannot be reached');
+
+  await field.fill('\\\\PLAYOUT\\media');
+  await field.press('Enter');
+  await expect(stateLine).toHaveAttribute('data-state', 'linked');
+  await expect(stateLine).toContainText('holds the server\'s files');
+  expect(bridge.mediaFolders).toEqual({ '127.0.0.1': '\\\\PLAYOUT\\media' });
+
+  // Kept by the Bridge, so the panel opened again reads it back.
+  await page.reload();
+  await reopenPlayoutSettings(page);
+  await expect(section.getByTestId('caspar-media-folder')).toHaveValue('\\\\PLAYOUT\\media');
+  await expect(stateLine).toHaveAttribute('data-state', 'linked');
+
+  await section.getByTestId('caspar-media-folder-forget').click();
+  await expect(stateLine).toHaveAttribute('data-state', 'not-linked');
+  expect(bridge.mediaFolders).toEqual({});
+});
+
+test('a Bridge from before media folders says it cannot read the server\'s files, and nothing else changes', async ({ page }) => {
+  await seedSettings(page);
+  await fakeBridge(page, { features: ['servers'] });
+  await openPlayoutSettings(page);
+  const stateLine = page.getByTestId('caspar-media-folder-state');
+  await expect(stateLine).toHaveAttribute('data-state', 'unavailable');
+  await expect(stateLine).toContainText('Download the current NoaCG Bridge');
 });
