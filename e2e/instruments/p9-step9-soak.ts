@@ -3,7 +3,7 @@
 // (auto_publish and partial_writes off, production_copies on). One reload, one 20 s offline.
 import { test } from '@playwright/test';
 import { log, run, setSwitch, setUp, tearDown, type Scene } from '../configured/_five';
-import { admitStaging, emit, probe, ranOf, readSwitches, restoreSwitches, settle, SHARD1, shot, signInOwner, states, stats } from './_p9';
+import { admitStaging, emit, probe, ranOf, readSwitches, restoreSwitches, settle, SHARD1, shot, ownerStates, states, stats } from './_p9';
 
 test.describe.configure({ retries: 0 });
 
@@ -17,8 +17,7 @@ else
     emit('switches-before', before);
     let scene: Scene | null = null;
     try {
-      await signInOwner(page);
-      emit('states', await states(page));
+      emit('states', await ownerStates(browser));
       await setSwitch('auto_publish', false);
       await setSwitch('partial_writes', false);
       await setSwitch('production_copies', true);

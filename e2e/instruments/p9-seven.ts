@@ -3,7 +3,7 @@
 // ten-page runs. One reload, one 20 s offline. Each editor's own page probed at the end and after settling.
 import { test } from '@playwright/test';
 import { log, run, setSwitch, setUp, tearDown, type Scene } from '../configured/_five';
-import { admitStaging, emit, probe, ranOf, readSwitches, restoreSwitches, settle, SHARD1, signInOwner, states, stats } from './_p9';
+import { admitStaging, emit, probe, ranOf, readSwitches, restoreSwitches, settle, SHARD1, ownerStates, states, stats } from './_p9';
 
 test.describe.configure({ retries: 0 });
 
@@ -17,15 +17,14 @@ else
     emit('switches-before', before);
     let scene: Scene | null = null;
     try {
-      await signInOwner(page);
-      const st = await states(page);
+      const st = await ownerStates(browser);
       emit('states', st);
       const installed = (st.auto as { installed?: boolean })?.installed === true && (st.partial as { installed?: boolean })?.installed === true;
       if (!installed) throw new Error(`switches not installed on staging: ${JSON.stringify(st)}`);
       await setSwitch('production_copies', true);
       await setSwitch('partial_writes', true);
       await setSwitch('auto_publish', true);
-      emit('states-on', await states(page));
+      emit('states-on', await ownerStates(browser));
       scene = await setUp(browser, page, 10);
       const report = await run(scene, { ms, reloadAt: 0.4, offlineAt: 0.6, offlineMs: 20_000 });
       log('run over; settling');

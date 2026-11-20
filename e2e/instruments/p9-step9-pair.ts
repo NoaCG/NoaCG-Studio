@@ -2,7 +2,7 @@
 // people working against the taker's page alone, interleaved rounds, switches as production today.
 import { test } from '@playwright/test';
 import { log, openProduction, run, setSwitch, setUp, tearDown, type Scene } from '../configured/_five';
-import { admitStaging, emit, pct, ranOf, readSwitches, restoreSwitches, SHARD1, signInOwner } from './_p9';
+import { admitStaging, emit, pct, ranOf, readSwitches, restoreSwitches, SHARD1 } from './_p9';
 
 test.describe.configure({ retries: 0 });
 
@@ -20,7 +20,6 @@ else
     let scene: Scene | null = null;
     const out: { round: number; mode: string; samples: number[]; lost: number; errors: string[] }[] = [];
     try {
-      await signInOwner(page);
       await setSwitch('auto_publish', false);
       await setSwitch('partial_writes', false);
       await setSwitch('production_copies', true);

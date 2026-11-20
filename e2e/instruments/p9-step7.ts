@@ -3,7 +3,7 @@
 // without pausing while a third takes. Interleaved with the taker alone, switches as production today.
 import { test } from '@playwright/test';
 import { log, openProduction, run, setSwitch, setUp, tearDown, type Scene } from '../configured/_five';
-import { admitStaging, emit, pct, probe, ranOf, readSwitches, restoreSwitches, settle, SHARD1, shot, signInOwner } from './_p9';
+import { admitStaging, emit, pct, probe, ranOf, readSwitches, restoreSwitches, settle, SHARD1, shot } from './_p9';
 
 test.describe.configure({ retries: 0 });
 
@@ -19,7 +19,6 @@ else
     let scene: Scene | null = null;
     const out: Record<string, unknown>[] = [];
     try {
-      await signInOwner(page);
       await setSwitch('auto_publish', false);
       await setSwitch('partial_writes', false);
       await setSwitch('production_copies', true);

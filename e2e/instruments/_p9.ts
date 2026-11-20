@@ -1,6 +1,6 @@
 // PHASE 9 CLOUD (live-publishing run #2361): shared pieces of the staging instruments. Not for main:
 // these files run only through hosted-latency.yml's `spec` dispatch, on the hosted staging project.
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { configuredTarget } from '../../scripts/configured-target.mjs';
 import { E2E_EMAIL, E2E_PASSWORD, SERVICE_ROLE_KEY, SUPABASE_URL, signInAs } from '../configured/_helpers';
@@ -48,6 +48,18 @@ export async function states(page: Page): Promise<{ auto: unknown; partial: unkn
     const [a, p] = await Promise.all([sb.rpc('auto_publish_state'), sb.rpc('partial_writes_state')]);
     return { auto: a.error ? { error: a.error.message } : a.data, partial: p.error ? { error: p.error.message } : p.data };
   });
+}
+
+/** The states as the owner sees them, from a context of its own: the scene's build signs the owner's page in itself. */
+export async function ownerStates(browser: Browser): Promise<{ auto: unknown; partial: unknown }> {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    await signInOwner(page);
+    return await states(page);
+  } finally {
+    await context.close();
+  }
 }
 
 export async function signInOwner(page: Page): Promise<void> {
