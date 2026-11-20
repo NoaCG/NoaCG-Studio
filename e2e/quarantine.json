@@ -31,6 +31,11 @@
       "since": "2026-11-15",
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43657752399"
+    },
+    "e2e/playout-rundown-feedback.spec.ts": {
+      "since": "2026-11-20",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44832908349"
     }
   },
   "released": {
