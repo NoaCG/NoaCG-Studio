@@ -654,6 +654,8 @@ test('an edit the pass restores from the outbox shows the head the server just l
 // reads what changed since the version it last read, applies it to the stored form it kept, merges
 // as before and saves again.
 const plain = (value) => JSON.parse(JSON.stringify(value));
+/** The record as the server stores it: without the tab's `teamId`. */
+const storedOf = (show) => { const copy = { ...show }; delete copy.teamId; return copy; };
 const refusal = (at) => ({ data: { saved: false, updated_at: at, updated_by: 'mate', rev: 9 }, error: null });
 const changes = (at, ops) => ({ data: { updated_at: at, updated_by: 'mate', rev: 9, ops }, error: null });
 const everyMember = (doc) => Object.entries(doc).map(([m, v]) => ({ m, set: v, u: `h-${m}` }));
@@ -661,7 +663,7 @@ const everyMember = (doc) => Object.entries(doc).map(([m, v]) => ({ m, set: v, u
 test('a refusal without the document reads what changed, merges and saves; the next read sends the kept map (#2615)', async () => {
   const cue = { id: 'cue', sourceId: 'g', label: 'A', values: {} };
   const h = harness(false, [], undefined, undefined, undefined, [cue]);
-  const { teamId: _team, ...stored } = h.local();
+  const stored = storedOf(h.local());
   h.typeCue(cue.id, 'B');
   h.disk.resolve(null);
   const theirs = { ...stored, name: 'Theirs' };
@@ -692,7 +694,7 @@ test('a refusal without the document reads what changed, merges and saves; the n
 test('a kept form that will not take the answer is read again whole (#2615)', async () => {
   const cue = { id: 'cue', sourceId: 'g', label: 'A', values: {} };
   const h = harness(false, [], undefined, undefined, undefined, [cue]);
-  const { teamId: _team, ...stored } = h.local();
+  const stored = storedOf(h.local());
   h.typeCue(cue.id, 'B');
   h.disk.resolve(null);
   h.answers.push(refusal('t1'), changes('t1', everyMember(stored)), { data: { saved: true, updated_at: 't2' }, error: null });
@@ -730,7 +732,7 @@ test('an older database: the old functions for the rest of the session, their re
   const h = harness(false);
   h.edit('Mine');
   h.disk.resolve(null);
-  const { teamId: _team, ...stored } = h.local();
+  const stored = storedOf(h.local());
   h.answers.push({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } },
     { data: { saved: false, updated_at: 't1', updated_by: 'mate', doc: { ...stored, name: 'First edit', graphics: [], extra: 'theirs' } }, error: null },
     { data: { saved: true, updated_at: 't2' }, error: null });
@@ -746,7 +748,7 @@ test('an older database: the old functions for the rest of the session, their re
 
 test('undo reads a refusal the same way, and a failed read leaves the rundown as it was (#2615)', async () => {
   const h = harness(false), expected = history.rundownSlice(h.local());
-  const { teamId: _team, ...stored } = h.local();
+  const stored = storedOf(h.local());
   h.answers.push(refusal('t1'), { data: null, error: { message: 'read failed' } });
   const result = await h.controller.restoreTeamRundown('show', expected, expected, () => true);
   assert.deepEqual(plain(result), { status: 'failed', error: 'read failed' });
@@ -774,7 +776,7 @@ test('a read answered after the session ended is dropped, and the next session r
   const h = harness(false);
   h.edit('Mine');
   h.disk.resolve(null);
-  const { teamId: _team, ...stored } = h.local();
+  const stored = storedOf(h.local());
   h.answers.push(refusal('t1'));
   const pushed = h.controller.pushForTest('show');
   await new Promise(resolve => setImmediate(resolve));
