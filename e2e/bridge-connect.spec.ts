@@ -1914,9 +1914,10 @@ test('a server\'s media folder is linked, checked and forgotten in Playout setti
 
 test('a Bridge from before media folders says it cannot read the server\'s files, and nothing else changes', async ({ page }) => {
   await seedSettings(page);
-  await fakeBridge(page, { features: ['servers'] });
+  const bridge = await fakeBridge(page, { features: ['servers'] });
   await openPlayoutSettings(page);
   const stateLine = page.getByTestId('caspar-media-folder-state');
   await expect(stateLine).toHaveAttribute('data-state', 'unavailable');
   await expect(stateLine).toContainText('Download the current NoaCG Bridge');
+  expect(bridge.routes, 'an older Bridge is never sent a route it does not know').not.toContain('/media-folder');
 });

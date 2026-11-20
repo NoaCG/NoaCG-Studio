@@ -1042,10 +1042,21 @@ export async function libraryThumbnail(settings: PlayoutSettings, name: string):
  * files there. A Bridge without the `media-folder` feature says so.
  */
 export async function serverMediaFolder(settings: PlayoutSettings, folder?: string | null): Promise<{ result: PlayoutResult; check?: MediaFolderCheck }> {
+  const lacks = await bridgeLacks(settings, 'media-folder', 'This NoaCG Bridge cannot read the server\'s files yet. Download the current NoaCG Bridge.');
+  if (lacks) return { result: lacks };
   const { result, body } = await through(settings, '/media-folder', folder === undefined ? {} : { folder }, 'list');
   if (result.state !== 'ok') return { result };
-  if (!result.features?.includes('media-folder') || !body?.check) return { result: { state: 'bridge', detail: 'This NoaCG Bridge cannot read the server\'s files yet. Download the current NoaCG Bridge.' } };
+  if (!body?.check) return { result: { state: 'bridge', detail: 'NoaCG Bridge gave no media folder check.' } };
   return { result, check: body.check };
+}
+
+/** Why a paired Bridge cannot answer a route of `feature`, asked before the route is: an older
+ *  Bridge would refuse it in words about the request rather than about itself. Null when it can,
+ *  or when it is not reachable (the route then says why, as every other does). */
+async function bridgeLacks(settings: PlayoutSettings, feature: BridgeFeature, detail: string): Promise<PlayoutResult | null> {
+  if (!playoutConfigured(settings)) return null;
+  const { unreachable, features } = await probeBridge(settings.agentUrl);
+  return unreachable || features.includes(feature) ? null : { state: 'bridge', detail };
 }
 
 /** An audio job as it stands, or why it could not be asked. */
@@ -1063,9 +1074,9 @@ const audioJobOf = (reply: PlayoutReply): AudioJobAnswer => {
 
 /** Start a waveform or loudness job on a server file (`audio` feature). */
 export async function startAudioJob(settings: PlayoutSettings, job: AudioJobRequest): Promise<AudioJobAnswer> {
-  const reply = await through(settings, '/audio/start', { job }, 'list');
-  if (reply.result.state === 'ok' && !reply.result.features?.includes('audio')) return { result: { state: 'bridge', detail: 'This NoaCG Bridge carries no audio reader. Download the current NoaCG Bridge for Windows.' } };
-  return audioJobOf(reply);
+  const lacks = await bridgeLacks(settings, 'audio', 'This NoaCG Bridge carries no audio reader. Download the current NoaCG Bridge for Windows.');
+  if (lacks) return { result: lacks };
+  return audioJobOf(await through(settings, '/audio/start', { job }, 'list'));
 }
 
 /** How a job stands, or its result once done. */
