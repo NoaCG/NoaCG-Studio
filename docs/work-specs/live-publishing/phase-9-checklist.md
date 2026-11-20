@@ -82,7 +82,7 @@ either on; steps 11 and 12 are only for after that.
 >
 > **Rerun, 2026-11-20, after #2610: ok once the page notices; one gap.** In all six cases (Take
 > still loading, on air with nothing pressed, 15 graphics on air; CasparCG and browser output)
-> green came 0.5 to 3.4 s after the restarted output's picture was back, with grey or amber
+> green came 0.46 to 3.4 s after the restarted output's picture was back, with grey or amber
 > before. But from the moment the output went blank until the page noticed, the light stayed
 > green: 0.3 to 0.6 s on CasparCG, 2.2 to 2.8 s on the browser output. Evidence: `notes.md`
 > (Steps 4 and 5 rerun).
