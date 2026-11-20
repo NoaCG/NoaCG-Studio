@@ -175,7 +175,7 @@ async function build(owner: Page, editors: number, fill = 0): Promise<Omit<Scene
       log(`published on attempt ${attempt} after ${Date.now() - t0} ms`);
       break;
     } catch (e) {
-      log(`publish attempt ${attempt} after ${Date.now() - t0} ms: ${(await owner.getByTestId('production-note').first().textContent().catch(() => '')) ?? ''}`);
+      log(`publish attempt ${attempt} after ${Date.now() - t0} ms: ${(await owner.getByTestId('production-note').first().textContent({ timeout: 2_000 }).catch(() => '')) ?? ''}`);
       if (attempt >= 12) throw e;
       await owner.keyboard.press('Escape').catch(() => undefined);
       await owner.waitForTimeout(10_000);
