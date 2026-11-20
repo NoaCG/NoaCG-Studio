@@ -549,6 +549,31 @@ is its own graphic type so the derived machine/timeline stays the standard linea
     available, which is where that surface stood before.
   - Pinned by `e2e/import-svg-behaviour.spec.ts` ("copy the design cannot hold is WARNED about"),
     verified red first by making the document report nothing.
+- **A line ON its bar, and a line on nothing (owner, 2026-11-20).** *"The text becomes smaller,
+  even though we are not even at the end of the graphic."* Measured on five hand-made lower
+  thirds, a 1000-unit bar each, with a 22-character name typed over a 13-character sample: a name
+  drawn 56 units tall on a 56-unit bar painted at 32px, one started 20 units left of its bar at
+  28px, and one over a bar drawn as a PICTURE at 28px - each with over 600 units of bar empty
+  beside it. All three found no panel (`svgFitContainer` asked for strict containment), so the
+  room fell to the line's own drawn width; the mapping step said "no box" and offered no choice.
+  Now the fit takes the shape the line sits on (the step's `lineSitsIn`) where nothing holds it
+  outright, and the graphic's own extent where nothing is under it at all; all five paint at
+  their drawn size. Pinned by `scripts/svg-loose-room.test.mjs` and the journey in
+  `e2e/import-svg.spec.ts`.
+  **Corrected after two independent reviews the same day.** The first cut took the union of every
+  shape as a boxless line's room: a name on a picture bar ran 433 units past the bar towards a
+  far logo, text over a bleeding picture left the frame, a caption that was the widest thing drawn
+  got nothing, a bar drawn as a stroked `<line>` gave the whole frame, and two boxless lines grew
+  into each other by 77 units. Now the picture or shape under the line is its room, else what is
+  drawn past it, else the frame; it stops at what is beside it and shares the gap with a line
+  growing towards it; every room is cut to the frame, nested viewports and clips; and a
+  frame-sized shape is asked after the bar a line sits on (`svgFitPanel`). The banner default is
+  judged per bar: a graphic-wide two-figure veto had taken the grow default from a date-and-time
+  strap and a player strap, and a 5:1 width threshold flipped a centred bar on one pixel. The wrap
+  choice moved from the group to each field, offered only where the room holds a second line at
+  the reporting floor or the box may get taller (`lineCanWrap`), and a reimport carries a matched
+  line's wrap, alignment and nudge. Pinned by `scripts/svg-step-proposal.test.mjs`, the cases added
+  to `scripts/svg-loose-room.test.mjs`, and the corpus file `student-unboxed-live-strap.svg`.
 - **Animation:** the standard marked ANIMATION region animating the wrapper (entrance/exit
   presets work day one; the timeline dock reads the CODE as always). Phase 2: per-layer stagger -
   top-level named `<g>`s offered as animation units.

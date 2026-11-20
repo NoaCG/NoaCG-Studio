@@ -434,6 +434,13 @@ export interface DesignSvgField {
    * play time and never stored; this only says to spend it. Absent = false, the snap he ruled for.
    */
   nudge?: boolean;
+  /**
+   * KEEP IT ON ONE LINE: a longer value fills the room sideways and then gets smaller, and never
+   * wraps (owner, 2026-11-20: every text field chooses what happens when the text gets longer).
+   * Asked on the mapping step for a line with no box of its own, where there is no panel to
+   * grow. Absent = wraps into whatever room the drawing has, as every import before it did.
+   */
+  oneLine?: boolean;
 }
 
 /** A declared block alignment: which edge a longer value fills from, and where a wrapped block

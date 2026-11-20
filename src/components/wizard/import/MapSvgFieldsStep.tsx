@@ -40,6 +40,7 @@ import {
   proposeBannerGrowth,
   panelsHoldingText,
   panelOfEachLine,
+  lineCanWrap,
   type BoxFit,
   ALIGN_H,
   ALIGN_V,
@@ -438,6 +439,9 @@ export default function MapSvgFieldsStep({
   /** Text row -> its box, the room round it and the alignment it was drawn with, all in the
    *  LINE's own units (`boxFitOf`). What the preview overlay draws while that row is hovered. */
   const [boxFits, setBoxFits] = useState<Record<string, BoxFit>>({});
+  /** Text rows whose room holds a second line (`lineCanWrap`): the rows where "wraps" and "one
+   *  line" paint different things, and so the only rows offered that choice. */
+  const [wrapRoom, setWrapRoom] = useState<Set<string>>(new Set());
   /** Box -> how far it may grow and how far it may be told to grow (`growCapOf`). Measured for
    *  the boxes that CAN get taller and nothing else, so a board where nothing grows measures
    *  nothing at all. */
@@ -449,10 +453,12 @@ export default function MapSvgFieldsStep({
       setBoxOfRow({});
       setBoxLooks({});
       setBoxFits({});
+      setWrapRoom(new Set());
       return;
     }
     setPanelIds(panelsHoldingText(stage, svg, boundMarkerIds, placedLines));
-    const grouped = withoutBackplates(stage, panelOfEachLine(stage, svg, allMarkerIds));
+    const holders = panelOfEachLine(stage, svg, allMarkerIds);
+    const grouped = withoutBackplates(stage, holders);
     setBoxOfRow(grouped);
     setBoxLooks(boxLooksOf(stage, svg, Object.values(grouped)));
     const fits: Record<string, BoxFit> = {};
@@ -461,6 +467,9 @@ export default function MapSvgFieldsStep({
       if (fit) fits[lineId] = fit;
     }
     setBoxFits(fits);
+    // Asked with the line's HOLDER, a backplate included: that is the room the runtime wraps into,
+    // even though the checklist does not group by a backplate.
+    setWrapRoom(new Set(allMarkerIds.filter((id) => lineCanWrap(stage, id, holders[id] ?? null, boundMarkerIds))));
   }, [svg, boundMarkerIds, allMarkerIds, placedLines, fontKey]);
 
   // ── WHERE EVERY LAYER SITS, FOR THE UNMATCHED COUNT (fieldAutoMap.ts, `isPlate`) ──
@@ -659,7 +668,7 @@ export default function MapSvgFieldsStep({
    *  the heading is now where its answer lives. So a heading appears wherever there is more than
    *  one place to put text, AND on the single box a lower third draws, whose hug would otherwise
    *  have no control at all. Text inside no shape still gets no heading of its own on a file
-   *  with one group: there is nothing to say about it and nothing to set. */
+   *  with one group: its too-long answer lives on its own row, like every line's. */
   const showBoxGroups = fieldGroups.length > 1 || !!fieldGroups[0]?.boxId;
 
   // ── HOW FAR A GROWING BOX MAY REACH (docs/TEXT_BOX_BINDING.md, rung 4) ──
@@ -1417,6 +1426,30 @@ export default function MapSvgFieldsStep({
                       </div>
                     </div>
                   )}
+                  {/* WHAT THIS FIELD DOES WITH A LONG VALUE, its own answer (owner, 2026-11-20:
+                      "for any text field, you should be able to choose"), beside the box's own
+                      grow answer on the heading. Offered only where the two answers paint
+                      different things: where its room holds a second line, or its box may get
+                      taller (`wizard/offer-control-can-change-graphic-front`). A line with a
+                      title drawn right under it, curved text and a clock have one answer, and a
+                      field drawn on the artwork or an outlined-text stand-in always keeps to one
+                      line, so none of them is asked. Either way the room is used first. */}
+                  {f.on && f.kind !== 'countdown' && !creditsSources.has(f.candidateId) &&
+                    (wrapRoom.has(f.candidateId) ||
+                      (!!boxOfRow[f.candidateId] && ['grow-y', 'grow-xy'].includes(modeOfBox(boxOfRow[f.candidateId])))) && (
+                    <label className="save-field">
+                      <span>Too long</span>
+                      <select
+                        value={f.oneLine ? 'one' : 'wrap'}
+                        onChange={(e) => patchField(f.candidateId, { oneLine: e.target.value === 'one' || undefined })}
+                        title="What this text does once it has used the room it has: wrap onto more lines, or stay on one line. Either way it gets smaller last."
+                        data-testid={`map-svg-wrap-${f.candidateId}`}
+                      >
+                        <option value="wrap">wraps</option>
+                        <option value="one">one line</option>
+                      </select>
+                    </label>
+                  )}
                 </>
               )}
               {f.clock && !driven && (countdownOffered || !svgClockTakes(f)) && (
@@ -1629,8 +1662,9 @@ export default function MapSvgFieldsStep({
               not fit. What you are choosing is how much room the box gives it first.
             </p>
             <p>
-              Each box says it on its own row above, so one can grow while its neighbours stay.
-              We read your artwork and answered for you.
+              Each box says it on its own row above, so one can grow while its neighbours stay, and a
+              field with room for a second line says whether it wraps. We read your artwork and
+              answered for you.
             </p>
           </SectionHead>
           {/* WHICH BOXES GROW, said once. The ANSWERS live on the heading rows in the

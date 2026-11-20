@@ -48,7 +48,7 @@ export function layoutRules(svg: DesignSvg): DesignSvgGrowth[] {
 export function saidLines(svg: DesignSvg): { f: DesignSvgField; i: number }[] {
   const clock = countdownIndex(svg);
   const credits = creditsIndex(svg);
-  return svg.fields.map((f, i) => ({ f, i })).filter(({ f, i }) => i !== clock && i !== credits && (f.align || f.nudge));
+  return svg.fields.map((f, i) => ({ f, i })).filter(({ f, i }) => i !== clock && i !== credits && (f.align || f.nudge || f.oneLine));
 }
 
 /**
@@ -87,16 +87,58 @@ export function layoutDataJs(svg: DesignSvg, labelOf: (candidateId: string) => s
   // "Alignment"). Every other line is read off the drawing at play time, so the list is left out
   // entirely where nobody touched the grid - an untouched import emits the bytes it always did.
   // ADDITIVE to version 1: a runtime from before this list existed simply never looks for it.
-  const said = saidLines(svg).map(({ f, i }) => {
-    const kept = f.nudge ? '; keeps the nudge it was drawn with' : '';
-    return `    // "${f.title}" - ${f.align ? `${SVG_ALIGN_WORD[f.align.h]}, ${f.align.v}` : 'as drawn'}${kept}.
-    { el: 'f${i}'${f.align ? `, h: '${f.align.h}', v: '${f.align.v}'` : ''}${f.nudge ? ', nudge: true' : ''} }`;
+  const said = saidLines(svg).map(({ f, i }) =>
+    layoutLineJs(
+      { el: `f${i}`, ...(f.align ? { h: f.align.h, v: f.align.v } : {}), ...(f.nudge ? { nudge: true } : {}), ...(f.oneLine ? { wrap: false as const } : {}) },
+      f.title,
+    ),
+  );
+  return layoutTableJs(rows, said);
+}
+
+/** One said line as the table carries it (`NOACG_LAYOUT.lines`). */
+export interface LayoutLine {
+  el: string;
+  h?: 'start' | 'middle' | 'end';
+  v?: 'top' | 'middle' | 'bottom';
+  nudge?: boolean;
+  wrap?: false;
+}
+
+/** A said line's entry, with the comment that names it - the one spelling, so a line the build
+ *  writes and a line a reimport carries (`readLayoutLines`) read alike. */
+export function layoutLineJs(l: LayoutLine, title: string): string {
+  const kept = l.nudge ? '; keeps the nudge it was drawn with' : '';
+  const one = l.wrap === false ? '; stays on one line' : '';
+  return `    // "${title}" - ${l.h && l.v ? `${SVG_ALIGN_WORD[l.h]}, ${l.v}` : 'as drawn'}${kept}${one}.
+    { el: '${l.el}'${l.h && l.v ? `, h: '${l.h}', v: '${l.v}'` : ''}${l.nudge ? ', nudge: true' : ''}${l.wrap === false ? ', wrap: false' : ''} }`;
+}
+
+/** The said lines a built template's table carries, read back from its text. */
+export function readLayoutLines(js: string): LayoutLine[] {
+  const table = /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(js)?.[0] ?? '';
+  const list = /\n {2}lines: \[([\s\S]*?)\n {2}\]/.exec(table)?.[1] ?? '';
+  return [...list.matchAll(/\{\s*el:\s*'(f\d+)'([^}]*)\}/g)].map((m) => {
+    const rest = m[2];
+    const h = /h:\s*'(start|middle|end)'/.exec(rest)?.[1] as LayoutLine['h'];
+    const v = /v:\s*'(top|middle|bottom)'/.exec(rest)?.[1] as LayoutLine['v'];
+    return {
+      el: m[1],
+      ...(h && v ? { h, v } : {}),
+      ...(/nudge:\s*true/.test(rest) ? { nudge: true } : {}),
+      ...(/wrap:\s*false/.test(rest) ? { wrap: false as const } : {}),
+    };
   });
+}
+
+/** The whole table text, from its rule rows and its said lines. */
+export function layoutTableJs(rows: string[], said: string[]): string {
   const lines = said.length
     ? `,
   // Which edge each of these lines fills from and where its block sits in its box, as the author
   // set it on the Fields step. A line not listed is aligned the way it was drawn. \`nudge: true\`
-  // keeps the offset the designer left between the block and its anchor.
+  // keeps the offset the designer left between the block and its anchor. \`wrap: false\` keeps
+  // the line on one line: a longer value gets smaller instead of wrapping.
   lines: [
 ${said.join(',\n')}
   ]`

@@ -643,13 +643,15 @@ const sha = (o) => hash(JSON.stringify(o));
  *  interpreter in every build's js gained the exit-rest undo; with the previous interpreter swapped
  *  back in, each build hashes to its previous pin exactly. Re-taken for #2355: only the SVG fit runtime
  *  every build carries moved (a centred figure keeps its drawn size). The editable pin re-taken for
- *  the parser's comma rule (a role's names, several to a line), asserted in credits-parser.test.mjs. */
+ *  the parser's comma rule (a role's names, several to a line), asserted in credits-parser.test.mjs. Every pin in this file re-taken for
+ *  the text-room review: only the SVG fit runtime and the behaviour runtime's panel lookup moved;
+ *  with those two files from main swapped back in, every build hashes to its previous pin. */
 const PINS = {
-  editable: 'eb64ce3d32815aad',
-  artwork: '6ae5a3dd2ba05e94',
-  'fixed:credits-1': 'c4f5b8c9f6482163',
-  'fixed:credits-2': 'f61330c0b459ee0a',
-  'fixed:credits-3': 'a3d5e4aeb160f29c',
+  editable: '198eff16758f14ee',
+  artwork: 'e5cb70a7d3779b54',
+  'fixed:credits-1': 'a375c013f03f5797',
+  'fixed:credits-2': '178b1f229ed3f8a5',
+  'fixed:credits-3': 'd3ecb7f6b853334b',
 };
 
 if (process.env.CREDITS_PRINT_STYLED) console.log(JSON.stringify({ styled: R.styled, fallbacks: R.fallbacks, issue1941: R.issue1941 }, (k, v) => (['doc', 'html', 'css', 'js', 'sourceMarkup', 'outer'].includes(k) ? undefined : v), 1));
@@ -1058,7 +1060,7 @@ test('#1955: the editable roll\'s list holder keeps its line breaks through the 
  *  when the title began rolling with the list: the roll's js gains creditsRiders, creditsTitle
  *  (the list's first line in the drawn title's look) and the parser its comma rule, html and css
  *  unchanged; e2e/svg-templates.spec.ts walks the roll. */
-const ROLE_ABOVE_PINS = { one: '34b8cc68f3576744', bold: '0eed6ced3d449700', grouped: '0a5e9b6abede99a5', roleGroup: '6503f0db3795bdd5', idGroup: '99282645b4a1f50c' };
+const ROLE_ABOVE_PINS = { one: '50ce7d581e9ed86e', bold: '063bc52e64c782c6', grouped: '21275212c7a76d41', roleGroup: '86c0782e0a97c0b5', idGroup: '4dd866b2e00b09b0' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1072,7 +1074,7 @@ test('row 20: role-above styled credits build exactly as row 19 built them', () 
  *  Both re-taken for #2098 and the styled one for #2108 and #2104, as the pins above, and both
  *  for #1795 (the shared interpreter only), and both for the comma rule and the styled one for
  *  creditsRiders and creditsTitle, as the pins above. */
-const FACED_PINS = { styled: '4849a59b746cb690', editable: '39484133277ea4bb' };
+const FACED_PINS = { styled: '5f10533615b8a950', editable: 'daf6237a5f14e6bb' };
 
 test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
   for (const k of ['styled', 'editable']) {

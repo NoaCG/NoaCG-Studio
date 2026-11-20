@@ -24,7 +24,7 @@
 
 import { parseCssColor } from '../../../model/cssVars';
 import { transformedBox } from '../../../assets/svgGeometry';
-import { PANEL_SAFE, SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_LINE_HEIGHT, isSvgFigure } from '../../../templates/importedDesign/svg';
+import { PANEL_SAFE, SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_BACKPLATE_SHARE, SVG_LINE_HEIGHT, isSvgFigure } from '../../../templates/importedDesign/svg';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import type { DesignSvgAlign } from '../../../templates/importedDesign/designTypes';
 import type { PreviewBoxOverlay } from '../WizardPreview';
@@ -182,7 +182,7 @@ export function proposeFollowers(
  * catalog, which is a measurement of its own and nobody has made it
  * (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-rule-for-what-a-backplate-is.md).
  */
-const BACKPLATE_SHARE_OF_FRAME = 0.7;
+const BACKPLATE_SHARE_OF_FRAME = SVG_BACKPLATE_SHARE;
 
 /**
  * IS THIS A GRAPHIC THE AUDIENCE SEES AGAIN WITH DIFFERENT CONTENT?
@@ -273,8 +273,12 @@ export function repeatsWithNewContent(stage: HTMLElement, holderIds: string[]): 
  *    veto the whole file, which is why the shipped Illustrator lower third - three stacked lines
  *    above one such pair - defaulted to shrinking (owner, 2026-08-26). A graphic whose lines are
  *    ALL side by side still refuses: that is a composed row, a scorebug, and it declares a stage.
- *  - those stacked lines every one START-anchored (an end- or middle-anchored line is composed
- *    against a point growth would move away from - the scorebug's score figures, a centred clock);
+ *  - those stacked lines not ALL figures (a score, a clock): a figure changes digits, not
+ *    length. ANY ANCHOR counts (2026-11-20): a centred or right-set name grows its banner from
+ *    the middle or leftwards (`svgGrowDir`), and a student's centred lower third is still a lower
+ *    third - unless the bar touches a SCORELINE, which makes its centred line a scoreboard's
+ *    period or clock. Judged per bar, never graphic-wide: a strap's date and time are figures
+ *    too. Lines are ON the banner the way the checklist groups them (`lineSitsIn`);
  *
  * Deliberately NOT measured: the artboard, or the panel's size against it. The 2026-08-23
  * ruling stands - the shipped lower third is a full-frame artboard and the shipped scorebug a
@@ -299,7 +303,22 @@ export function proposeBannerGrowth(stage: HTMLElement, svg: SvgImportResult, on
     if (!node) return [];
     const r = node.getBoundingClientRect();
     if (!(r.width > 0) || !(r.height > 0)) return [];
-    return [{ r, anchor: getComputedStyle(node).textAnchor || 'start' }];
+    return [{ r, anchor: getComputedStyle(node).textAnchor || 'start', figure: isSvgFigure(node.textContent ?? '') }];
+  });
+  // A SCORELINE: two or more lines sharing one row inside a plate, a figure among them - HAUKAT
+  // 0 0 SUDET. Asked of the plates a CENTRED candidate touches (below), never of the whole
+  // graphic: a strap's date beside its time, or a player's number and age, are figures too, and
+  // counting them graphic-wide took the grow default away from an ordinary lower third.
+  const sameRow = (a: DOMRect, b: DOMRect) => Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > Math.min(a.height, b.height) * 0.5;
+  const holdsScoreline = (pr: DOMRect) => {
+    const held = lines.filter((l) => lineSitsIn(l.r, pr));
+    return held.some((a) => a.figure && held.some((b) => b !== a && sameRow(a.r, b.r)));
+  };
+  const touches = (a: DOMRect, b: DOMRect) =>
+    a.left <= b.right + 2 && b.left <= a.right + 2 && a.top <= b.bottom + 2 && b.top <= a.bottom + 2;
+  const plates = svg.shapes.flatMap((p) => {
+    const r = el(p.id)?.getBoundingClientRect();
+    return r && r.width > 0 && r.height > 0 ? [{ id: p.id, r }] : [];
   });
   const tol = 2;
   for (const s of svg.shapes) {
@@ -309,13 +328,10 @@ export function proposeBannerGrowth(stage: HTMLElement, svg: SvgImportResult, on
     const sr = node.getBoundingClientRect();
     if (!(sr.width > 0) || !(sr.height > 0) || sr.width / sr.height < 1.5) continue;
     if (sr.right > frame.left + frame.width * 0.94) continue;
-    const inside = lines.filter(
-      (l) =>
-        l.r.left >= sr.left - tol &&
-        l.r.right <= sr.right + tol &&
-        l.r.top >= sr.top - tol &&
-        l.r.bottom <= sr.bottom + tol,
-    );
+    // ON the banner rather than strictly inside it (owner, 2026-11-20: a student's lower third is
+    // still a lower third when its name is drawn a touch taller than the bar, or starts a few
+    // units left of it). The test the boxes are named by, so the banner and its rows agree.
+    const inside = lines.filter((l) => lineSitsIn(l.r, sr) && l.r.right <= sr.right + tol);
     if (inside.length === 0) continue;
     // The lines that have a baseline TO THEMSELVES. Those are the ones a wider panel actually
     // helps, so they are the ones the question is asked about.
@@ -328,7 +344,14 @@ export function proposeBannerGrowth(stage: HTMLElement, svg: SvgImportResult, on
         }),
     );
     if (stacked.length === 0) continue;
-    if (stacked.some((l) => l.anchor !== 'start')) continue;
+    // A centred or right-set name widens its banner from the middle or leftwards (`svgGrowDir`,
+    // runtime/svgGrowth.js), so the anchor alone no longer argues against growing. What does is
+    // the bar's own company: a centred line on a strip drawn against a SCORELINE is a
+    // scoreboard's period or clock, and a scoreboard declares a stage.
+    if (stacked.some((l) => l.anchor !== 'start') && plates.some((p) => p.id !== s.id && touches(p.r, sr) && holdsScoreline(p.r))) continue;
+    // A plate holding only FIGURES (a score, a clock) still says no: its value changes digits,
+    // never length.
+    if (stacked.every((l) => l.figure)) continue;
     return s.id;
   }
   return null;
@@ -397,8 +420,27 @@ export function panelsHoldingText(
  *  importedDesign/svg.ts) - the rows the shape spans, entered from inside its left edge - and
  *  the ONE place the step spells it, because two spellings of it is how the shapes offered as
  *  growable and the plates named per layer drift into two different answers. */
-function lineSitsIn(line: { top: number; bottom: number; left: number }, box: DOMRect): boolean {
-  return line.top < box.bottom && line.bottom > box.top && line.left >= box.left - 1 && line.left < box.right;
+function lineSitsIn(line: { top: number; bottom: number; left: number }, box: { top: number; bottom: number; left: number; right: number }): boolean {
+  // The runtime's sitting-on test word for word (`svgSitsOnOf`, runtime/svgFit.js): the shape
+  // covers at least half the line's height, and the line starts inside it, within half its own
+  // height of its left edge. A shape that only grazes the line is not where it sits.
+  const h = line.bottom - line.top;
+  const cover = Math.min(line.bottom, box.bottom) - Math.max(line.top, box.top);
+  const tol = Math.max(1, h / 2);
+  return cover >= h / 2 && line.left >= box.left - tol && line.left < box.right;
+}
+
+/** How far a line's box overhangs its EM box at top and bottom, in screen px - the runtime's
+ *  `svgEmTrim` (runtime/svgFit.js), spelled for the step's stage. Zero where it cannot be read. */
+function emTrim(el: Element): number {
+  if (!(el instanceof SVGTextContentElement)) return 0;
+  let run: Element = el;
+  while (run.firstElementChild) run = run.firstElementChild;
+  const size = parseFloat(getComputedStyle(run).fontSize) || 0;
+  const cell = el.getNumberOfChars() > 0 ? el.getExtentOfChar(0).height : 0;
+  const ctm = el.getScreenCTM();
+  const scale = ctm ? Math.sqrt(ctm.a * ctm.a + ctm.b * ctm.b) : 1;
+  return Math.max(0, (cell - size) / 2) * (scale || 1);
 }
 
 /**
@@ -428,14 +470,38 @@ export function panelOfEachLine(
     .map((s) => ({ id: s.id, box: markerEl(stage, s.id)?.getBoundingClientRect() }))
     .filter((s): s is { id: string; box: DOMRect } => !!s.box && s.box.width > 0 && s.box.height > 0);
   for (const id of markerIds) {
-    const r = markerEl(stage, id)?.getBoundingClientRect();
-    if (!r || !(r.width > 0) || !(r.height > 0)) continue;
-    let best: { id: string; area: number } | null = null;
-    for (const plate of plates) {
-      if (!lineSitsIn(r, plate.box)) continue;
-      const area = plate.box.width * plate.box.height;
-      if (!best || area < best.area) best = { id: plate.id, area };
-    }
+    const node = markerEl(stage, id);
+    const r = node?.getBoundingClientRect();
+    if (!node || !r || !(r.width > 0) || !(r.height > 0)) continue;
+    // Held by its EM box vertically, as the runtime holds it (`svgEmTrim`): a line box pokes
+    // past a snug plate that the type itself sits inside.
+    const trim = emTrim(node);
+    // THE RUNTIME'S ORDER (`svgFitContainer`), so the checklist and the fit name one box: a
+    // plate that holds the line outright, then one it sits on (the one covering most of it, then
+    // the smallest), and a FRAME-SIZED shape last - an unfilled artboard rectangle holds every
+    // line, and asked first it beat the bar a tall name sits on.
+    const frame = stage.querySelector('svg')?.getBoundingClientRect();
+    const frameArea = frame ? frame.width * frame.height : 0;
+    const isBig = (b: DOMRect) => frameArea > 0 && b.width * b.height >= frameArea * SVG_BACKPLATE_SHARE;
+    const bigger = (b: DOMRect) => b.width * b.height > r.width * r.height;
+    const holds = (b: DOMRect) =>
+      r.left >= b.left - 1 && r.right <= b.right + 1 && r.top + trim >= b.top - 1 && r.bottom - trim <= b.bottom + 1;
+    const cover = (b: DOMRect) => Math.min(1, (Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top)) / r.height);
+    const area = (b: DOMRect) => b.width * b.height;
+    const pick = (cands: { id: string; box: DOMRect }[], byCover: boolean) =>
+      cands.reduce<{ id: string; box: DOMRect } | null>((best, c) => {
+        if (!best) return c;
+        if (byCover) {
+          const d = cover(c.box) - cover(best.box);
+          if (d > 0.01) return c;
+          if (d < -0.01) return best;
+        }
+        return area(c.box) < area(best.box) ? c : best;
+      }, null);
+    const best =
+      pick(plates.filter((p) => !isBig(p.box) && bigger(p.box) && holds(p.box)), false) ??
+      pick(plates.filter((p) => !isBig(p.box) && bigger(p.box) && lineSitsIn(r, p.box)), true) ??
+      pick(plates.filter((p) => isBig(p.box) && bigger(p.box) && holds(p.box)), false);
     if (best) out[id] = best.id;
   }
   return out;
@@ -865,6 +931,80 @@ function boxName(label: string, fill: string): string {
   if (isReadableBoxName(label)) return label.trim();
   const word = colourWord(fill);
   return word ? `${word[0].toUpperCase()}${word.slice(1)} plate` : 'Plate';
+}
+
+/** The size below which the runtime REPORTS a value as too long, as a share of the drawn size -
+ *  the runtime's `SVG_FIT_FLOOR` (runtime/svgFit.js), held equal by scripts/svg-step-proposal.test.mjs. */
+export const WRAP_REPORT_FLOOR = 0.55;
+
+/**
+ * CAN THIS LINE WRAP AT ALL - does "wraps" or "stays on one line" change what airs?
+ *
+ * The runtime wraps a line into the room drawn below it, and a line with a title drawn right
+ * under it has none: there both answers paint the same one line, and offering the choice would
+ * be a control that does nothing (`wizard/offer-control-can-change-graphic-front`, review of
+ * 2026-11-20). So this mirrors the runtime's ceiling (`svgFitCeiling`): the room's bottom less
+ * its top padding, stopped at the drawn bottom of this line by anything drawn under it inside
+ * the room, and a block CENTRED in its box may use the box symmetrically, less half a line at
+ * each edge. The line can wrap when that height holds two lines at the size where a value starts
+ * being reported too long. The room is the line's box, else what is drawn, cut to the frame.
+ * Curved text (a textPath) never wraps: the fitter leaves it alone.
+ */
+export function lineCanWrap(stage: HTMLElement, lineId: string, boxId: string | null, lineIds: string[]): boolean {
+  const node = markerEl(stage, lineId);
+  if (!(node instanceof SVGTextContentElement) || node.querySelector('textPath') || node.closest('textPath')) return false;
+  const root = stage.querySelector('svg');
+  const frame = root?.getBoundingClientRect();
+  const r = node.getBoundingClientRect();
+  if (!frame || !(r.width > 0) || !(r.height > 0)) return false;
+  let run: Element = node;
+  while (run.firstElementChild) run = run.firstElementChild;
+  const ctm = node.getScreenCTM();
+  const k = ctm ? Math.sqrt(ctm.a * ctm.a + ctm.b * ctm.b) : 1;
+  const size = (parseFloat(getComputedStyle(run).fontSize) || 0) * k;
+  if (!(size > 0)) return false;
+  const frameArea = frame.width * frame.height;
+  const drawn = Array.from(root!.querySelectorAll('rect, path, polygon, ellipse, circle, image, use, line, polyline, text, tspan'))
+    .filter((o) => o !== node && !o.contains(node) && !node.contains(o))
+    .map((o) => o.getBoundingClientRect())
+    .filter((b) => b.width > 0 && b.height > 0);
+  let room: { top: number; bottom: number; left: number; right: number };
+  const plate = boxId ? markerEl(stage, boxId)?.getBoundingClientRect() : undefined;
+  if (plate && plate.width > 0) room = plate;
+  else {
+    room = { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+    for (const b of drawn) {
+      if (b.width * b.height >= frameArea * SVG_BACKPLATE_SHARE) continue;
+      room = { top: Math.min(room.top, b.top), bottom: Math.max(room.bottom, b.bottom), left: Math.min(room.left, b.left), right: Math.max(room.right, b.right) };
+    }
+    room = { top: Math.max(room.top, frame.top), bottom: Math.min(room.bottom, frame.bottom), left: Math.max(room.left, frame.left), right: Math.min(room.right, frame.right) };
+  }
+  const roomArea = (room.right - room.left) * (room.bottom - room.top);
+  const inside = (b: DOMRect) => b.left >= room.left - 1 && b.right <= room.right + 1 && b.top >= room.top - 1 && b.bottom <= room.bottom + 1;
+  // The top padding mirrored: the gap above the first bound line drawn in the room.
+  let first: number | null = null;
+  for (const id of lineIds) {
+    const b = markerEl(stage, id)?.getBoundingClientRect();
+    if (!b || !(b.width > 0) || b.left < room.left - 1 || b.left >= room.right || b.top < room.top - 1 || b.top >= room.bottom) continue;
+    if (first === null || b.top < first) first = b.top;
+  }
+  let ceiling = room.bottom - (first === null ? 0 : Math.max(0, first - room.top));
+  let under = false;
+  for (const b of drawn) {
+    if (b.width * b.height >= roomArea - 1 || !inside(b)) continue;
+    if (b.right < r.left + 1 || b.left > r.right - 1 || b.top < r.bottom - 1) continue;
+    under = true;
+    ceiling = Math.min(ceiling, r.bottom);
+  }
+  let height = Math.max(r.height, ceiling - r.top);
+  // A block centred in its box with nothing under it grows both ways (the runtime's band).
+  const centred = Math.abs((r.top + r.bottom) / 2 - (room.top + room.bottom) / 2) <= (room.bottom - room.top) * SVG_ALIGN_TOL;
+  if (plate && centred && !under) height = Math.max(height, room.bottom - room.top - size * SVG_LINE_HEIGHT);
+  // Two lines are one line STEP plus one line's own box, both at the smaller size - and the box is
+  // the face's own (a serif's runs a third taller than its size), because the runtime checks the
+  // painted block's height rather than counting steps.
+  const at = size * WRAP_REPORT_FLOOR;
+  return at * (SVG_LINE_HEIGHT + r.height / size) <= height + 0.5;
 }
 
 /**

@@ -54,7 +54,7 @@ import { escapeHtml, PREFIX } from './shared';
 import { bindSvgMarkup, candidateLabel } from './svgBind';
 import { svgFontCss } from './svgFonts';
 import { hasQrLayer, QR_CSS, QR_HOOK, qrField, qrHolderHtml, qrRuntimeJs } from './svgQr';
-import { LAYOUT_EL_ATTR, layoutDataJs, layoutRules, saidLines } from './svgLayout';
+import { LAYOUT_EL_ATTR, PANEL_SAFE, layoutDataJs, layoutLineJs, layoutRules, layoutTableJs, readLayoutLines, saidLines, type LayoutLine } from './svgLayout';
 import svgFitSource from './runtime/svgFit.js?raw';
 import svgFitBootSource from './runtime/svgFitBoot.js?raw';
 import svgGrowthSource from './runtime/svgGrowth.js?raw';
@@ -87,6 +87,14 @@ export const SVG_ALIGN_TOL = 0.05;
  * runtime/svgFit.js, owner 2026-09-02). Two spellings of half a line would be two rooms.
  */
 export const SVG_LINE_HEIGHT = 1.2;
+
+/**
+ * A SHAPE THIS MUCH OF THE FRAME IS A BACKPLATE, not a box: it holds every line there is. The
+ * mapping step will not group by one (`withoutBackplates`), and the fit asks one LAST, after the
+ * bar a line sits on - an exporter's unfilled artboard rectangle beat a tall name's bar and the
+ * name ran off the frame (review of 2026-11-20). One number, filled into the runtime.
+ */
+export const SVG_BACKPLATE_SHARE = 0.7;
 
 /** A FIGURE: digits and the marks a score or a clock carries, and no letters. A centred figure
  *  keeps no side margin beyond its own glyphs' bearings (`svgAlignOf`, runtime/svgFit.js), so a
@@ -150,7 +158,7 @@ function fillRuntime(text: string, values: Record<string, string | number>): str
  * The full reasoning is plan §6b "THE ROOM RULE FOR A PLACED LINE".
  */
 // The runtime is `runtime/svgFit.js`; the leading line break is the one the string always began with.
-const SVG_FIT_JS = `\n${fillRuntime(svgFitSource, { PREFIX, SVG_ALIGN_TOL, SVG_LINE_HEIGHT })}`;
+const SVG_FIT_JS = `\n${fillRuntime(svgFitSource, { PREFIX, SVG_ALIGN_TOL, SVG_LINE_HEIGHT, SVG_BACKPLATE_SHARE, PANEL_SAFE })}`;
 
 /**
  * THE FIT'S BOOT - the two load-time passes and the arrives-later observer - emitted LAST in the
@@ -183,6 +191,33 @@ const SHAPE_SHIFT_JS = `\n${fillRuntime(svgShapeShiftSource, {})}`;
 // The runtime is `runtime/svgGrowth.js`. The string always began with a line break and never
 // ended with one; the file ends with one, as a file does, so it comes off here.
 const SVG_GROWTH_JS = `\n${fillRuntime(svgGrowthSource, { PREFIX, LAYOUT_EL_ATTR }).replace(/\n$/, '')}`;
+
+/**
+ * A BUILT IMPORT WITH SAID LINES ADDED to its layout table - what a reimport carries across onto
+ * the fields it matched (`svgReimported`): the wrap, alignment and nudge a reader set on the
+ * earlier graphic stay set when the artwork changes underneath them, as their titles do. A line
+ * the build already says something about keeps the build's answer. A build with no table gets
+ * one, right after the fit runtime, which is where the build puts it; null where the build's
+ * text is not this module's and the table cannot be placed.
+ */
+export function withLayoutLines(js: string, add: LayoutLine[], titleOf: (el: string) => string): string | null {
+  const have = readLayoutLines(js);
+  const fresh = add.filter((l) => !have.some((h) => h.el === l.el));
+  if (fresh.length === 0) return js;
+  const said = [...have, ...fresh].map((l) => layoutLineJs(l, titleOf(l.el)));
+  const table = /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(js);
+  if (table) {
+    const body = table[0].replace(/,\n {2}\/\/ Which edge each of these lines[\s\S]*?\n {2}lines: \[[\s\S]*?\n {2}\]/, '');
+    const rows = /\n {2}rules: \[\n([\s\S]*?)\n {2}\]/.exec(body)?.[1];
+    if (rows === undefined) return null;
+    const rebuilt = /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(layoutTableJs(rows ? [rows] : [], said))![0];
+    return js.replace(table[0], rebuilt);
+  }
+  const at = js.indexOf(SVG_FIT_JS);
+  if (at === -1) return null;
+  const end = at + SVG_FIT_JS.length;
+  return `${js.slice(0, end)}\n${layoutTableJs([], said)}${js.slice(end)}`;
+}
 
 /** The shared update()'s optional placed-text hook line (templates/shared/base.ts runtimeJs).
  *  An imported SVG REPLACES it with its own: its ladder (runtime/svgFit.js) fits the placed

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Hand-written in a text editor by a student for a stream's top strap, the way the class's
+     cheat sheet shows: no shapes behind the words at all, just a guest's name on the left and a
+     LIVE label set flush right, both floating on the stream, and a thin rule under the pair. The
+     name is start-anchored and grows rightwards; LIVE is end-anchored and grows leftwards, so the
+     two grow TOWARDS each other with nothing drawn under either. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <text id="Guest" x="120" y="120" font-family="Inter" font-size="40" fill="#ffffff">Alex Stone</text>
+  <text id="Live" x="900" y="120" font-family="Inter" font-size="40" fill="#f6a623" text-anchor="end">LIVE</text>
+  <line x1="120" y1="150" x2="900" y2="150" stroke="#ffffff" stroke-width="2"/>
+</svg>
