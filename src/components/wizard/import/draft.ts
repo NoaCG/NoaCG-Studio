@@ -246,6 +246,9 @@ export interface SvgFieldDraft {
    * drawing has one. Absent = false: the block snaps onto its anchor, the owner's default.
    */
   keepNudge?: boolean;
+  /** STAYS ON ONE LINE - the too-long answer of a row with no box of its own, where nothing can
+   *  grow. Absent = wraps into the room the drawing has, which is every row's start. */
+  oneLine?: boolean;
 }
 
 /**
@@ -1935,6 +1938,7 @@ export function svgDesignOptions(draft: SvgImportDraft): DesignSvg | undefined {
         // build the bytes it built before the alignment grid existed.
         ...(f.align ? { align: f.align } : {}),
         ...(f.keepNudge ? { nudge: true } : {}),
+        ...(f.oneLine ? { oneLine: true } : {}),
       })),
     images: draft.svgImages
       .filter((f) => f.on)

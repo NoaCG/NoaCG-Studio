@@ -63,13 +63,14 @@ test('saidLines: the lines with an alignment or a nudge, by field index, never t
   assert.deepEqual(saidLines(design({ fields })).map(({ i }) => i), [0, 2, 4]);
 });
 
-test('layoutDataJs: the whole emitted table for two rules and two said lines', () => {
+test('layoutDataJs: the whole emitted table for two rules and three said lines', () => {
   const svg = design({
     fields: [
       field('c0', 'Name', { align: { h: 'middle', v: 'top' } }),
       field('c1', 'Clock', { countdown: true, align: { h: 'end', v: 'bottom' } }),
       field('c2', 'Role', { nudge: true }),
       field('c3', 'Plain'),
+      field('c4', 'Caption', { oneLine: true }),
     ],
     growth: [
       { candidateId: 'panel', followers: [{ candidateId: 'cap' }, { candidateId: 'rail', mode: 'grow' }] },
@@ -110,12 +111,15 @@ var NOACG_LAYOUT = {
   ],
   // Which edge each of these lines fills from and where its block sits in its box, as the author
   // set it on the Fields step. A line not listed is aligned the way it was drawn. \`nudge: true\`
-  // keeps the offset the designer left between the block and its anchor.
+  // keeps the offset the designer left between the block and its anchor. \`wrap: false\` keeps
+  // the line on one line: a longer value gets smaller instead of wrapping.
   lines: [
     // "Name" - centred, top.
     { el: 'f0', h: 'middle', v: 'top' },
     // "Role" - as drawn; keeps the nudge it was drawn with.
-    { el: 'f2', nudge: true }
+    { el: 'f2', nudge: true },
+    // "Caption" - as drawn; stays on one line.
+    { el: 'f4', wrap: false }
   ]
 };
 `,

@@ -155,6 +155,10 @@ const STRETCH_HINT: Record<Exclude<StretchMode, 'shrink'>, string> = {
 
 
 
+/** A ticked TEXT row: the rows a box's too-long answer reaches. A countdown is a clock, whose
+ *  value never gets longer. */
+const wrapsOrNot = (f: SvgFieldDraft) => f.on && f.kind !== 'countdown';
+
 /** Does this row belong with the text-shaped ones? An unmeasured row (null) does — it has not
  *  been judged, and demoting it would bury a row for a reason nobody can see. A row the reader
  *  already ticked does too, whatever the measurement thought. */
@@ -658,9 +662,11 @@ export default function MapSvgFieldsStep({
   /** ONE BOX HOLDING EVERY LINE IS NOT A GROUPING - but it is still the thing that grows, and
    *  the heading is now where its answer lives. So a heading appears wherever there is more than
    *  one place to put text, AND on the single box a lower third draws, whose hug would otherwise
-   *  have no control at all. Text inside no shape still gets no heading of its own on a file
-   *  with one group: there is nothing to say about it and nothing to set. */
-  const showBoxGroups = fieldGroups.length > 1 || !!fieldGroups[0]?.boxId;
+   *  have no control at all. Text inside no shape gets a heading too wherever a line in it is
+   *  ticked, because it has its own too-long answer to set (owner, 2026-11-20: every text field
+   *  chooses what happens when the text gets longer). */
+  const showBoxGroups =
+    fieldGroups.length > 1 || !!fieldGroups[0]?.boxId || !!fieldGroups[0]?.fields.some(wrapsOrNot);
 
   // ── HOW FAR A GROWING BOX MAY REACH (docs/TEXT_BOX_BINDING.md, rung 4) ──
   // The limit is a line on the preview the reader can move, and every value it can reach is a
@@ -1220,7 +1226,29 @@ export default function MapSvgFieldsStep({
                 {/* TRUE OF BOTH WAYS A LINE ENDS UP HERE: nothing drawn under it at all, and
                     nothing under it but the board's own backplate. Either way there is no box
                     around it that could grow, which is the consequence the reader needs. */}
-                {!group.boxId && <span>no box of their own, so nothing grows around them</span>}
+                {/* TEXT WITH NO BOX STILL CHOOSES (owner, 2026-11-20: "for any text field, you
+                    should be able to choose"). Nothing can grow around it, so its two answers are
+                    the other two rungs: it uses the graphic's whole length first, then wraps or
+                    gets smaller. Offered while a ticked text line is in the group - an unticked
+                    one is artwork and never changes. */}
+                {!group.boxId && !group.fields.some(wrapsOrNot) && <span>no box of their own, so nothing grows around them</span>}
+                {!group.boxId && group.fields.some(wrapsOrNot) && (
+                  <select
+                    className="map-svg-box-grow"
+                    value={group.fields.filter(wrapsOrNot).every((f) => f.oneLine) ? 'one' : 'wrap'}
+                    aria-label={`What text ${group.label.toLowerCase()} does when it is too long`}
+                    title="This text has no box of its own, so nothing grows around it. It uses the whole length of your graphic first, then does this."
+                    onChange={(e) => {
+                      const one = e.target.value === 'one' || undefined;
+                      const ids = new Set(group.fields.map((f) => f.candidateId));
+                      onDraft({ svgFields: draft.svgFields.map((f) => (ids.has(f.candidateId) ? { ...f, oneLine: one } : f)) });
+                    }}
+                    data-testid={`map-svg-box-wrap-${group.fields[0].candidateId}`}
+                  >
+                    <option value="wrap">wraps, then gets smaller</option>
+                    <option value="one">stays on one line, gets smaller</option>
+                  </select>
+                )}
                 {/* WHAT THIS BOX DOES WITH A LONG VALUE (docs/TEXT_BOX_BINDING.md, rung 4), on
                     the row that already names it - so one plate may grow while its neighbours
                     stay, and the shape is never asked for, because the row IS the shape.

@@ -273,8 +273,12 @@ export function repeatsWithNewContent(stage: HTMLElement, holderIds: string[]): 
  *    veto the whole file, which is why the shipped Illustrator lower third - three stacked lines
  *    above one such pair - defaulted to shrinking (owner, 2026-08-26). A graphic whose lines are
  *    ALL side by side still refuses: that is a composed row, a scorebug, and it declares a stage.
- *  - those stacked lines every one START-anchored (an end- or middle-anchored line is composed
- *    against a point growth would move away from - the scorebug's score figures, a centred clock);
+ *  - fewer than two figures on the whole graphic (two scores make a scoreboard), and
+ *  - those stacked lines not ALL figures (a score, a clock): a figure changes digits, not
+ *    length. A centred or right-set line counts on a STRIP (five times wider than tall) since
+ *    2026-11-20 - it grows its banner from the middle or leftwards (`svgGrowDir`), and a
+ *    student's centred lower third is still a lower third - while a centred title card's plate
+ *    keeps its size. Lines are ON the banner the way the checklist groups them (`lineSitsIn`);
  *
  * Deliberately NOT measured: the artboard, or the panel's size against it. The 2026-08-23
  * ruling stands - the shipped lower third is a full-frame artboard and the shipped scorebug a
@@ -299,8 +303,12 @@ export function proposeBannerGrowth(stage: HTMLElement, svg: SvgImportResult, on
     if (!node) return [];
     const r = node.getBoundingClientRect();
     if (!(r.width > 0) || !(r.height > 0)) return [];
-    return [{ r, anchor: getComputedStyle(node).textAnchor || 'start' }];
+    return [{ r, anchor: getComputedStyle(node).textAnchor || 'start', figure: isSvgFigure(node.textContent ?? '') }];
   });
+  // TWO SCORES MAKE A SCOREBOARD. Its period strip is a wide plate holding one stacked line, so
+  // with the anchor no longer a veto it would read as a banner; a graphic carrying two or more
+  // figures is a board that declares a stage, whatever its plates look like.
+  if (lines.filter((l) => l.figure).length >= 2) return null;
   const tol = 2;
   for (const s of svg.shapes) {
     // Widest first, which the inventory already is: the banner is the widest rectangle on it.
@@ -309,13 +317,10 @@ export function proposeBannerGrowth(stage: HTMLElement, svg: SvgImportResult, on
     const sr = node.getBoundingClientRect();
     if (!(sr.width > 0) || !(sr.height > 0) || sr.width / sr.height < 1.5) continue;
     if (sr.right > frame.left + frame.width * 0.94) continue;
-    const inside = lines.filter(
-      (l) =>
-        l.r.left >= sr.left - tol &&
-        l.r.right <= sr.right + tol &&
-        l.r.top >= sr.top - tol &&
-        l.r.bottom <= sr.bottom + tol,
-    );
+    // ON the banner rather than strictly inside it (owner, 2026-11-20: a student's lower third is
+    // still a lower third when its name is drawn a touch taller than the bar, or starts a few
+    // units left of it). The test the boxes are named by, so the banner and its rows agree.
+    const inside = lines.filter((l) => lineSitsIn(l.r, sr) && l.r.right <= sr.right + tol);
     if (inside.length === 0) continue;
     // The lines that have a baseline TO THEMSELVES. Those are the ones a wider panel actually
     // helps, so they are the ones the question is asked about.
@@ -328,7 +333,14 @@ export function proposeBannerGrowth(stage: HTMLElement, svg: SvgImportResult, on
         }),
     );
     if (stacked.length === 0) continue;
-    if (stacked.some((l) => l.anchor !== 'start')) continue;
+    // A centred or right-set name widens its banner from the middle or leftwards (`svgGrowDir`,
+    // runtime/svgGrowth.js), so on a STRIP - a bar at least five times as wide as it is tall, the
+    // shape of a lower third - the anchor no longer argues against growing. A centred title card
+    // or endboard plate is not a strip, and keeps the size it was drawn.
+    if (stacked.some((l) => l.anchor !== 'start') && sr.width / sr.height < 5) continue;
+    // A plate holding only FIGURES (a score, a clock) still says no: its value changes digits,
+    // never length.
+    if (stacked.every((l) => l.figure)) continue;
     return s.id;
   }
   return null;
@@ -398,7 +410,10 @@ export function panelsHoldingText(
  *  the ONE place the step spells it, because two spellings of it is how the shapes offered as
  *  growable and the plates named per layer drift into two different answers. */
 function lineSitsIn(line: { top: number; bottom: number; left: number }, box: DOMRect): boolean {
-  return line.top < box.bottom && line.bottom > box.top && line.left >= box.left - 1 && line.left < box.right;
+  // A line started a little LEFT of its bar still sits on it - within half its own height, the
+  // allowance the runtime's loose panel test keeps too (`svgFitContainer`, runtime/svgFit.js).
+  const tol = Math.max(1, (line.bottom - line.top) / 2);
+  return line.top < box.bottom && line.bottom > box.top && line.left >= box.left - tol && line.left < box.right;
 }
 
 /**
