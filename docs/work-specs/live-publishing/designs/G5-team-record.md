@@ -34,7 +34,8 @@ changes when someone updates or adds a graphic.
   switch. The `s256-` path exists since G4; issue #2586 is a configured walk that pins the older key
   form, not a product fault.
 - **Design name.** SHA-256 of the design's `jsonb` text as the database stores it, 64 lowercase hex
-  characters, computed by the server (pgcrypto `digest`). The page never computes one; it learns
+  characters, computed by the server:
+  `encode(extensions.digest(convert_to(body::text, 'UTF8'), 'sha256'), 'hex')`. The page never computes one; it learns
   names from the server's answers.
 - **Split record.** A team record in which some graphics carry `designRef: <design name>` in place of
   `template`. Everything else in the record is as today.
@@ -109,13 +110,12 @@ check (0119's `for no key update`), so a form or token read cannot change under 
   record it writes is whole (the trigger sets `doc_form` null). That is how a new page with the
   switch off turns a split record whole again.
 - `team_production_patch` (the `partial_writes` path). Unmarked request on a split row: the same
-  refusal, before the token check. Marked request: patches only a row whose form is the one the
-  switch calls for (split while on, whole while off); any other row answers `replaced`, writing
-  nothing, and the page then stores whole or split. **A patch never changes a record's form:** for
+  refusal, before the token check. It reads no switch. **A patch never changes a record's form:** for
   any request, a patched result whose form (by content: any `designRef` or none) differs from the
   stored row's answers `replaced` and writes nothing. A result the form trigger refuses (mixed
   content, a `template` in a split record, a name the production does not hold) answers `replaced`
-  too.
+  too. After `replaced` the page stores the record whole or split, as its reading of the switch
+  says, so a page whose reading lags costs one extra round trip and nothing else.
 - `team_production_units_set` (0119, the unit map after a whole or stored save): unchanged. It
   writes only at a matching `rev`; an old page never learns a split record's revision, and the map a
   new page sends for a split record is computed over the split form (section 3). The unit map it keeps describes the stored
@@ -137,9 +137,13 @@ whole, so an old page is never handed a split record. Definer functions (`contro
 0118, and those above) are not subject to it because their owner owns the table, which has no
 `force row level security`; the service role bypasses row security.
 
-**The publish guard (live-path).** A `before` trigger on `control_shows`, firing on the events and
+**The publish guard (live-path).** A `before` trigger on `control_shows`, function
+`control_shows_team_designs_guard()`, with its helpers named under the live-path prefix too
+(`control_team_designs_marked()`, the mark; `control_team_record_split(uuid)`, the `doc_form`
+probe), so any later change to the guard or its helpers is classified live-path by
+`scripts/db-push.mjs` and waits for a quiet window. The trigger firing on the events and
 columns of 0115's `control_shows_production_authoring_guard` (insert, delete, update of `output`,
-`panel`, `title`, `profile`, `bindings`, `sources`, `collections`, a Pause or Resume passing), refuses
+`panel`, `title`, `profile`, `bindings`, `sources`, `collections`, a Pause or Resume passing) refuses
 with `Reload this page to edit` an authenticated, unmarked API write for a production whose team
 record is split. So an old page, which can no longer read the record it would publish from, cannot
 replace a newer publication with what it holds, unpublish, or delete it. 0118 alone does not stop
@@ -159,8 +163,11 @@ The `Show` in memory, the outbox, the three-way merge, Undo, publishing and the 
 unchanged: they hold whole records. Only the trip to and from `team_productions` changes, in
 `src/backend/teamProductions.ts`.
 
-**Reading is decided by the data.** Every record a new page receives (the fetch, a refusal's
-`doc`) is made whole before anything else sees it: each graphic with a `designRef` gets `template`
+**Reading is decided by the data.** The fetch selects `doc_form` with `doc`, and refusal answers
+carry it. A value other than null or 1 is a later form: the read fails like a read error (R11) and
+the page keeps its copy, read-only for that record until a build that knows the form
+(`root/version-every-persisted-format-ship-breaking`). Otherwise every record a new page receives
+(the fetch, a refusal's `doc`) is made whole before anything else sees it: each graphic with a `designRef` gets `template`
 from the page's design cache (per production, name to body) and loses `designRef`, so the page
 never holds both. The names the cache lacks are read with `team_designs_read`, per production, at
 most 8 names per call (about 1.2 MB at the score's size), so a first load at 60 graphics is a few
@@ -205,8 +212,8 @@ today; one would delete the row the same way.)
 For graphics with a `designRef` it reads those designs' `fields` from `team_production_designs` in
 the same request, so `noacg_library` answers what it answers today.
 
-**Test helpers.** Configured specs and helpers that read `team_productions.doc` directly
-(`e2e/configured/teams.spec.ts`, `_five.ts`, `publish-guard.spec.ts`) send the designs mark and
+**Test helpers.** Configured specs and helpers that read or write `team_productions.doc` directly
+(`e2e/configured/teams.spec.ts`, `_five.ts`, `publish-guard.spec.ts`, `connector-tools.spec.ts`) send the designs mark and
 resolve designs, or read through the page, so none goes blind on a split row.
 
 ## 4. Old and new pages at once
@@ -245,7 +252,8 @@ Observable lines, each checked by a test named in section 8.
   body. Designs are only added, never changed.
 - **R5** `doc_form` is 1 exactly when the stored `doc` carries a `designRef`, on every write route
   (the form trigger). A record changes form only through `team_production_store` (to split: marked,
-  switch on) or `team_production_save` (to whole); a patch never changes a record's form. An insert, a
+  switch on), `team_production_save` (to whole) or, for the revert, `team_production_unsplit` (to
+  whole); a patch never changes a record's form. An insert, a
   `team_production_save` and a patch of a whole record never store a `designRef`. No migration
   rewrites a stored record.
 - **R16** In a stored split record every graphic carries a `designRef` and none a `template`, on
@@ -264,7 +272,8 @@ Observable lines, each checked by a test named in section 8.
   in its stored form, with `doc_form` and the token.
 - **R10** With the switch off, before the page has read it on, or without Web Crypto, a new page
   saves whole through today's path, and that save makes a split record whole.
-- **R11** A new page never holds a graphic without its design: a read that cannot resolve every
+- **R11** A new page never holds a graphic without its design, nor a record of a form it does not
+  know: a read with `doc_form` other than null or 1, or that cannot resolve every
   `designRef` changes nothing on the page and reports a read error.
 - **R12** Clients have no privilege on `team_production_designs`; only members of the production's
   team read or add its designs, through the functions; a suspended account does neither.
@@ -371,7 +380,8 @@ anything while one is split.
   section 3 and section 4's table (record form, switch, known names, operation, token) gives the
   expected requests and the page's resulting record, and a fake server answers as section 2 says,
   over random sequences of saves, design changes, switch flips, refusals and reads. It checks the
-  page's rules: R1, R8, R10, R11 and R15. It does not reuse the production split, read or merge
+  page's rules: R1, R8, R10 (a page without Web Crypto included), R11 (an unknown `doc_form`
+  included) and R15. It does not reuse the production split, read or merge
   code, and it proves nothing about the SQL: the server's rules (R3 to R7, R9, R12 to R14) are
   proven only by the self-check and the configured spec below.
 - Round trip: split then read over the phase 8 fixtures and a 60-graphic record equals the whole
@@ -394,10 +404,15 @@ anything while one is split.
   | the publish guard | unmarked publish, unpublish, delete of a split production: refused; a Pause, a heartbeat (`output_seen_at`) and a live cue write: pass; marked: pass | R7, R14 |
   | `team_production_unsplit` | the whole record back, `doc_form` null, token advanced | revert |
 
-- `scripts/db-push.test.mjs` for the live-path header.
+- `scripts/db-push.test.mjs`: this migration is classified live-path, and so is a later file that
+  only replaces `control_shows_team_designs_guard` or one of its `control_` helpers.
+- The connector tools: `e2e/configured/connector-tools.spec.ts` gains a split team record (designs
+  stored through the functions), and `noacg_library` answers that production exactly as it answers
+  the same record whole (names, fields, cues).
 - The configured suite, extended in `e2e/configured/teams.spec.ts`, against the real database with
   the switch on: two new pages edit one 6-graphic team production and each sees the other's cue
-  edits (R1); the stored record is split (R5); after a reload a cue edit makes no
+  edits (R1); the stored record is split (R5); its graphics carry base64 images, so the image round
+  trip through Storage is part of what R8 checks; after a reload a cue edit makes no
   `team_designs_put` call (R8); after a graphic's design changes, the stored graphic carries a new
   `designRef` and no `template` and the next cue edit makes no `team_designs_put` call (R16, R8);
   requests without the designs mark, as an old page makes them, get
