@@ -54,6 +54,8 @@ async function cloud(page: Page) {
       if (url.pathname === '/rest/v1/team_members') return respond(state.doc ? [{ team_id: team, user_id: owner, display_name: 'Operator', role: 'owner', joined_at: state.token }] : []);
       return respond(teamRow());
     }
+    // A database without team designs (live-publishing G5): its team reads go as before.
+    if (url.pathname === '/rest/v1/rpc/team_designs_state') return respond({ code: 'PGRST202', message: 'Could not find the function' }, 404);
     if (url.pathname.startsWith('/storage/v1/object/')) {
       if (state.silentStorage) await hold();
       if (state.goneStorage) return respond({ statusCode: '404', error: 'not_found', message: 'Object not found' }, 400);

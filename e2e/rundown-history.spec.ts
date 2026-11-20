@@ -39,6 +39,8 @@ async function teamBackend(page: Page, server = false) {
     if (url.pathname === '/auth/v1/user') return respond(user);
     if (url.pathname === '/rest/v1/teams') return respond([{ id: team, name: 'History team', join_code: 'testcode', owner_id: owner, created_at: state.token }]);
     if (url.pathname === '/rest/v1/team_members') return respond([{ team_id: team, user_id: owner, display_name: 'Operator', role: 'owner', joined_at: state.token }]);
+    // A database without team designs (live-publishing G5): its team reads go as before.
+    if (url.pathname === '/rest/v1/rpc/team_designs_state') return respond({ code: 'PGRST202', message: 'Could not find the function' }, 404);
     if (url.pathname === '/rest/v1/team_productions') return respond(state.doc ? [{ id: state.doc.id, team_id: team, updated_at: state.token, updated_by: owner, doc: state.doc }] : []);
     if (url.pathname === '/rest/v1/rpc/team_production_save') {
       state.calls++;
