@@ -244,8 +244,9 @@ export interface AgentError {
  *  the channels a server reports it has. `gain-20` is a take's gain up to +20 dB. `media-folder` is
  *  `/media-folder`: the shared folder each remembered CasparCG server's files are read from.
  *  `audio` is `/audio/start`, `/audio/job` and `/audio/cancel`: the waveform and loudness jobs,
- *  listed only when this Bridge carries its audio reader. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard' | 'vmix-player-transport-guard' | 'gain-20' | 'media-folder' | 'audio';
+ *  listed only when this Bridge carries its audio reader. `osc` is `/osc`: one OSC message sent as
+ *  one UDP datagram (docs/work-specs/osc-control-cues). */
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media' | 'vmix-player-out-guard' | 'vmix-player-transport-guard' | 'gain-20' | 'media-folder' | 'audio' | 'osc';
 
 /** The loudest gain a take's `playback.gain` may carry: +20 dB with the `gain-20` feature, +6 dB
  *  (2) before it. The page asks for `gain-20` before it sends anything above +6 dB. */
@@ -666,6 +667,30 @@ interface TerminalAmcpReply extends AmcpReply {
   command: string;
 }
 
+/** One OSC argument as the page sends it: a string, an int32 or a float32, its value as typed. */
+export interface OscArgWire {
+  type: 's' | 'i' | 'f';
+  value: string;
+}
+
+/** What `POST /osc` takes: one message for one destination, under the press's own send id. */
+export interface OscRequestWire {
+  sendId: string;
+  host: string;
+  port: number;
+  address: string;
+  args: OscArgWire[];
+}
+
+/** What `POST /osc` answers when the datagram left this computer: the numeric address it went to
+ *  and its size. UDP has no receipt, so this is never proof a device acted on it. `repeat` says a
+ *  request with this send id was answered before and nothing was sent again. */
+interface OscReply {
+  ok: true;
+  sent: { to: string; bytes: number };
+  repeat?: true;
+}
+
 interface BridgeRepliesByRoute {
   '/health': HealthReply;
   '/status': StatusReply;
@@ -681,6 +706,7 @@ interface BridgeRepliesByRoute {
   '/list': ListReply;
   '/thumbnail': ThumbnailReply;
   '/amcp': TerminalAmcpReply;
+  '/osc': OscReply;
   '/media-folder': MediaFolderReply;
   '/audio/start': AudioJobReply;
   '/audio/job': AudioJobReply;

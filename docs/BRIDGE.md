@@ -455,6 +455,7 @@ Routes, all JSON:
 | `POST /state` | yes | `{ target, channel }` -> what each layer of the channel holds, one `SlotState` per layer (`INFO <channel>`); not logged, since it runs twice a second |
 | `POST /act` | yes | `{ target, action }` -> one action, one or more commands; the reply carries the slot's `generation`, the Bridge's `session`, for a take or a sequence its `instance`, and a `warning` when a later command of the action was refused after the first went through |
 | `POST /amcp` | yes | one raw line, the terminal's route |
+| `POST /osc` | yes | Unreleased: `{ sendId, host, port, address, args }` -> `{ sent: { to, bytes } }`, one OSC message as one UDP datagram; no target, no adapter. A repeated `sendId` answers the first outcome with `repeat: true` and sends nothing. Destinations: loopback, private, link-local and 100.64/10 IPv4 unicast; public only with `--allow-public-osc`; broadcast, multicast and `0.0.0.0` never (`docs/work-specs/osc-control-cues/spec.md` D6, D7) |
 
 **Two lists, two questions** (0.4.2, `CLIP_PLAYBACK_PLAN.md` §6.9). `features` on `/health` is what
 this Bridge build understands; it names no server, so it says nothing about one. `capabilities` on

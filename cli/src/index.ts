@@ -73,7 +73,7 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
                                  delivery; the same command again resumes it, never a second copy.
                                  --production also makes a production of them, ready to open.
   status <id>                    What a save or pack --save delivered, and whether it is there now.
-  bridge [--port 8899] [--origin URL]... [--vmix-port 8099] [--no-open] [--quiet]
+  bridge [--port 8899] [--origin URL]... [--vmix-port 8099] [--no-open] [--quiet] [--allow-public-osc]
                                  Run NoaCG Bridge: the local process that lets the NoaCG page
                                  drive a playout server (docs/BRIDGE.md). 127.0.0.1 only.
   caspar status|send|play|stop   Talk AMCP to a CasparCG server from the terminal, no browser.

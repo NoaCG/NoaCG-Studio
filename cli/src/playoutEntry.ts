@@ -19,7 +19,7 @@ async function main(): Promise<number> {
   const out = new Out(args.flags.json === true);
   if (args.flags.help === true) {
     out.say('NoaCG Bridge - lets the NoaCG page in your browser drive a playout server on your studio network.');
-    out.say('Options: --port 8899  --origin <NoaCG URL>  --vmix-port 8099  --no-open  --quiet  --new-token');
+    out.say('Options: --port 8899  --origin <NoaCG URL>  --vmix-port 8099  --no-open  --quiet  --new-token  --allow-public-osc');
     out.say('         --measure <file> [--in <seconds>] [--out <seconds>]  the loudness of a file as it airs on a stereo programme');
     return 0;
   }
