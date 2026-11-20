@@ -65,7 +65,8 @@
       });
       // Chrome 98. The production model clones looks, cues and history with it. Those are plain
       // data, so a deep copy of objects, arrays, Date, RegExp, Map and Set (cycles kept) matches
-      // the real one; a function refuses as the real one does.
+      // the real one; a function refuses as the real one does. Typed arrays and ArrayBuffers are not
+      // plain data and come back as plain objects: nothing the output clones holds one.
       window.structuredClone || (window.structuredClone = function (root) {
         var seen = new Map();
         function copy(value) {

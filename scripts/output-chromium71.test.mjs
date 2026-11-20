@@ -50,7 +50,8 @@ test('the build check finds each built-in Chromium 71 lacks, and not ordinary co
   assert.deepEqual(found('s.replaceAll("a","b"); a.at(-1); a.findLast(f); a["matchAll"](r)'), ['replaceAll', 'at', 'findLast', 'matchAll']);
   assert.deepEqual(found('Object.hasOwn(o,"k"); Promise.allSettled(p); Promise.any(p)'), ['Object.hasOwn', 'Promise.allSettled', 'Promise.any']);
   assert.deepEqual(found('structuredClone(x); new WeakRef(x); window.structuredClone'), ['structuredClone', 'WeakRef', 'structuredClone']);
-  assert.deepEqual(found('step.at; ({ at: 1, matchAll: 2 }); x.any(); z.groupBy(); s.match(/a/g); o.hasOwnProperty("k")'), []);
+  assert.deepEqual(found('URL.canParse(u); AbortSignal.timeout(5); a.with(0, 1); s.intersection(t)'), ['URL.canParse', 'AbortSignal.timeout', 'with', 'intersection']);
+  assert.deepEqual(found('step.at; ({ at: 1, matchAll: 2 }); x.any(); z.groupBy(); s.match(/a/g); o.hasOwnProperty("k"); new URL(u)'), []);
 });
 
 /** output.html's classic shim script, run in a context that lacks the built-ins it shims. */

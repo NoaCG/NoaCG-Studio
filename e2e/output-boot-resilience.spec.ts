@@ -196,7 +196,11 @@ const MISSING_ON_71 = `(() => {
   const drop = (owner, name) => { try { delete owner[name]; } catch {} };
   for (const name of ['matchAll', 'replaceAll', 'at', 'isWellFormed', 'toWellFormed']) drop(String.prototype, name);
   for (const name of ['at', 'findLast', 'findLastIndex', 'toSorted', 'toReversed', 'toSpliced']) drop(Array.prototype, name);
-  for (const name of ['allSettled', 'any', 'withResolvers']) drop(Promise, name);
+  for (const name of ['allSettled', 'any', 'withResolvers', 'try']) drop(Promise, name);
+  drop(Array.prototype, 'with');
+  for (const name of ['union', 'intersection', 'difference', 'symmetricDifference', 'isSubsetOf', 'isSupersetOf', 'isDisjointFrom']) drop(Set.prototype, name);
+  for (const name of ['canParse', 'parse']) drop(URL, name);
+  for (const name of ['timeout', 'any']) drop(AbortSignal, name);
   for (const name of ['hasOwn', 'groupBy']) drop(Object, name);
   drop(Map, 'groupBy');
   drop(Array, 'fromAsync');

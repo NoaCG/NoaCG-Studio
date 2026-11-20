@@ -42,7 +42,10 @@ export const READER_WORDS = ['This output cannot show typed data yet', 'This out
 
 /** Built-ins CasparCG 2.3's Chromium 71 does not have (the Chrome version that added each in the
  *  comment). Instance methods are matched where called, by property name on any object; statics and globals by
- *  their full name, since `.any` or `.groupBy` alone would match ordinary code. */
+ *  their full name, since `.any` or `.groupBy` alone would match ordinary code. Not seen: a call
+ *  through `.call`/`.apply` on a prototype, a destructured static, and code shipped as text into
+ *  the graphic's iframe (composeDocument's runtime strings). The real-engine check for those is
+ *  e2e/output-boot-resilience.spec.ts, which boots the output with these built-ins removed. */
 export const MISSING_ON_71 = {
   methods: [
     'matchAll', // 73
@@ -52,6 +55,9 @@ export const MISSING_ON_71 = {
     'toSorted', 'toReversed', 'toSpliced', // 110
     'isWellFormed', 'toWellFormed', // 111
     'replaceChildren', // 86
+    'with', // 110
+    'intersection', 'difference', 'symmetricDifference', 'isSubsetOf', 'isSupersetOf', 'isDisjointFrom', // 122
+    // Set's `union` (122) is left out: it is a common name in ordinary libraries.
   ],
   statics: [
     'Promise.allSettled', // 76
@@ -60,6 +66,11 @@ export const MISSING_ON_71 = {
     'Promise.withResolvers', // 119
     'Object.groupBy', 'Map.groupBy', // 117
     'Array.fromAsync', // 121
+    'URL.canParse', // 120
+    'URL.parse', // 126
+    'AbortSignal.timeout', // 103
+    'AbortSignal.any', // 116
+    'Promise.try', // 128
   ],
   globals: [
     'structuredClone', // 98
@@ -131,6 +142,8 @@ function importsOf(ast) {
     if (!node || typeof node.type !== 'string') return;
     if ((node.type === 'ImportDeclaration' || node.type === 'ExportAllDeclaration' || node.type === 'ExportNamedDeclaration') && node.source) out.push(node.source.value);
     if (node.type === 'ImportExpression' && node.source.type === 'Literal' && typeof node.source.value === 'string') out.push(node.source.value);
+    // Rolldown writes some dynamic imports as a template literal with no expressions.
+    if (node.type === 'ImportExpression' && node.source.type === 'TemplateLiteral' && node.source.expressions.length === 0) out.push(node.source.quasis[0].value.cooked);
     // A worker or chunk the module loads by `new URL('./x.js', import.meta.url)`.
     if (node.type === 'NewExpression' && node.callee.type === 'Identifier' && node.callee.name === 'URL' && node.arguments[0]?.type === 'Literal' && /\.js$/.test(String(node.arguments[0].value))) out.push(node.arguments[0].value);
     for (const key of Object.keys(node)) {
