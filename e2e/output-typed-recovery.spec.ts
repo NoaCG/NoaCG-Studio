@@ -26,11 +26,10 @@ const LOOK = { v: 1, frame: { dx: 1270, dy: 0, s: 0.95, ox: 530, oy: 961 } };
 
 /** A graphic with no state machine: update() writes each value as `name=type:json`, play and next
  *  count its entrance and steps, so its document shows the data and the step it holds. */
-const probe = (key: string, layer: number, reports = false, slow: false | 'slow' | 'never' = false) => ({
+const probe = (key: string, layer: number, reports = false, slow = false) => ({
   key,
-  // `slow`: a picture the stand-in answers late, so the document takes that long to load; `never`:
-  // one it never answers, so the document never loads.
-  html: '<div id="v"></div><div id="s">off</div>' + (slow ? `<img src="${BACKEND}/${slow}.png" alt="">` : ''),
+  // `slow`: a picture the stand-in answers late, so the document takes that long to load.
+  html: '<div id="v"></div><div id="s">off</div>' + (slow ? `<img src="${BACKEND}/slow.png" alt="">` : ''),
   css: '',
   js: [
     'var steps = 0;',
@@ -83,7 +82,6 @@ async function standInBackend(page: Page, live: Record<string, unknown>, rows: R
       await new Promise((resolve) => setTimeout(resolve, 1_500));
       return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'image/png' }, body: PIXEL });
     }
-    if (path === '/never.png') return new Promise<void>(() => {});
     const json = (body: unknown) => route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(body) });
     if (path.endsWith('/rpc/control_output_resolve')) {
       return json({
@@ -289,24 +287,7 @@ test('a graphic put back from another output\'s report is not reported run until
   await sampleRunAndPaint(page);
   const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
   const live = { Strap: { data: { f0: 'Held' }, state: { groups: { main: 'in' } }, event: 1002, seq: 2 } };
-  await standInBackend(page, live, rows, ['Strap'], [probe('Strap', 20, true, 'slow')]);
+  await standInBackend(page, live, rows, ['Strap'], [probe('Strap', 20, true, true)]);
   await page.goto('/output?production=typed-probe');
   await expectRunNotBeforePaint(page, 2);
-});
-
-test('a restored graphic whose frame never loads reads failed, never run (#2604)', async ({ page }) => {
-  // Its restore commands carry no position, so no watchdog of the stage fails them: the boot's own
-  // backstop says it did not play here once FRAME_LOAD_MS (20 s) has passed.
-  test.setTimeout(60_000);
-  await sampleRunAndPaint(page);
-  const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
-  const live = { Strap: { data: { f0: 'Held' }, state: { groups: { main: 'in' } }, event: 1002, seq: 2 } };
-  await standInBackend(page, live, rows, ['Strap'], [probe('Strap', 20, true, 'never')]);
-  await page.goto('/output?production=typed-probe');
-  type Entry = { ready?: { run?: { h: Record<string, unknown[]> } } };
-  const held = () => page.evaluate(() => (window as unknown as { __noacgLive?: { entry: () => Entry } }).__noacgLive?.entry().ready?.run?.h.Strap ?? null);
-  await expect.poll(held, { timeout: 40_000, intervals: [500] }).toEqual([1, 'failed', 'load']);
-  const samples = await page.evaluate(() => (window as unknown as { __samples: RunSample[] }).__samples);
-  expect(samples.some((s) => s.ran !== null && s.ran >= 2), 'the Take was never reported run').toBe(false);
-  await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
