@@ -162,10 +162,11 @@ begin
     if v_stamp is distinct from v_users[1] then raise exception '0121: an insert stamped %', v_stamp; end if;
 
     -- R2 and R6: TOAST index scans of the stored output for two writes of the same size, one moving
-    -- the stamp and one keeping it. A plain call: keeping it opens the stored value once more than
-    -- moving it (the audio stamp's comparison). An unmarked signed-in request: moving it opens no
-    -- more than the plain call (the guard adds nothing), keeping it opens one more (the guard's
-    -- comparison). On 0076's and 0115's functions the moved writes equal the kept ones.
+    -- the stamp and one keeping it. A plain call: moving it opens the stored value fewer times than
+    -- keeping it (the audio stamp compares only equal stamps). An unmarked signed-in request: moving
+    -- it opens it no more often than the plain call (the guard adds nothing), keeping it more often
+    -- than moving it. Directions only, never exact counts, so another server build cannot fail it.
+    -- On 0076's stamp, on 0115's guard, or on both, one of them fails.
     s0 := pg_stat_get_xact_numscans(v_idx);
     update public.control_shows set output = v_big || '{"ver":{"n":2,"h":"b"},"x":1}' where id = v_show;
     s1 := pg_stat_get_xact_numscans(v_idx);
@@ -180,8 +181,11 @@ begin
     s1 := pg_stat_get_xact_numscans(v_idx);
     perform set_config('request.headers', '', true);
     if v_kept = 0 then
+      if current_setting('track_counts') = 'on' then
+        raise exception '0121: the scan check counted nothing; the test payload is not stored out of line';
+      end if;
       raise notice '0121 scan check skipped: this server counts no index scans (track_counts off)';
-    elsif v_kept - v_moved <> 1 or s0 - s2 <> v_moved or s1 - s0 <> v_kept + 1 then
+    elsif not (v_moved < v_kept and s0 - s2 <= v_moved and s1 - s0 > s0 - s2) then
       raise exception '0121: a publish moving the stamp read the stored output (plain: % moved, % kept; unmarked: % moved, % kept)',
         v_moved, v_kept, s0 - s2, s1 - s0;
     end if;

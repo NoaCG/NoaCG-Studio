@@ -1140,7 +1140,9 @@ function behindPublicationGuard(error: { code?: string; message?: string } | nul
   return !!error && error.code === '42703' && /published_ver/.test(error.message ?? '');
 }
 
-/** The stored stamp, OBS scenes and panel a whole publish starts from. Null: no row. */
+/** The stored stamp, OBS scenes and panel a whole publish starts from. Null: no row. The stamp
+ *  comes from `published_ver`; the scenes are still read from the payload, which opens it (#2616
+ *  leaves that read as it was: it is its own statement, not the write). */
 export async function readPublishedWhole(
   sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
   id: string,

@@ -235,6 +235,12 @@ runs:
         set -euo pipefail
         db_container="$(docker ps --filter "label=com.supabase.cli.project=${NOACG_STACK_PROJECT}" --filter 'name=supabase_db_' --format '{{.Names}}')"
         for f in supabase/migrations/0121_publish_reads_stamp.sql; do
-          docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q < "$f"
+          out="$(docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q < "$f" 2>&1)" || { printf '%s\n' "$out"; exit 1; }
+          # A check that skipped proved nothing: here it must run.
+          if grep -q 'skipped' <<<"$out"; then
+            printf '%s\n' "$out"
+            echo "::error title=$(basename "$f") self-check skipped::It needs the accounts created above and a server that counts index scans; it ran without checking anything."
+            exit 1
+          fi
           echo "$(basename "$f"): self-check passed with accounts."
         done
