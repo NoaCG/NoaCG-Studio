@@ -158,6 +158,14 @@ affordance that reads the current value and writes the absolute result - which i
 today's stepper already does. This removes a whole class of concurrent-increment semantics for
 free.
 
+> **AMENDED 2026-11-20 (#2617).** An operator's press on a bound field now leaves the page as a
+> relative operation, "+1 on this path" with a press id, because a figure counted from the page's
+> tree and written once was lost under a slow database (phase 9: 199 Goal presses, score 55). The
+> server (`control_data_adjust_by_slug`, migration 0121) turns it into this section's absolute
+> merge patch under the row lock and records the id, so the tree write and every feed's wire stay
+> absolute, and a resend of a press counts once. `docs/work-specs/live-publishing/evidence/fix-2617.md`
+> has the rules.
+
 Whole-object replacement is a later `PUT`, not needed for Phase 1.
 
 ### 2.6 Propagation: resolve at the sender, ride the existing log
