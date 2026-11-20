@@ -87,8 +87,10 @@ either on; steps 11 and 12 are only for after that.
    Presence leaves), it reads grey "not answering" and red from 15 s, and when it comes back it is
    green only after it shows what is on air. A pulled cable reads so once the server notices the
    connection is gone: with nothing pressed, keep the cable out until the light leaves green (at
-   most 3 min) and note the time. That is the time the light can stay green with a silent output. A data feed alone
-   never turns it amber.
+   most 3 min) and note the time. That is the time the light can stay green with a silent output. Then pull the
+   production page's own network for 60 s instead: note when the light leaves green (it must read
+   amber "cannot confirm" from the moment the page notices, never green). A data feed alone never
+   turns it amber.
 4. Repeat 1 on a slow line (a phone hotspot, or about 20 Mbit/s). The run timed the light only on
    an unthrottled line (phase 5): note how long it takes to turn green after a Take.
 
