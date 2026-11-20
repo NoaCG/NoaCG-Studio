@@ -60,7 +60,7 @@ test('a new session holds the data part at "not yet known", with no optional cap
   const { NO_DATA } = await import('../src/control/playoutSession.ts');
   const session = createPlayoutSession('prod-1');
   assert.equal(session.data.get(), NO_DATA);
-  assert.deepEqual(NO_DATA, { liveData: {}, dataKey: undefined, treeRead: false });
+  assert.deepEqual(NO_DATA, { liveData: {}, dataKey: undefined, treeRead: false, unsent: 0 });
 });
 
 test('apply moves the parts in one fold, and a part\'s listeners hear only its own change', () => {

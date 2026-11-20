@@ -140,6 +140,10 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     patchBound: async (writes) => {
       log.push(['patch', writes.map((w) => `${w.path}=${w.text}`).join(',')]);
     },
+    pressBound: async (presses) => {
+      log.push(['press', presses.map((q) => ('by' in q ? `${q.path}+${q.by}` : `${q.path}=${q.text}`)).join(',')]);
+      return true;
+    },
     writeCue: (cueId, values) => log.push(['writeCue', cueId, JSON.stringify(values)]),
     savedValues: (cueId) => saved[cueId],
     writeLive: (cueId, values) => log.push(['writeLive', cueId, JSON.stringify(values)]),
@@ -1056,12 +1060,12 @@ test('an unbound bump with nothing aired counts from the cue as stored, never a 
   await two;
 });
 
-test('a bound bump moves the tree at once, counted from the tree at the press, saves after it, and writes nothing into the cue (W1)', async () => {
+test('a bound bump is queued at once as +1 on its path, whatever the tree reads, saves after it, and writes nothing into the cue (W1, #2617)', async () => {
   const tree = { Score: { home: '2' } };
   const r = rig({ flushHeld: true, bound: { Score: { home: 'match.home' } }, tree });
   const bumping = r.verbs.bump(sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true }), 'home', 1);
-  await bumping;
-  assert.deepEqual(r.log, [['patch', 'match.home=3'], ['flush']]);
+  assert.deepEqual(await bumping, { outcome: 'accepted' });
+  assert.deepEqual(r.log, [['press', 'match.home+1'], ['flush']]);
   assert.equal(r.sends.length, 0);
 });
 
@@ -1069,63 +1073,42 @@ test('a bound bump refused while the tree is unread moves nothing', async () => 
   const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
   r.page.boundReady = () => false;
   await r.verbs.bump(sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true }), 'home', 1);
-  assert.equal(r.log.filter(([k]) => k === 'patch').length, 0);
+  assert.equal(r.log.filter(([k]) => k === 'patch' || k === 'press').length, 0);
 });
 
-test('a second bound press on a graphic waits for the first, then counts from the tree the first left (S1)', async () => {
-  const tree = { Score: { home: '2' } };
-  const r = rig({ bound: { Score: { home: 'match.home' } }, tree });
-  const writes = [];
-  r.page.patchBound = (w) => {
+test('a second bound press on a graphic is queued as soon as the first is, never waiting for it to land, and both count (S1, #2617)', async () => {
+  const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
+  const landings = [];
+  r.page.pressBound = (presses) => {
+    r.log.push(['press', presses.map((q) => `${q.path}+${q.by}`).join(',')]);
     const h = held();
-    writes.push({ w, h });
+    landings.push(h);
     return h.promise;
   };
   const view = sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true });
   const first = r.verbs.bump(view, 'home', 1);
   const second = r.verbs.bump(view, 'home', 1);
   await settle();
-  assert.equal(writes.length, 1);
-  assert.equal(writes[0].w[0].text, '3');
-  // Its fallback is a send's window and two attempts: 4 s + 2 x 1.5 s.
-  assert.deepEqual(r.log.filter(([k]) => k === 'timer'), [['timer', 7000]]);
-  tree.Score.home = '3';
-  writes[0].h.resolve();
-  await first;
-  await settle();
-  assert.equal(writes.length, 2);
-  assert.equal(writes[1].w[0].text, '4');
-  writes[1].h.resolve();
-  await second;
+  // Both queued while neither has landed: the second waited only for the first's turn.
+  assert.deepEqual(r.log.filter(([k]) => k === 'press'), [['press', 'match.home+1'], ['press', 'match.home+1']]);
+  landings[1].resolve(true);
+  landings[0].resolve(true);
+  assert.deepEqual(await first, { outcome: 'accepted' });
+  assert.deepEqual(await second, { outcome: 'accepted' });
 });
 
-test('a bound press whose predecessor never answers goes once the fallback passes, and a failed one still frees the next', async () => {
+test('a bound press whose landing never answers does not hold the next, and one refused or dropped answers failed (#2617)', async () => {
   const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
   let calls = 0;
-  r.page.patchBound = () => {
+  r.page.pressBound = () => {
     calls += 1;
-    return calls === 1 ? new Promise(() => {}) : Promise.resolve();
+    return calls === 1 ? new Promise(() => {}) : Promise.resolve(false);
   };
   const view = sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true });
   void r.verbs.bump(view, 'home', 1);
   const second = r.verbs.bump(view, 'home', 1);
-  await settle();
-  assert.equal(calls, 1);
-  r.timers[0]();
-  await second;
+  assert.deepEqual(await second, { outcome: 'failed', note: 'The shared value did not move' });
   assert.equal(calls, 2);
-
-  const r2 = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
-  let n = 0;
-  r2.page.patchBound = async () => {
-    n += 1;
-    if (n === 1) throw new Error('refused');
-  };
-  await assert.rejects(r2.verbs.bump(view, 'home', 1));
-  await r2.verbs.bump(view, 'home', 1);
-  assert.equal(n, 2);
-  // The failed press had settled, so the next one did not wait for anything.
-  assert.equal(r2.log.filter(([k]) => k === 'timer').length, 0);
 });
 
 test('a bump on a cue not on air does nothing', async () => {
@@ -1170,7 +1153,8 @@ test('an event goes at once with the ON-AIR cue as typed, moves an adjusted figu
   assert.deepEqual(r.log.filter(([k]) => k === 'writeLive'), [], 'the figure waits for the press\'s own save');
   r.flushes[0].resolve();
   await settle();
-  assert.deepEqual(r.log.filter(([k]) => k === 'writeLive' || k === 'patch'), [['patch', ''], ['writeLive', 'a1', '{"home":"5"}']]);
+  // Nothing bound moved, so nothing is written to the tree (#2617: no empty write either).
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeLive' || k === 'patch' || k === 'press'), [['writeLive', 'a1', '{"home":"5"}']]);
 });
 
 test('an event with no payload sends the bare event, and nothing on a layer that is not up', async () => {
@@ -1184,23 +1168,28 @@ test('an event with no payload sends the bare event, and nothing on a layer that
   assert.equal(r.sends.length, 1);
 });
 
-test('a bound event moves the tree only once it went, and not when the server skipped or superseded it', async () => {
-  for (const [answer, patched] of [
-    [{ ...noneLeft }, true],
-    [{ ...noneLeft, pressedAgain: ['Score'] }, true],
-    [{ ...noneLeft, skipped: ['Score'] }, false],
-    [{ ...noneLeft, superseded: ['Score'] }, false],
-    [null, false],
+test('a bound event moves the tree once it went or its outcome is unknown, and not when refused, failed with an answer, skipped or superseded (fix-2617 R8a)', async () => {
+  const unanswered = () => Object.assign(new Error('the server did not answer'), { unanswered: true });
+  for (const [answer, pressed, outcome] of [
+    [{ ...noneLeft }, true, 'accepted'],
+    [{ ...noneLeft, pressedAgain: ['Score'] }, true, 'accepted'],
+    [{ ...noneLeft, skipped: ['Score'] }, false, 'refused'],
+    [{ ...noneLeft, superseded: ['Score'] }, false, 'refused'],
+    // Failed with an answer: nothing moves.
+    [new Error('down'), false, 'failed'],
+    // Unknown: no answer, so the event may still commit; its +1 is queued all the same.
+    [unanswered(), true, 'unknown'],
   ]) {
     const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
     const pressing = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true }), goal);
     await settle();
     // Not before the answer.
-    assert.equal(r.log.filter(([k]) => k === 'patch').length, 0);
-    if (answer) r.sends[0].answer.resolve(answer);
-    else r.sends[0].answer.reject(new Error('down'));
-    await pressing;
-    assert.deepEqual(r.log.filter(([k]) => k === 'patch'), patched ? [['patch', 'match.home=3']] : [], JSON.stringify(answer));
+    assert.equal(r.log.filter(([k]) => k === 'patch' || k === 'press').length, 0);
+    if (answer instanceof Error) r.sends[0].answer.reject(answer);
+    else r.sends[0].answer.resolve(answer);
+    assert.equal((await pressing).outcome, outcome, JSON.stringify(answer));
+    assert.deepEqual(r.log.filter(([k]) => k === 'press'), pressed ? [['press', 'match.home+1']] : [], JSON.stringify(answer));
+    assert.equal(r.log.filter(([k]) => k === 'patch').length, 0, 'an adjust is never an absolute write');
     // A bound field is not a cue value: nothing is written into the cue.
     assert.equal(r.log.filter(([k]) => k === 'writeLive').length, 0);
   }
@@ -1225,7 +1214,7 @@ test('every live press on a graphic waits for the one before it on that graphic,
   r.sends[2].answer.resolve({ ...noneLeft });
   await second;
   await settle();
-  assert.deepEqual(r.log.filter(([k]) => k === 'patch'), [['patch', 'match.home=3'], ['patch', 'match.home=4']]);
+  assert.deepEqual(r.log.filter(([k]) => k === 'press'), [['press', 'match.home+1'], ['press', 'match.home+1']]);
   assert.equal(r.sends[3].batches[0][0].msg.event, 'reveal');
   r.sends[3].answer.resolve({ ...noneLeft });
   r.sends[1].answer.resolve({ ...noneLeft });
@@ -1430,63 +1419,53 @@ test('the gaps the assessment found: what each press keeps, counts and says', as
     r.sends[0].answer.resolve({ ...noneLeft });
     await taking;
   });
-  await t.test('three bound presses each count from the tree the one before left', async () => {
-    const tree = { Score: { home: '2' } };
-    const r = rig({ bound: { Score: { home: 'match.home' } }, tree });
-    const writes = [];
-    r.page.patchBound = (w) => {
-      tree.Score.home = w[0].text;
+  await t.test('three bound presses are each sent as +1, all queued before any lands (#2617)', async () => {
+    const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
+    const landings = [];
+    r.page.pressBound = (presses) => {
+      r.log.push(['press', presses.map((q) => `${q.path}+${q.by}`).join(',')]);
       const h = held();
-      writes.push(h);
+      landings.push(h);
       return h.promise;
     };
     const v = sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true });
     const presses = [r.verbs.bump(v, 'home', 1), r.verbs.bump(v, 'home', 1), r.verbs.bump(v, 'home', 1)];
-    for (let i = 0; i < 3; i += 1) {
-      await settle();
-      assert.equal(writes.length, i + 1);
-      writes[i].resolve();
-    }
-    await Promise.all(presses);
-    assert.equal(tree.Score.home, '5');
+    await settle();
+    assert.equal(landings.length, 3);
+    assert.deepEqual(r.log.filter(([k]) => k === 'press').map(([, w]) => w), ['match.home+1', 'match.home+1', 'match.home+1']);
+    for (const h of landings) h.resolve(true);
+    assert.deepEqual(await Promise.all(presses), [{ outcome: 'accepted' }, { outcome: 'accepted' }, { outcome: 'accepted' }]);
   });
-  await t.test('a press made after the first settled still waits for the second, still pending', async () => {
-    const tree = { Score: { home: '2' } };
-    const r = rig({ bound: { Score: { home: 'match.home' } }, tree });
-    const writes = [];
-    r.page.patchBound = (w) => {
-      tree.Score.home = w[0].text;
+  await t.test('a press made while earlier ones are still landing is queued at once', async () => {
+    const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
+    const landings = [];
+    r.page.pressBound = () => {
       const h = held();
-      writes.push(h);
+      landings.push(h);
       return h.promise;
     };
     const v = sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true });
     const first = r.verbs.bump(v, 'home', 1);
     const second = r.verbs.bump(v, 'home', 1);
     await settle();
-    writes[0].resolve();
+    landings[0].resolve(true);
     await first;
-    await settle();
-    // The second is writing; a third pressed now waits for it.
-    assert.equal(writes.length, 2);
     const third = r.verbs.bump(v, 'home', 1);
     await settle();
-    assert.equal(writes.length, 2);
-    writes[1].resolve();
+    // The second has not landed; the third is queued all the same.
+    assert.equal(landings.length, 3);
+    landings[1].resolve(true);
+    landings[2].resolve(true);
     await second;
-    await settle();
-    assert.equal(writes.length, 3);
-    writes[2].resolve();
     await third;
-    assert.equal(tree.Score.home, '5');
   });
-  await t.test('a bound key an event moves counts from the tree, not from what air shows', async () => {
+  await t.test('a bound key an event moves is sent as +1, whatever air or the tree shows', async () => {
     const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '7' } }, aired: { Score: { home: '1' } } });
     const pressing = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true }), goal);
     await settle();
     r.sends[0].answer.resolve({ ...noneLeft });
     await pressing;
-    assert.deepEqual(r.log.filter(([k]) => k === 'patch'), [['patch', 'match.home=8']]);
+    assert.deepEqual(r.log.filter(([k]) => k === 'press'), [['press', 'match.home+1']]);
   });
   await t.test('an event that moves no bound field never waits on the tree being read', async () => {
     const r = rig();
@@ -3533,7 +3512,7 @@ test('a live press that sends nothing answers refused with the reason: off air, 
 test('a bound press whose shared value did not move answers failed, not accepted (E6.1)', async () => {
   for (const press of ['event', 'bump']) {
     const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
-    r.page.patchBound = async () => false;
+    r.page.pressBound = async () => false;
     const view = sel({ selectedGraphic: 'Score', selectedLayerLive: true, editingCue: graphicCue('s1', 'Score'), editingIsLive: true, airCue: graphicCue('s1', 'Score') });
     const pressing = press === 'bump' ? r.verbs.bump(view, 'home', 1) : r.verbs.event(view, goal);
     await settle();
@@ -3708,6 +3687,10 @@ function treeOn(r, local, bindings) {
   r.page.boundFields = (graphic) => bindings[graphic] ?? {};
   r.page.boundNow = (graphic) => ({ ...(resolved()[graphic] ?? {}) });
   r.page.resolvedOf = (graphic) => resolved()[graphic] ?? {};
+  r.page.pressBound = async (presses) => {
+    r.log.push(['press', presses.map((q) => ('by' in q ? `${q.path}+${q.by}` : `${q.path}=${q.text}`)).join(',')]);
+    return data.pressBound(presses);
+  };
   const dispatch = () => data.dispatch(resolved(), r.session.data.get().liveData, r.verbs.run);
   return { data, dispatch };
 }
@@ -3765,7 +3748,8 @@ test('a pinned graphic bound to a source: the source moves air with an update al
   assert.equal(r.moves(), 0, 'data arrival never moves the marker');
   // The pinned block's +1 while another cue of the banner is edited: the tree, from 5.
   await r.verbs.bump(liveSelection('Score', [staged, banner], r.liveCue()), 'home', 1);
-  assert.deepEqual(r.log.filter(([k]) => k === 'patch' || k === 'writeCue' || k === 'writeLive'), [['patch', 'match.home=6']]);
+  assert.deepEqual(r.log.filter(([k]) => k === 'patch' || k === 'press' || k === 'writeCue' || k === 'writeLive'), [['press', 'match.home+1']]);
+  assert.equal(r.session.data.get().liveData.match.home, 6, 'counted from the source\'s figure');
   assert.equal(r.sends.length, 2, 'nothing sent from the cue');
 });
 

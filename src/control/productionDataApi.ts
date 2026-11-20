@@ -122,6 +122,49 @@ export async function patchProductionDataBySlug(
   return ((data as { data?: Record<string, unknown> } | null)?.data ?? {});
 }
 
+// ── A bound press as a relative operation (#2617, migration 0121) ────────────
+//
+// "Add N to this path" or "make this path this text", each with a press id, which the server folds
+// onto the stored tree under the row lock and writes through the operator's door above, recording
+// the id so a resend never counts twice (docs/work-specs/live-publishing/evidence/fix-2617.md).
+
+/** One press as the server takes it. */
+export type BoundPressWire = { id: string; path: string; by: number } | { id: string; path: string; text: string };
+
+export interface BoundPressAnswer {
+  data: Record<string, unknown>;
+  /** Ids applied now or already held: each counted exactly once. */
+  landed: string[];
+  refused: { id: string; reason: string }[];
+}
+
+/** Why a press call did not land. `retry`: nothing was recorded, send it again. `refused`: the
+ *  server answered no to the whole call. `missing`: a database without migration 0121. */
+export type BoundPressFailure = Error & { press: 'retry' | 'refused' | 'missing' };
+
+/** Errors the server answers when the call wrote nothing and may simply be sent again: a statement,
+ *  lock or connection timeout, the command budget, a serialization retry. */
+const RESEND_CODES = new Set(['57014', '55P03', '23514', '40001', '40P01', '53300', '08006', '08001', 'PGRST000', 'PGRST001', 'PGRST002', 'PGRST003']);
+
+export function boundPressFailure(error: { message: string; code?: string } | null, status: number): BoundPressFailure {
+  const code = error?.code;
+  const press: BoundPressFailure['press'] =
+    code === 'PGRST202' ? 'missing'
+    : status === 0 || status >= 500 || status === 401 || (code !== undefined && RESEND_CODES.has(code)) ? 'retry'
+    : 'refused';
+  return Object.assign(new Error(error?.message ?? `Request failed (${status})`), { press });
+}
+
+export async function adjustProductionDataBySlug(slug: string, presses: BoundPressWire[], signal?: AbortSignal): Promise<BoundPressAnswer> {
+  const sb = await getSupabase();
+  if (!sb) throw Object.assign(new Error('This production is not connected to a backend.'), { press: 'refused' as const });
+  const call = sb.rpc('control_data_adjust_by_slug', { p_slug: slug, p_presses: presses });
+  const { data, error, status } = await (signal ? call.abortSignal(signal) : call);
+  if (error) throw boundPressFailure(error, status);
+  const answer = (data ?? {}) as Partial<BoundPressAnswer>;
+  return { data: answer.data ?? {}, landed: answer.landed ?? [], refused: answer.refused ?? [] };
+}
+
 // ── Another system's Pause and receipt (data-sources C5, migration 0100) ─────
 
 /** What the "Another system" card shows: whether the API is paused and when it last wrote. */

@@ -27,9 +27,12 @@ const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 /** Fake browser doors, recording every call. `keys`, `fetches`, `patches` and `slugPatches` are
  *  queues of held answers the test settles. */
-function fakeIo({ local = {}, backendConfigured = true } = {}) {
-  const calls = { saved: [], keyReads: [], fetched: [], patched: [], slugPatched: [], notes: [] };
-  const answers = { keys: [], fetches: [], patches: [], slugPatches: [] };
+function fakeIo({ local = {}, backendConfigured = true, relative = true } = {}) {
+  const calls = { saved: [], keyReads: [], fetched: [], patched: [], slugPatched: [], adjusted: [], notes: [] };
+  const answers = { keys: [], fetches: [], patches: [], slugPatches: [], adjusts: [] };
+  // The clock and the timers the press queue runs on, stepped by hand.
+  const clock = { at: 1_000_000, timers: [] };
+  let ids = 0;
   const storage = new Set();
   const store = { ...local };
   const next = (queue) => {
@@ -65,12 +68,34 @@ function fakeIo({ local = {}, backendConfigured = true } = {}) {
       return () => storage.delete(listener);
     },
     note: (text) => calls.notes.push(text),
+    ...(relative ? {
+      adjustProductionDataBySlug: (slug, presses, signal) => {
+        calls.adjusted.push([slug, presses, signal]);
+        return next(answers.adjusts);
+      },
+    } : {}),
+    now: () => clock.at,
+    after: (ms, run) => {
+      const timer = { due: clock.at + ms, run, live: true };
+      clock.timers.push(timer);
+      return () => (timer.live = false);
+    },
+    pressId: () => `00000000-0000-4000-8000-${String(++ids).padStart(12, '0')}`,
   };
   const otherTab = (id, data) => {
     store[id] = data;
     for (const listener of [...storage]) listener();
   };
-  return { io, calls, answers, storage, otherTab };
+  /** Move the clock by `ms`, firing every timer that falls due, in order. */
+  const tick = async (ms) => {
+    clock.at += ms;
+    for (const timer of clock.timers.filter((x) => x.live && x.due <= clock.at).sort((a, b) => a.due - b.due)) {
+      timer.live = false;
+      timer.run();
+    }
+    await flush();
+  };
+  return { io, calls, answers, storage, otherTab, clock, tick };
 }
 
 function setup(opts) {
@@ -96,7 +121,7 @@ function dispatchNow(t, b) {
 test('unpublished: the local tree seeds, its changes dispatch once each, and only the changes', () => {
   const t = setup({ local: { 'prod-1': { home: 1, away: 0 } } });
   t.data.published(null);
-  assert.deepEqual(t.session.data.get(), { liveData: { home: 1, away: 0 }, dataKey: null, treeRead: false });
+  assert.deepEqual(t.session.data.get(), { liveData: { home: 1, away: 0 }, dataKey: null, treeRead: false, unsent: 0 });
   assert.deepEqual(t.calls.keyReads, [], 'an unpublished production reads no key');
 
   dispatchNow(t, bindings);
@@ -151,7 +176,7 @@ test('dataKey undefined: while the key is being read nothing dispatches, whateve
   assert.deepEqual(t.calls.fetched, ['key-1'], 'the key brings the server\'s tree');
   t.answers.fetches[0].resolve({ data: { home: 4, away: 2 } });
   await flush();
-  assert.deepEqual(t.session.data.get(), { liveData: { home: 4, away: 2 }, dataKey: 'key-1', treeRead: true });
+  assert.deepEqual(t.session.data.get(), { liveData: { home: 4, away: 2 }, dataKey: 'key-1', treeRead: true, unsent: 0 });
   dispatchNow(t, bindings);
   assert.deepEqual(t.sent, []);
 });
@@ -264,7 +289,7 @@ test('a mode change re-seeds the tree and the baseline, and an answer from the o
   assert.equal(t.storage.size, 0, 'the other-tab listener goes with its mode');
 
   const stopPublished = t.data.published('slug-1');
-  assert.deepEqual(t.session.data.get(), { liveData: {}, dataKey: undefined, treeRead: false }, 'first publish: not yet known');
+  assert.deepEqual(t.session.data.get(), { liveData: {}, dataKey: undefined, treeRead: false, unsent: 0 }, 'first publish: not yet known');
   stopPublished();
   t.data.published(null);
   t.answers.keys[0].resolve('key-1');
@@ -519,7 +544,7 @@ test('published: an edit that changes nothing sends nothing and never passes ove
   assert.equal(t.calls.patched.length, 0);
   t.answers.fetches[0].resolve({ data: { home: 1 } });
   await flush();
-  assert.deepEqual(t.session.data.get(), { liveData: { home: 1 }, dataKey: 'key-1', treeRead: true });
+  assert.deepEqual(t.session.data.get(), { liveData: { home: 1 }, dataKey: 'key-1', treeRead: true, unsent: 0 });
 });
 
 test('published: a read that left before a press cannot undo the press on screen (#1572)', async () => {
@@ -551,7 +576,7 @@ test('published: a lease write\'s tree before the first read answers is the serv
   t.data.holdServerTree('slug-1', { home: 1, sheet: 'b' });
   t.answers.fetches[0].resolve({ data: { home: 1, sheet: 'a' } });
   await flush();
-  assert.deepEqual(t.session.data.get(), { liveData: { home: 1, sheet: 'b' }, dataKey: 'key-1', treeRead: true });
+  assert.deepEqual(t.session.data.get(), { liveData: { home: 1, sheet: 'b' }, dataKey: 'key-1', treeRead: true, unsent: 0 });
 });
 
 test('published, a poll reads the tree on its cadence until stopped; unpublished it reads nothing (E7.1)', async () => {
@@ -584,4 +609,208 @@ test('published, a poll reads the tree on its cadence until stopped; unpublished
   wanted = true;
   timers[2].run();
   assert.equal(t.calls.fetched.length, before + 2);
+});
+
+// ── A BOUND PRESS IS A RELATIVE OPERATION, LANDED ONCE (#2617; evidence/fix-2617.md) ──────────────
+
+/** What the server took from one call: `path+by` or `path=text`, each with its id. */
+const wire = (call) => call[1].map((q) => `${q.id.slice(-2)}:${q.path}${'by' in q ? `+${q.by}` : `=${q.text}`}`);
+const idsOf = (call) => call[1].map((q) => q.id);
+const retryError = () => Object.assign(new Error('canceling statement due to statement timeout'), { press: 'retry' });
+
+test('stacked presses survive a failed call: nothing resets the tree or drops a press, and the resend carries each press once, by its id (R3, R4, R5)', async () => {
+  const t = await publishedWith({ home: 4 });
+  const fetchesBefore = t.answers.fetches.length;
+  const first = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  // One call out at a time: the first press goes alone, the next two wait in order.
+  const second = t.data.pressBound([{ path: 'home', by: 1 }]);
+  const third = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  assert.equal(t.calls.adjusted.length, 1);
+  assert.deepEqual(wire(t.calls.adjusted[0]), ['01:home+1']);
+  assert.equal(t.session.data.get().unsent, 3);
+  assert.deepEqual(t.session.data.get().liveData, { home: 4 }, 'a queued press is never in the tree (R5)');
+  // The database is slow: the call fails with nothing recorded.
+  t.answers.adjusts[0].reject(retryError());
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { home: 4 }, 'a failure never resets the tree');
+  assert.equal(t.session.data.get().unsent, 3, 'and never drops a press');
+  assert.equal(t.answers.fetches.length, fetchesBefore, 'nor reads the tree over the queue');
+  assert.equal(t.calls.adjusted.length, 1, 'the resend waits for its backoff');
+  await t.tick(500);
+  // The resend carries all three, the first with the SAME id: a call that did commit counts once.
+  assert.deepEqual(wire(t.calls.adjusted[1]), ['01:home+1', '02:home+1', '03:home+1']);
+  t.answers.adjusts[1].resolve({ data: { home: 7 }, landed: idsOf(t.calls.adjusted[1]), refused: [] });
+  assert.deepEqual(await Promise.all([first, second, third]), [true, true, true]);
+  assert.equal(t.session.data.get().unsent, 0);
+  assert.deepEqual(t.session.data.get().liveData, { home: 7 }, 'the server\'s answer is the tree');
+  assert.deepEqual(t.calls.notes, []);
+});
+
+test('the resend waits double each time, from half a second to eight, and a landing resets it (R4)', async () => {
+  const t = await publishedWith({ home: 0 });
+  void t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  const waits = [];
+  for (let i = 0; i < 6; i += 1) {
+    t.answers.adjusts[i].reject(retryError());
+    await flush();
+    const due = t.clock.timers.filter((x) => x.live).map((x) => x.due - t.clock.at);
+    waits.push(Math.min(...due));
+    await t.tick(waits[i]);
+  }
+  assert.deepEqual(waits, [500, 1000, 2000, 4000, 8000, 8000]);
+  t.answers.adjusts[6].resolve({ data: { home: 1 }, landed: idsOf(t.calls.adjusted[6]), refused: [] });
+  await flush();
+  void t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  t.answers.adjusts[7].reject(retryError());
+  await flush();
+  assert.equal(Math.min(...t.clock.timers.filter((x) => x.live).map((x) => x.due - t.clock.at)), 500);
+});
+
+test('a call with no answer in 15 s is given up and sent again; an id already held is answered landed and counts once (R2, R3, R4)', async () => {
+  const t = await publishedWith({ home: 0 });
+  const pressing = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  const [, , signal] = t.calls.adjusted[0];
+  await t.tick(15_000);
+  assert.equal(signal.aborted, true, 'the attempt is cancelled');
+  t.answers.adjusts[0].reject(Object.assign(new Error('AbortError'), { press: 'retry' }));
+  await flush();
+  await t.tick(500);
+  assert.deepEqual(idsOf(t.calls.adjusted[1]), idsOf(t.calls.adjusted[0]));
+  // The first had committed: the server holds its id and answers it landed, applied once.
+  t.answers.adjusts[1].resolve({ data: { home: 1 }, landed: idsOf(t.calls.adjusted[1]), refused: [] });
+  assert.equal(await pressing, true);
+  assert.deepEqual(t.session.data.get().liveData, { home: 1 });
+});
+
+test('a refused press is dropped and said with its count, the rest land; a whole call refused drops its presses (R2, R4)', async () => {
+  const t = await publishedWith({ home: 0, label: 'x' });
+  const good = t.data.pressBound([{ path: 'home', by: 1 }]);
+  const bad = t.data.pressBound([{ path: 'label', by: 1 }]);
+  await flush();
+  t.answers.adjusts[0].reject(retryError());
+  await flush();
+  await t.tick(500);
+  const [a, b] = idsOf(t.calls.adjusted[1]);
+  t.answers.adjusts[1].resolve({ data: { home: 1, label: 'x' }, landed: [a], refused: [{ id: b, reason: 'not a bound path: label' }] });
+  assert.equal(await good, true);
+  assert.equal(await bad, false);
+  assert.deepEqual(t.calls.notes, ['1 press not moved: not a bound path: label']);
+  assert.equal(t.session.data.get().unsent, 0);
+
+  const next = t.data.pressBound([{ path: 'home', by: 1 }, { path: 'home', by: 1 }]);
+  await flush();
+  t.answers.adjusts[2].reject(Object.assign(new Error('hosted control is switched off for this page'), { press: 'refused' }));
+  assert.equal(await next, false);
+  assert.equal(t.calls.notes[1], '2 presses not moved: hosted control is switched off for this page');
+  assert.equal(t.session.data.get().unsent, 0);
+});
+
+test('an answer the read numbering passes over still settles its presses (R5)', async () => {
+  const t = await publishedWith({ home: 4 });
+  const pressing = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  void t.data.refresh();
+  t.answers.fetches.at(-1).resolve({ data: { home: 6 } });
+  await flush();
+  t.answers.adjusts[0].resolve({ data: { home: 5 }, landed: idsOf(t.calls.adjusted[0]), refused: [] });
+  assert.equal(await pressing, true);
+  assert.equal(t.session.data.get().unsent, 0);
+  assert.deepEqual(t.session.data.get().liveData, { home: 6 }, 'the older answer is passed over');
+});
+
+test('a press older than an hour is dropped, not sent, and said (R3)', async () => {
+  const t = await publishedWith({ home: 0 });
+  const pressing = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  t.answers.adjusts[0].reject(retryError());
+  await flush();
+  t.clock.at += 60 * 60_000;
+  await t.tick(1);
+  assert.equal(await pressing, false);
+  assert.equal(t.calls.adjusted.length, 1);
+  assert.deepEqual(t.calls.notes, ['1 press not moved: not sent within an hour.']);
+  assert.equal(t.session.data.get().unsent, 0);
+});
+
+test('a new address drops the old one\'s presses and says so; a republish on the same slug keeps them (R9)', async () => {
+  const t = await publishedWith({ home: 0 });
+  const kept = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  t.answers.adjusts[0].reject(retryError());
+  await flush();
+  t.data.published('slug-1');
+  await flush();
+  assert.equal(t.session.data.get().unsent, 1);
+  t.data.published('slug-2');
+  assert.equal(await kept, false);
+  assert.deepEqual(t.calls.notes, ['1 press not moved: the production is no longer published at that address.']);
+  assert.equal(t.session.data.get().unsent, 0);
+});
+
+test('the session ending settles every queued press as not landed', async () => {
+  const t = await publishedWith({ home: 0 });
+  const pressing = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  t.session.dispose();
+  assert.equal(await pressing, false);
+});
+
+test('unpublished, a relative press moves the local tree at once, in the leaf\'s own type', async () => {
+  const t = setup({ local: { 'prod-1': { home: 4, label: '07', flag: true } } });
+  t.data.published(null);
+  assert.equal(await t.data.pressBound([{ path: 'home', by: 2 }, { path: 'label', by: 1 }, { path: 'away', by: 1 }]), true);
+  assert.deepEqual(t.session.data.get().liveData, { home: 6, label: '8', flag: true, away: 1 });
+  assert.equal(await t.data.pressBound([{ path: 'home', text: '0' }]), true);
+  assert.equal(t.session.data.get().liveData.home, 0);
+  assert.equal(t.calls.adjusted.length, 0);
+});
+
+test('a database without the relative door: each figure is computed once and resent unchanged until it lands (R10)', async () => {
+  const t = await publishedWith({ home: 4 });
+  const first = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  t.answers.adjusts[0].reject(Object.assign(new Error('Could not find the function'), { press: 'missing' }));
+  await flush();
+  const second = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  assert.deepEqual(t.calls.slugPatched.map(([, p]) => p), [{ home: 5 }], 'the first figure');
+  t.answers.slugPatches[0].reject(Object.assign(new Error('the server did not answer'), { unanswered: true }));
+  await flush();
+  await t.tick(500);
+  assert.deepEqual(t.calls.slugPatched.map(([, p]) => p), [{ home: 5 }, { home: 5 }], 'the same figure again, never 6 for the same press');
+  t.answers.slugPatches[1].resolve({ home: 5 });
+  assert.equal(await first, true);
+  await flush();
+  assert.deepEqual(t.calls.slugPatched.at(-1)[1], { home: 6 }, 'then the next press, from the server\'s answer');
+  t.answers.slugPatches[2].resolve({ home: 6 });
+  assert.equal(await second, true);
+  assert.equal(t.calls.adjusted.length, 1, 'the relative door is not asked again');
+});
+
+test('a list write waits for this page\'s queued presses inside that list, at most the press window (R1)', async () => {
+  const t = await publishedWith({ board: { called: ['A1'], n: 0 } });
+  const pressing = t.data.pressBound([{ path: 'board.n', by: 1 }]);
+  await flush();
+  const listing = t.data.patchBoundValues([{ path: 'board', text: 'A1\nB2', verb: 'list' }]);
+  await flush();
+  assert.equal(t.calls.slugPatched.length, 0, 'it waits');
+  t.answers.adjusts[0].resolve({ data: { board: { called: ['A1'], n: 1 } }, landed: idsOf(t.calls.adjusted[0]), refused: [] });
+  await pressing;
+  await flush();
+  assert.equal(t.calls.slugPatched.length, 1, 'then goes');
+  t.answers.slugPatches[0].resolve({ board: { called: ['A1', 'B2'], n: 1 } });
+  assert.equal(await listing, true);
+
+  void t.data.pressBound([{ path: 'board.n', by: 1 }]);
+  await flush();
+  const stuck = t.data.patchBoundValues([{ path: 'board', text: 'A1\nB2\nC3', verb: 'list' }]);
+  await t.tick(7_000);
+  assert.equal(await stuck, false);
+  assert.equal(t.calls.slugPatched.length, 1, 'never written over a press still sending');
+  assert.match(t.calls.notes.at(-1), /presses on that list are still sending/);
 });
