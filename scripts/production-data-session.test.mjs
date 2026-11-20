@@ -748,7 +748,7 @@ test('a new address drops the old one\'s presses and says so; a republish on the
   assert.equal(t.session.data.get().unsent, 1);
   t.data.published('slug-2');
   assert.equal(await kept, false);
-  assert.deepEqual(t.calls.notes, ['1 press not moved: the production is no longer published at that address.']);
+  assert.deepEqual(t.calls.notes, ['1 press not moved: the production is no longer published at that address (one already on its way may have landed).']);
   assert.equal(t.session.data.get().unsent, 0);
 });
 

@@ -350,6 +350,7 @@ async function walk(seed, road, steps) {
     boundNow: () => ({}),
     boundReady: () => true,
     patchBound: async () => {},
+    pressBound: async () => true,
     writeCue: (cueId, values) => {
       trace.push(`    writeCue ${cueId} ${JSON.stringify(values)}`);
       checkWrite(als.getStore() ?? null, cueId, values);

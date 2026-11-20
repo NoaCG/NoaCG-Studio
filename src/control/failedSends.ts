@@ -290,12 +290,13 @@ const RESEND_CODES = new Set(['57014', '55P03', '23514', '40001', '40P01', '5330
 export function boundPressFailure(error: { message: string; code?: string } | null, status: number): BoundPressFailure {
   const code = error?.code;
   // By code first: PostgREST answers a refusal (42501) with 401 to a signed-out caller, so a 401
-  // goes again only for a lapsed sign-in, which the client refreshes.
+  // goes again only for a lapsed sign-in, which the client refreshes. A gateway's timeout (408) or
+  // rate limit (429) recorded nothing, so it goes again too.
   const press: BoundPressFailure['press'] =
     code === 'PGRST202' ? 'missing'
     : code !== undefined && RESEND_CODES.has(code) ? 'retry'
     : code === '42501' || code === '22023' || code === 'P0001' ? 'refused'
-    : status === 0 || status >= 500 || status === 401 ? 'retry'
+    : status === 0 || status >= 500 || status === 401 || status === 408 || status === 429 ? 'retry'
     : 'refused';
   return Object.assign(new Error(error?.message ?? `Request failed (${status})`), { press });
 }

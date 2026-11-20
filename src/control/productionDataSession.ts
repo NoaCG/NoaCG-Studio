@@ -390,7 +390,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       // R9: a new address, or none, takes the old address's presses with it; a republish that
       // keeps the slug keeps them.
       const elsewhere = queue.filter((q) => q.slug !== next);
-      if (elsewhere.length > 0) drop(elsewhere, 'the production is no longer published at that address.');
+      if (elsewhere.length > 0) drop(elsewhere, 'the production is no longer published at that address (one already on its way may have landed).');
       slug = next;
       counted();
       void pump();

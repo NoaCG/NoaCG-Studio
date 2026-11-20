@@ -275,6 +275,8 @@ test('a bound press call is sent again only when nothing was recorded; a refusal
   assert.equal(kind(null, 0), 'retry', 'no answer at all');
   assert.equal(kind('', 503), 'retry');
   assert.equal(kind('PGRST301', 401), 'retry', 'a lapsed sign-in');
+  assert.equal(kind('', 408), 'retry', 'a gateway timeout recorded nothing');
+  assert.equal(kind(null, 429), 'retry', 'a rate limit recorded nothing');
   // PostgREST answers 42501 with 401 to a signed-out caller: still a refusal, never resent for an hour.
   assert.equal(kind('42501', 401), 'refused');
   assert.equal(kind('42501', 403), 'refused');
