@@ -343,9 +343,13 @@ test('a failed team save goes again by itself within its backoff, one at a time,
   await expectAmber(page, /statement timeout/);
   await expect(page.getByTestId('production-team-note')).toHaveText(/statement timeout/);
   // While saves keep failing, the retries back off: 2 s doubling to 30 s, a quarter either way.
-  // Two minutes hold at least 5 and at most 9 more attempts; without a timer there are none.
-  // Edits of the failing production during its waits do not send it any sooner.
-  for (let second = 0; second < 120; second++) {
+  // With nothing else to start a save, the first minute holds 3 to 6 retries; without a timer, none.
+  for (let second = 0; second < 60; second++) await step(page, state);
+  expect(state.saves - 1).toBeGreaterThanOrEqual(3);
+  expect(state.saves - 1).toBeLessThanOrEqual(6);
+  // Edits of the failing production during its waits do not send it any sooner: two minutes in all
+  // hold 5 to 9 retries.
+  for (let second = 60; second < 120; second++) {
     if (second % 4 === 2) await edit(page, id, `Retried by itself ${second}`);
     await step(page, state);
   }
