@@ -218,3 +218,25 @@ Phase 2 (NoaCG Bridge sends OSC), notes for the phases after it:
   moving `bridgeVersion` is the release.
 - Seven `cli/test/state.test.mjs` tests are cancelled on this cloud machine on unchanged `main`
   too ("Promise resolution is still pending"); not related to OSC.
+
+Phase 3 (Take sends OSC), notes for the phases after it:
+
+- Every single-cue Take path reaches one send: the Take button and key, Take Now and Companion
+  `take`/`take_cue` through `graphicVerbs.take`, and Play now / Companion `trigger_cue` through the
+  page's `trigger` branch; both call the page's `controlSend` (`ProductionPage.tsx`), which reads the
+  cue as saved at the press, builds the request with `control/oscSend.ts` and calls `sendOsc`
+  (`control/playoutLink.ts`). A held Take key fires once (`verbDispatch.ts`).
+- The send id is minted per press by the page (`sendIds`). A Companion press is already run once
+  per `press_id` by `panelRelay.ts` before it reaches `onVerb`, so the page id is enough; the Bridge
+  answers a repeated id without sending.
+- Take refusals: `takeBlockerFor` and `directBlocker` ask the page's `controlBlocker`
+  (`oscBlocker`): unreadable record, missing destination, no address, or no Bridge pairing. The
+  pairing check reads local settings only, so an unpaired browser makes no loopback request.
+  `stepBlocker` and `togetherPlan` still refuse with `OSC_NOT_YET` until phase 5. Companion's
+  `take_cue` and the panel's per-cue key state judge an OSC cue by `directBlocker`, not
+  `stepBlocker` (`verbDispatch.ts`, `ProductionPage.tsx` `ownTakeRefusal`), so a refused press
+  says why instead of being dropped.
+- Not done here, for phase 4: the status control still reads CasparCG-only (`playoutStatus.ts`
+  `relevantPlayout`); a browser-only production learns of an absent or old Bridge only when it
+  sends. Phase 4 adds the "Bridge ready" status for productions with OSC cues and a paired browser,
+  the rehearsal wording, and the e2e journey (create, edit, Take, Send test).

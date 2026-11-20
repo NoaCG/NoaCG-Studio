@@ -54,6 +54,9 @@ export interface TakeContext {
   /** Why a graphic cue's live candidate is not ready to Take, or null (control/selectionAir.ts
    *  `selectionTake`): read-only, unknown or not resolving now. Absent: no cue has one. */
   selectionBlocker?: (cue: ShowCue) => string | null;
+  /** Why an OSC cue would not send now (control/oscSend.ts `oscBlocker`), or null. Absent: this
+   *  page cannot send OSC, and an OSC cue is refused as such. */
+  controlBlocker?: (cue: ShowCue) => string | null;
 }
 
 /** The first graphic cue of this cue, or of this folder's cues, that is not ready to Take: over a
@@ -140,7 +143,7 @@ export const takePlans = (target: ShowCue | ShowFolder, ctx: TakeContext): { slo
  */
 export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeContext): string | null => {
   if (!target) return null;
-  if ('sourceId' in target && isControlCue(target)) return OSC_NOT_YET(target.label);
+  if ('sourceId' in target && isControlCue(target)) return ctx.controlBlocker ? ctx.controlBlocker(target) : OSC_NOT_YET(target.label);
   const off = 'sourceId' in target ? serverCueOffRefusal(target, ctx.casparOn, ctx.vmixOn, ctx.itemOf(target)) : null;
   if (off) return off;
   if (ctx.vmixOn && !('sourceId' in target) && folderMode(target) === 'through') {
@@ -170,7 +173,7 @@ export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeCon
 /** Direct cues use their own route and end action, independently of their folder or neighbours.
  *  The output slot is judged by `settings` as they stand at the press, which the page reads then. */
 export const directBlocker = (cue: ShowCue, ctx: TakeContext, settings: PlayoutSettings): string | null => {
-  if (isControlCue(cue)) return OSC_NOT_YET(cue.label);
+  if (isControlCue(cue)) return ctx.controlBlocker ? ctx.controlBlocker(cue) : OSC_NOT_YET(cue.label);
   if (isGraphicCue(cue)) return !ctx.graphicOf(cue)?.name ? `${cue.label} has no graphic.` : selectionRefusal(cue, ctx);
   const item = ctx.itemOf(cue);
   const off = serverCueOffRefusal(cue, ctx.casparOn, ctx.vmixOn, item);
