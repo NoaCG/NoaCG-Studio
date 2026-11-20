@@ -904,10 +904,12 @@ test('svg import: the text-fit budget is the DRAWN text, whenever the first valu
 
   // The drawn text is still Ada's — three characters, nothing like the value now on screen — so
   // the long value is fitted against the design rather than against itself. With no shape drawn
-  // behind this line there is no room to fill, so the drawn width IS the budget, and a value far
-  // past it shrinks until the readability floor stops it.
+  // behind this line, its room is the graphic's own length (owner, 2026-11-20) - far more than
+  // Ada's width, never the operator's value - and a value past even that shrinks until the
+  // readability floor stops it.
   expect(fitted.drawn).toBe('Ada');
-  expect(fitted.budget).toBeCloseTo(fitted.room, 1);
+  expect(fitted.room, `room ${fitted.room} against the drawn budget ${fitted.budget}`).toBeGreaterThan(fitted.budget * 4);
+  expect(fitted.room).toBeLessThanOrEqual(800);
   expect(fitted.size).toBeLessThan(fitted.drawnSize);
   // Bounded by the HARD floor (30%), not the reporting one (55%): a placed line has no height to
   // wrap into, so size is the only rung it has, and since 2026-09-05 it spends it rather than
@@ -3007,8 +3009,13 @@ test('svg import: a full-frame backplate does not become a box to group by', asy
   ));
   await expect(page.getByTestId('map-svg-fields')).toBeVisible();
 
-  // No headings at all, and the two rows stand in the order the file draws them.
-  await expect(page.getByTestId('map-svg-fields').locator('.map-svg-box-head')).toHaveCount(0);
+  // No plate heads them: the one heading is the text ON THE ARTWORK, which carries its own
+  // too-long answer since nothing can grow around it (owner, 2026-11-20). The two rows stand in
+  // the order the file draws them.
+  const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
+  await expect(heads).toHaveCount(1);
+  await expect(heads.first()).toContainText('On the artwork');
+  await expect(heads.first().getByRole('combobox')).toHaveValue('wrap');
   const rows = page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-row-"]');
   await expect(rows).toHaveCount(2);
   await expect(page.getByTestId('map-svg-sample-t0')).toHaveValue('CHAMPIONS');
@@ -3045,11 +3052,54 @@ test('svg import: grouping never moves a row out of the order the file draws it 
     els.map((el) => (el as HTMLInputElement).value));
   expect(names).toEqual(['Question', 'Answer A', 'Answer B', 'Answer C', 'Answer D']);
 
-  // The question heads the list under its own group, which says it has no box rather than naming
-  // the whole-board plate it happens to sit on.
+  // The question heads the list under its own group, which says it is on the artwork rather than
+  // naming the whole-board plate it happens to sit on, and offers the too-long answer a line with
+  // no box has: wrap, or one line.
   const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
   await expect(heads.first()).toContainText('On the artwork');
-  await expect(heads.first()).toContainText('no box of their own');
+  await expect(heads.first().getByRole('combobox')).toHaveValue('wrap');
+});
+
+// EVERY TEXT CHOOSES WHAT HAPPENS WHEN IT GETS LONGER (owner, 2026-11-20). A student's lower
+// third whose bar is a PICTURE has no shape behind its name, so nothing can grow around it; the
+// group still asks, with the two answers such a line has, and "stays on one line" reaches the
+// graphic as `wrap: false`. And a CENTRED name on a strip-shaped bar is a lower third too: the
+// bar grows by default, where it used to stay as drawn because of the anchor alone.
+test('svg import: text with no box chooses wrap or one line, and a centred lower third grows', async ({ page }) => {
+  const pixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+      <image x="100" y="840" width="1000" height="130" href="${pixel}"/>
+      <text id="Name" x="130" y="900" font-size="48" fill="#fff">Anna Virtanen</text>
+      <text id="Title" x="130" y="950" font-size="30" fill="#ccc">Reporter</text>
+    </svg>`,
+    'picture-bar.svg',
+  );
+  const head = page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first();
+  await expect(head).toContainText('On the artwork');
+  const choice = head.getByRole('combobox');
+  await expect(choice).toHaveValue('wrap');
+  await choice.selectOption('one');
+  await expect(choice).toHaveValue('one');
+  await finishIntoNewEditor(page);
+  const table = await page.evaluate(async () => {
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)?.[0] ?? '';
+  });
+  expect(table).toContain("{ el: 'f0', wrap: false }");
+  expect(table).toContain("{ el: 'f1', wrap: false }");
+
+  await dropSvgMarkup(
+    page,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+      <rect id="Bar" x="100" y="840" width="1000" height="130" fill="#123"/>
+      <text id="Name" x="600" y="900" text-anchor="middle" font-size="48" fill="#fff">Anna Virtanen</text>
+      <text id="Title" x="600" y="950" text-anchor="middle" font-size="30" fill="#ccc">Reporter</text>
+    </svg>`,
+    'centred-lower-third.svg',
+  );
+  await expect(page.getByTestId('map-svg-stretch')).toContainText('Bar gets wider, then taller');
 });
 
 // ── THE THREE MOMENTS THE GUIDE HAD TO EXPLAIN ──

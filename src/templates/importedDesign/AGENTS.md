@@ -97,6 +97,13 @@ measured defect; §3 holds the evidence:
   drives the panel's growth, because widening gives it nothing. **Only what is drawn INSIDE the
   box bounds anything** - a plate standing beside another plate is not that line's furniture
   (`svgInsidePanel`, owner walk 2026-09-02).
+- **A line ON its bar has that bar, and a line on nothing has the graphic** (owner 2026-11-20).
+  Where no shape holds a line outright, the shape it sits on - spanning its rows, starting within
+  half its height of the shape's left edge, the step's `lineSitsIn` - is its panel, and it keeps
+  the height it was drawn at. Where nothing holds it, the artwork's own extent is the room
+  (`svgArtExtent`). The room is never the line's own drawn width.
+- **`wrap: false` keeps a line on ONE line** (`NOACG_LAYOUT.lines`, the step's "stays on one
+  line"): it fills sideways, then shrinks; an operator's own breaks are still kept.
 - **EVERY LINE HAS AN ALIGNMENT, and it is read off where the designer drew it** (`svgAlignOf`,
   owner walk 2026-09-02; design `docs/TEXT_BOX_BINDING.md`). Nothing is asked and nothing is
   stored: on each axis the drawn insets are compared and the line is CENTRED when its centre sits

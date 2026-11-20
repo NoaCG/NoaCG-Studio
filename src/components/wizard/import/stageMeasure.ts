@@ -445,12 +445,23 @@ export function panelOfEachLine(
   for (const id of markerIds) {
     const r = markerEl(stage, id)?.getBoundingClientRect();
     if (!r || !(r.width > 0) || !(r.height > 0)) continue;
-    let best: { id: string; area: number } | null = null;
-    for (const plate of plates) {
-      if (!lineSitsIn(r, plate.box)) continue;
-      const area = plate.box.width * plate.box.height;
-      if (!best || area < best.area) best = { id: plate.id, area };
-    }
+    // A PLATE THAT HOLDS THE LINE OUTRIGHT FIRST, then one it only sits on - the runtime's own
+    // order (`svgFitContainer`). A clock drawn a few units wider than its own small plate is held
+    // by the bar behind both, and the runtime measures it there; naming the small plate would
+    // put the checklist and the fit in two different boxes.
+    const smallest = (holds: (box: DOMRect) => boolean) => {
+      let best: { id: string; area: number } | null = null;
+      for (const plate of plates) {
+        if (!holds(plate.box)) continue;
+        const area = plate.box.width * plate.box.height;
+        if (area <= r.width * r.height) continue;
+        if (!best || area < best.area) best = { id: plate.id, area };
+      }
+      return best;
+    };
+    const best =
+      smallest((b) => r.left >= b.left - 1 && r.right <= b.right + 1 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1) ??
+      smallest((b) => lineSitsIn(r, b));
     if (best) out[id] = best.id;
   }
   return out;
