@@ -416,6 +416,19 @@ function lineSitsIn(line: { top: number; bottom: number; left: number }, box: DO
   return line.top < box.bottom && line.bottom > box.top && line.left >= box.left - tol && line.left < box.right;
 }
 
+/** How far a line's box overhangs its EM box at top and bottom, in screen px - the runtime's
+ *  `svgEmTrim` (runtime/svgFit.js), spelled for the step's stage. Zero where it cannot be read. */
+function emTrim(el: Element): number {
+  if (!(el instanceof SVGTextContentElement)) return 0;
+  let run: Element = el;
+  while (run.firstElementChild) run = run.firstElementChild;
+  const size = parseFloat(getComputedStyle(run).fontSize) || 0;
+  const cell = el.getNumberOfChars() > 0 ? el.getExtentOfChar(0).height : 0;
+  const ctm = el.getScreenCTM();
+  const scale = ctm ? Math.sqrt(ctm.a * ctm.a + ctm.b * ctm.b) : 1;
+  return Math.max(0, (cell - size) / 2) * (scale || 1);
+}
+
 /**
  * WHICH PLATE EACH BOUND LINE SITS ON, so the step can offer that line its own too-long answer
  * (owner walk, 2026-09-03: "What if you want it to react differently between the question and
@@ -443,8 +456,12 @@ export function panelOfEachLine(
     .map((s) => ({ id: s.id, box: markerEl(stage, s.id)?.getBoundingClientRect() }))
     .filter((s): s is { id: string; box: DOMRect } => !!s.box && s.box.width > 0 && s.box.height > 0);
   for (const id of markerIds) {
-    const r = markerEl(stage, id)?.getBoundingClientRect();
-    if (!r || !(r.width > 0) || !(r.height > 0)) continue;
+    const node = markerEl(stage, id);
+    const r = node?.getBoundingClientRect();
+    if (!node || !r || !(r.width > 0) || !(r.height > 0)) continue;
+    // Held by its EM box vertically, as the runtime holds it (`svgEmTrim`): a line box pokes
+    // past a snug plate that the type itself sits inside.
+    const trim = emTrim(node);
     // A PLATE THAT HOLDS THE LINE OUTRIGHT FIRST, then one it only sits on - the runtime's own
     // order (`svgFitContainer`). A clock drawn a few units wider than its own small plate is held
     // by the bar behind both, and the runtime measures it there; naming the small plate would
@@ -460,7 +477,7 @@ export function panelOfEachLine(
       return best;
     };
     const best =
-      smallest((b) => r.left >= b.left - 1 && r.right <= b.right + 1 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1) ??
+      smallest((b) => r.left >= b.left - 1 && r.right <= b.right + 1 && r.top + trim >= b.top - 1 && r.bottom - trim <= b.bottom + 1) ??
       smallest((b) => lineSitsIn(r, b));
     if (best) out[id] = best.id;
   }

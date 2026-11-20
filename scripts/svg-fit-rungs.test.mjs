@@ -106,7 +106,7 @@ const MIRROR_FINDINGS = [
   'illustrator-four-team-scoreboard f5: law: inset x',
   'illustrator-four-team-scoreboard f7: law: inset x',
   'illustrator-internal-css-lower-third f0: law: inset y',
-  'illustrator-kerned-headline f0: box: the step and the runtime choose different boxes',
+  'illustrator-kerned-headline f0: box: the step groups it under no box, the runtime measures it in one',
   'illustrator-kerned-headline f1: box: the step groups it under no box, the runtime measures it in one',
   'illustrator-live-badge-strap f0: law: inset x (penned by a neighbour)',
   'illustrator-mixed-outlines f0: law: nudge x, inset y',

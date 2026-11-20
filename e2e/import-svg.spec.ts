@@ -889,7 +889,9 @@ test('svg import: the text-fit budget is the DRAWN text, whenever the first valu
       svgFitRoom: Record<string, { width: number }>;
       svgFitSizes: Record<string, number>;
     };
-    w.update(JSON.stringify({ f0: 'An extremely long presenter name' }));
+    // One run with no break in it, wider than the whole 800-unit artwork: wrapping cannot help, so
+    // only shrinking answers it, wherever the room is measured.
+    w.update(JSON.stringify({ f0: 'Anextremelylongpresenternamewithnowheretobreakitatall' }));
     w.refitSvgText(); // what document.fonts.ready fires once the real face has loaded
     const node = el as unknown as SVGTextContentElement;
     return {
@@ -3076,6 +3078,9 @@ test('svg import: text with no box chooses wrap or one line, and a centred lower
     </svg>`,
     'picture-bar.svg',
   );
+  await expect(page.getByTestId('import-svg-card')).toBeVisible();
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
   const head = page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first();
   await expect(head).toContainText('On the artwork');
   const choice = head.getByRole('combobox');
@@ -3099,6 +3104,9 @@ test('svg import: text with no box chooses wrap or one line, and a centred lower
     </svg>`,
     'centred-lower-third.svg',
   );
+  await expect(page.getByTestId('import-svg-card')).toBeVisible();
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
   await expect(page.getByTestId('map-svg-stretch')).toContainText('Bar gets wider, then taller');
 });
 
