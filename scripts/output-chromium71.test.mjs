@@ -56,7 +56,9 @@ test('the build check finds each built-in Chromium 71 lacks, and not ordinary co
 /** output.html's classic shim script, run in a context that lacks the built-ins it shims. */
 function shimmedContext() {
   const html = readFileSync('output.html', 'utf8');
-  const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+  // output.html's first script is the classic shim script (the module entry comes after it).
+  const start = html.indexOf('<script>') + '<script>'.length;
+  const script = html.slice(start, html.indexOf('</script>', start));
   for (const text of Object.values(SHIMMED)) assert.ok(script.includes(text), `output.html no longer carries "${text}"`);
   const context = vm.createContext({ Map, Set, Date, RegExp, Array, Object, DOMException });
   vm.runInContext('delete Promise.allSettled; var window = this;', context);
