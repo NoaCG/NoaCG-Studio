@@ -71,6 +71,9 @@ either on; steps 11 and 12 are only for after that.
    nothing pressed. You should see the same: never green before its picture is back, and red
    "did not play" if a graphic it put back does not load within 20 s. (The fold of more than 12
    restored graphics is covered by the Node tests.)
+4. Known issue #2611: after a full machine restart the output can appear twice, its old entry
+   reading "not answering" and then red. That is not this step failing. Remove the old entry with
+   its ✕ in the Playout panel and judge the step by the restarted output.
 
 > **Local check, 2026-11-17: failed on the light's timing.** Both restarted outputs then showed
 > what was on air, but green came before the restarted output drew it: 0.35 s early on the
