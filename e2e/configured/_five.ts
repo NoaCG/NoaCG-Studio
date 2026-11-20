@@ -167,7 +167,20 @@ async function build(owner: Page, editors: number, fill = 0): Promise<Omit<Scene
   );
   await owner.goto(`/app#/production/${made.id}`);
   await expect(owner.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
-  await publishProduction(owner);
+  // PHASE 9 CLOUD: a large production can still be saving; do what the note says and publish again.
+  const t0 = Date.now();
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await publishProduction(owner);
+      log(`published on attempt ${attempt} after ${Date.now() - t0} ms`);
+      break;
+    } catch (e) {
+      log(`publish attempt ${attempt} after ${Date.now() - t0} ms: ${(await owner.getByTestId('production-note').first().textContent().catch(() => '')) ?? ''}`);
+      if (attempt >= 12) throw e;
+      await owner.keyboard.press('Escape').catch(() => undefined);
+      await owner.waitForTimeout(10_000);
+    }
+  }
   await shutStatusPanel(owner);
   return { showId: made.id, teamId: team.id, code: team.code, takes: made.takes, edits: made.edits, score: made.score };
 }
