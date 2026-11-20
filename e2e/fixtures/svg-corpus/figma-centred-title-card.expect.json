@@ -21,7 +21,7 @@
     "imageFields": 0,
     "outlineRows": 0,
     "noticeAbout": [],
-    "growth": "shrink"
+    "growth": "grow-xy"
   },
-  "whyThisMatters": "Every text-bearing file in the corpus is start-anchored except two, and in both of those the centred or end-anchored line is a detail rather than the composition. Here the anchor IS the design: four lines, all centred on one axis, and every x in the file is the middle of a line rather than its left edge. That is the coordinate a field's box, its highlight, its measured width and its too-long answer are all derived from, and reading a centred line's x as a left edge puts the box half a line to the right of the words - visible only once someone types. A title card is also the single most common thing a student makes after a lower third, so this is a shape the road meets early."
+  "whyThisMatters": "Every text-bearing file in the corpus is start-anchored except two, and in both of those the centred or end-anchored line is a detail rather than the composition. Here the anchor IS the design: four lines, all centred on one axis, and every x in the file is the middle of a line rather than its left edge. That is the coordinate a field's box, its highlight, its measured width and its too-long answer are all derived from, and reading a centred line's x as a left edge puts the box half a line to the right of the words - visible only once someone types. A title card is also the single most common thing a student makes after a lower third, so this is a shape the road meets early. Since 2026-11-20 a centred line no longer argues against growth on its own (the owner's ruling that every imported graphic uses its room before it shrinks, review of the same day): the plate is the title's box and widens from its middle, so the default is the grow ladder."
 }

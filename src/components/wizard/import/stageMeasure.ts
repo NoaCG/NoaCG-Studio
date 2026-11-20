@@ -24,7 +24,7 @@
 
 import { parseCssColor } from '../../../model/cssVars';
 import { transformedBox } from '../../../assets/svgGeometry';
-import { PANEL_SAFE, SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_LINE_HEIGHT, isSvgFigure } from '../../../templates/importedDesign/svg';
+import { PANEL_SAFE, SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_BACKPLATE_SHARE, SVG_LINE_HEIGHT, isSvgFigure } from '../../../templates/importedDesign/svg';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import type { DesignSvgAlign } from '../../../templates/importedDesign/designTypes';
 import type { PreviewBoxOverlay } from '../WizardPreview';
@@ -182,7 +182,7 @@ export function proposeFollowers(
  * catalog, which is a measurement of its own and nobody has made it
  * (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-rule-for-what-a-backplate-is.md).
  */
-const BACKPLATE_SHARE_OF_FRAME = 0.7;
+const BACKPLATE_SHARE_OF_FRAME = SVG_BACKPLATE_SHARE;
 
 /**
  * IS THIS A GRAPHIC THE AUDIENCE SEES AGAIN WITH DIFFERENT CONTENT?
@@ -273,12 +273,12 @@ export function repeatsWithNewContent(stage: HTMLElement, holderIds: string[]): 
  *    veto the whole file, which is why the shipped Illustrator lower third - three stacked lines
  *    above one such pair - defaulted to shrinking (owner, 2026-08-26). A graphic whose lines are
  *    ALL side by side still refuses: that is a composed row, a scorebug, and it declares a stage.
- *  - fewer than two figures on the whole graphic (two scores make a scoreboard), and
  *  - those stacked lines not ALL figures (a score, a clock): a figure changes digits, not
- *    length. A centred or right-set line counts on a STRIP (five times wider than tall) since
- *    2026-11-20 - it grows its banner from the middle or leftwards (`svgGrowDir`), and a
- *    student's centred lower third is still a lower third - while a centred title card's plate
- *    keeps its size. Lines are ON the banner the way the checklist groups them (`lineSitsIn`);
+ *    length. ANY ANCHOR counts (2026-11-20): a centred or right-set name grows its banner from
+ *    the middle or leftwards (`svgGrowDir`), and a student's centred lower third is still a lower
+ *    third - unless the bar touches a SCORELINE, which makes its centred line a scoreboard's
+ *    period or clock. Judged per bar, never graphic-wide: a strap's date and time are figures
+ *    too. Lines are ON the banner the way the checklist groups them (`lineSitsIn`);
  *
  * Deliberately NOT measured: the artboard, or the panel's size against it. The 2026-08-23
  * ruling stands - the shipped lower third is a full-frame artboard and the shipped scorebug a
@@ -305,10 +305,21 @@ export function proposeBannerGrowth(stage: HTMLElement, svg: SvgImportResult, on
     if (!(r.width > 0) || !(r.height > 0)) return [];
     return [{ r, anchor: getComputedStyle(node).textAnchor || 'start', figure: isSvgFigure(node.textContent ?? '') }];
   });
-  // TWO SCORES MAKE A SCOREBOARD. Its period strip is a wide plate holding one stacked line, so
-  // with the anchor no longer a veto it would read as a banner; a graphic carrying two or more
-  // figures is a board that declares a stage, whatever its plates look like.
-  if (lines.filter((l) => l.figure).length >= 2) return null;
+  // A SCORELINE: two or more lines sharing one row inside a plate, a figure among them - HAUKAT
+  // 0 0 SUDET. Asked of the plates a CENTRED candidate touches (below), never of the whole
+  // graphic: a strap's date beside its time, or a player's number and age, are figures too, and
+  // counting them graphic-wide took the grow default away from an ordinary lower third.
+  const sameRow = (a: DOMRect, b: DOMRect) => Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > Math.min(a.height, b.height) * 0.5;
+  const holdsScoreline = (pr: DOMRect) => {
+    const held = lines.filter((l) => lineSitsIn(l.r, pr));
+    return held.some((a) => a.figure && held.some((b) => b !== a && sameRow(a.r, b.r)));
+  };
+  const touches = (a: DOMRect, b: DOMRect) =>
+    a.left <= b.right + 2 && b.left <= a.right + 2 && a.top <= b.bottom + 2 && b.top <= a.bottom + 2;
+  const plates = svg.shapes.flatMap((p) => {
+    const r = el(p.id)?.getBoundingClientRect();
+    return r && r.width > 0 && r.height > 0 ? [{ id: p.id, r }] : [];
+  });
   const tol = 2;
   for (const s of svg.shapes) {
     // Widest first, which the inventory already is: the banner is the widest rectangle on it.
@@ -334,10 +345,10 @@ export function proposeBannerGrowth(stage: HTMLElement, svg: SvgImportResult, on
     );
     if (stacked.length === 0) continue;
     // A centred or right-set name widens its banner from the middle or leftwards (`svgGrowDir`,
-    // runtime/svgGrowth.js), so on a STRIP - a bar at least five times as wide as it is tall, the
-    // shape of a lower third - the anchor no longer argues against growing. A centred title card
-    // or endboard plate is not a strip, and keeps the size it was drawn.
-    if (stacked.some((l) => l.anchor !== 'start') && sr.width / sr.height < 5) continue;
+    // runtime/svgGrowth.js), so the anchor alone no longer argues against growing. What does is
+    // the bar's own company: a centred line on a strip drawn against a SCORELINE is a
+    // scoreboard's period or clock, and a scoreboard declares a stage.
+    if (stacked.some((l) => l.anchor !== 'start') && plates.some((p) => p.id !== s.id && touches(p.r, sr) && holdsScoreline(p.r))) continue;
     // A plate holding only FIGURES (a score, a clock) still says no: its value changes digits,
     // never length.
     if (stacked.every((l) => l.figure)) continue;
@@ -409,11 +420,14 @@ export function panelsHoldingText(
  *  importedDesign/svg.ts) - the rows the shape spans, entered from inside its left edge - and
  *  the ONE place the step spells it, because two spellings of it is how the shapes offered as
  *  growable and the plates named per layer drift into two different answers. */
-function lineSitsIn(line: { top: number; bottom: number; left: number }, box: DOMRect): boolean {
-  // A line started a little LEFT of its bar still sits on it - within half its own height, the
-  // allowance the runtime's loose panel test keeps too (`svgFitContainer`, runtime/svgFit.js).
-  const tol = Math.max(1, (line.bottom - line.top) / 2);
-  return line.top < box.bottom && line.bottom > box.top && line.left >= box.left - tol && line.left < box.right;
+function lineSitsIn(line: { top: number; bottom: number; left: number }, box: { top: number; bottom: number; left: number; right: number }): boolean {
+  // The runtime's sitting-on test word for word (`svgSitsOnOf`, runtime/svgFit.js): the shape
+  // covers at least half the line's height, and the line starts inside it, within half its own
+  // height of its left edge. A shape that only grazes the line is not where it sits.
+  const h = line.bottom - line.top;
+  const cover = Math.min(line.bottom, box.bottom) - Math.max(line.top, box.top);
+  const tol = Math.max(1, h / 2);
+  return cover >= h / 2 && line.left >= box.left - tol && line.left < box.right;
 }
 
 /** How far a line's box overhangs its EM box at top and bottom, in screen px - the runtime's
@@ -462,23 +476,32 @@ export function panelOfEachLine(
     // Held by its EM box vertically, as the runtime holds it (`svgEmTrim`): a line box pokes
     // past a snug plate that the type itself sits inside.
     const trim = emTrim(node);
-    // A PLATE THAT HOLDS THE LINE OUTRIGHT FIRST, then one it only sits on - the runtime's own
-    // order (`svgFitContainer`). A clock drawn a few units wider than its own small plate is held
-    // by the bar behind both, and the runtime measures it there; naming the small plate would
-    // put the checklist and the fit in two different boxes.
-    const smallest = (holds: (box: DOMRect) => boolean) => {
-      let best: { id: string; area: number } | null = null;
-      for (const plate of plates) {
-        if (!holds(plate.box)) continue;
-        const area = plate.box.width * plate.box.height;
-        if (area <= r.width * r.height) continue;
-        if (!best || area < best.area) best = { id: plate.id, area };
-      }
-      return best;
-    };
+    // THE RUNTIME'S ORDER (`svgFitContainer`), so the checklist and the fit name one box: a
+    // plate that holds the line outright, then one it sits on (the one covering most of it, then
+    // the smallest), and a FRAME-SIZED shape last - an unfilled artboard rectangle holds every
+    // line, and asked first it beat the bar a tall name sits on.
+    const frame = stage.querySelector('svg')?.getBoundingClientRect();
+    const frameArea = frame ? frame.width * frame.height : 0;
+    const isBig = (b: DOMRect) => frameArea > 0 && b.width * b.height >= frameArea * SVG_BACKPLATE_SHARE;
+    const bigger = (b: DOMRect) => b.width * b.height > r.width * r.height;
+    const holds = (b: DOMRect) =>
+      r.left >= b.left - 1 && r.right <= b.right + 1 && r.top + trim >= b.top - 1 && r.bottom - trim <= b.bottom + 1;
+    const cover = (b: DOMRect) => Math.min(1, (Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top)) / r.height);
+    const area = (b: DOMRect) => b.width * b.height;
+    const pick = (cands: { id: string; box: DOMRect }[], byCover: boolean) =>
+      cands.reduce<{ id: string; box: DOMRect } | null>((best, c) => {
+        if (!best) return c;
+        if (byCover) {
+          const d = cover(c.box) - cover(best.box);
+          if (d > 0.01) return c;
+          if (d < -0.01) return best;
+        }
+        return area(c.box) < area(best.box) ? c : best;
+      }, null);
     const best =
-      smallest((b) => r.left >= b.left - 1 && r.right <= b.right + 1 && r.top + trim >= b.top - 1 && r.bottom - trim <= b.bottom + 1) ??
-      smallest((b) => lineSitsIn(r, b));
+      pick(plates.filter((p) => !isBig(p.box) && bigger(p.box) && holds(p.box)), false) ??
+      pick(plates.filter((p) => !isBig(p.box) && bigger(p.box) && lineSitsIn(r, p.box)), true) ??
+      pick(plates.filter((p) => isBig(p.box) && bigger(p.box) && holds(p.box)), false);
     if (best) out[id] = best.id;
   }
   return out;

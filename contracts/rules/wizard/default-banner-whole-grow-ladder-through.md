@@ -3,7 +3,7 @@ v: 1
 scope: src/components/wizard/import/**
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-11-20
 supersedes: wizard/measure-growth-default-where-artwork-unambiguous
 record: contracts/records/wizard/2026-11-20-default-banner-whole-grow-ladder-through.md

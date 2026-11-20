@@ -495,7 +495,9 @@ function svgLinesInside(el) {
   var out = [];
   for (var i = 0; i < nodes.length; i++) {
     var r = nodes[i].getBoundingClientRect();
-    var sameRows = r.top < box.bottom && r.bottom > box.top;
+    // ON the panel's rows the way the fit's sitting-on test reads it (svgSitsOnOf): at least half
+    // the line's height inside them, so a line that only grazes a panel is not its text.
+    var sameRows = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top) >= r.height / 2;
     var x = svgAnchorX(nodes[i], r);
     // The tolerance is on BOTH edges. It used to be on the left alone, which was invisible while
     // the x being tested was a line's left edge - that can never sit on the panel's right edge -
