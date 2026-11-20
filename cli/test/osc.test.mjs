@@ -45,6 +45,7 @@ test('the encoder refuses bad addresses, values and sizes with a sentence', () =
   assert.throws(() => encodeOscMessage('/a', [{ type: 'f', value: 'NaN' }]), /decimal/);
   assert.throws(() => encodeOscMessage('/a', [{ type: 'f', value: '1e40' }]), /decimal/);
   assert.throws(() => encodeOscMessage('/a', [{ type: 'T', value: '' }]), /type/);
+  assert.throws(() => encodeOscMessage('/a', [s('a\0bcdefg'), { type: 'i', value: '5' }]), /NUL/);
   assert.throws(() => encodeOscMessage('/a', Array.from({ length: 17 }, () => s('x'))), /at most 16/);
   assert.throws(() => encodeOscMessage('/a', [s('x'.repeat(OSC_MAX_BYTES))]), /bytes/);
 });
@@ -199,4 +200,15 @@ test('an IPv6 destination is named as such, and nothing is sent', async () => {
   assert.equal(r.ok, false);
   assert.equal(r.error.code, 'refused');
   assert.match(r.error.message, /IPv6/);
+});
+
+test('the deadline runs from receipt: a request that arrived late is refused unsent', async () => {
+  const f = fakeIo();
+  const sender = new OscSender(false, f.io);
+  const arrived = f.io.now();
+  f.tick(OSC_DEADLINE_MS + 1);
+  const r = await sender.send(req('late'), arrived);
+  assert.equal(r.ok, false);
+  assert.match(r.error.message, /too long to arrive/);
+  assert.equal(f.sent.length, 0);
 });

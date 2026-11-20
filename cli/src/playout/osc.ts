@@ -68,7 +68,12 @@ const FLOAT = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 /** One argument as bytes, or why it cannot be sent. */
 function encodeArg(arg: OscArg, index: number): Buffer {
   const where = `Argument ${index + 1}`;
-  if (arg.type === 's') return oscString(arg.value);
+  if (arg.type === 's') {
+    // OSC ends a string at its first NUL: one inside would cut it short and shift every argument
+    // after it, so the device would read different values from the ones sent.
+    if (arg.value.includes('\0')) throw new OscError(`${where} contains a NUL character.`, 'usage');
+    return oscString(arg.value);
+  }
   const text = arg.value.trim();
   if (arg.type === 'i') {
     const n = INT32.test(text) ? Number(text) : NaN;
@@ -214,7 +219,7 @@ export class OscSender {
 
   /** Send one message, or answer the outcome of the first request that carried this send id.
    *  `repeat` says the answer is that earlier outcome and nothing was sent now. */
-  send(request: OscRequest): Promise<OscOutcome & { repeat?: true }> {
+  send(request: OscRequest, receivedAt?: number): Promise<OscOutcome & { repeat?: true }> {
     const now = this.io.now();
     this.forget(now);
     const earlier = this.seen.get(request.sendId);
@@ -223,13 +228,15 @@ export class OscSender {
       // Not remembered: a press refused for the rate may be pressed again.
       return Promise.resolve({ ok: false, error: new OscError('Too many OSC sends at once. Nothing was sent.', 'refused') });
     }
-    const outcome = this.run(request, now);
+    // The deadline runs from when the request reached the Bridge, not from when its body was read.
+    const outcome = this.run(request, Math.min(now, receivedAt ?? now));
     this.seen.set(request.sendId, { at: now, outcome });
     return outcome;
   }
 
   private async run(request: OscRequest, startedAt: number): Promise<OscOutcome> {
     try {
+      if (this.io.now() - startedAt > OSC_DEADLINE_MS) throw new OscError('The request took too long to arrive, so nothing was sent.', 'unreachable');
       const packet = encodeOscMessage(request.address, request.args);
       const late = () => this.io.now() - startedAt > OSC_DEADLINE_MS;
       let ip: string;

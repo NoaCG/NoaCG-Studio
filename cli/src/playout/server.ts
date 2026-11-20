@@ -660,7 +660,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             if (e instanceof OscError) throw new UsageError(e.message);
             throw e;
           }
-          const r = await osc.send(request);
+          const r = await osc.send(request, receivedAt);
           log(`osc ${request.host}:${request.port} ${request.address} -> ${r.ok ? `sent ${r.value.bytes} bytes to ${r.value.to}` : `${r.error.code}: ${r.error.message}`}${r.repeat ? ' (repeat, not sent again)' : ''}`);
           if (!r.ok && r.error.code === 'usage') throw new UsageError(r.error.message);
           send(200, r.ok
