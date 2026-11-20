@@ -1,7 +1,7 @@
 // A TEAM RECORD WITHOUT ITS DESIGNS (docs/work-specs/live-publishing/designs/G5-team-record.md).
 //
 // A team production's record used to carry every graphic's full template, so every save sent and
-// rewrote megabytes. Migration 0123 stores each design once per production under a name the server
+// rewrote megabytes. Migration 0125 stores each design once per production under a name the server
 // computes from its content, and a SPLIT record carries `designRef: <name>` in place of `template`.
 //
 // This module is the page's half, with the server passed in so it can be tested against a model:

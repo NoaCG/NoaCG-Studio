@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
   "recordedAt": "2026-11-10",
-  "count": 248,
+  "count": 250,
   "entries": {
     "anon_security_definer_function_executable_public_audience_clear_results_p_slug text, p_question text": {
       "name": "anon_security_definer_function_executable",
@@ -758,10 +758,20 @@
       "level": "WARN",
       "detail": "Function `public.team_production_patch(p_id uuid, p_expected timestamp with time zone, p_ops jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_patch`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_team_production_patch_v2_p_id uuid, p_expected timestamp with time zone, p_ops jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_production_patch_v2(p_id uuid, p_expected timestamp with time zone, p_ops jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_patch_v2`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_team_production_save_p_id uuid, p_expected timestamp with time zone, p_doc jsonb": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.team_production_save(p_id uuid, p_expected timestamp with time zone, p_doc jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_save`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_team_production_save_v2_p_id uuid, p_expected timestamp with time zone, p_doc jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_production_save_v2(p_id uuid, p_expected timestamp with time zone, p_doc jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_save_v2`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_team_production_store_p_id uuid, p_expected timestamp with time zone, p_doc jsonb": {
       "name": "authenticated_security_definer_function_executable",

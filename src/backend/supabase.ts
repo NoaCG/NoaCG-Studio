@@ -49,7 +49,7 @@ function bodyBytes(body: BodyInit | null | undefined): number {
  * before. A header, because an older bundle cannot echo it back from stored data.
  */
 export const COPIES_MARK_HEADER = 'x-noacg-production-copies';
-/** THE DESIGNS MARK (live-publishing G5, migration 0123): this build reads a team record that names
+/** THE DESIGNS MARK (live-publishing G5, migration 0125): this build reads a team record that names
  *  its designs (`designRef`) and makes it whole. An older page sends none, and the database never
  *  hands it such a record ("Reload this page to edit"). */
 export const DESIGNS_MARK_HEADER = 'x-noacg-team-designs';
