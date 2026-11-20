@@ -85,6 +85,8 @@ export interface ChangePrep {
 /** What an output says about itself: its Presence entry's `ready`. */
 export interface OutputReady {
   sounds?: { n: number; of: number; bytes: number };
+  /** The output page's boot mark (live-publishing G2 section 4a, #2608), from its first join. */
+  b?: string;
   /** Graphics prepared (their check finished, whatever it found), of how many in its version. */
   n: number;
   of: number;
@@ -208,6 +210,7 @@ export function readOutputReady(value: unknown): OutputReady | undefined {
     ...(r.sounds && [r.sounds.n,r.sounds.of,r.sounds.bytes].every(n=>Number.isInteger(n) && n >= 0) && r.sounds.n <= r.sounds.of ? { sounds: r.sounds } : {}),
     ...(chg ? { chg } : {}),
     ...(readRun((r as { run?: unknown }).run) ? { run: readRun((r as { run?: unknown }).run)! } : {}),
+    ...(typeof r.b === 'string' && r.b ? { b: r.b.slice(0, 16) } : {}),
     ...(Array.isArray((r as { lt?: unknown }).lt)
       ? { lt: ((r as { lt: unknown[] }).lt).filter((x): x is { g: string; ms: number } => !!x && typeof (x as { g?: unknown }).g === 'string' && typeof (x as { ms?: unknown }).ms === 'number').slice(0, 6).map((x) => ({ g: x.g.slice(0, 80), ms: x.ms })) }
       : {}),

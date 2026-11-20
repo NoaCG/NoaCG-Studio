@@ -80,6 +80,7 @@ import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
 import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, afterOutcome, compact, demandFor, giveUp, heldLate, isCancelled, isTake, liveStep, quietEntrances, releaseMode, type Failure, type HeldRow, type HoldFailure } from './hold';
 import { epochTag, listed, type HeldEntry, type RunReport } from '../control/runReport';
+import { drawTag, settledStart, withSettled } from './settled';
 import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
 import { OBS_ARRIVAL_MS, OBS_SHARED_MS, obsEvent, obsState, sceneParam, scopePayload, type ObsWhere } from './sceneScope';
 import type { OutputPayload } from '../control/hostedControl';
@@ -197,6 +198,9 @@ const pageServed = async (signal: AbortSignal) => (await fetch(window.location.h
 const reloadPage = () => window.location.reload();
 
 async function boot(): Promise<void> {
+  /** This output page's boot mark and start (G2 section 4a, #2608): a reload draws a new mark. */
+  const bootMark = drawTag();
+  const bootStartedAt = Date.now();
   if (!outputSlug) {
     unavailable('no-token');
     return;
@@ -488,7 +492,8 @@ async function boot(): Promise<void> {
       name: outputName ?? sceneName,
       destinationId: readDestinationId(window.location.search),
       // What this output has run (live-publishing G2 section 1), on the numbered log only.
-      ready: seqMode ? { ...readiness(), run: listed(runNow()), lt: lateList() } : readiness(),
+      // `b`: the boot mark from the first join, before any run (G2 section 4a, #2608).
+      ready: seqMode ? { ...readiness(), run: listed(runNow()), lt: lateList(), b: bootMark } : { ...readiness(), b: bootMark },
       ack,
       proto: identity.protocol,
       // E1.2a: this output reads typed envelopes, so a page may send it one.
@@ -1223,6 +1228,15 @@ async function boot(): Promise<void> {
     if (from === undefined || at < from) offAirFrom.set(graphic, at);
   };
   if (seqMode) for (const key of stage.graphics.concat(bootPackages)) ranOffAir(key, 1);
+  /** When the boot read what to put back (0: not yet), and whether it gave up waiting at 60 s
+   *  (G2 section 4a, M2 and M5): until it reads, the output is unsettled. */
+  let bootReadAt = 0;
+  let bootOverdue = false;
+  setTimeout(() => {
+    if (bootReadAt) return;
+    bootOverdue = true;
+    presence.touch();
+  }, Math.max(0, bootStartedAt + 60_000 - Date.now()));
   /** A graphic that ran off air is on air now: what it ran counts, and one with something to say
    *  reports it; the rest reach the page through Presence. */
   const backOnAir = (graphic: string) => {
@@ -1245,7 +1259,8 @@ async function boot(): Promise<void> {
     offAirFrom.forEach((_from, key) => {
       if (!hiddenHere(key) && stage.released(key)) backOnAir(key);
       // A frame still loading counts when it loads, or, hidden by its own flag, when that lifts.
-      else setTimeout(() => bootBackstop(key), FRAME_LOAD_MS);
+      // Its 20 s counts from when the boot read what to put back (P1).
+      else setTimeout(() => bootBackstop(key), Math.max(0, bootReadAt + FRAME_LOAD_MS - Date.now()));
     });
   };
   /** Boot frames that had not loaded FRAME_LOAD_MS after the reveal: they did not play here. */
@@ -1575,7 +1590,33 @@ async function boot(): Promise<void> {
   });
 
   /** What this output has run (G2 section 1): its cursor, and every graphic with work unsettled. */
+  /** The settled fact's state, kept across builds of every report of this boot (#2608). */
+  let settled = settledStart();
   const runNow = (): RunReport => {
+    const built = withSettled(settled, runHeld(), { read: bootReadAt > 0, overdue: bootOverdue }, bootMark, Date.now());
+    settled = built.state;
+    return built.run;
+  };
+  /** Says the settled fact's change at once rather than at the next unrelated touch, and touches
+   *  once when a `placing` wait passes 5 s, so a page opened mid-wait reads amber (M2, M4). */
+  let saidFact = '';
+  let toldLate = false;
+  if (seqMode) {
+    setInterval(() => {
+      const r = runNow();
+      const fact = `${r.w}|${r.k ?? ''}|${r.y ?? ''}|${r.e}`;
+      const late = r.k === 'placing' && (r.wa ?? 0) >= 5_000;
+      if (fact !== saidFact) {
+        saidFact = fact;
+        toldLate = late;
+        presence.touch();
+      } else if (late && !toldLate) {
+        toldLate = true;
+        presence.touch();
+      }
+    }, 1_000);
+  }
+  const runHeld = (): RunReport => {
     const now = Date.now();
     const h: Record<string, HeldEntry> = {};
     holds.forEach((hold, graphic) => {
@@ -1981,6 +2022,9 @@ async function boot(): Promise<void> {
     if (!liveGraphics.has(key) && !holds.has(key) && !replayed.some((row) => row.graphic === key && isCommand(row.msg.t))) offAirFrom.delete(key);
   });
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
+  bootReadAt = Date.now();
+  bootOverdue = false;
+  presence.touch();
   markRecovered();
   if (animates) {
     // A frame that has not loaded when the stage comes back stays hidden by its own flag until it
