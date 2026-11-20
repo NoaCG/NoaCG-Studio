@@ -330,6 +330,10 @@
       "fix": 2536,
       "landed": "cfcdb9f9 (#2598)",
       "note": "explains miss 43581128114; import-prepare stays quarantined until its 20 passes"
+    },
+    {
+      "checkin": "2026-11-20T07:51Z",
+      "note": "no audit reset after 18c0c25f (main e8488c89); #2598 and #2584 post-landing runs green; no age or repair-wake alarm; renew refused by the cf18 wait as designed; next check-in 2026-11-26T06:50Z"
     }
   ],
   "decisions": [
