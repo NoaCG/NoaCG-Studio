@@ -191,6 +191,11 @@ Phase 1 (release 1, model safety), notes for the phases after it:
 - The undo snapshot (`rundownHistory.ts` `RundownSlice`) holds cues, folders, graphics and playout
   items, not `oscDestinations`. Phase 4 decides whether destination edits join undo.
 - The rehearsal banner (`ProductionPage.tsx` `rehearsing`) does not yet mention OSC; phase 4.
+- The write gate `controlFrozen`, added after review of the phase 1 pull request, sits at the same
+  doors as `typedFrozen`: a control cue of a later version is read-only in every byte and cannot be
+  removed; no write may change a message or add a new one, except a copy of a message the record
+  already holds and an undo. Phase 4's editor passes its own cue in `write`. A paste from another
+  production is therefore refused until then, as typed data is.
 - A test fixture in `scripts/folder-playout.test.mjs` wrote `source: 'graphic'`, a value no
   `ShowCue` can hold. Under `cueKind` an unknown source is a control cue, so the fixture now omits
   `source` as a real graphic cue does; the assertion is unchanged.

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const { cueKind, readControl, controlReadOnly, isControlCue, isGraphicCue, isServerCue, OSC_NOT_YET } = await import('../src/model/controlCue.ts');
+const { cueKind, readControl, controlReadOnly, controlFrozen, controlKeep, CONTROL_KEPT, isControlCue, isGraphicCue, isServerCue, OSC_NOT_YET } = await import('../src/model/controlCue.ts');
 const { copyClip, pasteCopies } = await import('../src/model/cueClipboard.ts');
 const { rundownRefusal } = await import('../src/model/rundownHistory.ts');
 const { throughMisfit } = await import('../src/model/showFolders.ts');
@@ -92,6 +92,22 @@ test('an OSC cue is never on air and never holds a together folder at partial', 
   assert.deepEqual([air.lit, air.onAir], ['on', ['A']]);
 });
 
+test('the write gate: an OSC cue of a later version is read-only whole, and no write rewrites a message', () => {
+  const later = osc('X', { control: { v: 2, kind: 'osc', more: true } });
+  const record = { cues: [graphic('A'), osc('L'), later] };
+  const kept = controlKeep(record);
+  const write = (change) => controlFrozen(kept, { cues: change(structuredClone(record.cues)) });
+  assert.equal(write((cues) => cues), null, 'an unchanged record passes');
+  assert.equal(write((cues) => (cues[0].label = 'B', cues)), null, 'editing a graphic cue passes');
+  assert.equal(write((cues) => (cues[1].accentColor = '#f00', cues)), null, 'a readable OSC cue keeps its other fields editable');
+  assert.equal(write((cues) => (cues[2].accentColor = '#f00', cues)), CONTROL_KEPT, 'a later version is read-only, every byte');
+  assert.equal(write((cues) => cues.filter((c) => c.id !== 'X')), CONTROL_KEPT, 'and cannot be removed here');
+  assert.equal(write((cues) => (cues[1].control.address = '/other', cues)), CONTROL_KEPT, 'no writer may change a message in this release');
+  assert.equal(write((cues) => [...cues, osc('NEW', { control: { ...control(), address: '/new' } })]), CONTROL_KEPT, 'nor make a new one');
+  assert.equal(write((cues) => [...cues, osc('COPY')]), null, 'a copy of a message the record holds may be added');
+  assert.equal(controlFrozen(kept, { cues: [...record.cues, osc('BACK', { control: { address: '/undo' } })] }, new Set(['BACK'])), null, 'an undo may bring a cue back');
+});
+
 test('no file in src/ compares a cue source by hand: every reader goes through cueKind', () => {
   const root = new URL('../src/', import.meta.url).pathname;
   // `cue.source === 'playout'`, a destructured `source !== 'control'`, either way round, and a
@@ -105,4 +121,14 @@ test('no file in src/ compares a cue source by hand: every reader goes through c
       return text.split('\n').flatMap((line, i) => (raw.test(line) ? [`${f}:${i + 1}`] : []));
     });
   assert.deepEqual(offenders, [], 'use cueKind / isGraphicCue / isServerCue / isControlCue from src/model/controlCue.ts');
+});
+
+test('the control gate is asked by both writes of patchShowChecked and by the undo', () => {
+  const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+  const shows = read('src/model/shows.ts');
+  assert.match(shows, /const control = controlKeep\(show\);/);
+  assert.match(shows, /typedFrozen\(typed, show, undefined, typedWrite\) \?\? controlFrozen\(control, show\)/);
+  assert.match(shows, /const controlFresh = controlKeep\(fresh\);/);
+  assert.match(shows, /typedFrozen\(typedFresh, fresh, undefined, typedWrite\) \?\? controlFrozen\(controlFresh, fresh\)/);
+  assert.match(read('src/model/rundownHistory.ts'), /controlFrozen\(controlKeep\(show\), next, restored\)/);
 });

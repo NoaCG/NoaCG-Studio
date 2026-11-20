@@ -68,7 +68,7 @@ import {
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
 import { patchAdjust, promotedMembers, readAdjust, stepPatch, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
 import { cueShortcutHolders, normalizeCueShortcut } from './cueShortcuts.ts';
-import { isGraphicCue, isServerCue, type ControlRecord, type OscDestination } from './controlCue.ts';
+import { controlFrozen, controlKeep, isGraphicCue, isServerCue, type ControlRecord, type OscDestination } from './controlCue.ts';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -1235,12 +1235,13 @@ function patchShowChecked(
   const at = nowIso();
   const scenes = sceneSnapshot(show);
   const kept = selectionKeep(show);
+  const control = controlKeep(show);
   const typed = typedKeep(show);
   const result = mutate(show, at);
   if (typeof result === 'string') return { shows: visible(), error: result };
   if (!result) return { shows: visible(), error: null };
   // The mutation ran on this read only: refused, the stored productions are read again.
-  const frozen = separateAfterWrite(show, scenes) ?? selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
+  const frozen = separateAfterWrite(show, scenes) ?? selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite) ?? controlFrozen(control, show);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   scrubHiddenWords(show); // W11: this tab's copy too, before the rebased pass decides the stored one
@@ -1290,6 +1291,7 @@ function storedPatch(
   return (fresh: Show, at: string): string | null => {
     const scenesFresh = sceneSnapshot(fresh);
     const keptFresh = selectionKeep(fresh);
+    const controlFresh = controlKeep(fresh);
     const typedFresh = typedKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return again;
@@ -1297,7 +1299,7 @@ function storedPatch(
     const separatedFresh = separateAfterWrite(fresh, scenesFresh);
     if (separatedFresh) return separatedFresh;
     scrubHiddenWords(fresh); // W11 uses the stored rule, including after a cross-tab change.
-    const frozenFresh = selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite);
+    const frozenFresh = selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite) ?? controlFrozen(controlFresh, fresh);
     if (frozenFresh) return frozenFresh;
     fresh.updatedAt = at;
     return null;

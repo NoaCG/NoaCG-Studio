@@ -5,7 +5,7 @@ import { foldersContiguous, throughRefusal } from './showFolders.ts';
 import { selectionFrozen, selectionKeep, selectionReadOnly } from './productionData.ts';
 import { typedFrozen, typedKeep, typedValuesOf } from './ografTyped.ts';
 import { scrubHiddenWords } from './wordCues.ts';
-import { isControlCue, isServerCue } from './controlCue.ts';
+import { controlFrozen, controlKeep, isControlCue, isServerCue } from './controlCue.ts';
 
 /** Only prepared rundown data. Air, publication, datasets and production metadata stay outside. */
 export interface RundownSlice {
@@ -145,7 +145,7 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
     if (now && typedValuesOf(now.typed) && typedValuesOf(cue.typed) && JSON.stringify(now.typed) !== to) typedMoved.set(cue.id, to);
   }
   const restored = new Set(copy.cues.map((c) => c.id));
-  const frozen = selectionFrozen(selectionKeep(show), next, restored, moved.size ? { cues: moved } : undefined) ?? typedFrozen(typedKeep(show), next, restored, typedMoved);
+  const frozen = selectionFrozen(selectionKeep(show), next, restored, moved.size ? { cues: moved } : undefined) ?? typedFrozen(typedKeep(show), next, restored, typedMoved) ?? controlFrozen(controlKeep(show), next, restored);
   return frozen ? { show: null, refused: frozen } : { show: next, refused: null };
 }
 

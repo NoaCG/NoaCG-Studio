@@ -93,3 +93,66 @@ export function isControlCue<T extends { source?: unknown }>(cue: T | null | und
 /** Why this build refuses to send a control cue (rollout release 1, spec D4): it reads, keeps and
  *  shows OSC cues but cannot send them yet. */
 export const OSC_NOT_YET = (label: string): string => `${label} is an OSC cue, which this version of NoaCG cannot send yet.`;
+
+// ── The write gate ───────────────────────────────────────────────────────────────────────────
+
+/** What a write must not change, by cue id: a readable control cue's message, or the whole of a
+ *  control cue this build cannot read. */
+export interface ControlKept {
+  cues: Map<string, { bytes: string; whole: boolean }>;
+  held: Set<string>;
+  ids: Set<string>;
+}
+
+type ControlRecordLike = { cues?: readonly ({ id: string; source?: unknown; control?: unknown })[] };
+
+export function controlKeep(show: ControlRecordLike): ControlKept | null {
+  const cues = new Map<string, { bytes: string; whole: boolean }>();
+  const held = new Set<string>();
+  for (const cue of show.cues ?? []) {
+    if (cue.control === undefined && !isControlCue(cue)) continue;
+    const whole = controlReadOnly(cue);
+    cues.set(cue.id, { bytes: JSON.stringify(whole ? cue : (cue.control ?? null)), whole });
+    if (!whole) held.add(JSON.stringify(cue.control ?? null));
+  }
+  return cues.size ? { cues, held, ids: new Set((show.cues ?? []).map((c) => c.id)) } : null;
+}
+
+export const CONTROL_KEPT = 'This production has OSC cues this version cannot change, so the edit was not saved.';
+
+/**
+ * THE CONTROL GATE AT THE WRITE DOORS (docs/work-specs/osc-control-cues/spec.md D2, D4; the pattern
+ * of ./ografTyped.ts `typedFrozen`): model/shows.ts `patchShowChecked` (both of its writes) and
+ * ./rundownHistory.ts `replaceRundown` ask it. A write is refused whole when it would change any byte
+ * of a control cue this build cannot read, or remove one; change a readable control cue's message
+ * other than through its writer (`write`, cue id to the exact bytes it writes); or give a cue a
+ * control record it did not have, unless an undo brings it back (`restored`) or it is a copy of a
+ * message this record already holds.
+ */
+export function controlFrozen(
+  before: ControlKept | null,
+  after: ControlRecordLike,
+  restored: ReadonlySet<string> = new Set(),
+  write: ReadonlyMap<string, string> = new Map(),
+): string | null {
+  const now = new Map((after.cues ?? []).map((c) => [c.id, c] as const));
+  for (const [id, bytes] of write) {
+    const cue = now.get(id);
+    if (!cue || before?.cues.get(id)?.whole || JSON.stringify(cue.control ?? null) !== bytes) return CONTROL_KEPT;
+  }
+  for (const [id, kept] of before?.cues ?? []) {
+    if (write.has(id)) continue;
+    const cue = now.get(id);
+    if (!cue) {
+      if (kept.whole) return CONTROL_KEPT;
+      continue;
+    }
+    if (JSON.stringify(kept.whole ? cue : (cue.control ?? null)) !== kept.bytes) return CONTROL_KEPT;
+  }
+  for (const cue of after.cues ?? []) {
+    if (cue.control === undefined && !isControlCue(cue)) continue;
+    if (before?.cues.has(cue.id) || restored.has(cue.id) || write.has(cue.id)) continue;
+    if (before?.ids.has(cue.id) || controlReadOnly(cue) || !before?.held.has(JSON.stringify(cue.control ?? null))) return CONTROL_KEPT;
+  }
+  return null;
+}
