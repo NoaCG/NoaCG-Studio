@@ -1392,7 +1392,8 @@ async function boot(): Promise<void> {
     } finally {
       bootHidden.delete(graphic);
       stage.hide(graphic, false);
-      backOnAir(graphic);
+      // While the whole stage is still off air for the boot, the reveal counts it (`revealBoot`).
+      if (!bootOffAir) backOnAir(graphic);
     }
   };
 
