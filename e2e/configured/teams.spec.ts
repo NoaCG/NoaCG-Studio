@@ -25,6 +25,8 @@
 // covers: src/backend/teamProductions.ts, src/backend/assets.ts, src/backend/pacing.ts
 // covers: src/backend/savedRevision.ts, src/control/autoPublish.ts, src/components/home/useAutoPublish.ts
 // covers: src/control/publishParts.ts, src/control/publishRevision.ts, src/control/messageStaging.ts
+// A REFUSED SAVE READS ONLY WHAT CHANGED (#2615, live-publishing evidence/fix-2615.md): the describe at the end.
+// covers: supabase/migrations/0121_team_save_refusal_token.sql, src/backend/unitPatch.ts
 
 import { publishProduction } from '../_publish';
 import { closeScene, isLocalStack, lastTexts, openScene, pageCues, run, serverState, type Scene } from './_five';
@@ -46,6 +48,8 @@ import {
 import { settleDurableWrites } from '../_durable';
 import { FAKE_JOIN_ROUTE, TEAM } from '../_teams';
 import { installDoor } from '../_door';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { applyPatch, applyToMap, canonicalJson, diff, unitMap, type PatchOp, type UnitMap } from '../../src/backend/unitPatch';
 
 // This file also runs in pages that are not the app (e2e/_door.ts).
 test.beforeEach(({ context }) => installDoor(context));
@@ -1010,4 +1014,127 @@ test.describe('five accounts at once', () => {
   function pickCues(cues: Record<string, string>, labels: string[]): Record<string, string> {
     return Object.fromEntries(labels.map((l) => [l, cues[l]]));
   }
+});
+
+// A REFUSED SAVE READS ONLY WHAT CHANGED (#2615, docs/work-specs/live-publishing/evidence/fix-2615.md).
+// The real functions of 0121 on the stack, two accounts writing random edits over compare-and-swap,
+// and a reader holding older versions. The oracle is G4's own `diff` (src/backend/unitPatch.ts), not
+// a copy of the read: each answer, applied to the kept version, is the stored record, and names
+// exactly the members and elements `diff` finds changed between the two versions.
+test.describe('a refused team save reads only what changed', () => {
+  test.skip(!haveCreds || !haveTeammateCreds, 'needs the configured account and its teammate');
+
+  test('random edits by two writers: every read rebuilds the record and names only what changed', async () => {
+    test.setTimeout(60_000);
+    const anon = process.env.VITE_SUPABASE_ANON_KEY ?? '';
+    const client = async (email: string, password: string): Promise<SupabaseClient> => {
+      // The build mark this build's pages send (src/backend/supabase.ts), so 0115's guard admits the writes.
+      const sb = createClient(SUPABASE_URL, anon, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { 'x-noacg-production-copies': '1' } } });
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      return sb;
+    };
+    const anna = await client(E2E_EMAIL, process.env.E2E_PASSWORD ?? '');
+    const ben = await client(E2E_TEAMMATE_EMAIL, E2E_TEAMMATE_PASSWORD);
+    const { data: made, error: teamError } = await anna.from('teams').insert({ name: `E2E team 2615 ${Date.now()}` }).select('id, join_code').single();
+    expect(teamError).toBeNull();
+    const team = made as { id: string; join_code: string };
+    const id = crypto.randomUUID();
+    try {
+      expect((await anna.rpc('team_join', { p_code: team.join_code, p_display_name: 'Anna' })).error).toBeNull();
+      expect((await ben.rpc('team_join', { p_code: team.join_code, p_display_name: 'Ben' })).error).toBeNull();
+      // A seeded generator (mulberry32), so a failure names a run that can be repeated.
+      let seed = 2615;
+      const rand = (n: number) => {
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return (((t ^ (t >>> 14)) >>> 0) % n);
+      };
+      type Doc = Record<string, unknown>;
+      const cue = (i: number) => ({ id: `c${i}`, label: `cue ${i}`, values: { n: i } });
+      let doc: Doc = {
+        name: 'Seed', n: 0, tags: ['a', 'b'],
+        cues: [0, 1, 2, 3].map(cue),
+        graphics: [{ id: 'g0', name: 'Strap', template: { html: '<p>0</p>' } }, { id: 'g1', name: 'Score', template: { html: '<p>1</p>' } }],
+        bindings: [{ key: 'k0', v: 0 }],
+        shifty: [{ id: 's0', name: 'x' }],
+        empty: [],
+      };
+      const { data: row, error: insertError } = await anna.from('team_productions').insert({ id, team_id: team.id, doc, updated_by: (await anna.auth.getUser()).data.user!.id }).select('updated_at').single();
+      expect(insertError).toBeNull();
+      let token = (row as { updated_at: string }).updated_at;
+      let next = 4;
+      // Every kind of edit in turn, its details random.
+      const edit = (d: Doc, kind: number): Doc => {
+        const out: Doc = { ...d };
+        const cues = [...((out.cues as Doc[]) ?? [])];
+        switch (kind % 11) {
+          case 0: if (cues.length) { const i = rand(cues.length); cues[i] = { ...cues[i], label: `typed ${rand(1000)}` }; } break;
+          case 1: cues.splice(rand(cues.length + 1), 0, cue(next++)); break;
+          case 2: if (cues.length > 1) cues.splice(rand(cues.length), 1); break;
+          case 3: if (cues.length > 1) { const [m] = cues.splice(rand(cues.length), 1); cues.splice(rand(cues.length + 1), 0, m); } break;
+          case 4: { const which = rand(2); out.graphics = (out.graphics as Doc[]).map((g, i) => (i === which ? { ...g, template: { html: `<p>${rand(1000)}</p>` } } : g)); break; }
+          case 5: out.n = rand(1000); break;
+          case 6: if ('tags' in out) delete out.tags; else out.tags = ['c']; break;
+          case 7: out.shifty = rand(2) ? [{ id: 's0', name: 'x' }] : [{ id: 's0', name: 'y' }, { id: 's0', name: 'z' }]; break;
+          case 8: out.empty = rand(2) ? [] : [{ key: 'e0' }]; break;
+          case 9: cues[cues.length - 1] = { ...cues[cues.length - 1], label: `last ${rand(1000)}` }; break;
+          default: out.bindings = [{ key: `k${rand(3)}`, v: rand(5) }]; break;
+        }
+        out.cues = cues;
+        return out;
+      };
+      const stored = async (): Promise<{ doc: Doc; at: string }> => {
+        const { data, error } = await anna.from('team_productions').select('doc, updated_at').eq('id', id).single();
+        expect(error).toBeNull();
+        return { doc: (data as { doc: Doc }).doc, at: (data as { updated_at: string }).updated_at };
+      };
+      // The reader keeps versions read through the real function, and checks each next read against G4's diff.
+      let kept: { doc: Doc; map: UnitMap } = { doc: {}, map: {} };
+      let refused = 0, reads = 0;
+      const read = async () => {
+        const before = kept;
+        const { data, error } = await ben.rpc('team_production_changes', { p_id: id, p_map: { f: 's1', m: before.map } });
+        expect(error).toBeNull();
+        const answer = data as { updated_at: string; ops: PatchOp[] };
+        const now = await stored();
+        expect(answer.updated_at, 'the stored record did not move during the read').toBe(now.at);
+        const rebuilt = applyPatch(before.doc, answer.ops);
+        expect(canonicalJson(rebuilt), 'the answer on the kept version is the stored record').toBe(canonicalJson(now.doc));
+        const named = (ops: PatchOp[]) => ops.map((op) => ('put' in op
+          ? `${op.m}:${op.put.map((p) => (p.v as Doc)[op.by]).join(',')}:-${op.del.join(',')}`
+          : 'drop' in op ? `${op.m}:drop` : `${op.m}:set`)).sort();
+        const expected = (await diff(Object.keys(before.doc).length ? await unitMap(before.doc) : null, now.doc)).ops;
+        expect(named(answer.ops), 'the answer names exactly what changed').toEqual(named(expected));
+        kept = { doc: rebuilt, map: applyToMap(before.map, answer.ops, rebuilt) };
+        reads++;
+      };
+      await read();
+      for (let step = 0; step < 66; step++) {
+        const writer = step % 3 === 0 ? ben : anna;
+        // Sometimes a writer saves on a stale token: the refusal must carry no document.
+        const stale = rand(4) === 0;
+        doc = edit(doc, step);
+        const { data, error } = await writer.rpc('team_production_save_v2', { p_id: id, p_expected: stale ? '2000-01-01T00:00:00Z' : token, p_doc: doc });
+        expect(error).toBeNull();
+        const answer = data as { saved: boolean; updated_at: string; rev: number; doc?: unknown };
+        if (answer.saved) token = answer.updated_at;
+        else {
+          refused++;
+          expect(answer.doc, 'a refusal carries no document').toBeUndefined();
+          expect(JSON.stringify(answer).length).toBeLessThan(1024);
+          expect(answer.updated_at).toBe(token);
+          doc = (await stored()).doc;
+        }
+        if (rand(2) === 0) await read();
+      }
+      await read();
+      expect(refused).toBeGreaterThan(3);
+      expect(reads).toBeGreaterThan(8);
+    } finally {
+      await anna.from('team_productions').delete().eq('id', id);
+      await anna.from('teams').delete().eq('id', team.id);
+    }
+  });
 });
