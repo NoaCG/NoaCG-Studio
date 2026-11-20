@@ -2809,6 +2809,18 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-clip-trim .pd-field { width: 110px; }
 .pd-clip-trim-note { margin: 6px 0 0; font-size: 12px; }
 .pd-clip-kind { margin-top: 8px; max-width: 260px; }
+/* THE TIMELINE (home/ClipTimeline): the file's waveform, the part outside the trim shaded, two
+   handles. The canvas draws in its own `color`, so the waveform follows the theme's text. */
+.pd-timeline { margin-top: 8px; }
+.pd-timeline-strip { position: relative; height: 64px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-2); touch-action: none; }
+.pd-timeline-wave { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--text-dim); }
+.pd-timeline-shade { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.55); pointer-events: none; }
+.pd-timeline-handle { position: absolute; top: -3px; bottom: -3px; width: 12px; margin-left: -6px; cursor: ew-resize; outline: none; }
+.pd-timeline-handle::before { content: ''; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px; background: var(--accent); }
+.pd-timeline-handle:focus-visible::before { width: 4px; left: 4px; box-shadow: 0 0 0 2px var(--bg); }
+.pd-timeline-handle[aria-disabled='true'] { cursor: not-allowed; }
+.pd-timeline-handle[aria-disabled='true']::before { background: var(--text-dim); }
+.pd-timeline-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px; font-size: 12px; font-family: var(--mono, monospace); }
 /* A FOLDER'S PANEL (home/FolderEditor): the clip settings' rows, then what airs where, one line a cue. */
 .pd-folder-editor .pd-tag.part { color: #fca5a5; box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.8); }
 .pd-folder-editor .pd-tag.miss { color: var(--amber); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }

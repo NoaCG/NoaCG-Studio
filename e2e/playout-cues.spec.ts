@@ -35,6 +35,10 @@
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
 // covers: src/components/PlayoutSettingsPanel.tsx, src/control/playoutStatus.ts
+//
+// The timeline and Normalize (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.5-3.6): the waveform the Bridge
+// reads, its handles, and the level a measurement sets.
+// covers: src/components/home/ClipTimeline.tsx, src/control/audioJobs.ts, src/control/trimEffects.ts
 
 import { test, expect, type Page, type Request, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
@@ -99,7 +103,20 @@ interface FakeBridge {
    *  envelopes above stay pinned exactly as they were. */
   cueIds: string[];
   thumbnails: string[];
+  /** With the `audio` feature: every job the page started, and a job left running until released. */
+  audioJobs?: { kind: string; name: string; trimIn?: number; trimOut?: number }[];
+  holdAudio?: boolean;
+  cancelledJobs?: string[];
+  /** What a measure job answers, per `trimIn` (absent: the whole file). */
+  measures?: Record<string, unknown>;
 }
+
+/** GIORNO's waveform as the Bridge reads it: quiet, with a loud stretch from 0:20 to 0:40. */
+const GIORNO_WAVE = (() => {
+  const n = 1200;
+  const level = (i: number) => (i >= 400 && i < 800 ? 0.9 : 0.1);
+  return { seconds: 60, min: Array.from({ length: n }, (_, i) => -level(i)), max: Array.from({ length: n }, (_, i) => level(i)) };
+})();
 
 async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promise<FakeBridge> {
   const state: FakeBridge = { templates: ['BK/SB01', 'HOUSE_STRAP/HOUSE_STRAP', 'HAIRLINE'], actions: [], cueIds: [], thumbnails: [], ...options };
@@ -196,6 +213,24 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
         return;
       }
       await json(route, 200, { ok: true, v: 2, raw: '202 CG OK' });
+      return;
+    }
+    if (path.startsWith('/audio/') && state.features?.includes('audio')) {
+      const jobs = (state.audioJobs ??= []);
+      const ask = body as { job?: { kind: string; name: string; trimIn?: number; trimOut?: number }; id?: string };
+      if (path === '/audio/start' && ask.job) jobs.push(ask.job);
+      const id = path === '/audio/start' ? `job-${jobs.length}` : (ask.id ?? '');
+      const job = jobs[Number(id.split('-')[1]) - 1];
+      if (path === '/audio/cancel') (state.cancelledJobs ??= []).push(id);
+      const cancelled = state.cancelledJobs?.includes(id);
+      const reply = cancelled
+        ? { state: 'cancelled', progress: 0.4 }
+        : path === '/audio/start' || state.holdAudio
+          ? { state: 'running', progress: 0.4 }
+          : job.kind === 'waveform'
+            ? { state: 'done', progress: 1, fileKey: '10485760:20260814221648', waveform: GIORNO_WAVE }
+            : { state: 'done', progress: 1, fileKey: '10485760:20260814221648', measure: state.measures?.[String(job.trimIn ?? '')] ?? { kind: 'measured', integrated: -31.2, truePeak: -12, seconds: 60, layout: 'stereo' } };
+      await json(route, 200, { ok: true, v: 2, id, ...reply });
       return;
     }
     await json(route, 404, { ok: false, v: 2, error: { hop: 'agent', code: 'usage', detail: `No route ${path}.` } });
@@ -549,6 +584,78 @@ test('a trim outside the file or ending before it starts is refused in the panel
     return (loadShows()[0].cues ?? []).filter((c) => c.source === 'playout').map((c) => c.playback ?? null);
   });
   expect(stored).toEqual([{ trimIn: 40 }]);
+});
+
+test('the timeline draws the file\'s waveform and its handles set the part that airs, to the hundredth', async ({ page }) => {
+  await seedSettings(page);
+  const bridge = await fakeBridge(page, { ...PLAYS_EVERYTHING, features: [...PLAYS_EVERYTHING.features!, 'audio'], holdAudio: true });
+  await productionPage(page);
+  await addClip(page);
+  await page.getByTestId('clip-advanced-toggle').click();
+  await page.getByTestId('clip-timeline-toggle').click();
+  const timeline = page.getByTestId('clip-timeline');
+  // The read is the Bridge's: progress while it runs, and Cancel stops it there.
+  await expect(page.getByTestId('clip-timeline-progress')).toHaveText('Reading the file… 40%');
+  await page.getByTestId('clip-timeline-cancel').click();
+  await expect(page.getByTestId('clip-timeline-problem')).toContainText('Stopped');
+  // Every job started so far was stopped on the Bridge: none is left reading a file nobody waits for
+  // (on the dev server React mounts the strip twice, so there may be two).
+  await expect.poll(() => bridge.cancelledJobs?.length).toBe(bridge.audioJobs?.length);
+  bridge.holdAudio = false;
+  await page.getByTestId('clip-timeline-retry').click();
+  await expect(timeline).toHaveAttribute('data-state', 'ready');
+  expect(new Set(bridge.audioJobs!.map((j) => JSON.stringify(j)))).toEqual(new Set([JSON.stringify({ kind: 'waveform', name: 'GIORNO', bins: 1200 })]));
+  const read = bridge.audioJobs!.length;
+
+  // The start from the keyboard: Shift moves a second at a time, and each press is kept.
+  const start = page.getByTestId('clip-timeline-in');
+  await start.focus();
+  for (let i = 0; i < 5; i += 1) await page.keyboard.press('Shift+ArrowRight');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('0:05–end');
+  // The end, dragged to the middle of the strip: GIORNO is 1:00, so about 0:30, kept on release.
+  const end = page.getByTestId('clip-timeline-out');
+  const strip = await timeline.locator('.pd-timeline-strip').boundingBox();
+  const at = await end.boundingBox();
+  await page.mouse.move(at!.x + at!.width / 2, at!.y + at!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(strip!.x + strip!.width * 0.5, at!.y + at!.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText(/^0:05–0:(29|30)/);
+  // One frame back from the keyboard, then exactly a known end to check the hundredths against.
+  await end.focus();
+  await page.keyboard.press('ArrowLeft');
+  await page.getByTestId('clip-trim-out').fill('0:29.96');
+  await page.getByTestId('clip-trim-out').press('Enter');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('0:05–0:29.96');
+  await expect(page.getByTestId('clip-timeline-part')).toHaveText('0:05–0:29.96 · 0:24.96');
+  // Editing the start box never rounds away the end the timeline or a typed hundredth set.
+  await page.getByTestId('clip-trim-in').fill('0:06');
+  await page.getByTestId('clip-trim-in').press('Enter');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('0:06–0:29.96');
+  await expect(page.getByTestId('clip-trim-out')).toHaveValue('0:29.96');
+
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => (lastAction(bridge) as { playback?: unknown }).playback).toEqual({ trim: { in: 6, out: 29.96 } });
+
+  // Opened again, the waveform comes from this browser: the server lists the same file, so the
+  // Bridge reads nothing.
+  await page.getByTestId('clip-timeline-toggle').click();
+  await page.getByTestId('clip-timeline-toggle').click();
+  await expect(timeline).toHaveAttribute('data-state', 'ready');
+  expect(bridge.audioJobs).toHaveLength(read);
+});
+
+test('a Bridge without the audio reader says so on the timeline, and the typed start and end still work', async ({ page }) => {
+  await seedSettings(page);
+  await fakeBridge(page, PLAYS_EVERYTHING);
+  await productionPage(page);
+  await addClip(page);
+  await page.getByTestId('clip-advanced-toggle').click();
+  await page.getByTestId('clip-timeline-toggle').click();
+  await expect(page.getByTestId('clip-timeline-problem')).toContainText('carries no audio reader');
+  await page.getByTestId('clip-trim-in').fill('0:05');
+  await page.getByTestId('clip-trim-in').press('Enter');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('0:05–end');
 });
 
 test('an audio file plays on its own layer, 5, below the clips, and a still offers Hold only', async ({ page }) => {

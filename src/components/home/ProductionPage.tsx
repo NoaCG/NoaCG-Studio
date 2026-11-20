@@ -104,6 +104,7 @@ import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, type FolderStep, type StepMember } from '../../control/folderStep';
 import { webLockLead } from '../../control/webLockLead';
 import { serverFilesCheck, serverFilesKey, startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
+import { trimBreaks } from '../../control/trimEffects';
 import { serverCueOffRefusal as serverOff, serverCueAdapterMismatch, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord, finishVmixAllOut, runVmixAndRecord, type ServerVerbIo, type VmixAllOutCut } from '../../control/serverVerbs';
 import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
@@ -5206,6 +5207,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
             onEdit={editDraft}
             onTransport={onVerb}
             setShows={setShows}
+            trimBreaks={(trim) => trimBreaks(takeContext, editingCue.id, trim)}
           />
           )}</DraftView>
         )}
