@@ -1956,7 +1956,7 @@ async function boot(): Promise<void> {
   // nothing, or only its data while off air, has nothing on air to draw (marked above only until
   // the boot knew, G2 section 4). This also keeps the list to what is on air (`listed`).
   offAirFrom.forEach((_from, key) => {
-    if (!liveGraphics.has(key) && !holds.has(key) && !missed.some((row) => row.graphic === key && isCommand(row.msg.t))) offAirFrom.delete(key);
+    if (!liveGraphics.has(key) && !holds.has(key) && !replayed.some((row) => row.graphic === key && isCommand(row.msg.t))) offAirFrom.delete(key);
   });
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
   markRecovered();
