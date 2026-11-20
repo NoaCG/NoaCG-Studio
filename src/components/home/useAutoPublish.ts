@@ -191,7 +191,7 @@ export function useAutoPublish(o: {
       w.__noacgEdits = (w.__noacgEdits ?? 0) + 1;
       if (mode === 'labels') {
         // Every edit changes what the outputs show: a graphic cue's label, each time a new one.
-        const cue = [...(show.cues ?? [])].reverse().find((c) => isGraphicCue(c));
+        const cue = [...(show.cues ?? [])].reverse().find(isGraphicCue);
         if (cue) updateShowCue(showId, cue.id, { label: `Edited ${tick}` });
         return;
       }

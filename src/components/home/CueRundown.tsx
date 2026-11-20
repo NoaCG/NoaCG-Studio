@@ -1018,7 +1018,7 @@ export default function CueRundown({
                   <CueAccentControl show={show} cue={cue} setShows={setShows} fallback={routeTone} onPreview={color => onAccentPreview(cue.id, color)} />
                   {(() => {
                     // The row pins its GRAPHIC, never the cue: a quiz with twenty questions has one Reveal.
-                    const graphic = !isGraphicCue(cue) ? null : cueGraphicName(cue);
+                    const graphic = isGraphicCue(cue) ? cueGraphicName(cue) : null;
                     if (!graphic) return null;
                     const isPinned = pinnedGraphics.includes(graphic);
                     return (

@@ -2006,7 +2006,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const typedSwitch = (cue: ShowCue | null): CueTypedSwitch | null => {
     const graphic = cue ? cueGraphicName(cue) : null;
     const declared = graphic ? declaredOf(graphic) : null;
-    if (!cue || !isGraphicCue(cue) || cue.selection !== undefined || declared?.status !== 'ok' || !declared.fields || typedReadOnly(cue)) return null;
+    if (!isGraphicCue(cue) || cue.selection !== undefined || declared?.status !== 'ok' || !declared.fields || typedReadOnly(cue)) return null;
     return {
       on: cue.typed !== undefined,
       note: typedNote?.cueId === cue.id ? typedNote.note : null,
@@ -2043,7 +2043,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const typedFormOf = (cue: ShowCue | null): CueTypedForm | null => {
     const graphic = cue ? cueGraphicName(cue) : null;
     const declared = graphic ? declaredOf(graphic) : null;
-    if (!show || !cue || !isGraphicCue(cue) || declared?.status !== 'ok' || typedReadOnly(cue)) return null;
+    if (!show || !isGraphicCue(cue) || declared?.status !== 'ok' || typedReadOnly(cue)) return null;
     const envelope = typedValuesOf(cue.typed);
     const bound = boundFields(graphic);
     const fields = declared.fields;
@@ -2736,7 +2736,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       keepGeometry(
         session.geometry,
         id,
-        () => new Map((latestShow.current?.cues ?? []).filter((c) => isGraphicCue(c)).map((c) => [c.id, c.sourceId] as const)),
+        () => new Map((latestShow.current?.cues ?? []).filter(isGraphicCue).map((c) => [c.id, c.sourceId] as const)),
         {
           getItem: (k) => localStorage.getItem(k),
           setItem: (k, v) => localStorage.setItem(k, v),
@@ -3325,7 +3325,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           step: heldStep,
           stepBlocked: heldStepCue ? stepBlocker(heldStepCue) : null,
           takeBlocked: heldStep ? null : takeBlockerFor(selectedFolder),
-          serverMembers: enabledHeldMembers.some((c) => isServerCue(c)),
+          serverMembers: enabledHeldMembers.some(isServerCue),
           labelOf: (id) => cues.find((c) => c.id === id)?.label ?? 'a cue',
         }
       : null,
@@ -3800,12 +3800,13 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
    *  folder's, from the same decision SPACE runs. */
   /** REHEARSAL (playout-workflow-simplification D12): before the first publish a graphic's Take
    *  plays on this page only, so TAKE is not the red of air and the editor never says on air. A
-   *  server cue airs through NoaCG Bridge either way and keeps its on-air looks. */
+   *  server cue airs through NoaCG Bridge either way and keeps its on-air looks, and so does a
+   *  control cue, which reaches its device for real (osc-control-cues D9). */
   const rehearsing =
     !hostedSlug &&
     (selectedFolder
-      ? enabledHeldMembers.every((c) => !isServerCue(c))
-      : !selectedPlayoutItem);
+      ? !enabledHeldMembers.some(isServerCue) && enabledHeldMembers.some(isGraphicCue)
+      : !selectedPlayoutItem && !isControlCue(selectedCue));
   const takeButton = {
     ...view.take,
     face: view.take.step ? { ...view.take.step, className: takeFace(view.take.space).className } : takeFace(view.take.space),
@@ -3815,7 +3816,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
    *  the CasparCG slot this production's output is set to, or this page only before Publish. */
   const takeTarget = (() => {
     const held = enabledHeldMembers;
-    const serverOnly = selectedFolder ? held.length > 0 && held.every((c) => isServerCue(c)) : !!selectedPlayoutItem;
+    const serverOnly = selectedFolder ? held.length > 0 && held.every(isServerCue) : !!selectedPlayoutItem;
     return takeTargets({
       published: !!hostedSlug,
       outputs: readiness.outputs.filter((line) => line.present).length,
@@ -3827,7 +3828,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           ? folderSlotOf(selectedFolder)
           : [...new Set((selectedFolder ? held : selectedCue ? [selectedCue] : []).map((c) => playoutItemFor(c)).filter((i): i is PlayoutItem => !!i).map(addressOfItem))].join(', ') || null
         : null,
-      serverToo: !!selectedFolder && !serverOnly && held.some((c) => isServerCue(c)),
+      serverToo: !!selectedFolder && !serverOnly && held.some(isServerCue),
     });
   })();
 
@@ -4967,7 +4968,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
                 ability={playbackAbility}
                 playoutSettings={playoutSettings}
                 slot={{ channel: slot.channel, layer: slot.layer, set: selectedFolder.slot?.channel !== undefined || selectedFolder.slot?.layer !== undefined }}
-                hasServerCue={cues.some((c) => isServerCue(c))}
+                hasServerCue={cues.some(isServerCue)}
                 takeBlocked={view.folderBlocked}
                 addressOf={(c) => {
                   const item = playoutItemFor(c);

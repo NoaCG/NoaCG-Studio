@@ -68,8 +68,7 @@ import {
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
 import { patchAdjust, promotedMembers, readAdjust, stepPatch, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
 import { cueShortcutHolders, normalizeCueShortcut } from './cueShortcuts.ts';
-import { type ControlRecord, type OscDestination } from './controlCue.ts';
-import { isGraphicCue, isServerCue } from './controlCue.ts';
+import { isGraphicCue, isServerCue, type ControlRecord, type OscDestination } from './controlCue.ts';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -981,7 +980,7 @@ export function setGraphicAdjust(showId: string, graphicId: string, patch: Adjus
 export function setCueAdjust(showId: string, cueId: string, patch: AdjustPatch | null): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
-    if (!cue || !isGraphicCue(cue)) return 'This cue is no longer in the production.';
+    if (!isGraphicCue(cue)) return 'This cue is no longer in the production.';
     return writeAdjust(cue, patch);
   });
 }
@@ -1554,7 +1553,7 @@ export function setCuePlayback(
 ): Show[] {
   return patchShow(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
-    if (!cue || !isServerCue(cue)) return false;
+    if (!isServerCue(cue)) return false;
     const next: Record<string, unknown> = { ...(cue.playback ?? {}) };
     for (const [key, value] of Object.entries(patch)) {
       if (value === null || value === undefined) delete next[key];
@@ -1578,7 +1577,7 @@ export function setCuePlayback(
 export function setCueAuto(showId: string, cueId: string, auto: CueAuto | null): Show[] {
   return patchShow(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
-    if (!cue || !isGraphicCue(cue)) return false;
+    if (!isGraphicCue(cue)) return false;
     if (auto) cue.auto = { after: auto.after, then: auto.then };
     else delete cue.auto;
     return true;
@@ -1792,14 +1791,14 @@ export function setCueTyped(
       if (!envelope) return { error: 'This cue’s typed data cannot be read.' };
       // A declared value the typed form removed stays removed (E2.1): its old string is not brought
       // back from before On, so Off then On never resurrects it.
-      const graphic = !isGraphicCue(cue) ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
+      const graphic = isGraphicCue(cue) ? show.graphics.find((g) => g.id === cue.sourceId) : undefined;
       const declared = readOgrafDeclared(ograf ?? graphic?.template.ograf);
       const removed = new Set(declared.status === 'ok' && declared.fields ? (declared.fields.properties ?? []).map((p) => p.key).filter((k) => !Object.prototype.hasOwnProperty.call(envelope.values, k)) : []);
       const kept = Object.fromEntries(Object.entries(cue.values).filter(([k]) => !removed.has(k)));
       return { typed: null, values: { ...kept, ...nativeOf(envelope) }, receipt: null };
     }
     if (cue.typed !== undefined) return null;
-    const graphic = !isGraphicCue(cue) ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
+    const graphic = isGraphicCue(cue) ? show.graphics.find((g) => g.id === cue.sourceId) : undefined;
     const declared = readOgrafDeclared(ograf ?? graphic?.template.ograf);
     if (declared.status !== 'ok' || !declared.fields) return { error: 'This cue’s graphic declares no typed data.' };
     // The schema's declared defaults fill what the strings did not say, once, here (E2.1): never

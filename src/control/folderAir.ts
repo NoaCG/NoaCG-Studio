@@ -89,11 +89,10 @@ export function folderAir(input: FolderAirInput): Readonly<Record<string, Folder
       }
     }
     // Control cues never hold air, so they do not count against a together folder's tally (D8).
-    const airable = members.filter((c) => !isControlCue(c)).length;
-    const lit = !onAir.length ? 'off' : mode === 'together' && onAir.length < airable ? 'partial' : 'on';
+    const lit = !onAir.length ? 'off' : mode === 'together' && onAir.length < members.filter((c) => !isControlCue(c)).length ? 'partial' : 'on';
     const ids = new Set(members.map((c) => c.id));
     const stopped = mode === 'through' && input.ownership.unidentified.some((u) => u.sequenceStopped && !!u.cueId && ids.has(u.cueId));
-    const upHere = input.graphicsAir === false ? onAir.filter((c) => isGraphicCue(c)).length : 0;
+    const upHere = input.graphicsAir === false ? onAir.filter(isGraphicCue).length : 0;
     out[folder.id] = { mode, total: members.length, onAir: onAir.map((c) => c.id), ...(upHere ? { upHere } : {}), lit, following, looping, ...(slot ? { slot } : {}), stopped };
   }
   return out;

@@ -8,8 +8,8 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const { cueKind, readControl, controlReadOnly, isControlCue, isGraphicCue, isServerCue, OSC_NOT_YET } = await import('../src/model/controlCue.ts');
 const { copyClip, pasteCopies } = await import('../src/model/cueClipboard.ts');
@@ -94,20 +94,15 @@ test('an OSC cue is never on air and never holds a together folder at partial', 
 
 test('no file in src/ compares a cue source by hand: every reader goes through cueKind', () => {
   const root = new URL('../src/', import.meta.url).pathname;
-  const files = [];
-  const walk = (dir) => {
-    for (const name of readdirSync(dir)) {
-      const path = join(dir, name);
-      if (statSync(path).isDirectory()) walk(path);
-      else if (/\.(ts|tsx)$/.test(name)) files.push(path);
-    }
-  };
-  walk(root);
   // `cue.source === 'playout'`, a destructured `source !== 'control'`, either way round, and a
   // `switch (cue.source)`.
   const raw = /\bsource\s*[!=]==\s*'(playout|control)'|'(playout|control)'\s*[!=]==\s*[\w.?]*\bsource\b|switch\s*\([\w.?]*\bsource\)/;
-  const offenders = files
-    .filter((f) => !f.endsWith(join('model', 'controlCue.ts')))
-    .flatMap((f) => readFileSync(f, 'utf8').split('\n').map((line, i) => (raw.test(line) ? `${relative(root, f)}:${i + 1}` : null)).filter(Boolean));
+  const offenders = readdirSync(root, { recursive: true })
+    .filter((f) => /\.(ts|tsx)$/.test(f) && f !== join('model', 'controlCue.ts'))
+    .flatMap((f) => {
+      const text = readFileSync(join(root, f), 'utf8');
+      if (!raw.test(text)) return [];
+      return text.split('\n').flatMap((line, i) => (raw.test(line) ? [`${f}:${i + 1}`] : []));
+    });
   assert.deepEqual(offenders, [], 'use cueKind / isGraphicCue / isServerCue / isControlCue from src/model/controlCue.ts');
 });

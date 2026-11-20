@@ -269,14 +269,14 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
   };
 
   const offWith = async (p: FolderPage, cues: readonly ShowCue[]): Promise<boolean> => {
-    for (const cue of cues.filter((c) => isServerCue(c))) {
+    for (const cue of cues.filter(isServerCue)) {
       const res = await p.serverVerb(cue, 'out', `Out of ${cue.label}`);
       if (res && !res.ok) {
         p.note(res.note);
         return false;
       }
     }
-    const failed = await graphicsOff(p, cues.filter((c) => isGraphicCue(c)));
+    const failed = await graphicsOff(p, cues.filter(isGraphicCue));
     if (failed) p.note(failed);
     return !failed;
   };

@@ -68,7 +68,7 @@ export function playsOut(then: CueEnd): boolean {
 export function nextGraphicCue(cues: readonly Pick<ShowCue, 'id' | 'source' | 'selection' | 'typed'>[], cueId: string): string | null {
   const at = cues.findIndex((c) => c.id === cueId);
   if (at < 0) return null;
-  const next = cues.slice(at + 1).find((c) => isGraphicCue(c));
+  const next = cues.slice(at + 1).find(isGraphicCue);
   return next && preparedCue(next) ? next.id : null;
 }
 

@@ -181,6 +181,8 @@ export function playNextTarget(
   const elsewhere: { label: string; address: string }[] = [];
   for (let i = at + 1; i < cues.length; i++) {
     const c = cues[i];
+    // A control cue sends once and is no graphic to look past (osc-control-cues D3).
+    if (isControlCue(c)) continue;
     const it = isServerCue(c) ? items.find((x) => x.id === c.sourceId) : undefined;
     if (!it || it.kind !== 'media') {
       graphics += 1;

@@ -61,7 +61,7 @@ export interface TakeContext {
 const selectionRefusal = (target: ShowCue | ShowFolder, ctx: TakeContext): string | null => {
   const cues = 'sourceId' in target ? [target] : (ctx.members.get(target.id) ?? []);
   for (const cue of cues) {
-    const why = !isGraphicCue(cue) ? null : ctx.graphicOf(cue)?.foreignRefusal || (ctx.selectionBlocker?.(cue) ?? null);
+    const why = isGraphicCue(cue) ? ctx.graphicOf(cue)?.foreignRefusal || (ctx.selectionBlocker?.(cue) ?? null) : null;
     if (why) return 'sourceId' in target ? why : `${cue.label}: ${why}`;
   }
   return null;
