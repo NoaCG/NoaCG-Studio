@@ -1547,7 +1547,8 @@ function svgViewportRect(a) {
     var m = a.parentNode && a.parentNode.getScreenCTM ? a.parentNode.getScreenCTM() : null;
     if (!m) return null;
     return svgMapRect(m, a.x.baseVal.value, a.y.baseVal.value, a.width.baseVal.value, a.height.baseVal.value, null);
-  } catch (err) { // eslint-disable-line no-unused-vars
+  } catch (err) {
+    void err; // an engine that cannot measure a node throws; the answer is then "no bound"
     return null;
   }
 }
@@ -1600,7 +1601,8 @@ function svgClipRect(a) {
       out = svgMapRect(own ? ctm.multiply(own.matrix) : ctm, bb.x, bb.y, bb.width, bb.height, out);
     }
     return out;
-  } catch (err) { // eslint-disable-line no-unused-vars
+  } catch (err) {
+    void err; // an engine that cannot measure a node throws; the answer is then "no bound"
     return null;
   }
 }
