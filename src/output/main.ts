@@ -1197,9 +1197,18 @@ async function boot(): Promise<void> {
   const typedFrom = new Map<string, number>();
   /** Boot frames hidden by their own flag because they had not loaded when the stage came back. */
   const bootHidden = new Set<string>();
-  /** Graphics the boot's catch-up replayed off air, by the oldest position replayed: nothing of
-   *  it has run on air until the graphic is back on air (G2 section 4, #2604). */
+  /** Graphics that ran commands off air (the boot's hidden catch-up and anything live that reached
+   *  them before the stage came back, or a frame hidden by its own flag), by the oldest such
+   *  position: none of it has run on air until the graphic is back on air (G2 section 4, #2604). */
   const offAirFrom = new Map<string, number>();
+  /** The renderer commands (G2 Terms); status rows and pings run nothing. */
+  const isCommand = (t: string) => ['update', 'play', 'stop', 'next', 'event', 'snap'].indexOf(t) >= 0;
+  /** The whole stage is off air for the boot's catch-up. */
+  let bootOffAir = false;
+  const ranOffAir = (graphic: string, at: number) => {
+    const from = offAirFrom.get(graphic);
+    if (from === undefined || at < from) offAirFrom.set(graphic, at);
+  };
   /** A graphic replayed off air is on air now: what it ran counts, and it reports. */
   const backOnAir = (graphic: string) => {
     if (!offAirFrom.delete(graphic)) return;
@@ -1468,10 +1477,14 @@ async function boot(): Promise<void> {
       } else failures.delete(graphic);
       readyChanged();
     }
-    // A command that waited in the stage has run: its graphic may report again.
+    // A command that waited in the stage has run: its graphic may report again. Run off air, it
+    // counts once the graphic is back on air (`backOnAir`), which reports it then.
     if (outcome === 'posted' && seqMode) {
-      unreportedRun.add(graphic);
-      scheduleReport(graphic);
+      if (bootOffAir || bootHidden.has(graphic)) ranOffAir(graphic, at);
+      else {
+        unreportedRun.add(graphic);
+        scheduleReport(graphic);
+      }
     }
     presence.touch();
   });
@@ -1766,12 +1779,14 @@ async function boot(): Promise<void> {
     dbg('catch-up', `${missed.length} row(s), off air while they settle`);
     // What the replay runs is not on air yet: each graphic it reaches reads as placing from its
     // oldest replayed row until it is back on air (G2 section 4, #2604).
+    bootOffAir = true;
     if (seqMode) {
       for (const row of missed) {
-        if (!inScope(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, position(row))) continue;
-        const from = offAirFrom.get(row.graphic);
-        if (from === undefined || position(row) < from) offAirFrom.set(row.graphic, position(row));
+        if (!row.graphic || !isCommand(row.msg.t) || !inScope(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, position(row))) continue;
+        ranOffAir(row.graphic, position(row));
       }
+      // Played again with no row (its Take is below what was read): none of it has run on air.
+      for (const key of onWithoutPose) ranOffAir(key, 1);
     }
   }
 
@@ -1900,13 +1915,15 @@ async function boot(): Promise<void> {
           }
         }
         stage.setVisible(visible);
-        // Back on air: what the replay ran counts now, except a frame still hidden by its own flag,
-        // which counts when that flag lifts. One that never loads has failed by the stage's
-        // watchdog well before this backstop, which only stops the entry staying for good.
+        // Back on air: what ran off air counts now, except on a frame still hidden by its own
+        // flag, which counts when that flag lifts. One that never loads has failed by the stage's
+        // watchdog before this backstop, which only stops the entry staying for good; a frame
+        // that is still being shown late lifts its own flag and counts then.
         if (visible) {
+          bootOffAir = false;
           offAirFrom.forEach((_from, key) => {
             if (!bootHidden.has(key)) backOnAir(key);
-            else setTimeout(() => backOnAir(key), FRAME_LOAD_MS + CATCH_UP_TIMING.capMs);
+            else setTimeout(() => (bootHidden.has(key) && stage.released(key)) || backOnAir(key), FRAME_LOAD_MS + CATCH_UP_TIMING.capMs);
           });
         }
       },
@@ -2033,6 +2050,7 @@ async function boot(): Promise<void> {
         for (const graphic of holds.keys()) staleFrom.add(graphic);
         for (const graphic of failures.keys()) staleFrom.add(graphic);
         for (const graphic of typedRefused.keys()) staleFrom.add(graphic);
+        for (const graphic of offAirFrom.keys()) staleFrom.add(graphic);
         for (const graphic of stage.graphics) if (stage.waitingFor(graphic) !== null) staleFrom.add(graphic);
         for (const graphic of stage.graphics) {
           if (liveGraphics.has(graphic) || mergedData.has(graphic) || typed.airing.has(graphic)) scheduleReport(graphic, true);

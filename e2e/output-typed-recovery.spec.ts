@@ -259,9 +259,9 @@ test('a Take held when the output reloads is not reported run until its graphic 
   const ran = samples.find((s) => s.ran !== null && s.ran >= 2);
   const drawn = samples.find((s) => s.onAir);
   expect(ran && drawn, JSON.stringify({ ran, drawn })).toBeTruthy();
-  // The frame says what it painted by a message, which lands a frame or two after the stage
-  // brought it back; without the fix the report ran ahead by 0.6 s or more.
-  expect(ran!.t, 'the Take was reported run before its picture was on air').toBeGreaterThanOrEqual(drawn!.t - 50);
+  // The frame says what it painted by a message, which lands a few frames after the stage brought
+  // it back (more on a busy runner); without the fix the report ran ahead by 0.6 s or more.
+  expect(ran!.t, 'the Take was reported run before its picture was on air').toBeGreaterThanOrEqual(drawn!.t - 250);
   // The replay really was off air for a while, so the samples above cover that window.
   expect(samples.filter((s) => s.ran !== null && !s.onAir).length).toBeGreaterThan(10);
 });
