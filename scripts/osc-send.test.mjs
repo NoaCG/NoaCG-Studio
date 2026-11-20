@@ -131,3 +131,16 @@ test('a refusal carries the Bridge\'s sentence; a timeout is uncertain and is ne
     slow.restore();
   }
 });
+
+test('after the request left, a lost connection or an unreadable reply is uncertain, never "not sent"', async () => {
+  for (const reply of [() => Promise.reject(new TypeError('Failed to fetch')), () => new Response('{"ok":tr'), () => new Response('')]) {
+    forgetBridges();
+    const f = fakeBridge(reply);
+    try {
+      assert.deepEqual(await sendOsc(paired, request), { state: 'uncertain', detail: 'Send uncertain. Check the desk.' });
+      assert.equal(f.calls.filter((c) => c.url.endsWith('/osc')).length, 1, 'and nothing is resent');
+    } finally {
+      f.restore();
+    }
+  }
+});

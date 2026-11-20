@@ -1126,17 +1126,21 @@ export async function sendOsc(settings: Pick<PlayoutSettings, 'agentUrl' | 'agen
     if (probed.unreachable) return { state: 'no-bridge', detail: probed.unreachable.detail };
     if (!probed.features.includes('osc')) return { state: 'no-bridge', detail: 'This NoaCG Bridge is too old to send OSC cues. Download the current NoaCG Bridge.' };
     const call = await callBridge(settings.agentUrl, '/osc', { ...request }, OSC_TIMEOUT_MS, settings.agentToken);
-    if ('timedOut' in call) return { state: 'uncertain', detail: 'Send uncertain. Check the desk.' };
-    if ('networkError' in call) {
-      // Not reached at all: nothing went out. Ask /health why, in its words.
-      const now = await probeBridge(settings.agentUrl);
-      return { state: 'no-bridge', detail: now.unreachable?.detail ?? `NoaCG Bridge stopped answering: ${call.networkError}` };
+    // Once the request has left, only an answer the Bridge actually gave can say "not sent": a lost
+    // connection, a timeout or an unreadable reply may follow a datagram that already went out.
+    const uncertain = { state: 'uncertain', detail: 'Send uncertain. Check the desk.' } as const;
+    if ('timedOut' in call || 'networkError' in call) {
+      // The next send asks /health again first, so a Bridge that went away is named then.
+      currentBridges.delete(settings.agentUrl);
+      return uncertain;
     }
     if (call.http === 401) return { state: 'no-bridge', detail: 'NoaCG Bridge is running but rejected this token. Pair this browser again.' };
     const body = call.body;
+    if (call.bodyKind !== 'object') return uncertain;
     if (body.ok === true && body.sent && typeof body.sent.to === 'string') return { state: 'sent', to: body.sent.to, repeat: body.repeat === true };
     const detail = body.error?.detail;
-    return { state: 'refused', detail: typeof detail === 'string' && detail ? detail : `NoaCG Bridge refused the OSC message (HTTP ${call.http}).` };
+    if (body.ok === false && typeof detail === 'string' && detail) return { state: 'refused', detail };
+    return uncertain;
   } finally {
     answered();
   }
