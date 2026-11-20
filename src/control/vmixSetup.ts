@@ -147,7 +147,9 @@ export async function changeVmixOutput(
   if (!sameChoice(choice, latest)) {
     if ((result.browserAdded && sameProduction) || pairingChanged) {
       const address = choice.settings.agentUrl;
-      const host = URL.canParse(address) ? new URL(address).host : '';
+      // try/catch, not URL.canParse (Chrome 120): CasparCG 2.3's Chromium 71 loads this module (#2603).
+      let host: string;
+      try { host = new URL(address).host; } catch { host = ''; }
       const bridge = host ? `the Bridge at ${host}` : 'the original Bridge';
       const button = verb === 'take' ? 'Load' : 'Unload';
       return { message: `${button} targeted Overlay ${overlay.overlay} on ${bridge}. ${result.detail}` };

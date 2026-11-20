@@ -10,6 +10,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/model/regexMatches.ts, src/model/editorOrganization.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 
@@ -185,4 +186,39 @@ test.describe('a production that is not published paints nothing on air', () => 
     await expect(page.locator('body')).toHaveAttribute('data-unavailable', 'no-token');
     expect(await coveredPixels(page)).toBe(0);
   });
+});
+
+// CASPARCG 2.3 RUNS CHROMIUM 71 (#2603). Every built-in that engine lacks is taken away before
+// the page's first script, so the page meets them missing as a 2.3 server's HTML producer does:
+// output.html's shims step in where it has them, and code that calls one it lacks throws here as
+// it did on air ("e.matchAll is not a function", and the output never joined).
+const MISSING_ON_71 = `(() => {
+  const drop = (owner, name) => { try { delete owner[name]; } catch {} };
+  for (const name of ['matchAll', 'replaceAll', 'at', 'isWellFormed', 'toWellFormed']) drop(String.prototype, name);
+  for (const name of ['at', 'findLast', 'findLastIndex', 'toSorted', 'toReversed', 'toSpliced']) drop(Array.prototype, name);
+  for (const name of ['allSettled', 'any', 'withResolvers', 'try']) drop(Promise, name);
+  drop(Array.prototype, 'with');
+  for (const name of ['union', 'intersection', 'difference', 'symmetricDifference', 'isSubsetOf', 'isSupersetOf', 'isDisjointFrom']) drop(Set.prototype, name);
+  for (const name of ['canParse', 'parse']) drop(URL, name);
+  for (const name of ['timeout', 'any']) drop(AbortSignal, name);
+  for (const name of ['hasOwn', 'groupBy']) drop(Object, name);
+  drop(Map, 'groupBy');
+  drop(Array, 'fromAsync');
+  drop(Element.prototype, 'replaceChildren');
+  for (const name of ['structuredClone', 'WeakRef', 'FinalizationRegistry', 'AggregateError']) drop(globalThis, name);
+})();`;
+
+test('the renderer comes up and composes its graphic without the built-ins Chromium 71 lacks', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.addInitScript(MISSING_ON_71);
+  await standInBackend(page, PRODUCTION);
+
+  await page.goto('/output?production=boot-probe');
+  expect(await page.evaluate(() => typeof ''.matchAll), 'the page really lacks matchAll').toBe('undefined');
+  await expect(page.locator('body')).toHaveAttribute('data-plays', '0', { timeout: 20_000 });
+  await expect(page.locator('iframe')).toHaveCount(1);
+  // The failure on air came 1.4 s after load, from an unawaited promise: give it that long.
+  await page.waitForTimeout(3_000);
+  expect(errors, 'errors the page threw').toEqual([]);
 });

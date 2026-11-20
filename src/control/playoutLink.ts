@@ -997,7 +997,9 @@ export async function pairingLinkForAnotherBrowser(settings: PlayoutSettings): P
   const asked = await askBridge(settings, 'pair-link', '/pair-link');
   if ('missing' in asked) return { unavailable: 'This NoaCG Bridge cannot make another link. Start it again and copy the link it opens into the other browser.' };
   if ('failed' in asked) return { unavailable: asked.failed.detail };
-  const port = Number(URL.canParse(settings.agentUrl) ? new URL(settings.agentUrl).port : '');
+  // try/catch, not URL.canParse (Chrome 120): CasparCG 2.3's Chromium 71 loads this module (#2603).
+  let port: number;
+  try { port = Number(new URL(settings.agentUrl).port); } catch { port = 0; }
   if (typeof asked.body.code !== 'string' || !port) return { unavailable: `NoaCG Bridge on ${settings.agentUrl} made no link.` };
   return bridgePairLink(window.location.origin, port, asked.body.code);
 }

@@ -22,7 +22,12 @@ export const CONTROL_LABEL_MAX = 16;
 
 /** The fields a label names, in the order it names them. */
 export function labelFields(label: string): { key: string; fallback: string }[] {
-  return [...label.matchAll(FIELD_RE)].map((m) => ({ key: m[1], fallback: (m[2] ?? '').trim() }));
+  // An exec loop, not `matchAll`: CasparCG 2.3's Chromium 71 has no `matchAll` (#2603). FIELD_RE
+  // never matches empty, so the loop always advances.
+  const re = new RegExp(FIELD_RE.source, FIELD_RE.flags);
+  const out: { key: string; fallback: string }[] = [];
+  for (let m = re.exec(label); m !== null; m = re.exec(label)) out.push({ key: m[1], fallback: (m[2] ?? '').trim() });
+  return out;
 }
 
 const tidy = (s: string) => s.replace(/\s+/g, ' ').trim();

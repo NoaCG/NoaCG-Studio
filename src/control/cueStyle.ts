@@ -10,6 +10,7 @@
 //
 // Pure and Node-tested (scripts/cue-adjust.test.mjs).
 
+import { matchesOf } from '../model/regexMatches.js';
 import { readAdjust, readFont, type AdjustPatch, type FontRef } from '../model/adjust.ts';
 import { cssPaintsWith } from '../model/cssVars.ts';
 import type { AssetFile } from '../model/types.ts';
@@ -107,7 +108,7 @@ const COLOUR_WORD: Record<(typeof COLOUR_VARS)[number], string> = { accent: 'acc
 export function importedFacesOf(templates: readonly { css: string; assets: readonly { path: string }[] }[]): ImportedFace[] {
   const out: ImportedFace[] = [];
   for (const t of templates) {
-    for (const m of t.css.matchAll(/\/\* Imported font[^*]*\*\/\s*@font-face\s*\{([^}]*)\}/g)) {
+    for (const m of matchesOf(t.css, /\/\* Imported font[^*]*\*\/\s*@font-face\s*\{([^}]*)\}/g)) {
       const family = /font-family:\s*"([^"]+)"/.exec(m[1])?.[1];
       const assetPath = /url\("?(fonts\/[^")]+)"?\)/.exec(m[1])?.[1];
       // Only a face a record can name (model/adjust.ts `readFont`): an older save's file name with

@@ -1,3 +1,4 @@
+import { matchesOf } from './regexMatches.js';
 import type { SpxTemplate } from './types';
 
 /** Editor organization is inert source metadata, never an artwork/animation model. */
@@ -10,13 +11,13 @@ export const validBin = (dir: string) => /^(images|fonts|videos|sounds|lottie|as
 
 /** Keep the inert source header opaque when rewriting artwork references. */
 export function splitOrganizationHtml(html: string): [string, string] {
-  const first = html.matchAll(marker).next().value;
+  const first = matchesOf(html, marker)[0];
   return first?.index === 0 ? [first[0], html.slice(first[0].length)] : ['', html];
 }
 
 /** Old documents migrate on read to empty v1. Unknown/malformed versions are read-only. */
 export function readOrganization(template: Pick<SpxTemplate, 'html'>): EditorOrganization {
-  const matches = [...template.html.matchAll(marker)];
+  const matches = matchesOf(template.html, marker);
   if (!matches.length) return empty();
   try {
     if (matches.length !== 1 || matches[0].index !== 0) throw new Error();
@@ -53,7 +54,7 @@ export function writeOrganization(template: SpxTemplate, value: EditorOrganizati
   // Escaping every hyphen/angle bracket prevents comment termination in user names.
   const json = JSON.stringify(value).replace(/-/g, '\\u002d').replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
   const comment = value.folders.length || value.bins.length ? '<!-- NOACG_ORGANIZATION ' + json + ' -->\n' : '';
-  const existing = [...template.html.matchAll(marker)];
+  const existing = matchesOf(template.html, marker);
   const html = existing.length ? template.html.replace(marker, comment) : comment + template.html;
   if (html === template.html) return template;
   const next = { ...template, html }; readOrganization(next); return next;

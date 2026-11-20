@@ -1,3 +1,4 @@
+import { matchesOf } from '../model/regexMatches.js';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
 // Template validation. Runs before export and on AI output so the platform — not the model —
 // owns SPX compatibility. Returns errors (block export) and warnings (allow but flag).
@@ -271,7 +272,7 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
   //     press is a harmless no-op, but the operator would wonder why a Continue does nothing.
   const groupsLiteral = template.js.match(/var stepGroups = \[([\s\S]*?)\];/)?.[1];
   if (groupsLiteral) {
-    const selectors = [...groupsLiteral.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    const selectors = matchesOf(groupsLiteral, /'([^']+)'/g).map((m) => m[1]);
     for (const sel of selectors) {
       const exists = sel.startsWith('#')
         ? new RegExp(`id="${sel.slice(1)}"`).test(template.html)
@@ -540,7 +541,7 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
         message: 'The inline SVG carries an event-handler attribute (onload/onclick/…) — script must not run from artwork. Remove it.',
       });
     }
-    for (const m of svgMarkup.matchAll(/(?:xlink:)?href=["']((?:https?:)?\/\/[^"']+)["']/gi)) {
+    for (const m of matchesOf(svgMarkup, /(?:xlink:)?href=["']((?:https?:)?\/\/[^"']+)["']/gi)) {
       if (!isAllowedExternal(m[1])) {
         errors.push({
           rule: 'svg',

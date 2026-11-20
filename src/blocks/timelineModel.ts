@@ -15,6 +15,8 @@
 //     (measured motion written inline). It can never be auto-converted and regenerating it would
 //     discard the owner's tuning, so it must still render truthfully (DYNAMIC_MOTION_SCOPE §8.1).
 
+import { matchesOf } from '../model/regexMatches.js';
+
 export interface TimelineTween {
   /** Target list as written, cleaned for display (e.g. ".lower-third-box" or "#f0, #f1"). */
   targets: string[];
@@ -292,14 +294,14 @@ function parseCall(kind: TimelineTween['kind'], args: string, animSpeed: number)
   // The animated props come from the LAST object literal (fromTo's "to" vars).
   const objects = args.match(/\{[^{}]*\}/g) ?? [];
   const vars = objects[objects.length - 1] ?? '';
-  const props = [...vars.matchAll(/(\w+)\s*:/g)].map((m) => m[1]).filter((p) => !BOOKKEEPING_PROPS.has(p));
+  const props = matchesOf(vars, /(\w+)\s*:/g).map((m) => m[1]).filter((p) => !BOOKKEEPING_PROPS.has(p));
 
   // Capture every `key: number` / `key: 'string'` pair of an object literal (bookkeeping
   // stripped) — the full from/to values the converter turns into keyframes.
   const allPairs = (obj: string | undefined): Record<string, number | string> => {
     const out: Record<string, number | string> = {};
     if (!obj) return out;
-    for (const m of obj.matchAll(/(\w+)\s*:\s*(?:'([^']*)'|(-?[\d.]+))/g)) {
+    for (const m of matchesOf(obj, /(\w+)\s*:\s*(?:'([^']*)'|(-?[\d.]+))/g)) {
       if (BOOKKEEPING_PROPS.has(m[1])) continue;
       out[m[1]] = m[2] !== undefined ? m[2] : Number(m[3]);
     }
@@ -546,7 +548,7 @@ function parseSteps(region: string, animSpeed: number): TimelineStep[] {
 
   const groupsText = region.match(/var stepGroups = \[([\s\S]*?)\];/)?.[1];
   if (groupsText) {
-    const groups = [...groupsText.matchAll(/\[([^\]]*)\]/g)].map((m) =>
+    const groups = matchesOf(groupsText, /\[([^\]]*)\]/g).map((m) =>
       m[1].split(',').map((s) => s.replace(/['\s]/g, '')).filter(Boolean),
     );
     return groups.map((targets, i) => step(targets, i, true));
