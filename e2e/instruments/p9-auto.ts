@@ -232,6 +232,13 @@ else
       await page2.keyboard.press('Escape');
       result.reload = { status: status2, oldNamed: /Reload Old when nothing is on air/.test(status2 + panelText), deskANamed: /Reload Desk A/.test(status2 + panelText), panel: panelText.slice(0, 600) };
 
+      // 12 runs with only current outputs: the older one's reload notice outranks every other light.
+      await old.close();
+      const tOld = Date.now();
+      await expect.poll(async () => (await page2.getByTestId('production-status').textContent()) ?? '', { timeout: 120_000, intervals: [500] }).not.toContain('Reload Old').catch(() => undefined);
+      result.oldGone = { afterMs: Date.now() - tOld, status: await page2.getByTestId('production-status').textContent(), tone: await page2.getByTestId('production-status').getAttribute('data-tone') };
+      await shot(page2, 'step12-before-old-closed-light');
+
       // 12: the scorebug's design changes while it is on air, with no press.
       await selectCue(page2, 'P9 closed unpublished');
       await page2.getByTestId('verb-take').click();
