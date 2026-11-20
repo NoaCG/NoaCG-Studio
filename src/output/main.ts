@@ -1232,10 +1232,39 @@ async function boot(): Promise<void> {
     offAirFrom.forEach((_from, key) => {
       if (!bootHidden.has(key) && stage.released(key)) backOnAir(key);
       // A frame still loading counts when it loads, or, hidden by its own flag, when that lifts.
-      // One that never loads has failed by the stage's watchdog before this backstop, which only
-      // stops the entry staying for good; a frame still being shown late counts by itself.
-      else setTimeout(() => (bootHidden.has(key) && stage.released(key)) || backOnAir(key), FRAME_LOAD_MS + CATCH_UP_TIMING.capMs);
+      else setTimeout(() => bootBackstop(key), FRAME_LOAD_MS);
     });
+  };
+  /** Boot frames that had not loaded FRAME_LOAD_MS after the reveal: they did not play here. */
+  const bootUnloaded = new Set<string>();
+  /** A boot frame still not loaded has not drawn what the boot gave it (restore commands carry no
+   *  position, so the stage's watchdog never fails them): it reads failed `load`, never run. A
+   *  frame being shown late counts by itself; anything else left (no frame) is settled. */
+  const bootBackstop = (key: string) => {
+    if (!offAirFrom.has(key) || (bootHidden.has(key) && ready(key))) return;
+    if (hosts(key) && !ready(key)) {
+      offAirFrom.delete(key);
+      bootUnloaded.add(key);
+      if (!failures.has(key)) failures.set(key, { from: 1, why: 'load' });
+      readyChanged();
+      presence.touch();
+      return;
+    }
+    backOnAir(key);
+  };
+  /** A boot frame that loads after all clears its failure: what it shows from now on counts. */
+  const loadedAfterAll = (graphic: string) => {
+    if (!bootUnloaded.delete(graphic)) return;
+    const failure = failures.get(graphic);
+    if (failure && failure.from === 1 && failure.why === 'load') failures.delete(graphic);
+    // Shown late by its own flag, it counts when that lifts.
+    if (bootHidden.has(graphic)) ranOffAir(graphic, 1);
+    else if (touched.has(graphic) || liveGraphics.has(graphic)) {
+      unreportedRun.add(graphic);
+      scheduleReport(graphic);
+    }
+    readyChanged();
+    presence.touch();
   };
   /** Graphics whose unsettled work is from before a republish: their `from` reads 0. */
   const staleFrom = new Set<string>();
@@ -1477,6 +1506,7 @@ async function boot(): Promise<void> {
   };
   // A frame that loads runs what waits for it; a hidden boot frame comes back once it settles.
   stage.onLoaded((graphic) => {
+    loadedAfterAll(graphic);
     if (holds.has(graphic)) releaseHold(graphic);
     else if (bootHidden.has(graphic)) void showWhenSettled(graphic);
     else if (following && touched.has(graphic)) primeFrame(graphic);
@@ -1490,6 +1520,7 @@ async function boot(): Promise<void> {
     if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
     // A package mounted once the stage is on air has run what the boot gave it, as a frame that
     // loads then (`onLoaded`, which only native frames fire).
+    if (ready(graphic)) loadedAfterAll(graphic);
     if (bootRevealed && !bootHidden.has(graphic) && ready(graphic)) backOnAir(graphic);
   });
   stage.onOutcome((at, graphic, outcome) => {
@@ -1808,7 +1839,7 @@ async function boot(): Promise<void> {
     bootOffAir = true;
     if (seqMode) {
       for (const row of missed) {
-        if (!row.graphic || !isCommand(row.msg.t) || !inScope(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, position(row))) continue;
+        if (!hosts(row.graphic) || !isCommand(row.msg.t) || !inScope(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, position(row))) continue;
         ranOffAir(row.graphic, position(row));
       }
     }
