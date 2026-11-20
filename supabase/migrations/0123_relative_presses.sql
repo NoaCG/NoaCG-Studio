@@ -214,7 +214,7 @@ begin
   select count(*) into v_recent from public.control_data_presses p
    where p.show_id = v_show and p.created_at > now() - interval '5 seconds';
   if v_recent + v_count > 100 then
-    raise exception 'too many presses — slow down' using errcode = 'check_violation';
+    raise exception 'too many presses, slow down' using errcode = 'check_violation';
   end if;
 
   -- 2 and 3. Each press in order: refused on its own when malformed, landed when already held,
