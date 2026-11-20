@@ -56,6 +56,7 @@ import {
 import { clearCueItems, takeCueItems } from './cueItems.ts';
 import { withPeersOff } from './ografOutcome.ts';
 import { leftAlone, reachedOutput, withLiveCue } from './liveCue.ts';
+import { isGraphicCue } from '../model/controlCue.ts';
 
 /** The shortest timer the engine sets, in ms. */
 const MIN_TIMER_MS = 15;
@@ -164,7 +165,7 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
     // A live candidate cue is never taken by a timed end (./cueAuto.ts `nextGraphicCue`), whatever an
     // older arm named: it would air with its prepared values (E7.1).
     // Nor one carrying typed OGraf data (E1.2a): its native strings are not its data.
-    const named = arm.next ? p.cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
+    const named = arm.next ? p.cues.find((c) => c.id === arm.next && isGraphicCue(c)) : undefined;
     const candidate = named?.selection !== undefined || named?.typed !== undefined ? named : undefined;
     const next = candidate ? undefined : named;
     const nextGraphic = next ? p.graphicOf(next) : null;

@@ -302,6 +302,7 @@ import { epochTag, readRun, withoutRun, type RunReport } from '../../control/run
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
+import { isGraphicCue, isServerCue } from '../../model/controlCue.ts';
 
 /** The draft's browser moments (control/cueDraft.ts): the page hidden or closing, or the account
  *  pausing, saves at once; the account asking for a save flushes. */
@@ -2003,7 +2004,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const typedSwitch = (cue: ShowCue | null): CueTypedSwitch | null => {
     const graphic = cue ? cueGraphicName(cue) : null;
     const declared = graphic ? declaredOf(graphic) : null;
-    if (!cue || cue.source === 'playout' || cue.selection !== undefined || declared?.status !== 'ok' || !declared.fields || typedReadOnly(cue)) return null;
+    if (!cue || !isGraphicCue(cue) || cue.selection !== undefined || declared?.status !== 'ok' || !declared.fields || typedReadOnly(cue)) return null;
     return {
       on: cue.typed !== undefined,
       note: typedNote?.cueId === cue.id ? typedNote.note : null,
@@ -2040,7 +2041,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const typedFormOf = (cue: ShowCue | null): CueTypedForm | null => {
     const graphic = cue ? cueGraphicName(cue) : null;
     const declared = graphic ? declaredOf(graphic) : null;
-    if (!show || !cue || cue.source === 'playout' || declared?.status !== 'ok' || typedReadOnly(cue)) return null;
+    if (!show || !cue || !isGraphicCue(cue) || declared?.status !== 'ok' || typedReadOnly(cue)) return null;
     const envelope = typedValuesOf(cue.typed);
     const bound = boundFields(graphic);
     const fields = declared.fields;
@@ -2076,7 +2077,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
    *  build reads only. */
   const candidatePicker = (cue: ShowCue | null): CandidatePicker | null => {
     const graphic = cue ? cueGraphicName(cue) : null;
-    if (!cue || !graphic || cue.source === 'playout' || selectionReadOnly(cue, show?.collections)) return null;
+    if (!cue || !graphic || !isGraphicCue(cue) || selectionReadOnly(cue, show?.collections)) return null;
     const recipes = (show?.collections ?? []).flatMap((raw) => {
       const read = readCollectionRecipe(raw);
       return read.status === 'ok' && read.recipe.graphic === graphic && read.recipe.key.length >= 2 ? [read.recipe] : [];
@@ -2637,7 +2638,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const styleCtx = useMemo(() => styleCtxOf(show, poolTemplates), [poolTemplates, show?.look, show?.lookApplied]);
   const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null, lib = library, ctx = styleCtx) => {
     const g = record?.graphics.find((x) => x.id === cue.sourceId);
-    if (!g || cue.source === 'playout') return null;
+    if (!g || !isGraphicCue(cue)) return null;
     const elsewhere = (record?.cues ?? []).some((c) => c.sourceId === g.id && c.id !== cue.id && c.adjust !== undefined);
     // An imported OGraf package takes no look or style: cueAdjustState reads its template.
     return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere, ctx);
@@ -2700,7 +2701,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     return (record.cues ?? []).flatMap((cue) => {
       const g = record.graphics.find((x) => x.id === cue.sourceId);
       // A package is never measured here: this page does not load one (it has no measurement).
-      if (!g || cue.source === 'playout' || isForeignGraphic(g.template)) return [];
+      if (!g || !isGraphicCue(cue) || isForeignGraphic(g.template)) return [];
       if (g.adjust === undefined && cue.adjust === undefined) {
         if (!everyGraphic || seen.has(g.id)) return [];
         seen.add(g.id);
@@ -2733,7 +2734,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       keepGeometry(
         session.geometry,
         id,
-        () => new Map((latestShow.current?.cues ?? []).filter((c) => c.source !== 'playout').map((c) => [c.id, c.sourceId] as const)),
+        () => new Map((latestShow.current?.cues ?? []).filter((c) => isGraphicCue(c)).map((c) => [c.id, c.sourceId] as const)),
         {
           getItem: (k) => localStorage.getItem(k),
           setItem: (k, v) => localStorage.setItem(k, v),
@@ -2762,7 +2763,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     keptBoxes.adopt((owed) =>
       (record.cues ?? []).flatMap((cue) => {
         const g = owed.has(cue.id) ? record.graphics.find((x) => x.id === cue.sourceId) : undefined;
-        if (!g || cue.source === 'playout' || isForeignGraphic(g.template)) return [];
+        if (!g || !isGraphicCue(cue) || isForeignGraphic(g.template)) return [];
         return [{ cueId: cue.id, graphicId: g.id, id: identityOf(cue, g, record, lib).id }];
       }),
     );
@@ -3322,7 +3323,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           step: heldStep,
           stepBlocked: heldStepCue ? stepBlocker(heldStepCue) : null,
           takeBlocked: heldStep ? null : takeBlockerFor(selectedFolder),
-          serverMembers: enabledHeldMembers.some((c) => c.source === 'playout'),
+          serverMembers: enabledHeldMembers.some((c) => isServerCue(c)),
           labelOf: (id) => cues.find((c) => c.id === id)?.label ?? 'a cue',
         }
       : null,
@@ -3750,7 +3751,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const newerDesign = poolGraphic ? newerLibraryDesign(poolGraphic, designLibrary) : undefined;
   const designUpdate = show && poolGraphic && newerDesign ? (() => {
     const dropped = droppedFields(show, poolGraphic, newerDesign.template);
-    const cuesUsing = (show.cues ?? []).filter((c) => c.source !== 'playout' && c.sourceId === poolGraphic.id).length;
+    const cuesUsing = (show.cues ?? []).filter((c) => isGraphicCue(c) && c.sourceId === poolGraphic.id).length;
     return {
       dropped: dropped.length ? `Update drops ${dropped.join(', ')} from ${cuesUsing} cue${cuesUsing === 1 ? '' : 's'}.` : null,
       run: async () => {
@@ -3801,7 +3802,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const rehearsing =
     !hostedSlug &&
     (selectedFolder
-      ? enabledHeldMembers.every((c) => c.source !== 'playout')
+      ? enabledHeldMembers.every((c) => isGraphicCue(c))
       : !selectedPlayoutItem);
   const takeButton = {
     ...view.take,
@@ -3812,7 +3813,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
    *  the CasparCG slot this production's output is set to, or this page only before Publish. */
   const takeTarget = (() => {
     const held = enabledHeldMembers;
-    const serverOnly = selectedFolder ? held.length > 0 && held.every((c) => c.source === 'playout') : !!selectedPlayoutItem;
+    const serverOnly = selectedFolder ? held.length > 0 && held.every((c) => isServerCue(c)) : !!selectedPlayoutItem;
     return takeTargets({
       published: !!hostedSlug,
       outputs: readiness.outputs.filter((line) => line.present).length,
@@ -3824,7 +3825,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           ? folderSlotOf(selectedFolder)
           : [...new Set((selectedFolder ? held : selectedCue ? [selectedCue] : []).map((c) => playoutItemFor(c)).filter((i): i is PlayoutItem => !!i).map(addressOfItem))].join(', ') || null
         : null,
-      serverToo: !!selectedFolder && !serverOnly && held.some((c) => c.source === 'playout'),
+      serverToo: !!selectedFolder && !serverOnly && held.some((c) => isServerCue(c)),
     });
   })();
 
@@ -4074,7 +4075,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         window.dispatchEvent(new CustomEvent('noacg-direct-cue'));
         const { cue, label, refused } = decision;
         if (refused) setNote(refused);
-        else if (cue.source === 'playout') void serverVerb(cue, 'take', label, { direct: true }).then((r) => r && setNote(r.note));
+        else if (isServerCue(cue)) void serverVerb(cue, 'take', label, { direct: true }).then((r) => r && setNote(r.note));
         else void takeGraphicCue(cue, label, true).then((r) => r && setNote(r.note));
         return;
       }
@@ -4300,7 +4301,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const airingLayers = started ? [...liveLayers, ...livePlayoutLayers] : livePlayoutLayers;
   const upHereLayers = started ? [] : liveLayers;
   const readySummary = readiness.summary.show ? readiness.summary : null;
-  const unsupportedCue = bridgeOk ? cues.filter(c => c.source === 'playout' && !cueServerOff(c)).map(c => ({ cue: c, reason: takeBlocker(c, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue) })).find(c => c.reason) : null;
+  const unsupportedCue = bridgeOk ? cues.filter(c => isServerCue(c) && !cueServerOff(c)).map(c => ({ cue: c, reason: takeBlocker(c, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue) })).find(c => c.reason) : null;
   const bridgeFact: StatusFacts['bridge'] = playoutRelevance.bridge
     ? playoutIsConfigured
       ? (bridgeStatus ?? { state: 'pending', detail: '' })
@@ -4701,7 +4702,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           previewStyle={previewStyleOf(previewCue ? adjustStateOf(previewCue) : null)}
           guides={adjustOpen && !!previewCue && previewCue.id === editingCue?.id}
           measure={(() => {
-            const g = previewCue && previewCue.source !== 'playout' ? graphicByPoolId.get(previewCue.sourceId) : undefined;
+            const g = previewCue && isGraphicCue(previewCue) ? graphicByPoolId.get(previewCue.sourceId) : undefined;
             if (!previewCue || !g || (!adjustOpen && g.adjust === undefined && previewCue.adjust === undefined)) return null;
             const cueId = previewCue.id;
             const styleId = adjustStateOf(previewCue)?.measureStyleId ?? '';
@@ -4933,7 +4934,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
             reach={lookCounts?.reach ?? null}
             exceptions={lookCounts?.exceptions ?? lookExceptions(show)}
             clearExceptions={() => void history.write(() => clearStyleExceptions(show.id), 'Clear look exceptions')}
-            onAir={Object.values(liveCue).filter((cueId) => cues.some((c) => c.id === cueId && c.source !== 'playout')).length}
+            onAir={Object.values(liveCue).filter((cueId) => cues.some((c) => c.id === cueId && isGraphicCue(c))).length}
             send={() => void sendLookToAir()}
             sending={lookSending}
             sent={lookSent}
@@ -4964,7 +4965,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
                 ability={playbackAbility}
                 playoutSettings={playoutSettings}
                 slot={{ channel: slot.channel, layer: slot.layer, set: selectedFolder.slot?.channel !== undefined || selectedFolder.slot?.layer !== undefined }}
-                hasServerCue={cues.some((c) => c.source === 'playout')}
+                hasServerCue={cues.some((c) => isServerCue(c))}
                 takeBlocked={view.folderBlocked}
                 addressOf={(c) => {
                   const item = playoutItemFor(c);

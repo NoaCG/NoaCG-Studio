@@ -18,6 +18,7 @@
 import type { CueAuto, CueEnd, ShowCue } from '../model/shows';
 import { clockText, FINAL_S } from './serverState.ts';
 import { preparedCue } from '../model/productionData.ts';
+import { isGraphicCue } from '../model/controlCue.ts';
 
 /** An end action more than this late is MISSED and never runs (§2.5, the owner's point 2). */
 export const LATE_LIMIT_MS = 5_000;
@@ -40,7 +41,7 @@ export function cleanAfter(seconds: number): number | null {
  *  newer build wrote that this build cannot read as one). */
 export function readAuto(cue: Pick<ShowCue, 'auto' | 'source'>): CueAuto | null {
   const a = cue.auto;
-  if (!a || cue.source === 'playout') return null;
+  if (!a || !isGraphicCue(cue)) return null;
   const after = typeof a.after === 'number' ? cleanAfter(a.after) : null;
   if (after === null || (a.then !== 'out' && a.then !== 'next' && a.then !== 'out-next')) return null;
   return { after, then: a.then };
@@ -67,7 +68,7 @@ export function playsOut(then: CueEnd): boolean {
 export function nextGraphicCue(cues: readonly Pick<ShowCue, 'id' | 'source' | 'selection' | 'typed'>[], cueId: string): string | null {
   const at = cues.findIndex((c) => c.id === cueId);
   if (at < 0) return null;
-  const next = cues.slice(at + 1).find((c) => c.source !== 'playout');
+  const next = cues.slice(at + 1).find((c) => isGraphicCue(c));
   return next && preparedCue(next) ? next.id : null;
 }
 

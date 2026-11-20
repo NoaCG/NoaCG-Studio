@@ -11,6 +11,7 @@ import type { ClipClock } from './serverState';
 import type { SpaceAction } from './spaceMode';
 import type { ShowCue } from '../model/shows';
 import { folderName, type RundownRow } from '../model/rundownRows.ts';
+import { isServerCue } from '../model/controlCue.ts';
 
 export const PANEL_PROTOCOL = 1;
 
@@ -80,7 +81,7 @@ export function rundownPanelRows(rows: readonly RundownRow[]): PanelRow[] {
     id: cue.id,
     label: cue.label,
     kind: 'cue',
-    source: cue.source === 'playout' ? 'server' : 'graphic',
+    source: isServerCue(cue) ? 'server' : 'graphic',
     ...(folder ? { folder } : {}),
   });
   const out: PanelRow[] = [];

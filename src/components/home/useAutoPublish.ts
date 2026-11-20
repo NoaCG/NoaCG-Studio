@@ -22,6 +22,7 @@ import { prefetchRecordBase } from '../../backend/supabaseProvider';
 import { prefetchTeamBase } from '../../backend/teamProductions';
 import { prefetchPublishedBase, prefetchPublishedBoxes } from '../../control/publishParts';
 import { sendsIdle } from '../../control/sendsInFlight';
+import { isGraphicCue } from '../../model/controlCue.ts';
 
 /** Whether the server has the guard installed and the switch on; null while unknown. */
 async function readSwitch(): Promise<boolean> {
@@ -190,7 +191,7 @@ export function useAutoPublish(o: {
       w.__noacgEdits = (w.__noacgEdits ?? 0) + 1;
       if (mode === 'labels') {
         // Every edit changes what the outputs show: a graphic cue's label, each time a new one.
-        const cue = [...(show.cues ?? [])].reverse().find((c) => c.source !== 'playout');
+        const cue = [...(show.cues ?? [])].reverse().find((c) => isGraphicCue(c));
         if (cue) updateShowCue(showId, cue.id, { label: `Edited ${tick}` });
         return;
       }

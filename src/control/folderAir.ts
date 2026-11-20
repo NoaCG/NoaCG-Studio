@@ -16,6 +16,7 @@ import { effectiveEnd } from './cuePlayback.ts';
 import { serverCueLive } from './serverPlayout.ts';
 import { slotRun, type ServerOwnership } from './serverState.ts';
 import { slotAddress } from './playoutSlots.ts';
+import { isControlCue, isGraphicCue, isServerCue } from '../model/controlCue.ts';
 
 export interface FolderAir {
   mode: ShowFolder['mode'];
@@ -57,7 +58,9 @@ export interface FolderAirInput {
 /** Whether one cue is on air: a server cue by what this page has up on the server, a graphic by its
  *  layer's live cue. */
 export function cueOnAir(cue: ShowCue, input: Pick<FolderAirInput, 'items' | 'ownership' | 'liveCue' | 'graphicName'>): boolean {
-  if (cue.source === 'playout') return serverCueLive(input.ownership.onAir, input.items.find((i) => i.id === cue.sourceId) ?? null, cue);
+  // A control cue sends once and is never on air (docs/work-specs/osc-control-cues/spec.md D8).
+  if (isControlCue(cue)) return false;
+  if (isServerCue(cue)) return serverCueLive(input.ownership.onAir, input.items.find((i) => i.id === cue.sourceId) ?? null, cue);
   const graphic = input.graphicName(cue);
   return !!graphic && input.liveCue[graphic] === cue.id;
 }
@@ -85,10 +88,12 @@ export function folderAir(input: FolderAirInput): Readonly<Record<string, Folder
         slot = slotAddress(live.slot);
       }
     }
-    const lit = !onAir.length ? 'off' : mode === 'together' && onAir.length < members.length ? 'partial' : 'on';
+    // Control cues never hold air, so they do not count against a together folder's tally (D8).
+    const airable = members.filter((c) => !isControlCue(c)).length;
+    const lit = !onAir.length ? 'off' : mode === 'together' && onAir.length < airable ? 'partial' : 'on';
     const ids = new Set(members.map((c) => c.id));
     const stopped = mode === 'through' && input.ownership.unidentified.some((u) => u.sequenceStopped && !!u.cueId && ids.has(u.cueId));
-    const upHere = input.graphicsAir === false ? onAir.filter((c) => c.source !== 'playout').length : 0;
+    const upHere = input.graphicsAir === false ? onAir.filter((c) => isGraphicCue(c)).length : 0;
     out[folder.id] = { mode, total: members.length, onAir: onAir.map((c) => c.id), ...(upHere ? { upHere } : {}), lit, following, looping, ...(slot ? { slot } : {}), stopped };
   }
   return out;
@@ -179,7 +184,7 @@ export function folderChildren(
       id: cue.id,
       label: cue.label,
       address: at[i],
-      outcome: live ? (!input.graphicsAir && cue.source !== 'playout' ? 'up' : 'air') : why ? 'miss' : 'off',
+      outcome: live ? (!input.graphicsAir && isGraphicCue(cue) ? 'up' : 'air') : why ? 'miss' : 'off',
       ...(why ? { why } : {}),
       ...(shares.length ? { sharesWith: shares } : {}),
     };

@@ -12,9 +12,10 @@
 
 import type { PlayoutItem, ShowCue, ShowFolder } from './shows';
 import { folderIdOf, joinRefusal, joins, landBlock, liveFolderIds, settleFolders, wholeFolders, type Place } from './showFolders.ts';
+import { isControlCue, isServerCue } from './controlCue.ts';
 
 /** One copied cue: what it is made of, and the copied folder it came in, when it came in one whole. */
-export type ClipCue = Pick<ShowCue, 'sourceId' | 'source' | 'label' | 'values' | 'note' | 'playback' | 'auto' | 'accentColor' | 'adjust' | 'typed' | 'typedArgs'> & { folderKey?: string };
+export type ClipCue = Pick<ShowCue, 'sourceId' | 'source' | 'label' | 'values' | 'note' | 'playback' | 'auto' | 'accentColor' | 'adjust' | 'typed' | 'typedArgs' | 'control'> & { folderKey?: string };
 /** One folder every cue of which was copied: it pastes as a new folder with its mode and settings. */
 export type ClipFolder = Pick<ShowFolder, 'name' | 'mode' | 'end' | 'slot'> & { key: string };
 
@@ -65,6 +66,8 @@ export function copyClip(
         // door admits a new cue whose envelope the record already holds, which a copy's is.
         ...(c.typed !== undefined ? { typed: structuredClone(c.typed) } : {}),
         ...(c.typedArgs !== undefined ? { typedArgs: structuredClone(c.typedArgs) } : {}),
+        // A control cue's message, byte for byte, a later version's record too (./controlCue.ts).
+        ...(c.control !== undefined ? { control: structuredClone(c.control) } : {}),
         ...(folder && whole.has(folder) ? { folderKey: folder } : {}),
       };
     }),
@@ -101,7 +104,9 @@ export function pasteCopies(
   const folderIds = new Map(clip.folders.map((f) => [f.key, newId()] as const));
   const block: ShowCue[] = [];
   for (const c of clip.cues) {
-    const there = c.source === 'playout' ? (record.playoutItems ?? []).some((i) => i.id === c.sourceId) : record.graphics.some((g) => g.id === c.sourceId);
+    // A control cue plays nothing of the record: its destination may be missing here, which its
+    // Take names and refuses (docs/work-specs/osc-control-cues/spec.md D2).
+    const there = isControlCue(c) || (isServerCue(c) ? (record.playoutItems ?? []).some((i) => i.id === c.sourceId) : record.graphics.some((g) => g.id === c.sourceId));
     if (!there) return { refused: `${c.label} plays something this production no longer has, so it was not pasted.` };
     const folderId = c.folderKey ? folderIds.get(c.folderKey) : undefined;
     block.push({
@@ -117,6 +122,7 @@ export function pasteCopies(
       ...(c.adjust ? { adjust: structuredClone(c.adjust) } : {}),
       ...(c.typed !== undefined ? { typed: structuredClone(c.typed) } : {}),
       ...(c.typedArgs !== undefined ? { typedArgs: structuredClone(c.typedArgs) } : {}),
+      ...(c.control !== undefined ? { control: structuredClone(c.control) } : {}),
       ...(folderId ? { folderId } : {}),
     });
   }

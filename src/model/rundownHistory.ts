@@ -5,6 +5,7 @@ import { foldersContiguous, throughRefusal } from './showFolders.ts';
 import { selectionFrozen, selectionKeep, selectionReadOnly } from './productionData.ts';
 import { typedFrozen, typedKeep, typedValuesOf } from './ografTyped.ts';
 import { scrubHiddenWords } from './wordCues.ts';
+import { isControlCue, isServerCue } from './controlCue.ts';
 
 /** Only prepared rundown data. Air, publication, datasets and production metadata stay outside. */
 export interface RundownSlice {
@@ -97,7 +98,8 @@ export function rundownRefusal(slice: RundownSlice): string | null {
   const graphics = new Set(slice.graphics.map(g => g.id)), items = new Set(slice.playoutItems.map(i => i.id));
   const folders = new Map(slice.folders.map(f => [f.id, f]));
   for (const cue of slice.cues) {
-    if (!(cue.source === 'playout' ? items : graphics).has(cue.sourceId)) return 'The saved rundown references a missing source.';
+    // A control cue references no graphic and no server item (./controlCue.ts).
+    if (!isControlCue(cue) && !(isServerCue(cue) ? items : graphics).has(cue.sourceId)) return 'The saved rundown references a missing source.';
     if (cue.folderId && !folders.has(cue.folderId)) return 'The saved rundown references a missing folder.';
     if (cue.folderId && folders.get(cue.folderId)?.mode === 'through') {
       const refused = throughRefusal(cue, slice.playoutItems);

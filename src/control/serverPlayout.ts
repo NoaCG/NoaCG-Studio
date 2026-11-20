@@ -34,6 +34,7 @@ import {
   type MemberProblem,
   type PlaybackAbility,
 } from './cuePlayback.ts';
+import { isControlCue, isServerCue, OSC_NOT_YET } from '../model/controlCue.ts';
 
 /** One item up on the server: the cue that put it there and the SLOT it was taken to. */
 export interface ServerLive {
@@ -172,7 +173,7 @@ export function playNextTarget(
   const live = folders.length ? liveFolderIds(cues, folders) : new Set<string>();
   const at = cues.findIndex((c) => c.id === cueId);
   const cue = cues[at];
-  const item = cue?.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
+  const item = isServerCue(cue) ? items.find((i) => i.id === cue.sourceId) : undefined;
   if (!cue || !item || item.kind !== 'media') return { ok: false, reason: 'only a clip or an audio file plays the next one' };
   if (item.mediaKind === 'still') return { ok: false, reason: 'a still never ends, so nothing plays after it' };
   const address = addressOf(item);
@@ -180,7 +181,7 @@ export function playNextTarget(
   const elsewhere: { label: string; address: string }[] = [];
   for (let i = at + 1; i < cues.length; i++) {
     const c = cues[i];
-    const it = c.source === 'playout' ? items.find((x) => x.id === c.sourceId) : undefined;
+    const it = isServerCue(c) ? items.find((x) => x.id === c.sourceId) : undefined;
     if (!it || it.kind !== 'media') {
       graphics += 1;
       continue;
@@ -235,7 +236,7 @@ export function sequenceMembers(
   folders: readonly Pick<ShowFolder, 'id'>[] = [],
 ): { ok: true; members: SequenceMember[] } | { ok: false; reason: string } {
   const cue = cues.find((c) => c.id === cueId);
-  const item = cue?.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
+  const item = isServerCue(cue) ? items.find((i) => i.id === cue.sourceId) : undefined;
   if (!cue || !item) return { ok: false, reason: 'the cue is not in the rundown' };
   const members: SequenceMember[] = [{ cue, item }];
   while (effectiveEnd(members[members.length - 1].cue, members[members.length - 1].item) === 'next') {
@@ -279,7 +280,7 @@ export function takeBlocker(
     return folderTakeBlocker(target, folderMembers(cues, folders, target.id), { items, addressOf, graphicOf, ability, blockerOf, serverOff });
   }
   const cue = target;
-  const item = cue.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
+  const item = isServerCue(cue) ? items.find((i) => i.id === cue.sourceId) : undefined;
   if (item?.adapter === 'vmix') {
     const blocked = vmixMediaBlocker(ability);
     if (blocked) return blocked;
@@ -547,7 +548,10 @@ export function togetherPlan(members: readonly ShowCue[], r: FolderRundown): Tog
   const server: SequenceMember[] = [];
   const graphics: GraphicMember[] = [];
   for (const cue of members) {
-    if (cue.source === 'playout') {
+    // Sending a control cue arrives with docs/work-specs/osc-control-cues/spec.md phase 5; until
+    // then the whole folder is refused before anything is sent, never taken as a graphic.
+    if (isControlCue(cue)) return { ok: false, reason: OSC_NOT_YET(cue.label) };
+    if (isServerCue(cue)) {
       const item = r.items.find((i) => i.id === cue.sourceId);
       if (!item) return { ok: false, reason: `${cue.label} plays a file this production no longer lists.` };
       server.push({ cue, item });

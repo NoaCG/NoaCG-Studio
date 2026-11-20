@@ -11,6 +11,7 @@ import type { FieldDescriptor } from '../model/fieldModel';
 import type { ControlButton } from './controlModel';
 import type { LiveCueMap } from './liveCue';
 import type { VerbSelection } from './graphicVerbs';
+import { isGraphicCue } from '../model/controlCue.ts';
 
 /** Every surface's refusal of a live press that another cue took the layer from, before it sent. */
 export const changedNote = (graphic: string) => `Nothing sent: the cue on ${graphic} changed.`;
@@ -38,7 +39,7 @@ export interface PickGroup {
  */
 export function liveSelection(graphic: string, cues: readonly ShowCue[], liveCue: LiveCueMap): VerbSelection {
   const id = Object.prototype.hasOwnProperty.call(liveCue, graphic) ? (liveCue[graphic] ?? null) : null;
-  const cue = id ? (cues.find((c) => c.id === id && c.source !== 'playout') ?? null) : null;
+  const cue = id ? (cues.find((c) => c.id === id && isGraphicCue(c)) ?? null) : null;
   return {
     selectedCue: cue,
     selectedGraphic: graphic,

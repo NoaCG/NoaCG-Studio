@@ -7,6 +7,7 @@ import { folderAirWords, folderChildren, type FolderAir } from '../../control/fo
 import { channelLabel, slotAddress, type PlayoutSettings } from '../../control/playoutLink';
 import { useDeferredEdits } from './useDeferredEdits';
 import { nameList } from './CueRundown';
+import { isServerCue } from '../../model/controlCue.ts';
 
 const MODES: { mode: ShowFolder['mode']; word: string }[] = [
   { mode: 'manual', word: 'One by one' },
@@ -87,7 +88,7 @@ export default function FolderEditor({
   const address = slotAddress(slot);
   const children = folderChildren(members, {
     mode,
-    address: (c) => (mode === 'through' && c.source === 'playout' ? address : addressOf(c)),
+    address: (c) => (mode === 'through' && isServerCue(c) ? address : addressOf(c)),
     onAir: air?.onAir ?? [],
     misses,
     graphicsAir,

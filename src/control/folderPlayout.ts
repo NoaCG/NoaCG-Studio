@@ -38,6 +38,7 @@ import { cueOnAir } from './folderAir.ts';
 import { folderStep, type StepMember } from './folderStep.ts';
 import { leftAlone, pressOuts, withLiveCue } from './liveCue.ts';
 import { clockRank, runTogether, togetherNote, togetherPlan } from './serverPlayout.ts';
+import { isGraphicCue, isServerCue } from '../model/controlCue.ts';
 
 /** Why a run stopped: Out on its folder, All out (what lands after is cut), or the session's end
  *  (nothing more is sent at all). */
@@ -258,24 +259,24 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     const members = p.members.get(folder.id) ?? [];
     clearMisses(members.map((c) => c.id));
     const notes: string[] = [];
-    for (const cue of members.filter((c) => c.source === 'playout' && onAirNow(p, c))) {
+    for (const cue of members.filter((c) => isServerCue(c) && onAirNow(p, c))) {
       const off = await p.serverVerb(cue, 'out', `Out of ${cue.label}`);
       if (off && !off.ok) notes.push(off.note);
     }
-    const graphicsFailed = await graphicsOff(p, members.filter((c) => c.source !== 'playout' && onAirNow(p, c)));
+    const graphicsFailed = await graphicsOff(p, members.filter((c) => isGraphicCue(c) && onAirNow(p, c)));
     if (graphicsFailed) notes.push(graphicsFailed);
     p.note(notes.length ? `Out: ${p.folderName(folder)} did not take all of it off. ${notes.join(' ')}` : `✓ Out: ${p.folderName(folder)}`);
   };
 
   const offWith = async (p: FolderPage, cues: readonly ShowCue[]): Promise<boolean> => {
-    for (const cue of cues.filter((c) => c.source === 'playout')) {
+    for (const cue of cues.filter((c) => isServerCue(c))) {
       const res = await p.serverVerb(cue, 'out', `Out of ${cue.label}`);
       if (res && !res.ok) {
         p.note(res.note);
         return false;
       }
     }
-    const failed = await graphicsOff(p, cues.filter((c) => c.source !== 'playout'));
+    const failed = await graphicsOff(p, cues.filter((c) => isGraphicCue(c)));
     if (failed) p.note(failed);
     return !failed;
   };
