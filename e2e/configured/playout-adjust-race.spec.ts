@@ -6,7 +6,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts, src/control/playoutStatus.ts
-// covers: supabase/migrations/0121_relative_presses.sql
+// covers: supabase/migrations/0123_relative_presses.sql
 //
 // TWO ⚡ ADJUST PRESSES INSIDE ONE ROUND TRIP MOVE A SHARED VALUE TWICE (production-page refactor,
 // phase 1, S1; docs/work-specs/production-page-refactor/spec.md §1.3).
@@ -14,7 +14,7 @@
 // A scoreboard's Goal carries `adjust: { f1: 1 }`. With f1 bound to a path in the production's
 // tree, the press sends the event, and once the send has answered (or has no answer, fix-2617 R8a)
 // it queues "+1 on the path" with a press id, which the server applies under the row lock and the
-// page resends until it lands (#2617, migration 0121). A second Goal pressed while the first send
+// page resends until it lands (#2617, migration 0123). A second Goal pressed while the first send
 // is still out used to count from the same tree and write the same figure, so two goals moved the
 // score by one. A Goal and a + on the ± stepper of the same score lost a count the same way.
 //

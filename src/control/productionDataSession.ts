@@ -43,7 +43,7 @@ export const LIST_WAIT_MS = 7_000;
 /** A press on a bound field: "add N to this path" or "make this path this text". */
 export type BoundPress = { path: string; by: number } | { path: string; text: string };
 
-/** The page's figure for presses folded onto a tree, as the server folds them (migration 0121):
+/** The page's figure for presses folded onto a tree, as the server folds them (migration 0123):
  *  `adjustedValue`'s arithmetic and `retypeLeaf`'s types. */
 export function foldPresses(tree: JsonObject, presses: readonly BoundPress[]): JsonObject {
   let out = tree;
@@ -66,7 +66,7 @@ export interface ProductionDataIo {
   saveLiveData: (productionId: string, data: JsonObject) => void;
   /** The doors of control/productionDataApi.ts, as they are there. */
   productionDataKey: typeof productionDataKey;
-  /** The relative door (migration 0121). Absent, the session writes figures as today (R10). */
+  /** The relative door (migration 0123). Absent, the session writes figures as today (R10). */
   adjustProductionDataBySlug?: typeof adjustProductionDataBySlug;
   fetchProductionData: typeof fetchProductionData;
   patchProductionData: typeof patchProductionData;

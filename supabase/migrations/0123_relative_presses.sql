@@ -508,7 +508,7 @@ begin
       'head', jsonb_build_object('seq', v_head.seq, 'graphics', public.control_head_pick(v_head.graphics, v_touched)));
   end if;
 
-  -- 7b. (0121, R5a) The bound figures are the stored tree's at this row. Read, as its own statement
+  -- 7b. (0123, R5a) The bound figures are the stored tree's at this row. Read, as its own statement
   --     after the head lock, only when an `update` item carries data; a data write changes `data`
   --     before its own update rows take the head, so the row that lands last carries the newest.
   if exists (select 1 from jsonb_array_elements(v_items) x
@@ -579,11 +579,11 @@ declare
   v_owner uuid;
   v_show  uuid := gen_random_uuid();
   v_slug  text;
-  v_page  uuid := '00000000-0121-4000-8000-00000000000a';
-  v_a     text := '00000000-0121-4000-8000-000000000001';
-  v_b     text := '00000000-0121-4000-8000-000000000002';
-  v_c     text := '00000000-0121-4000-8000-000000000003';
-  v_d     text := '00000000-0121-4000-8000-000000000004';
+  v_page  uuid := '00000000-0123-4000-8000-00000000000a';
+  v_a     text := '00000000-0123-4000-8000-000000000001';
+  v_b     text := '00000000-0123-4000-8000-000000000002';
+  v_c     text := '00000000-0123-4000-8000-000000000003';
+  v_d     text := '00000000-0123-4000-8000-000000000004';
   v_ans   jsonb;
   v_row   jsonb;
 begin
@@ -593,7 +593,7 @@ begin
      or not has_function_privilege('anon', 'public.control_send_seq(text,jsonb,jsonb)', 'execute')
      or not has_function_privilege('authenticated', 'public.control_send_seq(text,jsonb,jsonb)', 'execute')
      or not has_function_privilege('anon', 'public.control_data_patch_by_slug(text,jsonb)', 'execute') then
-    raise exception '0121 self-check failed: a page cannot reach an RPC it needs';
+    raise exception '0123 self-check failed: a page cannot reach an RPC it needs';
   end if;
   if has_function_privilege('anon', 'public.control_bound_item(jsonb,jsonb,jsonb)', 'execute')
      or has_function_privilege('anon', 'public.production_data_adjusted(jsonb,numeric)', 'execute')
@@ -601,17 +601,17 @@ begin
      or has_table_privilege('anon', 'public.control_data_presses', 'select')
      or has_table_privilege('authenticated', 'public.control_data_presses', 'insert')
      or not (select c.relrowsecurity from pg_class c where c.oid = 'public.control_data_presses'::regclass) then
-    raise exception '0121 self-check failed: a client can reach an internal function or the press ids';
+    raise exception '0123 self-check failed: a client can reach an internal function or the press ids';
   end if;
 
   -- (b) CALL it, as an owner hosted control is open to.
   select u.id into v_owner from auth.users u where not public.feature_denied_for(u.id, 'control.hosted') limit 1;
   if v_owner is null then
-    raise notice '0121 self-check skipped the live half: no account on this instance may use hosted control';
+    raise notice '0123 self-check skipped the live half: no account on this instance may use hosted control';
     return;
   end if;
   insert into public.control_shows (id, owner_id, title, output, data, bindings)
-    values (v_show, v_owner, '0121 self-check', '{"v":1,"graphics":[{"key":"Score"}],"cues":[]}'::jsonb,
+    values (v_show, v_owner, '0123 self-check', '{"v":1,"graphics":[{"key":"Score"}],"cues":[]}'::jsonb,
             '{"home":{"score":4},"teams":[{"g":1},{"g":"2"}],"label":"x","grid":[]}'::jsonb,
             '{"Score":{"f1":"home.score","f2":"teams.0.g","f3":"teams.1.g","f4":"grid.0.gap"}}'::jsonb)
     returning slug into v_slug;
@@ -624,13 +624,13 @@ begin
     jsonb_build_object('id', v_c, 'path', 'teams.1.g', 'by', 3)));
   if v_ans->'data'->'home'->'score' <> '5'::jsonb or v_ans->'data'->'teams' <> '[{"g":3},{"g":"5"}]'::jsonb
      or jsonb_array_length(v_ans->'landed') <> 3 or v_ans->'refused' <> '[]'::jsonb then
-    raise exception '0121 self-check failed: the presses did not fold (%)', v_ans;
+    raise exception '0123 self-check failed: the presses did not fold (%)', v_ans;
   end if;
   -- The same ids again: landed, applied once.
   v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
     jsonb_build_object('id', v_a, 'path', 'home.score', 'by', 1)));
   if v_ans->'data'->'home'->'score' <> '5'::jsonb or v_ans->'landed' <> jsonb_build_array(v_a) then
-    raise exception '0121 self-check failed: a resend counted twice (%)', v_ans;
+    raise exception '0123 self-check failed: a resend counted twice (%)', v_ans;
   end if;
   -- An unbound path refuses its own press only; a set keeps the leaf's type.
   v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
@@ -638,44 +638,44 @@ begin
     jsonb_build_object('id', gen_random_uuid(), 'path', 'home.score', 'text', '0')));
   if v_ans->'data'->'home'->'score' <> '0'::jsonb or v_ans->'data'->>'label' <> 'x'
      or jsonb_array_length(v_ans->'refused') <> 1 or v_ans->'refused'->0->>'id' <> v_d then
-    raise exception '0121 self-check failed: an unbound path (%)', v_ans;
+    raise exception '0123 self-check failed: an unbound path (%)', v_ans;
   end if;
 
   -- A list element that does not exist yet is made, as the page's setPath makes it.
   v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
     jsonb_build_object('id', gen_random_uuid(), 'path', 'grid.0.gap', 'by', 2)));
   if v_ans->'data'->'grid' <> '[{"gap":2}]'::jsonb or jsonb_array_length(v_ans->'landed') <> 1 then
-    raise exception '0121 self-check failed: a press on a new list element (%)', v_ans;
+    raise exception '0123 self-check failed: a press on a new list element (%)', v_ans;
   end if;
   -- A leaf inside a list that nothing binds is not held by the answer: refused, never landed.
   v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
     jsonb_build_object('id', gen_random_uuid(), 'path', 'teams.0.other', 'by', 1)));
   if jsonb_array_length(v_ans->'landed') <> 0 or jsonb_array_length(v_ans->'refused') <> 1 then
-    raise exception '0121 self-check failed: an unbound leaf in a list landed (%)', v_ans;
+    raise exception '0123 self-check failed: an unbound leaf in a list landed (%)', v_ans;
   end if;
 
   -- (c) A Take's bound field carries the stored figure; an unbound one and every other key stay.
   v_ans := public.control_send_seq(v_slug,
     '[{"graphic":"Score","msg":{"t":"update","data":{"f1":"9","f9":"keep"},"oid":"o-1"}},{"graphic":"Score","msg":{"t":"play"}}]'::jsonb,
     jsonb_build_object('id', v_page, 'press', 1, 'base', '{}'::jsonb));
-  if v_ans->>'ok' <> 'true' then raise exception '0121 self-check failed: the Take was refused (%)', v_ans; end if;
+  if v_ans->>'ok' <> 'true' then raise exception '0123 self-check failed: the Take was refused (%)', v_ans; end if;
   execute format('set local role %I', v_role);
   select e.msg into v_row from public.control_events e
    where e.show_id = v_show and e.msg->>'t' = 'update' and e.msg->>'oid' = 'o-1';
   if v_row is distinct from '{"t":"update","data":{"f1":"0","f9":"keep"},"oid":"o-1"}'::jsonb then
-    raise exception '0121 self-check failed: the Take row (%)', v_row;
+    raise exception '0123 self-check failed: the Take row (%)', v_row;
   end if;
   -- An update with no data and a graphic nothing binds, beside one that is bound: both as sent.
   set local role anon;
   v_ans := public.control_send_seq(v_slug,
     '[{"graphic":"Score","msg":{"t":"update","data":{"f1":"9"},"oid":"o-2"}},{"graphic":"Score","msg":{"t":"update","oid":"o-3"}},{"graphic":"Other","msg":{"t":"update","data":{"f1":"7"},"oid":"o-4"}}]'::jsonb,
     jsonb_build_object('id', v_page, 'press', 2, 'base', '{}'::jsonb));
-  if v_ans->>'ok' <> 'true' then raise exception '0121 self-check failed: a mixed batch was refused (%)', v_ans; end if;
+  if v_ans->>'ok' <> 'true' then raise exception '0123 self-check failed: a mixed batch was refused (%)', v_ans; end if;
   execute format('set local role %I', v_role);
   if (select count(*) from public.control_events e where e.show_id = v_show and e.msg->>'oid' in ('o-2', 'o-3', 'o-4')) <> 3
      or (select e.msg from public.control_events e where e.show_id = v_show and e.msg->>'oid' = 'o-3') is distinct from '{"t":"update","oid":"o-3"}'::jsonb
      or (select e.msg->'data'->>'f1' from public.control_events e where e.show_id = v_show and e.msg->>'oid' = 'o-4') is distinct from '7' then
-    raise exception '0121 self-check failed: a mixed batch was not sent as it came';
+    raise exception '0123 self-check failed: a mixed batch was not sent as it came';
   end if;
   delete from public.control_shows where id = v_show;
 exception when others then
