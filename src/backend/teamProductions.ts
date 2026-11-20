@@ -427,6 +427,9 @@ let readFailures = 0;
 let readsResumeAt = 0;
 let saveFailures = 0;
 let savesResumeAt = 0;
+/** Each production's own failed saves in a row and when it may go again (#2618). A landed save of
+ *  another production resets the tab's count above, never this one. */
+const saveRetries = new Map<string, { failures: number; resumeAt: number }>();
 
 function noteRead(failed: boolean): void {
   readFailures = failed ? readFailures + 1 : 0;
@@ -436,6 +439,11 @@ function noteRead(failed: boolean): void {
 function noteSave(failed: boolean): void {
   saveFailures = failed ? saveFailures + 1 : 0;
   savesResumeAt = failed ? Date.now() + backoffDelay(saveFailures, SAVE_BACKOFF_MS, MAX_SAVE_BACKOFF_MS) : 0;
+}
+
+/** The earliest this production's next save may go: after its own wait and the tab's. */
+function saveResumesAt(id: string): number {
+  return Math.max(savesResumeAt, saveRetries.get(id)?.resumeAt ?? 0);
 }
 
 /** What the server last said about each production: its token and document - the BASE a local
@@ -526,6 +534,7 @@ export function stopTeamSync(): void {
   refusedAssets.clear();
   noteRead(false);
   noteSave(false);
+  saveRetries.clear();
   if (!preserve) clearTeamShows();
   state = preserve ? { ...state, loadError: 'Session unavailable. Account editing is paused; pending work is preserved.' } : EMPTY;
   for (const listener of listeners) listener();
@@ -703,7 +712,8 @@ async function refreshOnce(): Promise<void> {
     members: membersAnswer.members,
     heads: shown,
   });
-  // A save that failed on a dropped connection is retried on the next good read.
+  // A save stopped before it was sent goes on the next good read; a sent save that failed has its
+  // own retry timer (scheduleRetry), which this skips.
   for (const id of dirty) if (!timers.has(id) && !inflight.has(id)) scheduleSave(id);
 }
 
@@ -766,7 +776,23 @@ function scheduleSave(id: string, draft?: TeamCueDraftText, previous?: Show | nu
     setTimeout(() => {
       timers.delete(id);
       void pushSave(id);
-    }, Math.max(SAVE_DEBOUNCE_MS, savesResumeAt - Date.now())),
+    }, Math.max(SAVE_DEBOUNCE_MS, saveResumesAt(id) - Date.now())),
+  );
+}
+
+/** A failed save goes again by itself after its wait, as a good read would start it (#2618). It
+ *  replaces any timer an edit set while the save was out, so that edit cannot jump the wait. */
+function scheduleRetry(id: string): void {
+  const failures = (saveRetries.get(id)?.failures ?? 0) + 1;
+  saveRetries.set(id, { failures, resumeAt: Date.now() + backoffDelay(failures, SAVE_BACKOFF_MS, MAX_SAVE_BACKOFF_MS) });
+  const existing = timers.get(id);
+  if (existing) clearTimeout(existing);
+  timers.set(
+    id,
+    setTimeout(() => {
+      timers.delete(id);
+      if (dirty.has(id) && !inflight.has(id)) scheduleSave(id);
+    }, Math.max(0, saveResumesAt(id) - Date.now())),
   );
 }
 
@@ -934,8 +960,11 @@ async function pushSave(id: string): Promise<void> {
   if (running !== owner) return;
   noteSave(failure !== null);
   setSaving(id, failure ? 'failed' : dirty.has(id) ? 'pending' : null);
-  if (failure) noteFailure(id, failure);
-  else {
+  if (failure) {
+    noteFailure(id, failure);
+    if (dirty.has(id)) scheduleRetry(id);
+  } else {
+    saveRetries.delete(id);
     // A failure's line goes with the failure, or it reads as a problem after the retry has saved.
     if (state.notes[id] === failureNotes.get(id)) dismissTeamNote(id);
     failureNotes.delete(id);

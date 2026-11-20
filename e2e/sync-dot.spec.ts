@@ -30,7 +30,7 @@ async function cloud(page: Page) {
     localStorage.setItem('sb-cloudmock-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', expires_in: 3600, expires_at: expires, token_type: 'bearer', user }));
   }, { owner, user, token, expires });
   const state = {
-    rows: new Map<string, Row>(), reads: 0, silent: false, silentWrites: false, silentStorage: false, goneStorage: false, silentReads: false, held: 0, down: false,
+    rows: new Map<string, Row>(), reads: 0, saves: 0, savesOut: 0, mostSavesOut: 0, saveTimeout: false, other: null as { id: string } | null, otherToken: '2026-10-06T00:00:00.000Z', otherSaves: 0, otherOut: 0, silent: false, silentWrites: false, silentStorage: false, goneStorage: false, silentReads: false, held: 0, down: false,
     doc: null as { id: string } | null, token: '2026-10-06T00:00:00.000Z', revision: 0,
     authUser: user, beforeWrite: null as ((row: Row) => Promise<void>) | null,
   };
@@ -43,7 +43,10 @@ async function cloud(page: Page) {
     const respond = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) }).catch(() => {});
     if (url.pathname === '/auth/v1/user') return respond(state.authUser);
     if (url.pathname === '/auth/v1/logout') return respond({});
-    const teamRow = () => (state.doc ? [{ id: state.doc.id, team_id: team, updated_at: state.token, updated_by: owner, doc: state.doc }] : []);
+    const teamRow = () => [
+      ...(state.doc ? [{ id: state.doc.id, team_id: team, updated_at: state.token, updated_by: owner, doc: state.doc }] : []),
+      ...(state.other ? [{ id: state.other.id, team_id: team, updated_at: state.otherToken, updated_by: owner, doc: state.other }] : []),
+    ];
     if (url.pathname === '/rest/v1/teams' || url.pathname === '/rest/v1/team_members' || url.pathname === '/rest/v1/team_productions') {
       if (state.silentReads) await hold();
       if (state.down) return route.abort('connectionfailed').catch(() => {});
@@ -57,7 +60,25 @@ async function cloud(page: Page) {
       if (request.method() === 'POST') return respond({ Key: url.pathname.split('/object/')[1] });
       return route.fulfill({ status: 200, contentType: 'font/woff2', body: Buffer.from('font bytes') }).catch(() => {});
     }
+    if (url.pathname === '/rest/v1/rpc/team_production_save' && state.other && request.postDataJSON().p_id === state.other.id) {
+      // A second production of the same team, whose saves always land.
+      state.otherSaves++;
+      state.otherOut++;
+      await new Promise(resolve => setTimeout(resolve, 50));
+      state.otherOut--;
+      const { p_expected, p_doc } = request.postDataJSON();
+      if (p_expected !== state.otherToken) return respond({ saved: false, updated_at: state.otherToken, updated_by: owner, doc: state.other });
+      state.other = p_doc;
+      state.otherToken = new Date(Date.parse('2026-10-07T00:00:00Z') + state.otherSaves).toISOString();
+      return respond({ saved: true, updated_at: state.otherToken, updated_by: owner, doc: state.other });
+    }
     if (url.pathname === '/rest/v1/rpc/team_production_save') {
+      state.saves++;
+      state.mostSavesOut = Math.max(state.mostSavesOut, ++state.savesOut);
+      // Answered a moment later, so a second save sent meanwhile would be counted as out at once.
+      await new Promise(resolve => setTimeout(resolve, 50));
+      state.savesOut--;
+      if (state.saveTimeout) return respond({ code: '57014', message: 'canceling statement due to statement timeout' }, 500);
       if (state.silent) await hold();
       if (state.down) return route.abort('connectionfailed').catch(() => {});
       const { p_expected, p_doc } = request.postDataJSON();
@@ -115,6 +136,12 @@ async function teamProduction(page: Page, state: Awaited<ReturnType<typeof cloud
 }
 
 const chip = (page: Page) => page.getByTestId('sync-status');
+/** One second on the page clock, once no team save is out, so a bound on attempts counts clock time
+ *  and not how fast this machine answers. */
+async function step(page: Page, state: Awaited<ReturnType<typeof cloud>>) {
+  await expect.poll(() => state.savesOut + state.otherOut).toBe(0);
+  await page.clock.fastForward(1_000);
+}
 const edit = (page: Page, id: string, label: string) => page.evaluate(async ({ id, label }) => {
   const m = await __noacgImport('/src/model/shows.ts');
   m.updateShowCue(id, m.loadShows().find(s => s.id === id)!.cues![0].id, { label });
@@ -278,7 +305,7 @@ test('a team save the cloud never answers says so, gives up, and lands on its re
   await page.getByTestId('sync-action').click();
   state.silent = false;
   await page.clock.fastForward(TO_THE_LIMIT);
-  // A failed save goes again on the next good read, and reads poll.
+  // A failed save goes again on its own timer, and on the next good read.
   await expect.poll(async () => {
     await page.clock.fastForward(5_000);
     return chip(page).textContent();
@@ -301,6 +328,89 @@ test('a team save that fails says why, and its line goes when it lands', async (
   await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
   expect(cueLabel(state.doc)).toBe('Team failure');
   await expect(page.getByTestId('production-team-note')).toHaveCount(0);
+});
+
+test('a failed team save goes again by itself within its backoff, one at a time, with no read to start it (#2618)', async ({ page }) => {
+  const state = await cloud(page);
+  await page.clock.install();
+  const id = await teamProduction(page, state);
+  // Reads hang from here on, so no good read can start the retry: only the save's own timer can.
+  state.silentReads = true;
+  state.saveTimeout = true;
+  await edit(page, id, 'Retried by itself');
+  await page.clock.fastForward(1_000);
+  await expect.poll(() => state.saves).toBe(1);
+  await expectAmber(page, /statement timeout/);
+  await expect(page.getByTestId('production-team-note')).toHaveText(/statement timeout/);
+  // While saves keep failing, the retries back off: 2 s doubling to 30 s, a quarter either way.
+  // With nothing else to start a save, the first minute holds 3 to 6 retries; without a timer, none.
+  for (let second = 0; second < 60; second++) await step(page, state);
+  expect(state.saves - 1).toBeGreaterThanOrEqual(3);
+  expect(state.saves - 1).toBeLessThanOrEqual(6);
+  // Edits of the failing production during its waits do not send it any sooner: two minutes in all
+  // hold 5 to 9 retries.
+  for (let second = 60; second < 120; second++) {
+    if (second % 4 === 2) await edit(page, id, `Retried by itself ${second}`);
+    await step(page, state);
+  }
+  await edit(page, id, 'Retried by itself');
+  expect(state.saves - 1).toBeGreaterThanOrEqual(5);
+  expect(state.saves - 1).toBeLessThanOrEqual(9);
+  // Still failed meanwhile, and the reason still shown.
+  await expect(chip(page)).toHaveText('Not synced');
+  await expect(page.getByTestId('production-team-note')).toHaveText(/statement timeout/);
+  await expect.poll(() => state.savesOut).toBe(0);
+  state.saveTimeout = false;
+  const before = state.saves;
+  // The next wait is at most 30 s and a quarter, and the debounce.
+  for (let second = 0; second < 45 && cueLabel(state.doc) !== 'Retried by itself'; second++) await step(page, state);
+  await expect.poll(() => cueLabel(state.doc)).toBe('Retried by itself');
+  expect(state.saves).toBe(before + 1);
+  expect(state.mostSavesOut).toBe(1);
+  await expect(page.getByTestId('production-team-note')).toHaveCount(0);
+  // Signed out, a failed save is not tried again.
+  state.saveTimeout = true;
+  await edit(page, id, 'Not after sign-out');
+  for (let second = 0; second < 3 && state.saves === before + 1; second++) await step(page, state);
+  expect(state.saves).toBe(before + 2);
+  await expect.poll(() => state.savesOut).toBe(0);
+  await signOut(page);
+  // As TeamSync does when the session ends (this spec starts the controller by hand).
+  await page.evaluate(async () => (await __noacgImport('/src/backend/teamProductions.ts')).stopTeamSync());
+  for (let second = 0; second < 45; second++) await step(page, state);
+  expect(state.saves).toBe(before + 2);
+});
+
+test('another production saving meanwhile does not shorten a failing production\'s backoff (#2618)', async ({ page }) => {
+  const state = await cloud(page);
+  await page.clock.install();
+  const id = await teamProduction(page, state);
+  state.other = await page.evaluate(async () => {
+    const m = await __noacgImport('/src/model/shows.ts'), { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const show = m.createShowNamedChecked('Second run').show;
+    m.addGraphicToShow(show.id, { ...variantsFor('lower-third')[0].create({}), name: 'Hosts' });
+    return m.loadShows().find(s => s.id === show.id)!;
+  });
+  const other = state.other.id;
+  await page.evaluate(async () => { await (await __noacgImport('/src/backend/teamProductions.ts')).refreshTeams(); });
+  await expect.poll(() => page.evaluate(async other => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === other)?.teamId, other)).toBe(team);
+  state.silentReads = true;
+  state.saveTimeout = true;
+  await edit(page, id, 'Keeps failing');
+  await page.clock.fastForward(1_000);
+  await expect.poll(() => state.saves).toBe(1);
+  // The other production's edits land every 4 s for two minutes.
+  for (let second = 0; second < 120; second++) {
+    if (second % 4 === 0) await edit(page, other, `Lands ${second}`);
+    if (second % 4 === 2) await edit(page, id, `Keeps failing ${second}`);
+    await step(page, state);
+  }
+  for (let second = 0; second < 10; second++) await step(page, state);
+  await expect.poll(() => cueLabel(state.other)).toBe('Lands 116');
+  expect(state.otherSaves).toBeGreaterThanOrEqual(15);
+  expect(state.saves - 1).toBeGreaterThanOrEqual(5);
+  expect(state.saves - 1).toBeLessThanOrEqual(9);
+  expect(state.mostSavesOut).toBe(1);
 });
 
 test('a team production with its session gone is not Synced, and asks for a sign-in', async ({ page }) => {
