@@ -302,7 +302,7 @@ import { epochTag, readRun, withoutRun, type RunReport } from '../../control/run
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
-import { isGraphicCue, isServerCue } from '../../model/controlCue.ts';
+import { isControlCue, isGraphicCue, isServerCue } from '../../model/controlCue.ts';
 
 /** The draft's browser moments (control/cueDraft.ts): the page hidden or closing, or the account
  *  pausing, saves at once; the account asking for a save flushes. */
@@ -1547,6 +1547,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const stepMembersOf = useCallback(
     (folderId: string): StepMember[] =>
       (rundown.members.get(folderId) ?? []).map((c) => {
+        // A control cue is a one-shot send: nothing of it is up for the step to take off.
+        if (isControlCue(c)) return { id: c.id, graphic: false, replaces: `control:${c.id}` };
         const item = playoutItemFor(c);
         return item ? { id: c.id, graphic: item.kind === 'template', replaces: `item:${item.id}` } : { id: c.id, graphic: true, replaces: `pool:${c.sourceId}` };
       }),
@@ -3802,7 +3804,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const rehearsing =
     !hostedSlug &&
     (selectedFolder
-      ? enabledHeldMembers.every((c) => isGraphicCue(c))
+      ? enabledHeldMembers.every((c) => !isServerCue(c))
       : !selectedPlayoutItem);
   const takeButton = {
     ...view.take,

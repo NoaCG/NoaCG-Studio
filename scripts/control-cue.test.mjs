@@ -103,7 +103,9 @@ test('no file in src/ compares a cue source by hand: every reader goes through c
     }
   };
   walk(root);
-  const raw = /\.source\s*[!=]==\s*'(playout|control)'|'(playout|control)'\s*[!=]==\s*[\w.?]+\.source\b/;
+  // `cue.source === 'playout'`, a destructured `source !== 'control'`, either way round, and a
+  // `switch (cue.source)`.
+  const raw = /\bsource\s*[!=]==\s*'(playout|control)'|'(playout|control)'\s*[!=]==\s*[\w.?]*\bsource\b|switch\s*\([\w.?]*\bsource\)/;
   const offenders = files
     .filter((f) => !f.endsWith(join('model', 'controlCue.ts')))
     .flatMap((f) => readFileSync(f, 'utf8').split('\n').map((line, i) => (raw.test(line) ? `${relative(root, f)}:${i + 1}` : null)).filter(Boolean));
