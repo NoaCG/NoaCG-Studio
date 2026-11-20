@@ -3247,7 +3247,7 @@ export function setCuesPlayback(
     let changed = false;
     for (const { cueId, patch } of patches) {
       const cue = show.cues?.find((c) => c.id === cueId);
-      if (!cue || cue.source !== 'playout') continue;
+      if (!isServerCue(cue)) continue;
       const next: Record<string, unknown> = { ...(cue.playback ?? {}) };
       for (const [key, value] of Object.entries(patch)) {
         if (value === null || value === undefined) delete next[key];

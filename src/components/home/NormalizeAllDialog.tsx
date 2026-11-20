@@ -4,6 +4,7 @@ import { DEFAULT_LOUDNESS_TARGET, LOUDNESS_PRESETS, MAX_TARGET, MIN_TARGET, leve
 import type { PlayoutSettings } from '../../control/playoutLink';
 import { loadShows, setCuesPlayback, setShowLoudnessTarget, type CuePlayback, type PlayoutItem, type Show, type ShowCue } from '../../model/shows';
 import { useModalGate } from '../spaceKey';
+import { isServerCue } from '../../model/controlCue';
 
 type Patch = { cueId: string; patch: { [K in keyof CuePlayback]?: CuePlayback[K] | null } };
 
@@ -42,7 +43,7 @@ export default function NormalizeAllDialog({
 
   const items = new Map((show.playoutItems ?? []).map((i) => [i.id, i] as const));
   const candidates = (show.cues ?? []).filter((c): c is ShowCue & { sourceId: string } => {
-    const item = c.source === 'playout' ? items.get(c.sourceId) : undefined;
+    const item = isServerCue(c) ? items.get(c.sourceId) : undefined;
     return !!item && item.kind === 'media' && item.mediaKind !== 'still' && item.adapter !== 'vmix';
   });
   const byHand = candidates.filter(levelSetByHand);
