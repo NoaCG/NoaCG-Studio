@@ -899,6 +899,22 @@ Bridge".
 
 ---
 
+
+### The audio reader inside the exe
+
+The exe also carries an audio-only LGPL ffmpeg and ffprobe for Windows
+(`docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md` §3.3). `cli/ffmpeg/build.sh` builds them from a pinned
+FFmpeg commit with only LGPL parts, cross-compiled with mingw-w64 on Ubuntu in the release
+workflow; `build-bridge-exe.mjs` adds them as single-executable assets with a manifest of their
+checksums, and its proof measures a -23 dBFS tone from a fresh cache folder and refuses anything
+but -23.0 LUFS. At run time (`cli/src/playout/audio/tools.ts`) they are written once to
+`%LOCALAPPDATA%\NoaCG\Bridge\ffmpeg\<version>-<checksum>\` and re-checked before every start; a
+changed file is rewritten from the exe. Each Release carries the licence text, `BUILD.txt` (the
+commit and configure line), the recipe and the exact source archive. Outside the exe,
+`NOACG_FFMPEG_DIR` names a folder with the same two programs; CI builds the Linux variant from the
+same recipe for the CLI tests. `--measure <file> [--in s] [--out s]` prints the reading Normalize
+uses, for checking a recording in the studio.
+
 ## 7. Diagnosing it - the hops, never one generic red
 
 The panel never says "failed". It says which hop failed, because the hops have nothing to do
