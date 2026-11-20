@@ -1,4 +1,4 @@
-// guards: supabase/migrations/0123_relative_presses.sql
+// guards: supabase/migrations/0125_relative_presses.sql
 //
 // A BOUND PRESS AS A RELATIVE OPERATION, AND A TAKE'S BOUND FIGURES FROM THE STORED TREE (#2617;
 // docs/work-specs/live-publishing/evidence/fix-2617.md R2, R3, R5a, R5b). Read off the migration's
@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const sql = readFileSync(new URL('../supabase/migrations/0123_relative_presses.sql', import.meta.url), 'utf8');
+const sql = readFileSync(new URL('../supabase/migrations/0125_relative_presses.sql', import.meta.url), 'utf8');
 const seq = readFileSync(new URL('../supabase/migrations/0071_command_sequence.sql', import.meta.url), 'utf8');
 
 /** One function's whole definition, from its `create or replace` to the end of its `$$` block. */

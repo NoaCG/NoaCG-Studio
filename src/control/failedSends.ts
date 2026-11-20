@@ -280,7 +280,7 @@ export function createSendDebts(): SendDebts {
 
 /** Why a bound press call did not land (#2617, productionDataApi.ts `adjustProductionDataBySlug`).
  *  `retry`: nothing was recorded, send it again. `refused`: the server answered no to the whole
- *  call. `missing`: a database without migration 0123. */
+ *  call. `missing`: a database without migration 0125. */
 export type BoundPressFailure = Error & { press: 'retry' | 'refused' | 'missing' };
 
 /** Errors the server answers when the call wrote nothing and may simply be sent again: a statement,
