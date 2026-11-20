@@ -1488,6 +1488,9 @@ async function boot(): Promise<void> {
   });
   stage.onOgraf((graphic) => {
     if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
+    // A package mounted once the stage is on air has run what the boot gave it, as a frame that
+    // loads then (`onLoaded`, which only native frames fire).
+    if (bootRevealed && !bootHidden.has(graphic) && ready(graphic)) backOnAir(graphic);
   });
   stage.onOutcome((at, graphic, outcome) => {
     // The failure line follows D1 and D2 (`afterOutcome`).
