@@ -42,7 +42,7 @@ changes when someone updates or adds a graphic.
 - **Record form.** A new column `team_productions.doc_form smallint`: null means a whole record (every
   row today), 1 means a split record. It is the version of the stored form
   (`root/version-every-persisted-format-ship-breaking`). It follows from the content and nothing
-  else: a `before insert or update of doc` trigger on `team_productions` sets it to 1 exactly when
+  else: a `before insert or update of doc, doc_form` trigger on `team_productions` sets it to 1 exactly when
   the stored `doc` has a graphic with a `designRef`, else null, whatever the writer sent. The `Show`
   format in memory does not change: `version` stays 2.
 - **Designs mark.** The header `x-noacg-team-designs: 1`, which a page built with this fix adds to
@@ -91,7 +91,8 @@ in `supabase/advisor-baseline.json`.
 
 **The form trigger is the one check of a split record's content.** `team_productions_doc_form`
 (`before insert or update of doc, doc_form`, on every write route, service role and future
-functions included) derives `doc_form` from the content (Terms). When the new `doc` has any
+functions included; its function is `security definer`, so its probes of
+`team_production_designs` work whoever writes) derives `doc_form` from the content (Terms). When the new `doc` has any
 `designRef` it also requires that every graphic carries a `designRef`, none carries `template`, and
 every name is a stored design of this production (at most one primary-key probe per graphic);
 otherwise it raises `check_violation` and nothing is written. A new row has no designs yet (they
@@ -110,9 +111,11 @@ check (0119's `for no key update`), so a form or token read cannot change under 
 - `team_production_patch` (the `partial_writes` path). Unmarked request on a split row: the same
   refusal, before the token check. Marked request: patches only a row whose form is the one the
   switch calls for (split while on, whole while off); any other row answers `replaced`, writing
-  nothing, and the page then stores whole or split. For any request, a patched result the form
-  trigger refuses (a whole row gaining a `designRef`, a split row gaining a `template` or naming a
-  design the production does not hold) answers `replaced` and writes nothing.
+  nothing, and the page then stores whole or split. **A patch never changes a record's form:** for
+  any request, a patched result whose form (by content: any `designRef` or none) differs from the
+  stored row's answers `replaced` and writes nothing. A result the form trigger refuses (mixed
+  content, a `template` in a split record, a name the production does not hold) answers `replaced`
+  too.
 - `team_production_units_set` (0119, the unit map after a whole or stored save): unchanged. It
   writes only at a matching `rev`; an old page never learns a split record's revision, and the map a
   new page sends for a split record is computed over the split form (section 3). The unit map it keeps describes the stored
@@ -139,9 +142,10 @@ columns of 0115's `control_shows_production_authoring_guard` (insert, delete, up
 `panel`, `title`, `profile`, `bindings`, `sources`, `collections`, a Pause or Resume passing), refuses
 with `Reload this page to edit` an authenticated, unmarked API write for a production whose team
 record is split. So an old page, which can no longer read the record it would publish from, cannot
-replace a newer publication with what it holds, unpublish, or delete it. (Its publish may still
-carry `ver.r`; with `auto_publish` off, 0118 does not refuse an older one in every case, and an
-unpublish or delete carries none.) Every
+replace a newer publication with what it holds, unpublish, or delete it. 0118 alone does not stop
+this: its output guard drops a publish with an older `ver.r` silently, but lets a publish with no
+`ver.r` land unless `auto_publish` is on (an old page's `storedRevision` read now fails, so its
+`ver.r` can be missing), and an unpublish or delete carries no `ver` at all. Every
 other write passes: Takes, reports, heartbeats, data writes (`control_events`, `control_heads`, the
 `control_*` RPCs), new pages, the service role. It reads one `smallint` by primary key.
 
@@ -168,7 +172,10 @@ the switch.
 
 **Saving.** The page reads `team_designs_state()` when team sync starts and every 30 s with the
 `partial_writes` state it already reads. Until a read answers, and while it answers off, saves are
-whole through `team_production_save` (today's path; on a split row it makes the record whole). Once
+whole through `team_production_save` (today's path; on a split row it makes the record whole). A
+page without Web Crypto (`crypto.subtle` absent) always saves whole, as G4 R24 does for patches: it
+cannot give images their content names, so it cannot make a design whose name is the same on every
+page. Once
 it answers installed and on, the page keeps that until a later read answers off. Splitting a save:
 
 1. Each graphic's design is taken out with `withoutAssets` and looked up by its canonical JSON
@@ -237,8 +244,8 @@ Observable lines, each checked by a test named in section 8.
 - **R4** A design's name is computed by the server from the stored body; a name always means one
   body. Designs are only added, never changed.
 - **R5** `doc_form` is 1 exactly when the stored `doc` carries a `designRef`, on every write route
-  (the form trigger). A record becomes split only through a marked `team_production_store` with the
-  switch on; it stays split only through that and a marked patch of a split record. An insert, a
+  (the form trigger). A record changes form only through `team_production_store` (to split: marked,
+  switch on) or `team_production_save` (to whole); a patch never changes a record's form. An insert, a
   `team_production_save` and a patch of a whole record never store a `designRef`. No migration
   rewrites a stored record.
 - **R16** In a stored split record every graphic carries a `designRef` and none a `template`, on
@@ -255,8 +262,8 @@ Observable lines, each checked by a test named in section 8.
 - **R9** The compare-and-swap is unchanged: a store lands only on the expected token under the row
   lock, the token advances strictly, and a stale token writes nothing and answers the current record
   in its stored form, with `doc_form` and the token.
-- **R10** With the switch off, or before the page has read it on, a new page saves whole through
-  today's path, and that save makes a split record whole.
+- **R10** With the switch off, before the page has read it on, or without Web Crypto, a new page
+  saves whole through today's path, and that save makes a split record whole.
 - **R11** A new page never holds a graphic without its design: a read that cannot resolve every
   `designRef` changes nothing on the page and reports a read error.
 - **R12** Clients have no privilege on `team_production_designs`; only members of the production's
@@ -271,8 +278,9 @@ Observable lines, each checked by a test named in section 8.
 
 ## 6. Decisions and limits
 
-- **Content names by the server, not the page.** The page never hashes a design, so a page without
-  Web Crypto (G4 R24) splits too, and a member cannot store a body under another body's name.
+- **Content names by the server, not the page.** The server hashes the stored body, so a member
+  cannot store a body under another body's name, and the page and server can never disagree on a
+  name. (The page still needs Web Crypto for its images' content names: without it, it saves whole.)
 - **Per production, not per team.** Simpler access and cleanup, at the cost of storing a design
   once per production that uses it.
 - **A switch, off until the coordinator turns it on** (section 7), as G1 and G4 did. Off is also the
@@ -294,7 +302,11 @@ Observable lines, each checked by a test named in section 8.
 - **Refusals still carry the record**, now kilobytes. Issue #2615 changes refusals to the token only;
   whichever lands second takes the other's form, through the coordinator.
 - **The conversion save is as large as today's whole save**, split into puts of at most 1 MB, then a
-  kilobyte store. Each put is its own short statement, so the 8 s limit is met per put.
+  kilobyte store. Each put is its own short statement, so the 8 s limit is met per put. While
+  `partial_writes` is off, team images are stored under the older key form; a record's first split
+  save uploads each of its images and fonts once more under its content name (`s256-`). That counts
+  against the team's Storage quota (0106); an image that will not upload stays inline in its design,
+  which then stays as large as today. Nothing is lost; the bytes are measured (section 8).
 
 ## 7. Migration, release, switch and revert
 
@@ -373,7 +385,7 @@ anything while one is split.
   | privileges on `team_production_designs` | `anon` and `authenticated` hold none (absence asserted) | R12 |
   | each new function as a suspended account, and as a non-member | refused | R12 |
   | `team_production_store` | unmarked: refused; switch off: `off`; stale token: record and `doc_form`, nothing written; unknown name: `missing`, nothing written; on its token: written, `doc_form` 1, token and `rev` advance, the 0115 guard and 0117 trigger run | R3, R9, R13 |
-  | `team_production_patch` | unmarked on split: refused; marked on a whole row with the switch on: `replaced`; result naming an unknown design: `replaced`; whole row gaining a `designRef`, marked and unmarked: `replaced`; split row gaining a `template`: `replaced`; on its token: written | R3, R5, R6, R16 |
+  | `team_production_patch` | unmarked on split: refused; marked on a whole row with the switch on: `replaced`; result naming an unknown design: `replaced`; whole row turned wholly split (names stored), marked and unmarked: `replaced`; split row gaining a `template`: `replaced`; on its token: written | R3, R5, R6, R16 |
   | `team_production_units_set` | a split record's map kept only at its `rev` | R5 |
   | the form trigger directly (service role update) | split doc naming an unknown design, or one graphic with `template`: refused | R3, R16 |
   | `team_production_save` | unmarked on split: refused before the token check; a `p_doc` with `designRef`: refused; marked whole save of a split row: `doc_form` null | R5, R6, R10 |
@@ -391,12 +403,15 @@ anything while one is split.
   requests without the designs mark, as an old page makes them, get
   "Reload this page to edit" on the heads poll (including another team's whole production in the
   same query), the record read, save, patch, publish and delete of that production, and a Take
-  from them lands (R6, R7, R14); a marked browser request reaches the database (section 7).
+  from them lands (R6, R7, R14); with a split sibling present, an old page's by-id operations on a
+  whole production are recorded as they behave (the planner may visit the split row first; either
+  way the page says "Reload this page to edit", within the owner's decision); a marked browser request reaches the database (section 7).
 
 **Measured on the local stack, before and after**, with the phase 9 diagnosis instrument at 6 and
 60 graphics: bytes sent per cue-edit save, bytes written to the database per save (WAL bytes), save
 time p50 and p95 with one writer and seven writers, bytes returned by refusals, and the conversion
-save. Also the phase 8 five-person scene and the seven-typist scene with no lost edit. Recorded in
+save, with the asset bytes the conversion uploads and team Storage before and after. Also the
+phase 8 five-person scene and the seven-typist scene with no lost edit. Recorded in
 `../evidence/fix-2614.md`. The hosted staging run (`hosted-latency.yml` with the same instrument)
 is the coordinator's, after the migration is on staging: this fix only measures locally.
 
