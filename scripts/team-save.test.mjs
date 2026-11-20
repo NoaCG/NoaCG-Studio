@@ -41,7 +41,7 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     './partialWrites': { partialWritesOn: async () => false, unitPace: async () => {}, noteWritten: () => {} },
     './unitPatch': unitPatch,
     '../model/shows': { separateMergedScenes: show => show },
-    '../model/teamShows': { loadTeamShows: () => [local], applyServerTeamShow: doc => { local = doc; } },
+    '../model/teamShows': { loadTeamShows: () => [local], applyServerTeamShow: doc => { local = doc; }, clearTeamShows: () => {} },
     '../model/rundownHistory': history,
     '../model/teamShowMerge': teamMerge,
     // The send-time settle (live-publishing W2) is copy-settle.test.mjs's; nothing here differs in design.
@@ -768,4 +768,23 @@ test('a database with the v2 saves but no read: the old saves for the rest of th
   h.answers.push({ data: { saved: true, updated_at: 't2' }, error: null });
   await h.controller.pushForTest('show');
   assert.deepEqual(h.names, ['team_production_save_v2', 'team_production_changes', 'team_production_save']);
+});
+
+test('a read answered after the session ended is dropped, and the next session reads whole (#2615)', async () => {
+  const h = harness(false);
+  h.edit('Mine');
+  h.disk.resolve(null);
+  const { teamId: _team, ...stored } = h.local();
+  h.answers.push(refusal('t1'));
+  const pushed = h.controller.pushForTest('show');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(h.names, ['team_production_save_v2', 'team_production_changes'], 'the read is out');
+  h.controller.stopTeamSync();
+  h.request.resolve(changes('t1', everyMember(stored)));
+  await pushed;
+  // A new session: its first read must not find a kept form the old session's answer left.
+  h.controller.seedForTest(h.local(), true);
+  h.answers.push(refusal('t2'), changes('t2', everyMember(stored)), { data: { saved: true, updated_at: 't3' }, error: null });
+  await h.controller.pushForTest('show');
+  assert.deepEqual(plain(h.requests[3].p_map), { f: 's1', m: {} });
 });
