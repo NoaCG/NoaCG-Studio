@@ -39,6 +39,7 @@
 // The timeline and Normalize (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.5-3.6): the waveform the Bridge
 // reads, its handles, and the level a measurement sets.
 // covers: src/components/home/ClipTimeline.tsx, src/control/audioJobs.ts, src/control/trimEffects.ts
+// covers: src/components/home/{NormalizeRow,NormalizeAllDialog,ProductionSetupMenu}.tsx, src/control/loudness.ts
 
 import { test, expect, type Page, type Request, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
@@ -656,6 +657,92 @@ test('a Bridge without the audio reader says so on the timeline, and the typed s
   await page.getByTestId('clip-trim-in').fill('0:05');
   await page.getByTestId('clip-trim-in').press('Enter');
   await expect(page.getByTestId('clip-advanced-summary')).toHaveText('0:05–end');
+});
+
+/** The level of every server cue in the record, in rundown order. */
+async function storedLevels(page: Page): Promise<(number | null)[]> {
+  await settleDurableWrites(page);
+  return page.evaluate(async () => {
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    return (loadShows()[0].cues ?? []).filter((c) => c.source === 'playout').map((c) => c.playback?.levelDb ?? null);
+  });
+}
+
+const NORMALIZES = { features: ['playback', 'sequence', 'image-fit', 'audio', 'gain-20'], capabilities: ['end', 'fade', 'trim', 'level', 'sequence', 'image-fit'] };
+
+test('Normalize sets the level so the part airs at the target, and an older Bridge keeps a loud cue off air', async ({ page }) => {
+  await seedSettings(page);
+  // A Bridge with the audio reader but not gain-20: it would refuse a gain above +6 dB.
+  await fakeBridge(page, { ...NORMALIZES, features: ['playback', 'sequence', 'image-fit', 'audio'] });
+  await productionPage(page);
+  await addClip(page);
+  await expect(page.getByTestId('clip-normalize-unchecked')).toHaveText('Not yet checked on a real server');
+  // The Bridge measures the part at -31.2 LUFS: +8.2 dB brings it to -23.
+  await page.getByTestId('clip-normalize-run').click();
+  await expect(page.getByTestId('clip-normalize-state')).toHaveText('Normalized to −23 LUFS');
+  await expect(page.getByTestId('clip-level-value')).toHaveText('+8.2 dB');
+  await expect(page.getByTestId('playout-take-blocked')).toHaveText('This cue plays at +8.2 dB. Update NoaCG Bridge to take it, or bring its level to +6 dB or less.');
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  // Moved by hand, the level stays where it is put and the result says it no longer describes it.
+  const level = page.getByTestId('clip-level');
+  await level.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByTestId('clip-level-value')).toHaveText('+7 dB');
+  await expect(page.getByTestId('clip-normalize-state')).toHaveText('Measured for an earlier version of this cue. Normalize again.');
+  expect(await storedLevels(page)).toEqual([7]);
+});
+
+test('a normalized cue goes out with its gain, and a loud file is held at -1 dBTP and says so', async ({ page }) => {
+  await seedSettings(page);
+  const bridge = await fakeBridge(page, { ...NORMALIZES, measures: { '': { kind: 'measured', integrated: -31, truePeak: -4, seconds: 60, layout: 'stereo' } } });
+  await productionPage(page);
+  await addClip(page);
+  await page.getByTestId('clip-normalize-run').click();
+  await expect(page.getByTestId('clip-normalize-state')).toHaveText('Airs at −28 LUFS, peak limited (target −23 LUFS)');
+  await expect(page.getByTestId('clip-level-value')).toHaveText('+3 dB');
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => (lastAction(bridge) as { playback?: { gain?: number } }).playback?.gain).toBeCloseTo(10 ** (3 / 20), 4);
+  expect(bridge.audioJobs).toEqual([{ kind: 'measure', name: 'GIORNO' }]);
+});
+
+test('Normalize all sets every clip to the production target in one undo step, and keeps a level set by hand', async ({ page }) => {
+  await seedSettings(page);
+  const bridge = await fakeBridge(page, { ...NORMALIZES, measures: { '': { kind: 'measured', integrated: -31.2, truePeak: -30, seconds: 60, layout: 'stereo' } } });
+  await productionPage(page);
+  await addClip(page);
+  await addClip(page);
+  // The second cue's level is set by hand: a bed kept low on purpose.
+  const level = page.getByTestId('clip-level');
+  await level.focus();
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft');
+  await expect(page.getByTestId('clip-level-value')).toHaveText('−6 dB');
+  expect(await storedLevels(page)).toEqual([null, -6]);
+
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-normalize').click();
+  const dialog = page.getByTestId('normalize-all');
+  await expect(dialog).toContainText('2 clip and audio cues. Not yet checked on a real server.');
+  await expect(dialog.getByTestId('normalize-target')).toHaveValue('-23');
+  await dialog.getByTestId('normalize-target').selectOption('-16');
+  await expect(dialog.getByTestId('normalize-include-hand')).not.toBeChecked();
+  await dialog.getByTestId('normalize-start').click();
+  await expect(dialog.getByTestId('normalize-summary')).toContainText('1 cue set to −16 LUFS.');
+  await expect(dialog.getByTestId('normalize-summary')).toContainText('Kept the level set by hand on GIORNO.');
+  // The same file and part is read once.
+  expect(bridge.audioJobs).toEqual([{ kind: 'measure', name: 'GIORNO' }]);
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  expect(await storedLevels(page)).toEqual([15.2, -6]);
+  const target = await page.evaluate(async () => {
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    return loadShows()[0].loudnessTarget ?? null;
+  });
+  expect(target).toBe(-16);
+
+  // One undo brings every level back.
+  await parkFocusOffControls(page);
+  await settleDurableWrites(page);
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => storedLevels(page)).toEqual([null, -6]);
 });
 
 test('an audio file plays on its own layer, 5, below the clips, and a still offers Hold only', async ({ page }) => {

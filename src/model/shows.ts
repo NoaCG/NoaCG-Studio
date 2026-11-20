@@ -210,11 +210,29 @@ export interface CuePlayback {
   end?: 'hold' | 'clear' | 'loop' | 'next';
   fadeIn?: ClipFade;
   fadeOut?: ClipFade;
-  /** -60 to +6 dB; absent = 0 dB. Applies at the next Take, as the clip's own audio filter. */
+  /** -60 to +20 dB; absent = 0 dB. Applies at the next Take, as the clip's own audio filter. Above
+   *  +6 dB it needs a Bridge with `gain-20`. */
   levelDb?: number;
   /** Where the clip starts and ends, seconds into the file; absent = its start and its end. */
   trimIn?: number;
   trimOut?: number;
+  /** ADDITIVE OPTIONAL. What Normalize measured and set (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.5,
+   *  control/loudness.ts): the target, the measured loudness and true peak of the part, the level it
+   *  set, and the trim and file it was measured with. The result is shown only while the cue's level,
+   *  trim and file still match it; it never changes the level itself. Never sent to the Bridge. */
+  normalized?: {
+    target: number;
+    measured: number;
+    truePeak: number;
+    levelDb: number;
+    airsAt: number;
+    layout: 'stereo';
+    limit?: 'peak' | 'range';
+    trimIn?: number;
+    trimOut?: number;
+    /** The file's size and date as the server listed them (`bytes:changed`). */
+    fileKey?: string;
+  };
 }
 
 /** A field a server template takes, as the cue editor offers it: the id on the wire (`f0`),
@@ -484,6 +502,10 @@ export interface Show {
   /** The rundown's FOLDERS (ShowFolder). ADDITIVE OPTIONAL: an older build keeps the flat order and
    *  rewrites them untouched, and the published page, the export and a pack never carry them. */
   folders?: ShowFolder[];
+  /** ADDITIVE OPTIONAL. The loudness Normalize sets clips and audio to, in LUFS
+   *  (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.5). Absent = -23 (EBU R128). Changing it changes no
+   *  level already set; Normalize all applies it. */
+  loudnessTarget?: number;
   /** THE OBS SCENES SWITCH (docs/work-specs/obs-scenes/spec.md D1, OS1a R2): folders may be OBS
    *  scenes, and a publish carries them (control/hostedControl.ts `OutputPayload.scenes`).
    *  ADDITIVE OPTIONAL: absent = off, and nothing about scenes shows or publishes. */
@@ -3203,6 +3225,40 @@ export function purgeOldShowTombstones(beforeIso: string): void {
   const all = loadAllShows();
   const kept = all.filter((s) => !s.deleted || s.updatedAt >= beforeIso);
   if (kept.length !== all.length) saveAll(kept);
+}
+
+/** The production's loudness target (control/loudness.ts); null goes back to the default. */
+export function setShowLoudnessTarget(showId: string, target: number | null): Show[] {
+  return patchShow(showId, (show) => {
+    if ((show.loudnessTarget ?? null) === target) return false;
+    if (target === null) delete show.loudnessTarget;
+    else show.loudnessTarget = target;
+    return true;
+  });
+}
+
+/** Several cues' playback in one write (Normalize all): one save, and one undo step through the
+ *  rundown's history. Each patch is applied as `setCuePlayback` applies one. */
+export function setCuesPlayback(
+  showId: string,
+  patches: { cueId: string; patch: { [K in keyof CuePlayback]?: CuePlayback[K] | null } }[],
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    let changed = false;
+    for (const { cueId, patch } of patches) {
+      const cue = show.cues?.find((c) => c.id === cueId);
+      if (!cue || cue.source !== 'playout') continue;
+      const next: Record<string, unknown> = { ...(cue.playback ?? {}) };
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === null || value === undefined) delete next[key];
+        else next[key] = value;
+      }
+      if (Object.keys(next).length) cue.playback = next as CuePlayback;
+      else delete cue.playback;
+      changed = true;
+    }
+    return changed;
+  });
 }
 
 /** The OBS scenes switch (OS1a R2). Turning it off keeps every folder's scene flag. */

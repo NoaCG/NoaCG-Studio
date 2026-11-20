@@ -41,6 +41,7 @@ import { useModalGate } from '../spaceKey';
 import { useDeferredEdits } from './useDeferredEdits';
 import { isServerCue } from '../../model/controlCue.ts';
 import ClipTimeline, { MIN_PART_S } from './ClipTimeline';
+import NormalizeRow from './NormalizeRow';
 import type { TrimCandidate } from '../../control/trimEffects';
 
 /** A clip in a Play-through folder: the folder's name, the slot it plays on, and the clip's place. */
@@ -85,6 +86,7 @@ export default function ServerCueEditor({
   onTransport,
   setShows,
   trimBreaks,
+  loudnessTarget,
 }: {
   showId: string;
   item: PlayoutItem;
@@ -115,6 +117,8 @@ export default function ServerCueEditor({
   setShows: (shows: Show[]) => void;
   /** What keeping this trim would stop from being taken (control/trimEffects.ts), or null. */
   trimBreaks?: (trim: TrimCandidate) => string | null;
+  /** The production's loudness target for Normalize, in LUFS; absent is the default. */
+  loudnessTarget?: number;
 }) {
   /** The channel it is set to play on, for the pick. */
   const channel = channelOf(playoutSettings, item);
@@ -248,6 +252,7 @@ export default function ServerCueEditor({
           playNext={playNext}
           through={through}
           set={(patch) => setShows(setCuePlayback(showId, cue.id, patch))}
+          normalize={!vmix && item.mediaKind !== 'still' ? { settings: playoutSettings, target: loudnessTarget } : null}
         />
         </AccountAuthoringGate>
       )}
@@ -361,6 +366,7 @@ function ClipSettings({
   playNext,
   through,
   set,
+  normalize,
 }: {
   item: PlayoutItem;
   cue: ShowCue;
@@ -369,6 +375,8 @@ function ClipSettings({
   playNext: PlayNext | null;
   through: ThroughPlace | null;
   set: (patch: { [K in keyof CuePlayback]?: CuePlayback[K] | null }) => void;
+  /** Where Normalize reads the file and the target it sets; null where it is not offered. */
+  normalize: { settings: PlayoutSettings; target?: number } | null;
 }) {
   // The last clip of a Play-through folder keeps its own ending, but Play next never leaves the
   // folder, so a stored Play next reads as Hold there; the record is not rewritten.
@@ -498,7 +506,7 @@ function ClipSettings({
           type="range"
           min={MIN_LEVEL_DB}
           max={MAX_LEVEL_DB}
-          step={1}
+          step={0.1}
           value={shownDb}
           disabled={!!levelOff && levelDb === 0}
           title={levelOff ?? undefined}
@@ -506,6 +514,15 @@ function ClipSettings({
           onChange={(e) => {
             const db = Number(e.target.value);
             // Without the capability the slider only goes back toward 0 dB, never further from it.
+            if (levelOff && Math.abs(db) > Math.abs(levelDb)) return;
+            setDragDb(db);
+          }}
+          onKeyDown={(e) => {
+            // The arrows move a whole dB, as they always did; a drag or Normalize sets tenths.
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+            e.preventDefault();
+            const up = e.key === 'ArrowRight' || e.key === 'ArrowUp';
+            const db = Math.max(MIN_LEVEL_DB, Math.min(MAX_LEVEL_DB, Math.round(shownDb) + (up ? 1 : -1)));
             if (levelOff && Math.abs(db) > Math.abs(levelDb)) return;
             setDragDb(db);
           }}
@@ -522,6 +539,7 @@ function ClipSettings({
         </button>
         {live && levelDb !== 0 && <span className="muted pd-clip-hint">applies at the next Take</span>}
       </div>
+      {normalize && !levelOff && <NormalizeRow settings={normalize.settings} item={item} cue={cue} target={normalize.target} set={set} />}
     </div>
   );
 }

@@ -1,6 +1,10 @@
 # Waveform timeline and loudness normalize - the plan
 
-Status: planned, not started. Revision 2 (2026-11-20), after two independent reviews (§9).
+Status: phases 1 to 4 built (2026-11-20). Phase 1's real-server recordings, the Windows share tests
+and phase 5 are the owner's studio checks. Revision 2 of the plan, after two independent reviews (§9).
+Departures in the build: the programme is measured as stereo only (5.1 programmes are not offered);
+handles snap to the hundredth and keep a part of at least 0.05 s, and the server rounds to its own
+frames; a typed share path comes first and a folder picker later.
 Builds on `docs/CLIP_PLAYBACK_PLAN.md` (level, trim, audio on layer 5) and `docs/BRIDGE.md` (how
 the page reaches the playout server).
 
@@ -222,3 +226,56 @@ Two independent reviews (Astra, Fable), both "agree with corrections". Taken:
 - Normalize all: one file at a time, cancel, on-air warning, one undo step, hand-set levels skipped
   by default.
 - Waveform from decoded samples across all channels, not a mono mix.
+
+## 10. The owner's studio check (phase 1's recordings, the share, phase 5)
+
+Everything above that needs no studio is built and tested against fixtures, a fake share and a fake
+server. These need the real CasparCG computer, the network share and Windows. When all hold, the
+"Not yet checked on a real server" note comes off Normalize in a small follow-up.
+
+**On the CasparCG computer**
+
+1. Share the media folder CasparCG plays from, with read access for the Windows user that runs NoaCG
+   Bridge on the operator computer. Note its network path, for example `\\PLAYOUT\media`.
+2. Put these test files in it: a stereo WAV, a mono WAV, an MP3, a video with stereo sound (MOV or
+   MP4), a 5.1 file, an MXF with two mono tracks (if the studio uses them), a short sting with a hit
+   near its start, and one loud music track.
+
+**On the operator computer**
+
+3. Download NoaCG Bridge 0.13.0 from the Downloads page. Its Release page carries four
+   `ffmpeg` files (licence, build notes, recipe, source). Start it. If Windows Defender or
+   SmartScreen blocks the audio reader it unpacks, note exactly what it says.
+4. Settings, Playout, Media folder: type the network path and press Link. Expect "holds the server's
+   files (n of n checked)". Also try a wrong folder (expect "None of the server's files were found"),
+   the share switched off (expect "cannot be reached"), and a mapped drive letter with the Bridge
+   started "as administrator" (expect it unreachable; the network path works).
+5. Timeline: in a clip's Advanced, press Timeline. The waveform appears after a progress line. Drag
+   both handles, Take, and check the server plays from the chosen start to the chosen end. Rename a
+   file on the server and open its Timeline again: expect "There is no file named …".
+6. Normalize at the default -23 LUFS: on each test file press Normalize, then record its Take (step 7).
+
+**Recording and measuring each Take**
+
+7. In the CasparCG client (or `noacg caspar` in a terminal), add a file consumer to the channel:
+   `ADD 1 FILE loud-test.mov`, Take the cue, let it end, then `REMOVE 1 FILE loud-test.mov`. CasparCG
+   writes the recording into its media folder. The silence before and after the cue does not count
+   in the measurement.
+8. Measure the recording on the operator computer, through the share:
+   `NoaCG-Bridge-0.13.0.exe --measure \\PLAYOUT\media\loud-test.mov`
+9. What to see:
+   - **Loudness within 0.5 LU of the target**: -22.5 to -23.5 LUFS at -23. Repeat one file at -16
+     (Setup, Normalize audio): -15.5 to -16.5 LUFS.
+   - **True peak at or under -1.0 dBTP** on every recording. For the loud music track, choose -14
+     LUFS in Normalize audio: its cue should say "peak limited", and its recording must still read
+     -1.0 dBTP or lower.
+   - **Mono**: CasparCG is expected to play a mono file on the left speaker only, and the
+     measurement assumes that. If it plays on both speakers, the recording reads about 3 LU louder
+     than the target (about -20 instead of -23): report it.
+   - **5.1 on a stereo channel** is measured on its front left and right only: within 0.5 LU too.
+   - **The sting** trimmed to start just after its hit, normalized and recorded: within 0.5 LU.
+10. Normalize audio with a cue whose level you set by hand: it is kept as it is, and Ctrl+Z after
+    the run brings every level back.
+
+If a number is outside these limits, start a new session with the file, the target, what the cue
+said and what `--measure` read from the recording.
