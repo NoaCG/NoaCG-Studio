@@ -22,7 +22,7 @@ CasparCG server clip and the step 3 graphics were added during the run) and "Pha
 while finding the add path.
 
 Where the pictures are: the repository keeps pictures out of git (`docs/work-specs/repo-pictures/spec.md`),
-so the 98 screenshots named below are not in this folder on GitHub. They are on the studio laptop
+so the 102 screenshots named below are not in this folder on GitHub. They are on the studio laptop
 in `C:\claude\noacg-archives\phase-9-local-2026-11-17\`, under the same file names, with these
 notes and the two log excerpts. What each one shows is written out below.
 
