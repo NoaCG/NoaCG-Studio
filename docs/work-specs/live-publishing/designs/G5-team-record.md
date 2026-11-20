@@ -28,8 +28,9 @@ changes when someone updates or adds a graphic.
 
 ## Terms
 
-- **Design.** A graphic's `template` member as the team record stores it, with its images and fonts
-  replaced by Storage references (`withoutAssets`), always under their content names (`s256-` keys,
+- **Design.** A graphic's `template` member as a split record stores it (put through
+  `team_designs_put`), with its images and fonts replaced by Storage references (`withoutAssets`),
+  always under their content names (`s256-` keys,
   G4 R20), whatever `partial_writes` says. So a design's body, and its name, never depend on a
   switch. The `s256-` path exists since G4; issue #2586 is a configured walk that pins the older key
   form, not a product fault.
@@ -86,7 +87,7 @@ in `supabase/advisor-baseline.json`.
 |---|---|---|
 | `team_designs_put(p_id, p_bodies jsonb)` | Stores each body (a JSON object, at most 40 MB as text) under the name it computes, `on conflict do nothing`. | The names, in the order sent. |
 | `team_designs_read(p_id, p_names text[])` | Reads named designs of that production. | `[{name, body}]` for those stored. |
-| `team_production_store(p_id, p_expected, p_doc)` | The compare-and-swap of `team_production_save` for a split record, marked requests only (an unmarked call raises `Reload this page to edit`), under the row lock. Order: lock the row; switch off: answer `off`; stale token: answer the record; a `designRef` naming no stored design of `p_id`: answer `missing` (the names, read before writing so the answer can list them); else write `p_doc` (the form trigger checks it again). | `{saved: true, updated_at, updated_by, rev}`; `{saved: false, off: true, ...}`; `{saved: false, updated_at, updated_by, rev, doc, doc_form}`; `{saved: false, missing: [names], ...}`. Only the first writes. |
+| `team_production_store(p_id, p_expected, p_doc)` | The compare-and-swap of `team_production_save` for a split record, marked requests only (an unmarked call raises `Reload this page to edit`), under the row lock. Order: lock the row; switch off: answer `off`; stale token: answer the record; a `designRef` naming no stored design of `p_id`: answer `missing` (the names, read before writing so the answer can list them); else write `p_doc` (the form trigger checks it again; any other form-trigger refusal, such as mixed content, raises and nothing is written). | `{saved: true, updated_at, updated_by, rev}`; `{saved: false, off: true, ...}`; `{saved: false, updated_at, updated_by, rev, doc, doc_form}`; `{saved: false, missing: [names], ...}`. Only the first writes. |
 | `team_designs_state()` | Nothing. | `{installed: true, mark, on}`: `mark` is whether this request carried the designs mark, `on` the switch. |
 | `team_production_unsplit(p_id)` | Service role only, for the revert (section 7): the whole record rebuilt from the split one, written like a save (the token and `rev` advance), `doc_form` null. | Whether it changed the row. |
 
@@ -224,7 +225,8 @@ the same request, so `noacg_library` answers what it answers today.
 (`e2e/configured/teams.spec.ts`, `_five.ts`, `publish-guard.spec.ts`, `connector-tools.spec.ts`) send the designs mark and
 resolve designs, or read through the page, so none goes blind on a split row. Browser specs that mock
 `/rest/v1/team_productions` (`e2e/sync-dot.spec.ts`, `e2e/rundown-history.spec.ts`) also answer
-`rpc/team_designs_state`, or let it fail (not installed), so the fetch never waits on it.
+`rpc/team_designs_state`, with HTTP 404 `PGRST202` (not installed) or an installed answer, so the
+fetch never waits on it.
 
 ## 4. Old and new pages at once
 
@@ -317,7 +319,8 @@ Observable lines, each checked by a test named in section 8.
 - **No pruning in this fix.** A design no record names any more stays until its production is
   deleted. It grows by one design per design change (85 to 146 KB), the bytes one whole save writes
   today; a graphic's rename changes `template.name` and so stores a new design too. A prune, like
-  0120's for parts, is filed as a follow-up issue with the measured growth.
+  0120's for parts, is filed as a follow-up issue with the measured growth, together with a cap on a
+  production's design bytes.
 - **Refusals still carry the record**, now kilobytes. Issue #2615 changes refusals to the token only;
   whichever lands second takes the other's form, through the coordinator.
 - **The conversion save is as large as today's whole save**, split into puts of at most 1 MB, then a
