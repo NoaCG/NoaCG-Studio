@@ -1244,6 +1244,11 @@ async function boot(): Promise<void> {
     if (!offAirFrom.has(key) || (bootHidden.has(key) && ready(key))) return;
     if (hosts(key) && !ready(key)) {
       offAirFrom.delete(key);
+      // Nothing was sent to it that it could have failed to run.
+      if (!touched.has(key) && !liveGraphics.has(key)) {
+        presence.touch();
+        return;
+      }
       bootUnloaded.add(key);
       if (!failures.has(key)) failures.set(key, { from: 1, why: 'load' });
       readyChanged();
@@ -1954,6 +1959,11 @@ async function boot(): Promise<void> {
   };
   // Said once everything the boot sends has gone, so a Take among the replayed rows cannot clear it.
   for (const [key, why] of ografUnknown) stage.markUnknown(key, why);
+  // Only what the boot put back waits for its frame: a graphic it gave nothing has nothing to run
+  // (marked above only until the boot knew, G2 section 4).
+  offAirFrom.forEach((_from, key) => {
+    if (!touched.has(key) && !liveGraphics.has(key) && !reports[key] && !missed.some((row) => row.graphic === key)) offAirFrom.delete(key);
+  });
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
   markRecovered();
   if (animates) {
