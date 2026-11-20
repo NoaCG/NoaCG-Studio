@@ -157,6 +157,7 @@ declare
   v_put   jsonb;
   v_del   jsonb;
   v_hash  text;
+  v_keys  text[];
 begin
   -- One select: the document, its token, its author and its revision are one stored version.
   select p.doc, p.updated_at, p.updated_by, p.rev into v_doc, v_at, v_by, v_rev
@@ -170,17 +171,27 @@ begin
   if jsonb_typeof(p_map) = 'object' and p_map->>'f' = 's1' and jsonb_typeof(p_map->'m') = 'object' then
     v_map := p_map->'m';
   end if;
-  for v_m, v_val in select e.key, e.value from jsonb_each(v_doc) e loop
+  -- The row's value stays compressed in the variable; one decompression here, not one per member.
+  v_doc := v_doc || '{}'::jsonb;
+  -- Member by member (a set-returning walk of the whole document would copy it once more).
+  v_keys := array(select jsonb_object_keys(v_doc));
+  foreach v_m in array v_keys loop
+    v_val := v_doc->v_m;
     v_was := v_map->v_m;
     -- A keyed list (G4, unitPatch.ts keyedBy): a non-empty array of objects whose `id`, else `key`,
-    -- else `name`, is a unique string.
+    -- else `name`, is a unique string. Each element's identities and hash come from one pass.
     v_key := null;
     if jsonb_typeof(v_val) = 'array' and jsonb_array_length(v_val) > 0 then
+      select jsonb_agg(jsonb_build_object('i', t.i, 'o', jsonb_typeof(t.e) = 'object',
+                                          'id', t.e->'id', 'key', t.e->'key', 'name', t.e->'name',
+                                          'h', left(encode(pg_catalog.sha256(convert_to(t.e::text, 'UTF8')), 'hex'), 32))
+                       order by t.i)
+        into v_items
+        from jsonb_array_elements(v_val) with ordinality t(e, i);
       foreach v_cand in array array['id', 'key', 'name'] loop
-        select coalesce(bool_and(jsonb_typeof(e) = 'object' and jsonb_typeof(e->v_cand) = 'string'), false)
-               and count(distinct e->>v_cand) = count(*)
+        select bool_and((x->>'o')::boolean and jsonb_typeof(x->v_cand) = 'string') and count(distinct x->>v_cand) = count(*)
           into v_ok
-          from jsonb_array_elements(v_val) e;
+          from jsonb_array_elements(v_items) x;
         if v_ok then
           v_key := v_cand;
           exit;
@@ -194,10 +205,7 @@ begin
       end if;
       continue;
     end if;
-    select jsonb_agg(jsonb_build_object('id', t.e->>v_key, 'h', left(encode(pg_catalog.sha256(convert_to(t.e::text, 'UTF8')), 'hex'), 32), 'i', t.i) order by t.i)
-      into v_items
-      from jsonb_array_elements(v_val) with ordinality t(e, i);
-    select jsonb_object_agg(x->>'id', x->'h'), jsonb_agg(x->'id' order by (x->>'i')::bigint)
+    select jsonb_object_agg(x->>v_key, x->'h'), jsonb_agg(x->v_key order by (x->>'i')::bigint)
       into v_d, v_order
       from jsonb_array_elements(v_items) x;
     if jsonb_typeof(v_was) is distinct from 'object' or v_was->>'by' is distinct from v_key
@@ -209,7 +217,7 @@ begin
     select coalesce(jsonb_agg(jsonb_build_object('v', v_val->((x->>'i')::int - 1), 'd', x->'h') order by (x->>'i')::bigint), '[]'::jsonb)
       into v_put
       from jsonb_array_elements(v_items) x
-     where (v_was->'d'->>(x->>'id')) is distinct from x->>'h';
+     where (v_was->'d'->>(x->>v_key)) is distinct from x->>'h';
     select coalesce(jsonb_agg(to_jsonb(o.id) order by o.n), '[]'::jsonb)
       into v_del
       from jsonb_array_elements_text(v_was->'order') with ordinality o(id, n)
@@ -221,7 +229,7 @@ begin
                                                     'order', v_order, 'len', jsonb_array_length(v_val)));
   end loop;
   -- A member the map has and the document lacks.
-  for v_m in select k from jsonb_object_keys(v_map) k where not (v_doc ? k) loop
+  for v_m in select k from jsonb_object_keys(v_map) k where not (k = any (v_keys)) loop
     v_ops := array_append(v_ops, jsonb_build_object('m', v_m, 'drop', true));
   end loop;
   return jsonb_build_object('updated_at', v_at, 'updated_by', v_by, 'rev', v_rev, 'ops', to_jsonb(v_ops));
