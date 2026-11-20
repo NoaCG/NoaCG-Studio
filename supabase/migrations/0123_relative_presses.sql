@@ -135,6 +135,9 @@ begin
   v_head := p_at[1];
   v_rest := p_at[2:];
   if jsonb_typeof(p_node) = 'array' and v_head ~ '^[0-9]+$' then
+    -- A list index past 1000 is no field anyone binds, and padding a list that far would hold the
+    -- row for as long as the statement may run: no place, so the press is refused.
+    if v_head::numeric > 1000 then return null; end if;
     v_i := v_head::int;
     v_list := p_node;
     while jsonb_array_length(v_list) <= v_i loop
@@ -244,6 +247,11 @@ begin
                   else public.production_data_set_text(v_tree #> v_at, v_press->>'text') end;
     if v_new is null then
       v_refused := v_refused || jsonb_build_object('id', v_id, 'reason', 'not a number: ' || v_path);
+      continue;
+    end if;
+    -- A press with no place in the tree (a list index past 1000) is refused on its own.
+    if public.production_data_set_path(v_tree, v_at, v_new) #> v_at is distinct from v_new then
+      v_refused := v_refused || jsonb_build_object('id', v_id, 'reason', 'not a press');
       continue;
     end if;
     v_tree := public.production_data_set_path(v_tree, v_at, v_new);
@@ -654,6 +662,12 @@ begin
     raise exception '0123 self-check failed: an unbound path (%)', v_ans;
   end if;
 
+  -- A list index past 1000 is refused on its own; nothing is padded that far.
+  v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
+    jsonb_build_object('id', gen_random_uuid(), 'path', 'grid.999999999.gap', 'by', 1)));
+  if jsonb_array_length(v_ans->'refused') <> 1 or v_ans->'data'->'grid' <> '[]'::jsonb then
+    raise exception '0123 self-check failed: a far list index (%)', v_ans;
+  end if;
   -- A list element that does not exist yet is made, as the page's setPath makes it.
   v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
     jsonb_build_object('id', gen_random_uuid(), 'path', 'grid.0.gap', 'by', 2)));
