@@ -72,6 +72,8 @@ interface Backend {
  *  picture comes. `rows` may grow after the boot: the head follows it. */
 interface Timing {
   tailDelayMs?: (after: number) => number;
+  /** A tail read that fails (503) while this says so, by ms since the first tail read. */
+  tailFails?: (sinceFirstMs: number) => boolean;
   slowMs?: number;
 }
 
@@ -79,6 +81,7 @@ interface Timing {
  *  head saying which graphics are on air. */
 async function standInBackend(page: Page, live: Record<string, unknown>, rows: Row[], on: string[], graphics = [probe('Strap', 20), probe('Bug', 30)], timing: Timing = {}): Promise<Backend> {
   const seen: Backend = { reports: [], tails: [] };
+  let firstTail: number | undefined;
   const head = () => ({ seq: rows.length ? rows[rows.length - 1].seq : 0, graphics: Object.fromEntries(on.map((g) => [g, { on: true }])) });
   await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: CONFIG_MODULE }));
   await page.route(`${BACKEND}/**`, async (route: Route) => {
@@ -109,6 +112,8 @@ async function standInBackend(page: Page, live: Record<string, unknown>, rows: R
     if (path.endsWith('/rpc/control_output_tail_seq')) {
       const after = Number((req.postDataJSON() as { p_after?: number }).p_after ?? 0);
       seen.tails.push(after);
+      firstTail ??= Date.now();
+      if (timing.tailFails?.(Date.now() - firstTail)) return route.fulfill({ status: 503, headers: CORS, body: 'down' });
       const hold = timing.tailDelayMs?.(after) ?? 0;
       if (hold) await new Promise((resolve) => setTimeout(resolve, hold));
       return json({ epoch: EPOCH, rows: rows.filter((r) => r.seq > after).slice(0, 500), head: head() });
@@ -395,6 +400,22 @@ test('a restart whose catch-up read is held 25 s waits placing, says it is late 
   expect(told!.wa!).toBeLessThan(7_000);
   const done = firstWhen(facts, (f) => f.w === 0)!;
   expect(done.t, 'settled before the catch-up read came back').toBeGreaterThanOrEqual(25_000);
+  await expect(doc(page, 'Strap').locator('#s')).toHaveText('step 0');
+});
+
+test('a boot whose catch-up read fails is not settled until a read reaches the log (#2608)', async ({ page }) => {
+  // M2: "the boot has read what to put back" means a read that came back. When every catch-up read
+  // fails, the boot comes back on air with what it has, and the follow reads the log later; until
+  // then the output says it is still waiting, never settled.
+  test.setTimeout(110_000);
+  await sampleFacts(page);
+  const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
+  const backend = await standInBackend(page, {}, rows, ['Strap'], [probe('Strap', 20)], { tailFails: (ms) => ms < 20_000 });
+  await page.goto('/output?production=typed-probe');
+  const facts = await settledAt(page, 90_000);
+  const done = firstWhen(facts, (f) => f.w === 0)!;
+  expect(backend.tails.length, 'the catch-up read was retried').toBeGreaterThan(1);
+  expect(done.t, 'settled before any read of the log came back').toBeGreaterThanOrEqual(20_000);
   await expect(doc(page, 'Strap').locator('#s')).toHaveText('step 0');
 });
 

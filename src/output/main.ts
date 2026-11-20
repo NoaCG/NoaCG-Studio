@@ -1228,12 +1228,21 @@ async function boot(): Promise<void> {
     if (from === undefined || at < from) offAirFrom.set(graphic, at);
   };
   if (seqMode) for (const key of stage.graphics.concat(bootPackages)) ranOffAir(key, 1);
-  /** When the boot read what to put back (0: not yet), and whether it gave up waiting at 60 s
-   *  (G2 section 4a, M2 and M5): until it reads, the output is unsettled. */
+  /** When the boot finished putting back what it knew (0: not yet; restored frames get 20 s from
+   *  it), whether it has really read the log (a catch-up read that failed leaves that to the
+   *  follow's first read to the log's end), and whether it gave up waiting at 60 s (G2 section 4a,
+   *  M2 and M5): until it has read, the output is unsettled. */
   let bootReadAt = 0;
+  let bootRead = false;
   let bootOverdue = false;
+  const bootHasRead = () => {
+    if (bootRead) return;
+    bootRead = true;
+    bootOverdue = false;
+    presence.touch();
+  };
   setTimeout(() => {
-    if (bootReadAt) return;
+    if (bootRead) return;
     bootOverdue = true;
     presence.touch();
   }, Math.max(0, bootStartedAt + 60_000 - Date.now()));
@@ -1593,7 +1602,7 @@ async function boot(): Promise<void> {
   /** The settled fact's state, kept across builds of every report of this boot (#2608). */
   let settled = settledStart();
   const runNow = (): RunReport => {
-    const built = withSettled(settled, runHeld(), { read: bootReadAt > 0, overdue: bootOverdue }, bootMark, Date.now());
+    const built = withSettled(settled, runHeld(), { read: bootRead, overdue: bootOverdue }, bootMark, Date.now());
     settled = built.state;
     return built.run;
   };
@@ -1779,6 +1788,8 @@ async function boot(): Promise<void> {
     return { ok: true, value: answer.value.rows };
   };
   let missed: ControlEventRow[] = [];
+  /** The catch-up read the log to its end (or its head), or a read failed and the follow will. */
+  let catchUpRead = true;
   /** The catch-up stopped short of the log's end (a read that failed, or the page ceiling): the
    *  follow's first refill then brings history, and a package's action in it is read past as the
    *  catch-up would have (E3.2b, control/ografRecovery.ts `bootGap`). */
@@ -1796,6 +1807,7 @@ async function boot(): Promise<void> {
         followEpoch ??= head.value.epoch;
         if (typeof head.value.head?.seq === 'number') lastAppliedSeq = Math.max(lastAppliedSeq, head.value.head.seq);
       }
+      if (!head.ok || head.value.reset) catchUpRead = false;
       if (lastAppliedSeq === followFrom) dbg('catch-up', "the log's head was not read: the follow reads its history past");
     }
   }
@@ -1806,6 +1818,7 @@ async function boot(): Promise<void> {
     );
     if (!tail.ok) {
       dbg('catch-up', 'log unread — the follow will fill it');
+      catchUpRead = false;
       break;
     }
     missed.push(...tail.value);
@@ -2023,8 +2036,8 @@ async function boot(): Promise<void> {
   });
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
   bootReadAt = Date.now();
-  bootOverdue = false;
-  presence.touch();
+  if (catchUpRead) bootHasRead();
+  else presence.touch();
   markRecovered();
   if (animates) {
     // A frame that has not loaded when the stage comes back stays hidden by its own flag until it
@@ -2112,6 +2125,8 @@ async function boot(): Promise<void> {
         const tail = await untilAnswered(() => controlOutputTailSeq(outputSlug, after, epoch), { limit: 5 });
         // An empty read reached the log's end, and the follow hands an empty refill to no one.
         if (tail.ok && !tail.value.reset && tail.value.rows.length === 0) markHeld(gap.emptyRead());
+        // A boot whose own catch-up read failed has read the log once the follow reaches its end.
+        if (tail.ok && !tail.value.reset && tail.value.rows.length < SEQ_TAIL_PAGE) bootHasRead();
         return tail.ok ? tail.value : null;
       },
       onRows: (rows, replayed) => {

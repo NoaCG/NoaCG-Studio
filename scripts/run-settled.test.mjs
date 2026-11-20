@@ -149,6 +149,17 @@ test('a late row of the boot before never moves the current boot\'s wait clock (
   assert.equal(judge({ track: t, entries: [{ b: 'B', run: r }], owe: [], now: 5_500 }), 'warn');
 });
 
+test('the same wait told again with a higher age moves its start earlier (M4)', () => {
+  // The page first hears the wait 3 s after it began, from a report built at its start (wa 0).
+  let t = noteRun(undefined, report('B', 2, 'w1', { k: 'placing', wa: 0 }), 3_000);
+  const told = report('B', 2, 'w1', { k: 'placing', wa: 5_000 });
+  t = noteRun(t, told, 5_000);
+  assert.equal(judge({ track: t, entries: [{ b: 'B', run: told }], owe: [], now: 5_000 }), 'warn');
+  // And never later: an older age told late does not make it younger.
+  const stale = noteRun(t, report('B', 2, 'w1', { k: 'placing', wa: 0 }), 9_000);
+  assert.equal(stale.waits.B.since, 0);
+});
+
 test('a restart with nothing pressed is never green before the boot settles (decision a)', () => {
   // Boot A was settled and green; the output reloads as boot B.
   let t = noteRun(undefined, report('A', 5, 0), 0);
@@ -282,9 +293,10 @@ function model(world, now) {
   if (run.w !== 0) {
     if (run.k === 'failed') return 'bad';
     if (run.k === 'loading' || run.k === 'late') return 'warn';
-    // M4: `wa` plus the time since the page received that report, kept per (output, b, w).
-    const first = heard.filter((d) => d.run.w === run.w).sort((x, y) => x.at - y.at)[0];
-    const age = first ? first.run.wa + (now - first.at) : run.wa;
+    // M4: `wa` plus the time since the page received that report, kept per (output, b, w): the
+    // earliest start any report of that wait gives.
+    const starts = heard.filter((d) => d.run.w === run.w).map((d) => d.at - d.run.wa);
+    const age = starts.length ? now - Math.min(...starts) : run.wa;
     return age >= 5_000 ? 'warn' : 'idle';
   }
   // M7: settled; a position past p ages from the latest of when the page learned of it, its first
@@ -385,7 +397,7 @@ test('random worlds: the page agrees with the reference model at every step', ()
     };
     for (let step = 0; step < 30; step += 1) {
       now += rand(4_000);
-      const what = rand(14);
+      const what = rand(15);
       if (what === 0) {
         // Reload: a new boot joins, sometimes before the old entry leaves.
         oldBoot = boot;
@@ -422,6 +434,10 @@ test('random worlds: the page agrees with the reference model at every step', ()
         const r = { o: 'out-a', p: 11, h: {}, e: `E${outEpoch}`, b: oldBoot, n: 99 + step, ...(rand(2) ? { w: 0 } : { w: `old${step}`, k: 'placing', wa: 0 }) };
         world.got.push({ run: r, at: now, via: 'row', epochThen: page.epoch });
         page.row(r, now);
+      } else if (what === 14 && w !== 0 && world.entries.some((e) => e.b === boot && e.run && e.run.n === n)) {
+        // The output tells the same report again with only its age raised (its 5 s touch).
+        const cur = world.entries.find((e) => e.b === boot).run;
+        setEntries(world.entries.map((e) => (e.b === boot ? { ...e, run: { ...cur, wa: now - wa0 } } : e)));
       } else if (what === 12 && world.entries.length) {
         // The output leaves Presence; later a new boot joins.
         world.leftAt = now;

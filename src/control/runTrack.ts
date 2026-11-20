@@ -39,15 +39,21 @@ export function noteRun(track: OutputTrack | undefined, run: RunReport, now: num
   if (!b) return t;
   const held = t.best[b];
   const newer = !held || (run.n ?? 0) > (held.n ?? 0);
+  // The same report told again with only its age raised (the output's 5 s touch, M4): the wait
+  // began earlier than this page first thought, never later.
+  const wait = t.waits[b];
+  if (!newer && wait && run.w === wait.w && run.wa !== undefined && now - run.wa < wait.since) {
+    return { ...t, waits: { ...t.waits, [b]: { w: wait.w, since: now - run.wa } } };
+  }
   if (!newer && t.seen[b] !== undefined) return t;
   const seen = t.seen[b] === undefined ? { ...t.seen, [b]: now } : t.seen;
   let best = newer ? { ...t.best, [b]: run } : t.best;
   let waits = t.waits;
   let settled = t.settled;
   if (newer) {
-    const wait = waits[b];
     if (run.w !== undefined && run.w !== 0) {
-      if (!wait || wait.w !== run.w) waits = { ...waits, [b]: { w: run.w, since: now - (run.wa ?? 0) } };
+      const since = now - (run.wa ?? 0);
+      if (!wait || wait.w !== run.w || since < wait.since) waits = { ...waits, [b]: { w: run.w, since } };
     } else if (run.w === 0 && wait) {
       settled = { ...settled, [b]: now };
       waits = { ...waits };

@@ -83,7 +83,7 @@ either on; steps 11 and 12 are only for after that.
 ## 5. The light on the studio network
 
 1. Run a short show from the production page with every output in use.
-2. Pull the network cable of one output for 20 s, then plug it back.
+2. Pull the network cable of one output, press a Take, and plug it back after 20 s.
 3. You should see: the light leaves green while that output cannot report, names it, and turns
    green again by itself once it has run what was pressed. Green means every output shows what is
    on air, so this holds with nothing pressed too: once the output's connection drops (its
