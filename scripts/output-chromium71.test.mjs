@@ -92,4 +92,9 @@ test('output.html shims structuredClone as a deep copy of plain data', () => {
     assert.ok('missing' in value);
   }
   assert.throws(() => clone({ f() {} }));
+  // A __proto__ key in parsed data stays a field and never sets the copy's prototype.
+  const parsed = clone(JSON.parse('{"__proto__": {"polluted": true}}'));
+  assert.equal(parsed.polluted, undefined);
+  assert.equal(Object.keys(parsed).join(), '__proto__');
+  assert.equal(({}).polluted, undefined);
 });

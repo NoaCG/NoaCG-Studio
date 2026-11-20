@@ -80,7 +80,8 @@
           else if (Array.isArray(value)) { out = new Array(value.length); seen.set(value, out); for (var i = 0; i < value.length; i++) if (i in value) out[i] = copy(value[i]); return out; }
           else {
             out = {}; seen.set(value, out);
-            Object.keys(value).forEach(function (k) { out[k] = copy(value[k]); });
+            // defineProperty, not assignment: a key named __proto__ stays an own field, as in the real one.
+            Object.keys(value).forEach(function (k) { Object.defineProperty(out, k, { value: copy(value[k]), writable: true, enumerable: true, configurable: true }); });
             return out;
           }
           seen.set(value, out);
