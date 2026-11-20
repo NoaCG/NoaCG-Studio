@@ -87,7 +87,7 @@ in `supabase/advisor-baseline.json`.
 | `team_designs_put(p_id, p_bodies jsonb)` | Stores each body (a JSON object, at most 40 MB as text) under the name it computes, `on conflict do nothing`. | The names, in the order sent. |
 | `team_designs_read(p_id, p_names text[])` | Reads named designs of that production. | `[{name, body}]` for those stored. |
 | `team_production_store(p_id, p_expected, p_doc)` | The compare-and-swap of `team_production_save` for a split record, marked requests only (an unmarked call raises `Reload this page to edit`), under the row lock. Order: lock the row; switch off: answer `off`; stale token: answer the record; a `designRef` naming no stored design of `p_id`: answer `missing` (the names, read before writing so the answer can list them); else write `p_doc` (the form trigger checks it again). | `{saved: true, updated_at, updated_by, rev}`; `{saved: false, off: true, ...}`; `{saved: false, updated_at, updated_by, rev, doc, doc_form}`; `{saved: false, missing: [names], ...}`. Only the first writes. |
-| `team_designs_state()` | Nothing. | `{installed: true, mark, on}`. |
+| `team_designs_state()` | Nothing. | `{installed: true, mark, on}`: `mark` is whether this request carried the designs mark, `on` the switch. |
 | `team_production_unsplit(p_id)` | Service role only, for the revert (section 7): the whole record rebuilt from the split one, written like a save (the token and `rev` advance), `doc_form` null. | Whether it changed the row. |
 
 **The form trigger is the one check of a split record's content.** `team_productions_doc_form`
@@ -163,8 +163,14 @@ The `Show` in memory, the outbox, the three-way merge, Undo, publishing and the 
 unchanged: they hold whole records. Only the trip to and from `team_productions` changes, in
 `src/backend/teamProductions.ts`.
 
-**Reading is decided by the data.** The fetch selects `doc_form` with `doc`, and refusal answers
-carry it. A value other than null or 1 is a later form: the read fails like a read error (R11) and
+**Installed or not.** Team record fetches wait for the page's first `team_designs_state()` answer
+(read when team sync starts; a failed or absent call answers "not installed"). Once it has answered
+installed, the page remembers that for the session. Not installed: the fetch is today's select, which
+names no new column, so a page released before the migration is applied (section 7) reads and saves
+team productions exactly as today; no record can be split then.
+
+**Reading is decided by the data.** Once installed, the fetch selects `doc_form` with `doc`, and
+refusal answers carry it. A value other than null or 1 is a later form: the read fails like a read error (R11) and
 the page keeps its copy, read-only for that record until a build that knows the form
 (`root/version-every-persisted-format-ship-breaking`). Otherwise every record a new page receives
 (the fetch, a refusal's `doc`) is made whole before anything else sees it: each graphic with a `designRef` gets `template`
@@ -214,7 +220,9 @@ the same request, so `noacg_library` answers what it answers today.
 
 **Test helpers.** Configured specs and helpers that read or write `team_productions.doc` directly
 (`e2e/configured/teams.spec.ts`, `_five.ts`, `publish-guard.spec.ts`, `connector-tools.spec.ts`) send the designs mark and
-resolve designs, or read through the page, so none goes blind on a split row.
+resolve designs, or read through the page, so none goes blind on a split row. Browser specs that mock
+`/rest/v1/team_productions` (`e2e/sync-dot.spec.ts`, `e2e/rundown-history.spec.ts`) also answer
+`rpc/team_designs_state`, or let it fail (not installed), so the fetch never waits on it.
 
 ## 4. Old and new pages at once
 
@@ -365,8 +373,9 @@ the next quiet post-land run apply it, as the coordinator decides). It sets
    whole like a save (the token advances, so a page holding the split token merges on its next
    save rather than act on a stale base).
 3. Redeploy the previous app if wanted. Its pages read whole records as today.
-4. A migration that first raises if any `doc_form` is not null, then drops the publish trigger and
-   its function, the policy, the new functions, `team_production_designs` and `doc_form`, and
+4. A migration, applied by the coordinator in a quiet window with
+   `npm run db:push -- --allow NNNN --live NNNN` (it drops, and it names `control_shows`), that first
+   raises if any `doc_form` is not null, then drops the publish trigger and its functions, the policy, the new functions, `team_production_designs` and `doc_form`, and
    restores 0117's `team_production_save` and 0119's `team_production_patch`.
 
 Step 2 loses nothing: every split record names only stored designs (R3), and step 4 refuses to drop
@@ -406,6 +415,9 @@ anything while one is split.
 
 - `scripts/db-push.test.mjs`: this migration is classified live-path, and so is a later file that
   only replaces `control_shows_team_designs_guard` or one of its `control_` helpers.
+- A new page against a database without this migration reads and saves team productions as today
+  (the model test, with `team_designs_state` absent; and the configured suite's existing team walks,
+  which run before the switch is on).
 - The connector tools: `e2e/configured/connector-tools.spec.ts` gains a split team record (designs
   stored through the functions), and `noacg_library` answers that production exactly as it answers
   the same record whole (names, fields, cues).
