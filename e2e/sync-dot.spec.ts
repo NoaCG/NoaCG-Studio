@@ -30,7 +30,7 @@ async function cloud(page: Page) {
     localStorage.setItem('sb-cloudmock-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', expires_in: 3600, expires_at: expires, token_type: 'bearer', user }));
   }, { owner, user, token, expires });
   const state = {
-    rows: new Map<string, Row>(), reads: 0, saves: 0, savesOut: 0, mostSavesOut: 0, saveTimeout: false, silent: false, silentWrites: false, silentStorage: false, goneStorage: false, silentReads: false, held: 0, down: false,
+    rows: new Map<string, Row>(), reads: 0, saves: 0, savesOut: 0, mostSavesOut: 0, saveTimeout: false, other: null as { id: string } | null, otherToken: '2026-10-06T00:00:00.000Z', otherSaves: 0, silent: false, silentWrites: false, silentStorage: false, goneStorage: false, silentReads: false, held: 0, down: false,
     doc: null as { id: string } | null, token: '2026-10-06T00:00:00.000Z', revision: 0,
     authUser: user, beforeWrite: null as ((row: Row) => Promise<void>) | null,
   };
@@ -43,7 +43,10 @@ async function cloud(page: Page) {
     const respond = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) }).catch(() => {});
     if (url.pathname === '/auth/v1/user') return respond(state.authUser);
     if (url.pathname === '/auth/v1/logout') return respond({});
-    const teamRow = () => (state.doc ? [{ id: state.doc.id, team_id: team, updated_at: state.token, updated_by: owner, doc: state.doc }] : []);
+    const teamRow = () => [
+      ...(state.doc ? [{ id: state.doc.id, team_id: team, updated_at: state.token, updated_by: owner, doc: state.doc }] : []),
+      ...(state.other ? [{ id: state.other.id, team_id: team, updated_at: state.otherToken, updated_by: owner, doc: state.other }] : []),
+    ];
     if (url.pathname === '/rest/v1/teams' || url.pathname === '/rest/v1/team_members' || url.pathname === '/rest/v1/team_productions') {
       if (state.silentReads) await hold();
       if (state.down) return route.abort('connectionfailed').catch(() => {});
@@ -56,6 +59,15 @@ async function cloud(page: Page) {
       if (state.goneStorage) return respond({ statusCode: '404', error: 'not_found', message: 'Object not found' }, 400);
       if (request.method() === 'POST') return respond({ Key: url.pathname.split('/object/')[1] });
       return route.fulfill({ status: 200, contentType: 'font/woff2', body: Buffer.from('font bytes') }).catch(() => {});
+    }
+    if (url.pathname === '/rest/v1/rpc/team_production_save' && state.other && request.postDataJSON().p_id === state.other.id) {
+      // A second production of the same team, whose saves always land.
+      state.otherSaves++;
+      const { p_expected, p_doc } = request.postDataJSON();
+      if (p_expected !== state.otherToken) return respond({ saved: false, updated_at: state.otherToken, updated_by: owner, doc: state.other });
+      state.other = p_doc;
+      state.otherToken = new Date(Date.parse('2026-10-07T00:00:00Z') + state.otherSaves).toISOString();
+      return respond({ saved: true, updated_at: state.otherToken, updated_by: owner, doc: state.other });
     }
     if (url.pathname === '/rest/v1/rpc/team_production_save') {
       state.saves++;
@@ -339,6 +351,35 @@ test('a failed team save goes again by itself within its backoff, one at a time,
   expect(state.saves).toBe(before + 1);
   expect(state.mostSavesOut).toBe(1);
   await expect(page.getByTestId('production-team-note')).toHaveCount(0);
+});
+
+test('another production saving meanwhile does not shorten a failing production\'s backoff (#2618)', async ({ page }) => {
+  const state = await cloud(page);
+  await page.clock.install();
+  const id = await teamProduction(page, state);
+  state.other = await page.evaluate(async () => {
+    const m = await __noacgImport('/src/model/shows.ts'), { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const show = m.createShowNamedChecked('Second run').show;
+    m.addGraphicToShow(show.id, { ...variantsFor('lower-third')[0].create({}), name: 'Hosts' });
+    return m.loadShows().find(s => s.id === show.id)!;
+  });
+  const other = state.other.id;
+  await page.evaluate(async () => { await (await __noacgImport('/src/backend/teamProductions.ts')).refreshTeams(); });
+  await expect.poll(() => page.evaluate(async other => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === other)?.teamId, other)).toBe(team);
+  state.silentReads = true;
+  state.saveTimeout = true;
+  await edit(page, id, 'Keeps failing');
+  await page.clock.fastForward(1_000);
+  await expect.poll(() => state.saves).toBe(1);
+  // The other production's edits land every 4 s for two minutes.
+  for (let second = 0; second < 120; second++) {
+    if (second % 4 === 0) await edit(page, other, `Lands ${second}`);
+    await page.clock.fastForward(1_000);
+  }
+  expect(state.otherSaves).toBeGreaterThanOrEqual(15);
+  expect(state.saves - 1).toBeGreaterThanOrEqual(5);
+  expect(state.saves - 1).toBeLessThanOrEqual(9);
+  expect(state.mostSavesOut).toBe(1);
 });
 
 test('a team production with its session gone is not Synced, and asks for a sign-in', async ({ page }) => {
