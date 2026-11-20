@@ -1840,15 +1840,8 @@ async function boot(): Promise<void> {
   if (animates) {
     stage.setVisible(false);
     dbg('catch-up', `${missed.length} row(s), off air while they settle`);
-    // What the replay runs is not on air yet: each graphic it reaches reads as placing from its
-    // oldest replayed row until it is back on air (G2 section 4, #2604).
+    // What runs from here until the stage is back is not on air yet (`onOutcome`, `revealBoot`).
     bootOffAir = true;
-    if (seqMode) {
-      for (const row of missed) {
-        if (!hosts(row.graphic) || !isCommand(row.msg.t) || !inScope(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, position(row))) continue;
-        ranOffAir(row.graphic, position(row));
-      }
-    }
   }
 
   // ── Boot recovery, per graphic: the data half, then the visual half (snap arms timers). ──
@@ -1959,10 +1952,11 @@ async function boot(): Promise<void> {
   };
   // Said once everything the boot sends has gone, so a Take among the replayed rows cannot clear it.
   for (const [key, why] of ografUnknown) stage.markUnknown(key, why);
-  // Only what the boot put back waits for its frame: a graphic it gave nothing has nothing to run
-  // (marked above only until the boot knew, G2 section 4).
+  // Only what the boot puts on air, or replays commands for, waits for its frame: a graphic given
+  // nothing, or only its data while off air, has nothing on air to draw (marked above only until
+  // the boot knew, G2 section 4). This also keeps the list to what is on air (`listed`).
   offAirFrom.forEach((_from, key) => {
-    if (!touched.has(key) && !liveGraphics.has(key) && !reports[key] && !missed.some((row) => row.graphic === key)) offAirFrom.delete(key);
+    if (!liveGraphics.has(key) && !holds.has(key) && !missed.some((row) => row.graphic === key && isCommand(row.msg.t))) offAirFrom.delete(key);
   });
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
   markRecovered();

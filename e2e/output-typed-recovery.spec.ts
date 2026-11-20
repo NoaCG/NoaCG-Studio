@@ -234,7 +234,7 @@ test('by row id (protocol 1, no log head), a typed report puts its graphic back 
 async function sampleRunAndPaint(page: Page) {
   await page.addInitScript(() => {
     if (window.top !== window) return;
-    type Sample = { ran: number | null; onAir: boolean; t: number };
+    type Sample = { ran: number | null; onAir: boolean; t: number; held: number };
     const samples: Sample[] = [];
     (window as unknown as { __samples: Sample[] }).__samples = samples;
     let paint: { op: string; s: string } | null = null;
@@ -246,14 +246,14 @@ async function sampleRunAndPaint(page: Page) {
       const run = live?.entry().ready?.run;
       const frame = document.querySelector('iframe[title="Strap"]');
       const onAir = !!paint && paint.op !== '0' && paint.s === 'step 0' && !!frame && getComputedStyle(frame).visibility !== 'hidden';
-      samples.push({ ran: run ? (run.h.Strap ? run.h.Strap[0] - 1 : run.p) : null, onAir, t });
+      samples.push({ ran: run ? (run.h.Strap ? run.h.Strap[0] - 1 : run.p) : null, onAir, t, held: run ? Object.keys(run.h).length : 0 });
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   });
 }
 
-type RunSample = { ran: number | null; onAir: boolean; t: number };
+type RunSample = { ran: number | null; onAir: boolean; t: number; held: number };
 /** Wait for the picture and the report, then: the report reached the Take no earlier than the
  *  picture (the frame says what it painted by a message, a few frames late on a busy runner;
  *  without the fix the report ran ahead by 0.6 s or more), and the window was really sampled. */
@@ -290,4 +290,23 @@ test('a graphic put back from another output\'s report is not reported run until
   await standInBackend(page, live, rows, ['Strap'], [probe('Strap', 20, true, true)]);
   await page.goto('/output?production=typed-probe');
   await expectRunNotBeforePaint(page, 2);
+});
+
+test('on a restart of a large production only what is on air waits for its frame (#2604)', async ({ page }) => {
+  // Thirteen more graphics, off air, with reports of their data: nothing of them is on air, so
+  // they do not wait. Past twelve waiting entries the report's cursor would drop to 0 (`listed`),
+  // and every owed command would read as not received.
+  await sampleRunAndPaint(page);
+  const others = Array.from({ length: 13 }, (_, i) => `G${i + 1}`);
+  const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
+  const live: Record<string, unknown> = { Strap: { data: { f0: 'Held' }, state: { groups: { main: 'in' } }, event: 1002, seq: 2 } };
+  for (const key of others) live[key] = { data: { f0: key }, event: 1002, seq: 2 };
+  await standInBackend(page, live, rows, ['Strap'], [probe('Strap', 20, true, true), ...others.map((key, i) => probe(key, 30 + i))]);
+  await page.goto('/output?production=typed-probe');
+  await expectRunNotBeforePaint(page, 2);
+  const samples = await page.evaluate(() => (window as unknown as { __samples: RunSample[] }).__samples);
+  // Once the boot knows what it put back, the Strap alone waits; its cursor is never lowered.
+  const waiting = samples.filter((s) => s.ran !== null && s.ran < 2 && !s.onAir);
+  expect(waiting.some((s) => s.held === 1), JSON.stringify(waiting.slice(-3))).toBe(true);
+  expect(samples.filter((s) => s.held > 12).length, 'samples listing more than twelve waiting graphics').toBeLessThan(waiting.length / 2);
 });
