@@ -1,10 +1,12 @@
-// guards: src/model/editorOrganization.ts, src/blocks/assetOps.ts, src/blocks/editorOrganization.ts, src/blocks/editorImages.ts, src/assets/assetUtils.ts, src/assets/assetInfo.ts
+// guards: src/model/editorOrganization.ts, src/model/regexMatches.ts, src/blocks/assetOps.ts, src/blocks/editorOrganization.ts, src/blocks/editorImages.ts, src/assets/assetUtils.ts, src/assets/assetInfo.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { transform } from 'sucrase';
 
-const compiled = transform(readFileSync('src/model/editorOrganization.ts', 'utf8'), { transforms: ['typescript'] }).code;
+// Its one import, the matchAll stand-in, is loaded the same way and pointed at by URL.
+const regexMatchesUrl = 'data:text/javascript;base64,' + Buffer.from(transform(readFileSync('src/model/regexMatches.ts', 'utf8'), { transforms: ['typescript'] }).code).toString('base64');
+const compiled = transform(readFileSync('src/model/editorOrganization.ts', 'utf8'), { transforms: ['typescript'] }).code.replace("'./regexMatches.js'", JSON.stringify(regexMatchesUrl));
 const modelUrl = 'data:text/javascript;base64,' + Buffer.from(compiled).toString('base64');
 const { readOrganization, writeOrganization, inspectOrganization } = await import(modelUrl);
 // These assertions exercise the real pure asset functions. Their unrelated browser

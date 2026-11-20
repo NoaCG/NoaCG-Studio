@@ -491,7 +491,7 @@ function stackFamily(value: string): string | null {
 
 /** The families a stylesheet ships as imported files (their `/* Imported font` blocks). */
 export function importedFontFamilies(css: string): string[] {
-  return [...css.matchAll(/\/\* Imported font[^*]*\*\/\s*@font-face\s*\{[^}]*?font-family:\s*"([^"]+)"/g)].map((m) => m[1]);
+  return matchesOf(css, /\/\* Imported font[^*]*\*\/\s*@font-face\s*\{[^}]*?font-family:\s*"([^"]+)"/g).map((m) => m[1]);
 }
 
 /**
@@ -550,7 +550,7 @@ function ruleFace(rule: string): BundledFont | undefined {
 export function bundledFontAlias(value: string, css: string): BundledFont | undefined {
   const family = stackFamily(value)?.toLowerCase();
   if (!family || fontByStack(value) || !css.includes('@font-face')) return undefined;
-  const faces = [...css.matchAll(/@font-face\s*\{[^}]*\}/g)]
+  const faces = matchesOf(css, /@font-face\s*\{[^}]*\}/g)
     .map(([rule]) => rule)
     .filter(rule => ruleFamily(rule)?.toLowerCase() === family)
     .map(ruleFace);
@@ -677,6 +677,7 @@ export function fontLicenseComment(syntax: 'html' | 'css'): string {
 // ── User-imported fonts (embedded in the template + its export) ───────────────
 
 import type { AssetFile } from './types';
+import { matchesOf } from './regexMatches.js';
 
 export interface CustomFont {
   /** CSS font-family name (derived from the file name, user-editable). */

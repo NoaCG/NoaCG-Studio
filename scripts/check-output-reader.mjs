@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // gate: after-build
-// guards: src/output/**, src/model/ografTyped.ts, vite.config.ts, output.html
+// guards: src/**, src/output/**, src/model/ografTyped.ts, vite.config.ts, output.html
 //
 // THE OUTPUT'S READER, IN THE BUNDLE AN OUTPUT LOADS (docs/work-specs/playout-ograf-contract/spec.md,
 // E1.1 "Read gate first").
@@ -16,7 +16,10 @@
 //   1. the module graph the built output page loads (its entry and every static import) parses,
 //      and none of it holds syntax Chromium 71 cannot parse (`?.`, `??` and `export * as`, which
 //      ES2020 added, and what ES2021+ adds, which the parser itself refuses at ecmaVersion 2020);
-//   2. the typed read gate (src/model/ografTyped.ts `readTypedWire`) is in that graph: its
+//   2. none of it calls a built-in Chromium 71 lacks (`MISSING_ON_71`) unless output.html shims
+//      it (`SHIMMED`): a missing method passes the parse and throws only when called, which is how
+//      `matchAll` kept every CasparCG 2.3 output from joining (#2603);
+//   3. the typed read gate (src/model/ografTyped.ts `readTypedWire`) is in that graph: its
 //      refusal words ship to every output, so an output that meets an envelope refuses it.
 //
 // Node's own test of the reader is scripts/ograf-typed.test.mjs.
@@ -36,6 +39,70 @@ const dist = join(root, 'dist');
  *  is called, in what an output loads. The call's place in front of the stage is pinned in Node
  *  (scripts/ograf-typed.test.mjs). */
 export const READER_WORDS = ['This output cannot show typed data yet', 'This output cannot read this command', 'typed data refused for'];
+
+/** Built-ins CasparCG 2.3's Chromium 71 does not have (the Chrome version that added each in the
+ *  comment). Instance methods are matched where called, by property name on any object; statics and globals by
+ *  their full name, since `.any` or `.groupBy` alone would match ordinary code. */
+export const MISSING_ON_71 = {
+  methods: [
+    'matchAll', // 73
+    'replaceAll', // 85
+    'at', // 92
+    'findLast', 'findLastIndex', // 97
+    'toSorted', 'toReversed', 'toSpliced', // 110
+    'isWellFormed', 'toWellFormed', // 111
+    'replaceChildren', // 86
+  ],
+  statics: [
+    'Promise.allSettled', // 76
+    'Promise.any', // 85
+    'Object.hasOwn', // 93
+    'Promise.withResolvers', // 119
+    'Object.groupBy', 'Map.groupBy', // 117
+    'Array.fromAsync', // 121
+  ],
+  globals: [
+    'structuredClone', // 98
+    'WeakRef', 'FinalizationRegistry', // 84
+    'AggregateError', // 85
+  ],
+};
+
+/** Built-ins output.html defines before the bundle runs, each with the text that proves the shim
+ *  is still there. */
+export const SHIMMED = {
+  'Promise.allSettled': 'Promise.allSettled || (Promise.allSettled = function',
+  structuredClone: 'window.structuredClone || (window.structuredClone = function',
+};
+
+/** Every use in a parsed module of a built-in Chromium 71 lacks, at its position. */
+export function missingBuiltIns(ast) {
+  const methods = new Set(MISSING_ON_71.methods);
+  const statics = new Set(MISSING_ON_71.statics);
+  const globals = new Set(MISSING_ON_71.globals);
+  const found = [];
+  const name = (node) => (node.computed ? (node.property.type === 'Literal' ? node.property.value : null) : node.property.name);
+  const walk = (node) => {
+    if (!node || typeof node.type !== 'string') return;
+    // A method counts where it is called: `.at` is also an ordinary field name (`step.at`).
+    if (node.type === 'CallExpression' && node.callee.type === 'MemberExpression' && methods.has(name(node.callee))) found.push({ at: node.start, what: name(node.callee) });
+    if (node.type === 'MemberExpression') {
+      const prop = name(node);
+      if (node.object.type === 'Identifier' && statics.has(`${node.object.name}.${prop}`)) found.push({ at: node.start, what: `${node.object.name}.${prop}` });
+      if (node.object.type === 'Identifier' && ['window', 'self', 'globalThis'].includes(node.object.name) && globals.has(prop)) found.push({ at: node.start, what: prop });
+    }
+    if (node.type === 'Identifier' && globals.has(node.name)) found.push({ at: node.start, what: node.name });
+    for (const key of Object.keys(node)) {
+      if (key === 'property' && node.type === 'MemberExpression' && !node.computed) continue;
+      if (key === 'key' && node.type === 'Property' && !node.computed) continue;
+      const child = node[key];
+      if (Array.isArray(child)) child.forEach(walk);
+      else if (child && typeof child === 'object' && typeof child.type === 'string') walk(child);
+    }
+  };
+  walk(ast);
+  return found;
+}
 
 /** The syntax Chromium 71 cannot parse that ecmaVersion 2020 still accepts, at its position. */
 export function unparseable(code) {
@@ -64,6 +131,8 @@ function importsOf(ast) {
     if (!node || typeof node.type !== 'string') return;
     if ((node.type === 'ImportDeclaration' || node.type === 'ExportAllDeclaration' || node.type === 'ExportNamedDeclaration') && node.source) out.push(node.source.value);
     if (node.type === 'ImportExpression' && node.source.type === 'Literal' && typeof node.source.value === 'string') out.push(node.source.value);
+    // A worker or chunk the module loads by `new URL('./x.js', import.meta.url)`.
+    if (node.type === 'NewExpression' && node.callee.type === 'Identifier' && node.callee.name === 'URL' && node.arguments[0]?.type === 'Literal' && /\.js$/.test(String(node.arguments[0].value))) out.push(node.arguments[0].value);
     for (const key of Object.keys(node)) {
       const child = node[key];
       if (Array.isArray(child)) child.forEach(walk);
@@ -103,6 +172,10 @@ function main() {
       continue;
     }
     for (const { at, what } of parsed.found) problems.push(`${file.slice(dist.length + 1)}:${at}: ${what}, which CasparCG 2.3's Chromium 71 cannot parse`);
+    for (const { at, what } of missingBuiltIns(parsed.ast)) {
+      if (SHIMMED[what] && html.includes(SHIMMED[what])) continue;
+      problems.push(`${file.slice(dist.length + 1)}:${at}: calls ${what}, which CasparCG 2.3's Chromium 71 does not have (shim it in output.html or write it another way)`);
+    }
     for (const words of READER_WORDS) if (code.includes(words)) shipped.add(words);
     for (const spec of importsOf(parsed.ast)) {
       if (spec.startsWith('.') || spec.startsWith('/')) queue.push(spec.startsWith('/') ? join(dist, spec.slice(1)) : resolve(dirname(file), spec));
@@ -114,7 +187,7 @@ function main() {
     console.error(`check-output-reader: ${problems.length} problem(s) in the built output:\n  ${problems.join('\n  ')}`);
     process.exit(1);
   }
-  console.log(`check-output-reader: ${seen.size} output module(s) parse on Chromium 71, and the typed read gate is in them.`);
+  console.log(`check-output-reader: ${seen.size} output module(s) parse on Chromium 71, call no built-in it lacks unshimmed, and the typed read gate is in them.`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

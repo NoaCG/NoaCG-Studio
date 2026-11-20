@@ -33,7 +33,9 @@
          SyntaxError: Unexpected token ?"), and these guards cover the runtime APIs that
          engine predates. Each one is used by code this page actually loads: globalThis and
          Object.fromEntries by supabase-js and composeDocument, AbortController by the fetch
-         paths, queueMicrotask by the promise plumbing. Written ES5 in a classic script, so
+         paths, queueMicrotask by the promise plumbing. `npm run check:output-reader` fails
+         the build when the output bundle calls a built-in Chromium 71 lacks that is not
+         shimmed here (#2603). Written ES5 in a classic script, so
          it runs before the module bundle on every engine. -->
     <script>
       window.globalThis || (window.globalThis = window);
@@ -53,6 +55,39 @@
         };
         window.AbortController.prototype.abort = function () { this.signal.aborted = true; };
       }
+      // Chrome 76. The asset loader awaits it; same result shape as the real one.
+      Promise.allSettled || (Promise.allSettled = function (items) {
+        return Promise.all(Array.from(items, function (item) {
+          return Promise.resolve(item).then(
+            function (value) { return { status: 'fulfilled', value: value }; },
+            function (reason) { return { status: 'rejected', reason: reason }; });
+        }));
+      });
+      // Chrome 98. The production model clones looks, cues and history with it. Those are plain
+      // data, so a deep copy of objects, arrays, Date, RegExp, Map and Set (cycles kept) matches
+      // the real one; a function refuses as the real one does.
+      window.structuredClone || (window.structuredClone = function (root) {
+        var seen = new Map();
+        function copy(value) {
+          if (typeof value === 'function' || typeof value === 'symbol') throw new DOMException('could not be cloned', 'DataCloneError');
+          if (value === null || typeof value !== 'object') return value;
+          if (seen.has(value)) return seen.get(value);
+          var out;
+          if (value instanceof Date) out = new Date(value.getTime());
+          else if (value instanceof RegExp) out = new RegExp(value.source, value.flags);
+          else if (value instanceof Map) { out = new Map(); seen.set(value, out); value.forEach(function (v, k) { out.set(copy(k), copy(v)); }); return out; }
+          else if (value instanceof Set) { out = new Set(); seen.set(value, out); value.forEach(function (v) { out.add(copy(v)); }); return out; }
+          else if (Array.isArray(value)) { out = new Array(value.length); seen.set(value, out); for (var i = 0; i < value.length; i++) if (i in value) out[i] = copy(value[i]); return out; }
+          else {
+            out = {}; seen.set(value, out);
+            Object.keys(value).forEach(function (k) { out[k] = copy(value[k]); });
+            return out;
+          }
+          seen.set(value, out);
+          return out;
+        }
+        return copy(root);
+      });
     </script>
     <script type="module" src="/src/output/main.ts"></script>
   </body>

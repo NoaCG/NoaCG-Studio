@@ -14,6 +14,7 @@
 // (validation/validateTemplate.ts) stays authoritative — it re-checks the emitted template —
 // but the import must hand clean markup to the preview in the first place.
 
+import { matchesOf } from '../model/regexMatches.js';
 import { boxInUserSpace } from './svgGeometry';
 
 export interface SvgTextCandidate {
@@ -611,7 +612,7 @@ function hiddenClasses(root: Element): Set<string> {
   if (cached) return cached;
   const names = new Set<string>();
   for (const style of Array.from(root.querySelectorAll('style'))) {
-    for (const rule of (style.textContent ?? '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    for (const rule of matchesOf(style.textContent ?? '', /([^{}]+)\{([^{}]*)\}/g)) {
       if (!HIDES.test(`;${rule[2]};`)) continue;
       for (const selector of rule[1].split(',')) {
         const cls = /\.([A-Za-z0-9_-]+)\s*$/.exec(selector.trim());
@@ -946,7 +947,7 @@ function unwrapLookWrappers(svg: Element): void {
 function classFontSizes(svg: Element): Map<string, number> {
   const sizes = new Map<string, number>();
   for (const style of Array.from(svg.querySelectorAll('style'))) {
-    for (const rule of (style.textContent ?? '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    for (const rule of matchesOf(style.textContent ?? '', /([^{}]+)\{([^{}]*)\}/g)) {
       const size = /font-size\s*:\s*([\d.]+)/i.exec(rule[2]);
       if (!size) continue;
       const px = parseFloat(size[1]);
@@ -1592,7 +1593,7 @@ function fontInventory(svg: Element): SvgFontRef[] {
       if (m) add(m[1]);
     }
     if (el.tagName.toLowerCase() === 'style' && el.textContent) {
-      for (const m of el.textContent.matchAll(/font-family\s*:\s*([^;}]+)/gi)) add(m[1]);
+      for (const m of matchesOf(el.textContent, /font-family\s*:\s*([^;}]+)/gi)) add(m[1]);
     }
   }
   return out;
