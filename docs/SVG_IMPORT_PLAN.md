@@ -549,6 +549,18 @@ is its own graphic type so the derived machine/timeline stays the standard linea
     available, which is where that surface stood before.
   - Pinned by `e2e/import-svg-behaviour.spec.ts` ("copy the design cannot hold is WARNED about"),
     verified red first by making the document report nothing.
+- **A line ON its bar, and a line on nothing (owner, 2026-11-20).** *"The text becomes smaller,
+  even though we are not even at the end of the graphic."* Measured on five hand-made lower
+  thirds, a 1000-unit bar each, with a 22-character name typed over a 13-character sample: a name
+  drawn 56 units tall on a 56-unit bar painted at 32px, one started 20 units left of its bar at
+  28px, and one over a bar drawn as a PICTURE at 28px - each with over 600 units of bar empty
+  beside it. All three found no panel (`svgFitContainer` asked for strict containment), so the
+  room fell to the line's own drawn width; the mapping step said "no box" and offered no choice.
+  Now the fit takes the shape the line sits on (the step's `lineSitsIn`) where nothing holds it
+  outright, and the graphic's own extent where nothing is under it at all; all five paint at
+  their drawn size. A line with no box asks "wraps" or "stays on one line" (`wrap: false`), and a
+  centred name on a strip-shaped bar defaults to the grow ladder. Pinned by
+  `scripts/svg-loose-room.test.mjs` and the journey in `e2e/import-svg.spec.ts`.
 - **Animation:** the standard marked ANIMATION region animating the wrapper (entrance/exit
   presets work day one; the timeline dock reads the CODE as always). Phase 2: per-layer stagger -
   top-level named `<g>`s offered as animation units.
