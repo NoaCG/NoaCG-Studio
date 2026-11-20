@@ -401,13 +401,13 @@ test('a restart whose catch-up read is held 25 s waits placing, says it is late 
 test('a boot whose second catch-up page is held 70 s is failed boot at 60 s, then waits again and settles (#2608)', async ({ page }) => {
   // G2 section 9 and M5: "it did not read what is on air in 60 s", red, and it clears to placing
   // and then green when the read comes after all.
-  test.setTimeout(150_000);
+  test.setTimeout(115_000);
   await sampleFacts(page);
   const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
   for (let seq = 3; seq <= 620; seq += 1) rows.push(row(seq, 'Bug', { t: 'update', data: { f0: `bug ${seq}` } }));
   const backend = await standInBackend(page, {}, rows, ['Strap', 'Bug'], [probe('Strap', 20), probe('Bug', 30)], { tailDelayMs: (after) => (after === 500 ? 70_000 : 0) });
   await page.goto('/output?production=typed-probe');
-  const facts = await settledAt(page, 120_000);
+  const facts = await settledAt(page, 100_000);
   expect(backend.tails).toEqual(expect.arrayContaining([0, 500]));
   const failed = firstWhen(facts, (f) => f.k === 'failed');
   expect(failed, JSON.stringify(facts.slice(0, 12))).not.toBeNull();
@@ -447,7 +447,7 @@ test('a restart with 13 graphics on air whose frames take 16 s to load is never 
 test('a data feed every 200 ms to a graphic on air never unsettles the output (#2608)', async ({ page }) => {
   // G2 section 9: the light stays green through a feed. With no socket here, the output reads the
   // feed at its poll floor, a burst of 150 updates at once, which is the harder case.
-  test.setTimeout(150_000);
+  test.setTimeout(115_000);
   await sampleFacts(page);
   const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
   const backend = await standInBackend(page, {}, rows, ['Strap'], [probe('Strap', 20)]);
@@ -458,7 +458,7 @@ test('a data feed every 200 ms to a graphic on air never unsettles the output (#
     rows.push(row(3 + i, 'Strap', { t: 'update', data: { f0: `feed ${i}` } }));
     await page.waitForTimeout(200);
   }
-  await expect(doc(page, 'Strap').locator('#v')).toHaveText('f0=string:"feed 149"', { timeout: 70_000 });
+  await expect(doc(page, 'Strap').locator('#v')).toHaveText('f0=string:"feed 149"', { timeout: 45_000 });
   await page.waitForTimeout(1_000);
   expect(backend.tails.some((after) => after >= 2)).toBe(true);
   const facts = (await factsOf(page)).filter((f) => f.t >= from);
