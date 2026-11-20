@@ -756,3 +756,16 @@ test('undo reads a refusal the same way, and a failed read leaves the rundown as
   assert.equal(h.local().name, 'Theirs');
   assert.deepEqual(h.names.slice(2), ['team_production_save_v2', 'team_production_changes', 'team_production_save_v2']);
 });
+
+test('a database with the v2 saves but no read: the old saves for the rest of the session (#2615)', async () => {
+  const h = harness(false);
+  h.edit('Mine');
+  h.disk.resolve(null);
+  h.answers.push(refusal('t1'), { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } });
+  await h.controller.pushForTest('show');
+  assert.equal(h.controller.getTeamState().saving.show, 'failed');
+  assert.equal(h.retained().name, 'Mine');
+  h.answers.push({ data: { saved: true, updated_at: 't2' }, error: null });
+  await h.controller.pushForTest('show');
+  assert.deepEqual(h.names, ['team_production_save_v2', 'team_production_changes', 'team_production_save']);
+});

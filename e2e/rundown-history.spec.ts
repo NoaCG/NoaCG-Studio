@@ -40,6 +40,8 @@ async function teamBackend(page: Page, server = false) {
     if (url.pathname === '/rest/v1/teams') return respond([{ id: team, name: 'History team', join_code: 'testcode', owner_id: owner, created_at: state.token }]);
     if (url.pathname === '/rest/v1/team_members') return respond([{ team_id: team, user_id: owner, display_name: 'Operator', role: 'owner', joined_at: state.token }]);
     if (url.pathname === '/rest/v1/team_productions') return respond(state.doc ? [{ id: state.doc.id, team_id: team, updated_at: state.token, updated_by: owner, doc: state.doc }] : []);
+    // A database before 0121 (#2615): no v2 save, so the page saves with the old function from here on.
+    if (url.pathname === '/rest/v1/rpc/team_production_save_v2') return respond({ code: 'PGRST202', message: 'Could not find the function' }, 404);
     if (url.pathname === '/rest/v1/rpc/team_production_save') {
       state.calls++;
       await state.hold;

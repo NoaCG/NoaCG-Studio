@@ -412,7 +412,12 @@ async function readTeamChanges(sb: Backend, id: string): Promise<{ token: string
     const kept = whole ? undefined : teamReads.get(id);
     const before = teamReads.get(id);
     const { data, error } = await sb.rpc('team_production_changes', { p_id: id, p_map: { f: 's1', m: kept?.map ?? {} } });
-    if (error) return { error: error.message };
+    if (error) {
+      // An instance with the v2 saves but no read (a revert half done): the old saves from here on,
+      // whose refusals carry the document, so the attempt's retry merges as before.
+      if (error.code === 'PGRST202') leanSaves = false;
+      return { error: error.message };
+    }
     if (running !== owner || teamReads.get(id) !== before) return { error: 'The team production changed while it was read.' };
     const a = data as { updated_at?: unknown; updated_by?: string | null; ops?: unknown } | null;
     if (!a || typeof a.updated_at !== 'string' || !Array.isArray(a.ops)) return { error: 'The team production could not be read.' };
@@ -749,7 +754,7 @@ async function refreshOnce(): Promise<void> {
     });
   }
   const listed = new Set(heads.map((h) => h.id));
-  for (const id of [...server.keys()]) if (!listed.has(id) && !changed.has(id)) server.delete(id);
+  for (const id of [...server.keys()]) if (!listed.has(id) && !changed.has(id)) { server.delete(id); teamReads.delete(id); }
 
   // A record with an edit on its way up stays as this tab has it; its save reconciles it.
   const records: Show[] = [];
@@ -1106,6 +1111,7 @@ export async function deleteTeamProduction(show: Show): Promise<{ error: string 
   if (error) return { error: error.message };
   if (!Array.isArray(data) || data.length === 0) return { error: 'Only the team owner can delete a team production.' };
   server.delete(show.id);
+  teamReads.delete(show.id);
   removeTeamShow(show.id);
   void refreshTeams();
   return { error: null };

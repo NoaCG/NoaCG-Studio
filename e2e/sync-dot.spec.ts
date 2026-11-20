@@ -60,6 +60,8 @@ async function cloud(page: Page) {
       if (request.method() === 'POST') return respond({ Key: url.pathname.split('/object/')[1] });
       return route.fulfill({ status: 200, contentType: 'font/woff2', body: Buffer.from('font bytes') }).catch(() => {});
     }
+    // A database before 0121 (#2615): no v2 save, so the page saves with the old function from here on.
+    if (url.pathname === '/rest/v1/rpc/team_production_save_v2') return respond({ code: 'PGRST202', message: 'Could not find the function' }, 404);
     if (url.pathname === '/rest/v1/rpc/team_production_save' && state.other && request.postDataJSON().p_id === state.other.id) {
       // A second production of the same team, whose saves always land.
       state.otherSaves++;
