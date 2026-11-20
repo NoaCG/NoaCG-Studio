@@ -344,8 +344,9 @@ grant execute on function public.control_data_adjust_by_slug(text, jsonb) to ano
 -- ── 4. A Take's bound figures end on the stored tree's (R5a) ──────────────────────────────────
 -- One item as it was sent, followed by a correcting `update` when the item is an `update` carrying
 -- a bound field whose text differs from the stored tree's. The correction carries only those
--- fields, the stored text, no command id and the item's own `fast` flag, so every follower,
--- the sending page included, applies it after the item; the item itself stays exactly as sent,
+-- fields and the stored text, and is the very row a data write makes (`src`, no command id, never
+-- fast), so every follower, the sending page included, applies it after the item as it applies a
+-- feed's row; the item itself stays exactly as sent,
 -- so the sending page still knows it for its own. Only keys already in `msg.data` that the graphic
 -- binds to a path the tree holds count.
 create or replace function public.control_bound_item(p_item jsonb, p_tree jsonb, p_bound jsonb)
@@ -369,9 +370,11 @@ begin
     v_fix := v_fix || jsonb_build_object(v_key, v_text);
   end loop;
   if v_fix = '{}'::jsonb then return jsonb_build_array(p_item); end if;
+  -- The correction is the row a data write makes (control_data_apply): `src` marks it as the data
+  -- road's, so it adds no rev, is owed by no page, is dropped for typed airing like a feed row, and
+  -- never goes on the fast road, where a copy without a command id would apply twice.
   return jsonb_build_array(p_item,
-    jsonb_build_object('graphic', p_item->'graphic', 'msg', jsonb_build_object('t', 'update', 'data', v_fix))
-      || case when p_item ? 'fast' then jsonb_build_object('fast', p_item->'fast') else '{}'::jsonb end);
+    jsonb_build_object('graphic', p_item->'graphic', 'msg', jsonb_build_object('t', 'update', 'data', v_fix, 'src', 'operator')));
 end $$;
 revoke execute on function public.control_bound_item(jsonb, jsonb, jsonb) from public, anon, authenticated;
 
@@ -702,7 +705,7 @@ begin
 
   -- (c) A Take's bound field carries the stored figure; an unbound one and every other key stay.
   v_ans := public.control_send_seq(v_slug,
-    '[{"graphic":"Score","msg":{"t":"update","data":{"f1":"9","f9":"keep"},"oid":"o-1"}},{"graphic":"Score","msg":{"t":"play"}}]'::jsonb,
+    '[{"graphic":"Score","msg":{"t":"update","data":{"f1":"9","f9":"keep"},"oid":"o-1"},"fast":true},{"graphic":"Score","msg":{"t":"play"},"fast":true}]'::jsonb,
     jsonb_build_object('id', v_page, 'press', 1, 'base', '{}'::jsonb));
   if v_ans->>'ok' <> 'true' then raise exception '0123 self-check failed: the Take was refused (%)', v_ans; end if;
   execute format('set local role %I', v_role);
@@ -712,7 +715,7 @@ begin
      or (select e.msg from public.control_events e
           where e.show_id = v_show and e.seq = (select e2.seq + 1 from public.control_events e2
                                                   where e2.show_id = v_show and e2.msg->>'oid' = 'o-1'))
-        is distinct from '{"t":"update","data":{"f1":"0"}}'::jsonb then
+        is distinct from '{"t":"update","data":{"f1":"0"},"src":"operator"}'::jsonb then
     raise exception '0123 self-check failed: the Take row stays as sent and is followed by the stored figure (%)', v_row;
   end if;
   -- An update with no data and a graphic nothing binds, beside one that is bound: both as sent.

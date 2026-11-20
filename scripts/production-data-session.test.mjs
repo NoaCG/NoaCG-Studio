@@ -887,3 +887,24 @@ test('R10: a figure given up on but still on its way holds back every NEW figure
   t.answers.slugPatches.at(-1).resolve({ home: 6 });
   assert.equal(await second, true);
 });
+
+test('R10: a given-up figure that never answers holds new figures back for at most a minute', async () => {
+  const t = await publishedWith({ home: 4 });
+  const first = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  t.answers.adjusts[0].reject(Object.assign(new Error('Could not find the function'), { press: 'missing' }));
+  await flush();
+  await t.tick(15_000);
+  await t.tick(500);
+  t.answers.slugPatches[1].resolve({ home: 5 });
+  assert.equal(await first, true);
+  // The first attempt never settles. A new press waits, but not past the minute.
+  const second = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  for (let waited = 0; waited < 30_000; waited += 8_000) await t.tick(8_000);
+  assert.equal(t.calls.slugPatched.length, 2, 'held while the database could still be writing it');
+  for (let waited = 0; waited < 40_000; waited += 8_000) await t.tick(8_000);
+  assert.deepEqual(t.calls.slugPatched.at(-1)[1], { home: 6 });
+  t.answers.slugPatches.at(-1).resolve({ home: 6 });
+  assert.equal(await second, true);
+});

@@ -61,9 +61,9 @@ test('a bound item is sent as it came, followed only when a bound figure differs
   // The item itself is returned untouched, so its command id still says it is the page's own.
   assert.match(item, /return jsonb_build_array\(p_item,/);
   assert.doesNotMatch(item, /jsonb_set\(p_item/);
-  // The correction: only the differing fields, no command id, the item's own fast flag.
-  assert.match(item, /jsonb_build_object\('graphic', p_item->'graphic', 'msg', jsonb_build_object\('t', 'update', 'data', v_fix\)\)/);
-  assert.doesNotMatch(item, /oid|typed|appearance/);
+  // The correction is a data write's row: only the differing fields, `src`, no command id, never fast.
+  assert.match(item, /return jsonb_build_array\(p_item,\s*jsonb_build_object\('graphic', p_item->'graphic', 'msg', jsonb_build_object\('t', 'update', 'data', v_fix, 'src', 'operator'\)\)\);/);
+  assert.doesNotMatch(item.replace(/--.*$/gm, ''), /oid|typed|appearance|'fast'/);
   // The batch takes the corrections in place, and its count follows them.
   const send = body(sql, 'control_send_seq');
   assert.match(send, /order by x\.ord, e\.ord/);

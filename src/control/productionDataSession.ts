@@ -34,6 +34,8 @@ export const PRESS_ATTEMPT_MS = 15_000;
 /** The resend's first wait and its ceiling; it doubles in between. */
 export const PRESS_BACKOFF_MS = 500;
 export const PRESS_BACKOFF_MAX_MS = 8_000;
+/** How long a given-up fallback figure can hold the next one back, at most (R10). */
+const PRESS_ABANDON_MS = 60_000;
 /** A press never goes after this: the server keeps its id 24 hours, so a resend cannot outlive it. */
 export const PRESS_MAX_AGE_MS = 60 * 60_000;
 
@@ -343,6 +345,9 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
             );
             abandoned.add(settled);
             void settled.then(() => abandoned.delete(settled));
+            // Bounded: the database ends a call's write long before this (the API roles' statement
+            // timeouts are seconds), so a request still hung by then can no longer land.
+            after(PRESS_ABANDON_MS, () => abandoned.delete(settled));
           }
           reject(Object.assign(new Error('no answer'), { unanswered: true }));
         });
