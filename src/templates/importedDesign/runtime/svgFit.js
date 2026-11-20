@@ -529,30 +529,32 @@ function svgViewportRect(a) {
     if (ov === 'visible' || ov === 'auto') return null;
     var m = a.parentNode && a.parentNode.getScreenCTM ? a.parentNode.getScreenCTM() : null;
     if (!m) return null;
-    var x = a.x.baseVal.value;
-    var y = a.y.baseVal.value;
-    var w = a.width.baseVal.value;
-    var h = a.height.baseVal.value;
-    var xs = [x, x + w];
-    var ys = [y, y + h];
-    var out = null;
-    for (var i = 0; i < 2; i++) {
-      for (var j = 0; j < 2; j++) {
-        var px = m.a * xs[i] + m.c * ys[j] + m.e;
-        var py = m.b * xs[i] + m.d * ys[j] + m.f;
-        if (!out) out = { left: px, right: px, top: py, bottom: py };
-        else {
-          if (px < out.left) out.left = px;
-          if (px > out.right) out.right = px;
-          if (py < out.top) out.top = py;
-          if (py > out.bottom) out.bottom = py;
-        }
-      }
-    }
-    return out;
+    return svgMapRect(m, a.x.baseVal.value, a.y.baseVal.value, a.width.baseVal.value, a.height.baseVal.value, null);
   } catch (err) { // eslint-disable-line no-unused-vars
     return null;
   }
+}
+
+/** A user-space rectangle mapped through a matrix to screen px, as the extent of its corners,
+ *  grown into `into` where one is given. */
+function svgMapRect(m, x, y, w, h, into) {
+  var out = into;
+  var xs = [x, x + w];
+  var ys = [y, y + h];
+  for (var i = 0; i < 2; i++) {
+    for (var j = 0; j < 2; j++) {
+      var px = m.a * xs[i] + m.c * ys[j] + m.e;
+      var py = m.b * xs[i] + m.d * ys[j] + m.f;
+      if (!out) out = { left: px, right: px, top: py, bottom: py };
+      else {
+        if (px < out.left) out.left = px;
+        if (px > out.right) out.right = px;
+        if (py < out.top) out.top = py;
+        if (py > out.bottom) out.bottom = py;
+      }
+    }
+  }
+  return out;
 }
 
 function svgCut(out, r) {
@@ -578,22 +580,7 @@ function svgClipRect(a) {
       if (!c.getBBox) continue;
       var bb = c.getBBox();
       var own = c.transform && c.transform.baseVal && c.transform.baseVal.consolidate ? c.transform.baseVal.consolidate() : null;
-      var mm = own ? ctm.multiply(own.matrix) : ctm;
-      var xs = [bb.x, bb.x + bb.width];
-      var ys = [bb.y, bb.y + bb.height];
-      for (var xi = 0; xi < 2; xi++) {
-        for (var yi = 0; yi < 2; yi++) {
-          var px = mm.a * xs[xi] + mm.c * ys[yi] + mm.e;
-          var py = mm.b * xs[xi] + mm.d * ys[yi] + mm.f;
-          if (!out) out = { left: px, right: px, top: py, bottom: py };
-          else {
-            if (px < out.left) out.left = px;
-            if (px > out.right) out.right = px;
-            if (py < out.top) out.top = py;
-            if (py > out.bottom) out.bottom = py;
-          }
-        }
-      }
+      out = svgMapRect(own ? ctm.multiply(own.matrix) : ctm, bb.x, bb.y, bb.width, bb.height, out);
     }
     return out;
   } catch (err) { // eslint-disable-line no-unused-vars

@@ -647,11 +647,11 @@ const sha = (o) => hash(JSON.stringify(o));
  *  the text-room review: only the SVG fit runtime and the behaviour runtime's panel lookup moved;
  *  with those two files from main swapped back in, every build hashes to its previous pin. */
 const PINS = {
-  editable: 'a66fd1a24969d7b6',
-  artwork: 'a48d608b0535a2ea',
-  'fixed:credits-1': '8714fc3ecf42fe78',
-  'fixed:credits-2': '84dcea370ddb72de',
-  'fixed:credits-3': '4e00c5fd40e4d1c7',
+  editable: 'ad6202d1a12f2128',
+  artwork: 'b5bc48a27d892848',
+  'fixed:credits-1': '8f1822d160e325f3',
+  'fixed:credits-2': 'd8f64281cd683e66',
+  'fixed:credits-3': 'b938c8be793f80ea',
 };
 
 if (process.env.CREDITS_PRINT_STYLED) console.log(JSON.stringify({ styled: R.styled, fallbacks: R.fallbacks, issue1941: R.issue1941 }, (k, v) => (['doc', 'html', 'css', 'js', 'sourceMarkup', 'outer'].includes(k) ? undefined : v), 1));
@@ -1060,7 +1060,7 @@ test('#1955: the editable roll\'s list holder keeps its line breaks through the 
  *  when the title began rolling with the list: the roll's js gains creditsRiders, creditsTitle
  *  (the list's first line in the drawn title's look) and the parser its comma rule, html and css
  *  unchanged; e2e/svg-templates.spec.ts walks the roll. */
-const ROLE_ABOVE_PINS = { one: '865d537a67e87c70', bold: 'a72f34f51feebb32', grouped: '554150070a94bcb3', roleGroup: '9f1dbf27396a4edf', idGroup: 'e7a9758a65f75422' };
+const ROLE_ABOVE_PINS = { one: 'dbd0a68d84cc3f09', bold: '3f6ef5a64dafea25', grouped: 'b9c75fa75e533e7d', roleGroup: 'bf1e59a33eeea942', idGroup: '4f83b60d2bff85c3' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1074,7 +1074,7 @@ test('row 20: role-above styled credits build exactly as row 19 built them', () 
  *  Both re-taken for #2098 and the styled one for #2108 and #2104, as the pins above, and both
  *  for #1795 (the shared interpreter only), and both for the comma rule and the styled one for
  *  creditsRiders and creditsTitle, as the pins above. */
-const FACED_PINS = { styled: '0f5eba506976b520', editable: 'fdafc75a84d8ecd1' };
+const FACED_PINS = { styled: '98cef1399fe51b0c', editable: 'b28a6b1681125229' };
 
 test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
   for (const k of ['styled', 'editable']) {
