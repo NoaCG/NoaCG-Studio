@@ -670,11 +670,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
     ? { ver: own.ver, scenes: own.scenes, panel: own.panel }
     : inParts
       ? await smallPublishedRead(sb, show, library)
-      : await (async () => {
-          const previous = await sb.from('control_shows').select('ver:output->ver, scenes:output->scenes, panel').eq('id', show.id).maybeSingle();
-          if (previous.error) throw new Error(previous.error.message);
-          return previous.data as { ver?: unknown; scenes?: unknown; panel?: unknown } | null;
-        })();
+      : await readPublishedWhole(sb, show.id);
   const held = readPayloadVersion(prev?.ver);
   const heldPanel = readPanel(prev?.panel);
   const scenes = { before: readScenes(prev?.scenes) ?? [], after: built.scenes ?? [] };
@@ -1131,21 +1127,59 @@ interface ExpectedVersion {
 }
 
 /**
+ * Where the press reads the stored stamp and matches it (#2616): `published_ver`, the copy of
+ * `output->'ver'` the publication guard keeps on every write naming `output` (0118), so neither
+ * the read nor the write's filter decompresses the multi-megabyte payload to learn one number.
+ * Read and filter always use the same column, so a row on which the two disagree still publishes.
+ * An instance behind 0118 answers 42703 naming the column; this page then uses the payload's own
+ * stamp, as before, from then on.
+ */
+let stampColumn: 'published_ver' | 'output->ver' = 'published_ver';
+
+function behindPublicationGuard(error: { code?: string; message?: string } | null): boolean {
+  return !!error && error.code === '42703' && /published_ver/.test(error.message ?? '');
+}
+
+/** The stored stamp, OBS scenes and panel a whole publish starts from. Null: no row. The stamp
+ *  comes from `published_ver`; the scenes are still read from the payload, which opens it (#2616
+ *  leaves that read as it was: it is its own statement, not the write). */
+export async function readPublishedWhole(
+  sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
+  id: string,
+): Promise<{ ver?: unknown; scenes?: unknown; panel?: unknown } | null> {
+  const read = () => sb.from('control_shows').select(`ver:${stampColumn}, scenes:output->scenes, panel`).eq('id', id).maybeSingle();
+  let previous = await read();
+  if (stampColumn === 'published_ver' && behindPublicationGuard(previous.error)) {
+    stampColumn = 'output->ver';
+    previous = await read();
+  }
+  if (previous.error) throw new Error(previous.error.message);
+  return previous.data as { ver?: unknown; scenes?: unknown; panel?: unknown } | null;
+}
+
+/**
  * Write a published row by id, only over the version `expected` names: update it where it exists,
  * insert it where it does not. Answers the error that describes the failure, `'moved'` when the
  * row is no longer the version read (another publish landed first), or null. The columns are
  * exactly the ones given; `id` is the address and is never in the update's SET, so the row lock is
- * NO KEY UPDATE. The condition is a filter on the stamp inside the payload, so no migration.
+ * NO KEY UPDATE. The condition is a filter on the stored stamp (`stampColumn`).
  */
-async function writeControlShow(
+export async function writeControlShow(
   sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
   row: { id: string } & Record<string, unknown>,
   expected: ExpectedVersion,
 ): Promise<{ message: string; code?: string } | 'moved' | null> {
   const { id, ...columns } = row;
   if (expected.exists) {
-    const update = sb.from('control_shows').update(columns).eq('id', id);
-    const landed = await (expected.n === null ? update.is('output->ver', null) : update.eq('output->ver->>n', String(expected.n))).select('id');
+    const write = () => {
+      const update = sb.from('control_shows').update(columns).eq('id', id);
+      return (expected.n === null ? update.is(stampColumn, null) : update.eq(`${stampColumn}->>n`, String(expected.n))).select('id');
+    };
+    let landed = await write();
+    if (stampColumn === 'published_ver' && behindPublicationGuard(landed.error)) {
+      stampColumn = 'output->ver';
+      landed = await write();
+    }
     if (landed.error) return landed.error;
     return (landed.data ?? []).length > 0 ? null : 'moved';
   }

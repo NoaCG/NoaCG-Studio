@@ -10,6 +10,8 @@
 // to read it, instead of vanishing with the error.
 
 import { runBridge } from './commands/bridge.js';
+import { measure } from './playout/audio/analyse.js';
+import { audioTools } from './playout/audio/tools.js';
 import { EXIT_USAGE, Out, parseArgs } from './output.js';
 
 async function main(): Promise<number> {
@@ -18,9 +20,29 @@ async function main(): Promise<number> {
   if (args.flags.help === true) {
     out.say('NoaCG Bridge - lets the NoaCG page in your browser drive a playout server on your studio network.');
     out.say('Options: --port 8899  --origin <NoaCG URL>  --vmix-port 8099  --no-open  --quiet  --new-token');
+    out.say('         --measure <file> [--in <seconds>] [--out <seconds>]  the loudness of a file as it airs on a stereo programme');
     return 0;
   }
+  if (typeof args.flags.measure === 'string') return measureFile(args.flags.measure, args.flags.in, args.flags.out);
   return runBridge({ ...args, _: ['bridge', ...args._] }, out);
+}
+
+/**
+ * `--measure <file>`: the integrated loudness and true peak this Bridge reads, the same reading
+ * Normalize uses. For checking a recording of the programme in the studio.
+ */
+async function measureFile(file: string, from: unknown, to: unknown): Promise<number> {
+  const tools = await audioTools();
+  if (!tools) {
+    process.stderr.write('This Bridge carries no audio reader.\n');
+    return EXIT_USAGE;
+  }
+  const seconds = (v: unknown) => (typeof v === 'string' && Number.isFinite(Number(v)) ? Number(v) : undefined);
+  const r = await measure(tools, file, { trimIn: seconds(from), trimOut: seconds(to) });
+  if (r.kind === 'measured') process.stdout.write(`${r.integrated.toFixed(1)} LUFS integrated, ${r.truePeak.toFixed(1)} dBTP true peak, ${r.seconds.toFixed(2)} s (stereo programme)\n`);
+  else if (r.kind === 'no-audio') process.stdout.write('No sound in this file.\n');
+  else process.stdout.write(r.kind === 'silent' ? 'Silent: nothing above -70 LUFS.\n' : `Too short to measure: ${r.seconds.toFixed(2)} s (at least 0.4 s).\n`);
+  return 0;
 }
 
 main().then(

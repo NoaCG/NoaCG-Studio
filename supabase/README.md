@@ -24,6 +24,10 @@ supabase link --project-ref <your-ref>
 supabase db push        # applies migrations/ (schema + RLS + auth hook)
 ```
 
+**The published output compresses with lz4** (`0122_output_lz4.sql`). Supabase's Postgres is built
+with it. To restore a dump onto a Postgres built without lz4, take it with
+`pg_dump --no-toast-compression`.
+
 **On the hosted project these apply themselves.** A branch landing through the merge queue runs the
 push as soon as it reaches `origin/main`, so a migration is never left waiting for someone to
 remember it. The command behind that is `npm run db:push`, and it needs nobody's
