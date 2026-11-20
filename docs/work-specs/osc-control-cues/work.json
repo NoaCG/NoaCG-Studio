@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "75ef602e5af3a67f493368959577a65bf40b43d2cd1ffd844429b62ca6a3eb59",
+  "specSha256": "194e810c81554f47998d47e7ad6ee418cac6e3dd110fdd6b5d0fb17de6f3b2a4",
   "authority": {
     "status": "agreed",
     "source": "the owner's planning request of 2026-11-19, decisions of 2026-11-19 and 2026-11-20 (destinations per production, folders in V1, public destinations refused by default, true/false deferred, Send test in V1) and approval of the revised plan on 2026-11-20, after second opinions from Fable, Gemini and Astra"

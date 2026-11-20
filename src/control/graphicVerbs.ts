@@ -69,7 +69,7 @@ import { staleSentence } from './seqSend.ts';
 import { SHARED_NOT_MOVED, changedNote, namedOnce, offAirNote, unheldNote } from './liveControls.ts';
 import { typedReadOnly, typedSendRefusal, type TypedActionSend, type TypedSend, type TypedValues } from '../model/ografTyped.ts';
 import type { PressDone } from './panelActions';
-import { isControlCue, isGraphicCue, isServerCue, OSC_NOT_YET } from '../model/controlCue.ts';
+import { isControlCue, isGraphicCue, isServerCue } from '../model/controlCue.ts';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
  *  `uncertain`: the server did not answer, so it may still commit; `stale`: the server refused it
@@ -223,6 +223,9 @@ export interface GraphicPage {
   writeLive: (cueId: string, values: Record<string, string>) => void;
   /** A server cue's verb, its outcome said on the note line; true when it went. */
   playoutVerb: (cue: ShowCue, verb: ServerVerb, label: string, options?: { cut?: boolean }) => Promise<boolean>;
+  /** An OSC cue's one send through the paired Bridge (control/oscSend.ts), its outcome said on the
+   *  note line; true when it left. Never resent. */
+  controlSend: (cue: ShowCue, label: string) => Promise<boolean>;
   /** The folders' bookkeeping a Take of a cue does (control/folderPlayout.ts). */
   clearMisses: (ids: readonly string[]) => void;
   noteStep: (cue: ShowCue) => void;
@@ -775,10 +778,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const take = async (cue: ShowCue) => {
     const s = sender();
     const p = page();
-    // A control cue is never a graphic: until it can be sent (osc-control-cues phase 3) its Take is
-    // refused with the reason, and nothing goes to the command log.
+    // A control cue is never a graphic: it sends once through the Bridge and holds no air, and
+    // nothing of it goes to the command log (docs/work-specs/osc-control-cues/spec.md D1, D7).
     if (isControlCue(cue)) {
-      s.note(`Take was not sent: ${OSC_NOT_YET(cue.label)}`);
+      if (await p.controlSend(cue, 'Take')) p.noteStep(cue);
       return;
     }
     if (isServerCue(cue)) {

@@ -53,6 +53,7 @@ import {
   listVmixMedia,
   actVmixMedia,
   bridgePaired,
+  sendOsc,
   channelOf,
   vmixPairing,
   vmixMediaFolderRevision,
@@ -304,6 +305,7 @@ import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
 import { isControlCue, isGraphicCue, isServerCue } from '../../model/controlCue.ts';
+import { oscBlocker, oscNote, oscRequest, sendIds } from '../../control/oscSend';
 
 /** The draft's browser moments (control/cueDraft.ts): the page hidden or closing, or the account
  *  pausing, saves at once; the account asking for a save flushes. */
@@ -811,6 +813,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
    *  session, because effects that never restart (the log follower) keep the one they first saw. */
   const session = useMemo(() => createPlayoutSession(id), [id]);
   const sessionEnd = useRef<{ session: PlayoutSession; timer: ReturnType<typeof setTimeout> } | null>(null);
+  /** One send id per deliberate OSC press, unique to this page load (control/oscSend.ts). */
+  const [nextSendId] = useState(() => sendIds(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now())));
   const mountedSession = useRef<PlayoutSession | null>(null);
   useLayoutEffect(() => {
     mountedSession.current = session;
@@ -3260,6 +3264,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     itemOf: playoutItemFor,
     graphicOf: graphicOfCue,
     slots: PLAYOUT_SLOTS,
+    controlBlocker: (cue) => oscBlocker(cue, show?.oscDestinations, bridgePaired(playoutSettings)),
     selectionBlocker: (cue) => {
       const take = candidateTake(cue);
       if (take.status === 'refused') return take.reason;
@@ -3474,6 +3479,19 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     return vmix ? runVmixAndRecord(serverPlayout, io, intent, currentVmix, show.id) : runAndRecord(serverPlayout, io, intent);
   };
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
+  /** ONE OSC CUE'S SEND (docs/work-specs/osc-control-cues/spec.md D1, D7, D9): the cue as saved
+   *  now, through the paired Bridge, once. A press is one send id; nothing here resends. */
+  const controlSend = async (cue: ShowCue, label: string): Promise<boolean> => {
+    const now = cuesRef.current.find((c) => c.id === cue.id) ?? cue;
+    const built = oscRequest(now, latestShow.current?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id));
+    if (!built.ok) {
+      setNote(`${label} was not sent: ${built.reason}`);
+      return false;
+    }
+    const outcome = await sendOsc(loadPlayoutSettings(), built.request);
+    setNote(oscNote(now.label, built.destination.name, outcome));
+    return outcome.state === 'sent';
+  };
   const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
     // The graphic verb accepts All out before it gives its native cues the panic cut.
     const outcome = await serverVerb(cue, verb, label, options, verb === 'out' && options.cut === true);
@@ -3729,6 +3747,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       if (canAuthorAccount()) setShows(updateShowCue(id, cueId, { values }));
     },
     playoutVerb,
+    controlSend,
     clearMisses,
     noteStep,
     stopFolders: () => folderPlayout.stopAll('all-out', sceneFolderIds(show)),
@@ -4079,6 +4098,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         window.dispatchEvent(new CustomEvent('noacg-direct-cue'));
         const { cue, label, refused } = decision;
         if (refused) setNote(refused);
+        else if (isControlCue(cue)) void controlSend(cue, label);
         else if (isServerCue(cue)) void serverVerb(cue, 'take', label, { direct: true }).then((r) => r && setNote(r.note));
         else void takeGraphicCue(cue, label, true).then((r) => r && setNote(r.note));
         return;

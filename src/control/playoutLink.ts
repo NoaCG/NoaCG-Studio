@@ -53,6 +53,7 @@ import {
   type CasparSlot,
   type CasparTarget,
   type ListItem,
+  type OscRequestWire,
   type PlayoutAction,
   type RememberedServer,
   type ServerChannel,
@@ -1098,6 +1099,47 @@ export function act(settings: PlayoutSettings, action: PlayoutAction, canSend: (
 export async function act(settings: PlayoutSettings, action: PlayoutAction, canSend?: () => boolean, verify?: VerifyBeforeAct): Promise<PlayoutResult | null> {
   if (!canSend) return (await through(settings, '/act', { action })).result;
   return (await through(settings, '/act', () => canSend() ? { action } : null, 'act', verify))?.result ?? null;
+}
+
+/** How long the page waits for `/osc`. The Bridge itself sends within 500 ms or refuses unsent;
+ *  past this the page cannot know, and says so rather than guess. */
+export const OSC_TIMEOUT_MS = 2000;
+
+/** What one OSC send came to (docs/work-specs/osc-control-cues/spec.md D7, D9). `sent` means the
+ *  datagram left the Bridge's computer, never that a device acted on it; `uncertain` that the page
+ *  stopped waiting after the request may have reached the Bridge. Nothing here ever resends. */
+export type OscSendResult =
+  | { state: 'sent'; to: string; repeat: boolean }
+  | { state: 'refused' | 'uncertain' | 'no-bridge'; detail: string };
+
+/**
+ * ONE OSC MESSAGE THROUGH THE PAIRED BRIDGE. Needs a paired browser and nothing else: no playout
+ * server, no CasparCG, no vMix, so a browser-only production can fire a lighting desk. The Bridge
+ * must say it understands `osc` on `/health`; an older one is named as too old, and nothing is sent.
+ */
+export async function sendOsc(settings: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>, request: OscRequestWire): Promise<OscSendResult> {
+  if (!bridgePaired(settings)) return { state: 'no-bridge', detail: 'Connect NoaCG Bridge in Playout settings to send OSC cues.' };
+  const answered = noteSendStarted();
+  try {
+    const known = currentBridges.get(settings.agentUrl);
+    const probed = known ? { unreachable: null, features: known } : await probeBridge(settings.agentUrl);
+    if (probed.unreachable) return { state: 'no-bridge', detail: probed.unreachable.detail };
+    if (!probed.features.includes('osc')) return { state: 'no-bridge', detail: 'This NoaCG Bridge is too old to send OSC cues. Download the current NoaCG Bridge.' };
+    const call = await callBridge(settings.agentUrl, '/osc', { ...request }, OSC_TIMEOUT_MS, settings.agentToken);
+    if ('timedOut' in call) return { state: 'uncertain', detail: 'Send uncertain. Check the desk.' };
+    if ('networkError' in call) {
+      // Not reached at all: nothing went out. Ask /health why, in its words.
+      const now = await probeBridge(settings.agentUrl);
+      return { state: 'no-bridge', detail: now.unreachable?.detail ?? `NoaCG Bridge stopped answering: ${call.networkError}` };
+    }
+    if (call.http === 401) return { state: 'no-bridge', detail: 'NoaCG Bridge is running but rejected this token. Pair this browser again.' };
+    const body = call.body;
+    if (body.ok === true && body.sent && typeof body.sent.to === 'string') return { state: 'sent', to: body.sent.to, repeat: body.repeat === true };
+    const detail = body.error?.detail;
+    return { state: 'refused', detail: typeof detail === 'string' && detail ? detail : `NoaCG Bridge refused the OSC message (HTTP ${call.http}).` };
+  } finally {
+    answered();
+  }
 }
 
 /** Only an accepted All out can finish a native cut after the production closes. In that case
