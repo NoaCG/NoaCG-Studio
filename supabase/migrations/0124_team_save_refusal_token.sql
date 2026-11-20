@@ -242,8 +242,8 @@ grant execute on function public.team_production_changes(uuid, jsonb) to authent
 do $$
 declare
   v_owner uuid;
-  v_tp    uuid := '00000000-0121-4000-8000-000000000002';
-  v_team  uuid := '00000000-0121-4000-8000-000000000003';
+  v_tp    uuid := '00000000-0124-4000-8000-000000000002';
+  v_team  uuid := '00000000-0124-4000-8000-000000000003';
   v_doc0  jsonb := '{"name":"a","n":1,"cues":[{"id":"x","t":1},{"id":"y","t":2}],"gone":true}';
   v_doc1  jsonb := '{"name":"a","n":2,"cues":[{"id":"y","t":3},{"id":"z","t":4}]}';
   v_at    timestamptz;
@@ -257,17 +257,17 @@ begin
      or not has_function_privilege('authenticated', 'public.team_production_patch_v2(uuid, timestamptz, jsonb)', 'EXECUTE')
      or has_function_privilege('anon', 'public.team_production_changes(uuid, jsonb)', 'EXECUTE')
      or not has_function_privilege('authenticated', 'public.team_production_changes(uuid, jsonb)', 'EXECUTE') then
-    raise exception '0121: EXECUTE on a team save or read function is wrong for a client role';
+    raise exception '0124: EXECUTE on a team save or read function is wrong for a client role';
   end if;
 
   select id into v_owner from auth.users limit 1;
   if v_owner is null then
-    raise notice '0121 self-check skipped: no account on this instance';
+    raise notice '0124 self-check skipped: no account on this instance';
     return;
   end if;
   begin
     perform set_config('request.jwt.claims', json_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
-    insert into public.teams (id, name, owner_id) values (v_team, '0121 self-check', v_owner);
+    insert into public.teams (id, name, owner_id) values (v_team, '0124 self-check', v_owner);
     insert into public.team_members (team_id, user_id, display_name, role) values (v_team, v_owner, 'self-check', 'owner') on conflict do nothing;
     insert into public.team_productions (id, team_id, doc, updated_by) values (v_tp, v_team, v_doc0, v_owner);
     if public.is_suspended() then
@@ -277,24 +277,24 @@ begin
     -- A refusal: the token, author and revision, no document.
     v_got := public.team_production_save_v2(v_tp, v_at - interval '1 second', v_doc1);
     if v_got->>'saved' is distinct from 'false' or v_got ? 'doc' or (v_got->>'updated_at')::timestamptz <> v_at or v_got->'rev' is null then
-      raise exception '0121: a refused save answered %', v_got;
+      raise exception '0124: a refused save answered %', v_got;
     end if;
     v_got := public.team_production_patch_v2(v_tp, v_at - interval '1 second', '[]');
     if v_got->>'saved' is distinct from 'false' or v_got ? 'doc' then
-      raise exception '0121: a refused patch answered %', v_got;
+      raise exception '0124: a refused patch answered %', v_got;
     end if;
     -- A read with no map: every member, and they rebuild the stored document.
     v_got := public.team_production_changes(v_tp, null);
     v_ops := v_got->'ops';
     if jsonb_array_length(v_ops) <> 4 or public.unit_patch_apply('{}', v_ops) <> v_doc0
        or (v_got->>'updated_at')::timestamptz <> v_at then
-      raise exception '0121: a read with no map answered %', v_got;
+      raise exception '0124: a read with no map answered %', v_got;
     end if;
     select jsonb_object_agg(o->>'m', o->'u') into v_map from jsonb_array_elements(v_ops) o;
     -- A landed save, then a read with that map: only what changed, and it rebuilds the new document.
     v_got := public.team_production_save_v2(v_tp, v_at, v_doc1);
     if v_got->>'saved' is distinct from 'true' then
-      raise exception '0121: a save on its token answered %', v_got;
+      raise exception '0124: a save on its token answered %', v_got;
     end if;
     v_got := public.team_production_changes(v_tp, jsonb_build_object('f', 's1', 'm', v_map));
     v_ops := v_got->'ops';
@@ -303,11 +303,11 @@ begin
                and v_ops @> '[{"m":"cues","by":"id","put":[{"v":{"id":"y","t":3}},{"v":{"id":"z","t":4}}],"del":["x"],"order":["y","z"],"len":2}]')
        or jsonb_array_length((select o->'put' from jsonb_array_elements(v_ops) o where o->>'m' = 'cues')) <> 2
        or public.unit_patch_apply(v_doc0, v_ops) <> v_doc1 then
-      raise exception '0121: a read with a map answered %', v_got;
+      raise exception '0124: a read with a map answered %', v_got;
     end if;
     -- A map of another kind reads as empty.
     if jsonb_array_length(public.team_production_changes(v_tp, jsonb_build_object('f', 1, 'm', v_map))->'ops') <> 3 then
-      raise exception '0121: a map of another kind was used';
+      raise exception '0124: a map of another kind was used';
     end if;
     raise exception 'self-check-done';
   exception when raise_exception then

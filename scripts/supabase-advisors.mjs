@@ -187,7 +187,7 @@ const ACCEPTED_CLASSES = {
     'image is stored under the name the server computes, and the missing check answers only about ' +
     'images the caller\'s own productions name. The output-slug reads above are reached by a ' +
     'signed-in output too. ' +
-    '#2615 (0121): team_production_save_v2 and team_production_patch_v2 are those two saves with the same ' +
+    '#2615 (0124): team_production_save_v2 and team_production_patch_v2 are those two saves with the same ' +
     'checks and the same compare-and-swap, answering a refusal with its token alone.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +

@@ -40,7 +40,7 @@ async function teamBackend(page: Page, server = false) {
     if (url.pathname === '/rest/v1/teams') return respond([{ id: team, name: 'History team', join_code: 'testcode', owner_id: owner, created_at: state.token }]);
     if (url.pathname === '/rest/v1/team_members') return respond([{ team_id: team, user_id: owner, display_name: 'Operator', role: 'owner', joined_at: state.token }]);
     if (url.pathname === '/rest/v1/team_productions') return respond(state.doc ? [{ id: state.doc.id, team_id: team, updated_at: state.token, updated_by: owner, doc: state.doc }] : []);
-    // The page saves with 0121's v2 function (#2615); this mock answers it as the old one, refusals with
+    // The page saves with 0124's v2 function (#2615); this mock answers it as the old one, refusals with
     // their document, which the page still takes as it is.
     url.pathname = url.pathname.replace(/\/rpc\/team_production_save_v2$/, '/rpc/team_production_save');
     if (url.pathname === '/rest/v1/rpc/team_production_save') {

@@ -26,7 +26,7 @@
 // covers: src/backend/savedRevision.ts, src/control/autoPublish.ts, src/components/home/useAutoPublish.ts
 // covers: src/control/publishParts.ts, src/control/publishRevision.ts, src/control/messageStaging.ts
 // A REFUSED SAVE READS ONLY WHAT CHANGED (#2615, live-publishing evidence/fix-2615.md): the describe at the end.
-// covers: supabase/migrations/0121_team_save_refusal_token.sql, src/backend/unitPatch.ts
+// covers: supabase/migrations/0124_team_save_refusal_token.sql, src/backend/unitPatch.ts
 
 import { publishProduction } from '../_publish';
 import { closeScene, isLocalStack, lastTexts, openScene, pageCues, run, serverState, type Scene } from './_five';
@@ -1019,7 +1019,7 @@ test.describe('five accounts at once', () => {
 });
 
 // A REFUSED SAVE READS ONLY WHAT CHANGED (#2615, docs/work-specs/live-publishing/evidence/fix-2615.md).
-// The real functions of 0121 on the stack, two accounts writing random edits over compare-and-swap,
+// The real functions of 0124 on the stack, two accounts writing random edits over compare-and-swap,
 // and a reader holding older versions. The oracle is G4's own `diff` (src/backend/unitPatch.ts), not
 // a copy of the read: each answer, applied to the kept version, is the stored record, and names
 // exactly the members and elements `diff` finds changed between the two versions.
