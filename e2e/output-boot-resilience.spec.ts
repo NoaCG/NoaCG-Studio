@@ -10,7 +10,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
-// covers: output.html, src/model/regexMatches.ts, src/model/editorOrganization.ts
+// covers: src/model/regexMatches.ts, src/model/editorOrganization.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 
