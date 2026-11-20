@@ -15,6 +15,13 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## Unreleased
+
+Bridge can now read sound files itself. It carries a small audio reader (an audio-only build of
+the free FFmpeg program, under its LGPL licence, whose source is published with each release).
+To check a recording's loudness, run the exe with `--measure <file>`: it prints the integrated
+loudness in LUFS and the true peak in dBTP as a stereo programme carries them.
+
 ## 0.12.0 - 2026-11-14
 
 You can now take clips, stills and audio from the NoaCG rundown into vMix. In **Settings >

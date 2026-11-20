@@ -1,0 +1,40 @@
+name: Build the Bridge's audio-only ffmpeg
+description: >
+  Restore or build the LGPL, audio-only ffmpeg and ffprobe that NoaCG Bridge reads sound files
+  with (cli/ffmpeg/build.sh), and export NOACG_FFMPEG_DIR pointing at them.
+
+# One recipe for every target. The Linux build is what the CLI tests measure with, so they test
+# the configuration the Windows exe ships; the win64 build (cross-compiled with mingw-w64 on an
+# Ubuntu runner) is what the release embeds. Each build takes about half a minute and is cached
+# on the recipe's own hash, so a change to the recipe rebuilds it and nothing else does.
+
+inputs:
+  target:
+    description: linux or win64
+    default: linux
+outputs:
+  dir:
+    description: The folder holding ffmpeg, ffprobe, the licence, BUILD.txt and the source archive.
+    value: ${{ steps.dir.outputs.dir }}
+
+runs:
+  using: composite
+  steps:
+    - id: dir
+      shell: bash
+      run: |
+        echo "dir=$RUNNER_TEMP/noacg-ffmpeg-out-${{ inputs.target }}" >> "$GITHUB_OUTPUT"
+    - id: cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.dir.outputs.dir }}
+        key: noacg-ffmpeg-${{ inputs.target }}-${{ runner.os }}-${{ hashFiles('cli/ffmpeg/build.sh') }}
+    - if: ${{ steps.cache.outputs.cache-hit != 'true' && inputs.target == 'win64' }}
+      shell: bash
+      run: |
+        timeout 300 sudo apt-get install -y -qq mingw-w64 >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq mingw-w64 >/dev/null; }
+    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: cli/ffmpeg/build.sh "${{ inputs.target }}" "${{ steps.dir.outputs.dir }}"
+    - shell: bash
+      run: echo "NOACG_FFMPEG_DIR=${{ steps.dir.outputs.dir }}" >> "$GITHUB_ENV"
