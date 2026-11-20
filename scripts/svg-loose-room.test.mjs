@@ -274,3 +274,13 @@ test('nested artboard: a line inside a nested <svg> has the room its viewport sh
   assert.equal(got.rows[0].f0.size, 48, `a longer name keeps its size inside the 1400-wide viewport (room ${got.room.toFixed(1)})`);
   assert.ok(got.rows[0].f0.right <= 1500 + 0.5, 'and stays inside that viewport');
 });
+
+test('own clip: a clip set on the text itself bounds its room', async () => {
+  const got = await fitOn({
+    w: 1920, h: 1080, id: 'f0', values: [LONG],
+    body: `<defs><clipPath id="cut"><rect x="100" y="850" width="600" height="80"/></clipPath></defs>
+      <text id="f0" x="120" y="900" font-size="48" clip-path="url(#cut)">Anna Virtanen</text>`,
+  });
+  assert.ok(got.rows[0].f0.right <= 700 + 0.5 || got.rows[0].f0.over, `the name stays inside its own clip, or is reported (right ${got.rows[0].f0.right.toFixed(1)})`);
+  assert.ok(got.room <= 600, `room ${got.room.toFixed(1)} stays inside the 600-unit clip`);
+});

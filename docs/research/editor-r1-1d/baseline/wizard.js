@@ -1524,7 +1524,8 @@ function svgFrameOf(el) {
   var root = svgArtRoot(art);
   var f = root ? root.getBoundingClientRect() : el.getBoundingClientRect();
   var out = { left: f.left, right: f.right, top: f.top, bottom: f.bottom };
-  for (var a = el.parentNode; a && a !== root && a.nodeType === 1; a = a.parentNode) {
+  // From the line ITSELF up: a clip set on the text is as much a frame as one on its group.
+  for (var a = el; a && a !== root && a.nodeType === 1; a = a.parentNode) {
     if (a.tagName.toLowerCase() === 'svg') {
       var vp = svgViewportRect(a);
       if (vp) svgCut(out, vp);
