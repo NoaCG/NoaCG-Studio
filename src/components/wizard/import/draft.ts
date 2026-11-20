@@ -48,6 +48,8 @@ import { freeName } from '../../../model/poolIdentity';
 import type { LibraryIo, MadeGraphic, WalkMemory } from '../shell/walkState';
 import { PREFIX } from '../../../templates/importedDesign/shared';
 import { artOf, carryKeys, carryTitles, matchReimport, parseHtml, renameFields, runsOldCountdown, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
+import { withLayoutLines } from '../../../templates/importedDesign/svg';
+import { readLayoutLines } from '../../../templates/importedDesign/svgLayout';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -2327,6 +2329,16 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
     template = { ...template, js: spliceAnimData(template.js, keys.data) ?? template.js };
   } else if (priorData && firstData && canonical(priorData) !== canonical(firstData)) {
     unresolved.push({ kind: 'key', label: 'animation' });
+  }
+  // WHAT THE READER SET ON EACH LINE comes across with it (review of 2026-11-20): a matched
+  // field keeps its wrap, its alignment and its nudge, as it keeps its title, unless the new walk
+  // said something of its own. A table the build cannot take is named rather than lost.
+  const said = readLayoutLines(prior.template.js).filter((l) => match.matched.has(l.el));
+  if (said.length) {
+    const titleOf = (el: string) => template.fields.find((f) => f.field === el)?.title || el;
+    const js = withLayoutLines(template.js, said, titleOf);
+    if (js) template = { ...template, js };
+    else unresolved.push(...said.map((l) => ({ kind: 'key' as const, label: titleOf(l.el) })));
   }
   template = carryTitles(template, prior.template, prior.baseline, match.matched);
   // A key is named by what the reader knows it as: the field's title, else the designer's

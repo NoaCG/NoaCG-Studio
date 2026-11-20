@@ -370,45 +370,71 @@ function svgFitContainer(el) {
   var trim = svgEmTrim(el);
   var top = box.top + trim;
   var bottom = box.bottom - trim;
-  // A FRAME-SIZED SHAPE IS ASKED LAST (review of 2026-11-20). An exporter's unfilled artboard
-  // rectangle, or a full-bleed backplate, holds every line outright, so asked first it won over
-  // the bar a tall name sits on and the name ran off the frame. It is still the answer for a
-  // line on nothing else.
-  var frameArea = svgFrameArea(art);
   var shapes = art.querySelectorAll('rect, path, polygon, ellipse, circle');
   var best = null;
   var bestArea = 0;
-  var big = null;
-  var bigArea = 0;
   for (var i = 0; i < shapes.length; i++) {
     var r = shapes[i].getBoundingClientRect();
     // Contains the line, and is genuinely bigger than it - a highlight rule under a word is
     // not the panel the word sits in.
     if (r.left > box.left + 1 || r.right < box.right - 1) continue;
     if (r.top > top + 1 || r.bottom < bottom - 1) continue;
-    var area = r.width * r.height;
-    if (area <= box.width * box.height) continue;
-    if (frameArea > 0 && area >= frameArea * __SVG_BACKPLATE_SHARE__) {
-      if (!big || area < bigArea) { big = shapes[i]; bigArea = area; }
-      continue;
-    }
-    if (!best || area < bestArea) { best = shapes[i]; bestArea = area; }
+    if (r.width * r.height <= box.width * box.height) continue;
+    if (!best || r.width * r.height < bestArea) { best = shapes[i]; bestArea = r.width * r.height; }
   }
+  return best;
+}
+
+/** How far, in screen px, a line's box overhangs its EM box at each of its top and bottom: half
+ *  of what the font's ascent plus descent adds to the type size. Zero where it cannot be read. */
+function svgEmTrim(el) {
+  // The size of the run holding the first character, which is the one the cell is read off: an
+  // exporter often sizes the inner tspan and leaves the text at the default.
+  var run = el;
+  while (run.firstElementChild) run = run.firstElementChild;
+  var size = parseFloat(getComputedStyle(run).fontSize) || 0;
+  var cell = el.getNumberOfChars && el.getNumberOfChars() > 0 ? el.getExtentOfChar(0).height : 0;
+  var ctm = el.getScreenCTM ? el.getScreenCTM() : null;
+  var scale = ctm ? Math.sqrt(ctm.a * ctm.a + ctm.b * ctm.b) : 1;
+  return Math.max(0, (cell - size) / 2) * (scale || 1);
+}
+
+/** A FIGURE: a value of digits and the marks a score or a clock carries, and no letters. */
+function svgIsFigure(value) {
+  var s = String(value == null ? '' : value);
+  return /[0-9]/.test(s) && !/[^0-9\s:.,'+%\u2212\u2013-]/.test(s);
+}
+
+/**
+ * THE PANEL A LINE IS MEASURED IN - the search every caller asks.
+ *
+ * A shape that HOLDS the line outright first, then the shape it SITS ON, and a FRAME-SIZED shape
+ * last (review of 2026-11-20): an exporter's unfilled artboard rectangle, or a full-bleed
+ * backplate, holds every line there is, so asked first it beat the bar a tall name sits on and
+ * the name ran off the frame. A line drawn a touch taller than its bar, or a few units left of
+ * it, sits on it (owner, 2026-11-20: "we can't be so pedantic that we couldn't give the basic
+ * functionality"); before, it found no panel, its room fell to its own drawn width, and the first
+ * extra letter shrank it. `svgFitContainer` above is the outright-hold search, word for word as
+ * a graphic saved since #2355 carries it (assets/svgFitUpgrade.ts pins it), and this is asked
+ * around it.
+ */
+function svgFitPanel(el) {
+  var art = document.querySelector('.__PREFIX__-art');
+  if (!art) return null;
+  var frameArea = svgFrameArea(art);
+  var held = svgFitContainer(el);
   svgFitLoose[el.id] = false;
-  if (best) return best;
-  // A LINE THAT IS NOT QUITE INSIDE ITS BAR STILL SITS ON IT (owner, 2026-11-20: "we can't be so
-  // pedantic that we couldn't give the basic functionality"). A student's lower third routinely
-  // draws the name a touch taller than its bar, or starts it a few units left of the bar's edge,
-  // and the strict test above then found no panel at all: the room fell to the line's own drawn
-  // width, so the first extra letter shrank the name while most of the bar stood empty. Asked
-  // only where nothing holds the line outright, so every design that already had a panel keeps
-  // it. The test is the mapping step's own (`lineSitsIn`, wizard/import/stageMeasure.ts).
-  var loose = svgSitsOnOf(box, art.querySelectorAll('rect, path, polygon'), frameArea);
+  if (held) {
+    var hr = held.getBoundingClientRect();
+    // The smallest outright holder: frame-sized only where nothing smaller holds the line.
+    if (!(frameArea > 0 && hr.width * hr.height >= frameArea * __SVG_BACKPLATE_SHARE__)) return held;
+  }
+  var loose = svgSitsOnOf(el.getBoundingClientRect(), art.querySelectorAll('rect, path, polygon'), frameArea);
   if (loose) {
     svgFitLoose[el.id] = true;
     return loose;
   }
-  return big;
+  return held;
 }
 
 /** Lines whose panel was found by the loose test - drawn hanging over their bar's edge. Their
@@ -601,25 +627,6 @@ function svgUnderOf(el, box) {
   return o ? svgPaintBox(o) : null;
 }
 
-/** How far, in screen px, a line's box overhangs its EM box at each of its top and bottom: half
- *  of what the font's ascent plus descent adds to the type size. Zero where it cannot be read. */
-function svgEmTrim(el) {
-  // The size of the run holding the first character, which is the one the cell is read off: an
-  // exporter often sizes the inner tspan and leaves the text at the default.
-  var run = el;
-  while (run.firstElementChild) run = run.firstElementChild;
-  var size = parseFloat(getComputedStyle(run).fontSize) || 0;
-  var cell = el.getNumberOfChars && el.getNumberOfChars() > 0 ? el.getExtentOfChar(0).height : 0;
-  var ctm = el.getScreenCTM ? el.getScreenCTM() : null;
-  var scale = ctm ? Math.sqrt(ctm.a * ctm.a + ctm.b * ctm.b) : 1;
-  return Math.max(0, (cell - size) / 2) * (scale || 1);
-}
-
-/** A FIGURE: a value of digits and the marks a score or a clock carries, and no letters. */
-function svgIsFigure(value) {
-  var s = String(value == null ? '' : value);
-  return /[0-9]/.test(s) && !/[^0-9\s:.,'+%\u2212\u2013-]/.test(s);
-}
 
 /** THE PANEL, IN THE LINE'S OWN COORDINATE SYSTEM.
  *
@@ -1181,7 +1188,7 @@ function measureSvgRoom() {
     // error of a percent or two straight into the ROOM - and a grown banner then missed the
     // margin it was mirroring by a pixel or so (measured 2026-08-26: 51.4px against a drawn 50).
     var scale = 1 / svgFrameScale(el);
-    var panelEl = svgFitContainer(el);
+    var panelEl = svgFitPanel(el);
     var panel = panelEl ? panelEl.getBoundingClientRect() : null;
     var align = svgAlignOf(el, panelEl);
     // "height" is the room the BLOCK has, measured from this line's own top - not a line
@@ -1917,7 +1924,7 @@ function svgRereadAlign() {
     var s = swaps[j];
     if (!svgFitLaidOut(s.copy)) continue;
     delete svgFitAlign[s.el.id];
-    svgAlignOf(s.copy, svgFitContainer(s.copy));
+    svgAlignOf(s.copy, svgFitPanel(s.copy));
   }
   for (var k = 0; k < swaps.length; k++) {
     var line = swaps[k].el;

@@ -54,7 +54,7 @@ import { escapeHtml, PREFIX } from './shared';
 import { bindSvgMarkup, candidateLabel } from './svgBind';
 import { svgFontCss } from './svgFonts';
 import { hasQrLayer, QR_CSS, QR_HOOK, qrField, qrHolderHtml, qrRuntimeJs } from './svgQr';
-import { LAYOUT_EL_ATTR, PANEL_SAFE, layoutDataJs, layoutRules, saidLines } from './svgLayout';
+import { LAYOUT_EL_ATTR, PANEL_SAFE, layoutDataJs, layoutLineJs, layoutRules, layoutTableJs, readLayoutLines, saidLines, type LayoutLine } from './svgLayout';
 import svgFitSource from './runtime/svgFit.js?raw';
 import svgFitBootSource from './runtime/svgFitBoot.js?raw';
 import svgGrowthSource from './runtime/svgGrowth.js?raw';
@@ -191,6 +191,33 @@ const SHAPE_SHIFT_JS = `\n${fillRuntime(svgShapeShiftSource, {})}`;
 // The runtime is `runtime/svgGrowth.js`. The string always began with a line break and never
 // ended with one; the file ends with one, as a file does, so it comes off here.
 const SVG_GROWTH_JS = `\n${fillRuntime(svgGrowthSource, { PREFIX, LAYOUT_EL_ATTR }).replace(/\n$/, '')}`;
+
+/**
+ * A BUILT IMPORT WITH SAID LINES ADDED to its layout table - what a reimport carries across onto
+ * the fields it matched (`svgReimported`): the wrap, alignment and nudge a reader set on the
+ * earlier graphic stay set when the artwork changes underneath them, as their titles do. A line
+ * the build already says something about keeps the build's answer. A build with no table gets
+ * one, right after the fit runtime, which is where the build puts it; null where the build's
+ * text is not this module's and the table cannot be placed.
+ */
+export function withLayoutLines(js: string, add: LayoutLine[], titleOf: (el: string) => string): string | null {
+  const have = readLayoutLines(js);
+  const fresh = add.filter((l) => !have.some((h) => h.el === l.el));
+  if (fresh.length === 0) return js;
+  const said = [...have, ...fresh].map((l) => layoutLineJs(l, titleOf(l.el)));
+  const table = /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(js);
+  if (table) {
+    const body = table[0].replace(/,\n {2}\/\/ Which edge each of these lines[\s\S]*?\n {2}lines: \[[\s\S]*?\n {2}\]/, '');
+    const rows = /\n {2}rules: \[\n([\s\S]*?)\n {2}\]/.exec(body)?.[1];
+    if (rows === undefined) return null;
+    const rebuilt = /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(layoutTableJs(rows ? [rows] : [], said))![0];
+    return js.replace(table[0], rebuilt);
+  }
+  const at = js.indexOf(SVG_FIT_JS);
+  if (at === -1) return null;
+  const end = at + SVG_FIT_JS.length;
+  return `${js.slice(0, end)}\n${layoutTableJs([], said)}${js.slice(end)}`;
+}
 
 /** The shared update()'s optional placed-text hook line (templates/shared/base.ts runtimeJs).
  *  An imported SVG REPLACES it with its own: its ladder (runtime/svgFit.js) fits the placed

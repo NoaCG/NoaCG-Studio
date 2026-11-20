@@ -369,7 +369,7 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
     const align = w.svgFitAlign[el.id];
     const room = w.svgFitRoom[el.id];
     if (!align || !room) { runtimeSide[el.id] = { measured: false }; continue; }
-    const panel = w.svgFitContainer(el);
+    const panel = w.svgFitPanel(el);
     const local = panel ? w.svgLocalBox(panel, el) : null;
     containers[el.id] = panel;
     restLocal[el.id] = local;
@@ -418,18 +418,23 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
   // not a plate as big as the box. A part of another bound line stands for that line, since a value
   // written into it replaces its parts. Kept as the element, so its edge is read where it stands
   // after a panel has grown (an end cap travels with the edge it hugs).
+  // A line with NO box is penned the same way, searched across the artwork's own frame (review
+  // of 2026-11-20: two unboxed lines grew into each other and this rung never looked), and on BOTH
+  // sides where it grows both ways or leftwards - read off the anchor the runtime grows it from.
   const lineOfPart = (o) => nodes.find((n) => n === o || n.contains(o)) || o;
+  const frameEl = art.tagName.toLowerCase() === 'svg' ? art : art.querySelector('svg');
+  const growsFrom = (el) => w.svgFitRoom[el.id]?.anchorWord || w.svgFitAlign[el.id]?.h;
   for (const el of drawnNodes) {
     const panel = containers[el.id];
-    if (!panel || !w.svgFitLaidOut(el)) continue;
-    const p = rect(panel);
+    if (!w.svgFitLaidOut(el) || (!panel && !frameEl)) continue;
+    const p = rect(panel || frameEl);
     const me = rect(el);
     if (!(me.width > 0)) continue;
     let pen = null;
     let penLeft = Infinity;
     let before = null;
     let beforeRight = -Infinity;
-    const leftward = w.svgFitAlign[el.id]?.h === 'end';
+    const leftward = panel ? w.svgFitAlign[el.id]?.h === 'end' : growsFrom(el) !== 'start';
     for (const o of art.querySelectorAll(`text, tspan, image, ${SHAPES}`)) {
       if (o === panel || o === el || o.contains(el) || el.contains(o)) continue;
       const r = rect(o);
@@ -512,7 +517,7 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
     const pen = pens[el.id];
     const drawn = restRects[el.id];
     if (!pen || !drawn) return false;
-    const h = w.svgFitAlign[el.id]?.h;
+    const h = growsFrom(el);
     const left = h === 'end' ? drawn.right - width : h === 'middle' ? (drawn.left + drawn.right) / 2 - width / 2 : drawn.left;
     const right = left + width;
     return (!!pen.right && right > rect(pen.right).left + 1) || (!!pen.left && left < rect(pen.left).right - 1);

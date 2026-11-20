@@ -577,7 +577,8 @@ function noacgAnchorBox(rule, rowKey) {
     var vb = art.viewBox && art.viewBox.baseVal;
     return vb && vb.width > 0 ? { x: vb.x, y: vb.y, width: vb.width, height: vb.height, whole: true } : null;
   }
-  var panel = typeof svgFitContainer === 'function' ? svgFitContainer(anchor) : null;
+  // The fit's own panel search (svgFitPanel), else the one an older graphic carries.
+  var panel = typeof svgFitPanel === 'function' ? svgFitPanel(anchor) : typeof svgFitContainer === 'function' ? svgFitContainer(anchor) : null;
   var box = panel ? noacgArtBox(panel) : null;
   if (!box) {
     var text = noacgArtBox(anchor);

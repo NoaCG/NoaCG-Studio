@@ -2845,7 +2845,7 @@
     },
     "fillGap": null
    },
-   "bind": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1920\" height=\"1080\" viewBox=\"0 0 1920 1080\" fill=\"none\" class=\"imported-design-art\">\n<g clip-path=\"url(#clip0_77_310)\">\n<rect width=\"1920\" height=\"1080\" fill=\"#0D1017\"/>\n<g id=\"Card\">\n<rect id=\"Plate\" x=\"360\" y=\"380\" width=\"1200\" height=\"320\" fill=\"#12161F\"/>\n<text id=\"f0\" fill=\"#F6A623\" font-family=\"Inter\" font-size=\"24\" font-weight=\"500\" letter-spacing=\"0.24em\" text-anchor=\"middle\" class=\"noacg-s0\" x=\"960\" y=\"468.409\"><tspan x=\"960\" y=\"468.409\">A STUDENT DOCUMENTARY</tspan></text>\n<text id=\"f1\" fill=\"white\" font-family=\"Archivo\" font-size=\"92\" font-weight=\"bold\" letter-spacing=\"-0.01em\" text-anchor=\"middle\" class=\"noacg-s0\" x=\"960\" y=\"570.818\"><tspan x=\"960\" y=\"570.818\">The Long Winter</tspan></text>\n<rect id=\"Rule\" x=\"860\" y=\"606\" width=\"200\" height=\"2\" fill=\"#2A2F3A\"/>\n<text id=\"f2\" fill=\"#B7BCC4\" font-family=\"Inter\" font-size=\"26\" font-weight=\"500\" text-anchor=\"middle\" class=\"noacg-s0\" x=\"960\" y=\"663.955\"><tspan x=\"960\" y=\"663.955\">Directed by Aino Virtanen</tspan></text>\n</g>\n</g>\n<defs>\n<clipPath id=\"clip0_77_310\">\n<rect width=\"1920\" height=\"1080\" fill=\"white\"/>\n</clipPath>\n</defs>\n<style>\n/* Styles this file wrote inline, moved onto classes so a reset cannot\n   clear them. Same declarations, same order, same look. */\n.noacg-s0{white-space: pre;}\n</style></svg>",
+   "bind": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1920\" height=\"1080\" viewBox=\"0 0 1920 1080\" fill=\"none\" class=\"imported-design-art\">\n<g clip-path=\"url(#clip0_77_310)\">\n<rect width=\"1920\" height=\"1080\" fill=\"#0D1017\"/>\n<g id=\"Card\">\n<rect id=\"Plate\" x=\"360\" y=\"380\" width=\"1200\" height=\"320\" fill=\"#12161F\" data-noacg-el=\"g0 g1\"/>\n<text id=\"f0\" fill=\"#F6A623\" font-family=\"Inter\" font-size=\"24\" font-weight=\"500\" letter-spacing=\"0.24em\" text-anchor=\"middle\" class=\"noacg-s0\" x=\"960\" y=\"468.409\"><tspan x=\"960\" y=\"468.409\">A STUDENT DOCUMENTARY</tspan></text>\n<text id=\"f1\" fill=\"white\" font-family=\"Archivo\" font-size=\"92\" font-weight=\"bold\" letter-spacing=\"-0.01em\" text-anchor=\"middle\" class=\"noacg-s0\" x=\"960\" y=\"570.818\"><tspan x=\"960\" y=\"570.818\">The Long Winter</tspan></text>\n<rect id=\"Rule\" x=\"860\" y=\"606\" width=\"200\" height=\"2\" fill=\"#2A2F3A\"/>\n<text id=\"f2\" fill=\"#B7BCC4\" font-family=\"Inter\" font-size=\"26\" font-weight=\"500\" text-anchor=\"middle\" class=\"noacg-s0\" x=\"960\" y=\"663.955\"><tspan x=\"960\" y=\"663.955\">Directed by Aino Virtanen</tspan></text>\n</g>\n</g>\n<defs>\n<clipPath id=\"clip0_77_310\">\n<rect width=\"1920\" height=\"1080\" fill=\"white\"/>\n</clipPath>\n</defs>\n<style>\n/* Styles this file wrote inline, moved onto classes so a reset cannot\n   clear them. Same declarations, same order, same look. */\n.noacg-s0{white-space: pre;}\n</style></svg>",
    "layout": {
     "version": 1,
     "rules": [
@@ -2889,7 +2889,7 @@
     "@font-face {\n  font-family: \"Archivo\";\n  src: url(\"fonts/archivo-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 400 900;  /* variable font: covers this weight range */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}"
    ],
    "emit": {
-    "html": "f6201b6d40225e3b496ee261b4ac0bf23398292d05171801427af1c4531def17",
+    "html": "5d1fadccc67e3f7f45943d9b8e2e73bb70ca6efdbb9af9c48f2ad05eaabe9c18",
     "css": "2f894768bbeba40da52b033dc01c3e4752d4b807e2a7db6ceafab0b8ff93d8a4",
     "js": "3b814eb25246c34ef8f7866486bffb4d74ba6d83eed32c3560ab67f111a88f2b"
    },
@@ -5370,7 +5370,7 @@
     },
     "fillGap": null
    },
-   "bind": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1920\" height=\"1080\" viewBox=\"0 0 1920 1080\" fill=\"none\" class=\"imported-design-art\">\n<g clip-path=\"url(#clip0_84_112)\">\n<rect width=\"1920\" height=\"1080\" fill=\"#0D1017\"/>\n<g id=\"Endboard\">\n<rect id=\"Plate\" x=\"200\" y=\"380\" width=\"1520\" height=\"320\" fill=\"#12161F\"/>\n<text id=\"f0\" fill=\"white\" font-family=\"Archivo\" font-size=\"72\" font-weight=\"bold\" letter-spacing=\"-0.01em\" text-anchor=\"middle\" class=\"noacg-s0\" x=\"700\" y=\"525.6\"><tspan x=\"700\" y=\"525.6\">Kiitos katsomisesta</tspan></text>\n<text id=\"f1\" fill=\"#B7BCC4\" font-family=\"Inter\" font-size=\"28\" font-weight=\"500\" text-anchor=\"middle\" class=\"noacg-s0\" x=\"700\" y=\"608.8\"><tspan x=\"700\" y=\"608.8\">Nähdään ensi viikolla</tspan></text>\n</g>\n</g>\n<defs>\n<clipPath id=\"clip0_84_112\">\n<rect width=\"1920\" height=\"1080\" fill=\"white\"/>\n</clipPath>\n</defs>\n<style>\n/* Styles this file wrote inline, moved onto classes so a reset cannot\n   clear them. Same declarations, same order, same look. */\n.noacg-s0{white-space: pre;}\n</style></svg>",
+   "bind": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1920\" height=\"1080\" viewBox=\"0 0 1920 1080\" fill=\"none\" class=\"imported-design-art\">\n<g clip-path=\"url(#clip0_84_112)\">\n<rect width=\"1920\" height=\"1080\" fill=\"#0D1017\"/>\n<g id=\"Endboard\">\n<rect id=\"Plate\" x=\"200\" y=\"380\" width=\"1520\" height=\"320\" fill=\"#12161F\" data-noacg-el=\"g0 g1\"/>\n<text id=\"f0\" fill=\"white\" font-family=\"Archivo\" font-size=\"72\" font-weight=\"bold\" letter-spacing=\"-0.01em\" text-anchor=\"middle\" class=\"noacg-s0\" x=\"700\" y=\"525.6\"><tspan x=\"700\" y=\"525.6\">Kiitos katsomisesta</tspan></text>\n<text id=\"f1\" fill=\"#B7BCC4\" font-family=\"Inter\" font-size=\"28\" font-weight=\"500\" text-anchor=\"middle\" class=\"noacg-s0\" x=\"700\" y=\"608.8\"><tspan x=\"700\" y=\"608.8\">Nähdään ensi viikolla</tspan></text>\n</g>\n</g>\n<defs>\n<clipPath id=\"clip0_84_112\">\n<rect width=\"1920\" height=\"1080\" fill=\"white\"/>\n</clipPath>\n</defs>\n<style>\n/* Styles this file wrote inline, moved onto classes so a reset cannot\n   clear them. Same declarations, same order, same look. */\n.noacg-s0{white-space: pre;}\n</style></svg>",
    "layout": {
     "version": 1,
     "rules": [
@@ -5408,7 +5408,7 @@
     "@font-face {\n  font-family: \"Inter\";\n  src: url(\"fonts/inter-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 400 800;  /* variable font: covers this weight range */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}"
    ],
    "emit": {
-    "html": "80bfa27f4da3a9287634e38bc20e5df926cb4adc029a6914cf20bb28923713a7",
+    "html": "5ea044b554270383254dad719637a67541e352d3c9c4fc4f0d1af766918dbe16",
     "css": "c106a554a172932f741cd225c78b53bfd961e0c2c00cda09aa261c05e3491361",
     "js": "3b814eb25246c34ef8f7866486bffb4d74ba6d83eed32c3560ab67f111a88f2b"
    },
@@ -22966,6 +22966,147 @@
      ],
      "rules": []
     }
+   }
+  },
+  "student-unboxed-live-strap": {
+   "inventory": {
+    "width": 1920,
+    "height": 1080,
+    "candidates": [
+     {
+      "id": "t0",
+      "label": "Guest",
+      "sample": "Alex Stone",
+      "marked": false,
+      "drawing": false,
+      "namedByGroup": false,
+      "numeric": false,
+      "clock": false
+     },
+     {
+      "id": "t1",
+      "label": "Live",
+      "sample": "LIVE",
+      "marked": false,
+      "drawing": false,
+      "namedByGroup": false,
+      "numeric": false,
+      "clock": false
+     }
+    ],
+    "images": [],
+    "outlines": [],
+    "groups": [],
+    "shapes": [],
+    "fonts": [
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null
+     }
+    ],
+    "notices": [],
+    "markupSha256": "9cbd0c7e2c9463e651ee54a6a7c675d139f26c3f8a502f59e7141992a68ea1cf"
+   },
+   "proposal": {
+    "behaviour": null,
+    "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgStretch": {
+     "on": false,
+     "shapeId": null
+    },
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
+   "fieldList": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "fields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Guest",
+      "sample": "Alex Stone",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Live",
+      "sample": "LIVE",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "images": [],
+    "outlines": [],
+    "fonts": [
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ]
+   },
+   "step": {
+    "growth": {
+     "on": false,
+     "shapeId": null,
+     "label": null
+    },
+    "fillGap": null
+   },
+   "bind": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1920\" height=\"1080\" viewBox=\"0 0 1920 1080\" class=\"imported-design-art\">\n  <text id=\"f0\" x=\"120\" y=\"120\" font-family=\"Inter\" font-size=\"40\" fill=\"#ffffff\">Alex Stone</text>\n  <text id=\"f1\" x=\"900\" y=\"120\" font-family=\"Inter\" font-size=\"40\" fill=\"#f6a623\" text-anchor=\"end\">LIVE</text>\n  <line x1=\"120\" y1=\"150\" x2=\"900\" y2=\"150\" stroke=\"#ffffff\" stroke-width=\"2\"/>\n</svg>",
+   "layout": null,
+   "behaviour": null,
+   "fields": [
+    {
+     "field": "f0",
+     "ftype": "textfield",
+     "title": "Guest",
+     "value": "Alex Stone"
+    },
+    {
+     "field": "f1",
+     "ftype": "textfield",
+     "title": "Live",
+     "value": "LIVE"
+    }
+   ],
+   "fontCss": [
+    "@font-face {\n  font-family: \"Inter\";\n  src: url(\"fonts/inter.woff2\") format(\"woff2\");\n  font-weight: 400 800;  /* variable font: covers this weight range */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
+    "@font-face {\n  font-family: \"Inter\";\n  src: url(\"fonts/inter-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 400 800;  /* variable font: covers this weight range */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}"
+   ],
+   "emit": {
+    "html": "dcdb74c664659a1dd13a41528f66ed5f7c53add387879289523f8c8a7f291e4f",
+    "css": "87317cb21a19be6d20cd372df778bf2f7c933d6e573154b25478e9cc0d82fc55",
+    "js": "5e50f9b520bd611c6e65d79c7865cd7ec3f543cf06dd16e2d620a23898c8834d"
    }
   },
   "ticker-strip-3840": {

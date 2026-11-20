@@ -97,11 +97,13 @@ measured defect; §3 holds the evidence:
   drives the panel's growth, because widening gives it nothing. **Only what is drawn INSIDE the
   box bounds anything** - a plate standing beside another plate is not that line's furniture
   (`svgInsidePanel`, owner walk 2026-09-02).
-- **A line ON its bar has that bar, and a line on nothing has the graphic** (owner 2026-11-20).
-  Where no shape holds a line outright, the shape it sits on - spanning its rows, starting within
-  half its height of the shape's left edge, the step's `lineSitsIn` - is its panel, and it keeps
-  the height it was drawn at. Where nothing holds it, the artwork's own extent is the room
-  (`svgArtExtent`). The room is never the line's own drawn width.
+- **A line ON its bar has that bar; a line on nothing has what is drawn, cut to the frame.**
+  The panel search (`svgFitPanel`) asks a shape that holds the line outright, then one it SITS ON
+  (half its height covered, starting within half its height of the left edge: the step's
+  `lineSitsIn`), and a frame-sized shape last. A line with no panel takes the picture or shape
+  under it, else what is drawn past it, else the frame; stops at what is beside it, sharing the
+  gap with a line growing towards it; and every room is cut to the frame, nested viewports and
+  clips. `svgFitContainer` stays word for word as `assets/svgFitUpgrade.ts` pins it.
 - **`wrap: false` keeps a line on ONE line** (`NOACG_LAYOUT.lines`, the step's "stays on one
   line"): it fills sideways, then shrinks; an operator's own breaks are still kept.
 - **EVERY LINE HAS AN ALIGNMENT, and it is read off where the designer drew it** (`svgAlignOf`,

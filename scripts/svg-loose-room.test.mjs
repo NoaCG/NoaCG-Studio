@@ -77,7 +77,7 @@ const STEP = ({ id, drawn, values, oneLine }) => {
   });
   el.textContent = drawn;
   window.fitSvgText();
-  return { rows, room: window.svgFitRoom[id].width, drawn: window.svgFitWidths[id], panel: window.svgFitContainer(el)?.id ?? null };
+  return { rows, room: window.svgFitRoom[id].width, drawn: window.svgFitWidths[id], panel: window.svgFitPanel(el)?.id ?? null };
 };
 
 for (const [id, cause, size] of [['f1', 'tight', 44], ['f2', 'left', 36]]) {
@@ -137,7 +137,7 @@ async function fitOn({ w, h, body, id, values, layout }) {
       };
       return Object.fromEntries(Object.keys(set).map((k) => [k, read(k)]));
     });
-    return { rows, drawn: { left: drawn.left, right: drawn.right, top: drawn.top }, room: window.svgFitRoom[id].width, panel: window.svgFitContainer(el)?.id ?? null };
+    return { rows, drawn: { left: drawn.left, right: drawn.right, top: drawn.top }, room: window.svgFitRoom[id].width, panel: window.svgFitPanel(el)?.id ?? null };
   }, { id, values });
   await p.close();
   return got;
@@ -241,4 +241,21 @@ test('6: a frame-sized unfilled rectangle does not beat the bar a tall name sits
   });
   assert.equal(got.panel, 'bar');
   assert.ok(got.rows[0].f0.right <= 1100 + 0.5, `the name ends on the bar (right ${got.rows[0].f0.right.toFixed(1)})`);
+});
+
+test('wrap: the runtime wraps where the step offers the choice, and not where it does not', async () => {
+  const long = 'Which of these chess openings begins with the moves one e four e five two knight f three';
+  const tall = await fitOn({
+    w: 1920, h: 1080, id: 'f0', values: [long],
+    body: `<rect x="100" y="700" width="1000" height="300" fill="#123"/>
+      <text id="f0" x="130" y="760" font-size="40">Who won?</text>`,
+  });
+  assert.ok(tall.rows[0].f0.lines > 1, `a long question wraps in its tall box (${tall.rows[0].f0.lines} lines)`);
+  const body = `<rect x="100" y="840" width="1000" height="130" fill="#123"/>
+      <text id="f0" x="130" y="900" font-size="48">Anna Virtanen</text>
+      <text id="f1" x="130" y="950" font-size="30">Reporter</text>`;
+  const free = await fitOn({ w: 1920, h: 1080, id: 'f0', values: [long], body });
+  const one = await fitOn({ w: 1920, h: 1080, id: 'f0', values: [long], body, layout: { version: 1, rules: [], lines: [{ el: 'f0', wrap: false }] } });
+  assert.equal(free.rows[0].f0.lines, 1, 'a name with its title right under it stays on one line');
+  assert.equal(free.rows[0].f0.size, one.rows[0].f0.size, 'and "wraps" paints exactly what "one line" paints');
 });

@@ -107,6 +107,38 @@ test('changed artwork keeps every matched id, its keys and its label; an added l
   expect(r.unresolved).toEqual([]);
 });
 
+// WHAT THE READER SET ON A LINE COMES ACROSS WITH IT (review of 2026-11-20). "Stays on one line"
+// and an alignment set on the earlier walk ride the matched field, even where the new build moves
+// that field's id and said nothing about the line itself; a line the new walk set keeps its own.
+test('changed artwork keeps a matched line\'s wrap and alignment answers', async ({ page }) => {
+  await page.goto('/app');
+  const r = await page.evaluate(async ([a, b]) => {
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
+    const build = (markup: string, said: boolean) => {
+      const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+      const fields = said
+        ? patch.svgFields!.map((f: { title: string }) =>
+            f.title === 'name' ? { ...f, oneLine: true } : f.title === 'role' ? { ...f, align: { h: 'end', v: 'bottom' } } : f)
+        : patch.svgFields;
+      return buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, svgFields: fields, name: 'Guest' }));
+    };
+    const prior = build(a, true);
+    const built = build(b, false);
+    const out = D.svgReimported({ template: prior, baseline: prior }, built)!;
+    const table = /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(out.template.js)?.[0] ?? '';
+    return { table, ids: Object.fromEntries(out.template.fields.map((f) => [f.title, f.field])), unresolved: out.unresolved, builtTable: /var NOACG_LAYOUT/.test(built.js) };
+  }, [V1, V2]);
+  expect(r.builtTable, 'the new walk said nothing about any line').toBe(false);
+  expect(r.ids.name).toBe('f0');
+  expect(r.table).toContain("{ el: 'f0', wrap: false }");
+  expect(r.table).toContain(`{ el: '${r.ids.role}', h: 'end', v: 'bottom' }`);
+  expect(r.unresolved).toEqual([]);
+});
+
 test('a removed layer and look-alike layers are named, never guessed', async ({ page }) => {
   await page.goto('/app');
   const removed = await reimport(page, V1, V3);

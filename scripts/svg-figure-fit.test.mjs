@@ -72,7 +72,7 @@ const STEP = ({ id, values }) => {
   });
   el.textContent = '0';
   window.fitSvgText();
-  return { rows: out, room: window.svgFitRoom[id].width, panel: window.svgFitContainer(el)?.id ?? null };
+  return { rows: out, room: window.svgFitRoom[id].width, panel: window.svgFitPanel(el)?.id ?? null };
 };
 
 for (const [id, cause] of [['f1', 'snug'], ['f2', 'roomy']]) {

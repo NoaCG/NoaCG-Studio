@@ -933,6 +933,77 @@ function boxName(label: string, fill: string): string {
   return word ? `${word[0].toUpperCase()}${word.slice(1)} plate` : 'Plate';
 }
 
+/** The size below which the runtime REPORTS a value as too long, as a share of the drawn size -
+ *  the runtime's `SVG_FIT_FLOOR` (runtime/svgFit.js), held equal by scripts/svg-step-proposal.test.mjs. */
+export const WRAP_REPORT_FLOOR = 0.55;
+
+/**
+ * CAN THIS LINE WRAP AT ALL - does "wraps" or "stays on one line" change what airs?
+ *
+ * The runtime wraps a line into the room drawn below it, and a line with a title drawn right
+ * under it has none: there both answers paint the same one line, and offering the choice would
+ * be a control that does nothing (`wizard/offer-control-can-change-graphic-front`, review of
+ * 2026-11-20). So this mirrors the runtime's ceiling (`svgFitCeiling`): the room's bottom less
+ * its top padding, stopped at the drawn bottom of this line by anything drawn under it inside
+ * the room, and a block CENTRED in its box may use the box symmetrically, less half a line at
+ * each edge. The line can wrap when that height holds two lines at the size where a value starts
+ * being reported too long. The room is the line's box, else what is drawn, cut to the frame.
+ * Curved text (a textPath) never wraps: the fitter leaves it alone.
+ */
+export function lineCanWrap(stage: HTMLElement, lineId: string, boxId: string | null, lineIds: string[]): boolean {
+  const node = markerEl(stage, lineId);
+  if (!(node instanceof SVGTextContentElement) || node.querySelector('textPath') || node.closest('textPath')) return false;
+  const root = stage.querySelector('svg');
+  const frame = root?.getBoundingClientRect();
+  const r = node.getBoundingClientRect();
+  if (!frame || !(r.width > 0) || !(r.height > 0)) return false;
+  let run: Element = node;
+  while (run.firstElementChild) run = run.firstElementChild;
+  const ctm = node.getScreenCTM();
+  const k = ctm ? Math.sqrt(ctm.a * ctm.a + ctm.b * ctm.b) : 1;
+  const size = (parseFloat(getComputedStyle(run).fontSize) || 0) * k;
+  if (!(size > 0)) return false;
+  const frameArea = frame.width * frame.height;
+  const drawn = Array.from(root!.querySelectorAll('rect, path, polygon, ellipse, circle, image, use, line, polyline, text, tspan'))
+    .filter((o) => o !== node && !o.contains(node) && !node.contains(o))
+    .map((o) => o.getBoundingClientRect())
+    .filter((b) => b.width > 0 && b.height > 0);
+  let room: { top: number; bottom: number; left: number; right: number };
+  const plate = boxId ? markerEl(stage, boxId)?.getBoundingClientRect() : undefined;
+  if (plate && plate.width > 0) room = plate;
+  else {
+    room = { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+    for (const b of drawn) {
+      if (b.width * b.height >= frameArea * SVG_BACKPLATE_SHARE) continue;
+      room = { top: Math.min(room.top, b.top), bottom: Math.max(room.bottom, b.bottom), left: Math.min(room.left, b.left), right: Math.max(room.right, b.right) };
+    }
+    room = { top: Math.max(room.top, frame.top), bottom: Math.min(room.bottom, frame.bottom), left: Math.max(room.left, frame.left), right: Math.min(room.right, frame.right) };
+  }
+  const roomArea = (room.right - room.left) * (room.bottom - room.top);
+  const inside = (b: DOMRect) => b.left >= room.left - 1 && b.right <= room.right + 1 && b.top >= room.top - 1 && b.bottom <= room.bottom + 1;
+  // The top padding mirrored: the gap above the first bound line drawn in the room.
+  let first: number | null = null;
+  for (const id of lineIds) {
+    const b = markerEl(stage, id)?.getBoundingClientRect();
+    if (!b || !(b.width > 0) || b.left < room.left - 1 || b.left >= room.right || b.top < room.top - 1 || b.top >= room.bottom) continue;
+    if (first === null || b.top < first) first = b.top;
+  }
+  let ceiling = room.bottom - (first === null ? 0 : Math.max(0, first - room.top));
+  let under = false;
+  for (const b of drawn) {
+    if (b.width * b.height >= roomArea - 1 || !inside(b)) continue;
+    if (b.right < r.left + 1 || b.left > r.right - 1 || b.top < r.bottom - 1) continue;
+    under = true;
+    ceiling = Math.min(ceiling, r.bottom);
+  }
+  let height = Math.max(r.height, ceiling - r.top);
+  // A block centred in its box with nothing under it grows both ways (the runtime's band).
+  const centred = Math.abs((r.top + r.bottom) / 2 - (room.top + room.bottom) / 2) <= (room.bottom - room.top) * SVG_ALIGN_TOL;
+  if (plate && centred && !under) height = Math.max(height, room.bottom - room.top - size * SVG_LINE_HEIGHT);
+  const at = size * WRAP_REPORT_FLOOR;
+  return 1 + Math.floor((height - at) / (at * SVG_LINE_HEIGHT)) >= 2;
+}
+
 /**
  * THE BOARD'S OWN BACKPLATE IS NOT A BOX, so grouping by it says nothing.
  *

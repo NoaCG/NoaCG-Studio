@@ -15,6 +15,8 @@
 //             bar's width
 //   board     a scoreboard's period strip, centred under a score row, does not grow
 //   artboard  an unfilled frame-sized rectangle never beats the bar a tall name sits on
+//   wrap      the per-field wrap choice is offered only where wrapping can change the picture: a
+//             name with its title drawn right under it, a lone caption and curved text cannot
 //
 //   node --test scripts/svg-step-proposal.test.mjs
 import test from 'node:test';
@@ -55,6 +57,14 @@ const CASES = {
     <text id="Name" x="600" y="900" font-size="48" text-anchor="middle">Anna Virtanen</text>
     <text id="Title" x="600" y="950" font-size="30" text-anchor="middle">Reporter</text>`),
   board: readFileSync(root('e2e/fixtures/svg-corpus/student-illustrator-scoreboard.svg'), 'utf8'),
+  nameOverTitle: svg(`<rect id="Bar" x="100" y="840" width="1000" height="130" fill="#123"/>
+    <text id="Name" x="130" y="900" font-size="48">Anna Virtanen</text>
+    <text id="Title" x="130" y="950" font-size="30">Reporter</text>`),
+  tallBox: svg(`<rect id="Board" x="100" y="700" width="1000" height="300" fill="#123"/>
+    <text id="Question" x="130" y="760" font-size="40">Who won?</text>`),
+  curved: svg(`<defs><path id="arc" d="M200,600 Q960,300 1720,600"/></defs>
+    <rect id="Board" x="100" y="300" width="1720" height="500" fill="#123"/>
+    <text id="Headline" font-size="80"><textPath href="#arc">CHAMPIONS</textPath></text>`),
   artboard: svg(`<rect fill="none" width="1920" height="1080"/>
     <rect id="Bar" x="100" y="860" width="1000" height="56" fill="#123"/>
     <text id="Name" x="130" y="905" font-size="56">Anna Virtanen</text>`),
@@ -81,9 +91,10 @@ const ASK = async (markup) => {
   const banner = S.proposeBannerGrowth(stage, dsvg, on);
   const boxes = S.withoutBackplates(stage, S.panelOfEachLine(stage, dsvg, on));
   const byTitle = Object.fromEntries(draft.svgFields.map((f) => [f.title, label(boxes[f.candidateId] ?? null)]));
+  const wraps = Object.fromEntries(draft.svgFields.map((f) => [f.title, S.lineCanWrap(stage, f.candidateId, boxes[f.candidateId] ?? null, on)]));
   stage.remove();
   style.remove();
-  return { banner: label(banner), boxes: byTitle };
+  return { banner: label(banner), boxes: byTitle, wraps };
 };
 
 const answers = await withBundledPage(SPECS, async (page) => {
@@ -114,4 +125,18 @@ test('board: a scoreboard\'s centred period strip keeps its size', () => {
 test('artboard: an unfilled frame-sized rectangle never beats the bar a tall name sits on', () => {
   assert.equal(answers.artboard.boxes.Name, 'Bar', JSON.stringify(answers.artboard));
   assert.equal(answers.artboard.banner, 'Bar');
+});
+
+test('wrap: offered where the room holds two lines, never where both answers paint the same', () => {
+  assert.equal(answers.tallBox.wraps.Question, true, JSON.stringify(answers.tallBox.wraps));
+  assert.equal(answers.nameOverTitle.wraps.Name, false, JSON.stringify(answers.nameOverTitle.wraps));
+  assert.equal(answers.nameOverTitle.wraps.Title, false);
+  assert.equal(Object.values(answers.curved.wraps).some(Boolean), false, JSON.stringify(answers.curved.wraps));
+});
+
+test('the step and the runtime agree on where a value starts being reported too long', () => {
+  const runtime = /var SVG_FIT_FLOOR = ([0-9.]+);/.exec(readFileSync(root('src/templates/importedDesign/runtime/svgFit.js'), 'utf8'));
+  const step = /export const WRAP_REPORT_FLOOR = ([0-9.]+);/.exec(readFileSync(root('src/components/wizard/import/stageMeasure.ts'), 'utf8'));
+  assert.ok(runtime && step);
+  assert.equal(step[1], runtime[1]);
 });

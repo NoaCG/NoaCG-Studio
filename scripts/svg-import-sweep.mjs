@@ -472,7 +472,7 @@ async function readLadder(frame) {
     const nodes = w.svgFitNodes();
     const fields = [];
     for (const el of nodes) {
-      const panel = w.svgFitContainer(el);
+      const panel = w.svgFitPanel(el);
       const local = panel ? w.svgLocalBox(panel, el) : null;
       const bb = el.getBBox();
       const align = (w.svgFitAlign ?? {})[el.id] ?? null;
