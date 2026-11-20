@@ -36,9 +36,6 @@ export const PRESS_BACKOFF_MS = 500;
 export const PRESS_BACKOFF_MAX_MS = 8_000;
 /** A press never goes after this: the server keeps its id 24 hours, so a resend cannot outlive it. */
 export const PRESS_MAX_AGE_MS = 60 * 60_000;
-/** How long a list press waits for this page's queued presses inside that list (`afterPress`'s
- *  window, failedSends.ts RESEND_WINDOW_MS + 2 x ATTEMPT_TIMEOUT_MS). */
-export const LIST_WAIT_MS = 7_000;
 
 /** A press on a bound field: "add N to this path" or "make this path this text". */
 export type BoundPress = { path: string; by: number } | { path: string; text: string };
@@ -240,11 +237,9 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
   let absolute = !io.adjustProductionDataBySlug;
   /** R10's figure, computed once for the presses it covers and resent unchanged. */
   let figure: { ids: string[]; patch: JsonObject } | null = null;
-  const watchers = new Set<() => void>();
 
   const counted = () => {
     session.apply((parts) => (parts.data.unsent === queue.length ? parts : { ...parts, data: { ...parts.data, unsent: queue.length } }));
-    for (const watch of [...watchers]) watch();
   };
   const settle = (ids: ReadonlySet<string>, landed: boolean) => {
     const done = queue.filter((q) => ids.has(q.id));
@@ -353,28 +348,9 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     }
   };
 
-  /** Answers true once no queued press of this page is on one of `paths` or inside it, false if
-   *  that has not happened within `ms`. */
-  const quietUnder = (paths: readonly string[], ms: number): Promise<boolean> => {
-    const busy = () => queue.some((q) => paths.some((p) => q.press.path === p || q.press.path.startsWith(`${p}.`)));
-    if (!busy()) return Promise.resolve(true);
-    return new Promise((resolve) => {
-      const watch = () => {
-        if (busy()) return;
-        stop();
-        resolve(true);
-      };
-      const cancel = after(ms, () => {
-        stop();
-        resolve(!busy());
-      });
-      const stop = () => {
-        watchers.delete(watch);
-        cancel();
-      };
-      watchers.add(watch);
-    });
-  };
+  /** Whether a queued press of this page is on one of `paths` or inside it. */
+  const queuedUnder = (paths: readonly string[]): boolean =>
+    queue.some((q) => paths.some((p) => q.press.path === p || q.press.path.startsWith(`${p}.`)));
 
   session.onDispose(() => {
     waiting?.();
@@ -490,11 +466,12 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
      */
     patchBoundValues: async (writes) => {
       if (writes.length === 0) return true;
-      // A list write is absolute: it waits for this page's queued presses inside that list, so it
-      // cannot overwrite one that landed while its answer was still out (R1).
+      // A list write is absolute, computed from the tree as the press saw it: with a press of this
+      // page still queued inside that list it would overwrite one that lands meanwhile, so it is
+      // refused and said (R1).
       const lists = writes.filter((w) => w.verb === 'list').map((w) => w.path);
-      if (slug && lists.length > 0 && !(await quietUnder(lists, LIST_WAIT_MS))) {
-        if (session.alive()) io.note(`${SHARED_NOT_MOVED}: presses on that list are still sending.`);
+      if (slug && lists.length > 0 && queuedUnder(lists)) {
+        if (session.alive()) io.note(`${SHARED_NOT_MOVED}: presses on that list are still sending. Press it again once they have landed.`);
         return false;
       }
       const before = part.get().liveData;

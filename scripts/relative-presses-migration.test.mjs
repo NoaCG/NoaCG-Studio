@@ -85,8 +85,8 @@ test('the press ids are the function\'s alone, and the migration is live-path wi
   assert.match(sql, /revoke all on table public\.control_data_presses from public, anon, authenticated;/);
   assert.doesNotMatch(sql, /create policy/);
   assert.match(sql, /grant execute on function public\.control_data_adjust_by_slug\(text, jsonb\) to anon, authenticated, service_role;/);
-  for (const helper of ['production_data_adjusted(jsonb, numeric)', 'production_data_set_text(jsonb, text)', 'production_data_nested(text[], jsonb)', 'production_data_patch_unit(jsonb, text[])', 'control_bound_item(jsonb, jsonb, jsonb)']) {
-    assert.match(sql, new RegExp(`revoke execute on function public\\.${helper.replace(/[()[\]]/g, '\\$&')} from public, anon, authenticated;`), helper);
+  for (const helper of ['production_data_adjusted(jsonb, numeric)', 'production_data_set_text(jsonb, text)', 'production_data_nested(text[], jsonb)', 'production_data_set_path(jsonb, text[], jsonb)', 'production_data_patch_unit(jsonb, text[])', 'control_bound_item(jsonb, jsonb, jsonb)']) {
+    assert.match(sql, new RegExp(`revoke execute on function public\\.${helper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} from public, anon, authenticated;`), helper);
   }
   assert.match(sql.split('\n')[0], /^-- live-path:/);
   assert.match(sql, /set lock_timeout = '2s';\s*set statement_timeout = '30s';/);

@@ -792,27 +792,24 @@ test('a database without the relative door: each figure is computed once and res
   assert.equal(t.calls.adjusted.length, 1, 'the relative door is not asked again');
 });
 
-test('a list write waits for this page\'s queued presses inside that list, at most the press window (R1)', async () => {
+test('a list write is refused while a press of this page is queued inside that list, and goes once none is (R1, Codex on #2630)', async () => {
   const t = await publishedWith({ board: { called: ['A1'], n: 0 } });
   const pressing = t.data.pressBound([{ path: 'board.n', by: 1 }]);
   await flush();
+  // Its value was computed from the tree before the press landed: written later, it would undo it.
+  assert.equal(await t.data.patchBoundValues([{ path: 'board', text: 'A1\nB2', verb: 'list' }]), false);
+  assert.equal(t.calls.slugPatched.length, 0, 'never written over a press still sending');
+  assert.match(t.calls.notes.at(-1), /presses on that list are still sending/);
+  t.answers.adjusts[0].resolve({ data: { board: { called: ['A1'], n: 1 } }, landed: idsOf(t.calls.adjusted[0]), refused: [] });
+  assert.equal(await pressing, true);
+  // A press elsewhere does not hold a list write back.
+  void t.data.pressBound([{ path: 'other', by: 1 }]);
+  await flush();
   const listing = t.data.patchBoundValues([{ path: 'board', text: 'A1\nB2', verb: 'list' }]);
   await flush();
-  assert.equal(t.calls.slugPatched.length, 0, 'it waits');
-  t.answers.adjusts[0].resolve({ data: { board: { called: ['A1'], n: 1 } }, landed: idsOf(t.calls.adjusted[0]), refused: [] });
-  await pressing;
-  await flush();
-  assert.equal(t.calls.slugPatched.length, 1, 'then goes');
+  assert.equal(t.calls.slugPatched.length, 1);
   t.answers.slugPatches[0].resolve({ board: { called: ['A1', 'B2'], n: 1 } });
   assert.equal(await listing, true);
-
-  void t.data.pressBound([{ path: 'board.n', by: 1 }]);
-  await flush();
-  const stuck = t.data.patchBoundValues([{ path: 'board', text: 'A1\nB2\nC3', verb: 'list' }]);
-  await t.tick(7_000);
-  assert.equal(await stuck, false);
-  assert.equal(t.calls.slugPatched.length, 1, 'never written over a press still sending');
-  assert.match(t.calls.notes.at(-1), /presses on that list are still sending/);
 });
 
 test('R10\'s figure is counted only from a tree read from the server, never from the {} a republish holds before its read (review of #2617)', async () => {

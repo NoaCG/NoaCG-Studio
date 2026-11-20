@@ -183,14 +183,15 @@ declare
   v_new jsonb;
   v_landed jsonb := '[]'::jsonb;
   v_refused jsonb := '[]'::jsonb;
-  v_applied jsonb := '[]'::jsonb;          -- [{id, path}] folded, not yet written
+  v_applied jsonb := '[]'::jsonb;          -- [{id, path, press}] folded, not yet written
+  v_stored jsonb;                          -- the tree as stored, which every fold starts from
+  v_gone jsonb;
   v_seen text[] := '{}';
   v_units text[] := '{}';                  -- each patch unit once, as its dotted text
   v_unit text;
   v_patch jsonb;
   v_result jsonb;
   v_named text;
-  v_drop text;
   v_tries int := 0;
 begin
   if p_presses is null or jsonb_typeof(p_presses) <> 'array' then
@@ -219,6 +220,7 @@ begin
 
   -- 2 and 3. Each press in order: refused on its own when malformed, landed when already held,
   --    else folded onto the tree.
+  v_stored := v_tree;
   for v_press in select value from jsonb_array_elements(p_presses) loop
     v_id := v_press->>'id';
     v_path := v_press->>'path';
@@ -245,15 +247,26 @@ begin
       continue;
     end if;
     v_tree := public.production_data_set_path(v_tree, v_at, v_new);
-    v_applied := v_applied || jsonb_build_object('id', v_id, 'path', v_path);
-    v_unit := array_to_string(public.production_data_patch_unit(v_tree, v_at), '.');
-    if not v_unit = any (v_units) then v_units := v_units || v_unit; end if;
+    v_applied := v_applied || jsonb_build_object('id', v_id, 'path', v_path, 'press', v_press);
   end loop;
 
-  -- 4 and 5. ONE absolute merge patch through the operator door, each unit once. A unit the door
-  --    refuses (not a bound path, not a field value) refuses every press under it and the rest is
-  --    tried again; any other error ends the call.
-  while cardinality(v_units) > 0 loop
+  -- 4 and 5. ONE absolute merge patch through the operator door, each unit once. A path the door
+  --    refuses (not a bound path, not a field value) refuses the presses on it, above it or below
+  --    it, and only those: the others are folded again from the stored tree and written. Any other
+  --    error ends the call.
+  loop
+    v_tree := v_stored;
+    v_units := '{}';
+    for v_press in select x.value->'press' from jsonb_array_elements(v_applied) x loop
+      v_at := string_to_array(v_press->>'path', '.');
+      v_new := case when jsonb_typeof(v_press->'by') = 'number'
+                    then public.production_data_adjusted(v_tree #> v_at, (v_press->>'by')::numeric)
+                    else public.production_data_set_text(v_tree #> v_at, v_press->>'text') end;
+      v_tree := public.production_data_set_path(v_tree, v_at, v_new);
+      v_unit := array_to_string(public.production_data_patch_unit(v_tree, v_at), '.');
+      if not v_unit = any (v_units) then v_units := v_units || v_unit; end if;
+    end loop;
+    exit when cardinality(v_units) = 0;
     v_tries := v_tries + 1;
     v_patch := '{}'::jsonb;
     foreach v_unit in array v_units loop
@@ -266,24 +279,24 @@ begin
     exception when sqlstate '42501' then
       v_named := substring(sqlerrm from '^not a (?:bound path|field value): (.+)$');
       if v_named is null or v_tries > 50 then raise; end if;
-      v_drop := null;
-      foreach v_unit in array v_units loop
-        if v_named = v_unit or starts_with(v_named, v_unit || '.') or starts_with(v_unit, v_named || '.') then
-          v_drop := v_unit;
-          exit;
-        end if;
-      end loop;
-      if v_drop is null then raise; end if;
-      v_units := array_remove(v_units, v_drop);
-      select coalesce(jsonb_agg(a.value), '[]'::jsonb) into v_refused
-        from (select value from jsonb_array_elements(v_refused)
-              union all
-              select jsonb_build_object('id', x.value->>'id', 'reason', sqlerrm)
-                from jsonb_array_elements(v_applied) x
-               where x.value->>'path' = v_drop or starts_with(x.value->>'path', v_drop || '.')) a;
+      select coalesce(jsonb_agg(x.value), '[]'::jsonb) into v_gone
+        from jsonb_array_elements(v_applied) x
+       where x.value->>'path' = v_named or starts_with(x.value->>'path', v_named || '.')
+             or starts_with(v_named, (x.value->>'path') || '.');
+      -- The door named a path no press is on (a branch above a whole list): the presses under the
+      -- unit it belongs to go, as nothing narrower can be told apart.
+      if jsonb_array_length(v_gone) = 0 then
+        select coalesce(jsonb_agg(x.value), '[]'::jsonb) into v_gone
+          from jsonb_array_elements(v_applied) x, unnest(v_units) u
+         where (v_named = u or starts_with(v_named, u || '.') or starts_with(u, v_named || '.'))
+           and (x.value->>'path' = u or starts_with(x.value->>'path', u || '.'));
+      end if;
+      if jsonb_array_length(v_gone) = 0 then raise; end if;
+      select v_refused || coalesce(jsonb_agg(jsonb_build_object('id', g.value->>'id', 'reason', sqlerrm)), '[]'::jsonb)
+        into v_refused from jsonb_array_elements(v_gone) g;
       select coalesce(jsonb_agg(x.value), '[]'::jsonb) into v_applied
         from jsonb_array_elements(v_applied) x
-       where not (x.value->>'path' = v_drop or starts_with(x.value->>'path', v_drop || '.'));
+       where not (x.value in (select g.value from jsonb_array_elements(v_gone) g));
     end;
   end loop;
 
@@ -646,6 +659,14 @@ begin
     jsonb_build_object('id', gen_random_uuid(), 'path', 'grid.0.gap', 'by', 2)));
   if v_ans->'data'->'grid' <> '[{"gap":2}]'::jsonb or jsonb_array_length(v_ans->'landed') <> 1 then
     raise exception '0123 self-check failed: a press on a new list element (%)', v_ans;
+  end if;
+  -- One list leaf the door refuses (not a field value) keeps its valid sibling in the same list.
+  set local role anon;
+  v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
+    jsonb_build_object('id', gen_random_uuid(), 'path', 'teams.0.g', 'by', 1),
+    jsonb_build_object('id', gen_random_uuid(), 'path', 'teams.1.g.deep', 'by', 1)));
+  if v_ans->'data'->'teams'->0->'g' <> '4'::jsonb or jsonb_array_length(v_ans->'landed') <> 1 then
+    raise exception '0123 self-check failed: a refused list leaf dropped its sibling (%)', v_ans;
   end if;
   -- A leaf inside a list that nothing binds is not held by the answer: refused, never landed.
   v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
