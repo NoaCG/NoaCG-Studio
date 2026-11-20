@@ -1158,21 +1158,21 @@ function measureSvgRoom() {
       var anchorWord = el.getAttribute('text-anchor') || (getComputedStyle(el).textAnchor || 'start');
       var leftIn = box.left - ext.left;
       var rightIn = ext.right - box.right;
-      var reach;
+      var extReach;
       if (anchorWord === 'middle') {
         // A centred line's gaps are centring, not margin: half its type is kept off each edge.
         var cxs = (box.left + box.right) / 2;
-        reach = 2 * (Math.min(cxs - ext.left, ext.right - cxs) - halfGap);
+        extReach = 2 * (Math.min(cxs - ext.left, ext.right - cxs) - halfGap);
       } else if (anchorWord === 'end') {
         var lb = svgFitNeighbour(el, ext, -1);
         room.penned = lb.edge > ext.left + 0.5;
-        reach = box.right - (room.penned ? halfGap : rightIn) - lb.edge;
+        extReach = box.right - (room.penned ? halfGap : rightIn) - lb.edge;
       } else {
         var rb = svgFitNeighbour(el, ext, 1);
         room.penned = rb.edge < ext.right - 0.5;
-        reach = rb.edge - (room.penned ? halfGap : leftIn) - box.left;
+        extReach = rb.edge - (room.penned ? halfGap : leftIn) - box.left;
       }
-      room.width = Math.max(svgFitWidths[el.id], reach * scale);
+      room.width = Math.max(svgFitWidths[el.id], extReach * scale);
       room.height = Math.max(box.height * scale, (svgFitCeiling(el, ext, svgPanelTopPad(ext, nodes)) - box.top) * scale);
       room.top = el.getBBox ? el.getBBox().y : 0;
     }
