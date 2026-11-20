@@ -100,12 +100,13 @@ begin
 end $$;
 revoke all on function public.team_designs_reload() from public, anon, authenticated;
 
--- Whether a record names any design (its form, by content).
+-- Whether a record names any design (its form, by content). A path query: it reads the record in
+-- place, where extracting `graphics` would copy megabytes of a whole record on every save.
 create or replace function public.team_doc_split(p_doc jsonb)
 returns boolean
 language sql set search_path = '' immutable as $$
-  select jsonb_typeof(p_doc->'graphics') = 'array'
-     and exists (select 1 from jsonb_array_elements(p_doc->'graphics') g where jsonb_typeof(g) = 'object' and g ? 'designRef');
+  -- Strict, silent: no `graphics`, or one that is not an array, answers false rather than raising.
+  select coalesce(jsonb_path_exists(p_doc, 'strict $.graphics[*] ? (exists(@.designRef))', '{}', true), false);
 $$;
 revoke all on function public.team_doc_split(jsonb) from public, anon, authenticated;
 
