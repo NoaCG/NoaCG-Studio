@@ -552,8 +552,20 @@ async function boot(): Promise<void> {
       if (typeof name === 'string') heard({ type: 'scene', name });
     });
   }
+  /** For specs: what the entry says at every touch, the moment it can go out (G2 section 4a). A
+   *  fact sampled once a frame cannot see a touch that comes before work lands in the same task. */
+  const told: { p: number; w?: string | 0 }[] = [];
+  if (import.meta.env.DEV || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) {
+    const touch = presence.touch;
+    presence.touch = () => {
+      const run = entry().ready?.run;
+      if (run && told.length < 5_000) told.push({ p: run.p, w: run.w });
+      touch();
+    };
+  }
   // For specs and for whoever opens the console on a playout box.
   (window as unknown as { __noacgLive?: unknown }).__noacgLive = {
+    told: () => told,
     identity,
     engine: hostEngine,
     entry,
@@ -1827,6 +1839,8 @@ async function boot(): Promise<void> {
       break;
     }
   }
+  // Stopped at the page ceiling, short of the log's end: the follow reads the rest, and has read.
+  if (!fromHead && bootGapOpen) catchUpRead = false;
   // A GRAPHIC ON AIR THAT NO REPORT BANKS (issue #1762, widened by G2 section 4 to every such
   // graphic; control/outputRecovery.ts `unreportedRows`): its Take can be older than `followFrom`, so the log below it is
   // read for that graphic alone, every page up to `followFrom` within the catch-up's ceiling
@@ -2125,8 +2139,10 @@ async function boot(): Promise<void> {
         const tail = await untilAnswered(() => controlOutputTailSeq(outputSlug, after, epoch), { limit: 5 });
         // An empty read reached the log's end, and the follow hands an empty refill to no one.
         if (tail.ok && !tail.value.reset && tail.value.rows.length === 0) markHeld(gap.emptyRead());
-        // A boot whose own catch-up read failed has read the log once the follow reaches its end.
-        if (tail.ok && !tail.value.reset && tail.value.rows.length < SEQ_TAIL_PAGE) bootHasRead();
+        // A boot whose own catch-up read failed has read the log once the follow reaches its end,
+        // and once what that read brought is applied: `onRows` runs when this answer resumes the
+        // follow, so the boot says it has read only in the task after, never before the work lands.
+        if (tail.ok && !tail.value.reset && tail.value.rows.length < SEQ_TAIL_PAGE) setTimeout(bootHasRead, 0);
         return tail.ok ? tail.value : null;
       },
       onRows: (rows, replayed) => {

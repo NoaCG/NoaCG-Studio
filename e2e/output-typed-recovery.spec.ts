@@ -356,6 +356,13 @@ test('on a restart of a large production only what is on air waits for its frame
 
 // ── G2 section 4a (#2608): the settled fact the output says, over time. ───────────────────────
 
+/** A picture holds a frame back only briefly (a parsed document releases itself), so a slow frame
+ *  waits for a script before it can even parse: it loads only when the stand-in answers it. */
+const slowFrame = (key: string, layer: number) => {
+  const g = probe(key, layer);
+  return { ...g, html: `<script src="${BACKEND}/slow.js"></script>` + g.html };
+};
+
 type Fact = { t: number; w: string | 0 | null; k: string | null; y: string | null; wa: number | null };
 /** Every animation frame from the first script on: the settled fact in the output's own entry. */
 async function sampleFacts(page: Page) {
@@ -403,6 +410,20 @@ test('a restart whose catch-up read is held 25 s waits placing, says it is late 
   await expect(doc(page, 'Strap').locator('#s')).toHaveText('step 0');
 });
 
+test('a restored graphic gets its 20 s from the boot\'s read, not from the boot\'s start (#2608, P1)', async ({ page }) => {
+  // The catch-up read is held 25 s and the restored frame loads at 35 s: counted from the start it
+  // would be failed `load` as the boot comes back; counted from the read it loads in time.
+  test.setTimeout(90_000);
+  await sampleFacts(page);
+  const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
+  const live = { Strap: { data: { f0: 'Held' }, state: { groups: { main: 'in' } }, event: 1002, seq: 2 } };
+  await standInBackend(page, live, rows, ['Strap'], [slowFrame('Strap', 20)], { tailDelayMs: (after) => (after === 2 ? 25_000 : 0), slowMs: 35_000 });
+  await page.goto('/output?production=typed-probe');
+  const facts = await settledAt(page, 70_000);
+  expect(facts.filter((f) => f.k === 'failed'), JSON.stringify(facts.slice(0, 10))).toEqual([]);
+  expect(firstWhen(facts, (f) => f.w === 0)!.t, 'settled before the frame loaded').toBeGreaterThanOrEqual(35_000);
+});
+
 test('a boot whose catch-up read fails is not settled until a read reaches the log (#2608)', async ({ page }) => {
   // M2: "the boot has read what to put back" means a read that came back. When every catch-up read
   // fails, the boot comes back on air with what it has, and the follow reads the log later; until
@@ -417,6 +438,11 @@ test('a boot whose catch-up read fails is not settled until a read reaches the l
   expect(backend.tails.length, 'the catch-up read was retried').toBeGreaterThan(1);
   expect(done.t, 'settled before any read of the log came back').toBeGreaterThanOrEqual(20_000);
   await expect(doc(page, 'Strap').locator('#s')).toHaveText('step 0');
+  // What it said at each touch, the moment an entry can go out: never settled before the rows the
+  // follow read were applied (a frame sample cannot see a touch inside one task).
+  const told = await page.evaluate(() => (window as unknown as { __noacgLive: { told: () => { p: number; w?: string | 0 }[] } }).__noacgLive.told());
+  expect(told.some((f) => f.w === 0), 'it did tell a settled entry').toBe(true);
+  expect(told.filter((f) => f.w === 0 && f.p < 2), JSON.stringify(told.slice(-6))).toEqual([]);
 });
 
 test('a boot whose second catch-up page is held 70 s is failed boot at 60 s, then waits again and settles (#2608)', async ({ page }) => {
@@ -450,12 +476,7 @@ test('a restart with 13 graphics on air whose frames take 16 s to load is never 
   const rows = keys.map((key, i) => row(1 + i, key, { t: 'update', data: { f0: key } }));
   const live: Record<string, unknown> = {};
   for (const key of keys) live[key] = { data: { f0: key }, state: { groups: { main: 'in' } }, event: 1013, seq: 13 };
-  // A picture holds a frame back only briefly (a parsed document releases itself), so each frame
-  // here waits for a script before it can even parse: a frame that truly takes 16 s.
-  const slowFrame = (key: string, layer: number) => {
-    const g = probe(key, layer);
-    return { ...g, html: `<script src="${BACKEND}/slow.js"></script>` + g.html };
-  };
+  // Each frame waits for a script before it can even parse: a frame that truly takes 16 s.
   await standInBackend(page, live, rows, keys, keys.map((key, i) => slowFrame(key, 20 + i)), { slowMs: 16_000 });
   await page.goto('/output?production=typed-probe');
   const facts = await settledAt(page, 60_000);

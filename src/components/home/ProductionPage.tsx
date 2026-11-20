@@ -4337,7 +4337,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         mark: {
           since: Math.max(seen, epochSinceRef.current),
           ...(kept.kind === 'none' ? { none: kept.why } : {}),
-          ...(track?.waits[kept.b] ? { wait: track.waits[kept.b].since } : {}),
+          ...(kept.kind === 'kept' && track?.waits[kept.b]?.w === kept.run.w ? { wait: track.waits[kept.b].since } : {}),
           ...(track?.settled[kept.b] !== undefined ? { settled: track.settled[kept.b] } : {}),
         },
       };
