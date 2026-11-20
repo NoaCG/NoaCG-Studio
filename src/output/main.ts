@@ -1197,6 +1197,16 @@ async function boot(): Promise<void> {
   const typedFrom = new Map<string, number>();
   /** Boot frames hidden by their own flag because they had not loaded when the stage came back. */
   const bootHidden = new Set<string>();
+  /** Graphics the boot's catch-up replayed off air, by the oldest position replayed: nothing of
+   *  it has run on air until the graphic is back on air (G2 section 4, #2604). */
+  const offAirFrom = new Map<string, number>();
+  /** A graphic replayed off air is on air now: what it ran counts, and it reports. */
+  const backOnAir = (graphic: string) => {
+    if (!offAirFrom.delete(graphic)) return;
+    unreportedRun.add(graphic);
+    scheduleReport(graphic);
+    presence.touch();
+  };
   /** Graphics whose unsettled work is from before a republish: their `from` reads 0. */
   const staleFrom = new Set<string>();
   /** Graphics that ran a command since their last report: their next report is owed even when its
@@ -1323,6 +1333,7 @@ async function boot(): Promise<void> {
     } finally {
       bootHidden.delete(graphic);
       stage.hide(graphic, false);
+      backOnAir(graphic);
     }
   };
 
@@ -1482,6 +1493,12 @@ async function boot(): Promise<void> {
       const waiting = stage.waitingFor(graphic);
       if (waiting !== null && !h[graphic]) h[graphic] = [waiting, 'placing'];
     }
+    // Replayed off air by a restart: run only once it is back on air (G2 section 4, #2604).
+    offAirFrom.forEach((from, graphic) => {
+      const held = h[graphic];
+      if (!held) h[graphic] = [from, 'placing'];
+      else if (from < held[0]) h[graphic] = [from, held[1], held[2]].filter((x) => x !== undefined) as HeldEntry;
+    });
     // Work owed from before a republish reads from 0 in the new log until it settles (G2 section 4).
     staleFrom.forEach((graphic) => {
       if (h[graphic]) h[graphic] = [0, h[graphic][1], h[graphic][2]].filter((x) => x !== undefined) as HeldEntry;
@@ -1501,7 +1518,7 @@ async function boot(): Promise<void> {
   };
   /** A graphic that may write a report: hosted, released, and nothing of it unsettled (R2). */
   const reportable = (graphic: string) =>
-    hosts(graphic) && ready(graphic) && !holds.has(graphic) && !failures.has(graphic) && !typedRefused.has(graphic) && stage.waitingFor(graphic) === null;
+    hosts(graphic) && ready(graphic) && !holds.has(graphic) && !failures.has(graphic) && !typedRefused.has(graphic) && stage.waitingFor(graphic) === null && !offAirFrom.has(graphic);
 
   /** `deliver` false: the row is read past and counted applied, but never reaches the stage (a
    *  custom action on a package in the boot catch-up, which a restart never repeats). */
@@ -1747,6 +1764,15 @@ async function boot(): Promise<void> {
   if (animates) {
     stage.setVisible(false);
     dbg('catch-up', `${missed.length} row(s), off air while they settle`);
+    // What the replay runs is not on air yet: each graphic it reaches reads as placing from its
+    // oldest replayed row until it is back on air (G2 section 4, #2604).
+    if (seqMode) {
+      for (const row of missed) {
+        if (!inScope(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, position(row))) continue;
+        const from = offAirFrom.get(row.graphic);
+        if (from === undefined || position(row) < from) offAirFrom.set(row.graphic, position(row));
+      }
+    }
   }
 
   // ── Boot recovery, per graphic: the data half, then the visual half (snap arms timers). ──
@@ -1874,6 +1900,15 @@ async function boot(): Promise<void> {
           }
         }
         stage.setVisible(visible);
+        // Back on air: what the replay ran counts now, except a frame still hidden by its own flag,
+        // which counts when that flag lifts. One that never loads has failed by the stage's
+        // watchdog well before this backstop, which only stops the entry staying for good.
+        if (visible) {
+          offAirFrom.forEach((_from, key) => {
+            if (!bootHidden.has(key)) backOnAir(key);
+            else setTimeout(() => backOnAir(key), FRAME_LOAD_MS + CATCH_UP_TIMING.capMs);
+          });
+        }
       },
     };
     void airWhenSettled(revealing)

@@ -26,7 +26,7 @@ const LOOK = { v: 1, frame: { dx: 1270, dy: 0, s: 0.95, ox: 530, oy: 961 } };
 
 /** A graphic with no state machine: update() writes each value as `name=type:json`, play and next
  *  count its entrance and steps, so its document shows the data and the step it holds. */
-const probe = (key: string, layer: number) => ({
+const probe = (key: string, layer: number, reports = false) => ({
   key,
   html: '<div id="v"></div><div id="s">off</div>',
   css: '',
@@ -36,6 +36,11 @@ const probe = (key: string, layer: number) => ({
     "  document.getElementById('v').textContent = k.map(function (n) { return n + '=' + typeof o[n] + ':' + JSON.stringify(o[n]); }).join(' '); };",
     "window.play = function () { steps = 0; document.getElementById('s').textContent = 'step 0'; };",
     "window.next = function () { steps += 1; document.getElementById('s').textContent = 'step ' + steps; };",
+    // The frame is sandboxed, so a spec reads what it paints from what it posts: its own off-air
+    // opacity and its step, every animation frame.
+    ...(reports
+      ? ["(function tick() { parent.postMessage({ type: 'probe-paint', key: " + JSON.stringify(key) + ", op: document.documentElement.style.getPropertyValue('opacity'), s: document.getElementById('s').textContent }, '*'); requestAnimationFrame(tick); })();"]
+      : []),
   ].join('\n'),
   assets: [],
   resolution: RESOLUTION,
@@ -60,7 +65,7 @@ interface Backend {
 
 /** The stand-in backend: the numbered resolve with `live`, the numbered tail over `rows`, and the
  *  head saying which graphics are on air. */
-async function standInBackend(page: Page, live: Record<string, unknown>, rows: Row[], on: string[]): Promise<Backend> {
+async function standInBackend(page: Page, live: Record<string, unknown>, rows: Row[], on: string[], graphics = [probe('Strap', 20), probe('Bug', 30)]): Promise<Backend> {
   const seen: Backend = { reports: [], tails: [] };
   const head = { seq: rows.length ? rows[rows.length - 1].seq : 0, graphics: Object.fromEntries(on.map((g) => [g, { on: true }])) };
   await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: CONFIG_MODULE }));
@@ -73,7 +78,7 @@ async function standInBackend(page: Page, live: Record<string, unknown>, rows: R
       return json({
         id: '00000000-0000-4000-8000-0000000000e2',
         title: 'Typed Probe',
-        output: { v: 1, resolution: RESOLUTION, graphics: [probe('Strap', 20), probe('Bug', 30)], cues: [], ver: { n: 4, at, h: 'abcdef0123456789', g: {} } },
+        output: { v: 1, resolution: RESOLUTION, graphics, cues: [], ver: { n: 4, at, h: 'abcdef0123456789', g: {} } },
         live,
         last_event_id: 0,
         epoch: EPOCH,
@@ -213,4 +218,50 @@ test('by row id (protocol 1, no log head), a typed report puts its graphic back 
   // A typed graphic its report says was off keeps its values and stays off.
   await expect(doc(page, 'Bug').locator('#v')).toHaveText('f0=string:"Off"');
   await expect(doc(page, 'Bug').locator('#s')).toHaveText('off');
+});
+
+test('a Take held when the output reloads is not reported run until its graphic is back on air (#2604)', async ({ page }) => {
+  // The phase 9 hardware check: a Take no output had run yet, then the output reloaded. The boot
+  // replays it off air and comes back once it stands still; the run report it gives the production
+  // page (G2 section 1) must not reach the Take before the picture does, or the light turns green
+  // early. Sampled in the page every animation frame from the first script on, against what the
+  // graphic's own document last painted.
+  await page.addInitScript(() => {
+    if (window.top !== window) return;
+    type Sample = { ran: number | null; onAir: boolean; t: number };
+    const samples: Sample[] = [];
+    (window as unknown as { __samples: Sample[] }).__samples = samples;
+    let paint: { op: string; s: string } | null = null;
+    window.addEventListener('message', (ev) => {
+      if (ev.data && ev.data.type === 'probe-paint' && ev.data.key === 'Strap') paint = { op: ev.data.op, s: ev.data.s };
+    });
+    const tick = (t: number) => {
+      const live = (window as unknown as { __noacgLive?: { entry: () => { ready?: { run?: { p: number; h: Record<string, [number]> } } } } }).__noacgLive;
+      const run = live?.entry().ready?.run;
+      const frame = document.querySelector('iframe[title="Strap"]');
+      const onAir = !!paint && paint.op !== '0' && paint.s === 'step 0' && !!frame && getComputedStyle(frame).visibility !== 'hidden';
+      samples.push({ ran: run ? (run.h.Strap ? run.h.Strap[0] - 1 : run.p) : null, onAir, t });
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
+  await standInBackend(page, {}, rows, ['Strap'], [probe('Strap', 20, true)]);
+  await page.goto('/output?production=typed-probe');
+
+  await expect(doc(page, 'Strap').locator('#s')).toHaveText('step 0', { timeout: 30_000 });
+  type Sample = { ran: number | null; onAir: boolean; t: number };
+  const read = () => page.evaluate(() => (window as unknown as { __samples: Sample[] }).__samples);
+  // It is drawn, and confirms the Take once on air.
+  await expect.poll(async () => (await read()).some((s) => s.onAir), { timeout: 15_000 }).toBe(true);
+  await expect.poll(async () => (await read()).at(-1)?.ran ?? null, { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+  const samples = await read();
+  const ran = samples.find((s) => s.ran !== null && s.ran >= 2);
+  const drawn = samples.find((s) => s.onAir);
+  expect(ran && drawn, JSON.stringify({ ran, drawn })).toBeTruthy();
+  // The frame says what it painted by a message, which lands a frame or two after the stage
+  // brought it back; without the fix the report ran ahead by 0.6 s or more.
+  expect(ran!.t, 'the Take was reported run before its picture was on air').toBeGreaterThanOrEqual(drawn!.t - 50);
+  // The replay really was off air for a while, so the samples above cover that window.
+  expect(samples.filter((s) => s.ran !== null && !s.onAir).length).toBeGreaterThan(10);
 });
