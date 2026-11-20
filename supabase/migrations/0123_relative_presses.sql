@@ -661,7 +661,6 @@ begin
     raise exception '0123 self-check failed: a press on a new list element (%)', v_ans;
   end if;
   -- One list leaf the door refuses (not a field value) keeps its valid sibling in the same list.
-  set local role anon;
   v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
     jsonb_build_object('id', gen_random_uuid(), 'path', 'teams.0.g', 'by', 1),
     jsonb_build_object('id', gen_random_uuid(), 'path', 'teams.1.g.deep', 'by', 1)));
