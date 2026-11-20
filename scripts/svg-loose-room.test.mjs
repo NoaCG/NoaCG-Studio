@@ -258,4 +258,7 @@ test('wrap: the runtime wraps where the step offers the choice, and not where it
   const one = await fitOn({ w: 1920, h: 1080, id: 'f0', values: [long], body, layout: { version: 1, rules: [], lines: [{ el: 'f0', wrap: false }] } });
   assert.equal(free.rows[0].f0.lines, 1, 'a name with its title right under it stays on one line');
   assert.equal(free.rows[0].f0.size, one.rows[0].f0.size, 'and "wraps" paints exactly what "one line" paints');
+  const serif = body.replace(/<text /g, '<text font-family="serif" ');
+  const freeSerif = await fitOn({ w: 1920, h: 1080, id: 'f0', values: [long], body: serif });
+  assert.equal(freeSerif.rows[0].f0.lines, 1, 'and so does a serif one, whose line box is taller');
 });

@@ -1430,7 +1430,7 @@ export default function MapSvgFieldsStep({
                       taller (`wizard/offer-control-can-change-graphic-front`). A line with a
                       title drawn right under it, curved text and a clock have one answer, and a
                       field drawn on the artwork or an outlined-text stand-in always keeps to one
-                      line - the section's note says so. Either way the room is used first. */}
+                      line, so none of them is asked. Either way the room is used first. */}
                   {f.on && f.kind !== 'countdown' && !creditsSources.has(f.candidateId) &&
                     (wrapRoom.has(f.candidateId) ||
                       (!!boxOfRow[f.candidateId] && ['grow-y', 'grow-xy'].includes(modeOfBox(boxOfRow[f.candidateId])))) && (
@@ -1659,13 +1659,9 @@ export default function MapSvgFieldsStep({
               not fit. What you are choosing is how much room the box gives it first.
             </p>
             <p>
-              Each box says it on its own row above, so one can grow while its neighbours stay.
-              We read your artwork and answered for you.
-            </p>
-            <p>
-              A field with room for a second line also says whether it wraps or stays on one line.
-              Fields you draw on the artwork, outlined text, curved text and clocks always stay on
-              one line.
+              Each box says it on its own row above, so one can grow while its neighbours stay, and a
+              field with room for a second line says whether it wraps. We read your artwork and
+              answered for you.
             </p>
           </SectionHead>
           {/* WHICH BOXES GROW, said once. The ANSWERS live on the heading rows in the

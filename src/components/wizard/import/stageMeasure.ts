@@ -1000,8 +1000,11 @@ export function lineCanWrap(stage: HTMLElement, lineId: string, boxId: string | 
   // A block centred in its box with nothing under it grows both ways (the runtime's band).
   const centred = Math.abs((r.top + r.bottom) / 2 - (room.top + room.bottom) / 2) <= (room.bottom - room.top) * SVG_ALIGN_TOL;
   if (plate && centred && !under) height = Math.max(height, room.bottom - room.top - size * SVG_LINE_HEIGHT);
+  // Two lines are one line STEP plus one line's own box, both at the smaller size - and the box is
+  // the face's own (a serif's runs a third taller than its size), because the runtime checks the
+  // painted block's height rather than counting steps.
   const at = size * WRAP_REPORT_FLOOR;
-  return 1 + Math.floor((height - at) / (at * SVG_LINE_HEIGHT)) >= 2;
+  return at * (SVG_LINE_HEIGHT + r.height / size) <= height + 0.5;
 }
 
 /**

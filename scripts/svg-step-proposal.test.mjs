@@ -60,6 +60,9 @@ const CASES = {
   nameOverTitle: svg(`<rect id="Bar" x="100" y="840" width="1000" height="130" fill="#123"/>
     <text id="Name" x="130" y="900" font-size="48">Anna Virtanen</text>
     <text id="Title" x="130" y="950" font-size="30">Reporter</text>`),
+  nameOverTitleSerif: svg(`<rect id="Bar" x="100" y="840" width="1000" height="130" fill="#123"/>
+    <text id="Name" x="130" y="900" font-size="48" font-family="serif">Anna Virtanen</text>
+    <text id="Title" x="130" y="950" font-size="30" font-family="serif">Reporter</text>`),
   tallBox: svg(`<rect id="Board" x="100" y="700" width="1000" height="300" fill="#123"/>
     <text id="Question" x="130" y="760" font-size="40">Who won?</text>`),
   curved: svg(`<defs><path id="arc" d="M200,600 Q960,300 1720,600"/></defs>
@@ -131,6 +134,8 @@ test('wrap: offered where the room holds two lines, never where both answers pai
   assert.equal(answers.tallBox.wraps.Question, true, JSON.stringify(answers.tallBox.wraps));
   assert.equal(answers.nameOverTitle.wraps.Name, false, JSON.stringify(answers.nameOverTitle.wraps));
   assert.equal(answers.nameOverTitle.wraps.Title, false);
+  // A serif's line box runs a third taller than its size; two lines still do not fit.
+  assert.equal(answers.nameOverTitleSerif.wraps.Name, false, JSON.stringify(answers.nameOverTitleSerif.wraps));
   assert.equal(Object.values(answers.curved.wraps).some(Boolean), false, JSON.stringify(answers.curved.wraps));
 });
 
