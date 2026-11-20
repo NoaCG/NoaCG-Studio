@@ -1257,8 +1257,9 @@ async function boot(): Promise<void> {
     if (!offAirFrom.has(key) || (hiddenHere(key) && ready(key))) return;
     if (hosts(key) && !ready(key)) {
       offAirFrom.delete(key);
-      // Nothing was sent to it that it could have failed to run.
-      if (!touched.has(key) && !liveGraphics.has(key)) {
+      // Only a graphic whose restored state is on air did not play here; one that ends out (a
+      // replay ending in an Out) or was given nothing has nothing on air to draw.
+      if (!liveGraphics.has(key)) {
         presence.touch();
         return;
       }
