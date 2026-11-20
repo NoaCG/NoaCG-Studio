@@ -25,7 +25,7 @@
 // covers: src/backend/teamProductions.ts, src/backend/assets.ts, src/backend/pacing.ts
 // covers: src/backend/savedRevision.ts, src/control/autoPublish.ts, src/components/home/useAutoPublish.ts
 // covers: src/control/publishParts.ts, src/control/publishRevision.ts, src/control/messageStaging.ts
-// covers: src/backend/teamDesigns.ts, src/backend/supabase.ts, supabase/migrations/0121_team_designs.sql
+// covers: src/backend/teamDesigns.ts, src/backend/supabase.ts, supabase/migrations/0123_team_designs.sql
 
 import { publishProduction } from '../_publish';
 import { closeScene, isLocalStack, lastTexts, openProduction, openScene, pageCues, run, serverState, setSwitch, type Scene } from './_five';

@@ -541,7 +541,7 @@ test('a statement that changes or locks a named live-path object is live-path', 
   assert.ok(isLive('alter table public.control_events add column if not exists seq bigint'));
   assert.ok(isLive('create index if not exists control_events_seq_idx on public.control_events (show_id, seq)'));
   assert.ok(isLive('alter publication supabase_realtime add table public.control_events'));
-  // The team designs guard (G5, 0121) and its helpers: a later file replacing only one of them is
+  // The team designs guard (G5, 0123) and its helpers: a later file replacing only one of them is
   // live-path by its name alone.
   assert.ok(isLive('create or replace function public.control_shows_team_designs_guard() returns trigger language plpgsql as $$ begin return new; end $$'));
   assert.ok(isLive('create or replace function public.control_team_designs_marked() returns boolean language sql as $$ select true $$'));

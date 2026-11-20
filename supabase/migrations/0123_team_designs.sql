@@ -465,30 +465,34 @@ create or replace function public.control_shows_team_designs_guard()
 returns trigger
 language plpgsql security definer set search_path = '' as $$
 declare
-  v_row    record := case when tg_op = 'DELETE' then old else new end;
+  v_id     uuid := case when tg_op = 'DELETE' then old.id else new.id end;
   v_claims jsonb;
 begin
-  if nullif(current_setting('request.headers', true), '') is null then return v_row; end if;
-  begin
-    v_claims := nullif(current_setting('request.jwt.claims', true), '')::jsonb;
-  exception when others then
-    v_claims := null;
-  end;
-  if coalesce(v_claims->>'role', '') <> 'authenticated' then return v_row; end if;
-  if public.control_team_designs_marked() then return v_row; end if;
-  if not public.control_team_record_split(v_row.id) then return v_row; end if;
-  if tg_op = 'UPDATE'
-     and new.output is not distinct from old.output
-     and new.panel is not distinct from old.panel
-     and new.title is not distinct from old.title
-     and new.profile is not distinct from old.profile
-     and new.bindings is not distinct from old.bindings
-     and new.collections is not distinct from old.collections
-     and public.production_sources_unpaused(new.sources) is not distinct from public.production_sources_unpaused(old.sources) then
-    return new; -- a source's Pause or Resume, or nothing at all
+  -- Every pass returns the row it was given, never a copy: a copy of a 5 MB output costs a publish
+  -- tens of milliseconds (#2616). A marked page leaves at the third test, before any comparison.
+  if nullif(current_setting('request.headers', true), '') is not null then
+    begin
+      v_claims := nullif(current_setting('request.jwt.claims', true), '')::jsonb;
+    exception when others then
+      v_claims := null;
+    end;
+    if coalesce(v_claims->>'role', '') = 'authenticated'
+       and not public.control_team_designs_marked()
+       and public.control_team_record_split(v_id)
+       and not (tg_op = 'UPDATE'
+                and new.output is not distinct from old.output
+                and new.panel is not distinct from old.panel
+                and new.title is not distinct from old.title
+                and new.profile is not distinct from old.profile
+                and new.bindings is not distinct from old.bindings
+                and new.collections is not distinct from old.collections
+                and public.production_sources_unpaused(new.sources) is not distinct from public.production_sources_unpaused(old.sources)) then
+      raise exception 'Reload this page to edit' using errcode = 'P0001',
+        hint = 'This page was opened before an update. Takes still work; reload it to edit the production.';
+    end if;
   end if;
-  raise exception 'Reload this page to edit' using errcode = 'P0001',
-    hint = 'This page was opened before an update. Takes still work; reload it to edit the production.';
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
 end $$;
 revoke all on function public.control_shows_team_designs_guard() from public, anon, authenticated;
 
@@ -505,9 +509,9 @@ do $$
 declare
   v_owner   uuid;
   v_role    text := current_user;
-  v_team    uuid := '00000000-0121-4000-8000-000000000001';
-  v_tp      uuid := '00000000-0121-4000-8000-000000000002';
-  v_other   uuid := '00000000-0121-4000-8000-000000000003';
+  v_team    uuid := '00000000-0123-4000-8000-000000000001';
+  v_tp      uuid := '00000000-0123-4000-8000-000000000002';
+  v_other   uuid := '00000000-0123-4000-8000-000000000003';
   v_signed  text;
   v_old     text := '{"accept":"application/json","x-noacg-production-copies":"1"}';
   v_new     text := '{"accept":"application/json","x-noacg-production-copies":"1","x-noacg-team-designs":"1"}';
@@ -525,7 +529,7 @@ begin
      or has_table_privilege('authenticated', 'public.team_production_designs', 'INSERT')
      or has_table_privilege('authenticated', 'public.team_production_designs', 'UPDATE')
      or has_table_privilege('authenticated', 'public.team_production_designs', 'DELETE') then
-    raise exception '0121: a client role holds a privilege on team_production_designs';
+    raise exception '0123: a client role holds a privilege on team_production_designs';
   end if;
   if has_function_privilege('anon', 'public.team_designs_put(uuid, jsonb)', 'EXECUTE')
      or not has_function_privilege('authenticated', 'public.team_designs_put(uuid, jsonb)', 'EXECUTE')
@@ -536,22 +540,22 @@ begin
      or has_function_privilege('authenticated', 'public.team_production_unsplit(uuid)', 'EXECUTE')
      or has_function_privilege('authenticated', 'public.team_designs_on()', 'EXECUTE')
      or has_function_privilege('authenticated', 'public.control_shows_team_designs_guard()', 'EXECUTE') then
-    raise exception '0121: EXECUTE on a team designs function is wrong for a client role';
+    raise exception '0123: EXECUTE on a team designs function is wrong for a client role';
   end if;
   if public.team_designs_state() <> '{"installed": true, "mark": false, "on": false}'::jsonb then
-    raise exception '0121: team_designs_state answered % outside a request', public.team_designs_state();
+    raise exception '0123: team_designs_state answered % outside a request', public.team_designs_state();
   end if;
 
   select id into v_owner from auth.users limit 1;
   if v_owner is null then
-    raise notice '0121 self-check skipped: no account on this instance';
+    raise notice '0123 self-check skipped: no account on this instance';
     return;
   end if;
   v_signed := jsonb_build_object('sub', v_owner, 'role', 'authenticated')::text;
   v_whole := '{"name":"w","graphics":[{"id":"g1","template":{"html":"<p>a</p>"}},{"id":"g2","template":{"html":"<p>b</p>"}}],"cues":[]}';
   begin
     perform set_config('request.jwt.claims', v_signed, true);
-    insert into public.teams (id, name, owner_id) values (v_team, '0121 self-check', v_owner);
+    insert into public.teams (id, name, owner_id) values (v_team, '0123 self-check', v_owner);
     insert into public.team_members (team_id, user_id, display_name, role) values (v_team, v_owner, 'self-check', 'owner') on conflict do nothing;
     if public.is_suspended() then raise exception 'self-check-done'; end if;
 
@@ -561,23 +565,23 @@ begin
       insert into public.team_productions (id, team_id, doc, updated_by) values (v_other, v_team, '{"graphics":[{"id":"g1","designRef":"x"}]}', v_owner);
     exception when check_violation then v_err := sqlerrm;
     end;
-    if v_err is null then raise exception '0121: an insert naming a design was stored'; end if;
+    if v_err is null then raise exception '0123: an insert naming a design was stored'; end if;
     insert into public.team_productions (id, team_id, doc, updated_by, doc_form) values (v_tp, v_team, v_whole, v_owner, 1);
     if (select p.doc_form from public.team_productions p where p.id = v_tp) is not null then
-      raise exception '0121: an insert kept a client doc_form';
+      raise exception '0123: an insert kept a client doc_form';
     end if;
 
     -- Designs: server names, one row per body, read answers only stored names.
     v_names := public.team_designs_put(v_tp, '[{"html":"<p>a</p>"},{"html":"<p>b</p>"},{"html":"<p>a</p>"}]');
     if cardinality(v_names) <> 3 or v_names[1] <> v_names[3] or v_names[1] = v_names[2]
        or v_names[1] <> encode(extensions.digest(convert_to('{"html": "<p>a</p>"}', 'UTF8'), 'sha256'), 'hex') then
-      raise exception '0121: team_designs_put answered %', v_names;
+      raise exception '0123: team_designs_put answered %', v_names;
     end if;
     if (select count(*) from public.team_production_designs d where d.production_id = v_tp) <> 2 then
-      raise exception '0121: a body put twice was stored twice';
+      raise exception '0123: a body put twice was stored twice';
     end if;
     if jsonb_array_length(public.team_designs_read(v_tp, array[v_names[1], 'nope'])) <> 1 then
-      raise exception '0121: team_designs_read answered a name not stored';
+      raise exception '0123: team_designs_read answered a name not stored';
     end if;
     v_split := jsonb_build_object('name', 's', 'cues', '[]'::jsonb, 'graphics', jsonb_build_array(
       jsonb_build_object('id', 'g1', 'designRef', v_names[1]), jsonb_build_object('id', 'g2', 'designRef', v_names[2])));
@@ -590,33 +594,33 @@ begin
       perform public.team_production_store(v_tp, v_at, v_split);
     exception when raise_exception then v_err := sqlerrm;
     end;
-    if v_err is distinct from 'Reload this page to edit' then raise exception '0121: an unmarked store answered %', v_err; end if;
+    if v_err is distinct from 'Reload this page to edit' then raise exception '0123: an unmarked store answered %', v_err; end if;
     perform set_config('request.headers', v_new, true);
     if public.team_designs_state() <> '{"installed": true, "mark": true, "on": false}'::jsonb then
-      raise exception '0121: team_designs_state answered % for a marked request', public.team_designs_state();
+      raise exception '0123: team_designs_state answered % for a marked request', public.team_designs_state();
     end if;
     v_got := public.team_production_store(v_tp, v_at, v_split);
-    if v_got->>'off' is distinct from 'true' then raise exception '0121: a store with the switch off answered %', v_got; end if;
+    if v_got->>'off' is distinct from 'true' then raise exception '0123: a store with the switch off answered %', v_got; end if;
     insert into public.system_settings (key, value) values ('team_designs', '{"on": true}')
     on conflict (key) do update set value = excluded.value;
     -- Stale token: the record, nothing written. Unknown name: missing, nothing written.
     v_got := public.team_production_store(v_tp, v_at - interval '1 second', v_split);
-    if v_got->>'saved' <> 'false' or not v_got ? 'doc' or v_got ? 'missing' then raise exception '0121: a stale store answered %', v_got; end if;
+    if v_got->>'saved' <> 'false' or not v_got ? 'doc' or v_got ? 'missing' then raise exception '0123: a stale store answered %', v_got; end if;
     v_got := public.team_production_store(v_tp, v_at, jsonb_set(v_split, '{graphics,1,designRef}', '"nope"'));
-    if v_got->'missing' <> '["nope"]'::jsonb then raise exception '0121: a store naming an unknown design answered %', v_got; end if;
+    if v_got->'missing' <> '["nope"]'::jsonb then raise exception '0123: a store naming an unknown design answered %', v_got; end if;
     -- Mixed content: raises, nothing written.
     v_err := null;
     begin
       perform public.team_production_store(v_tp, v_at, jsonb_set(v_split, '{graphics,1}', '{"id":"g2","template":{}}'));
     exception when check_violation then v_err := sqlerrm;
     end;
-    if v_err is null then raise exception '0121: a mixed record was stored'; end if;
+    if v_err is null then raise exception '0123: a mixed record was stored'; end if;
     -- On its token: written, split, token and rev advance.
     select p.rev into v_rev from public.team_productions p where p.id = v_tp;
     v_got := public.team_production_store(v_tp, v_at, v_split);
     if v_got->>'saved' <> 'true' or (v_got->>'rev')::bigint <= v_rev or (v_got->>'updated_at')::timestamptz <= v_at
        or (select p.doc_form from public.team_productions p where p.id = v_tp) is distinct from 1::smallint then
-      raise exception '0121: a store on its token answered %', v_got;
+      raise exception '0123: a store on its token answered %', v_got;
     end if;
     v_at := (v_got->>'updated_at')::timestamptz;
 
@@ -626,7 +630,7 @@ begin
       update public.team_productions set doc = jsonb_set(v_split, '{graphics,0,designRef}', '"nope"') where id = v_tp;
     exception when check_violation then v_err := sqlerrm;
     end;
-    if v_err is null then raise exception '0121: the form trigger let an unknown design through'; end if;
+    if v_err is null then raise exception '0123: the form trigger let an unknown design through'; end if;
 
     -- Save: unmarked on split refused before answering; a record naming a design refused.
     perform set_config('request.headers', v_old, true);
@@ -635,14 +639,14 @@ begin
       perform public.team_production_save(v_tp, v_at - interval '1 second', v_whole);
     exception when raise_exception then v_err := sqlerrm;
     end;
-    if v_err is distinct from 'Reload this page to edit' then raise exception '0121: an unmarked save of a split record answered %', v_err; end if;
+    if v_err is distinct from 'Reload this page to edit' then raise exception '0123: an unmarked save of a split record answered %', v_err; end if;
     perform set_config('request.headers', v_new, true);
     v_err := null;
     begin
       perform public.team_production_save(v_tp, v_at, v_split);
     exception when check_violation then v_err := sqlerrm;
     end;
-    if v_err is null then raise exception '0121: team_production_save stored a split record'; end if;
+    if v_err is null then raise exception '0123: team_production_save stored a split record'; end if;
 
     -- Patch: unmarked on split refused; a result changing form, or naming an unknown design, replaced.
     perform set_config('request.headers', v_old, true);
@@ -651,22 +655,22 @@ begin
       perform public.team_production_patch(v_tp, v_at, '[{"m":"name","set":"p","u":"u"}]');
     exception when raise_exception then v_err := sqlerrm;
     end;
-    if v_err is distinct from 'Reload this page to edit' then raise exception '0121: an unmarked patch of a split record answered %', v_err; end if;
+    if v_err is distinct from 'Reload this page to edit' then raise exception '0123: an unmarked patch of a split record answered %', v_err; end if;
     perform set_config('request.headers', v_new, true);
     v_got := public.team_production_patch(v_tp, v_at, jsonb_build_array(jsonb_build_object('m', 'graphics', 'set', v_whole->'graphics', 'u', 'u')));
-    if v_got->>'replaced' is distinct from 'true' then raise exception '0121: a patch turning a split record whole answered %', v_got; end if;
+    if v_got->>'replaced' is distinct from 'true' then raise exception '0123: a patch turning a split record whole answered %', v_got; end if;
     v_got := public.team_production_patch(v_tp, v_at, '[{"m":"graphics","by":"id","put":[{"v":{"id":"g2","designRef":"nope"},"d":"d"}],"del":[],"len":2}]');
-    if v_got->>'replaced' is distinct from 'true' then raise exception '0121: a patch naming an unknown design answered %', v_got; end if;
+    if v_got->>'replaced' is distinct from 'true' then raise exception '0123: a patch naming an unknown design answered %', v_got; end if;
     v_got := public.team_production_patch(v_tp, v_at, '[{"m":"graphics","by":"id","put":[{"v":{"id":"g2","template":{}},"d":"d"}],"del":[],"len":2}]');
-    if v_got->>'replaced' is distinct from 'true' then raise exception '0121: a patch putting a template in a split record answered %', v_got; end if;
+    if v_got->>'replaced' is distinct from 'true' then raise exception '0123: a patch putting a template in a split record answered %', v_got; end if;
     v_got := public.team_production_patch(v_tp, v_at, '[{"m":"name","set":"p","u":"u"}]');
     if v_got->>'saved' <> 'true' or (select p.doc->>'name' from public.team_productions p where p.id = v_tp) <> 'p' then
-      raise exception '0121: a patch of a split record on its token answered %', v_got;
+      raise exception '0123: a patch of a split record on its token answered %', v_got;
     end if;
     v_at := (v_got->>'updated_at')::timestamptz;
     select p.rev into v_rev from public.team_productions p where p.id = v_tp;
     if not public.team_production_units_set(v_tp, v_rev, '{"m":{"name":"n"}}') then
-      raise exception '0121: the map of a split record was not kept at its revision';
+      raise exception '0123: the map of a split record was not kept at its revision';
     end if;
 
     -- The select policy, as the authenticated role: unmarked refused on a split row; marked reads.
@@ -680,25 +684,25 @@ begin
     perform set_config('request.headers', v_new, true);
     select count(*) into v_n from public.team_productions p where p.team_id = v_team;
     execute format('set local role %I', v_role);
-    if v_err is distinct from 'Reload this page to edit' then raise exception '0121: an unmarked read of a split record answered %', coalesce(v_err, 'rows'); end if;
-    if v_n <> 1 then raise exception '0121: a marked read of a split record saw % rows', v_n; end if;
+    if v_err is distinct from 'Reload this page to edit' then raise exception '0123: an unmarked read of a split record answered %', coalesce(v_err, 'rows'); end if;
+    if v_n <> 1 then raise exception '0123: a marked read of a split record saw % rows', v_n; end if;
 
     -- The publish guard: unmarked publish refused; a Pause, a heartbeat and a marked publish pass.
     insert into public.control_shows (id, owner_id, team_id, title, output, sources)
-    values (v_tp, v_owner, v_team, '0121 self-check', '{"v":1}', '[{"id":"s1","kind":"feed","label":"x","config":{"url":"u"}}]');
+    values (v_tp, v_owner, v_team, '0123 self-check', '{"v":1}', '[{"id":"s1","kind":"feed","label":"x","config":{"url":"u"}}]');
     perform set_config('request.headers', v_old, true);
     v_err := null;
     begin
       update public.control_shows set output = '{"v":2}' where id = v_tp;
     exception when raise_exception then v_err := sqlerrm;
     end;
-    if v_err is distinct from 'Reload this page to edit' then raise exception '0121: an unmarked publish of a split production answered %', v_err; end if;
+    if v_err is distinct from 'Reload this page to edit' then raise exception '0123: an unmarked publish of a split production answered %', v_err; end if;
     v_err := null;
     begin
       delete from public.control_shows where id = v_tp;
     exception when raise_exception then v_err := sqlerrm;
     end;
-    if v_err is distinct from 'Reload this page to edit' then raise exception '0121: an unmarked unpublish of a split production answered %', v_err; end if;
+    if v_err is distinct from 'Reload this page to edit' then raise exception '0123: an unmarked unpublish of a split production answered %', v_err; end if;
     update public.control_shows set sources = '[{"id":"s1","kind":"feed","label":"x","config":{"url":"u"},"paused":true}]' where id = v_tp;
     update public.control_shows set output_seen_at = now() where id = v_tp;
     perform set_config('request.headers', v_new, true);
@@ -708,23 +712,23 @@ begin
     update public.system_settings set value = '{"on": false}' where key = 'team_designs';
     v_got := public.team_production_save(v_tp, v_at, v_whole);
     if v_got->>'saved' <> 'true' or (select p.doc_form from public.team_productions p where p.id = v_tp) is not null then
-      raise exception '0121: a marked whole save of a split record answered %', v_got;
+      raise exception '0123: a marked whole save of a split record answered %', v_got;
     end if;
 
     -- Unsplit: split again with the switch on, then made whole by the revert function.
     update public.system_settings set value = '{"on": true}' where key = 'team_designs';
     v_at := (v_got->>'updated_at')::timestamptz;
     v_got := public.team_production_store(v_tp, v_at, v_split);
-    if v_got->>'saved' <> 'true' then raise exception '0121: a second store answered %', v_got; end if;
+    if v_got->>'saved' <> 'true' then raise exception '0123: a second store answered %', v_got; end if;
     v_at := (v_got->>'updated_at')::timestamptz;
     -- Called first, on its own: the sub-selects below may be planned before the call.
     if not public.team_production_unsplit(v_tp) then
-      raise exception '0121: unsplit found no split record';
+      raise exception '0123: unsplit found no split record';
     end if;
     if (select p.doc_form from public.team_productions p where p.id = v_tp) is not null
        or (select p.doc->'graphics'->1->'template'->>'html' from public.team_productions p where p.id = v_tp) <> '<p>b</p>'
        or (select p.updated_at from public.team_productions p where p.id = v_tp) <= v_at then
-      raise exception '0121: unsplit did not make the record whole with a new token';
+      raise exception '0123: unsplit did not make the record whole with a new token';
     end if;
 
     -- A suspended member: refused by the new functions.
@@ -736,7 +740,7 @@ begin
       perform public.team_designs_put(v_tp, '[{"x":1}]');
     exception when insufficient_privilege then v_err := sqlerrm;
     end;
-    if v_err is distinct from 'this account is suspended' then raise exception '0121: a suspended account put a design (%)', v_err; end if;
+    if v_err is distinct from 'this account is suspended' then raise exception '0123: a suspended account put a design (%)', v_err; end if;
 
     raise exception 'self-check-done';
   exception when others then
