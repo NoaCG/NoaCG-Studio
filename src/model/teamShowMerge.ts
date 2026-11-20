@@ -50,6 +50,7 @@ const FIELD_LABEL: Record<string, string> = {
   folders: 'the folders',
   datasets: 'the data tables',
   playoutItems: 'the playout items',
+  oscDestinations: 'the OSC destinations',
   data: 'the production data',
   bindings: 'the field bindings',
   sources: 'the data sources',

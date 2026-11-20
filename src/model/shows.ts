@@ -68,6 +68,7 @@ import {
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
 import { patchAdjust, promotedMembers, readAdjust, stepPatch, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
 import { cueShortcutHolders, normalizeCueShortcut } from './cueShortcuts.ts';
+import { controlFrozen, controlKeep, isGraphicCue, isServerCue, type ControlRecord, type OscDestination } from './controlCue.ts';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -88,8 +89,15 @@ export interface ShowCue {
   sourceId: string;
   /** ADDITIVE OPTIONAL. Absent = a cue over a pool graphic, as every cue was before 2026-09-22.
    *  `playout` = a cue over an item in the playout server's own library (docs/BRIDGE.md §5):
-   *  it airs through NoaCG Bridge as one command, not through the output URL. */
-  source?: 'playout';
+   *  it airs through NoaCG Bridge as one command, not through the output URL.
+   *  `control` = a one-shot control cue (docs/work-specs/osc-control-cues/spec.md D2): its message
+   *  is `control`, its `sourceId` is '', and it never goes on air. Read the kind only through
+   *  ./controlCue.ts `cueKind`. */
+  source?: 'playout' | 'control';
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/osc-control-cues/spec.md D2). A control cue's
+   *  message, read only through ./controlCue.ts `readControl`; one this build cannot read makes the
+   *  cue read-only (`controlReadOnly`). Every other write keeps it byte for byte. */
+  control?: ControlRecord | { v?: unknown; [later: string]: unknown };
   /** The operator-facing name — "Anna Andersson — Presenter". */
   label: string;
   /** fieldId -> value, the cue's prepared data. A cue OWNS its values (an entry is only a
@@ -487,6 +495,9 @@ export interface Show {
    *  OPTIONAL - an older build reads and rewrites the record untouched, and its rundown simply
    *  shows those cues as pointing at nothing it knows. */
   playoutItems?: PlayoutItem[];
+  /** ADDITIVE OPTIONAL (docs/work-specs/osc-control-cues/spec.md D2). The devices this production's
+   *  OSC cues send to, shared by its team and merged item by item. */
+  oscDestinations?: OscDestination[];
   /**
    * The production-data SEED (docs/PRODUCTION_DATA_PLAN.md §2.1) — the tree this production
    * STARTS from, and what "Reset" returns the live tree to. Authored, so it travels: it syncs,
@@ -969,7 +980,7 @@ export function setGraphicAdjust(showId: string, graphicId: string, patch: Adjus
 export function setCueAdjust(showId: string, cueId: string, patch: AdjustPatch | null): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
-    if (!cue || cue.source === 'playout') return 'This cue is no longer in the production.';
+    if (!isGraphicCue(cue)) return 'This cue is no longer in the production.';
     return writeAdjust(cue, patch);
   });
 }
@@ -1055,7 +1066,7 @@ export function recordOwnReaderStops(
  *  binding names: what an Update would stop showing. Their labels, in the copy's order. */
 export function droppedFields(show: Pick<Show, 'cues' | 'bindings'>, graphic: SavedGraphic, next: SpxTemplate): string[] {
   const kept = new Set((next.fields ?? []).map((f) => f.field));
-  const cues = (show.cues ?? []).filter((c) => c.source !== 'playout' && c.sourceId === graphic.id);
+  const cues = (show.cues ?? []).filter((c) => isGraphicCue(c) && c.sourceId === graphic.id);
   const bound = show.bindings?.[graphic.name] ?? {};
   return (graphic.template.fields ?? [])
     .filter((f) => !kept.has(f.field) && (f.field in bound || cues.some((c) => (c.values?.[f.field] ?? '') !== '')))
@@ -1224,12 +1235,13 @@ function patchShowChecked(
   const at = nowIso();
   const scenes = sceneSnapshot(show);
   const kept = selectionKeep(show);
+  const control = controlKeep(show);
   const typed = typedKeep(show);
   const result = mutate(show, at);
   if (typeof result === 'string') return { shows: visible(), error: result };
   if (!result) return { shows: visible(), error: null };
   // The mutation ran on this read only: refused, the stored productions are read again.
-  const frozen = separateAfterWrite(show, scenes) ?? selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
+  const frozen = separateAfterWrite(show, scenes) ?? selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite) ?? controlFrozen(control, show);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   scrubHiddenWords(show); // W11: this tab's copy too, before the rebased pass decides the stored one
@@ -1279,6 +1291,7 @@ function storedPatch(
   return (fresh: Show, at: string): string | null => {
     const scenesFresh = sceneSnapshot(fresh);
     const keptFresh = selectionKeep(fresh);
+    const controlFresh = controlKeep(fresh);
     const typedFresh = typedKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return again;
@@ -1286,7 +1299,7 @@ function storedPatch(
     const separatedFresh = separateAfterWrite(fresh, scenesFresh);
     if (separatedFresh) return separatedFresh;
     scrubHiddenWords(fresh); // W11 uses the stored rule, including after a cross-tab change.
-    const frozenFresh = selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite);
+    const frozenFresh = selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite) ?? controlFrozen(controlFresh, fresh);
     if (frozenFresh) return frozenFresh;
     fresh.updatedAt = at;
     return null;
@@ -1302,7 +1315,7 @@ export function seedValues(fields: SpxTemplate['fields']): Record<string, string
 
 /** The playout item a cue drives, when it is that kind of cue. */
 export function playoutItemOf(show: Pick<Show, 'playoutItems'>, cue: Pick<ShowCue, 'sourceId' | 'source'>): PlayoutItem | null {
-  if (cue.source !== 'playout') return null;
+  if (!isServerCue(cue)) return null;
   return show.playoutItems?.find((i) => i.id === cue.sourceId) ?? null;
 }
 
@@ -1314,7 +1327,7 @@ export function productionPlayoutSystem(
   let serverCues = false;
   let vmixCues = false;
   for (const cue of show.cues ?? []) {
-    if (cue.source !== 'playout') continue;
+    if (!isServerCue(cue)) continue;
     if (playoutItemOf(show, cue)?.adapter === 'vmix') vmixCues = true;
     else {
       serverCues = true;
@@ -1542,7 +1555,7 @@ export function setCuePlayback(
 ): Show[] {
   return patchShow(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
-    if (!cue || cue.source !== 'playout') return false;
+    if (!isServerCue(cue)) return false;
     const next: Record<string, unknown> = { ...(cue.playback ?? {}) };
     for (const [key, value] of Object.entries(patch)) {
       if (value === null || value === undefined) delete next[key];
@@ -1566,7 +1579,7 @@ export function setCuePlayback(
 export function setCueAuto(showId: string, cueId: string, auto: CueAuto | null): Show[] {
   return patchShow(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
-    if (!cue || cue.source === 'playout') return false;
+    if (!isGraphicCue(cue)) return false;
     if (auto) cue.auto = { after: auto.after, then: auto.then };
     else delete cue.auto;
     return true;
@@ -1780,14 +1793,14 @@ export function setCueTyped(
       if (!envelope) return { error: 'This cue’s typed data cannot be read.' };
       // A declared value the typed form removed stays removed (E2.1): its old string is not brought
       // back from before On, so Off then On never resurrects it.
-      const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
+      const graphic = isGraphicCue(cue) ? show.graphics.find((g) => g.id === cue.sourceId) : undefined;
       const declared = readOgrafDeclared(ograf ?? graphic?.template.ograf);
       const removed = new Set(declared.status === 'ok' && declared.fields ? (declared.fields.properties ?? []).map((p) => p.key).filter((k) => !Object.prototype.hasOwnProperty.call(envelope.values, k)) : []);
       const kept = Object.fromEntries(Object.entries(cue.values).filter(([k]) => !removed.has(k)));
       return { typed: null, values: { ...kept, ...nativeOf(envelope) }, receipt: null };
     }
     if (cue.typed !== undefined) return null;
-    const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
+    const graphic = isGraphicCue(cue) ? show.graphics.find((g) => g.id === cue.sourceId) : undefined;
     const declared = readOgrafDeclared(ograf ?? graphic?.template.ograf);
     if (declared.status !== 'ok' || !declared.fields) return { error: 'This cue’s graphic declares no typed data.' };
     // The schema's declared defaults fill what the strings did not say, once, here (E2.1): never

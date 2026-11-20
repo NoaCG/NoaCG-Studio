@@ -899,6 +899,37 @@ Bridge".
 
 ---
 
+
+### The audio reader inside the exe
+
+The exe also carries an audio-only LGPL ffmpeg and ffprobe for Windows
+(`docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md` §3.3). `cli/ffmpeg/build.sh` builds them from a pinned
+FFmpeg commit with only LGPL parts, cross-compiled with mingw-w64 on Ubuntu in the release
+workflow; `build-bridge-exe.mjs` adds them as single-executable assets with a manifest of their
+checksums, and its proof measures a -23 dBFS tone from a fresh cache folder and refuses anything
+but -23.0 LUFS. At run time (`cli/src/playout/audio/tools.ts`) they are written once to
+`%LOCALAPPDATA%\NoaCG\Bridge\ffmpeg\<version>-<checksum>\` and re-checked before every start; a
+changed file is rewritten from the exe. Each Release carries the licence text, `BUILD.txt` (the
+commit and configure line), the recipe and the exact source archive. Outside the exe,
+`NOACG_FFMPEG_DIR` names a folder with the same two programs; CI builds the Linux variant from the
+same recipe for the CLI tests. `--measure <file> [--in s] [--out s]` prints the reading Normalize
+uses, for checking a recording in the studio.
+
+
+### The server's media folder and the audio jobs
+
+`/media-folder` keeps, per remembered CasparCG server, the folder this computer reads the server's
+files from (a share such as `\\PLAYOUT\media`), beside its studio setup in `caspar-servers.json`,
+and answers a check of it: `linked`, `not-linked`, `access-denied`, `offline` or `not-this-server`
+(`cli/src/playout/audio/mediaFiles.ts`). A server name becomes a file by a strict rule: each
+subfolder by name ignoring case, then the files whose name without extension equals the leaf, and
+exactly one with the size the server lists; nothing is searched by bare name, and a path that
+leaves the folder is refused. `/audio/start` queues a `waveform` or `measure` job on a listed file,
+`/audio/job` reads it (progress 0 to 1, then the result and the file's `bytes:changed` key), and
+`/audio/cancel` stops it (`cli/src/playout/audio/jobs.ts`). Jobs run one at a time, the same
+request is the same job, and a file whose size or modified time moved during the read gives no
+result. `/health` lists `media-folder` and `gain-20` always and `audio` only with the reader.
+`gain-20` raises a take's `playback.gain` ceiling from 2 (+6 dB) to 10 (+20 dB).
 ## 7. Diagnosing it - the hops, never one generic red
 
 The panel never says "failed". It says which hop failed, because the hops have nothing to do

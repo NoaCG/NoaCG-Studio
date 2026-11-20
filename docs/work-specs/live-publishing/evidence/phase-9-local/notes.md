@@ -172,6 +172,59 @@ the restarted output drew it:
   while it was still "placing" the graphic: green at 18:39:02.262; CasparCG frames at 02.673 and
   03.221 still empty; drawn at 03.732 (`s4b-c25-burst-*`, file names carry the grab time).
 
+### Steps 4 and 5 rerun, 2026-11-20 (UTC), after #2610
+
+Production deployment 90286a4d (includes #2610, merged 16:35 UTC). Same laptop: CasparCG 2.5.0,
+NoaCG Bridge 0.12.0 built from `main`, the Playwright browser output window, the operator page in
+Chrome. A fresh "Phase 9 test" with 14 library graphics (two more added for the loading cases),
+published with the CasparCG switch on; production switches untouched; deleted afterwards. Each
+restart was fired from the operator page itself through two local helpers (the browser output
+window's reload, and `PLAY 1-20 [HTML] <same URL>` over AMCP), so its time is in the light's log.
+CasparCG was grabbed about every 0.3 s, the browser output by its picture-change series.
+
+**Step 4: once the page notices the restart, the light is never green before the picture is
+back. Open: until it notices, it stays green over the blank restarted output** (0.3 to 0.6 s on
+CasparCG, 2.2 to 2.8 s on the browser output).
+
+| Case | Restart at | Page noticed | Picture back | Green | Green before picture? |
+|---|---|---|---|---|---|
+| A. Take still loading (House Countdown), CasparCG reload 0.3 s after Take | 21:46:50.999 | amber throughout ("Updating outputs", "placing", "loading on CasparCG 1-20") | 57.947 | 01.357 | no, 3.4 s after |
+| B. Take still loading (Arcade Strap), browser output on 4 Mbit/s reloaded 1 s after Take | 21:48:01.756 | 04.377 (not answering) | 13.538 | 14.161 | no, 0.62 s after |
+| C1. On air, nothing pressed, CasparCG reload | 21:49:20.921 | 21.218 (grey "Confirming…") | 22.440 | 22.897 | no, 0.46 s after; green over a blank output for 0.3 s before the page noticed |
+| C2. On air, nothing pressed, browser output reload (4 Mbit/s) | 21:50:17.187 (blank) | 19.958 | 22.518 | 24.197 | no, 1.7 s after; green over a blank output for 2.8 s before the page noticed |
+| D1. 15 graphics on air, nothing pressed, CasparCG reload | 21:52:39.821 | 40.358 | 41.616 (all back) | 42.679 | no, 1.06 s after; 0.54 s green over blank first |
+| D2. 15 graphics on air, nothing pressed, browser output reload (4 Mbit/s) | 21:53:43.036 (blank) | 45.265 | 48.531 (all back) | 51.158 | no, 2.6 s after; 2.2 s green over blank first |
+
+While noticed, the light read grey "Confirming…" or amber, as the checklist says. During every
+reload the restarting output was listed twice ("Chrome 158 not answering (0 s) / Chrome 158 not
+answering (0 s)"); that looks like the known #2611. No "did not play" appeared.
+
+**Step 5: the output cut is ok; a silent output read green for 42.6 s; the production page cut
+off for 60 s stayed green the whole time (fail).**
+
+- **Output cut with a press** (browser output offline 20.1 s, 21:56:15.558 to 35.638; Take at
+  +4.6 s, Out at +10.2 s): grey "Confirming…", amber "Waiting for Chrome 158 / has not confirmed
+  Pro lower third" from 5 s, red "did not confirm" at about 16 s; the output's picture caught up
+  between 35.70 and 36.06 and green followed at 36.537. A first run the same way (21:55:08.8 to
+  28.96) went green at 29.858, then amber "Chrome 158: Catching up on missed commands" for 3 s,
+  then green; its picture was not timed, so whether that first green came before the output had
+  caught up is not known. Seen once in two runs.
+- **Silent output, nothing pressed** (browser output offline 60 s from 21:57:23.613): green for
+  42.6 s, then red "Chrome 158 lost … has not answered for 80 s" at 21:58:06.220 (the 80 s is
+  more than the 42.6 s it had been silent), a flick of grey "Confirming… (0 s)", red again "not
+  answering (16 s…20 s)"; back online at 58:23.689, amber "Commands slow: Chrome 158: Commands may
+  arrive up to 30 s late" from 26.038, green at 36.018 (12.3 s after reconnecting). Within the
+  checklist's "at most 3 min".
+- **The production page's own network off for 60 s** (a second signed-in operator page, offline
+  from 21:59:09.446 to 22:00:09.523): green for the whole 60 s. It read amber "CasparCG 1-20 cannot
+  confirm: this page cannot hear the outputs right now / Chrome 158 cannot confirm…" only at
+  22:00:09.590, after the network was back, and green again at 14.759. A check that the emulation
+  really cut the page off: offline, that page neither saw a Take pressed on the other page (its
+  PROGRAM did not change) nor could fetch anything. So for 60 s the page could not hear and still
+  read green; it never noticed while cut off.
+- Not run: a real cable pull (emulated with DevTools offline on one browser window; CasparCG and
+  the pages share this laptop), and a data feed (none configured).
+
 ## Step 5: the light on the network
 
 - The cable pull was emulated on the browser output (DevTools offline for 20.1 s, 18:41:13.5 to

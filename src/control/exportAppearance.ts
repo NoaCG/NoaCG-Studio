@@ -20,6 +20,7 @@
 
 import { appearanceOf, effectiveAdjust, resolveFrame, type AppliedAppearance, type LookLayer, type Measurement, type Size } from './cueAdjust.ts';
 import { resolveStyle, type ImportedFace } from './cueStyle.ts';
+import { isGraphicCue } from '../model/controlCue.ts';
 
 /** The baked default per pool graphic id, and the appearance per cue id. */
 export interface ExportAppearances {
@@ -40,7 +41,7 @@ interface RundownCue {
 }
 
 /** A graphic cue with place and size of its own (a playout-server clip has none). */
-export const cueAdjusted = (c: Omit<RundownCue, 'id' | 'sourceId'>) => c.source !== 'playout' && c.adjust !== undefined;
+export const cueAdjusted = (c: Omit<RundownCue, 'id' | 'sourceId'>) => isGraphicCue(c) && c.adjust !== undefined;
 
 /** The production look on a pool graphic while it is on (control/productionLook.ts `lookLayerFor`). */
 export type LookFor = (graphicId: string) => LookLayer | undefined;
@@ -77,7 +78,7 @@ export function exportAppearances(
     const own = effectiveAdjust(g.adjust, undefined, look);
     out.graphics[g.id] = appearanceOf(resolveFrame(own, measured.graphics[g.id] ?? null, frame, frame), resolveStyle(own, imported));
     for (const c of cues) {
-      if (c.sourceId !== g.id || c.source === 'playout') continue;
+      if (c.sourceId !== g.id || !isGraphicCue(c)) continue;
       const fold = effectiveAdjust(g.adjust, c.adjust, look);
       out.cues[c.id] = appearanceOf(resolveFrame(fold, measured.cues[c.id] ?? null, frame, frame), resolveStyle(fold, imported));
     }

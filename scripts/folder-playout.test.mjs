@@ -446,10 +446,10 @@ test('the TAKE button says what a step does and names the cues in its tooltip', 
 test('a folder lists every child\'s own outcome, and All together names the cues that share one place (data-sources C6, AC-16)', async () => {
   const { folderChildren } = await import('../src/control/folderAir.ts');
   const members = [
-    { id: 'a', label: 'Score', source: 'graphic', sourceId: 'g1', values: {} },
+    { id: 'a', label: 'Score', sourceId: 'g1', values: {} },
     { id: 'b', label: 'Clip', source: 'playout', sourceId: 'p1', values: {} },
-    { id: 'c', label: 'Lower third', source: 'graphic', sourceId: 'g2', values: {} },
-    { id: 'd', label: 'Credits', source: 'graphic', sourceId: 'g3', values: {} },
+    { id: 'c', label: 'Lower third', sourceId: 'g2', values: {} },
+    { id: 'd', label: 'Credits', sourceId: 'g3', values: {} },
     { id: 'e', label: 'Clip 2', source: 'playout', sourceId: 'p2', values: {} },
   ];
   const address = { a: 'L20', b: '1-10', c: 'L30', d: 'L20', e: '1-10' };

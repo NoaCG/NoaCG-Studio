@@ -15,6 +15,7 @@ import type { VerbSelection } from './graphicVerbs';
 import { SPACE_FACES, spaceAction, type SpaceAction, type SpaceMode } from './spaceMode.ts';
 import { stepFace, type FolderStep } from './folderStep.ts';
 import { serverCueOffRefusal } from './takeBlockers.ts';
+import { isServerCue } from '../model/controlCue.ts';
 
 /** A held folder row, as the render sees it. */
 interface HeldFolder {
@@ -122,7 +123,7 @@ export function verbView(input: VerbInputs): VerbView {
   const spaceNext = spaceAction(input.spaceMode, { live: selectedCueIsLive, previewed: selectedCueStaged });
   /** A server cue cannot be taken while the server is off or the Bridge says it is not there. */
   const serverCueOn = input.serverCueOn ?? (selectedCue ? !serverCueOffRefusal(selectedCue, input.casparOn) : true);
-  const canTake = !!selectedCue && serverCueOn && !(selectedCue.source === 'playout' && input.bridgeDown);
+  const canTake = !!selectedCue && serverCueOn && !(isServerCue(selectedCue) && input.bridgeDown);
   const nextMoves = input.advances || (selectedPlayoutLive && input.selectedItemKind === 'template');
 
   const folderUp = !!folder && folder.up;

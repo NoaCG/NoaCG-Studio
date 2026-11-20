@@ -24,6 +24,7 @@ import type { AcceptedVerb, ServerLive, ServerOnAir } from './serverPlayout';
 import { withoutItem, withTaken } from './serverPlayout.ts';
 import { slotAddress } from './playoutSlots.ts';
 import { effectiveEnd, type ClipEnd } from './cuePlayback.ts';
+import { isServerCue } from '../model/controlCue.ts';
 
 /** Something on a rundown slot that no cue of this page can be matched to. */
 export interface UnidentifiedItem {
@@ -342,7 +343,7 @@ export function vmixCueIdentity(showId: string, cueId: string, itemId: string): 
 }
 
 export function vmixCueItem(cue: ShowCue | undefined, items: readonly PlayoutItem[]): PlayoutItem | undefined {
-  return cue?.source === 'playout' ? items.find(item => item.id === cue.sourceId && item.adapter === 'vmix' && item.kind === 'media') : undefined;
+  return isServerCue(cue) ? items.find(item => item.id === cue.sourceId && item.adapter === 'vmix' && item.kind === 'media') : undefined;
 }
 
 /** One admitted player observation. The fold never sends, and keeps the live object when only its

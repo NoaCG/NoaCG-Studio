@@ -248,7 +248,9 @@ test('a malformed playback or sequence is refused with the reason', () => {
   assert.throws(() => take({ trim: {} }), /names where/);
   assert.throws(() => take({ fadeIn: 0 }), /above 0/);
   assert.throws(() => take({ fadeOut: 60 }), /at most/);
-  assert.throws(() => take({ gain: 3 }), /from 0 to 2/);
+  // gain-20 (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.4): +20 dB is 10, the ceiling; above it is refused.
+  assert.equal(take({ gain: 10 }).playback.gain, 10);
+  assert.throws(() => take({ gain: 10.01 }), /from 0 to 10/);
   assert.throws(() => take({ end: 'next' }), /hold, clear or loop/);
   assert.throws(() => take({ end: 'clear' }, { loop: true }), /both loop and clear/);
   assert.throws(() => readAction({ action: { verb: 'take', item: { kind: 'template', name: 'T' }, slot: clipSlot, playback: { gain: 1 } } }), /Only a clip/);
@@ -398,6 +400,7 @@ const post = (base, path, body, headers = {}) =>
   });
 
 test('presence answers any origin without a token and says nothing about the studio', async () => {
+  // No audio reader here, so the list does not depend on the machine (audio-bridge.test.mjs covers `audio`).
   await withBridge(async (base) => {
     const health = await fetch(`${base}/health`, { headers: { Origin: 'https://another-noacg.example' } });
     assert.equal(health.status, 200);
@@ -410,14 +413,14 @@ test('presence answers any origin without a token and says nothing about the stu
       v: PLAYOUT_V,
       version: '0.0.0-test',
       adapters: ['casparcg'],
-      features: ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels', 'image-fit'],
+      features: ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels', 'image-fit', 'gain-20', 'media-folder'],
     });
 
     const noToken = await fetch(`${base}/status`, { method: 'POST', headers: { Origin: 'https://noacg.studio' } });
     assert.equal(noToken.status, 401);
     const wrong = await post(base, '/status', {}, { Authorization: 'Bearer nope' });
     assert.equal(wrong.status, 401);
-  });
+  }, { audio: async () => null });
 });
 
 test('a foreign origin is refused with no CORS headers at all, so a guessed token still reads nothing', async () => {

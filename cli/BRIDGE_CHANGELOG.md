@@ -15,6 +15,22 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## Unreleased
+
+Bridge can now read sound files itself. It carries a small audio reader (an audio-only build of
+the free FFmpeg program, under its LGPL licence, whose source is published with each release).
+To check a recording's loudness, run the exe with `--measure <file>`: it prints the integrated
+loudness in LUFS and the true peak in dBTP as a stereo programme carries them.
+
+Bridge can read the files of a CasparCG server on another computer through a shared folder. In
+**Settings > Playout**, type the server's media folder as this computer reaches it, for example
+`\\PLAYOUT\media`, and press **Link**. The line under it says whether the folder holds the
+server's files, cannot be reached, or refused this Windows user. Bridge keeps it with the server,
+so every browser paired with it uses the same folder.
+
+A clip or audio cue can now play up to 20 dB louder than before (the limit was 6 dB), for quiet
+files brought up to a loudness target.
+
 ## 0.12.0 - 2026-11-14
 
 You can now take clips, stills and audio from the NoaCG rundown into vMix. In **Settings >

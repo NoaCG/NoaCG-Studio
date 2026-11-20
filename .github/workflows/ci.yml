@@ -151,6 +151,10 @@ jobs:
       #
       # Releasing the package is NOT this workflow's job: .github/workflows/release-cli.yml
       # publishes it from a `cli-vX.Y.Z` tag on main, with npm trusted publishing (no token).
+      # The Bridge's sound reading is tested against the audio-only ffmpeg its exe ships, built
+      # for Linux from the same recipe (cli/ffmpeg/build.sh); cached on the recipe's hash.
+      - uses: ./.github/actions/audio-ffmpeg
+
       - name: CLI package (typecheck + build + offline tests)
         run: npm --prefix cli ci && npm --prefix cli run typecheck && npm --prefix cli run build && npm --prefix cli test
 
@@ -1137,6 +1141,9 @@ jobs:
       - name: Build (typecheck + lint + bundle), again
         if: ${{ needs.build.result == 'failure' }}
         run: npm run build
+
+      - uses: ./.github/actions/audio-ffmpeg
+        if: ${{ needs.build.result == 'failure' }}
 
       - name: CLI package (typecheck + build + offline tests), again
         if: ${{ needs.build.result == 'failure' }}
