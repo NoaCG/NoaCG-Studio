@@ -98,7 +98,11 @@ let found: Promise<AudioTools | null> | null = null;
 
 /** The tools this Bridge can use, or null. Looked up once per process. */
 export function audioTools(): Promise<AudioTools | null> {
-  found ??= locate();
+  // A failed unpack (a full disk, a locked folder) is tried again by the next job.
+  found ??= locate().catch((e: unknown) => {
+    found = null;
+    throw e;
+  });
   return found;
 }
 

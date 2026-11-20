@@ -68,26 +68,20 @@ interface RunResult {
 function run(
   program: string,
   args: string[],
-  opts: JobOptions & { onStdout?: (chunk: Buffer) => void; onStderrLine?: (line: string) => void } = {},
+  opts: JobOptions & { onStdout?: (chunk: Buffer) => void } = {},
 ): Promise<RunResult> {
   return new Promise((resolve, reject) => {
     if (opts.signal?.aborted) return reject(new AudioJobError('The job was cancelled.', 'cancelled'));
     const child = spawn(program, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     const out: Buffer[] = [];
     let err = '';
-    let partial = '';
     const abort = () => child.kill();
     opts.signal?.addEventListener('abort', abort, { once: true });
     child.stdout.on('data', (chunk: Buffer) => (opts.onStdout ? opts.onStdout(chunk) : out.push(chunk)));
     child.stderr.on('data', (chunk: Buffer) => {
-      const text = chunk.toString('utf8');
-      err += text;
+      err += chunk.toString('utf8');
+      // Long jobs log steadily; the reason ffmpeg stops is always near the end.
       if (err.length > 1_000_000) err = err.slice(-500_000);
-      if (opts.onStderrLine) {
-        const lines = (partial + text).split(/\r?\n/);
-        partial = lines.pop() ?? '';
-        for (const line of lines) opts.onStderrLine(line);
-      }
     });
     child.on('error', (e) => {
       opts.signal?.removeEventListener('abort', abort);
@@ -110,7 +104,7 @@ function lastError(stderr: string): string | null {
 
 export async function probe(tools: AudioTools, file: string, opts: JobOptions = {}): Promise<ProbeResult> {
   await tools.verify();
-  const { stdout } = await run(tools.ffprobe, ['-v', 'error', '-of', 'json', '-show_streams', '-show_format', '--', file], opts);
+  const { stdout } = await run(tools.ffprobe, ['-v', 'error', '-of', 'json', '-show_streams', '-show_format', '-i', asInput(file)], opts);
   const json = JSON.parse(stdout.toString('utf8')) as {
     streams?: { index: number; codec_type?: string; codec_name?: string; channels?: number; sample_rate?: string; channel_layout?: string; duration?: string }[];
     format?: { duration?: string };
@@ -130,13 +124,15 @@ function mergedGraph(audio: AudioStream[]): { graph: string; channels: number } 
   // A track with no channel layout (MXF's PCM tracks have none) is given one by index with an
   // identity pan, which moves no sound: amerge refuses inputs without a layout.
   const named = (s: AudioStream) => (s.layout ? '' : `,pan=${DEFAULT_LAYOUTS[s.channels] ?? `${s.channels}c`}|${Array.from({ length: s.channels }, (_, c) => `c${c}=c${c}`).join('|')}`);
-  const legs = audio.map((s, i) => `[0:a:${i}]aresample=${PROGRAMME_RATE}${named(s)}[a${i}]`);
+  const legs = audio.map((s, i) => `[0:${s.index}]aresample=${PROGRAMME_RATE}${named(s)}[a${i}]`);
   const channels = audio.reduce((n, s) => n + s.channels, 0);
   const merged = audio.length > 1 ? `${audio.map((_, i) => `[a${i}]`).join('')}amerge=inputs=${audio.length}` : '[a0]anull';
   return { graph: `${legs.join(';')};${merged}`, channels };
 }
 
 const seconds = (n: number) => n.toFixed(6);
+/** Always the file protocol: a name with a colon in it is never read as another protocol. */
+export const asInput = (file: string) => `file:${file}`;
 
 /**
  * The integrated loudness (LUFS) and true peak (dBTP) of the part `[trimIn, trimOut)` of the file,
@@ -163,7 +159,7 @@ export async function measure(
       '-nostdin', '-hide_banner', '-nostats', '-progress', 'pipe:1',
       ...(start > 0 ? ['-ss', seconds(start)] : []),
       ...(Number.isFinite(end) && part.trimOut !== undefined ? ['-to', seconds(end)] : []),
-      '-i', file,
+      '-i', asInput(file),
       '-vn', '-sn', '-dn',
       '-filter_complex', `${graph},${pan},ebur128=peak=true:framelog=quiet`,
       '-f', 'null', '-',
@@ -200,8 +196,12 @@ export async function waveform(tools: AudioTools, file: string, bins = 2000, opt
   const max = new Array<number>(bins).fill(0);
   if (!info.audio.length) return { seconds: total, min, max, silentFile: true };
   const { graph, channels } = mergedGraph(info.audio);
-  const totalFrames = Math.max(1, Math.round(total * PROGRAMME_RATE));
-  const framesPerBin = totalFrames / bins;
+  // Read into fine columns of 10 ms (or finer for a short file), then fold them into `bins`: a
+  // file that reports no length, or a sound longer than its container says, still draws whole.
+  const knownFrames = total > 0 ? Math.round(total * PROGRAMME_RATE) : 0;
+  const fine = Math.max(1, Math.min(480, Math.floor(knownFrames / bins) || 480));
+  const lows: number[] = [];
+  const highs: number[] = [];
   let frame = 0;
   let carry = Buffer.alloc(0);
   const frameBytes = channels * 4;
@@ -209,7 +209,7 @@ export async function waveform(tools: AudioTools, file: string, bins = 2000, opt
   await tools.verify();
   await run(
     tools.ffmpeg,
-    ['-nostdin', '-hide_banner', '-nostats', '-v', 'error', '-i', file, '-vn', '-sn', '-dn', '-filter_complex', graph, '-f', 'f32le', '-c:a', 'pcm_f32le', 'pipe:1'],
+    ['-nostdin', '-hide_banner', '-nostats', '-v', 'error', '-i', asInput(file), '-vn', '-sn', '-dn', '-filter_complex', graph, '-f', 'f32le', '-c:a', 'pcm_f32le', 'pipe:1'],
     {
       ...opts,
       onStdout: (chunk) => {
@@ -217,15 +217,19 @@ export async function waveform(tools: AudioTools, file: string, bins = 2000, opt
         const whole = data.length - (data.length % frameBytes);
         const samples = new Float32Array(data.buffer.slice(data.byteOffset, data.byteOffset + whole));
         for (let i = 0; i < samples.length; i += channels, frame++) {
-          const bin = Math.min(bins - 1, Math.floor(frame / framesPerBin));
+          const column = Math.floor(frame / fine);
+          if (column >= lows.length) {
+            lows.push(0);
+            highs.push(0);
+          }
           for (let c = 0; c < channels; c++) {
             const v = samples[i + c];
-            if (v < min[bin]) min[bin] = v;
-            if (v > max[bin]) max[bin] = v;
+            if (v < lows[column]) lows[column] = v;
+            if (v > highs[column]) highs[column] = v;
           }
         }
         carry = Buffer.from(data.subarray(whole));
-        const fraction = Math.min(1, frame / totalFrames);
+        const fraction = knownFrames ? Math.min(1, frame / knownFrames) : 0;
         if (fraction - lastReport >= 0.01) {
           lastReport = fraction;
           opts.onProgress?.(fraction);
@@ -233,7 +237,14 @@ export async function waveform(tools: AudioTools, file: string, bins = 2000, opt
       },
     },
   );
+  const duration = Math.max(total, frame / PROGRAMME_RATE);
+  const framesPerBin = (duration * PROGRAMME_RATE) / bins;
+  for (let column = 0; column < lows.length; column++) {
+    const bin = Math.min(bins - 1, Math.floor((column * fine) / framesPerBin));
+    if (lows[column] < min[bin]) min[bin] = lows[column];
+    if (highs[column] > max[bin]) max[bin] = highs[column];
+  }
   const clip = (v: number) => Math.round(Math.max(-1, Math.min(1, v)) * 1000) / 1000;
   opts.onProgress?.(1);
-  return { seconds: total || frame / PROGRAMME_RATE, min: min.map(clip), max: max.map(clip) };
+  return { seconds: duration, min: min.map(clip), max: max.map(clip) };
 }

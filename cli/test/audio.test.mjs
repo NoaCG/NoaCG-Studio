@@ -120,6 +120,14 @@ test('silence, a part under 0.4 s and a video with no sound each say what they a
   close(flat.seconds, 2, 0.05, 'a silent video keeps its length');
 });
 
+test('a file name with a colon is read as a file, never as another ffmpeg protocol', needsTools, async () => {
+  const dir = await fs.mkdtemp(path.join(tmp, 'colon-'));
+  const file = path.join(dir, 'pipe:0');
+  await fs.copyFile(await wav('for-colon.wav', { seconds: 1, sample: tone(db(-23)) }), file);
+  const r = await measure(tools, file);
+  close(r.integrated, -23, 0.1, 'colon name');
+});
+
 test('a file that is not sound is refused as unreadable, with a reason', needsTools, async () => {
   const bad = path.join(tmp, 'not-sound.wav');
   await fs.writeFile(bad, 'this is not a wave file');

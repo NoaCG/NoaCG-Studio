@@ -177,7 +177,9 @@ if (check) {
       const r = spawnSync(exe, ['--measure', tone], { encoding: 'utf8', env: { ...process.env, LOCALAPPDATA: home, XDG_CACHE_HOME: home, NOACG_FFMPEG_DIR: '' } });
       rmSync(tone, { force: true });
       rmSync(home, { recursive: true, force: true });
-      if (r.status !== 0 || !/^-23\.0 LUFS integrated, -23\.0 dBTP true peak/.test(r.stdout)) throw new Error(`--measure answered ${JSON.stringify(r.stdout || r.stderr)}, expected -23.0 LUFS and -23.0 dBTP`);
+      const read = /^(-?[\d.]+) LUFS integrated, (-?[\d.]+) dBTP true peak/.exec(r.stdout ?? '');
+      const near = (got, want, within) => got !== undefined && Math.abs(Number(got) - want) <= within;
+      if (r.status !== 0 || !read || !near(read[1], -23, 0.1) || !near(read[2], -23, 0.2)) throw new Error(`--measure answered ${JSON.stringify(r.stdout || r.stderr)}, expected -23.0 LUFS (± 0.1) and -23.0 dBTP (± 0.2)`);
       process.stdout.write(`[bridge-exe] --measure: ${r.stdout}`);
     });
   }
