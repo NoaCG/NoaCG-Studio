@@ -52,14 +52,22 @@ test('step 7b reads the tree after the head lock, after the skip filter and befo
   assert.doesNotMatch(step, /for (no key )?update|for (key )?share/);
 });
 
-test('a bound item rewrites only keys already in msg.data that the graphic binds, and nothing else of the item (R5b.1)', () => {
+test('a bound item is sent as it came, followed only when a bound figure differs by a correction of those fields (R5a, R5b.1)', () => {
   const item = body(sql, 'control_bound_item');
   assert.match(item, /p_item->'msg'->>'t' is distinct from 'update'/);
   assert.match(item, /continue when not \(v_data \? v_key\)/, 'never adds a field');
-  assert.match(item, /continue when v_text is null/, 'a path the tree lacks keeps the page\'s figure');
-  assert.equal(item.match(/jsonb_set\(/g)?.length, 2);
-  assert.match(item, /return jsonb_set\(p_item, '\{msg,data\}', v_data\);/, 'only msg.data changes');
-  assert.doesNotMatch(item, /typed|appearance|oid|fast/);
+  assert.match(item, /continue when v_text is null or v_data->>v_key is not distinct from v_text;/, 'a path the tree lacks, or a figure already right, adds nothing');
+  assert.match(item, /if v_fix = '\{\}'::jsonb then return jsonb_build_array\(p_item\); end if;/);
+  // The item itself is returned untouched, so its command id still says it is the page's own.
+  assert.match(item, /return jsonb_build_array\(p_item,/);
+  assert.doesNotMatch(item, /jsonb_set\(p_item/);
+  // The correction: only the differing fields, no command id, the item's own fast flag.
+  assert.match(item, /jsonb_build_object\('graphic', p_item->'graphic', 'msg', jsonb_build_object\('t', 'update', 'data', v_fix\)\)/);
+  assert.doesNotMatch(item, /oid|typed|appearance/);
+  // The batch takes the corrections in place, and its count follows them.
+  const send = body(sql, 'control_send_seq');
+  assert.match(send, /order by x\.ord, e\.ord/);
+  assert.match(send, /v_n := jsonb_array_length\(v_items\);\s*end if;\s*end if;/);
 });
 
 test('the press function locks the row before reading ids, checks hosted control first, and bounds its lock wait below the page\'s give-up (R2, R4)', () => {

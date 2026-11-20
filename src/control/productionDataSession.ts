@@ -237,6 +237,9 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
   let absolute = !io.adjustProductionDataBySlug;
   /** R10's figure, computed once for the presses it covers and resent unchanged. */
   let figure: { ids: string[]; patch: JsonObject } | null = null;
+  /** R10's attempts given up on but still on their way: one may commit late, so no NEW figure goes
+   *  until each has settled, or it could land behind that figure and undo it. */
+  const abandoned = new Set<Promise<unknown>>();
 
   const counted = () => {
     session.apply((parts) => (parts.data.unsent === queue.length ? parts : { ...parts, data: { ...parts.data, unsent: queue.length } }));
@@ -319,8 +322,9 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
   const sendFigure = async (batch: readonly Queued[], callSlug: string, from: number, n: number) => {
     const queued = new Set(queue.map((q) => q.id));
     if (!figure || !figure.ids.every((id) => queued.has(id))) {
-      // Counted only from a tree read from the server and not about to be replaced.
-      if (!part.get().treeRead || reading > 0) throw Object.assign(new Error('the tree is being read'), { press: 'retry' as const });
+      // Counted only from a tree read from the server and not about to be replaced, and only once
+      // no earlier figure given up on can still land after it.
+      if (!part.get().treeRead || reading > 0 || abandoned.size > 0) throw Object.assign(new Error('the tree is being read'), { press: 'retry' as const });
       const tree = part.get().liveData;
       figure = { ids: batch.map((q) => q.id), patch: replacementPatch(tree, foldPresses(tree, batch.map((q) => q.press))) };
     }
@@ -329,10 +333,21 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     try {
       // Given up after the attempt's time, like the relative call: the figure is the same on a
       // resend, so a late commit of this one changes nothing.
+      const call = Object.keys(patch).length > 0 ? io.patchProductionDataBySlug(callSlug, patch) : null;
       const gaveUp = new Promise<never>((_, reject) => {
-        cancel = after(PRESS_ATTEMPT_MS, () => reject(Object.assign(new Error('no answer'), { unanswered: true })));
+        cancel = after(PRESS_ATTEMPT_MS, () => {
+          if (call) {
+            const settled = call.then(
+              () => undefined,
+              () => undefined,
+            );
+            abandoned.add(settled);
+            void settled.then(() => abandoned.delete(settled));
+          }
+          reject(Object.assign(new Error('no answer'), { unanswered: true }));
+        });
       });
-      const tree = Object.keys(patch).length > 0 ? ((await Promise.race([io.patchProductionDataBySlug(callSlug, patch), gaveUp])) as JsonObject) : null;
+      const tree = call ? ((await Promise.race([call, gaveUp])) as JsonObject) : null;
       figure = null;
       settle(new Set(ids), true);
       if (tree) answered(from, n, tree);

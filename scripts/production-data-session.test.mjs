@@ -861,3 +861,29 @@ test('an answer that settles none of its presses waits before asking again, and 
   t.session.dispose();
   assert.equal(await t.data.pressBound([{ path: 'home', by: 1 }]), false);
 });
+
+test('R10: a figure given up on but still on its way holds back every NEW figure until it settles, so it cannot land behind one (review of #2630)', async () => {
+  const t = await publishedWith({ home: 4 });
+  const first = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  t.answers.adjusts[0].reject(Object.assign(new Error('Could not find the function'), { press: 'missing' }));
+  await flush();
+  // The first attempt hangs and is given up after 15 s; its resend, the same 5, lands.
+  await t.tick(15_000);
+  await t.tick(500);
+  assert.deepEqual(t.calls.slugPatched.map(([, p]) => p), [{ home: 5 }, { home: 5 }]);
+  t.answers.slugPatches[1].resolve({ home: 5 });
+  assert.equal(await first, true);
+  // A second press: its 6 waits while the abandoned 5 may still commit.
+  const second = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  await t.tick(8_000);
+  assert.equal(t.calls.slugPatched.length, 2, 'no new figure behind an attempt still on its way');
+  assert.equal(t.session.data.get().unsent, 1);
+  t.answers.slugPatches[0].resolve({ home: 5 });
+  await flush();
+  await t.tick(8_000);
+  assert.deepEqual(t.calls.slugPatched.at(-1)[1], { home: 6 });
+  t.answers.slugPatches.at(-1).resolve({ home: 6 });
+  assert.equal(await second, true);
+});

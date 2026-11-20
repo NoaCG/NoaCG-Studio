@@ -341,29 +341,37 @@ end $$;
 revoke execute on function public.control_data_adjust_by_slug(text, jsonb) from public;
 grant execute on function public.control_data_adjust_by_slug(text, jsonb) to anon, authenticated, service_role;
 
--- ── 4. A Take's bound figures are the stored tree's at its row (R5a) ──────────────────────────
--- One `update` item with its bound fields rewritten: only keys already in `msg.data` that the
--- graphic binds to a path the tree holds. Every other key of the item and its message stays.
+-- ── 4. A Take's bound figures end on the stored tree's (R5a) ──────────────────────────────────
+-- One item as it was sent, followed by a correcting `update` when the item is an `update` carrying
+-- a bound field whose text differs from the stored tree's. The correction carries only those
+-- fields, the stored text, no command id and the item's own `fast` flag, so every follower,
+-- the sending page included, applies it after the item; the item itself stays exactly as sent,
+-- so the sending page still knows it for its own. Only keys already in `msg.data` that the graphic
+-- binds to a path the tree holds count.
 create or replace function public.control_bound_item(p_item jsonb, p_tree jsonb, p_bound jsonb)
 returns jsonb language plpgsql immutable set search_path = '' as $$
 declare
   v_data jsonb;
+  v_fix jsonb := '{}'::jsonb;
   v_key text;
   v_path jsonb;
   v_text text;
 begin
   if p_item->'msg'->>'t' is distinct from 'update' or jsonb_typeof(p_item->'msg'->'data') is distinct from 'object'
      or jsonb_typeof(p_bound) is distinct from 'object' then
-    return p_item;
+    return jsonb_build_array(p_item);
   end if;
   v_data := p_item->'msg'->'data';
   for v_key, v_path in select key, value from jsonb_each(p_bound) loop
     continue when not (v_data ? v_key) or jsonb_typeof(v_path) is distinct from 'string' or v_path #>> '{}' = '';
     v_text := public.production_data_format(p_tree #> string_to_array(v_path #>> '{}', '.'));
-    continue when v_text is null;
-    v_data := jsonb_set(v_data, array[v_key], to_jsonb(v_text));
+    continue when v_text is null or v_data->>v_key is not distinct from v_text;
+    v_fix := v_fix || jsonb_build_object(v_key, v_text);
   end loop;
-  return jsonb_set(p_item, '{msg,data}', v_data);
+  if v_fix = '{}'::jsonb then return jsonb_build_array(p_item); end if;
+  return jsonb_build_array(p_item,
+    jsonb_build_object('graphic', p_item->'graphic', 'msg', jsonb_build_object('t', 'update', 'data', v_fix))
+      || case when p_item ? 'fast' then jsonb_build_object('fast', p_item->'fast') else '{}'::jsonb end);
 end $$;
 revoke execute on function public.control_bound_item(jsonb, jsonb, jsonb) from public, anon, authenticated;
 
@@ -529,17 +537,21 @@ begin
       'head', jsonb_build_object('seq', v_head.seq, 'graphics', public.control_head_pick(v_head.graphics, v_touched)));
   end if;
 
-  -- 7b. (0123, R5a) The bound figures are the stored tree's at this row. Read, as its own statement
-  --     after the head lock, only when an `update` item carries data; a data write changes `data`
-  --     before its own update rows take the head, so the row that lands last carries the newest.
+  -- 7b. (0123, R5a) Air ends on the stored tree's bound figures. Read, as its own statement after
+  --     the head lock, only when an `update` item carries data; an item whose bound figure differs
+  --     is followed by a correcting update (control_bound_item). A data write changes `data` before
+  --     its own update rows take the head, so the row that lands last carries the newest figure.
   if exists (select 1 from jsonb_array_elements(v_items) x
               where x.value->'msg'->>'t' = 'update' and jsonb_typeof(x.value->'msg'->'data') = 'object'
                 and x.value->'msg'->'data' <> '{}'::jsonb) then
     select s.data, s.bindings into v_tree, v_bindings from public.control_shows s where s.id = v_show;
     if jsonb_typeof(v_bindings) = 'object' and v_bindings <> '{}'::jsonb and jsonb_typeof(v_tree) = 'object' then
-      select jsonb_agg(public.control_bound_item(x.value, v_tree, v_bindings->(x.value->>'graphic')) order by x.ord)
+      select jsonb_agg(e.value order by x.ord, e.ord)
         into v_items
-        from jsonb_array_elements(v_items) with ordinality as x(value, ord);
+        from jsonb_array_elements(v_items) with ordinality as x(value, ord)
+        cross join lateral jsonb_array_elements(public.control_bound_item(x.value, v_tree, v_bindings->(x.value->>'graphic')))
+             with ordinality as e(value, ord);
+      v_n := jsonb_array_length(v_items);
     end if;
   end if;
 
@@ -696,8 +708,12 @@ begin
   execute format('set local role %I', v_role);
   select e.msg into v_row from public.control_events e
    where e.show_id = v_show and e.msg->>'t' = 'update' and e.msg->>'oid' = 'o-1';
-  if v_row is distinct from '{"t":"update","data":{"f1":"0","f9":"keep"},"oid":"o-1"}'::jsonb then
-    raise exception '0123 self-check failed: the Take row (%)', v_row;
+  if v_row is distinct from '{"t":"update","data":{"f1":"9","f9":"keep"},"oid":"o-1"}'::jsonb
+     or (select e.msg from public.control_events e
+          where e.show_id = v_show and e.seq = (select e2.seq + 1 from public.control_events e2
+                                                  where e2.show_id = v_show and e2.msg->>'oid' = 'o-1'))
+        is distinct from '{"t":"update","data":{"f1":"0"}}'::jsonb then
+    raise exception '0123 self-check failed: the Take row stays as sent and is followed by the stored figure (%)', v_row;
   end if;
   -- An update with no data and a graphic nothing binds, beside one that is bound: both as sent.
   set local role anon;

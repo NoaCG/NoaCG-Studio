@@ -278,8 +278,54 @@ for (const paused of [false, true]) {
     expect(holding, 'the +1 landed while the Update was still held').toBe(true);
     expect(await serverScore()).toBe(3);
     release();
-    // The held send's own row lands last; the server wrote the stored figure into it, not the page's 2.
-    await expect.poll(async () => (await boundRows()).length, { timeout: 20_000, message: 'the +1\'s row, then the held send\'s' }).toBe(before + 2);
+    // The held send's row (still 2) lands after the +1's; the server follows it with the stored 3.
+    await expect.poll(async () => (await boundRows()).length >= before + 2, { timeout: 20_000, message: 'the +1\'s row, then the held send\'s' }).toBe(true);
     expect((await boundRows()).at(-1), 'the last bound row on the log, which air ends on').toBe('3');
   });
 }
+
+test('this page\'s PROGRAM ends on the stored figure when its own Update carried an older one (#2617 R5a)', async ({ page }) => {
+  test.setTimeout(240_000);
+  const { program, events, showId } = await scoreOnAir(page, 'Program after a press');
+  events.release();
+  const slug = await controlSlug(page, showId);
+  // This page's reads of the tree are held, so its tree stays at 2 while the stored score moves.
+  let releaseReads!: () => void;
+  const readsHeld = new Promise<void>((resolve) => (releaseReads = resolve));
+  await page.route('**/api/data/state', async (route) => {
+    await readsHeld;
+    await route.continue().catch(() => {});
+  });
+  let sentFigure: string | undefined;
+  let releaseSend!: () => void;
+  const sendHeld = new Promise<void>((resolve) => (releaseSend = resolve));
+  await page.route('**/rest/v1/rpc/control_send_seq', async (route) => {
+    const body = route.request().postDataJSON() as { p_items?: { msg?: { t?: string; data?: Record<string, string> } }[] } | null;
+    const bound = (body?.p_items ?? []).find((item) => item.msg?.t === 'update' && item.msg.data?.f1 !== undefined);
+    if (bound && sentFigure === undefined) {
+      sentFigure = bound.msg?.data?.f1;
+      // Under the page's 1.5 s attempt deadline, so it is never cut and resent.
+      await Promise.race([sendHeld, new Promise((resolve) => setTimeout(resolve, HOLD_MS))]);
+    }
+    await route.continue().catch(() => {});
+  });
+  try {
+    // Another operator's +1: stored 3, and its update row brings PROGRAM to 3.
+    const stored = await page.evaluate(async (slug) => {
+      const { adjustProductionDataBySlug } = await __noacgImport('/src/control/productionDataApi.ts');
+      const answer = await adjustProductionDataBySlug(slug, [{ id: crypto.randomUUID(), path: 'match.home.score', by: 1 }]);
+      return (answer.data as { match?: { home?: { score?: unknown } } }).match?.home?.score;
+    }, slug);
+    expect(stored).toBe(3);
+    await expect(program.locator('#f1')).toHaveText('3', { timeout: 20_000 });
+    // ✎ Update from a tree that still says 2: PROGRAM shows its own 2 at the press ...
+    await page.getByTestId('verb-update').click();
+    await expect.poll(() => sentFigure, { message: 'the Update carried the page\'s figure' }).toBe('2');
+    await expect(program.locator('#f1')).toHaveText('2', { timeout: HOLD_MS });
+    releaseSend();
+    // ... and ends on the stored 3, which the server put after it on the log.
+    await expect(program.locator('#f1')).toHaveText('3', { timeout: 20_000 });
+  } finally {
+    releaseReads();
+  }
+});
