@@ -1,0 +1,7 @@
+#!/bin/bash
+# usage: m-run.sh <tag> <graphics> <cpus or ''>
+if [ "$1" = before ]; then cd /home/user/NoaCG-Studio/.claude/worktrees/fix-2617-base || exit 1; else cd /home/user/NoaCG-Studio/.claude/worktrees/fix-2617 || exit 1; fi
+unset SUPABASE_SERVICE_ROLE_KEY SUPABASE_SECRET_KEY SUPABASE_ACCESS_TOKEN SUPABASE_URL SUPABASE_DB_URL
+source <local stack env: VITE_SUPABASE_URL=http://127.0.0.1:54321 and the CLI default keys> || exit 1
+export MEASURE_TAG=$1 MEASURE_GRAPHICS=$2 MEASURE_DB_CPUS=$3 MEASURE_MS=${MS:-45000} MEASURE_SETTLE_MS=${SETTLE:-40000} MEASURE_DELAY_MS=${DELAY:-0} MEASURE_CUT_EVERY=${CUT:-0} MEASURE_OUT=/tmp/claude-0/measure
+exec npx playwright test --config=e2e/configured/measure/measure.config.ts goals --trace off
