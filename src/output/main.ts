@@ -627,15 +627,16 @@ async function boot(): Promise<void> {
       checks.set(graphic, check);
       released.add(graphic);
       learnClocks(spec);
-      // The adopted frame replaces one the boot hid or waited for: it is loaded and not hidden by
-      // the old frame's flag, so what it shows counts once the stage is on air (G2 section 4).
-      // This comes first: a held Take run on it below may hide it again as late.
-      bootHidden.delete(graphic);
-      loadedAfterAll(graphic);
-      if (bootRevealed && !bootOffAir) backOnAir(graphic);
       // A held Take whose frame a prepared, loaded one replaced: that frame runs it now (no
-      // onLoaded follows an adopted frame).
+      // onLoaded follows an adopted frame). Released as before, so what airs does not change.
+      const heldNow = holds.has(graphic) && ready(graphic);
       if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
+      // The adopted frame replaces one the boot hid or waited for: unless the release just hid it
+      // as late (it then counts when that flag lifts), it is not hidden by the old frame's flag,
+      // so what it shows counts once the stage is on air (G2 section 4).
+      if (!heldNow) bootHidden.delete(graphic);
+      loadedAfterAll(graphic);
+      if (bootRevealed && !bootOffAir && !bootHidden.has(graphic)) backOnAir(graphic);
       readyChanged();
     },
     onAdded: (spec, next) => {
