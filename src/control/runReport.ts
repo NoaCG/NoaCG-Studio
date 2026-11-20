@@ -23,6 +23,18 @@ export interface RunReport {
   h: Record<string, HeldEntry>;
   /** The first 8 characters of the epoch it follows. */
   e: string;
+  // ONE SETTLED FACT (G2 section 4a, #2608), from outputs built since: absent on older ones.
+  /** The boot mark: a random tag per output page. */
+  b?: string;
+  /** Rises whenever what this boot reports changes (`wa` excepted): orders reports of one boot. */
+  n?: number;
+  /** 0 when nothing is unsettled; otherwise the current wait's tag. */
+  w?: string | 0;
+  /** The worst kind unsettled, and its reason when failed. */
+  k?: HeldKind;
+  y?: string;
+  /** How long the wait had lasted when this report was built, in ms. */
+  wa?: number;
 }
 
 /** The Presence entry lists at most this many held graphics. */
@@ -47,7 +59,7 @@ export function listed(run: RunReport, max = MAX_HELD_LISTED): RunReport {
   for (const key of keys.slice(0, max)) h[key] = run.h[key];
   let p = run.p;
   for (const key of keys.slice(max)) p = Math.min(p, run.h[key][0] - 1);
-  return { o: run.o, p, h, e: run.e };
+  return { ...run, p, h };
 }
 
 /** A run report off the wire (a report row's state, a Presence entry), or null. */
@@ -61,7 +73,14 @@ export function readRun(value: unknown): RunReport | null {
     if (!Array.isArray(entry) || typeof entry[0] !== 'number' || KINDS.indexOf(entry[1]) < 0) continue;
     h[key.slice(0, 80)] = typeof entry[2] === 'string' ? [entry[0], entry[1], entry[2].slice(0, 40)] : [entry[0], entry[1]];
   }
-  return { o: r.o.slice(0, 80), p: r.p, h, e: typeof r.e === 'string' ? r.e.slice(0, 8) : '' };
+  const run: RunReport = { o: r.o.slice(0, 80), p: r.p, h, e: typeof r.e === 'string' ? r.e.slice(0, 8) : '' };
+  if (typeof r.b === 'string' && r.b) run.b = r.b.slice(0, 16);
+  if (typeof r.n === 'number' && isFinite(r.n)) run.n = r.n;
+  if (r.w === 0 || (typeof r.w === 'string' && r.w)) run.w = typeof r.w === 'string' ? r.w.slice(0, 16) : 0;
+  if (typeof r.k === 'string' && KINDS.indexOf(r.k) >= 0) run.k = r.k;
+  if (typeof r.y === 'string') run.y = r.y.slice(0, 40);
+  if (typeof r.wa === 'number' && isFinite(r.wa) && r.wa >= 0) run.wa = r.wa;
+  return run;
 }
 
 /** A report row's machine state without its run report: what the page's event buttons read. */

@@ -296,7 +296,8 @@ import { commandPathsOf, requestId, type PrepRequest } from '../../control/prepa
 import { oldOutputNames } from '../../control/autoPublish';
 import { useAutoPublish } from './useAutoPublish';
 import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type StatusFacts } from '../../control/playoutStatus';
-import { confirmLines, newerRun, pruneOwed, type ConfirmOutput, type Owed } from '../../control/runConfirm';
+import { confirmLines, newerRun, pruneOwed, type ConfirmLink, type ConfirmOutput, type Owed } from '../../control/runConfirm';
+import { keptReport, noteMark, noteRun as trackRun, type OutputTrack } from '../../control/runTrack';
 import { epochTag, readRun, withoutRun, type RunReport } from '../../control/runReport';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
@@ -965,6 +966,11 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
    *  page knows of, and each output's newest run report heard on a report row. */
   const [owed, setOwed] = useState<Owed[]>([]);
   const [heardRuns, setHeardRuns] = useState<Record<string, RunReport>>({});
+  /** Per output with a boot mark (G2 section 4a, #2608): its reports per boot, first sights, wait. */
+  const [runTracks, setRunTracks] = useState<Record<string, OutputTrack>>({});
+  const runTracksEmpty = Object.keys(runTracks).length === 0;
+  /** When this page took its current epoch: a boot's clocks start no earlier (M6, M7). */
+  const epochSinceRef = useRef(0);
   /** The epoch the run reports are read in (its first 8 characters); null: take the next one heard. */
   const runEpochRef = useRef<string | null>(null);
   /** Epochs a republish ended: a report still from one of them is about a log that is gone. */
@@ -977,8 +983,18 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const confirmOutputsRef = useRef<ConfirmOutput[]>([]);
   const noteRun = useCallback((run: RunReport) => {
     if (retiredEpochsRef.current.has(run.e)) return;
-    if (runEpochRef.current === null) runEpochRef.current = run.e;
+    if (runEpochRef.current === null) {
+      runEpochRef.current = run.e;
+      epochSinceRef.current = Date.now();
+    }
     if (run.e !== runEpochRef.current) return;
+    if (run.b) {
+      const at = Date.now();
+      setRunTracks((m) => {
+        const next = trackRun(m[run.o], run, at);
+        return next === m[run.o] ? m : { ...m, [run.o]: next };
+      });
+    }
     setHeardRuns((m) => {
       const next = newerRun(m[run.o], run);
       return next === m[run.o] ? m : { ...m, [run.o]: next };
@@ -1101,7 +1117,31 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       const next = pruneOwed(list, confirmOutputsRef.current);
       return next.length === list.length ? list : next;
     });
-  }, [heardRuns, livePresence.peers]);
+  }, [heardRuns, runTracks, livePresence.peers]);
+  // Each output's Presence entry carries its boot mark and run (G2 section 4a, #2608): noted like a
+  // report row, and a mark with no run yet starts that boot's clock.
+  useEffect(() => {
+    const at = Date.now();
+    setRunTracks((m) => {
+      let next = m;
+      for (const peer of livePresence.peers) {
+        if (peer.kind !== 'output' || !peer.ready?.b) continue;
+        const run = peer.ready.run;
+        const epochOk = !!run && !retiredEpochsRef.current.has(run.e) && run.e === (runEpochRef.current ?? run.e);
+        const track = run && run.b && epochOk ? trackRun(next[peer.id], run, at) : noteMark(next[peer.id], peer.ready.b, at);
+        if (track !== next[peer.id]) next = { ...next, [peer.id]: track };
+      }
+      return next;
+    });
+    // A resolve or a republish empties the tracks; the entries already here are noted again at once
+    // rather than at the next Presence change, so their clocks never sit at "now".
+  }, [livePresence.peers, runTracksEmpty]);
+  /** This page's own Presence link and since when (M6, P4). */
+  const [link, setLink] = useState<ConfirmLink>(() => ({ status: 'joining', since: wallClock() }));
+  useEffect(() => {
+    const status = livePresence.status === 'joined' ? 'joined' : livePresence.status === 'down' ? 'down' : 'joining';
+    setLink((l) => (l.status === status ? l : { status, since: Date.now() }));
+  }, [livePresence.status]);
   /** READY (components/control/OutputHealth.tsx): the published version this page knows (its
    *  resolve, then each of its own publishes), and the outputs it expects, remembered per production
    *  in this browser and announced on the live topic so the hosted page and the phone count the
@@ -2324,7 +2364,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       // The seed: every expected output must have reached the head this page opened on.
       // A production with no head yet has no epoch: the first report heard names it.
       runEpochRef.current = resolved.seq && resolved.seq.epoch ? epochTag(resolved.seq.epoch) : null;
+      epochSinceRef.current = wallClock();
       setHeardRuns({});
+      setRunTracks({});
       setOwed(resolved.seq ? [{ at: resolved.seq.from, graphic: null, learnedAt: wallClock() }] : []);
       // Protocol 1 is the whole document's for good (hostedControl.ts `seqRoad`), so the mark is
       // never cleared, not even while a reconnect's resolve waits.
@@ -2382,7 +2424,10 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     epochReset: () => {
       if (runEpochRef.current !== null) retiredEpochsRef.current.add(runEpochRef.current);
       runEpochRef.current = null;
+      epochSinceRef.current = wallClock();
       setHeardRuns({});
+      // The tracks stay: a retired epoch's reports never count (keptReport), and a wait's age and a
+      // boot's first sight outlive a republish (G2 section 4a, M4, M6).
       // The new log's seed: every output owes a report from it before anything reads green.
       setOwed([{ at: 0, graphic: null, learnedAt: wallClock() }]);
     },
@@ -4272,8 +4317,32 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const slotLost = slotSeenOurs && !!outputSlot && (outputSlot.holds === 'empty' || outputSlot.holds === 'other');
   // WHAT EVERY EXPECTED OUTPUT HAS CONFIRMED RUNNING (live-publishing G2 section 6, E1): its newest
   // run report from a report row or its Presence entry, judged against every position owed.
-  const confirmOutputs: ConfirmOutput[] = expectedOutputs.map((e) => {
-    const entry = livePresence.peers.find((p) => p.kind === 'output' && p.id === e.id);
+  const confirmOutputs: ConfirmOutput[] = expectedOutputs.map((e): ConfirmOutput => {
+    const entries = livePresence.peers.filter((p) => p.kind === 'output' && p.id === e.id);
+    // G2 section 4a (#2608): absent, nothing it reported counts; with a boot mark, one settled fact.
+    if (entries.length === 0) {
+      return { id: e.id, name: e.name, run: null, present: false, speaks: false, goneSince: Math.max(e.seen, link.since) };
+    }
+    const kept = keptReport(runTracks[e.id], entries.map((p) => ({ b: p.ready?.b, run: p.ready?.run ?? null })), runEpochRef.current, retiredEpochsRef.current);
+    if (kept.kind !== 'legacy') {
+      const track = runTracks[e.id];
+      const seen = track?.seen[kept.b] ?? now;
+      return {
+        id: e.id,
+        name: e.name,
+        run: kept.kind === 'kept' ? kept.run : null,
+        present: true,
+        speaks: true,
+        oldLog: entries[0].proto !== 2,
+        mark: {
+          since: Math.max(seen, epochSinceRef.current),
+          ...(kept.kind === 'none' ? { none: kept.why } : {}),
+          ...(kept.kind === 'kept' && track?.waits[kept.b]?.w === kept.run.w ? { wait: track.waits[kept.b].since } : {}),
+          ...(track?.settled[kept.b] !== undefined ? { settled: track.settled[kept.b] } : {}),
+        },
+      };
+    }
+    const entry = entries[0];
     const said =
       entry?.ready?.run && !retiredEpochsRef.current.has(entry.ready.run.e) && entry.ready.run.e === (runEpochRef.current ?? entry.ready.run.e)
         ? entry.ready.run
@@ -4289,7 +4358,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     if (!out.run) continue;
     for (const graphic of Object.keys(out.run.h)) if (out.run.h[graphic][1] !== 'failed') loadingGraphics.add(graphic);
   }
-  const confirm = hostedSlug && !offline ? confirmLines({ now, owed, outputs: confirmOutputs, presenceJoined: livePresence.status === 'joined' }) : [];
+  const confirm = hostedSlug && !offline ? confirmLines({ now, owed, outputs: confirmOutputs, presenceJoined: livePresence.status === 'joined', link }) : [];
   const ranLast = confirm.length === 0 && loggedAt !== null && newestOwedRef.current >= lastSendRef.current && confirmOutputs.length > 0;
   const playoutStatus = describePlayoutStatus({
     confirm,

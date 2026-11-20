@@ -80,6 +80,7 @@ import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
 import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, afterOutcome, compact, demandFor, giveUp, heldLate, isCancelled, isTake, liveStep, quietEntrances, releaseMode, type Failure, type HeldRow, type HoldFailure } from './hold';
 import { epochTag, listed, type HeldEntry, type RunReport } from '../control/runReport';
+import { drawTag, settledStart, withSettled } from './settled';
 import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
 import { OBS_ARRIVAL_MS, OBS_SHARED_MS, obsEvent, obsState, sceneParam, scopePayload, type ObsWhere } from './sceneScope';
 import type { OutputPayload } from '../control/hostedControl';
@@ -197,6 +198,9 @@ const pageServed = async (signal: AbortSignal) => (await fetch(window.location.h
 const reloadPage = () => window.location.reload();
 
 async function boot(): Promise<void> {
+  /** This output page's boot mark and start (G2 section 4a, #2608): a reload draws a new mark. */
+  const bootMark = drawTag();
+  const bootStartedAt = Date.now();
   if (!outputSlug) {
     unavailable('no-token');
     return;
@@ -488,7 +492,8 @@ async function boot(): Promise<void> {
       name: outputName ?? sceneName,
       destinationId: readDestinationId(window.location.search),
       // What this output has run (live-publishing G2 section 1), on the numbered log only.
-      ready: seqMode ? { ...readiness(), run: listed(runNow()), lt: lateList() } : readiness(),
+      // `b`: the boot mark from the first join, before any run (G2 section 4a, #2608).
+      ready: seqMode ? { ...readiness(), run: listed(runNow()), lt: lateList(), b: bootMark } : { ...readiness(), b: bootMark },
       ack,
       proto: identity.protocol,
       // E1.2a: this output reads typed envelopes, so a page may send it one.
@@ -547,8 +552,20 @@ async function boot(): Promise<void> {
       if (typeof name === 'string') heard({ type: 'scene', name });
     });
   }
+  /** For specs: what the entry says at every touch, the moment it can go out (G2 section 4a). A
+   *  fact sampled once a frame cannot see a touch that comes before work lands in the same task. */
+  const told: { p: number; w?: string | 0 }[] = [];
+  if (import.meta.env.DEV || (typeof __NOACG_E2E__ === 'boolean' && __NOACG_E2E__)) {
+    const touch = presence.touch;
+    presence.touch = () => {
+      const run = entry().ready?.run;
+      if (run && told.length < 5_000) told.push({ p: run.p, w: run.w });
+      touch();
+    };
+  }
   // For specs and for whoever opens the console on a playout box.
   (window as unknown as { __noacgLive?: unknown }).__noacgLive = {
+    told: () => told,
     identity,
     engine: hostEngine,
     entry,
@@ -1223,6 +1240,24 @@ async function boot(): Promise<void> {
     if (from === undefined || at < from) offAirFrom.set(graphic, at);
   };
   if (seqMode) for (const key of stage.graphics.concat(bootPackages)) ranOffAir(key, 1);
+  /** When the boot finished putting back what it knew (0: not yet; restored frames get 20 s from
+   *  it), whether it has really read the log (a catch-up read that failed leaves that to the
+   *  follow's first read to the log's end), and whether it gave up waiting at 60 s (G2 section 4a,
+   *  M2 and M5): until it has read, the output is unsettled. */
+  let bootReadAt = 0;
+  let bootRead = false;
+  let bootOverdue = false;
+  const bootHasRead = () => {
+    if (bootRead) return;
+    bootRead = true;
+    bootOverdue = false;
+    presence.touch();
+  };
+  setTimeout(() => {
+    if (bootRead) return;
+    bootOverdue = true;
+    presence.touch();
+  }, Math.max(0, bootStartedAt + 60_000 - Date.now()));
   /** A graphic that ran off air is on air now: what it ran counts, and one with something to say
    *  reports it; the rest reach the page through Presence. */
   const backOnAir = (graphic: string) => {
@@ -1245,7 +1280,8 @@ async function boot(): Promise<void> {
     offAirFrom.forEach((_from, key) => {
       if (!hiddenHere(key) && stage.released(key)) backOnAir(key);
       // A frame still loading counts when it loads, or, hidden by its own flag, when that lifts.
-      else setTimeout(() => bootBackstop(key), FRAME_LOAD_MS);
+      // Its 20 s counts from when the boot read what to put back (P1).
+      else setTimeout(() => bootBackstop(key), Math.max(0, bootReadAt + FRAME_LOAD_MS - Date.now()));
     });
   };
   /** Boot frames that had not loaded FRAME_LOAD_MS after the reveal: they did not play here. */
@@ -1575,7 +1611,33 @@ async function boot(): Promise<void> {
   });
 
   /** What this output has run (G2 section 1): its cursor, and every graphic with work unsettled. */
+  /** The settled fact's state, kept across builds of every report of this boot (#2608). */
+  let settled = settledStart();
   const runNow = (): RunReport => {
+    const built = withSettled(settled, runHeld(), { read: bootRead, overdue: bootOverdue }, bootMark, Date.now());
+    settled = built.state;
+    return built.run;
+  };
+  /** Says the settled fact's change at once rather than at the next unrelated touch, and touches
+   *  once when a `placing` wait passes 5 s, so a page opened mid-wait reads amber (M2, M4). */
+  let saidFact = '';
+  let toldLate = false;
+  if (seqMode) {
+    setInterval(() => {
+      const r = runNow();
+      const fact = `${r.w}|${r.k ?? ''}|${r.y ?? ''}|${r.e}`;
+      const late = r.k === 'placing' && (r.wa ?? 0) >= 5_000;
+      if (fact !== saidFact) {
+        saidFact = fact;
+        toldLate = late;
+        presence.touch();
+      } else if (late && !toldLate) {
+        toldLate = true;
+        presence.touch();
+      }
+    }, 1_000);
+  }
+  const runHeld = (): RunReport => {
     const now = Date.now();
     const h: Record<string, HeldEntry> = {};
     holds.forEach((hold, graphic) => {
@@ -1738,6 +1800,8 @@ async function boot(): Promise<void> {
     return { ok: true, value: answer.value.rows };
   };
   let missed: ControlEventRow[] = [];
+  /** The catch-up read the log to its end (or its head), or a read failed and the follow will. */
+  let catchUpRead = true;
   /** The catch-up stopped short of the log's end (a read that failed, or the page ceiling): the
    *  follow's first refill then brings history, and a package's action in it is read past as the
    *  catch-up would have (E3.2b, control/ografRecovery.ts `bootGap`). */
@@ -1755,6 +1819,7 @@ async function boot(): Promise<void> {
         followEpoch ??= head.value.epoch;
         if (typeof head.value.head?.seq === 'number') lastAppliedSeq = Math.max(lastAppliedSeq, head.value.head.seq);
       }
+      if (!head.ok || head.value.reset) catchUpRead = false;
       if (lastAppliedSeq === followFrom) dbg('catch-up', "the log's head was not read: the follow reads its history past");
     }
   }
@@ -1765,6 +1830,7 @@ async function boot(): Promise<void> {
     );
     if (!tail.ok) {
       dbg('catch-up', 'log unread — the follow will fill it');
+      catchUpRead = false;
       break;
     }
     missed.push(...tail.value);
@@ -1773,6 +1839,8 @@ async function boot(): Promise<void> {
       break;
     }
   }
+  // Stopped at the page ceiling, short of the log's end: the follow reads the rest, and has read.
+  if (!fromHead && bootGapOpen) catchUpRead = false;
   // A GRAPHIC ON AIR THAT NO REPORT BANKS (issue #1762, widened by G2 section 4 to every such
   // graphic; control/outputRecovery.ts `unreportedRows`): its Take can be older than `followFrom`, so the log below it is
   // read for that graphic alone, every page up to `followFrom` within the catch-up's ceiling
@@ -1981,6 +2049,9 @@ async function boot(): Promise<void> {
     if (!liveGraphics.has(key) && !holds.has(key) && !replayed.some((row) => row.graphic === key && isCommand(row.msg.t))) offAirFrom.delete(key);
   });
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
+  bootReadAt = Date.now();
+  if (catchUpRead) bootHasRead();
+  else presence.touch();
   markRecovered();
   if (animates) {
     // A frame that has not loaded when the stage comes back stays hidden by its own flag until it
@@ -2068,6 +2139,10 @@ async function boot(): Promise<void> {
         const tail = await untilAnswered(() => controlOutputTailSeq(outputSlug, after, epoch), { limit: 5 });
         // An empty read reached the log's end, and the follow hands an empty refill to no one.
         if (tail.ok && !tail.value.reset && tail.value.rows.length === 0) markHeld(gap.emptyRead());
+        // A boot whose own catch-up read failed has read the log once the follow reaches its end,
+        // and once what that read brought is applied: `onRows` runs when this answer resumes the
+        // follow, so the boot says it has read only in the task after, never before the work lands.
+        if (tail.ok && !tail.value.reset && tail.value.rows.length < SEQ_TAIL_PAGE) setTimeout(bootHasRead, 0);
         return tail.ok ? tail.value : null;
       },
       onRows: (rows, replayed) => {
