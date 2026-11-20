@@ -814,3 +814,53 @@ test('a list write waits for this page\'s queued presses inside that list, at mo
   assert.equal(t.calls.slugPatched.length, 1, 'never written over a press still sending');
   assert.match(t.calls.notes.at(-1), /presses on that list are still sending/);
 });
+
+test('R10\'s figure is counted only from a tree read from the server, never from the {} a republish holds before its read (review of #2617)', async () => {
+  const t = await publishedWith({ home: 54 });
+  // A republish on the same slug: its tree is {} and unread until the key and the read answer.
+  t.data.published('slug-1');
+  await flush();
+  assert.equal(t.session.data.get().treeRead, false);
+  const pressing = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  t.answers.adjusts[0].reject(Object.assign(new Error('Could not find the function'), { press: 'missing' }));
+  await flush();
+  await t.tick(500);
+  assert.equal(t.calls.slugPatched.length, 0, 'nothing counted from {}');
+  t.answers.keys.at(-1).resolve('key-1');
+  await flush();
+  t.answers.fetches.at(-1).resolve({ data: { home: 54 } });
+  await flush();
+  await t.tick(8_000);
+  assert.deepEqual(t.calls.slugPatched.map(([, p]) => p), [{ home: 55 }]);
+  t.answers.slugPatches[0].resolve({ home: 55 });
+  assert.equal(await pressing, true);
+});
+
+test('R10\'s call is given up after the attempt\'s time and resent with the same figure', async () => {
+  const t = await publishedWith({ home: 4 });
+  const pressing = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  t.answers.adjusts[0].reject(Object.assign(new Error('Could not find the function'), { press: 'missing' }));
+  await flush();
+  await t.tick(15_000);
+  await t.tick(500);
+  assert.deepEqual(t.calls.slugPatched.map(([, p]) => p), [{ home: 5 }, { home: 5 }]);
+  t.answers.slugPatches[1].resolve({ home: 5 });
+  assert.equal(await pressing, true);
+});
+
+test('an answer that settles none of its presses waits before asking again, and a press after the end settles at once', async () => {
+  const t = await publishedWith({ home: 0 });
+  const pressing = t.data.pressBound([{ path: 'home', by: 1 }]);
+  await flush();
+  t.answers.adjusts[0].resolve({ data: { home: 0 }, landed: [], refused: [] });
+  await flush();
+  assert.equal(t.calls.adjusted.length, 1, 'no tight loop');
+  await t.tick(500);
+  assert.equal(t.calls.adjusted.length, 2);
+  t.answers.adjusts[1].resolve({ data: { home: 1 }, landed: idsOf(t.calls.adjusted[1]), refused: [] });
+  assert.equal(await pressing, true);
+  t.session.dispose();
+  assert.equal(await t.data.pressBound([{ path: 'home', by: 1 }]), false);
+});

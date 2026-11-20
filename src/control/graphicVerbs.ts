@@ -1133,12 +1133,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // lands once; refused, or failed with an answer, nothing moves.
     const unknown = !outcome.ok && outcome.uncertain === true;
     if (!went && !unknown) return doneOf(outcome, graphic);
-    const presses = tree.flatMap((w): BoundPress[] => {
-      if (w.verb === 'set') return [{ path: w.path, text: w.text }];
-      if (w.verb !== 'adjust') return [];
-      const key = Object.keys(button.adjust ?? {}).find((k) => bound[k] === w.path);
-      return key ? [{ path: w.path, by: button.adjust![key] }] : [];
-    });
+    // One press per bound field the button moves, each with its own delta or declared figure.
+    const presses: BoundPress[] = [
+      ...Object.entries(button.adjust ?? {}).flatMap(([key, by]) => (bound[key] ? [{ path: bound[key], by }] : [])),
+      ...Object.entries(button.set ?? {}).flatMap(([key, text]) => (bound[key] ? [{ path: bound[key], text }] : [])),
+    ];
     const landed = presses.length > 0 ? p.pressBound(presses) : null;
     if (!went) return doneOf(outcome, graphic);
     // A list's add or remove is still today's absolute write (fix-2617, Left for later).

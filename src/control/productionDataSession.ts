@@ -172,13 +172,20 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     if (from === mode && n < held) void refresh();
     else hold(from, n, { liveData: tree, treeRead: true });
   };
+  /** Reads out now: R10's figure is never counted from a tree a newer read is about to replace. */
+  let reading = 0;
   const refresh = async (): Promise<void> => {
     const from = mode;
     const key = part.get().dataKey;
     if (!key) return;
     const n = ++asked;
-    const current = await io.fetchProductionData(key);
-    if (current) hold(from, n, { liveData: current.data as JsonObject, treeRead: true });
+    reading += 1;
+    try {
+      const current = await io.fetchProductionData(key);
+      if (current) hold(from, n, { liveData: current.data as JsonObject, treeRead: true });
+    } finally {
+      reading -= 1;
+    }
   };
 
   /** The operator's road for a tree change: optimistic on both, so the figure on screen moves at
@@ -272,7 +279,9 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     try {
       if (absolute) await sendFigure(batch, callSlug, from, n);
       else await sendRelative(batch, callSlug, from, n);
-      backoff = 0;
+      // An answer that settled none of the batch is no progress: wait before asking again.
+      if (batch.every((q) => queue.includes(q))) resendLater();
+      else backoff = 0;
     } catch (error) {
       const failure = (error as Partial<BoundPressFailure>).press;
       if (failure === 'missing') {
@@ -315,12 +324,20 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
   const sendFigure = async (batch: readonly Queued[], callSlug: string, from: number, n: number) => {
     const queued = new Set(queue.map((q) => q.id));
     if (!figure || !figure.ids.every((id) => queued.has(id))) {
+      // Counted only from a tree read from the server and not about to be replaced.
+      if (!part.get().treeRead || reading > 0) throw Object.assign(new Error('the tree is being read'), { press: 'retry' as const });
       const tree = part.get().liveData;
       figure = { ids: batch.map((q) => q.id), patch: replacementPatch(tree, foldPresses(tree, batch.map((q) => q.press))) };
     }
     const { ids, patch } = figure;
+    let cancel = () => {};
     try {
-      const tree = Object.keys(patch).length > 0 ? ((await io.patchProductionDataBySlug(callSlug, patch)) as JsonObject) : null;
+      // Given up after the attempt's time, like the relative call: the figure is the same on a
+      // resend, so a late commit of this one changes nothing.
+      const gaveUp = new Promise<never>((_, reject) => {
+        cancel = after(PRESS_ATTEMPT_MS, () => reject(Object.assign(new Error('no answer'), { unanswered: true })));
+      });
+      const tree = Object.keys(patch).length > 0 ? ((await Promise.race([io.patchProductionDataBySlug(callSlug, patch), gaveUp])) as JsonObject) : null;
       figure = null;
       settle(new Set(ids), true);
       if (tree) answered(from, n, tree);
@@ -331,6 +348,8 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
         throw Object.assign(new Error(message), { press: 'refused' as const });
       }
       throw Object.assign(new Error(message || 'no answer'), { press: 'retry' as const });
+    } finally {
+      cancel();
     }
   };
 
@@ -493,6 +512,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
      */
     pressBound: (presses) => {
       if (presses.length === 0) return Promise.resolve(true);
+      if (!session.alive()) return Promise.resolve(false);
       if (!slug) {
         const before = part.get().liveData;
         const next = foldPresses(before, presses);

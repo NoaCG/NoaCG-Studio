@@ -120,6 +120,33 @@ begin
 end $$;
 revoke execute on function public.production_data_nested(text[], jsonb) from public, anon, authenticated;
 
+-- `setPath` (src/model/productionData.ts): the value at a path, making what is missing on the way:
+-- a list index past the end pads the list, anything else that is not an object becomes one.
+create or replace function public.production_data_set_path(p_node jsonb, p_at text[], p_value jsonb)
+returns jsonb language plpgsql immutable set search_path = '' as $$
+declare
+  v_head text;
+  v_rest text[];
+  v_list jsonb;
+  v_base jsonb;
+  v_i int;
+begin
+  if coalesce(array_length(p_at, 1), 0) = 0 then return p_value; end if;
+  v_head := p_at[1];
+  v_rest := p_at[2:];
+  if jsonb_typeof(p_node) = 'array' and v_head ~ '^[0-9]+$' then
+    v_i := v_head::int;
+    v_list := p_node;
+    while jsonb_array_length(v_list) <= v_i loop
+      v_list := v_list || 'null'::jsonb;
+    end loop;
+    return jsonb_set(v_list, array[v_head], public.production_data_set_path(v_list->v_i, v_rest, p_value));
+  end if;
+  v_base := case when jsonb_typeof(p_node) = 'object' then p_node else '{}'::jsonb end;
+  return v_base || jsonb_build_object(v_head, public.production_data_set_path(v_base->v_head, v_rest, p_value));
+end $$;
+revoke execute on function public.production_data_set_path(jsonb, text[], jsonb) from public, anon, authenticated;
+
 -- The part of a path a merge patch can name: up to the first segment that indexes into a list,
 -- whose whole value the patch then carries (a merge patch cannot address one element).
 create or replace function public.production_data_patch_unit(p_tree jsonb, p_at text[])
@@ -217,11 +244,7 @@ begin
       v_refused := v_refused || jsonb_build_object('id', v_id, 'reason', 'not a number: ' || v_path);
       continue;
     end if;
-    -- Through a list index the element is set in place (the door keeps only bound leaves that
-    -- changed); anywhere else the merge also makes the branches above a new leaf.
-    v_tree := case when public.production_data_patch_unit(v_tree, v_at) = v_at
-                   then public.jsonb_merge_patch(v_tree, public.production_data_nested(v_at, v_new))
-                   else jsonb_set(v_tree, v_at, v_new, true) end;
+    v_tree := public.production_data_set_path(v_tree, v_at, v_new);
     v_applied := v_applied || jsonb_build_object('id', v_id, 'path', v_path);
     v_unit := array_to_string(public.production_data_patch_unit(v_tree, v_at), '.');
     if not v_unit = any (v_units) then v_units := v_units || v_unit; end if;
@@ -264,6 +287,22 @@ begin
     end;
   end loop;
 
+  -- A press the door's answer does not hold (a leaf inside a list that nothing binds, which the
+  -- door leaves alone) did not land: refused, never recorded.
+  if v_result is not null then
+    select coalesce(jsonb_agg(a.value), '[]'::jsonb) into v_refused
+      from (select value from jsonb_array_elements(v_refused)
+            union all
+            select jsonb_build_object('id', x.value->>'id', 'reason', 'not a bound path: ' || (x.value->>'path'))
+              from jsonb_array_elements(v_applied) x
+             where (v_result->'data') #> string_to_array(x.value->>'path', '.')
+                   is distinct from v_tree #> string_to_array(x.value->>'path', '.')) a;
+    select coalesce(jsonb_agg(x.value), '[]'::jsonb) into v_applied
+      from jsonb_array_elements(v_applied) x
+     where (v_result->'data') #> string_to_array(x.value->>'path', '.')
+           is not distinct from v_tree #> string_to_array(x.value->>'path', '.');
+  end if;
+
   -- 6. The ids, the prune, the answer.
   insert into public.control_data_presses (show_id, press_id)
     select v_show, (x.value->>'id')::uuid from jsonb_array_elements(v_applied) x
@@ -292,13 +331,13 @@ declare
   v_path jsonb;
   v_text text;
 begin
-  if p_item->'msg'->>'t' is distinct from 'update' or jsonb_typeof(p_item->'msg'->'data') <> 'object'
-     or jsonb_typeof(p_bound) <> 'object' then
+  if p_item->'msg'->>'t' is distinct from 'update' or jsonb_typeof(p_item->'msg'->'data') is distinct from 'object'
+     or jsonb_typeof(p_bound) is distinct from 'object' then
     return p_item;
   end if;
   v_data := p_item->'msg'->'data';
   for v_key, v_path in select key, value from jsonb_each(p_bound) loop
-    continue when not (v_data ? v_key) or jsonb_typeof(v_path) <> 'string' or v_path #>> '{}' = '';
+    continue when not (v_data ? v_key) or jsonb_typeof(v_path) is distinct from 'string' or v_path #>> '{}' = '';
     v_text := public.production_data_format(p_tree #> string_to_array(v_path #>> '{}', '.'));
     continue when v_text is null;
     v_data := jsonb_set(v_data, array[v_key], to_jsonb(v_text));
@@ -573,8 +612,8 @@ begin
   end if;
   insert into public.control_shows (id, owner_id, title, output, data, bindings)
     values (v_show, v_owner, '0121 self-check', '{"v":1,"graphics":[{"key":"Score"}],"cues":[]}'::jsonb,
-            '{"home":{"score":4},"teams":[{"g":1},{"g":"2"}],"label":"x"}'::jsonb,
-            '{"Score":{"f1":"home.score","f2":"teams.0.g","f3":"teams.1.g"}}'::jsonb)
+            '{"home":{"score":4},"teams":[{"g":1},{"g":"2"}],"label":"x","grid":[]}'::jsonb,
+            '{"Score":{"f1":"home.score","f2":"teams.0.g","f3":"teams.1.g","f4":"grid.0.gap"}}'::jsonb)
     returning slug into v_slug;
   set local role anon;
 
@@ -602,6 +641,19 @@ begin
     raise exception '0121 self-check failed: an unbound path (%)', v_ans;
   end if;
 
+  -- A list element that does not exist yet is made, as the page's setPath makes it.
+  v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
+    jsonb_build_object('id', gen_random_uuid(), 'path', 'grid.0.gap', 'by', 2)));
+  if v_ans->'data'->'grid' <> '[{"gap":2}]'::jsonb or jsonb_array_length(v_ans->'landed') <> 1 then
+    raise exception '0121 self-check failed: a press on a new list element (%)', v_ans;
+  end if;
+  -- A leaf inside a list that nothing binds is not held by the answer: refused, never landed.
+  v_ans := public.control_data_adjust_by_slug(v_slug, jsonb_build_array(
+    jsonb_build_object('id', gen_random_uuid(), 'path', 'teams.0.other', 'by', 1)));
+  if jsonb_array_length(v_ans->'landed') <> 0 or jsonb_array_length(v_ans->'refused') <> 1 then
+    raise exception '0121 self-check failed: an unbound leaf in a list landed (%)', v_ans;
+  end if;
+
   -- (c) A Take's bound field carries the stored figure; an unbound one and every other key stay.
   v_ans := public.control_send_seq(v_slug,
     '[{"graphic":"Score","msg":{"t":"update","data":{"f1":"9","f9":"keep"},"oid":"o-1"}},{"graphic":"Score","msg":{"t":"play"}}]'::jsonb,
@@ -612,6 +664,18 @@ begin
    where e.show_id = v_show and e.msg->>'t' = 'update' and e.msg->>'oid' = 'o-1';
   if v_row is distinct from '{"t":"update","data":{"f1":"0","f9":"keep"},"oid":"o-1"}'::jsonb then
     raise exception '0121 self-check failed: the Take row (%)', v_row;
+  end if;
+  -- An update with no data and a graphic nothing binds, beside one that is bound: both as sent.
+  set local role anon;
+  v_ans := public.control_send_seq(v_slug,
+    '[{"graphic":"Score","msg":{"t":"update","data":{"f1":"9"},"oid":"o-2"}},{"graphic":"Score","msg":{"t":"update","oid":"o-3"}},{"graphic":"Other","msg":{"t":"update","data":{"f1":"7"},"oid":"o-4"}}]'::jsonb,
+    jsonb_build_object('id', v_page, 'press', 2, 'base', '{}'::jsonb));
+  if v_ans->>'ok' <> 'true' then raise exception '0121 self-check failed: a mixed batch was refused (%)', v_ans; end if;
+  execute format('set local role %I', v_role);
+  if (select count(*) from public.control_events e where e.show_id = v_show and e.msg->>'oid' in ('o-2', 'o-3', 'o-4')) <> 3
+     or (select e.msg from public.control_events e where e.show_id = v_show and e.msg->>'oid' = 'o-3') is distinct from '{"t":"update","oid":"o-3"}'::jsonb
+     or (select e.msg->'data'->>'f1' from public.control_events e where e.show_id = v_show and e.msg->>'oid' = 'o-4') is distinct from '7' then
+    raise exception '0121 self-check failed: a mixed batch was not sent as it came';
   end if;
   delete from public.control_shows where id = v_show;
 exception when others then

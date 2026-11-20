@@ -227,7 +227,7 @@ test('Goal presses through calls that fail or lose their answer each land exactl
 });
 
 for (const paused of [false, true]) {
-  test(`a Take whose row lands after a +1's update row still airs the stored figure${paused ? ', with the data feed paused' : ''} (#2617 R5a)`, async ({ page }) => {
+  test(`a Take or Update whose row lands after a +1's update row still airs the stored figure${paused ? ', with the data feed paused' : ''} (#2617 R5a)`, async ({ page }) => {
     test.setTimeout(240_000);
     const { serverScore, events, showId } = await scoreOnAir(page, `Take after a press${paused ? ' paused' : ''}`);
     events.release();
@@ -236,7 +236,7 @@ for (const paused of [false, true]) {
     if (paused) {
       await page.evaluate(async (slug) => (await __noacgImport('/src/control/productionDataApi.ts')).setAnotherSystemPaused(slug, true), slug);
     }
-    // Hold the next Take (an update carrying data) until the walk lets it go.
+    // Hold the next send of the bound field (an update carrying data) until the walk lets it go.
     let release!: () => void;
     const released = new Promise<void>((resolve) => (release = resolve));
     let held = 0;
@@ -248,13 +248,14 @@ for (const paused of [false, true]) {
       await released;
       await route.continue().catch(() => {});
     });
-    await page.getByTestId('verb-take').click();
-    await expect.poll(() => held, { message: 'the Take, carrying 2, is held' }).toBe(1);
+    // ✎ Update re-sends the live cue's values, the bound one overlaid from the page's tree (2).
+    await page.getByTestId('verb-update').click();
+    await expect.poll(() => held, { message: 'the Update, carrying 2, is held' }).toBe(1);
     // The + lands while the Take is out: its update row (3) is numbered first.
     await page.getByTestId('live-number-f1-up').click();
     await expect.poll(serverScore, { timeout: 20_000 }).toBe(3);
     release();
-    // The Take's row is numbered last; the server wrote the stored figure into it, not the page's 2.
+    // Its row is numbered last; the server wrote the stored figure into it, not the page's 2.
     await expect
       .poll(
         () =>

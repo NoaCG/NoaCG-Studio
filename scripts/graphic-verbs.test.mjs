@@ -3842,3 +3842,12 @@ test('a production look sent over a pinned press waits behind it, goes to that g
   landedHere(r, r.sends[3]);
   assert.deepEqual(r.session.air.get().looks, { Strap: look, Score: look });
 });
+
+test('an event moving two fields bound to one path queues each field\'s own delta, and a declared set as its text (review of #2617)', async () => {
+  const r = rig({ bound: { Score: { home: 'match.home', bonus: 'match.home', reset: 'match.away' } }, tree: { Score: { home: '2', bonus: '2', reset: '1' } } });
+  const pressing = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true }), { event: 'big', adjust: { home: 1, bonus: 3 }, set: { reset: '0' } });
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await pressing, { outcome: 'accepted' });
+  assert.deepEqual(r.log.filter(([k]) => k === 'press'), [['press', 'match.home+1,match.home+3,match.away=0']]);
+});

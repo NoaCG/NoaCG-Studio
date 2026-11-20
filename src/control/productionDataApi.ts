@@ -25,7 +25,9 @@
 // capability the operator does not already have.
 
 import { getSupabase } from '../backend/supabase';
-import { rpcFailure } from './failedSends';
+import { boundPressFailure, rpcFailure, type BoundPressFailure } from './failedSends';
+
+export type { BoundPressFailure };
 
 /** The owner's own data key for a production, or null (not published, no backend, not owner). */
 export async function productionDataKey(showId: string): Promise<string | null> {
@@ -136,23 +138,6 @@ export interface BoundPressAnswer {
   /** Ids applied now or already held: each counted exactly once. */
   landed: string[];
   refused: { id: string; reason: string }[];
-}
-
-/** Why a press call did not land. `retry`: nothing was recorded, send it again. `refused`: the
- *  server answered no to the whole call. `missing`: a database without migration 0121. */
-export type BoundPressFailure = Error & { press: 'retry' | 'refused' | 'missing' };
-
-/** Errors the server answers when the call wrote nothing and may simply be sent again: a statement,
- *  lock or connection timeout, the command budget, a serialization retry. */
-const RESEND_CODES = new Set(['57014', '55P03', '23514', '40001', '40P01', '53300', '08006', '08001', 'PGRST000', 'PGRST001', 'PGRST002', 'PGRST003']);
-
-export function boundPressFailure(error: { message: string; code?: string } | null, status: number): BoundPressFailure {
-  const code = error?.code;
-  const press: BoundPressFailure['press'] =
-    code === 'PGRST202' ? 'missing'
-    : status === 0 || status >= 500 || status === 401 || (code !== undefined && RESEND_CODES.has(code)) ? 'retry'
-    : 'refused';
-  return Object.assign(new Error(error?.message ?? `Request failed (${status})`), { press });
 }
 
 export async function adjustProductionDataBySlug(slug: string, presses: BoundPressWire[], signal?: AbortSignal): Promise<BoundPressAnswer> {
