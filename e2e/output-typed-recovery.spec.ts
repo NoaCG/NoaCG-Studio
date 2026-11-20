@@ -234,7 +234,7 @@ test('by row id (protocol 1, no log head), a typed report puts its graphic back 
 async function sampleRunAndPaint(page: Page) {
   await page.addInitScript(() => {
     if (window.top !== window) return;
-    type Sample = { ran: number | null; onAir: boolean; t: number; held: number; p: number | null };
+    type Sample = { ran: number | null; onAir: boolean; t: number; held: number; p: number | null; w?: string | 0; b?: string; eb?: string };
     const samples: Sample[] = [];
     (window as unknown as { __samples: Sample[] }).__samples = samples;
     let paint: { op: string; s: string } | null = null;
@@ -242,18 +242,19 @@ async function sampleRunAndPaint(page: Page) {
       if (ev.data && ev.data.type === 'probe-paint' && ev.data.key === 'Strap') paint = { op: ev.data.op, s: ev.data.s };
     });
     const tick = (t: number) => {
-      const live = (window as unknown as { __noacgLive?: { entry: () => { ready?: { run?: { p: number; h: Record<string, [number]> } } } } }).__noacgLive;
-      const run = live?.entry().ready?.run;
+      const live = (window as unknown as { __noacgLive?: { entry: () => { ready?: { b?: string; run?: { p: number; h: Record<string, [number]>; w?: string | 0; b?: string } } } } }).__noacgLive;
+      const ready = live?.entry().ready;
+      const run = ready?.run;
       const frame = document.querySelector('iframe[title="Strap"]');
       const onAir = !!paint && paint.op !== '0' && paint.s === 'step 0' && !!frame && getComputedStyle(frame).visibility !== 'hidden';
-      samples.push({ ran: run ? (run.h.Strap ? run.h.Strap[0] - 1 : run.p) : null, onAir, t, held: run ? Object.keys(run.h).length : 0, p: run ? run.p : null });
+      samples.push({ ran: run ? (run.h.Strap ? run.h.Strap[0] - 1 : run.p) : null, onAir, t, held: run ? Object.keys(run.h).length : 0, p: run ? run.p : null, w: run?.w, b: run?.b, eb: ready?.b });
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   });
 }
 
-type RunSample = { ran: number | null; onAir: boolean; t: number; held: number; p: number | null };
+type RunSample = { ran: number | null; onAir: boolean; t: number; held: number; p: number | null; w?: string | 0; b?: string; eb?: string };
 /** Wait for the picture and the report, then: the report reached the Take no earlier than the
  *  picture (the frame says what it painted by a message, a few frames late on a busy runner;
  *  without the fix the report ran ahead by 0.6 s or more), and the window was really sampled. */
@@ -278,6 +279,26 @@ test('a Take held when the output reloads is not reported run until its graphic 
   await standInBackend(page, {}, rows, ['Strap'], [probe('Strap', 20, true)]);
   await page.goto('/output?production=typed-probe');
   await expectRunNotBeforePaint(page, 2);
+});
+
+test('a restarted output says it is settled only once its restored graphic is on air (#2608)', async ({ page }) => {
+  // G2 section 4a, M2: the boot carries one mark in its entry and its report, and `w` stays a wait
+  // tag until the boot has read what to put back and the Strap is drawn; the page turns green on
+  // `w` 0 alone, so a 0 before the picture is the early green this fix removes.
+  await sampleRunAndPaint(page);
+  const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
+  await standInBackend(page, {}, rows, ['Strap'], [probe('Strap', 20, true)]);
+  await page.goto('/output?production=typed-probe');
+  const read = () => page.evaluate(() => (window as unknown as { __samples: RunSample[] }).__samples);
+  await expect.poll(async () => (await read()).at(-1)?.w ?? null, { timeout: 30_000 }).toBe(0);
+  const samples = (await read()).filter((s) => s.w !== undefined);
+  const settled = samples.find((s) => s.w === 0);
+  const drawn = samples.find((s) => s.onAir);
+  expect(settled && drawn, JSON.stringify({ settled, drawn })).toBeTruthy();
+  expect(settled!.t, 'the output said settled before its picture was on air').toBeGreaterThanOrEqual(drawn!.t - 250);
+  expect(samples.filter((s) => s.w !== 0).length, 'the wait was really sampled').toBeGreaterThan(10);
+  const marks = new Set(samples.flatMap((s) => [s.b, s.eb]));
+  expect(marks.size, 'one boot mark in the entry and every report').toBe(1);
 });
 
 test('a graphic put back from another output\'s report is not reported run until its frame has drawn it (#2604)', async ({ page }) => {
