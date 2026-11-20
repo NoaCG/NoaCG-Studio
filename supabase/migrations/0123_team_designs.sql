@@ -508,7 +508,7 @@ create trigger control_shows_team_designs_guard
 do $$
 declare
   v_owner   uuid;
-  v_role    text := current_user;
+  v_role    text := current_role;
   v_team    uuid := '00000000-0123-4000-8000-000000000001';
   v_tp      uuid := '00000000-0123-4000-8000-000000000002';
   v_other   uuid := '00000000-0123-4000-8000-000000000003';
