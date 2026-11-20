@@ -1,0 +1,143 @@
+# CasparCG 2.3.3 log, step 2 rerun, 2026-11-20 (times are local, UTC+2)
+# From server start through 40 s after the output PLAY at 13:46:43.747; Bridge status polls (VERSION/INFO/CLS/TLS) removed.
+# Lines matching 'Uncaught' or 'is not a function' in the whole log: 0
+Type "q" to close application.
+Logging [info] or higher severity to log/
+[2026-11-20 13:37:38.543] [info]    ############################################################################
+[2026-11-20 13:37:38.544] [info]    CasparCG Server is distributed by the Swedish Broadcasting Corporation (SVT)
+[2026-11-20 13:37:38.544] [info]    under the GNU General Public License GPLv3 or higher.
+[2026-11-20 13:37:38.544] [info]    Please see LICENSE.TXT for details.
+[2026-11-20 13:37:38.544] [info]    http://www.casparcg.com/
+[2026-11-20 13:37:38.544] [info]    ############################################################################
+[2026-11-20 13:37:38.544] [info]    Starting CasparCG Video and Graphics Playout Server 2.3.2 4de6d18f Dev
+[2026-11-20 13:37:38.870] [info]    Initializing OpenGL Device.
+[2026-11-20 13:37:38.876] [info]    Initialized OpenGL 4.5.0 NVIDIA 535.98 NVIDIA Corporation
+[2026-11-20 13:37:38.880] [info]    Initialized image module.
+[2026-11-20 13:37:38.891] [info]    Initialized ffmpeg module.
+[2026-11-20 13:37:38.891] [info]    Initialized oal module.
+[2026-11-20 13:37:38.891] [info]    Initialized decklink module.
+[2026-11-20 13:37:38.891] [info]    Initialized screen module.
+[2026-11-20 13:37:38.891] [info]    Initialized newtek module.
+[1120/133739.030:ERROR:gpu_process_transport_factory.cc(990)] Lost UI shared context.
+[2026-11-20 13:37:39.094] [info]    Initialized html module.
+[2026-11-20 13:37:39.094] [info]    Flash support is disabled
+[2026-11-20 13:37:39.094] [info]    Initialized flash module.
+[2026-11-20 13:37:39.098] [info]    Initialized bluefish module.
+[2026-11-20 13:37:39.098] [info]    "C:/casparcg\casparcg-server-v2.3.3-lts-stable\casparcg.config":
+[2026-11-20 13:37:39.098] [info]    -----------------------------------------
+[2026-11-20 13:37:39.098] [info]    <?xml version="1.0" encoding="utf-8"?>
+[2026-11-20 13:37:39.098] [info]    <configuration>
+[2026-11-20 13:37:39.098] [info]       <paths>
+[2026-11-20 13:37:39.098] [info]          <media-path>C:\casparcg\media</media-path>
+[2026-11-20 13:37:39.098] [info]          <log-path>log/</log-path>
+[2026-11-20 13:37:39.098] [info]          <data-path>data/</data-path>
+[2026-11-20 13:37:39.098] [info]          <template-path>C:\casparcg\templates</template-path>
+[2026-11-20 13:37:39.098] [info]       </paths>
+[2026-11-20 13:37:39.098] [info]       <lock-clear-phrase>secret</lock-clear-phrase>
+[2026-11-20 13:37:39.098] [info]       <channels>
+[2026-11-20 13:37:39.098] [info]          <channel>
+[2026-11-20 13:37:39.098] [info]             <video-mode>1080p5000</video-mode>
+[2026-11-20 13:37:39.098] [info]             <consumers>
+[2026-11-20 13:37:39.098] [info]                <screen/>
+[2026-11-20 13:37:39.098] [info]                <system-audio/>
+[2026-11-20 13:37:39.098] [info]             </consumers>
+[2026-11-20 13:37:39.098] [info]          </channel>
+[2026-11-20 13:37:39.098] [info]       </channels>
+[2026-11-20 13:37:39.098] [info]       <controllers>
+[2026-11-20 13:37:39.098] [info]          <tcp>
+[2026-11-20 13:37:39.098] [info]             <port>5250</port>
+[2026-11-20 13:37:39.098] [info]             <protocol>AMCP</protocol>
+[2026-11-20 13:37:39.098] [info]          </tcp>
+[2026-11-20 13:37:39.098] [info]       </controllers>
+[2026-11-20 13:37:39.098] [info]       <amcp>
+[2026-11-20 13:37:39.098] [info]          <media-server>
+[2026-11-20 13:37:39.098] [info]             <host>localhost</host>
+[2026-11-20 13:37:39.098] [info]             <port>8000</port>
+[2026-11-20 13:37:39.098] [info]          </media-server>
+[2026-11-20 13:37:39.098] [info]       </amcp>
+[2026-11-20 13:37:39.098] [info]    </configuration>
+[2026-11-20 13:37:39.098] [info]    -----------------------------------------
+[2026-11-20 13:37:39.190] [info]    Initialized OpenGL Accelerated GPU Image Mixer for channel 1
+[2026-11-20 13:37:39.198] [info]    video_channel[1|1080p5000] Successfully Initialized.
+[2026-11-20 13:37:39.208] [info]    Screen consumer [1|1080p5000] Initialized.
+[2026-11-20 13:37:39.276] [info]    oal[1|1080p5000] Initialized.
+[2026-11-20 13:37:39.277] [info]    Initialized channels.
+[2026-11-20 13:37:39.308] [info]    Initialized controllers.
+[2026-11-20 13:37:39.309] [info]    Initialized osc.
+[2026-11-20 13:38:24.033] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (1 connections).
+[2026-11-20 13:38:24.034] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:17.414] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (1 connections).
+[2026-11-20 13:46:17.414] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:17.427] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (1 connections).
+[2026-11-20 13:46:17.427] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:46:17.434] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (1 connections).
+[2026-11-20 13:46:17.435] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:17.435] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:46:20.005] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:20.006] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (3 connections).
+[2026-11-20 13:46:20.006] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:20.006] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:20.104] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:20.105] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (3 connections).
+[2026-11-20 13:46:20.105] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:46:20.105] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:46:23.186] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:23.186] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:26.193] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:26.193] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:29.200] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:29.200] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:30.105] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:30.106] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:46:32.206] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:32.206] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:35.214] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:35.214] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:38.223] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:38.223] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:40.104] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:40.104] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:46:41.229] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:41.229] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:43.710] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:43.710] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:46:43.747] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:43.747] [info]    Received message from 127.0.0.1: PLAY 1-20 [HTML] "https://noacg.studio/output?production=7HMskDArfZU0&destination=casparcg&name=CasparCG%201-20"\r\n
+[2026-11-20 13:46:43.994] [info]    D3D11: Selected adapter: NVIDIA GeForce RTX 3080 Laptop GPU
+[2026-11-20 13:46:43.994] [info]    D3D11: Selected feature level: 45312
+[2026-11-20 13:46:44.003] [info]    Sent message to 127.0.0.1:202 PLAY OK\r\n
+[2026-11-20 13:46:44.011] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:44.011] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:46:44.254] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:44.254] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:47.274] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:47.274] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:50.293] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:50.293] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:53.313] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:53.313] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:54.012] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:54.012] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:46:54.012] [info]    Sent more than 512 bytes to 127.0.0.1
+[2026-11-20 13:46:56.332] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:56.333] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:46:59.352] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:46:59.353] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:47:02.371] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:47:02.371] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:47:04.585] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:47:04.585] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:47:04.585] [info]    Sent more than 512 bytes to 127.0.0.1
+[2026-11-20 13:47:05.589] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:47:05.589] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:47:09.588] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:47:09.588] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:47:13.587] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:47:13.587] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:47:14.584] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:47:14.584] [info]    Received message from 127.0.0.1: INFO 1\r\n
+[2026-11-20 13:47:14.584] [info]    Sent more than 512 bytes to 127.0.0.1
+[2026-11-20 13:47:17.590] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:47:17.590] [info]    Received message from 127.0.0.1: VERSION\r\n
+[2026-11-20 13:47:21.588] [info]    async_event_server[:5250] Accepted connection from 127.0.0.1 (2 connections).
+[2026-11-20 13:47:21.588] [info]    Received message from 127.0.0.1: VERSION\r\n

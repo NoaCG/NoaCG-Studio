@@ -628,8 +628,16 @@ async function boot(): Promise<void> {
       released.add(graphic);
       learnClocks(spec);
       // A held Take whose frame a prepared, loaded one replaced: that frame runs it now (no
-      // onLoaded follows an adopted frame).
+      // onLoaded follows an adopted frame). Released as before, so what airs does not change.
+      const heldNow = holds.has(graphic) && ready(graphic);
       if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
+      // The adopted frame replaces one the boot hid or waited for: unless the release just hid it
+      // as late (it then counts when that flag lifts), it is not hidden by the old frame's flag,
+      // so what it shows counts once the stage is on air (G2 section 4). The flag itself stays as
+      // on main; only the counting reads past it (`hiddenHere`).
+      if (!heldNow && bootHidden.has(graphic)) flagWithoutFrame.add(graphic);
+      loadedAfterAll(graphic);
+      if (bootRevealed && !bootOffAir && !hiddenHere(graphic)) backOnAir(graphic);
       readyChanged();
     },
     onAdded: (spec, next) => {
@@ -647,6 +655,11 @@ async function boot(): Promise<void> {
       settleHold(graphic);
       failures.delete(graphic);
       packages.delete(graphic);
+      // Nothing of it is on air to wait for (G2 section 4). Its boot flag stays as on main (it
+      // decides how a later Take of the same key airs); the counting reads past it (`hiddenHere`).
+      offAirFrom.delete(graphic);
+      bootUnloaded.delete(graphic);
+      if (bootHidden.has(graphic)) flagWithoutFrame.add(graphic);
       for (const map of [checks, mergedData, typedData, typedEnvelope, stepsSince, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
       for (const set of [released, touched, liveGraphics, commanded, forcedReports, changedReports]) set.delete(graphic);
       clearTimeout(reportTimers.get(graphic));
@@ -1197,6 +1210,86 @@ async function boot(): Promise<void> {
   const typedFrom = new Map<string, number>();
   /** Boot frames hidden by their own flag because they had not loaded when the stage came back. */
   const bootHidden = new Set<string>();
+  /** Graphics that ran commands off air (the boot's hidden catch-up and anything live that reached
+   *  them before the stage came back, or a frame hidden by its own flag), by the oldest such
+   *  position: none of it has run on air until the graphic is back on air (G2 section 4, #2604). */
+  const offAirFrom = new Map<string, number>();
+  /** The renderer commands (G2 Terms); status rows and pings run nothing. */
+  const isCommand = (t: string) => ['update', 'play', 'stop', 'next', 'event', 'snap'].indexOf(t) >= 0;
+  /** The whole stage is off air for the boot's catch-up. */
+  let bootOffAir = false;
+  const ranOffAir = (graphic: string, at: number) => {
+    const from = offAirFrom.get(graphic);
+    if (from === undefined || at < from) offAirFrom.set(graphic, at);
+  };
+  if (seqMode) for (const key of stage.graphics.concat(bootPackages)) ranOffAir(key, 1);
+  /** A graphic that ran off air is on air now: what it ran counts, and one with something to say
+   *  reports it; the rest reach the page through Presence. */
+  const backOnAir = (graphic: string) => {
+    if (!offAirFrom.delete(graphic)) return;
+    if (touched.has(graphic) || liveGraphics.has(graphic)) {
+      unreportedRun.add(graphic);
+      scheduleReport(graphic);
+    }
+    presence.touch();
+  };
+  /** The boot has put back what it knows and the stage is on air again (or never left). */
+  let bootRevealed = false;
+  /** RESTARTING, NOTHING HAS RUN ON AIR YET (G2 section 4, #2604): the boot puts each graphic back
+   *  from its report (a pose, a typed baseline) or the log, all before its frame has drawn, and its
+   *  cursor already covers the Takes it restores. So every graphic reads as placing from the log's
+   *  start until its frame has loaded and the stage is on air. */
+  const revealBoot = () => {
+    bootOffAir = false;
+    bootRevealed = true;
+    offAirFrom.forEach((_from, key) => {
+      if (!hiddenHere(key) && stage.released(key)) backOnAir(key);
+      // A frame still loading counts when it loads, or, hidden by its own flag, when that lifts.
+      else setTimeout(() => bootBackstop(key), FRAME_LOAD_MS);
+    });
+  };
+  /** Boot frames that had not loaded FRAME_LOAD_MS after the reveal: they did not play here. */
+  const bootUnloaded = new Set<string>();
+  /** A boot frame still not loaded has not drawn what the boot gave it (restore commands carry no
+   *  position, so the stage's watchdog never fails them): it reads failed `load`, never run. A
+   *  frame being shown late counts by itself; anything else left (no frame) is settled. */
+  const bootBackstop = (key: string) => {
+    if (!offAirFrom.has(key) || (hiddenHere(key) && ready(key))) return;
+    if (hosts(key) && !ready(key)) {
+      offAirFrom.delete(key);
+      // Only a graphic whose restored state is on air did not play here; one that ends out (a
+      // replay ending in an Out) or was given nothing has nothing on air to draw.
+      if (!liveGraphics.has(key)) {
+        presence.touch();
+        return;
+      }
+      bootUnloaded.add(key);
+      if (!failures.has(key)) failures.set(key, { from: 1, why: 'load' });
+      readyChanged();
+      presence.touch();
+      return;
+    }
+    backOnAir(key);
+  };
+  /** A boot frame that loads after all clears its failure: what it shows from now on counts. */
+  const loadedAfterAll = (graphic: string) => {
+    if (!bootUnloaded.delete(graphic)) return;
+    const failure = failures.get(graphic);
+    if (failure && failure.from === 1 && failure.why === 'load') failures.delete(graphic);
+    // Shown late by its own flag, it counts when that lifts.
+    if (hiddenHere(graphic)) ranOffAir(graphic, 1);
+    else if (touched.has(graphic) || liveGraphics.has(graphic)) {
+      unreportedRun.add(graphic);
+      scheduleReport(graphic);
+    }
+    readyChanged();
+    presence.touch();
+  };
+  /** Graphics whose boot flag no longer hides a frame (removed, or replaced by an adopted frame):
+   *  the flag stays as on main for how a later Take airs; the counting reads past it. */
+  const flagWithoutFrame = new Set<string>();
+  /** A frame of this graphic is hidden by its own flag right now. */
+  const hiddenHere = (graphic: string) => bootHidden.has(graphic) && !flagWithoutFrame.has(graphic);
   /** Graphics whose unsettled work is from before a republish: their `from` reads 0. */
   const staleFrom = new Set<string>();
   /** Graphics that ran a command since their last report: their next report is owed even when its
@@ -1297,6 +1390,8 @@ async function boot(): Promise<void> {
     if (mode === 'late') {
       stage.hide(graphic, true);
       bootHidden.add(graphic);
+      // Its flag hides this frame now.
+      flagWithoutFrame.delete(graphic);
       const take = hold.rows.filter((row) => isTake(row.msg.t)).pop();
       if (take) lateNotes.set(graphic, { ms: Date.now() - take.receivedAt, until: Date.now() + 60_000 });
     }
@@ -1322,7 +1417,10 @@ async function boot(): Promise<void> {
       }
     } finally {
       bootHidden.delete(graphic);
+      flagWithoutFrame.delete(graphic);
       stage.hide(graphic, false);
+      // While the whole stage is still off air for the boot, the reveal counts it (`revealBoot`).
+      if (!bootOffAir) backOnAir(graphic);
     }
   };
 
@@ -1436,15 +1534,22 @@ async function boot(): Promise<void> {
   };
   // A frame that loads runs what waits for it; a hidden boot frame comes back once it settles.
   stage.onLoaded((graphic) => {
+    loadedAfterAll(graphic);
     if (holds.has(graphic)) releaseHold(graphic);
     else if (bootHidden.has(graphic)) void showWhenSettled(graphic);
     else if (following && touched.has(graphic)) primeFrame(graphic);
+    // A boot frame that loads once the stage is on air has drawn what the boot gave it.
+    if (bootRevealed && !hiddenHere(graphic)) backOnAir(graphic);
   });
   stage.onError((graphic) => {
     if (holds.has(graphic) && !ready(graphic)) giveUpOn(graphic, 'script');
   });
   stage.onOgraf((graphic) => {
     if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
+    // A package mounted once the stage is on air has run what the boot gave it, as a frame that
+    // loads then (`onLoaded`, which only native frames fire).
+    if (ready(graphic)) loadedAfterAll(graphic);
+    if (bootRevealed && !hiddenHere(graphic) && ready(graphic)) backOnAir(graphic);
   });
   stage.onOutcome((at, graphic, outcome) => {
     // The failure line follows D1 and D2 (`afterOutcome`).
@@ -1457,10 +1562,14 @@ async function boot(): Promise<void> {
       } else failures.delete(graphic);
       readyChanged();
     }
-    // A command that waited in the stage has run: its graphic may report again.
+    // A command that waited in the stage has run: its graphic may report again. Run off air, it
+    // counts once the graphic is back on air (`backOnAir`), which reports it then.
     if (outcome === 'posted' && seqMode) {
-      unreportedRun.add(graphic);
-      scheduleReport(graphic);
+      if (bootOffAir || hiddenHere(graphic)) ranOffAir(graphic, at);
+      else {
+        unreportedRun.add(graphic);
+        scheduleReport(graphic);
+      }
     }
     presence.touch();
   });
@@ -1482,6 +1591,12 @@ async function boot(): Promise<void> {
       const waiting = stage.waitingFor(graphic);
       if (waiting !== null && !h[graphic]) h[graphic] = [waiting, 'placing'];
     }
+    // Replayed off air by a restart: run only once it is back on air (G2 section 4, #2604).
+    offAirFrom.forEach((from, graphic) => {
+      const held = h[graphic];
+      if (!held) h[graphic] = [from, 'placing'];
+      else if (from < held[0]) h[graphic] = [from, held[1], held[2]].filter((x) => x !== undefined) as HeldEntry;
+    });
     // Work owed from before a republish reads from 0 in the new log until it settles (G2 section 4).
     staleFrom.forEach((graphic) => {
       if (h[graphic]) h[graphic] = [0, h[graphic][1], h[graphic][2]].filter((x) => x !== undefined) as HeldEntry;
@@ -1501,7 +1616,7 @@ async function boot(): Promise<void> {
   };
   /** A graphic that may write a report: hosted, released, and nothing of it unsettled (R2). */
   const reportable = (graphic: string) =>
-    hosts(graphic) && ready(graphic) && !holds.has(graphic) && !failures.has(graphic) && !typedRefused.has(graphic) && stage.waitingFor(graphic) === null;
+    hosts(graphic) && ready(graphic) && !holds.has(graphic) && !failures.has(graphic) && !typedRefused.has(graphic) && stage.waitingFor(graphic) === null && !offAirFrom.has(graphic);
 
   /** `deliver` false: the row is read past and counted applied, but never reaches the stage (a
    *  custom action on a package in the boot catch-up, which a restart never repeats). */
@@ -1747,6 +1862,8 @@ async function boot(): Promise<void> {
   if (animates) {
     stage.setVisible(false);
     dbg('catch-up', `${missed.length} row(s), off air while they settle`);
+    // What runs from here until the stage is back is not on air yet (`onOutcome`, `revealBoot`).
+    bootOffAir = true;
   }
 
   // ── Boot recovery, per graphic: the data half, then the visual half (snap arms timers). ──
@@ -1857,6 +1974,12 @@ async function boot(): Promise<void> {
   };
   // Said once everything the boot sends has gone, so a Take among the replayed rows cannot clear it.
   for (const [key, why] of ografUnknown) stage.markUnknown(key, why);
+  // Only what the boot puts on air, or replays commands for, waits for its frame: a graphic given
+  // nothing, or only its data while off air, has nothing on air to draw (marked above only until
+  // the boot knew, G2 section 4). This also keeps the list to what is on air (`listed`).
+  offAirFrom.forEach((_from, key) => {
+    if (!liveGraphics.has(key) && !holds.has(key) && !replayed.some((row) => row.graphic === key && isCommand(row.msg.t))) offAirFrom.delete(key);
+  });
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
   markRecovered();
   if (animates) {
@@ -1874,6 +1997,8 @@ async function boot(): Promise<void> {
           }
         }
         stage.setVisible(visible);
+        // Back on air: what ran off air counts now (`revealBoot`).
+        if (visible) revealBoot();
       },
     };
     void airWhenSettled(revealing)
@@ -1891,7 +2016,7 @@ async function boot(): Promise<void> {
         dbg('catch-up', `failed (${String(error)}) — back on air anyway`);
         console.warn('NoaCG output: the boot catch-up failed; the stage is back on air.', error);
       });
-  }
+  } else revealBoot();
 
   // ── Follow the log live (shared discipline: dedupe, hole → tail, refill on resubscribe, and
   // the CONTROL_POLL_MS floor under all three — every recovery above is driven by an event the
@@ -1998,6 +2123,7 @@ async function boot(): Promise<void> {
         for (const graphic of holds.keys()) staleFrom.add(graphic);
         for (const graphic of failures.keys()) staleFrom.add(graphic);
         for (const graphic of typedRefused.keys()) staleFrom.add(graphic);
+        for (const graphic of offAirFrom.keys()) staleFrom.add(graphic);
         for (const graphic of stage.graphics) if (stage.waitingFor(graphic) !== null) staleFrom.add(graphic);
         for (const graphic of stage.graphics) {
           if (liveGraphics.has(graphic) || mergedData.has(graphic) || typed.airing.has(graphic)) scheduleReport(graphic, true);
