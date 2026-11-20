@@ -101,6 +101,17 @@ export function clockOf(seconds: number): string {
   return `${m}:${s}${tenths % 10 ? `.${tenths % 10}` : ''}`;
 }
 
+/** `0:05.04`, `1:05.5`, `0:05` - a trim point to the hundredth, as the timeline and the typed boxes
+ *  show it, so a value set to the hundredth reads back exactly (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.6). */
+export function trimClock(seconds: number): string {
+  const hundredths = Math.round(seconds * 100);
+  const whole = Math.floor(hundredths / 100);
+  const m = Math.floor(whole / 60);
+  const s = String(whole % 60).padStart(2, '0');
+  const rest = hundredths % 100;
+  return `${m}:${s}${rest ? `.${String(rest).padStart(2, '0').replace(/0$/, '')}` : ''}`;
+}
+
 /** A time the operator typed (`1:05.5`, `65.5`, `0:03`) in seconds, or null when it is not one. */
 export function parseClock(text: string): number | null {
   const t = text.trim();
