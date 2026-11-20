@@ -408,9 +408,9 @@ async function refusedAnswer(sb: Backend, id: string, teamId: string, a: Refusal
  *  dropped. */
 async function readTeamChanges(sb: Backend, id: string): Promise<{ token: string; updatedBy: string | null; doc: Record<string, unknown> } | { error: string }> {
   const owner = running;
-  for (const whole of [false, true]) {
-    const kept = whole ? undefined : teamReads.get(id);
-    const before = teamReads.get(id);
+  // Twice at most: a kept form that will not take the answer is deleted, so the second read is whole.
+  for (let pass = 0; pass < 2; pass++) {
+    const kept = teamReads.get(id);
     const { data, error } = await sb.rpc('team_production_changes', { p_id: id, p_map: { f: 's1', m: kept?.map ?? {} } });
     if (error) {
       // An instance with the v2 saves but no read (a revert half done): the old saves from here on,
@@ -418,7 +418,7 @@ async function readTeamChanges(sb: Backend, id: string): Promise<{ token: string
       if (error.code === 'PGRST202') leanSaves = false;
       return { error: error.message };
     }
-    if (running !== owner || teamReads.get(id) !== before) return { error: 'The team production changed while it was read.' };
+    if (running !== owner || teamReads.get(id) !== kept) return { error: 'The team production changed while it was read.' };
     const a = data as { updated_at?: unknown; updated_by?: string | null; ops?: unknown } | null;
     if (!a || typeof a.updated_at !== 'string' || !Array.isArray(a.ops)) return { error: 'The team production could not be read.' };
     const ops = a.ops as PatchOp[];

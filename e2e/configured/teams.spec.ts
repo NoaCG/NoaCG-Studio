@@ -34,6 +34,7 @@ import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import {
   dismissWizard,
   E2E_EMAIL,
+  E2E_PASSWORD,
   E2E_TEAMMATE_EMAIL,
   E2E_TEAMMATE_PASSWORD,
   haveCreds,
@@ -49,6 +50,7 @@ import { settleDurableWrites } from '../_durable';
 import { FAKE_JOIN_ROUTE, TEAM } from '../_teams';
 import { installDoor } from '../_door';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { ANON_KEY } from './_panel';
 import { applyPatch, applyToMap, canonicalJson, diff, unitMap, type PatchOp, type UnitMap } from '../../src/backend/unitPatch';
 
 // This file also runs in pages that are not the app (e2e/_door.ts).
@@ -1026,16 +1028,14 @@ test.describe('a refused team save reads only what changed', () => {
 
   test('random edits by two writers: every read rebuilds the record and names only what changed', async () => {
     test.setTimeout(60_000);
-    const anon = process.env.VITE_SUPABASE_ANON_KEY ?? '';
-    const client = async (email: string, password: string): Promise<SupabaseClient> => {
+    const client = async (email: string, password: string): Promise<{ sb: SupabaseClient; userId: string }> => {
       // The build mark this build's pages send (src/backend/supabase.ts), so 0115's guard admits the writes.
-      const sb = createClient(SUPABASE_URL, anon, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { 'x-noacg-production-copies': '1' } } });
-      const { error } = await sb.auth.signInWithPassword({ email, password });
+      const sb = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { 'x-noacg-production-copies': '1' } } });
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      return sb;
+      return { sb, userId: data.user.id };
     };
-    const anna = await client(E2E_EMAIL, process.env.E2E_PASSWORD ?? '');
-    const ben = await client(E2E_TEAMMATE_EMAIL, E2E_TEAMMATE_PASSWORD);
+    const [{ sb: anna, userId: annaId }, { sb: ben }] = await Promise.all([client(E2E_EMAIL, E2E_PASSWORD), client(E2E_TEAMMATE_EMAIL, E2E_TEAMMATE_PASSWORD)]);
     const { data: made, error: teamError } = await anna.from('teams').insert({ name: `E2E team 2615 ${Date.now()}` }).select('id, join_code').single();
     expect(teamError).toBeNull();
     const team = made as { id: string; join_code: string };
@@ -1061,7 +1061,7 @@ test.describe('a refused team save reads only what changed', () => {
         shifty: [{ id: 's0', name: 'x' }],
         empty: [],
       };
-      const { data: row, error: insertError } = await anna.from('team_productions').insert({ id, team_id: team.id, doc, updated_by: (await anna.auth.getUser()).data.user!.id }).select('updated_at').single();
+      const { data: row, error: insertError } = await anna.from('team_productions').insert({ id, team_id: team.id, doc, updated_by: annaId }).select('updated_at').single();
       expect(insertError).toBeNull();
       let token = (row as { updated_at: string }).updated_at;
       let next = 4;
