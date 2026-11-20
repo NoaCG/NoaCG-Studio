@@ -5,8 +5,9 @@
 // placing graphic, no restored graphic waiting to be drawn, and the boot has read what to put
 // back); otherwise it is a tag drawn when the output went from settled to unsettled, or left
 // `failed`, so a fresh wait starts young. `k` is the worst kind, `y` its reason when failed, and
-// `wa` how long the wait has lasted. `n` rises whenever what the report says changes (`wa`
-// excepted), so the page orders reports of one boot by it and an unchanged entry costs no call.
+// `wa` how long the wait had lasted when the report last changed (and once more at 5 s). `n`
+// rises whenever what the report says changes (`wa` excepted), so the page orders reports of one
+// boot by it, and an unchanged entry costs no call while a wait lasts.
 //
 // Plain and dependency-free, ES2017: the output runs it in Chromium 71, and
 // scripts/run-settled.test.mjs runs it in Node.
@@ -27,9 +28,15 @@ export interface SettledState {
   /** The counter, and the content it last counted. */
   n: number;
   said: string;
+  /** The `wa` the report shows: the wait's age when what it says last changed, and once more when
+   *  the wait passes 5 s, so an unchanged entry costs no Presence call while a wait lasts (M2). */
+  wa: number;
 }
 
-export const settledStart = (): SettledState => ({ w: 0, since: 0, n: 0, said: '' });
+/** M4: a `placing` wait turns amber after this; the report says its age once more as it passes. */
+export const WAIT_TOLD_MS = 5_000;
+
+export const settledStart = (): SettledState => ({ w: 0, since: 0, n: 0, said: '', wa: 0 });
 
 /** The boot's own part of the fact: has it read what to put back, and did it give up at 60 s. */
 export interface BootFact {
@@ -78,11 +85,13 @@ export function withSettled(
   }
   const said = JSON.stringify([run.p, run.h, run.e, w, k, y]);
   const n = said === state.said ? state.n : state.n + 1;
+  const age = Math.max(0, now - since);
+  const wa = !k ? 0 : n !== state.n || (age >= WAIT_TOLD_MS && state.wa < WAIT_TOLD_MS) ? age : state.wa;
   const out: RunReport = { ...run, b, n, w };
   if (k) {
     out.k = k;
     if (y) out.y = y;
-    out.wa = Math.max(0, now - since);
+    out.wa = wa;
   }
-  return { run: out, state: { w, since, k, n, said } };
+  return { run: out, state: { w, since, k, n, said, wa } };
 }

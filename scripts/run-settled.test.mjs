@@ -20,11 +20,11 @@ const report = (b, n, w, extra = {}) => ({ o: 'out-a', p: 10, h: {}, e: EP, b, n
 const owed = (at, graphic, learnedAt = 0) => ({ at, graphic, learnedAt });
 
 /** The page's side for one output, as ProductionPage wires it. */
-function judge({ track, entries, owe, now, link = { status: 'joined', since: 0 }, epochSince = 0, goneSince }) {
+function judge({ track, entries, owe, now, link = { status: 'joined', since: 0 }, epochSince = 0, goneSince, epoch = EP, retired = new Set() }) {
   let out;
   if (entries.length === 0) out = { id: 'out-a', name: 'A', run: null, present: false, speaks: false, goneSince };
   else {
-    const kept = keptReport(track, entries, EP);
+    const kept = keptReport(track, entries, epoch, retired);
     const seen = track?.seen[kept.b] ?? now;
     out = {
       id: 'out-a',
@@ -35,7 +35,7 @@ function judge({ track, entries, owe, now, link = { status: 'joined', since: 0 }
       mark: {
         since: Math.max(seen, epochSince),
         ...(kept.kind === 'none' ? { none: kept.why } : {}),
-        ...(track?.wait && track.wait.b === kept.b ? { wait: track.wait.since } : {}),
+        ...(track?.waits[kept.b] ? { wait: track.waits[kept.b].since } : {}),
         ...(track?.settled[kept.b] !== undefined ? { settled: track.settled[kept.b] } : {}),
       },
     };
@@ -65,9 +65,17 @@ test('the output: settled is w 0; a wait draws a tag once; leaving failed draws 
   s = r.state;
   r = withSettled(s, { o: 'o', p: 6, h: { G: [6, 'placing'] }, e: EP }, boot, 'B', 3_100, draw);
   assert.equal(r.run.w, 't1', 'the same wait keeps its tag');
-  assert.equal(r.run.wa, 3_000);
-  const n1 = r.run.n;
-  assert.equal(n1, s.n, '`wa` alone does not raise n');
+  assert.equal(r.run.wa, 0, 'an unchanged report keeps the age it was built with: no Presence call');
+  assert.equal(r.run.n, s.n, '`wa` alone does not raise n');
+  s = r.state;
+  r = withSettled(s, { o: 'o', p: 6, h: { G: [6, 'placing'] }, e: EP }, boot, 'B', 5_200, draw);
+  assert.equal(r.run.wa, 5_100, 'once more as the wait passes 5 s (M4)');
+  s = r.state;
+  r = withSettled(s, { o: 'o', p: 6, h: { G: [6, 'placing'] }, e: EP }, boot, 'B', 9_000, draw);
+  assert.equal(r.run.wa, 5_100, 'and then not again');
+  s = r.state;
+  r = withSettled(s, { o: 'o', p: 6, h: { G: [6, 'loading'] }, e: EP }, boot, 'B', 9_500, draw);
+  assert.equal(r.run.wa, 9_400, 'a change says the age it has then');
   s = r.state;
   r = withSettled(s, { o: 'o', p: 6, h: { G: [6, 'failed', 'load'] }, e: EP }, boot, 'B', 20_000, draw);
   assert.equal(r.run.w, 't1');
@@ -131,7 +139,14 @@ test('a row of the same boot arriving out of order never replaces a newer report
   const kept = keptReport(t, [{ b: 'B', run: null }], EP);
   assert.equal(kept.run.n, 5);
   assert.equal(kept.run.w, 0);
-  assert.equal(t.wait, undefined, 'an older wait never starts the clock');
+  assert.equal(t.waits.B, undefined, 'an older wait never starts the clock');
+});
+
+test('a late row of the boot before never moves the current boot\'s wait clock (M4)', () => {
+  let t = noteRun(undefined, report('B', 1, 'w1', { k: 'placing', wa: 0 }), 0);
+  t = noteRun(t, report('A', 50, 'old', { k: 'placing', wa: 0 }), 1_000);
+  const r = report('B', 1, 'w1', { k: 'placing', wa: 0 });
+  assert.equal(judge({ track: t, entries: [{ b: 'B', run: r }], owe: [], now: 5_500 }), 'warn');
 });
 
 test('a restart with nothing pressed is never green before the boot settles (decision a)', () => {
@@ -209,108 +224,231 @@ test('a stale entry of a boot whose reports were dropped keeps ageing from its f
   for (let i = 1; i <= 4; i += 1) t = noteRun(t, report(`B${i}`, 1, 0), i * 1_000);
   assert.equal(t.best.B0, undefined);
   assert.equal(t.seen.B0, 0, 'its first sight outlives its reports');
-  assert.equal(judge({ track: t, entries: [{ b: 'B0', run: null }, { b: 'B4', run: null }], owe: [], now: 10_000 }), 'warn');
+  assert.equal(judge({ track: t, entries: [{ b: 'B0', run: null }], owe: [], now: 10_000 }), 'warn');
+  assert.equal(judge({ track: t, entries: [{ b: 'B0', run: null }], owe: [], now: 70_000 }), 'bad');
+});
+
+test('a reload whose old connection lingers reads from the new boot, never the old one\'s age (M6)', () => {
+  let t = noteRun(undefined, report('A', 4, 0), 0);
+  t = noteMark(t, 'B', 600_000);
+  const both = [{ b: 'A', run: report('A', 4, 0) }, { b: 'B', run: null }];
+  assert.equal(judge({ track: t, entries: both, owe: [], now: 601_000 }), 'idle');
+  assert.equal(judge({ track: t, entries: both, owe: [], now: 606_000 }), 'warn');
+  assert.equal(judge({ track: t, entries: both, owe: [], now: 670_000 }), 'bad', 'a ghost that stays still goes red');
+});
+
+test('a republish: a report of the retired epoch never counts, also before the page learns the new one (M1, M3)', () => {
+  // Settled and green in epoch ep1; the production is republished.
+  const old = report('B', 4, 0, { e: 'ep1', p: 50 });
+  const t = noteRun(undefined, old, 0);
+  const retired = new Set(['ep1']);
+  const seed = [owed(0, null, 10_000)];
+  // The page has not learned the new epoch: the output still on ep1 keeps no report.
+  assert.equal(keptReport(t, [{ b: 'B', run: old }], null, retired).why, 'epoch');
+  assert.equal(judge({ track: t, entries: [{ b: 'B', run: old }], owe: seed, now: 10_100, epoch: null, retired, epochSince: 10_000 }), 'idle');
+  assert.equal(judge({ track: t, entries: [{ b: 'B', run: old }], owe: seed, now: 16_000, epoch: null, retired, epochSince: 10_000 }), 'warn');
+  assert.equal(judge({ track: t, entries: [{ b: 'B', run: old }], owe: seed, now: 80_000, epoch: null, retired, epochSince: 10_000 }), 'bad', 'an output that never follows goes red');
+  // It follows: its new report counts.
+  const now = report('B', 5, 0, { e: 'ep2', p: 0 });
+  assert.equal(judge({ track: noteRun(t, now, 12_000), entries: [{ b: 'B', run: now }], owe: seed, now: 12_000, epoch: null, retired, epochSince: 10_000 }), 'ok');
 });
 
 // ── The reference model: the light for one output, written from M1 to M8's words. ──────────────
+// `world` is what happened, as plain history: every report the page received (with the page's
+// epoch at that moment), its first sight of each boot, its epoch and the epochs it retired.
+const RANK = { ok: 0, idle: 1, warn: 2, bad: 3 };
 function model(world, now) {
-  const { link, entries, reports, owe, epochSince, goneSince } = world;
-  // M6: the page's own link.
+  const { link, entries, owe, epochSince, retired, epoch } = world;
+  // M6: the page's own link decides first.
   if (link.status !== 'joined') return link.status === 'joining' && now - link.since < 5_000 ? 'idle' : 'warn';
-  // M6: absent.
-  if (entries.length === 0) return now - goneSince >= 15_000 ? 'bad' : 'idle';
-  // M1: the boot its one entry carries; highest n among every report of that boot.
-  const marks = [...new Set(entries.map((e) => e.b))];
-  const b = marks[0];
-  const firstSight = Math.min(...world.sights.filter((x) => x.b === b).map((x) => x.at));
-  const since = Math.max(firstSight, epochSince);
-  let kept = null;
-  if (marks.length === 1) {
-    for (const r of reports.filter((x) => x.run.b === b)) if (!kept || r.run.n > kept.run.n) kept = r;
-    for (const e of entries) if (e.run && e.run.b === b && (!kept || e.run.n > kept.run.n)) kept = { run: e.run, at: now };
-  }
-  if (!kept) {
-    const age = now - since;
+  // M6: absent, from its leave as the page saw it, or the page's (re)join that finds it absent.
+  if (entries.length === 0) return now - Math.max(world.leftAt, link.since) >= 15_000 ? 'bad' : 'idle';
+  const firstSight = (b) => Math.min(...world.sights.filter((x) => x.b === b).map((x) => x.at));
+  const noReport = (b) => {
+    const age = now - Math.max(firstSight(b), epochSince);
     return age >= 70_000 ? 'bad' : age >= 5_000 ? 'warn' : 'idle';
-  }
-  const run = kept.run;
+  };
+  // M1: two marks keep no report; M6 counts from the newest of them.
+  const marks = [...new Set(entries.map((e) => e.b))];
+  if (marks.length > 1) return noReport(marks.reduce((x, y) => (firstSight(y) > firstSight(x) ? y : x)));
+  const b = marks[0];
+  // M1: every report of that boot the page heard (a row only while it was of the page's epoch,
+  // section 6), and the entry itself; a retired epoch's never counts. Highest n.
+  const heard = world.got.filter((d) => d.run.b === b && (d.via === 'entry' || d.epochThen === null || d.epochThen === d.run.e));
+  const live = heard.filter((d) => !retired.has(d.run.e)).map((d) => d.run);
+  for (const e of entries) if (e.run && e.run.b === b && !retired.has(e.run.e)) live.push(e.run);
+  const run = live.reduce((x, r) => (!x || r.n > x.n ? r : x), null);
+  if (!run || (epoch !== null && run.e !== epoch)) return noReport(b);
   if (run.w !== 0) {
     if (run.k === 'failed') return 'bad';
     if (run.k === 'loading' || run.k === 'late') return 'warn';
-    // The wait's age: wa plus the time since the page first received that tag.
-    const first = reports.filter((x) => x.run.b === b && x.run.w === run.w).sort((x, y) => x.at - y.at)[0];
+    // M4: `wa` plus the time since the page received that report, kept per (output, b, w).
+    const first = heard.filter((d) => d.run.w === run.w).sort((x, y) => x.at - y.at)[0];
     const age = first ? first.run.wa + (now - first.at) : run.wa;
     return age >= 5_000 ? 'warn' : 'idle';
   }
-  // Settled: positions past p age from the latest of learned, the boot's first sight and the settle.
-  const waits = reports.filter((x) => x.run.b === b && x.run.w !== 0);
-  const settleAt = waits.length
-    ? Math.min(...reports.filter((x) => x.run.b === b && x.run.w === 0 && x.at >= Math.max(...waits.map((w) => w.at))).map((x) => x.at))
-    : 0;
+  // M7: settled; a position past p ages from the latest of when the page learned of it, its first
+  // sight of the boot (or its taking the epoch), and the first settled report after a wait.
+  const order = heard.slice().sort((x, y) => x.at - y.at);
+  let settleAt = 0;
+  let waiting = false;
+  for (const d of order) {
+    if (d.run.w !== 0) waiting = true;
+    else if (waiting) {
+      settleAt = d.at;
+      waiting = false;
+    }
+  }
   let tone = 'ok';
-  const rank = { ok: 0, idle: 1, warn: 2, bad: 3 };
   for (const o of owe) {
     if (run.p >= o.at) continue;
-    const age = now - Math.max(o.learnedAt, since, isFinite(settleAt) ? settleAt : 0);
+    const age = now - Math.max(o.learnedAt, firstSight(b), epochSince, settleAt);
     const seed = o.graphic === null;
     const t = age >= (seed ? 30_000 : 15_000) ? 'bad' : age >= (seed ? 15_000 : 5_000) ? 'warn' : 'idle';
-    if (rank[t] > rank[tone]) tone = t;
+    if (RANK[t] > RANK[tone]) tone = t;
   }
   return tone;
 }
 
+/** The page, as ProductionPage feeds runTrack: rows, Presence entries, its epoch and republishes. */
+function pageOf() {
+  const page = { epoch: 'E0', retired: new Set(), epochSince: 0, track: undefined };
+  return Object.assign(page, {
+    row(run, now) {
+      if (page.retired.has(run.e)) return;
+      if (page.epoch === null) {
+        page.epoch = run.e;
+        page.epochSince = now;
+      }
+      if (run.e !== page.epoch) return;
+      page.track = noteRun(page.track, run, now);
+    },
+    entries(list, now) {
+      for (const e of list) {
+        const ok = !!e.run && !page.retired.has(e.run.e) && e.run.e === (page.epoch ?? e.run.e);
+        page.track = ok ? noteRun(page.track, e.run, now) : noteMark(page.track, e.b, now);
+      }
+    },
+    republish(now) {
+      if (page.epoch !== null) page.retired.add(page.epoch);
+      page.epoch = null;
+      page.epochSince = now;
+    },
+  });
+}
+
 test('random worlds: the page agrees with the reference model at every step', () => {
-  let seed = 11;
+  let seed = Number(process.env.SETTLED_SEED ?? 11);
+  const trials = Number(process.env.SETTLED_TRIALS ?? 400);
   const rand = (n) => ((seed = (seed * 1103515245 + 12345) % 2147483648) % n);
-  for (let trial = 0; trial < 400; trial += 1) {
+  for (let trial = 0; trial < trials; trial += 1) {
     let now = 0;
-    let boot = 'B0';
     let bootNo = 0;
+    let boot = 'B0';
+    let oldBoot = null;
     let n = 0;
     let tag = 0;
     let w = 0;
     let wa0 = 0;
-    const world = { link: { status: 'joined', since: 0 }, entries: [{ b: boot, run: null }], reports: [], owe: [], epochSince: 0, goneSince: 0, sights: [{ b: boot, at: 0 }] };
-    let track = noteMark(undefined, boot, 0);
-    for (let step = 0; step < 25; step += 1) {
+    let serverEpoch = 0;
+    let outEpoch = 0;
+    const page = pageOf();
+    const world = { link: { status: 'joined', since: 0 }, entries: [{ b: boot, run: null }], got: [], owe: [owed(0, null, 0)], sights: [{ b: boot, at: 0 }], leftAt: 0, retired: page.retired };
+    page.entries(world.entries, 0);
+    const sight = (b) => {
+      if (!world.sights.some((x) => x.b === b)) world.sights.push({ b, at: now });
+    };
+    const setEntries = (list) => {
+      world.entries = list;
+      for (const e of list) sight(e.b);
+      for (const e of list) if (e.run) world.got.push({ run: e.run, at: now, via: 'entry', epochThen: page.epoch });
+      page.entries(list, now);
+    };
+    const build = () => {
+      const k = ['settled', 'placing', 'loading', 'failed'][rand(4)];
+      if (k === 'settled') w = 0;
+      else if (w === 0) {
+        tag += 1;
+        w = `w${tag}`;
+        wa0 = now;
+      }
+      n += 1;
+      return { o: 'out-a', p: rand(12), h: {}, e: `E${outEpoch}`, b: boot, n, w, ...(w !== 0 ? { k, wa: now - wa0, ...(k === 'failed' ? { y: 'load' } : {}) } : {}) };
+    };
+    const send = (r) => {
+      const how = rand(3);
+      if (how !== 1) {
+        world.got.push({ run: r, at: now, via: 'row', epochThen: page.epoch });
+        page.row(r, now);
+      }
+      if (how !== 0 && world.entries.length) setEntries(world.entries.map((e) => (e.b === boot ? { ...e, run: r } : e)));
+    };
+    for (let step = 0; step < 30; step += 1) {
       now += rand(4_000);
-      const what = rand(9);
+      const what = rand(14);
       if (what === 0) {
-        // Reload: a new boot joins (sometimes before the old entry leaves).
+        // Reload: a new boot joins, sometimes before the old entry leaves.
+        oldBoot = boot;
         bootNo += 1;
         boot = `B${bootNo}`;
         n = 0;
         w = 0;
-        world.entries = rand(3) === 0 ? [world.entries[0], { b: boot, run: null }] : [{ b: boot, run: null }];
-        world.sights.push({ b: boot, at: now });
-        track = noteMark(track, boot, now);
+        setEntries(rand(3) === 0 && world.entries.length ? [world.entries[0], { b: boot, run: null }] : [{ b: boot, run: null }]);
       } else if (what === 1 && world.entries.length > 1) {
-        world.entries = [world.entries[world.entries.length - 1]];
+        setEntries([world.entries[world.entries.length - 1]]);
       } else if (what <= 5) {
-        // The output builds a report: settled, or a wait of some kind.
-        const kinds = ['settled', 'placing', 'loading', 'failed'];
-        const k = kinds[rand(4)];
-        if (k === 'settled') w = 0;
-        else if (w === 0) {
-          tag += 1;
-          w = `w${tag}`;
-          wa0 = now;
-        }
-        n += 1;
-        const r = { o: 'out-a', p: 5 + rand(10), h: {}, e: EP, b: boot, n, w, ...(w !== 0 ? { k, wa: now - wa0, ...(k === 'failed' ? { y: 'load' } : {}) } : {}) };
-        const viaRow = rand(2) === 0;
-        world.reports.push({ run: r, at: now });
-        track = noteRun(track, r, now);
-        if (!viaRow) world.entries = world.entries.map((e) => (e.b === boot ? { ...e, run: r } : e));
+        send(build());
       } else if (what === 6) {
-        world.owe.push(owed(1 + rand(20), rand(3) === 0 ? null : 'G', now - rand(60_000)));
+        world.owe.push(owed(rand(12), rand(3) === 0 ? null : 'G', now - rand(60_000)));
       } else if (what === 7) {
-        const s = ['joined', 'joined', 'joining', 'down'][rand(4)];
-        if (s !== world.link.status) world.link = { status: s, since: now };
+        const st = ['joined', 'joined', 'joining', 'down'][rand(4)];
+        if (st !== world.link.status) world.link = { status: st, since: now };
+      } else if (what === 8) {
+        // A republish: the server's epoch moves; the page learns it now or later.
+        serverEpoch += 1;
+        if (rand(2) === 0) {
+          page.republish(now);
+          world.owe = [owed(0, null, now)];
+        }
+      } else if (what === 9 && outEpoch < serverEpoch) {
+        // The output follows the republish.
+        outEpoch = serverEpoch;
+        send(build());
+      } else if (what === 10 && page.epoch !== null && page.epoch !== `E${serverEpoch}` && !page.retired.has(`E${serverEpoch}`)) {
+        page.republish(now);
+        world.owe = [owed(0, null, now)];
+      } else if (what === 11 && oldBoot) {
+        // A late row of the boot before.
+        const r = { o: 'out-a', p: 11, h: {}, e: `E${outEpoch}`, b: oldBoot, n: 99 + step, ...(rand(2) ? { w: 0 } : { w: `old${step}`, k: 'placing', wa: 0 }) };
+        world.got.push({ run: r, at: now, via: 'row', epochThen: page.epoch });
+        page.row(r, now);
+      } else if (what === 12 && world.entries.length) {
+        // The output leaves Presence; later a new boot joins.
+        world.leftAt = now;
+        setEntries([]);
+      } else if (what === 13 && world.entries.length === 0) {
+        oldBoot = boot;
+        bootNo += 1;
+        boot = `B${bootNo}`;
+        n = 0;
+        w = 0;
+        setEntries([{ b: boot, run: null }]);
       }
-      const got = judge({ track, entries: world.entries, owe: world.owe, now, link: world.link, epochSince: world.epochSince, goneSince: world.goneSince });
+      world.epoch = page.epoch;
+      world.epochSince = page.epochSince;
+      const got = judge({
+        track: page.track,
+        entries: world.entries,
+        owe: world.owe,
+        now,
+        link: world.link,
+        epochSince: page.epochSince,
+        goneSince: Math.max(world.leftAt, world.link.since),
+        epoch: page.epoch,
+        retired: page.retired,
+      });
       const want = model(world, now);
-      assert.equal(got, want, JSON.stringify({ trial, step, now, entries: world.entries.map((e) => [e.b, e.run && [e.run.n, e.run.w, e.run.k]]), link: world.link, seen: track.seen, sights: world.sights, best: Object.keys(track.best), reports: world.reports.filter((x) => x.run.b === boot), wait: track.wait, settled: track.settled, owe: world.owe }));
+      assert.equal(got, want, JSON.stringify({ trial, step, now, epoch: page.epoch, retired: [...page.retired], entries: world.entries.map((e) => [e.b, e.run && [e.run.n, e.run.w, e.run.k, e.run.e, e.run.p]]), link: world.link, track: page.track, owe: world.owe }));
     }
   }
 });

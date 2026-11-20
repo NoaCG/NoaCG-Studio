@@ -247,7 +247,7 @@ function settledLines(lines: ConfirmLine[], out: ConfirmOutput, owed: readonly O
     return;
   }
   // M4: while unsettled, the wait decides every owed position, the seed included.
-  if (run.w !== undefined && run.w !== 0) {
+  if (run.w !== 0) {
     const what = waitWhat(run);
     const k = run.k ?? 'placing';
     if (k === 'failed') {

@@ -68,18 +68,30 @@ interface Backend {
   tails: number[];
 }
 
+/** How the stand-in answers over time: a tail read held by its `after`, and how late the slow
+ *  picture comes. `rows` may grow after the boot: the head follows it. */
+interface Timing {
+  tailDelayMs?: (after: number) => number;
+  slowMs?: number;
+}
+
 /** The stand-in backend: the numbered resolve with `live`, the numbered tail over `rows`, and the
  *  head saying which graphics are on air. */
-async function standInBackend(page: Page, live: Record<string, unknown>, rows: Row[], on: string[], graphics = [probe('Strap', 20), probe('Bug', 30)]): Promise<Backend> {
+async function standInBackend(page: Page, live: Record<string, unknown>, rows: Row[], on: string[], graphics = [probe('Strap', 20), probe('Bug', 30)], timing: Timing = {}): Promise<Backend> {
   const seen: Backend = { reports: [], tails: [] };
-  const head = { seq: rows.length ? rows[rows.length - 1].seq : 0, graphics: Object.fromEntries(on.map((g) => [g, { on: true }])) };
+  const head = () => ({ seq: rows.length ? rows[rows.length - 1].seq : 0, graphics: Object.fromEntries(on.map((g) => [g, { on: true }])) });
   await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: CONFIG_MODULE }));
   await page.route(`${BACKEND}/**`, async (route: Route) => {
     const req = route.request();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     const path = new URL(req.url()).pathname;
+    if (path === '/slow.js') {
+      // A script the parser waits for: the document is not even parsed until it comes.
+      await new Promise((resolve) => setTimeout(resolve, timing.slowMs ?? 1_500));
+      return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'text/javascript' }, body: '/* slow */' });
+    }
     if (path === '/slow.png') {
-      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await new Promise((resolve) => setTimeout(resolve, timing.slowMs ?? 1_500));
       return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'image/png' }, body: PIXEL });
     }
     const json = (body: unknown) => route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -97,7 +109,9 @@ async function standInBackend(page: Page, live: Record<string, unknown>, rows: R
     if (path.endsWith('/rpc/control_output_tail_seq')) {
       const after = Number((req.postDataJSON() as { p_after?: number }).p_after ?? 0);
       seen.tails.push(after);
-      return json({ epoch: EPOCH, rows: rows.filter((r) => r.seq > after).slice(0, 500), head });
+      const hold = timing.tailDelayMs?.(after) ?? 0;
+      if (hold) await new Promise((resolve) => setTimeout(resolve, hold));
+      return json({ epoch: EPOCH, rows: rows.filter((r) => r.seq > after).slice(0, 500), head: head() });
     }
     if (path.endsWith('/rpc/control_output_report_seq')) {
       const b = req.postDataJSON() as { p_graphic: string; p_data: unknown; p_state: Record<string, unknown> | null; p_seq: number };
@@ -333,4 +347,121 @@ test('on a restart of a large production only what is on air waits for its frame
   const last = waiting[waiting.length - 1];
   expect(last && last.held, JSON.stringify(waiting.slice(-3))).toBe(1);
   expect(last.p, 'the cursor while the Strap waits').toBeGreaterThanOrEqual(15);
+});
+
+// ── G2 section 4a (#2608): the settled fact the output says, over time. ───────────────────────
+
+type Fact = { t: number; w: string | 0 | null; k: string | null; y: string | null; wa: number | null };
+/** Every animation frame from the first script on: the settled fact in the output's own entry. */
+async function sampleFacts(page: Page) {
+  await page.addInitScript(() => {
+    if (window.top !== window) return;
+    const facts: { t: number; w: string | 0 | null; k: string | null; y: string | null; wa: number | null }[] = [];
+    (window as unknown as { __facts: typeof facts }).__facts = facts;
+    const tick = (t: number) => {
+      const live = (window as unknown as { __noacgLive?: { entry: () => { ready?: { run?: { w?: string | 0; k?: string; y?: string; wa?: number } } } } }).__noacgLive;
+      const run = live?.entry().ready?.run;
+      const last = facts[facts.length - 1];
+      const f = { t, w: run ? (run.w ?? null) : null, k: run?.k ?? null, y: run?.y ?? null, wa: run?.wa ?? null };
+      // Only changes are kept: a long wait is thousands of frames.
+      if (!last || last.w !== f.w || last.k !== f.k || last.y !== f.y || last.wa !== f.wa) facts.push(f);
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+const factsOf = (page: Page) => page.evaluate(() => (window as unknown as { __facts: Fact[] }).__facts);
+const settledAt = async (page: Page, timeout: number) => {
+  await expect.poll(async () => (await factsOf(page)).at(-1)?.w ?? null, { timeout }).toBe(0);
+  return factsOf(page);
+};
+/** The first fact at which the output said this, or null. */
+const firstWhen = (facts: Fact[], test: (f: Fact) => boolean) => facts.find(test) ?? null;
+
+test('a restart whose catch-up read is held 25 s waits placing, says it is late at 5 s, and is never failed (#2608)', async ({ page }) => {
+  // G2 section 9: amber "Updating outputs" from 5 s (the output tells its age once as it passes),
+  // never red before 60 s, green only once it has read and the Strap is back on air.
+  test.setTimeout(90_000);
+  await sampleFacts(page);
+  const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
+  await standInBackend(page, {}, rows, ['Strap'], [probe('Strap', 20)], { tailDelayMs: (after) => (after === 0 ? 25_000 : 0) });
+  await page.goto('/output?production=typed-probe');
+  const facts = await settledAt(page, 60_000);
+  const waiting = facts.filter((f) => f.w !== null && f.w !== 0);
+  expect(waiting.length, JSON.stringify(facts.slice(0, 8))).toBeGreaterThan(0);
+  expect(waiting.every((f) => f.k === 'placing'), JSON.stringify(waiting.filter((f) => f.k !== 'placing').slice(0, 3))).toBe(true);
+  const told = firstWhen(facts, (f) => (f.wa ?? 0) >= 5_000);
+  expect(told, 'the output said its wait passed 5 s').not.toBeNull();
+  expect(told!.wa!).toBeLessThan(7_000);
+  const done = firstWhen(facts, (f) => f.w === 0)!;
+  expect(done.t, 'settled before the catch-up read came back').toBeGreaterThanOrEqual(25_000);
+  await expect(doc(page, 'Strap').locator('#s')).toHaveText('step 0');
+});
+
+test('a boot whose second catch-up page is held 70 s is failed boot at 60 s, then waits again and settles (#2608)', async ({ page }) => {
+  // G2 section 9 and M5: "it did not read what is on air in 60 s", red, and it clears to placing
+  // and then green when the read comes after all.
+  test.setTimeout(150_000);
+  await sampleFacts(page);
+  const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
+  for (let seq = 3; seq <= 620; seq += 1) rows.push(row(seq, 'Bug', { t: 'update', data: { f0: `bug ${seq}` } }));
+  const backend = await standInBackend(page, {}, rows, ['Strap', 'Bug'], [probe('Strap', 20), probe('Bug', 30)], { tailDelayMs: (after) => (after === 500 ? 70_000 : 0) });
+  await page.goto('/output?production=typed-probe');
+  const facts = await settledAt(page, 120_000);
+  expect(backend.tails).toEqual(expect.arrayContaining([0, 500]));
+  const failed = firstWhen(facts, (f) => f.k === 'failed');
+  expect(failed, JSON.stringify(facts.slice(0, 12))).not.toBeNull();
+  expect(failed!.y).toBe('boot');
+  expect(failed!.t, 'failed boot only after 60 s').toBeGreaterThanOrEqual(60_000);
+  expect(failed!.t).toBeLessThan(66_000);
+  // Before it, only placing; after the read, a fresh wait (a new tag) and then settled.
+  expect(facts.filter((f) => f.t < failed!.t && f.w !== null && f.w !== 0).every((f) => f.k === 'placing')).toBe(true);
+  const after = facts.filter((f) => f.t > failed!.t && f.w !== 0 && f.k !== 'failed');
+  if (after.length) expect(after[0].w, 'leaving failed draws a new tag').not.toBe(failed!.w);
+  expect(facts.at(-1)!.t).toBeGreaterThanOrEqual(70_000);
+});
+
+test('a restart with 13 graphics on air whose frames take 16 s to load is never failed (#2608)', async ({ page }) => {
+  // G2 section 9: amber while they load, never red before 20 s from the boot's read.
+  test.setTimeout(90_000);
+  await sampleFacts(page);
+  const keys = Array.from({ length: 13 }, (_, i) => `G${i + 1}`);
+  const rows = keys.map((key, i) => row(1 + i, key, { t: 'update', data: { f0: key } }));
+  const live: Record<string, unknown> = {};
+  for (const key of keys) live[key] = { data: { f0: key }, state: { groups: { main: 'in' } }, event: 1013, seq: 13 };
+  // A picture holds a frame back only briefly (a parsed document releases itself), so each frame
+  // here waits for a script before it can even parse: a frame that truly takes 16 s.
+  const slowFrame = (key: string, layer: number) => {
+    const g = probe(key, layer);
+    return { ...g, html: `<script src="${BACKEND}/slow.js"></script>` + g.html };
+  };
+  await standInBackend(page, live, rows, keys, keys.map((key, i) => slowFrame(key, 20 + i)), { slowMs: 16_000 });
+  await page.goto('/output?production=typed-probe');
+  const facts = await settledAt(page, 60_000);
+  expect(facts.some((f) => f.k === 'failed'), JSON.stringify(facts.filter((f) => f.k === 'failed').slice(0, 2))).toBe(false);
+  const done = firstWhen(facts, (f) => f.w === 0)!;
+  expect(done.t, 'settled only once the frames had loaded').toBeGreaterThanOrEqual(15_000);
+  expect(facts.some((f) => (f.wa ?? 0) >= 5_000), 'it said the wait passed 5 s').toBe(true);
+});
+
+test('a data feed every 200 ms to a graphic on air never unsettles the output (#2608)', async ({ page }) => {
+  // G2 section 9: the light stays green through a feed. With no socket here, the output reads the
+  // feed at its poll floor, a burst of 150 updates at once, which is the harder case.
+  test.setTimeout(150_000);
+  await sampleFacts(page);
+  const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
+  const backend = await standInBackend(page, {}, rows, ['Strap'], [probe('Strap', 20)]);
+  await page.goto('/output?production=typed-probe');
+  await settledAt(page, 30_000);
+  const from = await page.evaluate(() => performance.now());
+  for (let i = 0; i < 150; i += 1) {
+    rows.push(row(3 + i, 'Strap', { t: 'update', data: { f0: `feed ${i}` } }));
+    await page.waitForTimeout(200);
+  }
+  await expect(doc(page, 'Strap').locator('#v')).toHaveText('f0=string:"feed 149"', { timeout: 70_000 });
+  await page.waitForTimeout(1_000);
+  expect(backend.tails.some((after) => after >= 2)).toBe(true);
+  const facts = (await factsOf(page)).filter((f) => f.t >= from);
+  const unsettled = facts.filter((f) => f.w !== 0);
+  expect(unsettled, JSON.stringify(unsettled.slice(0, 5))).toEqual([]);
 });

@@ -968,6 +968,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const [heardRuns, setHeardRuns] = useState<Record<string, RunReport>>({});
   /** Per output with a boot mark (G2 section 4a, #2608): its reports per boot, first sights, wait. */
   const [runTracks, setRunTracks] = useState<Record<string, OutputTrack>>({});
+  const runTracksEmpty = Object.keys(runTracks).length === 0;
   /** When this page took its current epoch: a boot's clocks start no earlier (M6, M7). */
   const epochSinceRef = useRef(0);
   /** The epoch the run reports are read in (its first 8 characters); null: take the next one heard. */
@@ -1132,7 +1133,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       }
       return next;
     });
-  }, [livePresence.peers]);
+    // A resolve or a republish empties the tracks; the entries already here are noted again at once
+    // rather than at the next Presence change, so their clocks never sit at "now".
+  }, [livePresence.peers, runTracksEmpty]);
   /** This page's own Presence link and since when (M6, P4). */
   const [link, setLink] = useState<ConfirmLink>(() => ({ status: 'joining', since: wallClock() }));
   useEffect(() => {
@@ -2423,7 +2426,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       runEpochRef.current = null;
       epochSinceRef.current = wallClock();
       setHeardRuns({});
-      setRunTracks({});
+      // The tracks stay: a retired epoch's reports never count (keptReport), and a wait's age and a
+      // boot's first sight outlive a republish (G2 section 4a, M4, M6).
       // The new log's seed: every output owes a report from it before anything reads green.
       setOwed([{ at: 0, graphic: null, learnedAt: wallClock() }]);
     },
@@ -4317,9 +4321,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     const entries = livePresence.peers.filter((p) => p.kind === 'output' && p.id === e.id);
     // G2 section 4a (#2608): absent, nothing it reported counts; with a boot mark, one settled fact.
     if (entries.length === 0) {
-      return { id: e.id, name: e.name, run: null, present: false, speaks: false, goneSince: e.seen > 0 ? e.seen : link.since };
+      return { id: e.id, name: e.name, run: null, present: false, speaks: false, goneSince: Math.max(e.seen, link.since) };
     }
-    const kept = keptReport(runTracks[e.id], entries.map((p) => ({ b: p.ready?.b, run: p.ready?.run ?? null })), runEpochRef.current);
+    const kept = keptReport(runTracks[e.id], entries.map((p) => ({ b: p.ready?.b, run: p.ready?.run ?? null })), runEpochRef.current, retiredEpochsRef.current);
     if (kept.kind !== 'legacy') {
       const track = runTracks[e.id];
       const seen = track?.seen[kept.b] ?? now;
@@ -4333,7 +4337,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         mark: {
           since: Math.max(seen, epochSinceRef.current),
           ...(kept.kind === 'none' ? { none: kept.why } : {}),
-          ...(track?.wait && track.wait.b === kept.b ? { wait: track.wait.since } : {}),
+          ...(track?.waits[kept.b] ? { wait: track.waits[kept.b].since } : {}),
           ...(track?.settled[kept.b] !== undefined ? { settled: track.settled[kept.b] } : {}),
         },
       };
