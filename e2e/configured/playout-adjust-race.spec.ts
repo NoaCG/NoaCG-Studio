@@ -240,35 +240,46 @@ for (const paused of [false, true]) {
     let release!: () => void;
     const released = new Promise<void>((resolve) => (release = resolve));
     let held = 0;
+    let holding = false;
+    let heldFigure: string | undefined;
     await page.route('**/rest/v1/rpc/control_send_seq', async (route) => {
       const body = route.request().postDataJSON() as { p_items?: { msg?: { t?: string; data?: Record<string, string> } }[] } | null;
-      const take = (body?.p_items ?? []).some((item) => item.msg?.t === 'update' && item.msg.data?.f1 !== undefined);
-      if (!take || held > 0) return route.continue();
+      const bound = (body?.p_items ?? []).find((item) => item.msg?.t === 'update' && item.msg.data?.f1 !== undefined);
+      if (!bound || held > 0) return route.continue();
       held += 1;
-      await released;
+      heldFigure = bound.msg?.data?.f1;
+      // Under the page's 1.5 s attempt deadline, so the held send is never cut and resent.
+      holding = true;
+      await Promise.race([released, new Promise((resolve) => setTimeout(resolve, HOLD_MS))]);
+      holding = false;
       await route.continue().catch(() => {});
     });
+    // The bound rows on the log, in seq order: what air ends on is the last.
+    const boundRows = () =>
+      page.evaluate(async (slug) => {
+        const sb = await (await __noacgImport('/src/backend/supabase.ts')).getSupabase();
+        const { data } = await sb!.rpc('control_tail_seq', { p_slug: slug, p_after: 0, p_epoch: null });
+        return ((data as { rows?: { seq: number; msg: { t: string; data?: Record<string, string> } }[] } | null)?.rows ?? [])
+          .filter((r) => r.msg.t === 'update' && r.msg.data?.f1 !== undefined)
+          .sort((a, b) => a.seq - b.seq)
+          .map((r) => r.msg.data!.f1);
+      }, slug);
+    const before = (await boundRows()).length;
     // ✎ Update re-sends the live cue's values, the bound one overlaid from the page's tree (2).
     await page.getByTestId('verb-update').click();
-    await expect.poll(() => held, { message: 'the Update, carrying 2, is held' }).toBe(1);
-    // The + lands while the Take is out: its update row (3) is numbered first.
-    await page.getByTestId('live-number-f1-up').click();
-    await expect.poll(serverScore, { timeout: 20_000 }).toBe(3);
+    await expect.poll(() => held, { message: 'the Update is held' }).toBe(1);
+    expect(heldFigure, 'it carries the page\'s figure, 2').toBe('2');
+    // Another operator's +1 lands while it is out (this page's own + would wait for its own send):
+    // its update row (3) is numbered first.
+    await page.evaluate(async (slug) => {
+      const { adjustProductionDataBySlug } = await __noacgImport('/src/control/productionDataApi.ts');
+      await adjustProductionDataBySlug(slug, [{ id: crypto.randomUUID(), path: 'match.home.score', by: 1 }]);
+    }, slug);
+    expect(holding, 'the +1 landed while the Update was still held').toBe(true);
+    expect(await serverScore()).toBe(3);
     release();
-    // Its row is numbered last; the server wrote the stored figure into it, not the page's 2.
-    await expect
-      .poll(
-        () =>
-          page.evaluate(async (slug) => {
-            const sb = await (await __noacgImport('/src/backend/supabase.ts')).getSupabase();
-            const { data } = await sb!.rpc('control_tail_seq', { p_slug: slug, p_after: 0, p_epoch: null });
-            const rows = ((data as { rows?: { seq: number; msg: { t: string; data?: Record<string, string> } }[] } | null)?.rows ?? [])
-              .filter((r) => r.msg.t === 'update' && r.msg.data?.f1 !== undefined)
-              .sort((a, b) => a.seq - b.seq);
-            return rows.at(-1)?.msg.data?.f1 ?? null;
-          }, slug),
-        { timeout: 20_000, message: 'the last bound row on the log, which air ends on' },
-      )
-      .toBe('3');
+    // The held send's own row lands last; the server wrote the stored figure into it, not the page's 2.
+    await expect.poll(async () => (await boundRows()).length, { timeout: 20_000, message: 'the +1\'s row, then the held send\'s' }).toBe(before + 2);
+    expect((await boundRows()).at(-1), 'the last bound row on the log, which air ends on').toBe('3');
   });
 }
