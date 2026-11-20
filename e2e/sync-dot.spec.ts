@@ -30,7 +30,7 @@ async function cloud(page: Page) {
     localStorage.setItem('sb-cloudmock-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', expires_in: 3600, expires_at: expires, token_type: 'bearer', user }));
   }, { owner, user, token, expires });
   const state = {
-    rows: new Map<string, Row>(), reads: 0, saves: 0, savesOut: 0, mostSavesOut: 0, saveTimeout: false, other: null as { id: string } | null, otherToken: '2026-10-06T00:00:00.000Z', otherSaves: 0, silent: false, silentWrites: false, silentStorage: false, goneStorage: false, silentReads: false, held: 0, down: false,
+    rows: new Map<string, Row>(), reads: 0, saves: 0, savesOut: 0, mostSavesOut: 0, saveTimeout: false, other: null as { id: string } | null, otherToken: '2026-10-06T00:00:00.000Z', otherSaves: 0, otherOut: 0, silent: false, silentWrites: false, silentStorage: false, goneStorage: false, silentReads: false, held: 0, down: false,
     doc: null as { id: string } | null, token: '2026-10-06T00:00:00.000Z', revision: 0,
     authUser: user, beforeWrite: null as ((row: Row) => Promise<void>) | null,
   };
@@ -63,6 +63,9 @@ async function cloud(page: Page) {
     if (url.pathname === '/rest/v1/rpc/team_production_save' && state.other && request.postDataJSON().p_id === state.other.id) {
       // A second production of the same team, whose saves always land.
       state.otherSaves++;
+      state.otherOut++;
+      await new Promise(resolve => setTimeout(resolve, 50));
+      state.otherOut--;
       const { p_expected, p_doc } = request.postDataJSON();
       if (p_expected !== state.otherToken) return respond({ saved: false, updated_at: state.otherToken, updated_by: owner, doc: state.other });
       state.other = p_doc;
@@ -133,6 +136,12 @@ async function teamProduction(page: Page, state: Awaited<ReturnType<typeof cloud
 }
 
 const chip = (page: Page) => page.getByTestId('sync-status');
+/** One second on the page clock, once no team save is out, so a bound on attempts counts clock time
+ *  and not how fast this machine answers. */
+async function step(page: Page, state: Awaited<ReturnType<typeof cloud>>) {
+  await expect.poll(() => state.savesOut + state.otherOut).toBe(0);
+  await page.clock.fastForward(1_000);
+}
 const edit = (page: Page, id: string, label: string) => page.evaluate(async ({ id, label }) => {
   const m = await __noacgImport('/src/model/shows.ts');
   m.updateShowCue(id, m.loadShows().find(s => s.id === id)!.cues![0].id, { label });
@@ -335,19 +344,18 @@ test('a failed team save goes again by itself within its backoff, one at a time,
   await expect(page.getByTestId('production-team-note')).toHaveText(/statement timeout/);
   // While saves keep failing, the retries back off: 2 s doubling to 30 s, a quarter either way.
   // Two minutes hold at least 5 and at most 9 more attempts; without a timer there are none.
-  for (let second = 0; second < 120; second++) await page.clock.fastForward(1_000);
+  for (let second = 0; second < 120; second++) await step(page, state);
   expect(state.saves - 1).toBeGreaterThanOrEqual(5);
   expect(state.saves - 1).toBeLessThanOrEqual(9);
   // Still failed meanwhile, and the reason still shown.
   await expect(chip(page)).toHaveText('Not synced');
   await expect(page.getByTestId('production-team-note')).toHaveText(/statement timeout/);
+  await expect.poll(() => state.savesOut).toBe(0);
   state.saveTimeout = false;
   const before = state.saves;
-  // The next wait is at most 30 s and a quarter.
-  await expect.poll(async () => {
-    await page.clock.fastForward(1_000);
-    return cueLabel(state.doc);
-  }, { timeout: 30_000 }).toBe('Retried by itself');
+  // The next wait is at most 30 s and a quarter, and the debounce.
+  for (let second = 0; second < 40 && cueLabel(state.doc) !== 'Retried by itself'; second++) await step(page, state);
+  await expect.poll(() => cueLabel(state.doc)).toBe('Retried by itself');
   expect(state.saves).toBe(before + 1);
   expect(state.mostSavesOut).toBe(1);
   await expect(page.getByTestId('production-team-note')).toHaveCount(0);
@@ -374,8 +382,10 @@ test('another production saving meanwhile does not shorten a failing production\
   // The other production's edits land every 4 s for two minutes.
   for (let second = 0; second < 120; second++) {
     if (second % 4 === 0) await edit(page, other, `Lands ${second}`);
-    await page.clock.fastForward(1_000);
+    await step(page, state);
   }
+  for (let second = 0; second < 10; second++) await step(page, state);
+  await expect.poll(() => cueLabel(state.other)).toBe('Lands 116');
   expect(state.otherSaves).toBeGreaterThanOrEqual(15);
   expect(state.saves - 1).toBeGreaterThanOrEqual(5);
   expect(state.saves - 1).toBeLessThanOrEqual(9);
