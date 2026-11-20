@@ -630,6 +630,11 @@ async function boot(): Promise<void> {
       // A held Take whose frame a prepared, loaded one replaced: that frame runs it now (no
       // onLoaded follows an adopted frame).
       if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
+      // The adopted frame replaces one the boot hid or waited for: it is loaded and not hidden by
+      // the old frame's flag, so what it shows counts once the stage is on air (G2 section 4).
+      bootHidden.delete(graphic);
+      loadedAfterAll(graphic);
+      if (bootRevealed && !bootOffAir) backOnAir(graphic);
       readyChanged();
     },
     onAdded: (spec, next) => {
@@ -647,6 +652,10 @@ async function boot(): Promise<void> {
       settleHold(graphic);
       failures.delete(graphic);
       packages.delete(graphic);
+      // Nothing of it is on air to wait for (G2 section 4).
+      offAirFrom.delete(graphic);
+      bootHidden.delete(graphic);
+      bootUnloaded.delete(graphic);
       for (const map of [checks, mergedData, typedData, typedEnvelope, stepsSince, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
       for (const set of [released, touched, liveGraphics, commanded, forcedReports, changedReports]) set.delete(graphic);
       clearTimeout(reportTimers.get(graphic));
