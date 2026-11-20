@@ -259,6 +259,10 @@
    rather than squeezing a label onto two lines. */
 .playout-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .playout-actions > button { white-space: nowrap; }
+/* The server's media folder: the path takes the row, its buttons stay their own width. */
+.playout-media-folder { display: flex; gap: 6px; min-width: 0; }
+.playout-media-folder > input { flex: 1; min-width: 0; }
+.playout-media-folder > button { white-space: nowrap; }
 /* The servers NoaCG Bridge remembers (components/RecentServers.tsx), one button each, wrapping. In a
    form row it sits in the control column under the address it fills. */
 .recent-servers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
