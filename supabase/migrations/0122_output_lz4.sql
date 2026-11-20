@@ -1,4 +1,4 @@
--- live-path: control_shows.output compresses with lz4 where the server has it; every reader sees the same JSON
+-- live-path: control_shows.output compresses with lz4 (the server must have it; without it this file stops); every reader sees the same JSON
 --
 -- THE PUBLISHED OUTPUT IS WRITTEN AND READ WITH lz4 (#2616,
 -- docs/work-specs/live-publishing/evidence/fix-2616.md, rule R4).
