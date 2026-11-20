@@ -4215,10 +4215,13 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** Which cues' own Take would be refused, worked out once per render: a timing reading publishes
    *  between renders, and only the clock can have moved then. */
   let takeRefused: Set<string> | null = null;
+  /** Why one cue's own Take would be refused: an OSC cue by its own send check, as a direct press
+   *  judges it; any other cue as a step would take it. */
+  const ownTakeRefusal = (c: ShowCue): string | null => (isControlCue(c) ? directBlocker(c) : stepBlocker(c));
   panel.feed(
     () => {
       const live = new Set(cues.filter(cueOnAirNow).map((c) => c.id));
-      takeRefused ??= new Set(cues.filter((c) => !!stepBlocker(c)).map((c) => c.id));
+      takeRefused ??= new Set(cues.filter((c) => !!ownTakeRefusal(c)).map((c) => c.id));
       return panelSnapshot(view, {
         title: show.name,
         cursorRow,
@@ -4482,7 +4485,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         now={now}
         rows={scenePanel?.rows ?? null}
         scenes={obsSceneList}
-        cueState={(cue) => ({ onAir: cueOnAirNow(cue), refused: stepBlocker(cue) })}
+        cueState={(cue) => ({ onAir: cueOnAirNow(cue), refused: ownTakeRefusal(cue) })}
         // K4: the press a Companion cue key makes, run only in the state its button says (Take off
         // air, Out on air).
         onPress={(cueId, onAir) => {

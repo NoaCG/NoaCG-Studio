@@ -116,6 +116,12 @@ export function decideVerb(key: VerbKey, press: Press | undefined, view: Dispatc
     const cue = press?.repeat ? undefined : view.cues.find((c) => c.id === press?.cue);
     if (!cue) return NONE;
     if (view.onAirNow(cue)) return { do: 'take-off', cue };
+    // An OSC cue is one send, judged as a direct press is, and a refusal says why rather than
+    // dropping the press (docs/work-specs/osc-control-cues/spec.md AC-8).
+    if (isControlCue(cue)) {
+      const blocked = view.directBlocked(cue);
+      return blocked ? { do: 'note', text: `Take was not sent: ${blocked}` } : { do: 'take', cue };
+    }
     return view.stepBlocked(cue) ? NONE : { do: 'take', cue };
   }
   // A HELD FOLDER ROW: a held key fires once, since a folder's Take is several actions.

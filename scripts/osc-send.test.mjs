@@ -51,6 +51,9 @@ test('a held Take key fires an OSC cue once; a graphic keeps its own rule', () =
   };
   assert.equal(decideVerb('take', { repeat: false }, v).do, 'take');
   assert.equal(decideVerb('take', { repeat: true }, v).do, 'none');
+  // Companion's take_cue on an OSC cue sends it, or says why not; it never drops the press.
+  assert.deepEqual(decideVerb('take-cue', { repeat: false, cue: 'L' }, v), { do: 'take', cue: L });
+  assert.deepEqual(decideVerb('take-cue', { repeat: false, cue: 'L' }, { ...v, directBlocked: () => 'L has no OSC address.' }), { do: 'note', text: 'Take was not sent: L has no OSC address.' });
 });
 
 test('a Take of an OSC cue is refused with the cue\'s own reason, never as a graphic', () => {

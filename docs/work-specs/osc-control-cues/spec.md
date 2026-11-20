@@ -232,7 +232,10 @@ Phase 3 (Take sends OSC), notes for the phases after it:
 - Take refusals: `takeBlockerFor` and `directBlocker` ask the page's `controlBlocker`
   (`oscBlocker`): unreadable record, missing destination, no address, or no Bridge pairing. The
   pairing check reads local settings only, so an unpaired browser makes no loopback request.
-  `stepBlocker` and `togetherPlan` still refuse with `OSC_NOT_YET` until phase 5.
+  `stepBlocker` and `togetherPlan` still refuse with `OSC_NOT_YET` until phase 5. Companion's
+  `take_cue` and the panel's per-cue key state judge an OSC cue by `directBlocker`, not
+  `stepBlocker` (`verbDispatch.ts`, `ProductionPage.tsx` `ownTakeRefusal`), so a refused press
+  says why instead of being dropped.
 - Not done here, for phase 4: the status control still reads CasparCG-only (`playoutStatus.ts`
   `relevantPlayout`); a browser-only production learns of an absent or old Bridge only when it
   sends. Phase 4 adds the "Bridge ready" status for productions with OSC cues and a paired browser,
