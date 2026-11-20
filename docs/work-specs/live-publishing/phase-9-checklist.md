@@ -32,6 +32,10 @@ either on; steps 11 and 12 are only for after that.
 > a Take airs on the browser output only and 2.3 stays empty. `String.matchAll` needs Chrome 73.
 > Whether 2.3 worked before this run was not checked. Evidence: `notes.md` (step 2),
 > `s2-c23-casparcg-log.txt`, `s2-c23-lt-take-*`, `s2-c23-after-load-caspar.png`.
+>
+> **Rerun, 2026-11-20, after #2605: pass.** No error in the 2.3 log; the output joined 10.3 s
+> after Load; Take, Update and Out reached the picture in at most 0.12, 0.17 to 0.47 and 0.40 to
+> 0.69 s. 2.5 unchanged. Evidence: `notes.md` (Step 2 rerun), `s2-c23-rerun-casparcg-log.txt`.
 
 ## 3. A Take of a graphic the output is still loading (D1, S4)
 
