@@ -293,15 +293,15 @@ test('a graphic put back from another output\'s report is not reported run until
 });
 
 test('on a restart of a large production only what is on air waits for its frame (#2604)', async ({ page }) => {
-  // Thirteen more graphics, off air, with reports of their data: nothing of them is on air, so
-  // they do not wait. Past twelve waiting entries the report's cursor would drop to 0 (`listed`),
+  // Thirteen more graphics, off air, with reports of their data and frames as slow as the Strap's:
+  // nothing of them is on air, so they do not wait. Past twelve waiting entries the report's cursor would drop to 0 (`listed`),
   // and every owed command would read as not received.
   await sampleRunAndPaint(page);
   const others = Array.from({ length: 13 }, (_, i) => `G${i + 1}`);
   const rows = [row(1, 'Strap', { t: 'update', data: { f0: 'Held' } }), row(2, 'Strap', { t: 'play' })];
   const live: Record<string, unknown> = { Strap: { data: { f0: 'Held' }, state: { groups: { main: 'in' } }, event: 1002, seq: 2 } };
   for (const key of others) live[key] = { data: { f0: key }, event: 1002, seq: 2 };
-  await standInBackend(page, live, rows, ['Strap'], [probe('Strap', 20, true, true), ...others.map((key, i) => probe(key, 30 + i))]);
+  await standInBackend(page, live, rows, ['Strap'], [probe('Strap', 20, true, true), ...others.map((key, i) => probe(key, 30 + i, false, true))]);
   await page.goto('/output?production=typed-probe');
   await expectRunNotBeforePaint(page, 2);
   const samples = await page.evaluate(() => (window as unknown as { __samples: RunSample[] }).__samples);
