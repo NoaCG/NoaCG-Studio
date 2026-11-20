@@ -163,17 +163,19 @@ The `Show` in memory, the outbox, the three-way merge, Undo, publishing and the 
 unchanged: they hold whole records. Only the trip to and from `team_productions` changes, in
 `src/backend/teamProductions.ts`.
 
-**Installed or not.** Team record fetches wait for the page's first `team_designs_state()` answer
-(read when team sync starts; a failed or absent call answers "not installed"). Once it has answered
-installed, the page remembers that for the session. Not installed: the fetch is today's select, which
-names no new column, so a page released before the migration is applied (section 7) reads and saves
-team productions exactly as today; no record can be split then.
+**Installed or not.** Team record fetches wait for the page's first `team_designs_state()` answer,
+read when team sync starts. Only the answer that the function does not exist (PostgREST `PGRST202`,
+HTTP 404) means "not installed"; any other failure is retried with the read backoff before team
+fetches proceed. Once it has answered installed, the page remembers that for the session. Not
+installed: the fetch selects today's columns, none new, so a page released before the migration is
+applied (section 7) reads and saves team productions as today.
 
-**Reading is decided by the data.** Once installed, the fetch selects `doc_form` with `doc`, and
-refusal answers carry it. A value other than null or 1 is a later form: the read fails like a read error (R11) and
+**Reading is decided by the data.** Once installed, the fetch also selects `doc_form`, and refusal
+answers carry it. A value other than null or 1 is a later form: the read fails like a read error (R11) and
 the page keeps its copy, read-only for that record until a build that knows the form
-(`root/version-every-persisted-format-ship-breaking`). Otherwise every record a new page receives
-(the fetch, a refusal's `doc`) is made whole before anything else sees it: each graphic with a `designRef` gets `template`
+(`root/version-every-persisted-format-ship-breaking`). Whatever the page knows about installation or
+the switch, every record it receives (the fetch, a refusal's `doc`) is made whole before anything
+else sees it: each graphic with a `designRef` gets `template`
 from the page's design cache (per production, name to body) and loses `designRef`, so the page
 never holds both. The names the cache lacks are read with `team_designs_read`, per production, at
 most 8 names per call (about 1.2 MB at the score's size), so a first load at 60 graphics is a few
@@ -234,7 +236,7 @@ resolve designs, or read through the page, so none goes blind on a split row. Br
 | Old page saves or patches a split record | Refused, "Reload this page to edit", nothing written. The edit stays on that page and in its device outbox; after a reload the new page restores and saves it, merged as today. |
 | Old page publishes, unpublishes or deletes a production whose record is split | Refused, "Reload this page to edit", nothing written: a publish or unpublish, and the delete of a published production, by the publish guard on `control_shows` (the delete's first statement); the delete of a production never published, by the select policy on the `team_productions` delete (it filters with a WHERE and asks for the row back). Nothing is half deleted. |
 | Old page Takes, reports, heartbeats, writes data | As today: the live path is untouched for these writes. The cue text it sends is the one it holds, so a cue a teammate edited on a new page airs with its older text from that old page until it reloads. |
-| Old page saves or deletes a whole record | As today: a save that meets a teammate's newer whole save is refused and merged as today. |
+| Old page saves or deletes a whole record | As today: a save that meets a teammate's newer whole save is refused and merged as today. With a split record in the same team, a by-id read or delete may still meet the split row's policy check and answer "Reload this page to edit" (section 8 records which). |
 | Old page publishes a whole record a teammate has changed since the page last read it | Publish waits for the newer record (`confirmedRevision` answers `wait`), and the page cannot read it, so it says "Your latest change is still saving. Publish again in a moment." until it reloads. A whole record nobody changed since publishes as today. |
 | New page reads either form, or a refusal carrying either form | Made whole on read (section 3). |
 | New page saves with the switch off | Whole; a split record becomes whole again. |
@@ -264,8 +266,6 @@ Observable lines, each checked by a test named in section 8.
   whole); a patch never changes a record's form. An insert, a
   `team_production_save` and a patch of a whole record never store a `designRef`. No migration
   rewrites a stored record.
-- **R16** In a stored split record every graphic carries a `designRef` and none a `template`, on
-  every write route (the form trigger); so a design change on a split record keeps it split.
 - **R6** An old page is never handed a split record: every table read that includes one, and every
   `team_production_save` or `team_production_patch` call on one, raises "Reload this page to edit"
   before answering, and writes nothing.
@@ -292,6 +292,8 @@ Observable lines, each checked by a test named in section 8.
   write, output read and renderer path is unchanged.
 - **R15** The page puts at most 1 MB of JSON, or one design, per call, and reads at most 8 designs
   per call (a page rule; the server limits only a body to 40 MB).
+- **R16** In a stored split record every graphic carries a `designRef` and none a `template`, on
+  every write route (the form trigger); so a design change on a split record keeps it split.
 
 ## 6. Decisions and limits
 
@@ -375,8 +377,12 @@ the next quiet post-land run apply it, as the coordinator decides). It sets
 3. Redeploy the previous app if wanted. Its pages read whole records as today.
 4. A migration, applied by the coordinator in a quiet window with
    `npm run db:push -- --allow NNNN --live NNNN` (it drops, and it names `control_shows`), that first
-   raises if any `doc_form` is not null, then drops the publish trigger and its functions, the policy, the new functions, `team_production_designs` and `doc_form`, and
-   restores 0117's `team_production_save` and 0119's `team_production_patch`.
+   raises if any `doc_form` is not null, then drops the publish trigger and its functions, the
+   policy, the form trigger, the new functions and `team_production_designs`, and restores 0117's `team_production_save` and 0119's `team_production_patch`.
+
+It keeps the column `doc_form` (nullable, null in every row after step 2): pages opened before the
+revert still select it, and dropping it would fail their reads. A later cleanup drops it once no
+released page selects it.
 
 Step 2 loses nothing: every split record names only stored designs (R3), and step 4 refuses to drop
 anything while one is split.
@@ -388,8 +394,9 @@ anything while one is split.
 - A reference-model test (`scripts/`, Node, pure) of the page's side: a small model written from
   section 3 and section 4's table (record form, switch, known names, operation, token) gives the
   expected requests and the page's resulting record, and a fake server answers as section 2 says,
-  over random sequences of saves, design changes, switch flips, refusals and reads. It checks the
-  page's rules: R1, R8, R10 (a page without Web Crypto included), R11 (an unknown `doc_form`
+  over random sequences of saves, design changes, switch flips, refusals and reads, including a
+  state call that fails (other than "absent") while split records exist. It checks the page's
+  rules: R1, R8, R10 (a page without Web Crypto included), R11 (an unknown `doc_form`
   included) and R15. It does not reuse the production split, read or merge
   code, and it proves nothing about the SQL: the server's rules (R3 to R7, R9, R12 to R14) are
   proven only by the self-check and the configured spec below.
