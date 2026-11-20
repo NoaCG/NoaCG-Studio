@@ -1152,7 +1152,10 @@ function measureSvgRoom() {
       // leave the room at the line's own drawn width, so the first letter past the sample shrank
       // it - on a bar drawn as a picture, or a name floating over the artwork, with most of the
       // graphic standing empty beside it. The artwork's own extent stands in for the panel, so
-      // the margins, the neighbours and the wrap room are read exactly as they are inside a box.
+      // the neighbours and the wrap room are read exactly as they are inside a box. The margin
+      // kept off the far edge is half the type - or the line's own inset where that is tighter -
+      // never the inset mirrored: a caption drawn far to the right of a wide graphic would get
+      // its own width back and nothing more.
       var ext = svgArtExtent(el);
       var halfGap = ((svgFitSizes[el.id] || 0) * 0.5) / scale;
       var anchorWord = el.getAttribute('text-anchor') || (getComputedStyle(el).textAnchor || 'start');
@@ -1166,20 +1169,16 @@ function measureSvgRoom() {
       } else if (anchorWord === 'end') {
         var lb = svgFitNeighbour(el, ext, -1);
         room.penned = lb.edge > ext.left + 0.5;
-        extReach = box.right - (room.penned ? halfGap : rightIn) - lb.edge;
+        extReach = box.right - (room.penned ? halfGap : Math.min(rightIn, halfGap)) - lb.edge;
       } else {
         var rb = svgFitNeighbour(el, ext, 1);
         room.penned = rb.edge < ext.right - 0.5;
-        extReach = rb.edge - (room.penned ? halfGap : leftIn) - box.left;
+        extReach = rb.edge - (room.penned ? halfGap : Math.min(leftIn, halfGap)) - box.left;
       }
       room.width = Math.max(svgFitWidths[el.id], extReach * scale);
       room.height = Math.max(box.height * scale, (svgFitCeiling(el, ext, svgPanelTopPad(ext, nodes)) - box.top) * scale);
       room.top = el.getBBox ? el.getBBox().y : 0;
     }
-    // KEPT ON ONE LINE where the author said so (NOACG_LAYOUT.lines `wrap: false`): the block's
-    // room is its own drawn height, so a long value fills sideways and then gets smaller.
-    var saidWrap = svgSaidAlign(el.id);
-    if (saidWrap && saidWrap.wrap === false) room.height = Math.min(room.height, box.height * scale);
     svgFitRoom[el.id] = room;
   }
   // TWO LINES THAT GROW TOWARDS EACH OTHER SHARE THE GAP between them. A ticker's story fills
@@ -1572,6 +1571,12 @@ function fitSvgText() {
     // (growSvgHeights below). The ceiling is the MAXIMUM the rule could ever give, measured at
     // rest, so the wrap never chases a height that is itself still moving.
     var ceiling = room.height + (svgFitExtraH[el.id] || 0);
+    // KEPT ON ONE LINE where the author said so (NOACG_LAYOUT.lines `wrap: false`, the mapping
+    // step's "stays on one line"): a long value fills sideways and then gets smaller, never
+    // wraps - not even into two smaller lines inside its drawn height. An operator's own line
+    // breaks are still kept (`hard`).
+    var saidWrap = svgSaidAlign(el.id);
+    var oneLine = !!(saidWrap && saidWrap.wrap === false);
     // WRAP AND SHRINK TOGETHER. How many lines fit is a function of the SIZE - the quiz board's
     // 112px panel holds one line of 44px type and three of 24px - so every pass re-asks. While
     // more lines are still reachable the size comes down in small steps, because the next step
@@ -1592,7 +1597,7 @@ function fitSvgText() {
       // box, not n steps: counting it as n steps loses the last line of every block that fills
       // its room, which is exactly the block a designer drew to fill it. The question drawn on
       // three lines was offered two, so it shrank to fit a room it already fitted.
-      var maxLines = Math.max(1, 1 + Math.floor((ceiling - size) / (size * lineHeight)));
+      var maxLines = oneLine ? 1 : Math.max(1, 1 + Math.floor((ceiling - size) / (size * lineHeight)));
       // HEIGHT IS CHECKED, NOT CALCULATED, and a block that does not fit loses a LINE rather
       // than keeping one that prints through the layer below it. A wrapped block starts at the
       // first line's baseline and grows down, so the line count is arithmetic with an ascender
@@ -1635,7 +1640,7 @@ function fitSvgText() {
       // COULD A SMALLER SIZE STILL BUY A LINE? Counted the SAME WAY as maxLines above, or the
       // two disagree by one and the ladder takes the width-ratio jump past the very size at
       // which the extra line would have fitted.
-      var atFloor = Math.max(1, 1 + Math.floor((ceiling - stopAt) / (stopAt * lineHeight)));
+      var atFloor = oneLine ? 1 : Math.max(1, 1 + Math.floor((ceiling - stopAt) / (stopAt * lineHeight)));
       var canGrowLines = atFloor > maxLines;
       var ratio = width > budget ? budget / width : 0.94;
       size = Math.max(stopAt, canGrowLines || tall ? size * 0.9 : size * ratio);
