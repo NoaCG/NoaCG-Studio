@@ -9,6 +9,7 @@ import * as teamMerge from '../src/model/teamShowMerge.ts';
 import { rolldown } from 'rolldown';
 import * as pacing from '../src/backend/pacing.ts';
 import * as copySettle from '../src/model/copySettle.ts';
+import * as unitPatch from '../src/backend/unitPatch.ts';
 
 const bundle = await rolldown({ input: 'src/backend/assets.ts', platform: 'neutral', logLevel: 'silent' });
 const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
@@ -27,17 +28,18 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
   const disk = deferred();
   const request = deferred();
   const requests = [];
+  const names = [];
   const answers = [];
   let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics, ...(cues ? { cues } : {}), ...extra };
   let retained = { local };
   const stubs = {
-    './supabase': { getSupabase: async () => ({ storage, rpc: async (_name, args) => { requests.push(args); return answers.length ? answers.shift() : request.promise; } }) },
+    './supabase': { getSupabase: async () => ({ storage, rpc: async (name, args) => { requests.push(args); names.push(name); return answers.length ? answers.shift() : request.promise; } }) },
     './teams': {},
     './assets': assets,
     './pacing': pacing,
     // Saves in parts (live-publishing G4) are off here: the whole save these tests pin.
     './partialWrites': { partialWritesOn: async () => false, unitPace: async () => {}, noteWritten: () => {} },
-    './unitPatch': {},
+    './unitPatch': unitPatch,
     '../model/shows': { separateMergedScenes: show => show },
     '../model/teamShows': { loadTeamShows: () => [local], applyServerTeamShow: doc => { local = doc; } },
     '../model/rundownHistory': history,
@@ -77,7 +79,7 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
   }, setTimeout: () => 1, clearTimeout: () => {} });
   exports.seedForTest(local, pending);
   return {
-    controller: exports, disk, request, requests, answers,
+    controller: exports, disk, request, requests, names, answers,
     local: () => local,
     edit(name) { local = { ...local, name }; exports.editForTest(local.id); },
     connectWords(recipe) {
@@ -646,4 +648,111 @@ test('an edit the pass restores from the outbox shows the head the server just l
   assert.equal(h.name('show'), 'Mine');
   assert.equal(h.controller.knownForTest('show').token, 'base', 'the restored edit keeps its base, so its save merges');
   assert.equal(h.controller.getTeamState().heads.show.updatedAt, 't2');
+});
+
+// #2615 (evidence/fix-2615.md): a refusal from the v2 functions carries the token alone; the page
+// reads what changed since the version it last read, applies it to the stored form it kept, merges
+// as before and saves again.
+const plain = (value) => JSON.parse(JSON.stringify(value));
+const refusal = (at) => ({ data: { saved: false, updated_at: at, updated_by: 'mate', rev: 9 }, error: null });
+const changes = (at, ops) => ({ data: { updated_at: at, updated_by: 'mate', rev: 9, ops }, error: null });
+const everyMember = (doc) => Object.entries(doc).map(([m, v]) => ({ m, set: v, u: `h-${m}` }));
+
+test('a refusal without the document reads what changed, merges and saves; the next read sends the kept map (#2615)', async () => {
+  const cue = { id: 'cue', sourceId: 'g', label: 'A', values: {} };
+  const h = harness(false, [], undefined, undefined, undefined, [cue]);
+  const { teamId: _team, ...stored } = h.local();
+  h.typeCue(cue.id, 'B');
+  h.disk.resolve(null);
+  const theirs = { ...stored, name: 'Theirs' };
+  h.answers.push(refusal('t1'), changes('t1', everyMember(theirs)), { data: { saved: true, updated_at: 't2', updated_by: 'owner' }, error: null });
+  await h.controller.pushForTest('show');
+  assert.deepEqual(h.names, ['team_production_save_v2', 'team_production_changes', 'team_production_save_v2']);
+  assert.deepEqual(plain(h.requests[1].p_map), { f: 's1', m: {} }, 'the first read of a session sends an empty map');
+  assert.equal(h.requests[2].p_expected, 't1', 'the token read is the token saved against');
+  assert.equal(h.requests[2].p_doc.name, 'Theirs', "the teammate's change is kept");
+  assert.equal(h.requests[2].p_doc.cues[0].label, 'B', 'and this tab\'s edit is on it');
+
+  // A second refusal: only the changed cue comes back, applied to the kept form.
+  h.typeCue(cue.id, 'C');
+  const changed = { ...cue, label: 'B', accentColor: '#123456' };
+  h.answers.push(refusal('t3'), changes('t3', [{ m: 'cues', by: 'id', put: [{ v: changed, d: 'h-cue2' }], del: [], order: ['cue'], len: 1 }]),
+    { data: { saved: true, updated_at: 't4', updated_by: 'owner' }, error: null });
+  await h.controller.pushForTest('show');
+  assert.deepEqual(h.names.slice(3), ['team_production_save_v2', 'team_production_changes', 'team_production_save_v2']);
+  assert.deepEqual(Object.keys(h.requests[4].p_map.m).sort(), Object.keys(theirs).sort(), 'the read sends the map of the version it kept');
+  assert.equal(h.requests[4].p_map.m.name, 'h-name');
+  const sent = h.requests[5].p_doc;
+  assert.equal(sent.cues[0].accentColor, '#123456', "the teammate's change to the cue arrives");
+  assert.equal(sent.cues[0].label, 'C', "and this tab's newest text is on it");
+  assert.equal(sent.name, 'Theirs', 'members the read left out come from the kept form');
+  assert.equal(h.retained(), null);
+});
+
+test('a kept form that will not take the answer is read again whole (#2615)', async () => {
+  const cue = { id: 'cue', sourceId: 'g', label: 'A', values: {} };
+  const h = harness(false, [], undefined, undefined, undefined, [cue]);
+  const { teamId: _team, ...stored } = h.local();
+  h.typeCue(cue.id, 'B');
+  h.disk.resolve(null);
+  h.answers.push(refusal('t1'), changes('t1', everyMember(stored)), { data: { saved: true, updated_at: 't2' }, error: null });
+  await h.controller.pushForTest('show');
+  h.typeCue(cue.id, 'C');
+  const theirs = { ...stored, name: 'Theirs', cues: [{ ...cue, label: 'B' }] };
+  h.answers.push(refusal('t3'),
+    // A keyed answer for a member the kept form holds as plain: applyPatch refuses it.
+    changes('t3', [{ m: 'name', by: 'id', put: [], del: [], order: [], len: 0 }]),
+    changes('t3', everyMember(theirs)),
+    { data: { saved: true, updated_at: 't4' }, error: null });
+  await h.controller.pushForTest('show');
+  assert.deepEqual(h.names.slice(3), ['team_production_save_v2', 'team_production_changes', 'team_production_changes', 'team_production_save_v2']);
+  assert.notDeepEqual(plain(h.requests[4].p_map.m), {});
+  assert.deepEqual(plain(h.requests[5].p_map), { f: 's1', m: {} });
+  assert.equal(h.requests[6].p_doc.name, 'Theirs');
+  assert.equal(h.requests[6].p_doc.cues[0].label, 'C');
+});
+
+test('a read that fails fails the save attempt and keeps the edit on screen and owed (#2615)', async () => {
+  const h = harness(false);
+  h.edit('Mine');
+  h.disk.resolve(null);
+  h.answers.push(refusal('t1'), { data: null, error: { message: 'canceling statement due to statement timeout' } });
+  await h.controller.pushForTest('show');
+  assert.deepEqual(h.names, ['team_production_save_v2', 'team_production_changes']);
+  assert.equal(h.local().name, 'Mine');
+  assert.equal(h.retained().name, 'Mine', 'the edit stays in the outbox');
+  assert.equal(h.controller.getTeamState().saving.show, 'failed');
+  assert.match(h.controller.getTeamState().notes.show, /statement timeout/);
+  assert.equal(h.controller.teamEditOwed('show'), true);
+});
+
+test('an older database: the old functions for the rest of the session, their refusal document used (#2615)', async () => {
+  const h = harness(false);
+  h.edit('Mine');
+  h.disk.resolve(null);
+  const { teamId: _team, ...stored } = h.local();
+  h.answers.push({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } },
+    { data: { saved: false, updated_at: 't1', updated_by: 'mate', doc: { ...stored, name: 'First edit', graphics: [], extra: 'theirs' } }, error: null },
+    { data: { saved: true, updated_at: 't2' }, error: null });
+  await h.controller.pushForTest('show');
+  assert.deepEqual(h.names, ['team_production_save_v2', 'team_production_save', 'team_production_save']);
+  assert.equal(h.requests[2].p_doc.extra, 'theirs');
+  assert.equal(h.requests[2].p_doc.name, 'Mine');
+  h.edit('Again');
+  h.answers.push({ data: { saved: true, updated_at: 't3' }, error: null });
+  await h.controller.pushForTest('show');
+  assert.deepEqual(h.names.slice(3), ['team_production_save'], 'no second try of the v2 function');
+});
+
+test('undo reads a refusal the same way, and a failed read leaves the rundown as it was (#2615)', async () => {
+  const h = harness(false), expected = history.rundownSlice(h.local());
+  const { teamId: _team, ...stored } = h.local();
+  h.answers.push(refusal('t1'), { data: null, error: { message: 'read failed' } });
+  const result = await h.controller.restoreTeamRundown('show', expected, expected, () => true);
+  assert.deepEqual(plain(result), { status: 'failed', error: 'read failed' });
+  assert.equal(history.sameRundown(history.rundownSlice(h.local()), expected), true);
+  h.answers.push(refusal('t1'), changes('t1', everyMember({ ...stored, name: 'Theirs' })), { data: { saved: true, updated_at: 't2' }, error: null });
+  assert.equal((await h.controller.restoreTeamRundown('show', expected, expected, () => true)).status, 'saved');
+  assert.equal(h.local().name, 'Theirs');
+  assert.deepEqual(h.names.slice(2), ['team_production_save_v2', 'team_production_changes', 'team_production_save_v2']);
 });
