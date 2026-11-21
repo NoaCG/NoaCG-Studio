@@ -812,7 +812,8 @@ test('a renderer whose new resolve keeps timing out boots on today\'s road and a
 // control_send_seq long after the original landed: after the page stopped waiting for it, and
 // after the head's `recent` list (the last 64 presses) has forgotten it. Driven at the RPC, as a
 // page sends it, so each case is exact: every copy is answered as a duplicate or refused, and the
-// log holds the press's rows once. Two copies racing each other are serialised by the head lock.
+// log holds the press's rows once. "Racing itself" is two copies sent together after the original
+// landed; a copy racing the original itself is serialised by the head lock (R4 proof, point 1).
 test('a copy of a held press never writes again: after it landed, after `recent` forgot it, and racing itself', async ({ page }) => {
   test.setTimeout(300_000);
   await signIn(page);

@@ -2012,9 +2012,10 @@ async function sendControlVerbOnce(opts: {
     // because "Take failed" is a lie to an operator looking at the graphic on their own monitor.
     // The items go with it as they were sent, minted ids and all, so the page can recognise the
     // row if this send commits after all.
-    const failed = e as Error & { aired?: boolean; sent?: ControlSendItem[] };
+    const failed = e as Error & { aired?: boolean; sent?: ControlSendItem[]; stopped?: boolean };
     failed.aired = fast.length > 0;
-    failed.sent = wire.map(({ graphic, msg }) => ({ graphic, msg }));
+    // A press ended before it left keeps its empty `sent`: none of it can land, so none is owed.
+    if (!(failed.stopped && Array.isArray(failed.sent))) failed.sent = wire.map(({ graphic, msg }) => ({ graphic, msg }));
     throw failed;
   } finally {
     // THE HOLD-BACK RUNS FROM WHEN THE ROW EXISTS, not from when the press left. The 1200 ms is
@@ -2237,7 +2238,19 @@ async function sendSeqVerb(
       { deadline, stillNewest: resend.stillNewest, held, stop, settled: lane.settled },
     );
   };
-  await (allOut ? send({ waitedBehindHeld: false }) : seqQueue.run(keys, send, { held, replaces: lane.replaces, stop: lane.laneStop }));
+  // Ended while it still waited in its lanes (Stop sending, All out, a replacing press, its own
+  // production closing): it never left, so it is not owed (#2655 R6).
+  let left = false;
+  const leave = (laneState: { waitedBehindHeld: boolean }) => {
+    left = true;
+    return send(laneState);
+  };
+  try {
+    await (allOut ? leave({ waitedBehindHeld: false }) : seqQueue.run(keys, leave, { held, replaces: lane.replaces, stop: lane.laneStop }));
+  } catch (e) {
+    if (!left) throw notSentError((e as Error).message);
+    throw e;
+  }
   return { skipped: settled.skipped, superseded: settled.outcome === 'superseded' };
 }
 

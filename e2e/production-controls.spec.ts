@@ -239,6 +239,37 @@ async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown)
   return { sendsSeq: () => seq, sendsById: () => byId, numbered };
 }
 
+// #2655 R3, R6: a Take nobody answers is sent until it lands, says "still sending" with Stop
+// sending past the old 4 s window, and ends with its production: leaving the page sends nothing
+// more, so it can never air after the operator moved on.
+test('a Take nobody answers says "still sending", and leaving the production stops it (#2655)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const sends: number[] = [];
+  page.on('request', (r) => {
+    if (r.url().includes('/rpc/control_send_seq')) sends.push(Date.now());
+  });
+  await publishedPage(page, (rpc, fixture) =>
+    rpc === 'control_show_resolve'
+      ? { status: 200, body: { ...(fixture as object), epoch: '00000000-0000-4000-8000-00000000e9c4' } }
+      : rpc === 'control_send_seq'
+        ? { delay: 120_000 }
+        : null,
+  );
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  const air = page.getByTestId('program-air');
+  await expect(air).toHaveText(/still sending/, { timeout: 10_000 });
+  await expect(page.getByTestId('stop-sending')).toBeVisible();
+  await expect(page.getByTestId('production-note')).toHaveCount(0);
+  await expect.poll(() => sends.length, { message: 'sent again past the old window', timeout: 15_000 }).toBeGreaterThanOrEqual(4);
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const left = sends.length;
+  await page.waitForTimeout(10_000);
+  expect(sends.length, 'nothing is sent after the production closed').toBe(left);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
 test('a refused resolve is asked again, so the page keeps its order: no mark, and a Take goes numbered (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   // The first TWO: a dev build mounts the page's wire twice, so two resolves leave at once, and an

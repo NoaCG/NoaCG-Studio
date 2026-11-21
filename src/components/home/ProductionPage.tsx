@@ -857,7 +857,15 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     return () => {
       // Revoke Bridge sends at route commit, before the deferred store disposal.
       mountedSession.current = null;
-      sessionEnd.current = { session, timer: setTimeout(() => session.dispose()) };
+      // A Take still being sent until it lands ends with its production (#2655 R3): it must not air
+      // after the operator has moved on. An All out pressed before the end still goes.
+      sessionEnd.current = {
+        session,
+        timer: setTimeout(() => {
+          session.dispose();
+          stopSending();
+        }),
+      };
     };
   }, [session]);
   const pageCanDispatch = () => mountedSession.current === session && session.alive();
