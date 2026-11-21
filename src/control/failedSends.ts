@@ -310,14 +310,14 @@ function attemptWithin(
 interface SendDebts {
   /** A send carrying these items failed. Each item's `msg.oid`, when it has one, is how its row
    *  is recognised if it commits after all. */
-  failed(items: readonly { graphic: string; msg?: unknown }[], notice: string): void;
+  failed(items: readonly { graphic: string; msg?: unknown }[], notice: string, order?: number): void;
   /** A send carrying these items landed. Returns the notice line's next state: cleared if it
    *  still shows a failure this settled (on its own, or inside a folder's summary of its cues),
    *  and untouched while anything is still owed or once the line has moved on.
    *  A graphic whose failed send REPLACED it (a `play` or `stop`: a Take, an Out) is settled only
    *  by a landed send that replaces it too: an Update landing after a lost Take leaves the Take
    *  owed (#2655 R7). An item without its command counts as replacing. */
-  landed(items: readonly { graphic: string; msg?: unknown }[]): (shown: string | null) => string | null;
+  landed(items: readonly { graphic: string; msg?: unknown }[], order?: number): (shown: string | null) => string | null;
   /** These commands came back from the server (a row, or its broadcast). When one is a failed
    *  send's own, its graphic is settled: the notice line's next state as `landed` returns it, or
    *  null when nothing changed. */
@@ -353,12 +353,17 @@ export function createSendDebts(): SendDebts {
     notices = [];
     return (shown: string | null) => (shown !== null && settled.some((s) => shown.includes(s)) ? null : shown);
   };
+  /** Per graphic, the press order of the newest landed press that replaced it, and of any landed
+   *  press of it: a failure booked AFTER a later press already landed is judged by press order, not
+   *  by which call came first (#2655 R7: an Out lands while the Take before it is still ending). */
+  const replacedAt = new Map<string, number>();
+  const touchedAt = new Map<string, number>();
   const keep = (graphic: string, debts: { oids: Set<string>; replaced: boolean }[]) => {
     if (debts.length > 0) owed.set(graphic, debts);
     else owed.delete(graphic);
   };
   return {
-    failed(items, notice) {
+    failed(items, notice, order) {
       const newest = new Map<string, { oids: Set<string>; replaced: boolean }>();
       for (const item of items) {
         const debt = newest.get(item.graphic) ?? { oids: new Set<string>(), replaced: false };
@@ -368,13 +373,20 @@ export function createSendDebts(): SendDebts {
         newest.set(item.graphic, debt);
       }
       for (const [graphic, debt] of newest) {
+        // Already paid by a later press of this page that landed first.
+        if (order !== undefined && (replacedAt.get(graphic) ?? -Infinity) > order) continue;
+        if (order !== undefined && !debt.replaced && (touchedAt.get(graphic) ?? -Infinity) > order) continue;
         keep(graphic, debt.replaced ? [debt] : [...(owed.get(graphic) ?? []).filter((d) => d.replaced), debt]);
       }
       notices.push(notice);
     },
-    landed(items) {
+    landed(items, order) {
       const replaces = new Set(items.filter((item) => !('msg' in item) || replacing(item.msg)).map((item) => item.graphic));
       for (const graphic of new Set(items.map((item) => item.graphic))) {
+        if (order !== undefined) {
+          touchedAt.set(graphic, Math.max(touchedAt.get(graphic) ?? -Infinity, order));
+          if (replaces.has(graphic)) replacedAt.set(graphic, Math.max(replacedAt.get(graphic) ?? -Infinity, order));
+        }
         keep(graphic, replaces.has(graphic) ? [] : (owed.get(graphic) ?? []).filter((d) => d.replaced));
       }
       return settle();

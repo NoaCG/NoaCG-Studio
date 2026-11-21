@@ -452,3 +452,23 @@ test('R6: one stop ending two presses gives each its own error, so neither carri
   ea.sent = ['take A'];
   assert.equal(eb.sent, undefined);
 });
+
+test('R7: an Out that landed before the Take pressed ahead of it finished failing settles that Take', () => {
+  const debts = createSendDebts();
+  const shown = 'Take is on this monitor only.';
+  // The Out (press 2) lands while the Take (press 1) is still ending; then the Take fails.
+  debts.landed([{ graphic: 'g', msg: { t: 'stop' } }], 2);
+  debts.failed([{ graphic: 'g', msg: { t: 'play', oid: 't' } }], shown, 1);
+  assert.equal(debts.owed(), 0, 'the Out already replaced it');
+  // An Update that landed first does not pay a Take pressed before it.
+  debts.landed([{ graphic: 'h', msg: { t: 'update' } }], 4);
+  debts.failed([{ graphic: 'h', msg: { t: 'play', oid: 'u' } }], shown, 3);
+  assert.equal(debts.owed(), 1);
+  // But it pays an Update pressed before it.
+  debts.landed([{ graphic: 'k', msg: { t: 'update' } }], 6);
+  debts.failed([{ graphic: 'k', msg: { t: 'update', oid: 'v' } }], 'Update failed.', 5);
+  assert.equal(debts.owed(), 1);
+  // A press made after the landing is owed as before.
+  debts.failed([{ graphic: 'g', msg: { t: 'play', oid: 'w' } }], shown, 7);
+  assert.equal(debts.owed(), 2);
+});

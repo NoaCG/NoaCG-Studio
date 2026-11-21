@@ -361,6 +361,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       clearThroughBridge: async (note) => (alive() ? p.clearThroughBridge(note) : note),
     };
   };
+  /** Counts this page's sends in the order they are made (`createSendDebts`). */
+  let sendOrder = 0;
   /** Each graphic's last live press, which the next one waits for. */
   const presses = new Map<string, Promise<void>>();
   /** Each graphic's own Takes, Updates and Outs of this page still out, all of which the next live
@@ -564,6 +566,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
   // PROGRAM monitor always, so the two can never drift into two behaviours. ──
   /** `moved`: the figures a live event moves on its graphic, which its payload may not carry. */
   const sendWith = async (p: VerbSender, batches: ControlSendItem[][], label: string, allOut = false, moved?: Record<string, string>): Promise<Sent> => {
+    // This send's place among this page's presses: its debt and its landing are judged by it.
+    const order = (sendOrder += 1);
     const stamp = ++sendSeq;
     // Counted as the send leaves, so a send pressed later always counts after this one.
     const looked = new Set(batches.flat().filter((item) => item.msg.t === 'stop' || (item.msg.t === 'update' && item.msg.appearance !== undefined)).map((item) => item.graphic));
@@ -656,7 +660,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       });
       markers.answer(pressed, (m) => reachedOutput(sent, m.graphic));
       settle((graphic) => reachedOutput(sent, graphic));
-      p.note(p.debts().landed(marked.flat()));
+      p.note(p.debts().landed(marked.flat(), order));
       p.owed(p.debts().owed() > 0);
       p.loggedAt(io.now());
       // A graphic went up with nothing reporting that could air it: the status says "No output" in
@@ -681,7 +685,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       const landed = io.verbsLanded(e);
       const failedItems = io.verbSentItems(e) ?? marked[landed] ?? [];
       const neverLeft = (e as { stopped?: unknown }).stopped === true && failedItems.length === 0;
-      p.debts().failed(neverLeft ? [] : [...failedItems, ...marked.slice(landed + 1).flat()], note);
+      p.debts().failed(neverLeft ? [] : [...failedItems, ...marked.slice(landed + 1).flat()], note, order);
       const uncertain = isUncertain(e);
       const skipped = io.verbsSkipped(e);
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.

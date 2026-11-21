@@ -1982,7 +1982,9 @@ async function sendControlVerbOnce(opts: {
         replaces: (key) => replaced.has(key),
         laneStop: opts.allOut ? landedRow.signal : laneStop.signal,
         stop: opts.allOut ? new AbortController().signal : stop,
-        settled: landedRow.signal,
+        // Ended by a later replacing press: no further attempt, and its wait ends now, so its debt
+        // is booked before more presses land.
+        settled: eitherSignal(landedRow.signal, laneEnd.signal).signal,
       });
       sent.skipped = settled.skipped;
       if (settled.superseded) sent.superseded = Object.keys(sender.base);
