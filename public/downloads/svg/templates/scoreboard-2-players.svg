@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Scoreboard, 2 players</title>
+  <desc>NoaCG Clean Studio template. Team 1 and Team 2 with Score 1 and Score 2; hidden Flash 1 and Flash 2 show when a point lands.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Team_box_1" inkscape:label="Team box 1" x="556" y="48" width="280" height="80" rx="14" fill="#FFFFFF"/>
+    <rect id="Score_box_1" inkscape:label="Score box 1" x="836" y="48" width="120" height="80" rx="14" fill="#2E5BFF"/>
+    <rect id="Score_box_2" inkscape:label="Score box 2" x="964" y="48" width="120" height="80" rx="14" fill="#2E5BFF"/>
+    <rect id="Team_box_2" inkscape:label="Team box 2" x="1084" y="48" width="280" height="80" rx="14" fill="#FFFFFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Flash_1" inkscape:label="Flash 1" style="display:none">
+      <rect x="606" y="138" width="180" height="40" rx="10" fill="#2E5BFF"/>
+      <text x="696" y="165" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">+1 POINT</text>
+    </g>
+    <g id="Flash_2" inkscape:label="Flash 2" style="display:none">
+      <rect x="1134" y="138" width="180" height="40" rx="10" fill="#2E5BFF"/>
+      <text x="1224" y="165" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">+1 POINT</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Team_1" inkscape:label="Team 1" x="696" y="99" text-anchor="middle" font-size="30" font-weight="800" fill="#0F1729" letter-spacing="1">HOME</text>
+    <text id="Score_1" inkscape:label="Score 1" x="896" y="107" text-anchor="middle" font-size="52" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+    <text id="Score_2" inkscape:label="Score 2" x="1024" y="107" text-anchor="middle" font-size="52" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+    <text id="Team_2" inkscape:label="Team 2" x="1224" y="99" text-anchor="middle" font-size="30" font-weight="800" fill="#0F1729" letter-spacing="1">AWAY</text>
+  </g>
+</svg>

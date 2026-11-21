@@ -4,7 +4,7 @@
 //
 // Twelve pages; Terms and Privacy are public pages for the optional hosted service.
 
-const CLEAN_PAGES = ['/app', '/output', '/join', '/terms', '/privacy', '/ograf', '/bridge', '/docs', '/downloads', '/whats-new', '/roadmap'];
+const CLEAN_PAGES = ['/app', '/output', '/join', '/terms', '/privacy', '/ograf', '/bridge', '/docs', '/downloads', '/svg-templates', '/whats-new', '/roadmap'];
 
 // The pages also served under `/<name>/<segment>`: the join page reads its name off the path.
 // scripts/e2e-affected.mjs plans the specs that open these routes from the same two lists.

@@ -1,5 +1,5 @@
 // The site's top bar and footer are one of each, the same on every public page: no page writes its own.
-// guards: index.html, ograf.html, privacy.html, terms.html, docs.html, downloads.html, whats-new.html, roadmap.html, src/site-chrome.css, src/brandCore.css
+// guards: index.html, ograf.html, privacy.html, terms.html, docs.html, downloads.html, svg-templates.html, whats-new.html, roadmap.html, src/site-chrome.css, src/brandCore.css
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';

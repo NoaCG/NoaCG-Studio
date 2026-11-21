@@ -14,7 +14,7 @@
 // 2. The zip: Illustrator/, SVG/, Previews/, README.md and README.pdf inside one folder named
 //    NoaCG-SVG-examples, written to public/downloads/NoaCG-SVG-examples.zip, which the site
 //    serves at /downloads/NoaCG-SVG-examples.zip (SVG_EXAMPLES_ZIP_URL in src/downloads/links.ts,
-//    linked from /downloads#svg-examples and /docs). Each --copy-to writes the same bytes to
+//    linked from /downloads#svg-templates and /svg-templates). Each --copy-to writes the same bytes to
 //    another place.
 //
 // It drives a headless Chromium for the print, so run it through the job queue on the laptop:
@@ -25,6 +25,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
 import { chromium } from '@playwright/test';
 import { escapeHtml } from '../behaviour-docs.mjs';
+import { syncSvgFiles } from '../svg-files.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 // TWO PACKAGES share this packer: the behaviour EXAMPLES (the default) and the Clean Studio
@@ -190,3 +191,5 @@ const args = process.argv.slice(2);
 const copies = args.flatMap((a, i) => (a === '--copy-to' && args[i + 1] ? [args[i + 1]] : []));
 await writePdf();
 await writeZip(copies);
+// The one-at-a-time copies /svg-templates links (scripts/svg-files.mjs), for both sets.
+syncSvgFiles();
