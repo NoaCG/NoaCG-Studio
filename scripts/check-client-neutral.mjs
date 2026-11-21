@@ -57,6 +57,7 @@ const SCANNED = [
   'index.html',
   'docs.html',
   'downloads.html',
+  'svg-templates.html',
   'app.html',
   'ograf.html',
   'src/control/productionControllerHtml.ts',

@@ -5,8 +5,8 @@
   NoaCG itself runs in the browser and needs nothing installed. Optional tools sit beside it, and
   a new visitor could not find them: NoaCG Bridge was linked only from Settings -> Playout, the
   CLI only from one landing section, and the Companion module nowhere. This page names each, says
-  what it is FOR, and gets it onto a machine. Under the tools sits the SVG examples package: layered
-  example graphics to open, learn the layer names from and import, a zip rather than a program.
+  what it is FOR, and gets it onto a machine. Beside the tools sits one SVG templates card: two zips
+  of layered graphics to edit and import, and a link to /svg-templates, which previews each file.
 
   EACH CARD ANSWERS THREE THINGS, in this order: what it is, who needs it, and the one step to
   use it. The words are the landing page's (index.html): a template, your own SVGs, your AI
@@ -79,6 +79,7 @@
          block (src/docs/docs.ts); `.dl-grid` lays the tools side by side. -->
     <div class="doc-body dl-grid">
       <!-- NoaCG BRIDGE. `id="bridge"` is an address: Playout settings in the studio links here. -->
+      <div class="dl-col">
       <section class="dl-card" id="bridge" data-testid="download-bridge">
         <p class="kicker">For playout on CasparCG</p>
         <h2>NoaCG Bridge</h2>
@@ -186,6 +187,33 @@
         <p class="dl-more"><a href="/docs#casparcg-connect">The CasparCG guide in the docs</a></p>
       </section>
 
+      <!-- THE SVG TEMPLATES. Not a tool to install: two zips of layered graphics to edit and
+           import, the styled templates (docs/tutorials/svg-templates) and one example per import
+           behaviour (docs/tutorials/svg-examples), both packed by
+           scripts/illustrator/pack-svg-examples.mjs. One card, under the Bridge where the left
+           column has room; /svg-templates previews every file for one-at-a-time downloads.
+           `id="svg-templates"` is an address: SVG_TEMPLATES_CARD_URL in src/downloads/links.ts.
+           `id="svg-examples"` keeps the old examples card's links landing here. -->
+      <section class="dl-card" id="svg-templates" data-testid="download-svg-templates">
+        <span id="svg-examples" aria-hidden="true"></span>
+        <p class="kicker">For your own SVGs</p>
+        <h2>SVG templates</h2>
+        <p class="dl-what">
+          Graphics to edit in Illustrator or Inkscape and import into NoaCG: ready-made templates in
+          one clean style, and an example for every SVG import behaviour.
+        </p>
+        <p class="dl-actions dl-pair">
+          <a class="btn btn-amber" href="/downloads/NoaCG-SVG-templates.zip" download
+            data-testid="svg-templates-download">Templates (.zip)</a>
+          <a class="btn btn-amber" href="/downloads/NoaCG-SVG-examples.zip" download
+            data-testid="svg-examples-download">Examples (.zip)</a>
+        </p>
+        <p class="dl-meta">SVG, PNG and PDF &middot; the examples add Illustrator (.ai)</p>
+        <p class="dl-more"><a href="/svg-templates" data-testid="svg-templates-page">Preview and download one at a time</a> &middot;
+          <a href="/docs#svg-layers">How to name the layers</a></p>
+      </section>
+      </div>
+      <div class="dl-col">
       <!-- THE COMPANION MODULE. `id="companion"` and `id="companion-setup"` are addresses: the
            production page's Stream Deck panel dialog links both. It has no fixed file link either,
            and releases/latest is the Bridge's, so with no JavaScript or no API answer its links
@@ -290,66 +318,7 @@
           <a href="https://www.npmjs.com/package/@noacg/cli">@noacg/cli on npm</a>
         </p>
       </section>
-    </div>
-
-    <!-- THE SVG TEMPLATES. Ten finished-looking graphics in one style, to restyle in Illustrator
-         and import. Its SVGs are their own editable sources (docs/tutorials/svg-templates), and
-         `pack-svg-examples.mjs --set templates` writes the zip. `id="svg-templates"` is an address:
-         SVG_TEMPLATES_URL in src/downloads/links.ts. -->
-    <div class="doc-body dl-extra">
-      <section class="dl-card" id="svg-templates" data-testid="download-svg-templates">
-        <p class="kicker">For your own SVGs</p>
-        <h2>SVG templates</h2>
-        <p class="dl-what">
-          Eleven ready-made graphics in one clean style: lower third, game timer, show countdown,
-          quiz, game rules, be back soon, two scoreboards, winner and two end credits.
-        </p>
-        <p class="dl-note">
-          Open one in Illustrator, change the words, colours and shapes, save it as SVG and import
-          it into NoaCG.
-        </p>
-        <p class="dl-meta">NoaCG-SVG-templates.zip &middot; SVG, PNG and PDF</p>
-        <p class="dl-actions">
-          <a
-            class="btn btn-amber"
-            href="/downloads/NoaCG-SVG-templates.zip"
-            download
-            data-testid="svg-templates-download"
-          >Download the templates</a>
-        </p>
-      </section>
-    </div>
-
-    <!-- THE SVG EXAMPLES. Not a tool to install, so it sits under the tool cards rather than
-         beside them: a zip of layered example graphics, each named to the one layer-naming
-         system. docs/tutorials/svg-examples is its source, scripts/illustrator/build-svg-examples.jsx
-         draws it in Illustrator and scripts/illustrator/pack-svg-examples.mjs writes the zip into
-         public/downloads/. `id="svg-examples"` is an address: SVG_EXAMPLES_URL in
-         src/downloads/links.ts names it for every surface that links here. -->
-    <div class="doc-body dl-extra">
-      <section class="dl-card" id="svg-examples" data-testid="download-svg-examples">
-        <p class="kicker">For your own SVGs</p>
-        <h2>SVG examples</h2>
-        <p class="dl-what">
-          Nineteen graphics made in Illustrator, with an example for every SVG import behaviour:
-          credits, scores, votes, quizzes and more. Each comes with editable artwork, its SVG
-          export and a preview.
-        </p>
-        <p class="dl-note">
-          Change one or draw your own the same way, save it as SVG and import it into NoaCG.
-        </p>
-        <p class="dl-meta">NoaCG-SVG-examples.zip &middot; Illustrator (.ai), SVG, PNG and PDF</p>
-        <p class="dl-actions">
-          <a
-            class="btn btn-amber"
-            href="/downloads/NoaCG-SVG-examples.zip"
-            download
-            data-testid="svg-examples-download"
-          >Download the examples</a>
-        </p>
-        <p class="dl-more"><a href="/docs#svg-example-files">Browse the SVG examples</a> &middot;
-          <a href="/docs#svg-layers">How to name the layers</a></p>
-      </section>
+      </div>
     </div>
 
     <!--site:footer-->

@@ -13,7 +13,7 @@
 // imports their SVG/ files, so the ignore in scripts/e2e-affected.mjs carves the folder out.
 // downloads.spec.ts rides along because it checks the committed zip still holds these files.
 // covers: docs/tutorials/svg-examples/**
-// covers: public/docs/examples/svg-examples/**
+// covers: public/downloads/svg/examples/**
 // covers: src/components/home/CueActions.tsx
 
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { dropSvg, intoExistingProduction, intoProduction } from './_svg-import';
 import { settleDurableWrites } from './_durable';
 
-// THE SVG EXAMPLES, RUN AS A SHOW (docs/tutorials/svg-examples, offered at /downloads#svg-examples).
+// THE SVG EXAMPLES, RUN AS A SHOW (docs/tutorials/svg-examples, offered at /svg-templates#examples).
 //
 // Somebody downloads the seven examples and does what the README says: import each one, put them
 // in one production, run the show. This walks exactly that with the SVGs Illustrator wrote (never
@@ -296,7 +296,7 @@ test('the advertised behavior inventory equals the live import registry', async 
   const registered = await page.evaluate(async () => (await __noacgImport('/src/templates/behaviours/registry.ts')).BEHAVIOUR_RECIPES.map((entry) => entry.id));
   expect([...new Set(examples.flatMap((entry) => entry.recipe ? [entry.recipe] : []))].sort()).toEqual(registered.sort());
   for (const entry of examples) {
-    const response = await request.get(`/docs/examples/svg-examples/${entry.slug}.svg`);
+    const response = await request.get(`/downloads/svg/examples/${entry.slug}.svg`);
     expect(response.status(), entry.slug).toBe(200);
     expect((await response.text()).replace(/\r\n/g, '\n')).toBe(readFileSync(new URL(`../docs/tutorials/svg-examples/SVG/${entry.slug}.svg`, import.meta.url), 'utf8').replace(/\r\n/g, '\n'));
   }

@@ -65,6 +65,7 @@ export const SCANNED = [
   'index.html',
   'docs.html',
   'downloads.html',
+  'svg-templates.html',
   'README.md',
   'cli/README.md',
   'cli/plugin/README.md',
