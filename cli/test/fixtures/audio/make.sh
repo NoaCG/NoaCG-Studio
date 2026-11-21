@@ -12,6 +12,9 @@ $S -f lavfi -i "$TONE" -c:a libmp3lame -b:a 48k tone-mono.mp3
 $S -f lavfi -i "color=c=gray:s=32x18:r=25:d=1" -f lavfi -i "$TONE" -map 0:v -map 1:a -af "pan=stereo|c0=c0|c1=c0" -c:v mjpeg -q:v 31 -c:a aac -b:a 64k clip-aac.mov
 # MXF, MXF style: two mono PCM tracks, the same tone at two levels.
 $S -f lavfi -i "color=c=gray:s=32x18:r=25:d=1" -f lavfi -i "$TONE" -f lavfi -i "$TONE" -filter_complex "[2:a]volume=-6dB[q]" -map 0:v -map 1:a -map "[q]" -c:v mpeg2video -b:v 50k -c:a pcm_s16le -t 1 two-tracks.mxf
+# Two stereo MP3 tracks: a loud commentary track first (CasparCG leaves it out: its disposition is
+# not just "default"), then the main track, the tone, which is what airs.
+$S -f lavfi -i "sine=f=440:r=48000:d=1" -f lavfi -i "$TONE" -filter_complex "[0:a]volume=6dB,pan=stereo|c0=c0|c1=c0[c];[1:a]pan=stereo|c0=c0|c1=c0[m]" -map "[c]" -map "[m]" -c:a libmp3lame -b:a 48k -disposition:a:0 comment -disposition:a:1 default commentary.mka
 # A video with no sound at all.
 $S -f lavfi -i "color=c=gray:s=32x18:r=25:d=2" -c:v mjpeg -q:v 31 no-audio.mov
 
@@ -27,6 +30,7 @@ ref() {
   echo "{"
   echo "  \"tone-mono.mp3\": $(ref '[0:a:0]aresample=48000,pan=stereo|c0=c0|c1=0*c0' tone-mono.mp3),"
   echo "  \"clip-aac.mov\": $(ref '[0:a:0]aresample=48000,pan=stereo|c0=c0|c1=c1' clip-aac.mov),"
+  echo "  \"commentary.mka\": $(ref '[0:a:1]aresample=48000,pan=stereo|c0=c0|c1=c1' commentary.mka),"
   echo "  \"two-tracks.mxf\": $(ref '[0:a:0]aresample=48000,pan=mono|c0=c0[a];[0:a:1]aresample=48000,pan=mono|c0=c0[b];[a][b]amerge=inputs=2,pan=stereo|c0=c0|c1=c1' two-tracks.mxf)"
   echo "}"
 } > reference.json

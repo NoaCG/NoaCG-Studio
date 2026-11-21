@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { AudioJobError, measure, probe, waveform } from '../dist/playout/audio/analyse.js';
+import { AudioJobError, measure, playsOnServer, probe, waveform } from '../dist/playout/audio/analyse.js';
 import { audioTools, unpackTools } from '../dist/playout/audio/tools.js';
 import { createHash } from 'node:crypto';
 
@@ -90,6 +90,16 @@ test('compressed files a playout server holds read as a full ffmpeg reads them (
   const info = await probe(tools, path.join(fixtures, 'clip-aac.mov'));
   assert.deepEqual(info.audio.map((s) => [s.codec, s.channels]), [['aac', 2]]);
   close(info.seconds, 1, 0.05, 'mov length');
+});
+
+test('a track CasparCG leaves out (commentary, dub, description) is left out of the measurement too', needsTools, async () => {
+  assert.equal(playsOnServer(undefined), true);
+  assert.equal(playsOnServer({ default: 1, comment: 0, dub: 0 }), true);
+  assert.equal(playsOnServer({ default: 0, comment: 0 }), true);
+  assert.equal(playsOnServer({ default: 1, comment: 1 }), false);
+  assert.equal(playsOnServer({ default: 0, visual_impaired: 1 }), false);
+  const info = await probe(tools, path.join(fixtures, 'commentary.mka'));
+  assert.deepEqual(info.audio.map((s) => s.index), [1], 'only the main track');
 });
 
 test('a short loud sound at the trim point: measuring the part equals measuring the part cut out first', needsTools, async () => {

@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
   "recordedAt": "2026-11-10",
-  "count": 250,
+  "count": 253,
   "entries": {
     "anon_security_definer_function_executable_public_audience_clear_results_p_slug text, p_question text": {
       "name": "anon_security_definer_function_executable",
@@ -1252,6 +1252,21 @@
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`user_plans_plan_idx\\` on table \\`public.user_plans\\` has not been used"
+    },
+    "anon_security_definer_function_executable_public_control_data_adjust_by_slug_p_slug text, p_presses jsonb": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_data_adjust_by_slug(p_slug text, p_presses jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_data_adjust_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_data_adjust_by_slug_p_slug text, p_presses jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_data_adjust_by_slug(p_slug text, p_presses jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_data_adjust_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "rls_enabled_no_policy_public_control_data_presses": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.control_data_presses\\` has RLS enabled, but no policies exist"
     }
   }
 }

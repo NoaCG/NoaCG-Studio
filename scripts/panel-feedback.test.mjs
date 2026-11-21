@@ -164,6 +164,11 @@ test("the production page's rows go to a panel as drawn, with a collapsed folder
   assert.equal(judgePress(press({ verb: 'take-cue', target: 'c' }), snap({ rows }), snap({ rows }), ALL), null);
 });
 
+test('an OSC cue reaches the panel as a plain cue row, never as a graphic (docs/work-specs/osc-control-cues AC-8)', () => {
+  const cues = [{ id: 'lx', sourceId: '', source: 'control', label: 'Lights', values: {}, control: { v: 1, kind: 'osc', destinationId: 'desk', address: '/go', args: [] } }];
+  assert.deepEqual(rundownPanelRows(rundownView({ cues, folders: [] }).rows), [{ id: 'lx', label: 'Lights', kind: 'cue', source: null }]);
+});
+
 
 // ── GRAPHIC ACTIONS (docs/work-specs/playout-companion-actions/spec.md E6.1, protocol.md §10) ──────
 

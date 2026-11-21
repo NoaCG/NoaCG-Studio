@@ -141,6 +141,25 @@ test('jobs run one file at a time, the same request is the same job, and a waiti
   assert.equal(started.length, 2, 'the cancelled waiting job never read its file');
 });
 
+test('a job two askers share is stopped only when both have cancelled it', async () => {
+  const root = await share('shared', { 'A.wav': 'a' });
+  const { jobs, gates } = gatedJobs();
+  const prepare = async () => ({ file: await resolveMediaFile(root, 'A') });
+  const first = jobs.start('s', { kind: 'waveform', name: 'A' }, prepare);
+  const second = jobs.start('s', { kind: 'waveform', name: 'A' }, prepare);
+  assert.equal(second.id, first.id);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(jobs.cancel(first.id).state, 'running', 'the other asker still waits for it');
+  gates.shift()();
+  await jobs.idle();
+  assert.equal(jobs.get(first.id).state, 'done');
+  const again = jobs.start('s', { kind: 'waveform', name: 'A' }, prepare);
+  await new Promise((r) => setTimeout(r, 20));
+  jobs.cancel(again.id);
+  await jobs.idle();
+  assert.equal(jobs.get(again.id).state, 'cancelled', 'its only asker stops it');
+});
+
 test('a file that changes while it is read gives no result, and a Bridge without a reader says so', async () => {
   const root = await share('changes', { 'A.wav': 'a' });
   const { jobs, gates } = gatedJobs();
@@ -186,6 +205,22 @@ async function withBridge(fn, audio) {
 }
 
 const post = async (url, route, body) => (await fetch(`${url}${route}`, { method: 'POST', headers: { Origin: 'https://noacg.studio', Authorization: 'Bearer t', 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+
+test('a readable folder is never called linked while the server cannot list its files', async () => {
+  const root = await share('unlisted', { 'A.wav': '1234' });
+  const caspar = await fakeCaspar((line) => (line.startsWith('VERSION') ? '201 VERSION OK\r\n2.5.0.0\r\n' : line.startsWith('CLS') ? '501 CLS FAILED\r\n' : '400 ERROR\r\n'));
+  try {
+    await withBridge(async (url) => {
+      const target = { adapter: 'casparcg', host: '127.0.0.1', port: caspar.port };
+      await post(url, '/connect', { target });
+      const r = await post(url, '/media-folder', { target, folder: root });
+      assert.equal(r.check.state, 'unchecked', JSON.stringify(r.check));
+      assert.match(r.check.detail, /did not list its files/);
+    });
+  } finally {
+    await caspar.close();
+  }
+});
 
 test('/health lists gain-20 and media-folder always, and audio only with a reader', async () => {
   await withBridge(async (url) => {

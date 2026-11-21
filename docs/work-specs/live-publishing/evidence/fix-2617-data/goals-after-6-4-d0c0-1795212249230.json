@@ -1,0 +1,68 @@
+{
+  "tag": "after",
+  "graphics": 6,
+  "cpus": "4",
+  "delay": 0,
+  "cutEvery": 0,
+  "routed": 0,
+  "every": 2250,
+  "pressedFor": 45142,
+  "presses": 21,
+  "score": {
+    "atEnd": {
+      "score": 20,
+      "tag": "1 press unsent"
+    },
+    "slowSettled": {
+      "score": 21,
+      "tag": "logged 10:02:37 PM"
+    },
+    "fastSettled": {
+      "score": 21,
+      "tag": "logged 10:02:37 PM"
+    }
+  },
+  "dataWrites": {
+    "n": 21,
+    "ok": 21,
+    "failed": 0,
+    "open": 0,
+    "p50": 44,
+    "p95": 91,
+    "max": 92,
+    "names": [
+      "control_data_adjust_by_slug"
+    ]
+  },
+  "eventSends": {
+    "n": 31,
+    "failed": 0,
+    "p50": 19
+  },
+  "apiWrites": [],
+  "goalFuncs": {
+    "control_send_seq": {
+      "calls": 21,
+      "mean_ms": 3.634
+    },
+    "control_data_apply": {
+      "calls": 22,
+      "mean_ms": 3.628
+    },
+    "control_data_patch_by_slug": {
+      "calls": 21,
+      "mean_ms": 4.486
+    },
+    "control_data_adjust_by_slug": {
+      "calls": 21,
+      "mean_ms": 7.024
+    }
+  },
+  "takeFuncs": {
+    "control_send_seq": {
+      "calls": 10,
+      "mean_ms": 3.517
+    }
+  },
+  "notes": []
+}

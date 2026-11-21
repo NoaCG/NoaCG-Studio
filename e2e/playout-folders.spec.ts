@@ -1,6 +1,7 @@
 // covers: src/components/home/{ProductionPage,CueRundown,FolderRow,FolderEditor,ServerCueEditor,PlayoutMonitors}.tsx
 // covers: src/model/{shows,showFolders,rundownRows}.ts
 // covers: src/control/{folderAir,serverPlayout,serverState,cuePlayback,playoutLink}.ts
+// covers: src/components/home/OscCueEditor.tsx, src/control/oscSend.ts, src/model/controlCue.ts
 // covers: src/components/playoutKeys.ts, src/styles/playout-dashboard.css
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
@@ -2074,4 +2075,97 @@ test('All out stops a folder Take that has put nothing up yet', async ({ page })
   expect(sent(fake)).toEqual(['take 2-10 VT', 'out 2-10']);
   await expect(cue(page, 'Strap').locator('.pd-tag.up, .pd-tag.air')).toHaveCount(0);
   await expect(cue(page, 'VT')).not.toContainText('ON AIR');
+});
+
+// ── OSC cues (docs/work-specs/osc-control-cues/spec.md AC-2, AC-3, AC-9) ─────────────────────────
+
+test('an OSC cue is made from + Add, sends once per Take and Send test, and nothing else sends', async ({ page }) => {
+  await seedSettings(page);
+  const fake = await fakeBridge(page, { features: ['state', 'playback', 'sequence', 'osc'] });
+  await production(page);
+
+  await page.getByTestId('rundown-add').click();
+  await page.getByTestId('menu-add-osc').click();
+  const editor = page.getByTestId('osc-cue-editor');
+  await expect(editor).toBeVisible();
+  await expect(editor.getByTestId('osc-bridge-status')).toHaveText('NoaCG Bridge ready');
+  await expect(editor.getByTestId('osc-take-blocked')).toContainText('no destination');
+
+  await editor.getByTestId('osc-destination').selectOption('+new');
+  await editor.getByTestId('osc-dest-name').fill('Lighting desk');
+  await editor.getByTestId('osc-dest-host').fill('192.168.1.40');
+  await editor.getByTestId('osc-dest-port').fill('8830');
+  await editor.getByTestId('osc-dest-save').click();
+  await editor.getByTestId('osc-address').fill('/zeros/cue/go');
+  await editor.getByTestId('osc-address').press('Tab');
+  for (const value of ['0', '5']) {
+    await editor.getByTestId('osc-arg-add').click();
+    await editor.getByTestId('osc-arg-value').last().fill(value);
+    await editor.getByTestId('osc-arg-value').last().press('Tab');
+  }
+  await editor.getByTestId('cue-label').fill('Lights: winner');
+  await editor.getByTestId('cue-label').press('Tab');
+  const row = cue(page, 'Lights: winner');
+  await expect(row).toContainText('Lighting desk  /zeros/cue/go "0" "5"');
+  await expect(editor.getByTestId('osc-take-blocked')).toHaveCount(0);
+  // An edit is one undo step, and undo puts the message back.
+  await editor.getByTestId('osc-address').fill('/other');
+  await editor.getByTestId('osc-address').press('Tab');
+  await expect(row).toContainText('/other');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(row).toContainText('/zeros/cue/go');
+  await expect(editor.getByTestId('osc-address')).toHaveValue('/zeros/cue/go');
+  expect(fake.osc, 'editing sends nothing').toHaveLength(0);
+
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => fake.osc.length).toBe(1);
+  expect(fake.osc[0]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/go', args: [{ type: 's', value: '0' }, { type: 's', value: '5' }] });
+  await expect(row).not.toContainText('ON AIR');
+
+  await editor.getByTestId('osc-send-test').click();
+  await expect.poll(() => fake.osc.length).toBe(2);
+  expect(new Set(fake.osc.map((o) => o.sendId)).size, 'each press is its own send').toBe(2);
+
+  // Selecting, reloading and selecting again send nothing.
+  await selectCue(page, 'Hairline');
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(cue(page, 'Lights: winner')).toContainText('/zeros/cue/go');
+  await selectCue(page, 'Lights: winner');
+  await page.waitForTimeout(300);
+  expect(fake.osc).toHaveLength(2);
+});
+
+test('a winner graphic and a lighting cue go together on one folder Take, with no playout server', async ({ page }) => {
+  // docs/work-specs/osc-control-cues/spec.md AC-1: browser output, one Take, one datagram.
+  await seedSettings(page);
+  const fake = await fakeBridge(page, { features: ['state', 'playback', 'sequence', 'osc'] });
+  const showId = await production(page, [], { graphics: [{ name: 'Winner' }] });
+  await evaluateInPage(page, async (id) => {
+    const m = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    m.saveOscDestination(id, { id: 'desk', name: 'Lighting desk', host: '192.168.1.40', port: 8830 });
+    const { cueId } = m.addOscCue(id, 'desk');
+    m.setCueControl(id, cueId!, { v: 1, kind: 'osc', destinationId: 'desk', address: '/zeros/cue/go', args: [{ type: 's', value: '0' }, { type: 's', value: '5' }] });
+    m.updateShowCueChecked(id, cueId!, { label: 'Lights' });
+    const winner = m.loadShows().find((s) => s.id === id)!.cues!.find((c) => c.label === 'Winner')!.id;
+    const { folderId } = m.addFolderFromSelection(id, [winner, cueId!], 'Result');
+    m.setFolderMode(id, folderId!, 'together');
+    const failure = await commitDurableWrites();
+    if (failure) throw new Error(failure);
+  }, showId);
+  await page.reload();
+  await expect(folder(page, 'Result')).toBeVisible();
+  await holdFolder(page, 'Result');
+  await page.getByTestId('verb-take').click();
+
+  await expect.poll(() => fake.osc.length).toBe(1);
+  expect(fake.osc[0]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/go' });
+  await expect(page.getByTestId('production-note')).toContainText('1 of 1 on air, 1 of 1 OSC sent');
+  await expect(cue(page, 'Winner').locator('.pd-tag.up, .pd-tag.air')).toHaveCount(1);
+  await expect(cue(page, 'Lights')).not.toContainText('ON AIR');
+  await page.waitForTimeout(300);
+  expect(fake.osc, 'one Take, one datagram').toHaveLength(1);
+  expect(sent(fake), 'nothing went to a playout server').toEqual([]);
 });

@@ -608,6 +608,7 @@ function surface({ bound = {}, tree = {}, patchOk = true } = {}) {
     candidateFields: () => [], airedCandidate: () => null, airedCandidateFields: () => [],
     boundNow: () => ({ ...tree }), boundReady: () => true,
     patchBound: async (writes) => { log.push(['patch', writes.map((w) => `${w.path}=${w.text}`).join(',')]); return patchOk ? undefined : false; },
+    pressBound: async (presses) => { log.push(['press', presses.map((q) => ('by' in q ? `${q.path}+${q.by}` : `${q.path}=${q.text}`)).join(',')]); return patchOk; },
     writeCue: (id, values) => log.push(['writeCue', id, values]), savedValues: () => undefined,
     writeLive: (id, values) => log.push(['writeLive', id, values]),
   };
@@ -649,7 +650,7 @@ test('a +1 whose send failed commits nothing here and says the send failed (S6, 
   assert.equal(done.outcome, 'failed');
   assert.match(done.note, /network down/);
   assert.notEqual(done.note, SHARED_NOT_MOVED);
-  assert.deepEqual(s.log.filter(([k]) => k === 'writeLive' || k === 'patch'), [], 'no live value and no shared value is written');
+  assert.deepEqual(s.log.filter(([k]) => k === 'writeLive' || k === 'patch' || k === 'press'), [], 'no live value and no shared value is written');
 });
 
 test('a +1 that went while its shared figure did not move says that, not that the send failed (S6, AC-21)', async () => {
@@ -661,7 +662,7 @@ test('a +1 that went while its shared figure did not move says that, not that th
   assert.equal(msg.payload, undefined, 'a bound figure rides the shared data, not the event');
   s.sends[0].answer.resolve({ ...noneLeft });
   assert.deepEqual(await pressing, { outcome: 'failed', note: SHARED_NOT_MOVED });
-  assert.deepEqual(s.log.filter(([k]) => k === 'patch'), [['patch', 'match.home=3']], 'one point asked of the shared value, after the event went');
+  assert.deepEqual(s.log.filter(([k]) => k === 'patch' || k === 'press'), [['press', 'match.home+1']], 'one point asked of the shared value, after the event went (#2617: as +1)');
   // The same press refused by the wire writes no shared value at all.
   const refused = surface({ bound: { f1: 'match.home' }, tree: { f1: '2' } });
   const going = refused.verbs.event(refused.view, refused.button('score1'));
@@ -670,5 +671,5 @@ test('a +1 that went while its shared figure did not move says that, not that th
   const done = await going;
   assert.equal(done.outcome, 'failed');
   assert.notEqual(done.note, SHARED_NOT_MOVED);
-  assert.deepEqual(refused.log.filter(([k]) => k === 'patch'), []);
+  assert.deepEqual(refused.log.filter(([k]) => k === 'patch' || k === 'press'), []);
 });

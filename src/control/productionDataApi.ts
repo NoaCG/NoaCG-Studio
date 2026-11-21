@@ -25,7 +25,9 @@
 // capability the operator does not already have.
 
 import { getSupabase } from '../backend/supabase';
-import { rpcFailure } from './failedSends';
+import { boundPressFailure, rpcFailure, type BoundPressFailure } from './failedSends';
+
+export type { BoundPressFailure };
 
 /** The owner's own data key for a production, or null (not published, no backend, not owner). */
 export async function productionDataKey(showId: string): Promise<string | null> {
@@ -120,6 +122,32 @@ export async function patchProductionDataBySlug(
   const { data, error, status } = await sb.rpc('control_data_patch_by_slug', { p_slug: slug, p_patch: patch });
   if (error) throw rpcFailure('control_data_patch_by_slug', error, status);
   return ((data as { data?: Record<string, unknown> } | null)?.data ?? {});
+}
+
+// ── A bound press as a relative operation (#2617, migration 0125) ────────────
+//
+// "Add N to this path" or "make this path this text", each with a press id, which the server folds
+// onto the stored tree under the row lock and writes through the operator's door above, recording
+// the id so a resend never counts twice (docs/work-specs/live-publishing/evidence/fix-2617.md).
+
+/** One press as the server takes it. */
+export type BoundPressWire = { id: string; path: string; by: number } | { id: string; path: string; text: string };
+
+export interface BoundPressAnswer {
+  data: Record<string, unknown>;
+  /** Ids applied now or already held: each counted exactly once. */
+  landed: string[];
+  refused: { id: string; reason: string }[];
+}
+
+export async function adjustProductionDataBySlug(slug: string, presses: BoundPressWire[], signal?: AbortSignal): Promise<BoundPressAnswer> {
+  const sb = await getSupabase();
+  if (!sb) throw Object.assign(new Error('This production is not connected to a backend.'), { press: 'refused' as const });
+  const call = sb.rpc('control_data_adjust_by_slug', { p_slug: slug, p_presses: presses });
+  const { data, error, status } = await (signal ? call.abortSignal(signal) : call);
+  if (error) throw boundPressFailure(error, status);
+  const answer = (data ?? {}) as Partial<BoundPressAnswer>;
+  return { data: answer.data ?? {}, landed: answer.landed ?? [], refused: answer.refused ?? [] };
 }
 
 // ── Another system's Pause and receipt (data-sources C5, migration 0100) ─────

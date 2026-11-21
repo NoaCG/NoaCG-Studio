@@ -274,12 +274,13 @@ export function takeBlocker(
   folders: readonly ShowFolder[] = [],
   graphicOf: FolderRundown['graphicOf'] = () => null,
   serverOff?: FolderRundown['serverOff'],
+  controlBlockerOf?: FolderRundown['controlBlockerOf'],
 ): string | null {
   // A folder by what it lacks: every cue names its source, and no folder does. Its mode cannot tell
   // them apart, since a folder record from another build may have none.
   if (!('sourceId' in target)) {
     const blockerOf = (c: ShowCue) => takeBlocker(c, cues, items, addressOf, ability, folders, graphicOf);
-    return folderTakeBlocker(target, folderMembers(cues, folders, target.id), { items, addressOf, graphicOf, ability, blockerOf, serverOff });
+    return folderTakeBlocker(target, folderMembers(cues, folders, target.id), { items, addressOf, graphicOf, ability, blockerOf, serverOff, controlBlockerOf });
   }
   const cue = target;
   const item = isServerCue(cue) ? items.find((i) => i.id === cue.sourceId) : undefined;
@@ -507,6 +508,11 @@ export interface GraphicMember {
   layer: number;
 }
 
+/** An OSC cue of a folder: one message, sent once, never on air (docs/work-specs/osc-control-cues). */
+export interface ControlMember {
+  cue: ShowCue;
+}
+
 /** The rundown as the folder rules read it, with the page's own lookups handed in. */
 export interface FolderRundown {
   items: readonly PlayoutItem[];
@@ -519,10 +525,13 @@ export interface FolderRundown {
   blockerOf: (cue: ShowCue) => string | null;
   /** Disabled members are reported by the send path and occupy no slot in the plan. */
   serverOff?: (cue: ShowCue) => string | null;
+  /** Why an OSC cue would not send now (control/oscSend.ts `oscBlocker`), or null. Absent: this
+   *  page cannot send OSC, and a folder holding one is refused. */
+  controlBlockerOf?: (cue: ShowCue) => string | null;
 }
 
 export type TogetherPlan =
-  | { ok: true; server: readonly SequenceMember[]; graphics: readonly GraphicMember[] }
+  | { ok: true; server: readonly SequenceMember[]; graphics: readonly GraphicMember[]; controls: readonly ControlMember[] }
   | { ok: false; reason: string };
 
 /** The first two positions of a list that clash, earliest first, or null: what a folder's Take names. */
@@ -549,10 +558,16 @@ function bridgeGate(first: ShowCue | undefined, ability: PlaybackAbility | null)
 export function togetherPlan(members: readonly ShowCue[], r: FolderRundown): TogetherPlan {
   const server: SequenceMember[] = [];
   const graphics: GraphicMember[] = [];
+  const controls: ControlMember[] = [];
   for (const cue of members) {
-    // Sending a control cue arrives with docs/work-specs/osc-control-cues/spec.md phase 5; until
-    // then the whole folder is refused before anything is sent, never taken as a graphic.
-    if (isControlCue(cue)) return { ok: false, reason: OSC_NOT_YET(cue.label) };
+    // An OSC cue that would not send refuses the whole Take before anything goes, naming it
+    // (docs/work-specs/osc-control-cues/spec.md D8).
+    if (isControlCue(cue)) {
+      const blocked = r.controlBlockerOf ? r.controlBlockerOf(cue) : OSC_NOT_YET(cue.label);
+      if (blocked) return { ok: false, reason: blocked.startsWith(cue.label) ? blocked : `${cue.label}: ${blocked}` };
+      controls.push({ cue });
+      continue;
+    }
     if (isServerCue(cue)) {
       const item = r.items.find((i) => i.id === cue.sourceId);
       if (!item) return { ok: false, reason: `${cue.label} plays a file this production no longer lists.` };
@@ -590,7 +605,7 @@ export function togetherPlan(members: readonly ShowCue[], r: FolderRundown): Tog
       return { ok: false, reason: `${m.cue.label}: This cue plays the next clip, and every cue of this folder starts at once. Set another ending to take it.` };
     }
   }
-  return { ok: true, server, graphics };
+  return { ok: true, server, graphics, controls };
 }
 
 /**
@@ -621,6 +636,8 @@ export interface MemberTake {
 export interface MemberResult extends MemberTake {
   cueId: string;
   label: string;
+  /** An OSC cue: counted as sent, never as on air. */
+  control?: true;
   /** False when the folder was taken off before this member's turn came. */
   sent: boolean;
 }
@@ -629,7 +646,10 @@ export interface MemberResult extends MemberTake {
 export interface TogetherSend {
   server: (m: SequenceMember) => Promise<MemberTake>;
   graphic: (g: GraphicMember) => Promise<MemberTake>;
-  /** Take back off a member whose take landed after Out or All out stopped the run. */
+  /** An OSC cue's one send. Absent: OSC members are reported not sent. */
+  control?: (c: ControlMember) => Promise<MemberTake>;
+  /** Take back off a member whose take landed after Out or All out stopped the run. An OSC send is
+   *  never taken back: nothing undoes what a device already did. */
   off: (m: SequenceMember | GraphicMember) => Promise<void>;
   /** Out or All out has been pressed since the run began. */
   stopped: () => boolean;
@@ -652,17 +672,37 @@ export async function runTogether(plan: Extract<TogetherPlan, { ok: true }>, sen
   };
   const results: MemberResult[] = [];
   for (const m of plan.server) results.push(await one(m, () => send.server(m)));
-  results.push(...(await Promise.all(plan.graphics.map((g) => one(g, () => send.graphic(g))))));
+  // OSC goes in the same phase as the graphics, without waiting for the cloud's answer to them, so
+  // the lights do not trail the picture by a round trip. Several OSC cues go one after another, in
+  // rundown order, so a desk receives them in the order they stand.
+  const controls = async (): Promise<MemberResult[]> => {
+    const out: MemberResult[] = [];
+    for (const c of plan.controls) {
+      const { cue } = c;
+      if (send.stopped()) out.push({ cueId: cue.id, label: cue.label, ok: false, sent: false, control: true, note: `${cue.label} was not sent: the folder was taken off first.` });
+      else if (!send.control) out.push({ cueId: cue.id, label: cue.label, ok: false, sent: false, control: true, note: OSC_NOT_YET(cue.label) });
+      else out.push({ ...(await send.control(c)), cueId: cue.id, label: cue.label, sent: true, control: true });
+    }
+    return out;
+  };
+  const [shown, sent] = await Promise.all([Promise.all(plan.graphics.map((g) => one(g, () => send.graphic(g)))), controls()]);
+  results.push(...shown, ...sent);
   return results;
 }
 
 /** The note line after an All-together Take: `✓ Take: Opening, 3 of 3 on air`, or the count and
  *  every member's own sentence where one did not go, or went with a warning. */
 export function togetherNote(folderName: string, results: readonly MemberResult[]): string {
-  const up = results.filter((r) => r.ok && !r.unconfirmed).length;
+  // An OSC cue holds no air: it is counted as sent, apart from what is on air.
+  const airable = results.filter((r) => !r.control);
+  const oscs = results.filter((r) => r.control);
+  const up = airable.filter((r) => r.ok && !r.unconfirmed).length;
   // A member only its output can confirm is counted as sent, never as on air.
-  const pending = results.filter((r) => r.ok && r.unconfirmed).length;
-  const count = `${up} of ${results.length} on air${pending ? `, ${pending} sent to the outputs` : ''}`;
+  const pending = airable.filter((r) => r.ok && r.unconfirmed).length;
+  const oscSent = oscs.filter((r) => r.ok).length;
+  const osc = oscs.length ? `${oscSent} of ${oscs.length} OSC sent` : '';
+  const air = airable.length ? `${up} of ${airable.length} on air${pending ? `, ${pending} sent to the outputs` : ''}` : '';
+  const count = [air, osc].filter(Boolean).join(', ');
   // A sent member is already in the count; a ✓ only when every member is confirmed on air.
   const said = results.filter((r) => !r.ok || (!r.unconfirmed && !r.note.startsWith('✓')));
   if (!said.length) return `${pending ? '' : '✓ '}Take: ${folderName}, ${count}`;

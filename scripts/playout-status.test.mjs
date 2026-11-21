@@ -208,3 +208,13 @@ test('an output opened before automatic updates reads amber with its name until 
   assert.match(old.checks[0].label, /switches over by itself the next time nothing is on air there/);
   assert.equal(status({ oldOutputs: [] }).tone, 'ok');
 });
+
+test('PROGRAM counts the bound presses not yet landed ahead of every other published state, and says nothing of them at 0 (#2617 R7)', async () => {
+  const { programAir } = await import('../src/control/playoutStatus.ts');
+  const at = Date.UTC(2026, 10, 20, 21, 0, 0);
+  const air = (f) => programAir({ published: true, sending: 0, owed: false, loggedAt: at, lost: false, ...f });
+  assert.deepEqual([air({ unsent: 1 }).text, air({ unsent: 1 }).state], ['1 press unsent', 'pending']);
+  assert.equal(air({ unsent: 3, sending: 2, owed: true, lost: true }).text, '3 presses unsent');
+  assert.deepEqual(air({ unsent: 0 }), air({}));
+  assert.equal(programAir({ published: false, sending: 0, owed: false, loggedAt: null, lost: false, unsent: 2 }).state, 'local');
+});

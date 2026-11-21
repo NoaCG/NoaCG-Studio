@@ -254,6 +254,7 @@ function productionPage() {
     boundNow: () => ({}),
     boundReady: () => true,
     patchBound: async () => {},
+    pressBound: async () => true,
     writeCue: (cueId, values) => (cues = cues.map((c) => (c.id === cueId ? { ...c, values: { ...c.values, ...values } } : c))),
     savedValues: () => undefined,
     writeLive: () => {},

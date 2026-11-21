@@ -53,18 +53,21 @@ export default function NormalizeRow({
     const controller = new AbortController();
     abort.current = controller;
     const part = { trimIn: cue.playback?.trimIn, trimOut: cue.playback?.trimOut };
+    const levelBefore = cue.playback?.levelDb;
     setSaid(null);
     setProgress(0);
     const r = await measurePart(settings, item.name, part, { signal: controller.signal, onProgress: setProgress });
     if (abort.current !== controller) return;
     setProgress(null);
+    // Cancelled, or the row gone, while the last answer was on its way: change nothing.
+    if (controller.signal.aborted) return;
     if (!('measure' in r)) {
       setSaid(r.cancelled ? null : r.detail);
       return;
     }
     const now = latest.current.playback;
-    if (now?.trimIn !== part.trimIn || now?.trimOut !== part.trimOut) {
-      setSaid('The part changed while it was measured. Normalize again.');
+    if (now?.trimIn !== part.trimIn || now?.trimOut !== part.trimOut || now?.levelDb !== levelBefore) {
+      setSaid('The cue changed while it was measured. Normalize again.');
       return;
     }
     const done = normalizeCue(target, r.measure, part, r.fileKey);

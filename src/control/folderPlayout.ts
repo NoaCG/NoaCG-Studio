@@ -38,7 +38,7 @@ import { cueOnAir } from './folderAir.ts';
 import { folderStep, type StepMember } from './folderStep.ts';
 import { leftAlone, pressOuts, withLiveCue } from './liveCue.ts';
 import { clockRank, runTogether, togetherNote, togetherPlan } from './serverPlayout.ts';
-import { isGraphicCue, isServerCue } from '../model/controlCue.ts';
+import { isControlCue, isGraphicCue, isServerCue } from '../model/controlCue.ts';
 
 /** Why a run stopped: Out on its folder, All out (what lands after is cut), or the session's end
  *  (nothing more is sent at all). */
@@ -83,6 +83,8 @@ export interface FolderPage {
   selectionAired?: (graphic: string, cueId: string, take: { status: 'none' }, moves: boolean) => { landed: () => void; undo: (failed?: { uncertain?: true; stale?: true }) => void };
   /** A graphic cue's Take, reporting nothing; null when its graphic is gone. */
   takeGraphic: (cue: ShowCue, label: string) => Promise<MemberTake | null>;
+  /** An OSC cue's one send (docs/work-specs/osc-control-cues D8); absent, OSC members are refused. */
+  controlTake?: (cue: ShowCue) => Promise<MemberTake>;
   /** A cue's own Take, as its TAKE button runs it. */
   takeCue: (cue: ShowCue) => Promise<void>;
   /** The page's sender (`sendVerb`). */
@@ -96,6 +98,11 @@ export interface FolderPage {
 export interface FolderPlayoutIo {
   /** The clock a server take is stamped with (`performance.now`). */
   now: () => number;
+  /** Where a One-by-one folder's step is kept for this tab when the folder holds an OSC cue
+   *  (docs/work-specs/osc-control-cues/spec.md D8). An OSC cue is
+   *  never on air, so after a reload the air cannot say a step passed it, and the next press would
+   *  send it again. Absent: not kept. */
+  oscSteps?: { load: () => Record<string, string>; save: (steps: Record<string, string>) => void };
 }
 
 export interface FolderPlayout {
@@ -117,6 +124,8 @@ export interface FolderPlayout {
   clearMisses: (ids: readonly string[]) => void;
   /** A cue of a One-by-one folder went on air, by whatever route: the folder's step stands on it. */
   noteStep: (cue: ShowCue) => void;
+  /** After a reload, put back the One-by-one steps this tab kept for folders holding an OSC cue (`io.oscSteps`). */
+  restoreOscSteps: () => void;
   /** A failed send landed after all: each member's failure it settled is no miss any more.
    *  `settle` answers null for a sentence it settled (./failedSends.ts `heard`). */
   settleMisses: (settle: (shown: string) => string | null) => void;
@@ -135,11 +144,37 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
       const next = fold(f[key]);
       return next === f[key] ? f : { ...f, [key]: next };
     });
-  const steps = field('folderSteps');
+  const writeSteps = field('folderSteps');
+  /** A folder holding an OSC cue: its step is kept for the tab, wherever it stands, since the air
+   *  cannot say a step passed an OSC cue. */
+  const holdsOsc = (folderId: string, cues: readonly ShowCue[]) => cues.some((c) => c.folderId === folderId && isControlCue(c));
+  /** Keep the steps of folders that hold an OSC cue for this tab, every time the steps move. */
+  const keepOscSteps = () => {
+    if (!io.oscSteps) return;
+    const cues = page().cues;
+    const kept = Object.fromEntries(Object.entries(session.folders.get().folderSteps)
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && holdsOsc(entry[0], cues)));
+    io.oscSteps.save(kept);
+  };
+  const steps = (fold: (m: FoldersPart['folderSteps']) => FoldersPart['folderSteps']) => {
+    writeSteps(fold);
+    keepOscSteps();
+  };
   const misses = field('takeMisses');
 
   const clearMisses = (ids: readonly string[]) =>
     misses((m) => (ids.some((id) => id in m) ? Object.fromEntries(Object.entries(m).filter(([id]) => !ids.includes(id))) : m));
+
+  /** After a reload: a folder holding an OSC cue stands where its step stood, unless this page
+   *  already moved it. */
+  const restoreOscSteps = () => {
+    const kept = io.oscSteps?.load() ?? {};
+    const cues = page().cues;
+    writeSteps((m) => {
+      const back = Object.entries(kept).filter(([folderId, cueId]) => !(folderId in m) && holdsOsc(folderId, cues) && cues.some((c) => c.id === cueId && c.folderId === folderId));
+      return back.length ? { ...m, ...Object.fromEntries(back) } : m;
+    });
+  };
 
   const noteStep = (cue: ShowCue) => {
     const folder = cue.folderId ? page().folders.get(cue.folderId) : undefined;
@@ -228,6 +263,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
       const results: MemberResult[] = await runTogether(plan, {
         server: async (m) => (await p.serverVerb(m.cue, 'take', `Take of ${m.cue.label}`, { takenAt: t0 + (rank.get(m.cue.id) ?? 0) })) ?? { ok: false, note: `${m.cue.label} plays a file this production no longer lists.` },
         graphic: async (g) => (await p.takeGraphic(g.cue, `Take of ${g.cue.label}`)) ?? { ok: false, note: `${g.cue.label} points at a graphic this production no longer has.` },
+        ...(p.controlTake ? { control: (c: { cue: ShowCue }) => p.controlTake!(c.cue) } : {}),
         off: (m) => offLate(p, m, run.stop),
         stopped: () => run.stop !== null,
       });
@@ -352,6 +388,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     running: (folderId) => runs.has(folderId),
     clearMisses,
     noteStep,
+    restoreOscSteps,
     settleMisses: (settle) =>
       misses((m) => {
         const kept = Object.entries(m).filter(([, missed]) => settle(missed) !== null);

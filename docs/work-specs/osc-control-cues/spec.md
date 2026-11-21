@@ -240,3 +240,61 @@ Phase 3 (Take sends OSC), notes for the phases after it:
   `relevantPlayout`); a browser-only production learns of an absent or old Bridge only when it
   sends. Phase 4 adds the "Bridge ready" status for productions with OSC cues and a paired browser,
   the rehearsal wording, and the e2e journey (create, edit, Take, Send test).
+
+Phase 4 (authoring), notes for the phases after it:
+
+- + Add has "OSC cue" (`CueRundown.tsx`); `addOscCue` makes it after the selected cue, sending to
+  the production's first destination. `home/OscCueEditor.tsx` edits the name, destination
+  (choose, New, Edit, Remove), address and arguments through `setCueControl`,
+  `saveOscDestination` and `removeOscDestination` (`model/shows.ts`); its text boxes are deferred,
+  so typing never writes per keystroke and never sends. Send test sends the stored cue once through
+  the page's `controlSend`, as Take does.
+- The write gate's `controlWrite` allowance is now passed by `addOscCue` and `setCueControl`
+  (`patchShowChecked`'s last argument). Destination edits are not part of undo, as playout settings
+  are not; a deleted destination leaves its cues naming the missing device.
+- Departure from D5's wording, recorded: "Bridge ready" is shown in the OSC cue editor
+  (`oscBridgeState`), not in the page's status control, which stays CasparCG/vMix-only. It answers
+  the operator where the cue is set up, and keeps the page-wide Bridge poll (and its local-network
+  prompt) off productions whose browser is not paired.
+- The rehearsal line ("Graphics play on this page until you publish. OSC cues send to the device
+  now.") sits in the OSC editor before the first publish.
+- The rundown row of an OSC cue wears the `control` tone and reads `<destination>  <address>  <args>`
+  (`oscRowSummary`). It never shows ON AIR.
+- `e2e/playout-folders.spec.ts` holds the journey (+ Add, destination, address, arguments, Take,
+  Send test, reload) against `e2e/_fakeBridge.ts`, which now answers `/osc` and records each
+  request in `fake.osc`.
+
+Phase 5 (folders), notes for the phases after it:
+
+- All together: `togetherPlan` collects OSC cues as `controls`; one whose `controlBlockerOf`
+  (`oscBlocker`) refuses stops the whole Take before anything is sent, naming it. `runTogether`
+  sends the server cues first as before, then the graphics and the OSC cues in the same phase: the
+  OSC cues one after another in rundown order, without waiting for the graphics' cloud answer. An
+  OSC send is never taken back after Out or All out; one not yet sent when Out comes is skipped.
+  `togetherNote` counts it apart: "1 of 1 on air, 1 of 1 OSC sent".
+- The folder's own Take check (`takeBlocker` for a folder in `serverPlayout.ts`) now carries
+  `controlBlockerOf` too, so the TAKE button and the panel judge an OSC member the same way.
+- One by one: a step onto an OSC cue sends it through the cue's own Take and takes nothing off
+  (`StepMember.control`), so the graphic it goes with stays up. Decided here: a lights cue in a
+  run of graphics is a side effect, not a replacement.
+- A One-by-one folder that holds an OSC cue keeps its step for the tab in session storage, wherever
+  the step stands (`spx-gfx-osc-steps:<production>`, `io.oscSteps`), and it is put back after a
+  reload, so the next press goes on instead of sending an earlier OSC cue again. Folders without an
+  OSC cue read their step off the air as before.
+- `oscBlocker` now also checks the message as the Bridge's encoder will (`oscMessageProblem` in
+  `model/controlCue.ts`: address, values, 16 arguments, 1024 bytes), so an All together folder
+  never sends its graphics and then fails on a badly typed OSC cue.
+- Play through still refuses OSC cues ("is an OSC cue").
+- `e2e/playout-folders.spec.ts`: the AC-1 journey (a graphic and an OSC cue in an All together
+  folder, browser output, one Take, one datagram, nothing to a playout server).
+
+Phase 6 (Companion), notes:
+
+- `rundownPanelRows` sends an OSC cue as a cue row with `source: null`, which every Companion
+  module version already reads (an unknown source reads as none), so no panel calls it a graphic or
+  a file and the module needs no release. `take_cue`, `trigger_cue` and the per-cue refusals were
+  done in phase 3: a refused press puts its reason on the note line.
+- Still open, an owner decision: releasing NoaCG Bridge (moving `bridgeVersion` in
+  `cli/package.json`) publishes everything under the changelog's `## Unreleased`, which now also
+  holds the audio reader work. Until that release, an operator's Bridge cannot send OSC.
+- Phase 7 (owner hardware, AC-11) waits on that release.

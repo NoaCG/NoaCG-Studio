@@ -128,6 +128,7 @@ import {
   fetchProductionData,
   patchProductionData,
   patchProductionDataBySlug,
+  adjustProductionDataBySlug,
   productionDataKey,
 } from '../../control/productionDataApi';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
@@ -307,6 +308,7 @@ import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
 import { isControlCue, isGraphicCue, isServerCue } from '../../model/controlCue.ts';
 import { oscBlocker, oscNote, oscRequest, sendIds } from '../../control/oscSend';
+import OscCueEditor from './OscCueEditor';
 
 /** The draft's browser moments (control/cueDraft.ts): the page hidden or closing, or the account
  *  pausing, saves at once; the account asking for a save flushes. */
@@ -465,6 +467,29 @@ const CUE_ARM_IO: CueArmEngineIo = {
 
 /** A folder's Take's browser half (control/folderPlayout.ts): the clock a server take is stamped with. */
 const FOLDER_IO: FolderPlayoutIo = { now: () => performance.now() };
+/** Where this tab keeps One-by-one steps that stand on an OSC cue, per production (folderPlayout
+ *  `io.oscSteps`): session storage, so a reload keeps it and another tab does not see it. */
+const oscStepStore = (showId: string): NonNullable<FolderPlayoutIo['oscSteps']> => {
+  const key = `spx-gfx-osc-steps:${showId}`;
+  return {
+    load: () => {
+      try {
+        const raw: unknown = JSON.parse(sessionStorage.getItem(key) ?? '{}');
+        return raw && typeof raw === 'object' ? Object.fromEntries(Object.entries(raw).filter((e): e is [string, string] => typeof e[1] === 'string')) : {};
+      } catch {
+        return {};
+      }
+    },
+    save: (steps) => {
+      try {
+        if (Object.keys(steps).length) sessionStorage.setItem(key, JSON.stringify(steps));
+        else sessionStorage.removeItem(key);
+      } catch {
+        // Storage refused: the step is kept in memory only, as it was before.
+      }
+    },
+  };
+};
 /** The verbs' browser half (control/graphicVerbs.ts): the wire's doors, the press rules of
  *  control/controlModel.ts (which Node cannot load), the clock and the bound presses' timer. */
 const GRAPHIC_VERB_IO: GraphicVerbIo = {
@@ -816,6 +841,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const session = useMemo(() => createPlayoutSession(id), [id]);
   const sessionEnd = useRef<{ session: PlayoutSession; timer: ReturnType<typeof setTimeout> } | null>(null);
   /** One send id per deliberate OSC press, unique to this page load (control/oscSend.ts). */
+  /** The open OSC editor's view of its cue, unsaved typing included (home/OscCueEditor). */
+  const oscPending = useRef<((cueId: string) => { cue: ShowCue; flush: () => void } | null) | null>(null);
   const [nextSendId] = useState(() => sendIds(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now())));
   const mountedSession = useRef<PlayoutSession | null>(null);
   useLayoutEffect(() => {
@@ -893,7 +920,13 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const folderMemory = usePacedPart(session.folders, wholePart);
   const { folderSteps, takeMisses, sending: sendingFolders } = folderMemory;
   const folderPage = useRef<FolderPage | null>(null);
-  const folderPlayout = useMemo(() => createFolderPlayout(session, FOLDER_IO, () => folderPage.current!), [session]);
+  const folderPlayout = useMemo(() => createFolderPlayout(session, { ...FOLDER_IO, oscSteps: oscStepStore(id) }, () => folderPage.current!), [session, id]);
+  // A One-by-one step that stood on an OSC cue before a reload stands there again (spec D8). Run
+  // after the render that fills the folder page.
+  const rundownLoaded = !!show?.cues?.length;
+  useEffect(() => {
+    if (rundownLoaded && folderPage.current) folderPlayout.restoreOscSteps();
+  }, [folderPlayout, rundownLoaded]);
   const serverOwnership = useStorePart(serverPlayout.ownership);
   const serverOnAir = serverOwnership.onAir;
   /** How many times this page has rendered - published on its root as `data-renders`, which is how
@@ -1555,7 +1588,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     (folderId: string): StepMember[] =>
       (rundown.members.get(folderId) ?? []).map((c) => {
         // A control cue is a one-shot send: nothing of it is up for the step to take off.
-        if (isControlCue(c)) return { id: c.id, graphic: false, replaces: `control:${c.id}` };
+        if (isControlCue(c)) return { id: c.id, graphic: false, replaces: `control:${c.id}`, control: true };
         const item = playoutItemFor(c);
         return item ? { id: c.id, graphic: item.kind === 'template', replaces: `item:${item.id}` } : { id: c.id, graphic: true, replaces: `pool:${c.sourceId}` };
       }),
@@ -1765,6 +1798,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         fetchProductionData,
         patchProductionData,
         patchProductionDataBySlug,
+        adjustProductionDataBySlug,
         every: (ms, run) => {
           const timer = window.setInterval(run, ms);
           return () => window.clearInterval(timer);
@@ -1781,8 +1815,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     [session, backendConfigured],
   );
   useEffect(() => dataSession.published(hostedSlug), [dataSession, hostedSlug]);
-  const { liveData, dataKey, treeRead } = useStorePart(session.data);
-  const { setLiveData, patchBoundValues } = dataSession;
+  const { liveData, dataKey, treeRead, unsent: pressesUnsent } = useStorePart(session.data);
+  const { setLiveData, patchBoundValues, pressBound } = dataSession;
 
   /** Refuse a press on a shared value this page cannot count from yet, and say why. Bound presses
    *  are the only thing that has to wait: everything else on this surface reads the cue. */
@@ -3226,6 +3260,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     sendingFolders.size > 0 ||
     sendingNow > 0 ||
     sendOwed ||
+    pressesUnsent > 0 ||
     clearing ||
     Object.values(folderStates).some((f) => (f?.onAir.length ?? 0) > 0) ||
     folders.some((f) => folderPlayout.running(f.id));
@@ -3483,16 +3518,24 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
   /** ONE OSC CUE'S SEND (docs/work-specs/osc-control-cues/spec.md D1, D7, D9): the cue as saved
    *  now, through the paired Bridge, once. A press is one send id; nothing here resends. */
-  const controlSend = async (cue: ShowCue, label: string): Promise<boolean> => {
-    const now = cuesRef.current.find((c) => c.id === cue.id) ?? cue;
-    const built = oscRequest(now, latestShow.current?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id));
-    if (!built.ok) {
-      setNote(`${label} was not sent: ${built.reason}`);
-      return false;
-    }
+  const controlTake = async (cue: ShowCue, label: string): Promise<{ ok: boolean; note: string }> => {
+    // Read from the store at the press, not the render: an edit landed a moment ago (a field left
+    // for Send test) is what goes out.
+    const stored = loadShows().find((s) => s.id === id);
+    // The OSC editor's boxes as they stand, typing not yet saved included, then saved: a hardware
+    // Take blurs nothing, and must send what the operator sees.
+    const onScreen = oscPending.current?.(cue.id) ?? null;
+    onScreen?.flush();
+    const now = onScreen?.cue ?? stored?.cues?.find((c) => c.id === cue.id) ?? cue;
+    const built = oscRequest(now, stored?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id));
+    if (!built.ok) return { ok: false, note: `${label} was not sent: ${built.reason}` };
     const outcome = await sendOsc(loadPlayoutSettings(), built.request);
-    setNote(oscNote(now.label, built.destination.name, outcome));
-    return outcome.state === 'sent';
+    return { ok: outcome.state === 'sent', note: oscNote(now.label, built.destination.name, outcome) };
+  };
+  const controlSend = async (cue: ShowCue, label: string): Promise<boolean> => {
+    const { ok, note } = await controlTake(cue, label);
+    setNote(note);
+    return ok;
   };
   const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
     // The graphic verb accepts All out before it gives its native cues the panic cut.
@@ -3739,6 +3782,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     boundNow,
     boundReady: boundPressReady,
     patchBound: patchBoundValues,
+    pressBound,
     writeCue: (cueId, values) => setShows(updateShowCueChecked(id, cueId, { values }).shows),
     savedValues: (cueId) => cuesRef.current.find((c) => c.id === cueId)?.values,
     unsavedValues: (cueId) => {
@@ -3871,12 +3915,14 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility,
       blockerOf: c => cueServerOff(c) ? null : takeBlockerFor(c),
       serverOff: c => serverCueAdapterMismatch(c, takeContext),
+      controlBlockerOf: c => oscBlocker(c, show?.oscDestinations, bridgePaired(playoutSettings)),
     },
     ownership: serverPlayout.ownership.get,
     liveCueOf: () => liveCueRef.current,
     setLiveCue,
     serverVerb,
     takeGraphic: takeGraphicCue,
+    controlTake: (cue) => controlTake(cue, `Take of ${cue.label}`),
     takeCue,
     send: sendVerb,
     flush: async () => {
@@ -4769,7 +4815,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           onWaits={noteProgramWaits}
           onReady={programReady}
           onOverflow={notePreviewOverflow}
-          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting), ran: ranLast })}
+          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, unsent: pressesUnsent, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting), ran: ranLast })}
           serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server') ? bridgeStatus.state : null}
           programChip={
             chipGraphic ? (
@@ -5237,6 +5283,24 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
             loudnessTarget={show.loudnessTarget}
           />
           )}</DraftView>
+        )}
+
+        {/* An OSC cue: one message to a device, never on air (home/OscCueEditor). */}
+        {editingCue && isControlCue(editingCue) && (
+          <OscCueEditor
+            key={editingCue.id}
+            show={show}
+            cue={editingCue}
+            cueNo={editingCueNo}
+            setShows={setShows}
+            takeBlocked={takeBlockerFor(editingCue)}
+            rehearsing={!hostedSlug}
+            playoutSettings={playoutSettings}
+            onSendTest={(cue) => void controlSend(cue, 'Send test')}
+            setNote={setNote}
+            writeRundown={writeRundown}
+            pendingRef={oscPending}
+          />
         )}
 
         {editingCue && <CueAccentControl key={`${show.id}:${editingCue.id}`} show={show} cue={editingCue} setShows={setShows} onPreview={color => setAccentPreview(color ? { productionId: show.id, cueId: editingCue.id, color } : null)} fallback={routeColor(show.rundownColors, selectedPlayoutItem && !selectedVmix ? throughRoleOf(editingCue) ? folderSlot(playoutSettings, throughRoleOf(editingCue)!.folder).channel : channelOf(playoutSettings, selectedPlayoutItem) : undefined)} />}

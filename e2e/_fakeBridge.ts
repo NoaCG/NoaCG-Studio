@@ -257,6 +257,9 @@ export interface Fake {
   list: { name: string; kind: string; frames?: number; fps?: number }[];
   /** What `/health` lists. 0.5.0's by default; 0.6.0 adds `sequence-loop`. */
   features: string[];
+  /** Every `/osc` request the page made, in order (docs/work-specs/osc-control-cues). Answered as
+   *  sent; a repeated send id answers `repeat` as the real Bridge does. */
+  osc: { sendId: string; host: string; port: number; address: string; args: { type: string; value: string }[] }[];
   version: string;
   /** What `/status` lists for the server. */
   capabilities: string[];
@@ -290,6 +293,7 @@ export async function fakeBridge(page: Pick<Page, 'route'>, init: Partial<Omit<F
     stateGate: () => {},
     list: [],
     features: ['state', 'playback', 'sequence'],
+    osc: [],
     version: init.vmix ? '0.11.0' : '0.5.0',
     capabilities: ['state', 'end', 'fade', 'trim', 'level', 'sequence'],
     lengths: {},
@@ -351,6 +355,12 @@ export async function fakeBridge(page: Pick<Page, 'route'>, init: Partial<Omit<F
       const token = path === '/act' && !(body.action?.slot && 'player' in body.action.slot) ? VMIX_OUTPUT_TOKEN_PREFIX + TOKEN : TOKEN;
       if (req.headers().authorization !== `Bearer ${token}`) return route.fulfill({ status: 401, headers: cors });
       return json(route, fake.vmix.reply(path, body as unknown as FakeVmixRequest | FakeVmixMediaRequest));
+    }
+    if (path === '/osc') {
+      const request = body as unknown as Fake['osc'][number];
+      const repeat = fake.osc.some((o) => o.sendId === request.sendId);
+      fake.osc.push(request);
+      return json(route, { ok: true, v: 2, sent: { to: `${request.host}:${request.port}`, bytes: 32 }, ...(repeat ? { repeat: true } : {}) });
     }
     if (path === '/status') {
       return json(route, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK', capabilities: fake.capabilities });

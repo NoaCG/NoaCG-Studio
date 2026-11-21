@@ -19,6 +19,9 @@ export interface StepMember {
   /** What its own Take replaces: its pool graphic, or its server item. A graphic up with the same key
    *  as the next cue is replaced by that cue's Take rather than taken off first. */
   replaces: string;
+  /** An OSC cue (docs/work-specs/osc-control-cues/spec.md D8): its step sends one message and takes
+   *  nothing off, so the graphic it goes with stays up. */
+  control?: true;
 }
 
 /**
@@ -53,6 +56,7 @@ export function folderStep(members: readonly StepMember[], memory: StepMemory, o
   const graphicsUp = members.filter((m) => m.graphic && onAir.has(m.id));
   if (next >= 0) {
     const cue = members[next];
+    if (cue.control) return { kind: 'take', cueId: cue.id, off: [] };
     return { kind: 'take', cueId: cue.id, off: graphicsUp.filter((g) => !cue.graphic || g.replaces !== cue.replaces).map((g) => g.id) };
   }
   if (graphicsUp.length || from >= 0) return { kind: 'top', off: graphicsUp.map((g) => g.id) };

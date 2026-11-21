@@ -160,7 +160,7 @@ export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeCon
     if (onOutput) return onOutput;
   }
   const addressOfItem = addressOf(ctx);
-  const blocked = takeBlocker(target, ctx.cues, ctx.items, addressOfItem, ctx.ability, ctx.folders, ctx.graphicOf, cue => serverCueAdapterMismatch(cue, ctx));
+  const blocked = takeBlocker(target, ctx.cues, ctx.items, addressOfItem, ctx.ability, ctx.folders, ctx.graphicOf, cue => serverCueAdapterMismatch(cue, ctx), ctx.controlBlocker);
   if (blocked) return blocked;
   const throughFolderIdOf = (cueId: string) => ctx.places.get(cueId)?.folder.id;
   for (const plan of plans) {
@@ -188,7 +188,7 @@ export const directBlocker = (cue: ShowCue, ctx: TakeContext, settings: PlayoutS
  *  that cannot take its cue takes nothing else off either. */
 export const stepBlocker = (next: ShowCue, ctx: TakeContext): string | null =>
   isControlCue(next)
-    ? OSC_NOT_YET(next.label)
+    ? (ctx.controlBlocker ? ctx.controlBlocker(next) : OSC_NOT_YET(next.label))
     : isServerCue(next)
     ? !ctx.itemOf(next)
       ? `${next.label} plays a file this production no longer lists.`

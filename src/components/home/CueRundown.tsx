@@ -4,6 +4,7 @@ import { startNewGraphic } from '../NewGraphicButton';
 import {
   addPlayoutItems,
   addShowCue,
+  addOscCue,
   graphicLayer,
   type PlayoutItem,
   type Show,
@@ -56,7 +57,8 @@ import { useAccountAuthoring } from '../AccountAuthoringGate';
 import { useDataProblems } from './SourcesLine';
 import type { SourceStatusStore } from '../../control/sheetSource';
 import { commitDurableWrites } from '../../model/durableStore';
-import { isGraphicCue } from '../../model/controlCue.ts';
+import { isControlCue, isGraphicCue } from '../../model/controlCue.ts';
+import { oscRowSummary } from '../../control/oscSend';
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
 export function nameList(names: string[]): string {
@@ -529,6 +531,12 @@ export default function CueRundown({
     ] : vmixMediaReady ? [
       { id: 'add-from-vmix', label: 'From vMix…', help: undefined, disabled: false, footer: true, run: () => openMedia() },
     ] : []),
+    { id: 'add-osc', label: 'OSC cue', help: 'Sends one message to a lighting desk or show controller on Take.', disabled: false, footer: false, run: () => {
+      const result = addOscCue(show.id, show.oscDestinations?.[0]?.id ?? '', selectedCue?.id);
+      setShows(result.shows);
+      setRundownNote(result.error);
+      if (result.cueId) selectCue(result.cueId);
+    } },
     { id: 'add-folder', label: 'Folder from selected cues', help: undefined, disabled: !folderCueIds.length, footer: false, run: () => void newFolder(folderCueIds) },
   ];
   /** Some cue of the selection is in a folder: its menu offers to take them out. */
@@ -717,7 +725,10 @@ export default function CueRundown({
           // everything that says where it plays names the folder's.
           const through = playoutItem?.kind === 'media' ? throughRoleOf(cue) : null;
           const address = through ? folderSlotOf(through.folder) : playoutItem ? slotAddress(itemSlot(playoutSettings, playoutItem)) : '';
-          const kind = poolEntry
+          const oscCue = isControlCue(cue);
+          const kind = oscCue
+            ? { glyph: '⇢', tone: 'control', name: 'OSC cue' }
+            : poolEntry
             ? poolEntry.type === 'picture' ? { glyph: '▧', tone: 'image', name: 'NoaCG image' } : { glyph: 'T', tone: 'graphic', name: 'Graphic' }
             : playoutItem?.kind === 'media'
               ? playoutItem.mediaKind === 'audio' ? { glyph: '♪', tone: 'audio', name: 'Audio' }
@@ -737,7 +748,9 @@ export default function CueRundown({
           // no words (a logo, a picture) falls back to its name, as the old second line did.
           const shown = { ...view.values, ...candidateValues?.(cue) };
           const typedWords = poolEntry ? typedSummaryOf?.(cue) : null;
-          const summary = poolEntry
+          const summary = oscCue
+            ? oscRowSummary(cue, show.oscDestinations)
+            : poolEntry
             ? typedWords != null
               ? typedWords || cueGraphic || ''
               : (wordFields.get(poolEntry.id) ?? [])

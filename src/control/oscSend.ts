@@ -8,7 +8,7 @@
 // send id, and the Bridge answers a repeat of that id without sending again.
 
 import type { OscDestination } from '../model/controlCue.ts';
-import { controlReadOnly, readControl } from '../model/controlCue.ts';
+import { controlReadOnly, oscMessageProblem, readControl } from '../model/controlCue.ts';
 import type { ShowCue } from '../model/shows';
 import type { OscRequestWire } from './playoutProtocol';
 
@@ -21,6 +21,8 @@ export function oscBlocker(cue: Pick<ShowCue, 'label' | 'source' | 'control'>, d
   const dest = (destinations ?? []).find((d) => d.id === control.destinationId);
   if (!dest) return control.destinationId ? `${cue.label} sends to a device this production no longer has. Choose a destination.` : `${cue.label} has no destination. Choose one.`;
   if (!control.address.trim()) return `${cue.label} has no OSC address.`;
+  const problem = oscMessageProblem(control);
+  if (problem) return `${cue.label}: ${problem}`;
   if (!paired) return 'Connect NoaCG Bridge in Playout settings to send OSC cues.';
   return null;
 }
@@ -64,4 +66,15 @@ export function oscNote(label: string, destination: string, outcome: OscOutcome)
   if (outcome.state === 'sent') return `✓ ${label}: OSC sent to ${destination}`;
   if (outcome.state === 'uncertain') return `${label}: ${outcome.detail}`;
   return `${label} was not sent: ${outcome.detail}`;
+}
+
+/** The rundown row's dim summary for an OSC cue: where it sends and what, as an operator reads it -
+ *  `Lighting desk  /zeros/cue/go "0" "5"`. */
+export function oscRowSummary(cue: Pick<ShowCue, 'source' | 'control'>, destinations: readonly OscDestination[] | undefined): string {
+  if (controlReadOnly(cue)) return 'OSC cue from a newer version';
+  const control = readControl(cue.control);
+  if (!control) return 'OSC cue';
+  const dest = (destinations ?? []).find((d) => d.id === control.destinationId);
+  const args = control.args.map((a) => (a.type === 's' ? `"${a.value}"` : a.value)).join(' ');
+  return [dest ? dest.name : 'no destination', control.address.trim() || 'no address', args].filter(Boolean).join('  ');
 }

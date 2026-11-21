@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { loadPlayoutSettings, serverMediaFolder, type PlayoutSettings } from '../control/playoutLink';
 import type { MediaFolderCheck } from '../control/playoutProtocol';
 
@@ -16,6 +16,9 @@ export default function MediaFolderSetting({ settings }: { settings: PlayoutSett
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const server = `${settings.host}:${settings.amcpPort}`;
+  // The server and Bridge the panel shows now: a reply for one left behind is not shown.
+  const current = useRef('');
+  current.current = `${server}|${settings.agentUrl}|${settings.agentToken}`;
 
   useEffect(() => {
     let alive = true;
@@ -34,9 +37,11 @@ export default function MediaFolderSetting({ settings }: { settings: PlayoutSett
   }, [server, settings.agentUrl, settings.agentToken]);
 
   const keep = async (folder: string | null) => {
+    const asked = current.current;
     setBusy(true);
     const { result, check: c } = await serverMediaFolder(loadPlayoutSettings(), folder);
     setBusy(false);
+    if (asked !== current.current) return;
     if (c) {
       setCheck(c);
       setProblem(null);

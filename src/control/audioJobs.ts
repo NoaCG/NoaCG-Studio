@@ -46,11 +46,17 @@ export async function runAudioJob(settings: PlayoutSettings, request: AudioJobRe
       if (now.job) {
         job = now.job;
         heard = Date.now();
-      } else if (Date.now() - heard > SILENT_LIMIT_MS) return { ok: false, detail: now.result.detail };
+      } else if (Date.now() - heard > SILENT_LIMIT_MS) {
+        // Giving up: release this page's share of the job, so a later ask can still stop it.
+        void cancelAudioJob(settings, job.id);
+        return { ok: false, detail: now.result.detail };
+      }
     }
   } finally {
     follow.signal?.removeEventListener('abort', cancel);
   }
+  // Cancelled while the last answer was on its way: the caller asked for no result.
+  if (follow.signal?.aborted) return { ok: false, detail: 'Cancelled.', cancelled: true };
   if (job.state === 'done') return { ok: true, job };
   if (job.state === 'cancelled') return { ok: false, detail: 'Cancelled.', cancelled: true };
   return { ok: false, detail: job.problem?.detail ?? 'NoaCG Bridge could not read the file.', code: job.problem?.code };

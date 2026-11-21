@@ -248,6 +248,8 @@ export interface AirFacts {
   lost: boolean;
   /** Every expected output has confirmed running the last command this page sent (G2 section 6). */
   ran?: boolean;
+  /** Bound presses this page has queued and the server has not yet answered (#2617). */
+  unsent?: number;
 }
 
 /** A time of day to the second, in this computer's locale. */
@@ -256,6 +258,14 @@ export const hms = (at: number) => new Date(at).toLocaleTimeString([], { hour: '
 /** PROGRAM's status tag: its state, its words and its tooltip. Empty words show nothing. */
 export function programAir(f: AirFacts): { state: AirState; text: string; title: string } {
   if (!f.published) return { state: 'local', text: 'this page only', title: 'Not published: a Take plays on this monitor and nowhere else.' };
+  // Ahead of everything else published: presses this page holds that have not landed (#2617).
+  if (f.unsent && f.unsent > 0) {
+    return {
+      state: 'pending',
+      text: f.unsent === 1 ? '1 press unsent' : `${f.unsent} presses unsent`,
+      title: 'Presses on shared values that have not reached the server yet. They are sent again until they land. Closing this page drops them.',
+    };
+  }
   if (f.lost) {
     return {
       state: 'stale',

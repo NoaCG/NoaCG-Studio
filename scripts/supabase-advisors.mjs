@@ -89,7 +89,10 @@ const ACCEPTED_CLASSES = {
     'production_source_snapshots (0101, a trusted JSON source\'s accepted revision, epoch and status, ' +
     'docs/work-specs/playout-external-connectors/ E4.2) is read and written only by the three ' +
     'service-role control_source_*_by_key functions behind /api/data/source, with every client ' +
-    'privilege revoked and the absence asserted by 0101\'s self-check.',
+    'privilege revoked and the absence asserted by 0101\'s self-check. ' +
+    'control_data_presses (0125, #2617) holds the ids of the operator presses control_data_adjust_by_slug ' +
+    'applied, so a resend counts once; only that function reads or writes it, with every client ' +
+    'privilege revoked and the absence asserted by 0125\'s self-check.',
   anon_security_definer_function_executable:
     'The capability-URL model: an output/control slug is held by an unauthenticated playout ' +
     'client (CasparCG/OBS/vMix), so these RPCs must be anon-callable. docs/CLOUD_PLAYOUT.md. ' +
@@ -109,6 +112,12 @@ const ACCEPTED_CLASSES = {
     'the same slug doors with the same guards: the send and the report write only the log and the ' +
     'production head (control_heads), and the reads answer only what the old resolve and tail ' +
     'already did plus the sequence and per-graphic summary the log implies. ' +
+    'control_data_adjust_by_slug (0125, #2617) is control_data_patch_by_slug\'s door again for an ' +
+    'operator\'s press as "+N on a path" or a declared set: it folds the presses onto the stored ' +
+    'tree under the row lock and writes them through control_data_patch_by_slug, so every guard and ' +
+    'the command budget above apply unchanged. Its own table, control_data_presses, only records ' +
+    'press ids so a resend counts once; it takes at most 50 presses a call and 100 ids per ' +
+    'production in 5 s. ' +
     'control_ping_seq (0072) is the same door again: Prepare for Live sends it from the operator ' +
     'page, and it writes ONE log row with an empty graphic under the same locks and burst cap as ' +
     'control_send_seq, so no graphic, revision, cue or report changes - only the head sequence moves. ' +

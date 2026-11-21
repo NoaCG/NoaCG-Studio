@@ -106,6 +106,12 @@ test('the write gate: an OSC cue of a later version is read-only whole, and no w
   assert.equal(write((cues) => [...cues, osc('NEW', { control: { ...control(), address: '/new' } })]), CONTROL_KEPT, 'nor make a new one');
   assert.equal(write((cues) => [...cues, osc('COPY')]), null, 'a copy of a message the record holds may be added');
   assert.equal(controlFrozen(kept, { cues: [...record.cues, osc('BACK', { control: { address: '/undo' } })] }, new Set(['BACK'])), null, 'an undo may bring a cue back');
+  const undone = structuredClone(record.cues);
+  undone[1].control.address = '/before';
+  assert.equal(controlFrozen(kept, { cues: undone }, new Set(['L'])), null, 'an undo may put a readable message back');
+  const laterUndone = structuredClone(record.cues);
+  laterUndone[2].control.more = false;
+  assert.equal(controlFrozen(kept, { cues: laterUndone }, new Set(['X'])), CONTROL_KEPT, 'but never a later version');
 });
 
 test('no file in src/ compares a cue source by hand: every reader goes through cueKind', () => {
@@ -127,8 +133,8 @@ test('the control gate is asked by both writes of patchShowChecked and by the un
   const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
   const shows = read('src/model/shows.ts');
   assert.match(shows, /const control = controlKeep\(show\);/);
-  assert.match(shows, /typedFrozen\(typed, show, undefined, typedWrite\) \?\? controlFrozen\(control, show\)/);
+  assert.match(shows, /typedFrozen\(typed, show, undefined, typedWrite\) \?\? controlFrozen\(control, show, undefined, controlWrite\)/);
   assert.match(shows, /const controlFresh = controlKeep\(fresh\);/);
-  assert.match(shows, /typedFrozen\(typedFresh, fresh, undefined, typedWrite\) \?\? controlFrozen\(controlFresh, fresh\)/);
+  assert.match(shows, /typedFrozen\(typedFresh, fresh, undefined, typedWrite\) \?\? controlFrozen\(controlFresh, fresh, undefined, controlWrite\)/);
   assert.match(read('src/model/rundownHistory.ts'), /controlFrozen\(controlKeep\(show\), next, restored\)/);
 });

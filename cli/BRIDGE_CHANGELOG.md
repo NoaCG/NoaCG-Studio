@@ -15,6 +15,16 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.13.1 - 2026-11-21
+
+Measurements and waveforms now leave out a sound track that CasparCG does not play, such as a
+commentary or audio description track, so Normalize sets the level for the sound that actually
+airs. Before, a file with such a track could be measured too loud or too quiet.
+
+The media folder check no longer says the folder is linked when the server could not list its
+files; it says the folder was not checked. A waveform two pages asked for at once is no longer
+stopped when one of them closes.
+
 ## 0.13.0 - 2026-11-20
 
 Download this version to use the waveform timeline and Normalize with a CasparCG server. Both need

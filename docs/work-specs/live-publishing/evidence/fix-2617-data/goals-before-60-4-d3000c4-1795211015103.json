@@ -1,0 +1,66 @@
+{
+  "tag": "before",
+  "graphics": 60,
+  "cpus": "4",
+  "delay": 3000,
+  "cutEvery": 4,
+  "routed": 21,
+  "every": 2250,
+  "pressedFor": 45047,
+  "presses": 21,
+  "score": {
+    "atEnd": {
+      "score": 11,
+      "tag": "logged 09:41:59 PM"
+    },
+    "slowSettled": {
+      "score": 14,
+      "tag": "logged 09:42:08 PM"
+    },
+    "fastSettled": {
+      "score": 14,
+      "tag": "logged 09:42:08 PM"
+    }
+  },
+  "dataWrites": {
+    "n": 21,
+    "ok": 16,
+    "failed": 5,
+    "open": 0,
+    "p50": 3074,
+    "p95": 3185,
+    "max": 3209,
+    "names": [
+      "control_data_patch_by_slug"
+    ]
+  },
+  "eventSends": {
+    "n": 31,
+    "failed": 0,
+    "p50": 234
+  },
+  "apiWrites": [],
+  "goalFuncs": {
+    "control_data_apply": {
+      "calls": 16,
+      "mean_ms": 3.122
+    },
+    "control_data_patch_by_slug": {
+      "calls": 16,
+      "mean_ms": 4.502
+    },
+    "control_send_seq": {
+      "calls": 22,
+      "mean_ms": 3.424
+    }
+  },
+  "takeFuncs": {
+    "control_send_seq": {
+      "calls": 10,
+      "mean_ms": 3.27
+    }
+  },
+  "notes": [
+    "The shared value did not move: the server did not answer"
+  ]
+}
