@@ -242,6 +242,8 @@ async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown)
 // #2655 R3, R6: a Take nobody answers is sent until it lands, says "still sending" with Stop
 // sending past the old 4 s window, and ends with its production: leaving the page sends nothing
 // more, so it can never air after the operator moved on.
+// Since #2671 its copies go one at a time, each cut at 8 s (fix-2655.md R2a): copies at 0 and 8.4 s
+// in place of four in the first 8 s.
 test('a Take nobody answers says "still sending", and leaving the production stops it (#2655)', async ({ page }) => {
   test.setTimeout(90_000);
   const sends: number[] = [];
@@ -261,7 +263,9 @@ test('a Take nobody answers says "still sending", and leaving the production sto
   await expect(air).toHaveText(/still sending/, { timeout: 10_000 });
   await expect(page.getByTestId('stop-sending')).toBeVisible();
   await expect(page.getByTestId('production-note')).toHaveCount(0);
-  await expect.poll(() => sends.length, { message: 'sent again past the old window', timeout: 15_000 }).toBeGreaterThanOrEqual(4);
+  await expect.poll(() => sends.length, { message: 'sent again past the old window', timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+  // One copy at a time (#2671 R2a): the second copy leaves only once the first was cut at 8 s.
+  expect(sends[1] - sends[0], 'no second copy while the first is out').toBeGreaterThanOrEqual(8_000);
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
   const left = sends.length;
