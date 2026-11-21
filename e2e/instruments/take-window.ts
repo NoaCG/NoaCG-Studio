@@ -63,8 +63,10 @@ test('Takes and Outs on a starved database: landed once, never, or twice', async
   const outcomes: Promise<{ oid: string; ok: boolean; ms: number; note: string }>[] = [];
   try {
     for (let i = 0; i < PRESSES; i += 1) {
-      const graphic = `G${i % 10}`;
-      const t = Math.floor(i / 10) % 2 === 0 ? 'play' : 'stop';
+      // Each press its own graphic, so no press replaces another (#2655 R7): what is measured is
+      // loss alone.
+      const graphic = `G${i}`;
+      const t = i % 2 === 0 ? 'play' : 'stop';
       outcomes.push(press(page, hosted, graphic, t, `p${i}`));
       await page.waitForTimeout(EVERY_MS);
     }
