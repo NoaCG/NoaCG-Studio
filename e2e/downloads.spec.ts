@@ -367,7 +367,7 @@ test('the SVG templates page previews every file and serves each SVG on its own'
   expect(SVG_EXAMPLES_URL).toBe(`${SVG_TEMPLATES_URL}#examples`);
   // The docs point here instead of listing the files.
   await page.goto('/docs#svg-layers');
-  await expect(page.getByTestId('docs-svg-examples')).toHaveAttribute('href', SVG_TEMPLATES_URL);
+  await expect(page.getByTestId('docs-svg-templates')).toHaveAttribute('href', SVG_TEMPLATES_URL);
 });
 
 test('the top bar is the landing top bar, with Downloads as the current page', async ({ page }) => {

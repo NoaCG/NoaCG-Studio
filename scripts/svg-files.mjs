@@ -93,7 +93,7 @@ export function renderSvgGallery(root = ROOT) {
     const tiles = readInventory(set, root).map((entry) => {
       const name = escapeHtml(entry.name);
       return `        <li class="svg-tile" data-testid="svg-file-${set.id}-${entry.slug}">
-          <img src="${fileUrl(set, entry.slug, 'png')}" alt="${name}" width="960" height="540" loading="lazy" />
+          <img src="${fileUrl(set, entry.slug, 'png')}" alt="" width="960" height="540" loading="lazy" />
           <span class="svg-name">${name}</span>
           <a class="svg-get" href="${fileUrl(set, entry.slug, 'svg')}" download>SVG</a>
         </li>`;

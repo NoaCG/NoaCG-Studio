@@ -2,7 +2,7 @@
 // the rewrites in vercel.json. vite.config.ts installs it, and a test that serves a built page
 // (the cold-load test in e2e/configured/audience-live.spec.ts) uses it too, so both route exactly alike.
 //
-// Twelve pages; Terms and Privacy are public pages for the optional hosted service.
+// Thirteen pages; Terms and Privacy are public pages for the optional hosted service.
 
 const CLEAN_PAGES = ['/app', '/output', '/join', '/terms', '/privacy', '/ograf', '/bridge', '/docs', '/downloads', '/svg-templates', '/whats-new', '/roadmap'];
 

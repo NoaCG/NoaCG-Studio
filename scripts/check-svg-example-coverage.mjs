@@ -2,8 +2,9 @@
 // gate: build
 // guards: docs/tutorials/svg-examples/**, src/templates/behaviours/**
 // The downloaded examples cover the actual recipe registry, and each advertised example has
-// its editable source, original SVG, preview and identical public download. Existing Illustrator
-// exports keep their source checks; source:"svg" means the SVG itself is the editable source.
+// its editable source, original SVG and preview (scripts/svg-files.test.mjs holds the public
+// copies to the sources). Existing Illustrator exports keep their source checks; source:"svg"
+// means the SVG itself is the editable source.
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
