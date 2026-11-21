@@ -1088,3 +1088,25 @@ test('On Out: what a folder owes is kept for the tab, so an Out after a reload s
   assert.deepEqual(oscLog(after), ['osc out lights']);
   assert.deepEqual(kept, {});
 });
+
+test('On Out: Out while a One-by-one OSC Take is on its way sends its On Out as soon as it lands; a Take that may have left owes one', async () => {
+  const M = { id: 'M', name: 'Steps', mode: 'manual' };
+  const r = folderRig({ folders: [M], cues: [osc('lights', 'M'), graphic('g1', 'M')] });
+  r.hold();
+  const stepping = r.fp.step(M);
+  await settle();
+  const out = r.fp.out(M);
+  await settle();
+  r.answer('take lights');
+  await settle();
+  assert.equal(oscLog(r).at(-1), 'osc out lights');
+  r.answer('out lights');
+  await stepping;
+  await out;
+  assert.equal(r.folders().folderSteps.M, null, 'the folder stays at the top');
+
+  const unsure = folderRig({ folders: [M], cues: [osc('lights', 'M')] });
+  unsure.fp.oweOut(unsure.page.cues[0]);
+  await unsure.fp.out(M);
+  assert.deepEqual(oscLog(unsure), ['osc out lights']);
+});

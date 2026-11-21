@@ -131,6 +131,8 @@ export interface FolderPlayout {
   clearMisses: (ids: readonly string[]) => void;
   /** A cue of a One-by-one folder went on air, by whatever route: the folder's step stands on it. */
   noteStep: (cue: ShowCue) => void;
+  /** An OSC cue of a One-by-one folder whose Take may have left: the folder owes its On Out. */
+  oweOut: (cue: ShowCue) => void;
   /** After a reload, put back the One-by-one steps this tab kept for folders holding an OSC cue (`io.oscSteps`). */
   restoreOscSteps: () => void;
   /** A failed send landed after all: each member's failure it settled is no miss any more.
@@ -216,6 +218,10 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     if (!folder || folderMode(folder) !== 'manual') return;
     steps((m) => (m[folder.id] === cue.id ? m : { ...m, [folder.id]: cue.id }));
     if (isControlCue(cue)) owe(folder.id, cue);
+  };
+  const oweOut = (cue: ShowCue) => {
+    const folder = cue.folderId ? page().folders.get(cue.folderId) : undefined;
+    if (folder && folderMode(folder) === 'manual' && isControlCue(cue)) owe(folder.id, cue);
   };
 
   /** Whether a cue is on air now, from the store as it stands and liveCue as last set. */
@@ -408,6 +414,15 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
       // Out or All out came while the take was on its way: what it put up goes back off, and the
       // folder stays back at the top, where Out put it, whatever that take remembered.
       if (!run.stop) return;
+      if (isControlCue(cue)) {
+        // Its Take landed after Out or All out had sent what the folder owed: its On Out goes now.
+        if (run.stop !== 'ended') {
+          const failed = await sendOuts(p, folder.id);
+          if (failed.length) p.note(failed.join(' '));
+        }
+        steps((m) => ({ ...m, [folder.id]: null }));
+        return;
+      }
       const item = p.itemOf(cue);
       if (item) {
         if (onAirNow(p, cue)) await offLate(p, { cue, item }, run.stop);
@@ -447,6 +462,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     running: (folderId) => runs.has(folderId),
     clearMisses,
     noteStep,
+    oweOut,
     restoreOscSteps,
     settleMisses: (settle) =>
       misses((m) => {

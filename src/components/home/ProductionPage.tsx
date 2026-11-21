@@ -3557,10 +3557,10 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     const outcome = await sendOsc(loadPlayoutSettings(), built.request);
     return { ok: outcome.state === 'sent', note: oscNote(now.label, built.destination.name, outcome, which), ...(outcome.state === 'uncertain' ? { uncertain: true as const } : {}) };
   };
-  const controlSend = async (cue: ShowCue, label: string, which: 'take' | 'out' = 'take'): Promise<boolean> => {
-    const { ok, note } = await controlTake(cue, label, which);
+  const controlSend = async (cue: ShowCue, label: string, which: 'take' | 'out' = 'take'): Promise<boolean | 'uncertain'> => {
+    const { ok, note, uncertain } = await controlTake(cue, label, which);
     setNote(note);
-    return ok;
+    return ok || (uncertain ? 'uncertain' : false);
   };
   const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
     // The graphic verb accepts All out before it gives its native cues the panic cut.
@@ -3819,6 +3819,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     },
     playoutVerb,
     controlSend,
+    oweOut: folderPlayout.oweOut,
     clearMisses,
     noteStep,
     stopFolders: () => folderPlayout.stopAll('all-out', sceneFolderIds(show)),
