@@ -354,6 +354,28 @@ export function productionView(row: ProductionDetailRow): Record<string, unknown
 
 // ── the Supabase store ──────────────────────────────────────────────────────────────────
 
+/** The design names a split team record's graphics carry (live-publishing G5). */
+export function designRefs(graphics: unknown): string[] {
+  if (!Array.isArray(graphics)) return [];
+  const names = new Set<string>();
+  for (const g of graphics) {
+    const ref = g && typeof g === 'object' ? (g as Record<string, unknown>).designRef : undefined;
+    if (typeof ref === 'string') names.add(ref);
+  }
+  return [...names];
+}
+
+/** A split record's graphics with each named design's fields where `productionView` reads them. */
+export function withDesignFields(graphics: unknown, designs: Array<{ name: string; fields: unknown }>): unknown {
+  if (!Array.isArray(graphics)) return graphics;
+  const fieldsOf = new Map(designs.map((d) => [d.name, d.fields]));
+  return graphics.map((g) => {
+    if (!g || typeof g !== 'object' || typeof (g as Record<string, unknown>).designRef !== 'string') return g;
+    const { designRef, ...rest } = g as Record<string, unknown>;
+    return { ...rest, template: { fields: fieldsOf.get(designRef as string) } };
+  });
+}
+
 /** A production row from either table; a team row carries its team. */
 function productionRow(r: Record<string, unknown>): LibraryProductionRow {
   return { id: String(r.id), name: str(r.name), updatedAt: String(r.updated_at), brandId: str(r.brandId), ...(r.team_id ? { teamId: String(r.team_id) } : {}) };
@@ -431,7 +453,15 @@ export function supabaseLibraryStore(): LibraryStore {
         if (error) throw new Error(error.message);
         if (data) {
           const r = data as Record<string, unknown>;
-          return { ...productionRow(r), teamName: teams.find((t) => t.id === r.team_id)?.name, graphics: r.graphics, cues: r.cues };
+          // A split record names its designs (live-publishing G5): read each named design's fields.
+          const names = designRefs(r.graphics);
+          let graphics = r.graphics;
+          if (names.length) {
+            const designs = await db.from('team_production_designs').select('name, fields:body->fields').eq('production_id', id).in('name', names);
+            if (designs.error) throw new Error(designs.error.message);
+            graphics = withDesignFields(r.graphics, (designs.data ?? []) as Array<{ name: string; fields: unknown }>);
+          }
+          return { ...productionRow(r), teamName: teams.find((t) => t.id === r.team_id)?.name, graphics, cues: r.cues };
         }
       }
       if (personal.error) throw new Error(personal.error.message);

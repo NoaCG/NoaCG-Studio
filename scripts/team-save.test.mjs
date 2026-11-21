@@ -33,13 +33,15 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
   let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics, ...(cues ? { cues } : {}), ...extra };
   let retained = { local };
   const stubs = {
-    './supabase': { getSupabase: async () => ({ storage, rpc: async (name, args) => { requests.push(args); names.push(name); return answers.length ? answers.shift() : request.promise; } }) },
+    './supabase': { getSupabase: async () => ({ storage, rpc: async (name, args) => { if (name === 'team_designs_state') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } }; requests.push(args); names.push(name); return answers.length ? answers.shift() : request.promise; } }) },
     './teams': {},
     './assets': assets,
     './pacing': pacing,
     // Saves in parts (live-publishing G4) are off here: the whole save these tests pin.
     './partialWrites': { partialWritesOn: async () => false, unitPace: async () => {}, noteWritten: () => {} },
     './unitPatch': unitPatch,
+    // Team designs (live-publishing G5) are not installed here: records are whole, as these tests pin.
+    './teamDesigns': { forgetDesigns: () => {}, savesSplit: () => false, splitRecord: async () => null, resolveRecord: async (_id, doc) => doc },
     '../model/shows': { separateMergedScenes: show => show },
     '../model/teamShows': { loadTeamShows: () => [local], applyServerTeamShow: doc => { local = doc; }, clearTeamShows: () => {} },
     '../model/rundownHistory': history,
@@ -477,7 +479,8 @@ function refreshHarness() {
       insert: (row) => ({ select: () => ({ single: async () => ({ data: { id: row.id, team_id: row.team_id, updated_at: 'moved', updated_by: 'owner' }, error: null }) }) }),
       delete: () => ({ eq: (_col, id) => ({ select: async () => ({ data: [{ id }], error: null }) }) }),
     }),
-    rpc: async () => answers.shift(),
+    // A database before team designs (live-publishing G5): the state call answers that it is absent.
+    rpc: async (name) => (name === 'team_designs_state' ? { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } } : answers.shift()),
   };
   const teams = () => reads.held ? new Promise(() => {}) : Promise.resolve({ teams: [], members: [], error: null });
   const stubs = {
@@ -487,6 +490,8 @@ function refreshHarness() {
     './pacing': pacing,
     './partialWrites': { partialWritesOn: async () => false, unitPace: async () => {}, noteWritten: () => {} },
     './unitPatch': {},
+    // Team designs (live-publishing G5) are not installed here: records are whole, as these tests pin.
+    './teamDesigns': { forgetDesigns: () => {}, savesSplit: () => false, splitRecord: async () => null, resolveRecord: async (_id, doc) => doc },
     '../model/shows': { deleteShow: () => {} },
     '../model/teamShows': {
       loadTeamShows: () => [...shows.values()],

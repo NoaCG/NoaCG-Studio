@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
   "recordedAt": "2026-11-10",
-  "count": 245,
+  "count": 253,
   "entries": {
     "anon_security_definer_function_executable_public_audience_clear_results_p_slug text, p_question text": {
       "name": "anon_security_definer_function_executable",
@@ -733,6 +733,21 @@
       "level": "WARN",
       "detail": "Function `public.team_assets_within_quota(p_team uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_assets_within_quota`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_team_designs_put_p_id uuid, p_bodies jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_designs_put(p_id uuid, p_bodies jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_designs_put`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_team_designs_read_p_id uuid, p_names text[]": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_designs_read(p_id uuid, p_names text[])` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_designs_read`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_team_designs_state_": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_designs_state()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_designs_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_team_join_p_code text, p_display_name text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -758,10 +773,20 @@
       "level": "WARN",
       "detail": "Function `public.team_production_save_v2(p_id uuid, p_expected timestamp with time zone, p_doc jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_save_v2`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_team_production_store_p_id uuid, p_expected timestamp with time zone, p_doc jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_production_store(p_id uuid, p_expected timestamp with time zone, p_doc jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_store`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_team_production_units_set_p_id uuid, p_rev bigint, p_units jsonb": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.team_production_units_set(p_id uuid, p_rev bigint, p_units jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_units_set`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_team_record_readable_p_team uuid": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_record_readable(p_team uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_record_readable`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_team_rotate_code_p_team uuid": {
       "name": "authenticated_security_definer_function_executable",
@@ -942,6 +967,11 @@
       "name": "rls_enabled_no_policy",
       "level": "INFO",
       "detail": "Table \\`public.system_settings\\` has RLS enabled, but no policies exist"
+    },
+    "rls_enabled_no_policy_public_team_production_designs": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.team_production_designs\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_template_admin": {
       "name": "rls_enabled_no_policy",

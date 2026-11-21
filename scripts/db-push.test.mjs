@@ -541,6 +541,11 @@ test('a statement that changes or locks a named live-path object is live-path', 
   assert.ok(isLive('alter table public.control_events add column if not exists seq bigint'));
   assert.ok(isLive('create index if not exists control_events_seq_idx on public.control_events (show_id, seq)'));
   assert.ok(isLive('alter publication supabase_realtime add table public.control_events'));
+  // The team designs guard (G5, 0126) and its helpers: a later file replacing only one of them is
+  // live-path by its name alone.
+  assert.ok(isLive('create or replace function public.control_shows_team_designs_guard() returns trigger language plpgsql as $$ begin return new; end $$'));
+  assert.ok(isLive('create or replace function public.control_team_designs_marked() returns boolean language sql as $$ select true $$'));
+  assert.ok(isLive('create or replace function public.control_team_record_split(p_id uuid) returns boolean language sql as $$ select false $$'));
   // A foreign key to control_shows takes a lock on it that every Take waits behind.
   assert.ok(isLive('create table public.notes (show_id uuid references public.control_shows (id) on delete cascade)'));
   // Rows written at migration time: an insert into control_events is a command to every renderer.

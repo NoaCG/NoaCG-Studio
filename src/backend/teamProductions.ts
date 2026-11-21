@@ -39,6 +39,7 @@ import { blobToDataUrl, classifyAssetRefusal, dataUrlToBlob, externalizeSharedAs
 import { backoffDelay } from './pacing';
 import { applyPatch, applyToMap, diff, PatchRefused, storedMap, type PatchOp, type UnitMap } from './unitPatch';
 import { noteWritten, partialWritesOn, unitPace } from './partialWrites';
+import { forgetDesigns, resolveRecord, savesSplit, splitRecord, type DesignServer } from './teamDesigns';
 
 export interface TeamRundownReceipt {
   owner: object | null;
@@ -151,6 +152,8 @@ interface HeadRow {
 
 interface DocRow extends HeadRow {
   doc: Show;
+  /** The record form (G5): null whole, 1 split. Read only once the server has it. */
+  doc_form?: number | null;
 }
 
 const toHead = (row: HeadRow): TeamProductionHead => ({
@@ -246,6 +249,78 @@ async function withAssets(sb: Backend, doc: Show, teamId: string): Promise<Show>
   }) as Show;
 }
 
+// ── The designs (live-publishing G5) ────────────────────────────────────────────────────────────
+//
+// A team record may name its graphics' designs (`designRef`) instead of carrying them, each design
+// stored once per production (migration 0126). This tab always holds whole records: every record it
+// receives is made whole before anything sees it (`resolveRecord`), and a save splits the record
+// (`splitRecord`) only while the server has the designs and its `team_designs` switch is on.
+
+const DESIGNS_READ_EVERY_MS = 30_000;
+/** null until the first answer; false while the server has no `team_designs_state` (before 0126).
+ *  Asked again every 30 s whatever it answered, so a page opened before the migration is applied
+ *  starts saving split once it is (G5 section 7). */
+let designsInstalled: boolean | null = null;
+let designsOn = false;
+let designsAt = 0;
+let designsAsking: Promise<string | null> | null = null;
+
+/** Read `team_designs_state()` when it is due. Answers an error message only while installation is
+ *  still unknown: a team fetch then fails like a read error and is retried with the read backoff
+ *  (G5 section 3). Later failures keep the last answer. */
+async function designsReady(sb: Backend, now = Date.now()): Promise<string | null> {
+  if (designsInstalled !== null && now - designsAt < DESIGNS_READ_EVERY_MS) return null;
+  designsAsking ??= (async () => {
+    try {
+      const { data, error } = await sb.rpc('team_designs_state');
+      if (error) {
+        if (error.code === 'PGRST202') {
+          designsInstalled = false;
+          designsAt = Date.now();
+          return null;
+        }
+        return designsInstalled === null ? error.message : null;
+      }
+      const state = (data ?? {}) as { installed?: unknown; on?: unknown };
+      designsInstalled = state.installed === true;
+      designsOn = state.on === true;
+      designsAt = Date.now();
+      return null;
+    } catch (failed) {
+      return designsInstalled === null ? (failed instanceof Error ? failed.message : String(failed)) : null;
+    } finally {
+      designsAsking = null;
+    }
+  })();
+  return designsAsking;
+}
+
+/** Saves are split while the server has the designs, the switch is on, and this page can name its
+ *  images by content (Web Crypto; G5 R10). */
+function splittingSaves(): boolean {
+  return savesSplit({ installed: designsInstalled, on: designsOn, webCrypto: !!(globalThis as { crypto?: { subtle?: unknown } }).crypto?.subtle });
+}
+
+function designServer(sb: Backend): DesignServer {
+  return {
+    async put(id, bodies) {
+      const { data, error } = await sb.rpc('team_designs_put', { p_id: id, p_bodies: bodies });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as string[];
+    },
+    async read(id, names) {
+      const { data, error } = await sb.rpc('team_designs_read', { p_id: id, p_names: names });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as { name: string; body: Record<string, unknown> }[];
+    },
+  };
+}
+
+/** A record as the server answered it, whole and with its files back. */
+async function receivedRecord(sb: Backend, id: string, doc: Show, form: number | null | undefined, teamId: string): Promise<Show> {
+  return await withAssets(sb, await resolveRecord(id, doc, designsInstalled ? (form ?? null) : undefined, designServer(sb)), teamId);
+}
+
 // ── The verbs ───────────────────────────────────────────────────────────────────────────────────
 
 /** Every team production this account can see - RLS (`team_productions_member_select`) is the
@@ -264,13 +339,15 @@ export async function listTeamProductionHeads(): Promise<{ heads: TeamProduction
 async function fetchTeamProductionDocs(ids: string[]): Promise<{ rows: DocRow[]; error: string | null }> {
   const sb = await getSupabase();
   if (!sb || ids.length === 0) return { rows: [], error: null };
+  const unknown = await designsReady(sb);
+  if (unknown) return { rows: [], error: unknown };
   const { data, error } = await sb
     .from('team_productions')
-    .select('id, team_id, updated_at, updated_by, doc')
+    .select(designsInstalled ? 'id, team_id, updated_at, updated_by, doc, doc_form' : 'id, team_id, updated_at, updated_by, doc')
     .in('id', ids);
   if (error) return { rows: [], error: error.message };
   try {
-    const rows = await Promise.all(((data ?? []) as DocRow[]).map(async (row) => ({ ...row, doc: await withAssets(sb, row.doc, row.team_id) })));
+    const rows = await Promise.all(((data ?? []) as unknown as DocRow[]).map(async (row) => ({ ...row, doc: await receivedRecord(sb, row.id, row.doc, row.doc_form, row.team_id) })));
     return { rows, error: null };
   } catch (failed) {
     return { rows: [], error: failed instanceof Error ? failed.message : String(failed) };
@@ -316,9 +393,16 @@ async function saveTeamProduction(
 ): Promise<{ answer: SaveAnswer | null; error: string | null }> {
   const sb = await getSupabase();
   if (!sb) return { answer: null, error: 'No backend configured.' };
+  const unknown = await designsReady(sb);
+  if (unknown) return { answer: null, error: unknown };
   // ONLY WHAT CHANGED (live-publishing G4 section 2): with a base for this token, the units that
   // changed go up as a patch, under the same compare-and-swap; otherwise the whole document, below.
   const inParts = await partialWritesOn();
+  // THE DESIGNS ONCE (G5 section 3): a split record, when the server takes one; else whole, below.
+  if (splittingSaves()) {
+    const split = await saveSplit(sb, id, expected, doc, teamId, inParts);
+    if (split) return split;
+  }
   let map: UnitMap | null = null;
   if (inParts) {
     const held = teamBases.get(id);
@@ -337,7 +421,7 @@ async function saveTeamProduction(
       }
       const { data, error } = await saveRpc(sb, 'team_production_patch', { p_id: id, p_expected: expected, p_ops: sent });
       if (error) return { answer: null, error: error.message };
-      const a = data as { saved?: boolean; replaced?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show; rev?: unknown; units?: unknown } | null;
+      const a = data as { saved?: boolean; replaced?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show; doc_form?: number | null; rev?: unknown; units?: unknown } | null;
       if (!a || typeof a.updated_at !== 'string') return { answer: null, error: 'The save was not answered.' };
       teamBases.delete(id);
       if (a.saved) {
@@ -356,7 +440,7 @@ async function saveTeamProduction(
   const p_doc = await withoutAssets(sb, doc, teamId, inParts);
   const { data, error } = await saveRpc(sb, 'team_production_save', { p_id: id, p_expected: expected, p_doc });
   if (error) return { answer: null, error: error.message };
-  const a = data as { saved?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show; rev?: unknown } | null;
+  const a = data as { saved?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show; doc_form?: number | null; rev?: unknown } | null;
   if (!a || typeof a.updated_at !== 'string') return { answer: null, error: 'The save was not answered.' };
   if (inParts && map && a.saved && typeof a.rev === 'number') {
     teamBases.set(id, { token: a.updated_at, rev: a.rev, map });
@@ -382,7 +466,7 @@ let leanSaves = true;
  *  `team_production_changes`, its token and its map (R4). Memory only. */
 const teamReads = new Map<string, { token: string; doc: Record<string, unknown>; map: UnitMap }>();
 
-type RefusalRow = { updated_at: string; updated_by?: string | null; doc?: Show };
+type RefusalRow = { updated_at: string; updated_by?: string | null; doc?: Show; doc_form?: number | null };
 
 async function saveRpc(sb: Backend, name: 'team_production_save' | 'team_production_patch', args: Record<string, unknown>) {
   if (leanSaves) {
@@ -396,17 +480,18 @@ async function saveRpc(sb: Backend, name: 'team_production_save' | 'team_product
 /** A refusal as the save pump takes it: the teammate's document with its files, and its token. An
  *  older function's refusal carries the document (R2); a v2 refusal is read (R3 to R6). */
 async function refusedAnswer(sb: Backend, id: string, teamId: string, a: RefusalRow): Promise<{ answer: SaveAnswer | null; error: string | null }> {
-  if ('doc' in a) return { answer: { saved: false, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null, doc: await withAssets(sb, a.doc as Show, teamId) }, error: null };
+  // Either way the record is made whole before the merge sees it (G5 section 3).
+  if ('doc' in a) return { answer: { saved: false, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null, doc: await receivedRecord(sb, id, a.doc as Show, a.doc_form, teamId) }, error: null };
   const read = await readTeamChanges(sb, id);
   if ('error' in read) return { answer: null, error: read.error };
-  return { answer: { saved: false, updatedAt: read.token, updatedBy: read.updatedBy, doc: await withAssets(sb, read.doc as unknown as Show, teamId) }, error: null };
+  return { answer: { saved: false, updatedAt: read.token, updatedBy: read.updatedBy, doc: await receivedRecord(sb, id, read.doc as unknown as Show, read.form, teamId) }, error: null };
 }
 
 /** One stored version of a team record, read as what changed since the version this page last read
  *  (R3, R4): once with the kept map, and once more with an empty map when the kept form will not take
  *  the answer. An answer whose kept form was replaced, or whose session ended, while it was out is
  *  dropped. */
-async function readTeamChanges(sb: Backend, id: string): Promise<{ token: string; updatedBy: string | null; doc: Record<string, unknown> } | { error: string }> {
+async function readTeamChanges(sb: Backend, id: string): Promise<{ token: string; updatedBy: string | null; doc: Record<string, unknown>; form?: number | null } | { error: string }> {
   const owner = running;
   // Twice at most: a kept form that will not take the answer is deleted, so the second read is whole.
   for (let pass = 0; pass < 2; pass++) {
@@ -419,19 +504,83 @@ async function readTeamChanges(sb: Backend, id: string): Promise<{ token: string
       return { error: error.message };
     }
     if (running !== owner || teamReads.get(id) !== kept) return { error: 'The team production changed while it was read.' };
-    const a = data as { updated_at?: unknown; updated_by?: string | null; ops?: unknown } | null;
+    const a = data as { updated_at?: unknown; updated_by?: string | null; ops?: unknown; doc_form?: number | null } | null;
     if (!a || typeof a.updated_at !== 'string' || !Array.isArray(a.ops)) return { error: 'The team production could not be read.' };
     const ops = a.ops as PatchOp[];
     try {
       const doc = applyPatch(kept?.doc ?? {}, ops);
       teamReads.set(id, { token: a.updated_at, doc, map: applyToMap(kept?.map ?? {}, ops, doc) });
-      return { token: a.updated_at, updatedBy: a.updated_by ?? null, doc };
+      // The record's form (G5), when the server says it: a form this build does not know is never held.
+      return { token: a.updated_at, updatedBy: a.updated_by ?? null, doc, ...('doc_form' in a ? { form: a.doc_form ?? null } : {}) };
     } catch (failed) {
       if (!(failed instanceof PatchRefused)) throw failed;
       teamReads.delete(id);
     }
   }
   return { error: 'The team production could not be read.' };
+}
+
+type SaveResult = { answer: SaveAnswer | null; error: string | null };
+type StoreAnswer = { saved?: boolean; off?: boolean; missing?: unknown; replaced?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show; doc_form?: number | null; rev?: unknown; units?: unknown } | null;
+
+/** A save of the split record (G5 section 3): designs this page has no name for are put first, then
+ *  the record goes up as a patch on a split base, else through `team_production_store`. Answers null
+ *  when the record must go whole instead: the switch went off, it cannot be split, or the server
+ *  still misses a design after one put again. */
+async function saveSplit(sb: Backend, id: string, expected: string, doc: Show, teamId: string, inParts: boolean): Promise<SaveResult | null> {
+  const server = designServer(sb);
+  // Designs always name their images by content (G5 Terms), whatever `partial_writes` says.
+  const stored = (await withoutAssets(sb, doc, teamId, true)) as Record<string, unknown>;
+  // A refusal carries the token only (#2615): the record is read and made whole (refusedAnswer).
+  const refused = (a: NonNullable<StoreAnswer>): Promise<SaveResult> => refusedAnswer(sb, id, teamId, a as RefusalRow);
+  for (let round = 0; round < 2; round++) {
+    const split = await splitRecord(id, stored, server);
+    if (!split) return null;
+    let map: UnitMap | null = null;
+    if (inParts) {
+      const held = teamBases.get(id);
+      const base = held && Date.parse(held.token) === Date.parse(expected) ? held : await readTeamBase(sb, id, expected);
+      const built = await diff(base?.map ?? null, split, unitPace);
+      map = built.map;
+      if (base) {
+        const { data, error } = await saveRpc(sb, 'team_production_patch', { p_id: id, p_expected: expected, p_ops: built.ops });
+        if (error) return { answer: null, error: error.message };
+        const a = data as StoreAnswer;
+        if (!a || typeof a.updated_at !== 'string') return { answer: null, error: 'The save was not answered.' };
+        teamBases.delete(id);
+        if (a.saved) return { answer: settled(sb, id, a, map), error: null };
+        if (!a.replaced) return await refused(a);
+        // A record of the other form, or one the patch cannot take: stored below.
+      }
+    }
+    const { data, error } = await sb.rpc('team_production_store', { p_id: id, p_expected: expected, p_doc: split });
+    if (error) return { answer: null, error: error.message };
+    const a = data as StoreAnswer;
+    if (a?.off === true) {
+      designsOn = false;
+      return null;
+    }
+    if (a && Array.isArray(a.missing)) {
+      forgetDesigns(id, a.missing.filter((n): n is string => typeof n === 'string'));
+      continue;
+    }
+    if (!a || typeof a.updated_at !== 'string') return { answer: null, error: 'The save was not answered.' };
+    if (a.saved) return { answer: settled(sb, id, a, inParts ? map : null), error: null };
+    return await refused(a);
+  }
+  return null;
+}
+
+/** A landed split save: its map kept for the next patch (G4), and its revision noted. */
+function settled(sb: Backend, id: string, a: NonNullable<StoreAnswer>, map: UnitMap | null): SaveAnswer {
+  if (typeof a.rev === 'number') {
+    noteWritten(id, a.rev, a.updated_at!);
+    if (map) {
+      teamBases.set(id, { token: a.updated_at!, rev: a.rev, map });
+      if (a.units !== true) void Promise.resolve(sb.rpc('team_production_units_set', { p_id: id, p_rev: a.rev, p_units: { m: map } })).catch(() => {});
+    }
+  }
+  return { saved: true, updatedAt: a.updated_at!, updatedBy: a.updated_by ?? null };
 }
 
 // ── The controller ──────────────────────────────────────────────────────────────────────────────
@@ -588,6 +737,7 @@ export function stopTeamSync(): void {
   for (const timer of timers.values()) clearTimeout(timer);
   timers.clear();
   server.clear();
+  forgetDesigns();
   dirty.clear();
   inflight.clear();
   sendingShows.clear();

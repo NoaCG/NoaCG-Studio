@@ -25,11 +25,12 @@
 // covers: src/backend/teamProductions.ts, src/backend/assets.ts, src/backend/pacing.ts
 // covers: src/backend/savedRevision.ts, src/control/autoPublish.ts, src/components/home/useAutoPublish.ts
 // covers: src/control/publishParts.ts, src/control/publishRevision.ts, src/control/messageStaging.ts
+// covers: src/backend/teamDesigns.ts
 // A REFUSED SAVE READS ONLY WHAT CHANGED (#2615, live-publishing evidence/fix-2615.md): the describe at the end.
 // covers: supabase/migrations/0124_team_save_refusal_token.sql, src/backend/unitPatch.ts
 
 import { publishProduction } from '../_publish';
-import { closeScene, isLocalStack, lastTexts, openScene, pageCues, run, serverState, type Scene } from './_five';
+import { closeScene, isLocalStack, lastTexts, openProduction, openScene, pageCues, run, serverState, setSwitch, type Scene } from './_five';
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import {
   dismissWizard,
@@ -1016,6 +1017,298 @@ test.describe('five accounts at once', () => {
   function pickCues(cues: Record<string, string>, labels: string[]): Record<string, string> {
     return Object.fromEntries(labels.map((l) => [l, cues[l]]));
   }
+});
+
+// THE TEAM RECORD WITHOUT ITS DESIGNS (live-publishing G5, issue #2614), with the `team_designs`
+// switch on: a team record names each design once (`designRef`) and every page reads it whole; a
+// cue edit puts no design, even after a reload; a design change puts one. A page opened before the
+// update is played here by a browser context whose REST requests lose the designs mark, which is
+// exactly what the database sees of an older page: it is never handed a split record and cannot
+// write the production's record or publication, while its Takes still land.
+test.describe('team designs: one copy of each design per production', () => {
+  test.skip(!haveCreds || !haveTeammateCreds || !SERVICE_ROLE_KEY || !isLocalStack(), 'the switch is a service-role write: local stack, its accounts and its key only');
+  test.setTimeout(240_000);
+  test.afterEach(async () => {
+    await setSwitch('team_designs', false).catch(() => undefined);
+  });
+
+  const MARK = 'x-noacg-team-designs';
+  const REFUSED = 'Reload this page to edit';
+  // A small PNG, so the image round trip through Storage is part of what a reload re-reads.
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+  /** The team's rows, removed with the local stack's service role (the team owner's own delete runs
+   *  from a page that a failed step may have left mid-navigation). Teams this walk left behind are
+   *  swept first: one split record locks the older page's account out of every team it is in. */
+  async function dropDesignTeams(id?: string): Promise<void> {
+    const filter = id ? `id=eq.${id}` : `name=like.${encodeURIComponent('E2E team *designs')}`;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/teams?${filter}`, { method: 'DELETE', headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } });
+    expect(r.ok, `the walk's teams were removed: ${r.status} ${await r.text()}`).toBe(true);
+  }
+
+  /** A context whose REST requests never carry the designs mark: an older page, to the database. */
+  async function asOlderPage(context: BrowserContext): Promise<void> {
+    await context.route('**/rest/v1/**', (route) => {
+      const headers = { ...route.request().headers() };
+      delete headers[MARK];
+      return route.continue({ headers });
+    });
+  }
+
+  /** Cue edits and design changes go up now, not after the debounce. */
+  async function editCue(page: Page, showId: string, graphic: string, text: string): Promise<void> {
+    const error = await page.evaluate(async ({ id, graphic, text }) => {
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { flushTeamProduction } = await __noacgImport('/src/backend/teamProductions.ts');
+      const show = m.loadShows().find((s: { id: string }) => s.id === id)!;
+      const g = show.graphics.find((x: { name: string }) => x.name === graphic)!;
+      const cue = show.cues!.find((c: { sourceId: string }) => c.sourceId === g.id)!;
+      m.updateShowCue(id, cue.id, { values: { ...cue.values, f0: text } });
+      return await flushTeamProduction(id);
+    }, { id: showId, graphic, text });
+    expect(error, `the edit to ${graphic} was saved`).toBeNull();
+  }
+
+  /** The stored row as a new page's session reads it: its form and each graphic's stored members. */
+  async function storedRow(page: Page, showId: string): Promise<{ form: number | null; graphics: Array<{ name: string; designRef?: string; template?: unknown }>; cues: Array<{ values?: Record<string, string> }> }> {
+    return page.evaluate(async (id) => {
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+      const sb = (await getSupabase())!;
+      const { data, error } = await sb.from('team_productions').select('doc, doc_form').eq('id', id).single();
+      if (error) throw new Error(error.message);
+      const row = data as { doc: { graphics: Array<Record<string, unknown>>; cues: Array<{ values?: Record<string, string> }> }; doc_form: number | null };
+      return { form: row.doc_form, graphics: row.doc.graphics.map((g) => ({ name: String(g.name), designRef: g.designRef as string | undefined, template: g.template })), cues: row.doc.cues };
+    }, showId);
+  }
+
+  /** The designs this page holds, by graphic name, as canonical JSON. */
+  async function heldDesigns(page: Page, showId: string): Promise<Record<string, string>> {
+    return page.evaluate(async (id) => {
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { canonicalJson } = await __noacgImport('/src/backend/unitPatch.ts');
+      const show = loadShows().find((s: { id: string }) => s.id === id)!;
+      return Object.fromEntries(show.graphics.map((g: { name: string; template: unknown }) => [g.name, canonicalJson(g.template)]));
+    }, showId);
+  }
+
+  /** One REST call as this page makes it (an older page's context strips the mark on the way). */
+  async function rest(page: Page, path: string, init: { method?: string; body?: unknown } = {}): Promise<{ status: number; text: string }> {
+    return page.evaluate(async ({ path, init }) => {
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+      const { loadBackendConfig } = await __noacgImport('/src/backend/config.ts');
+      const sb = (await getSupabase())!;
+      const { data } = await sb.auth.getSession();
+      const { url, anonKey } = loadBackendConfig();
+      const r = await fetch(`${url}/rest/v1/${path}`, {
+        method: init.method ?? 'GET',
+        headers: { apikey: anonKey, authorization: `Bearer ${data.session!.access_token}`, 'content-type': 'application/json', 'x-noacg-production-copies': '1', 'x-noacg-team-designs': '1', prefer: 'return=representation' },
+        body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      });
+      return { status: r.status, text: await r.text() };
+    }, { path, init });
+  }
+
+  test('a cue edit stores no design; every page reads the record whole; an older page only plays out', async ({ browser }) => {
+    const contexts: BrowserContext[] = [];
+    const open = async (older = false) => {
+      const context = await browser.newContext();
+      contexts.push(context);
+      await installDoor(context);
+      if (older) await asOlderPage(context);
+      return context.newPage();
+    };
+    let teamId: string | null = null;
+    let ownTeamId: string | null = null;
+    const owner = await open();
+    try {
+      await setSwitch('team_designs', false);
+      await dropDesignTeams();
+      await signIn(owner);
+      await dismissWizard(owner).catch(() => undefined);
+      await owner.goto('/app#/home');
+      await expect(owner.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+      // A production of two graphics, one with an image, moved into a new team and published.
+      const made = await owner.evaluate(async ({ name, png }) => {
+        const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+        const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+        const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
+        const m = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+        const pick = Object.values(CATALOG).flat().find((v) => v.name === 'Hairline')!;
+        const draft = mergeDraft(initialDraft(), { variantId: pick.id, lines: pick.suggestedLines.map((l) => ({ ...l })), zone: null, logoEnabled: null, animation: { presetId: null, outPresetId: null }, paletteId: null, customPalette: null, fontId: null });
+        const base = await formatTemplate(buildDraftTemplate(pick, draft));
+        const { show, error } = m.createShowNamedChecked(name);
+        if (error) throw new Error(error);
+        for (const [n, assets] of [['Designs A', [{ path: 'logo.png', data: png }]], ['Designs B', []]] as const) {
+          const added = m.addGraphicToShow(show.id, { ...base, name: n, assets: [...(base.assets ?? []), ...assets] }, {});
+          if (added.error) throw new Error(added.error);
+        }
+        const failure = await commitDurableWrites();
+        if (failure) throw new Error(failure);
+        return { id: show.id };
+      }, { name: `Team designs ${Date.now()}`, png: PNG });
+      const team = await owner.evaluate(async ({ id, teamName }) => {
+        const { createTeam } = await __noacgImport('/src/backend/teams.ts');
+        const { moveProductionToTeam } = await __noacgImport('/src/backend/teamProductions.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        const { team, error } = await createTeam(teamName, 'Designs owner');
+        if (!team) throw new Error(`team: ${error}`);
+        const moved = await moveProductionToTeam(loadShows().find((s: { id: string }) => s.id === id)!, team.id);
+        if (moved.error) throw new Error(`move: ${moved.error}`);
+        return { id: team.id as string, code: team.joinCode as string };
+      }, { id: made.id, teamName: `${TEAM_NAME()} designs` });
+      teamId = team.id;
+      await owner.goto(`/app#/production/${made.id}`);
+      await expect(owner.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+      await publishProduction(owner);
+      expect((await storedRow(owner, made.id)).form, 'with the switch off the record stays whole').toBeNull();
+
+      // The older page opens the production while its record is still whole.
+      const older = await open(true);
+      await signInAs(older, E2E_TEAMMATE_EMAIL, E2E_TEAMMATE_PASSWORD);
+      await dismissWizard(older).catch(() => undefined);
+      const joined = await older.evaluate(async ({ code }) => {
+        const { joinTeamByCode } = await __noacgImport('/src/backend/teams.ts');
+        const { refreshTeams } = await __noacgImport('/src/backend/teamProductions.ts');
+        const { error } = await joinTeamByCode(code, 'Older page');
+        await refreshTeams();
+        return error;
+      }, { code: team.code });
+      expect(joined).toBeNull();
+      await openProduction(older, made.id);
+
+      // The switch goes on; the owner's page reads it on its next load and splits its next save.
+      await setSwitch('team_designs', true);
+      await owner.reload();
+      await openProduction(owner, made.id);
+      const state = await owner.evaluate(async () => {
+        const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+        return (await (await getSupabase())!.rpc('team_designs_state')).data as { mark: boolean; on: boolean };
+      });
+      expect(state, 'a marked browser request reaches the database').toEqual({ installed: true, mark: true, on: true });
+      const puts: string[] = [];
+      owner.on('request', (r) => { if (r.url().endsWith('/rest/v1/rpc/team_designs_put')) puts.push(r.url()); });
+      await editCue(owner, made.id, 'Designs A', 'Split first');
+      let stored = await storedRow(owner, made.id);
+      expect(stored.form, 'the record is split (R5)').toBe(1);
+      expect(stored.graphics.every((g) => typeof g.designRef === 'string' && g.template === undefined), 'every graphic names its design and carries none (R16)').toBe(true);
+      expect(puts.length, 'the conversion put the designs').toBeGreaterThan(0);
+      const designs = await heldDesigns(owner, made.id);
+      expect(designs['Designs A']).toContain(PNG);
+
+      // Another new page reads the record whole: the same designs, image included, and the edit (R1).
+      const second = await open();
+      await signIn(second);
+      await openProduction(second, made.id);
+      expect(await heldDesigns(second, made.id)).toEqual(designs);
+
+      // After a reload a cue edit puts no design (R8), and the record stays split.
+      await owner.reload();
+      await openProduction(owner, made.id);
+      puts.length = 0;
+      await editCue(owner, made.id, 'Designs B', 'After reload');
+      expect(puts, 'a cue edit after a reload puts no design').toEqual([]);
+
+      // A design change puts that one design, and keeps the record split; the next cue edit puts none.
+      const changed = await owner.evaluate(async ({ id }) => {
+        const m = await __noacgImport('/src/model/shows.ts');
+        const { flushTeamProduction } = await __noacgImport('/src/backend/teamProductions.ts');
+        const g = m.loadShows().find((s: { id: string }) => s.id === id)!.graphics.find((x: { name: string }) => x.name === 'Designs B')!;
+        const { error } = m.setGraphicCopyScript(id, g.id, g.template.js, `${g.template.js}\n// changed`);
+        return error ?? (await flushTeamProduction(id));
+      }, { id: made.id });
+      expect(changed).toBeNull();
+      expect(puts.length, 'one design put for one design change').toBe(1);
+      const before = stored;
+      stored = await storedRow(owner, made.id);
+      expect(stored.form).toBe(1);
+      expect(stored.graphics.every((g) => typeof g.designRef === 'string' && g.template === undefined)).toBe(true);
+      expect(stored.graphics.find((g) => g.name === 'Designs B')!.designRef).not.toBe(before.graphics.find((g) => g.name === 'Designs B')!.designRef);
+      expect(stored.graphics.find((g) => g.name === 'Designs A')!.designRef).toBe(before.graphics.find((g) => g.name === 'Designs A')!.designRef);
+      puts.length = 0;
+      await editCue(owner, made.id, 'Designs A', 'After the change');
+      expect(puts).toEqual([]);
+      await expect.poll(async () => (await heldDesigns(second, made.id))['Designs B'], { timeout: 40_000, message: 'the other new page takes the new design on its next read' }).toBe((await heldDesigns(owner, made.id))['Designs B']);
+
+      // Two new pages save at once: one is refused (the token only, #2615), reads the split record
+      // through team_production_changes, makes it whole and merges; both edits stand, the record stays
+      // split, and both pages still hold every design (R1, R9).
+      await Promise.all([
+        editCue(owner, made.id, 'Designs A', 'Both at once A'),
+        editCue(second, made.id, 'Designs B', 'Both at once B'),
+      ]);
+      await expect.poll(async () => (await storedRow(owner, made.id)).cues.map((c) => c.values?.f0), { timeout: 40_000, message: 'both edits stand' })
+        .toEqual(expect.arrayContaining(['Both at once A', 'Both at once B']));
+      expect((await storedRow(owner, made.id)).form).toBe(1);
+      for (const p of [owner, second]) {
+        await expect.poll(async () => heldDesigns(p, made.id), { timeout: 40_000, message: 'each page holds every design whole' }).toEqual(await heldDesigns(owner, made.id));
+        expect(Object.values(await heldDesigns(p, made.id)).every((d) => d.length > 1000)).toBe(true);
+      }
+
+      // The older page: every read that would include the split row is refused, as a whole (R6).
+      const heads = await rest(older, 'team_productions?select=id,updated_at');
+      expect(heads.status).toBeGreaterThanOrEqual(400);
+      expect(heads.text).toContain(REFUSED);
+      const token = (await rest(owner, `team_productions?select=updated_at&id=eq.${made.id}`)).text;
+      const expected = (JSON.parse(token) as Array<{ updated_at: string }>)[0].updated_at;
+      for (const [fn, body] of [
+        ['team_production_save', { p_id: made.id, p_expected: expected, p_doc: { name: 'whole', graphics: [], cues: [] } }],
+        ['team_production_patch', { p_id: made.id, p_expected: expected, p_ops: [{ m: 'name', set: 'x', u: 'u' }] }],
+        // #2615's saves and its read of what changed (0124).
+        ['team_production_save_v2', { p_id: made.id, p_expected: expected, p_doc: { name: 'whole', graphics: [], cues: [] } }],
+        ['team_production_patch_v2', { p_id: made.id, p_expected: expected, p_ops: [{ m: 'name', set: 'x', u: 'u' }] }],
+        ['team_production_changes', { p_id: made.id, p_map: null }],
+      ] as const) {
+        const answer = await rest(older, `rpc/${fn}`, { method: 'POST', body });
+        expect(answer.text, `${fn} from an older page`).toContain(REFUSED);
+      }
+      // Nor can it write the publication (R7).
+      const publish = await rest(older, `control_shows?id=eq.${made.id}`, { method: 'PATCH', body: { title: 'From an older page' } });
+      expect(publish.text, 'a publish from an older page').toContain(REFUSED);
+      // Nor delete the production or its publication, even signed in as the team's owner (the only
+      // account allowed to delete): refused before anything is removed.
+      const olderOwner = await open(true);
+      await signIn(olderOwner);
+      const deleteRecord = await rest(olderOwner, `team_productions?id=eq.${made.id}&select=id`, { method: 'DELETE' });
+      expect(deleteRecord.text, 'an older page deleting the split production').toContain(REFUSED);
+      const deletePublication = await rest(olderOwner, `control_shows?id=eq.${made.id}&select=id`, { method: 'DELETE' });
+      expect(deletePublication.text, 'an older page deleting the publication').toContain(REFUSED);
+      expect((await storedRow(owner, made.id)).form, 'the record is still there, split').toBe(1);
+      // A team of the older page's own, with only a whole production: its heads poll (one query
+      // across all its teams) still fails while the split sibling exists; by-id reads of the whole
+      // production are recorded as the planner answers them (G5 section 8).
+      const own = await older.evaluate(async ({ teamName }) => {
+        const m = await __noacgImport('/src/model/shows.ts');
+        const { createTeam } = await __noacgImport('/src/backend/teams.ts');
+        const { moveProductionToTeam } = await __noacgImport('/src/backend/teamProductions.ts');
+        const { show } = m.createShowNamedChecked(`Older page's own ${Date.now()}`);
+        const { team, error } = await createTeam(teamName, 'Older page');
+        if (!team) throw new Error(`team: ${error}`);
+        const moved = await moveProductionToTeam(m.loadShows().find((s: { id: string }) => s.id === show.id)!, team.id);
+        return { id: show.id as string, teamId: team.id as string, error: moved.error };
+      }, { teamName: `${TEAM_NAME()} older designs` });
+      ownTeamId = own.teamId;
+      expect(own.error, 'the older page made a whole team production of its own').toBeNull();
+      const polled = await rest(older, 'team_productions?select=id,updated_at');
+      expect(polled.text, "the older page's heads poll, with a whole production of another team in it").toContain(REFUSED);
+      const byId = await rest(older, `team_productions?select=id&id=eq.${own.id}`);
+      test.info().annotations.push({ type: 'older page by-id read of a whole production beside a split one', description: `${byId.status} ${byId.text.slice(0, 120)}` });
+      expect(byId.status === 200 || byId.text.includes(REFUSED), `either read as today or refused with the words: ${byId.status} ${byId.text}`).toBe(true);
+      // Its Takes still land (R14): a command row appears for the press.
+      const commands = async () => JSON.parse((await rest(owner, `control_events?select=id&show_id=eq.${made.id}`)).text).length as number;
+      const sent = await commands();
+      await selectCueFor(older, 'Designs A');
+      await older.getByTestId('verb-take').click();
+      await expect.poll(commands, { timeout: 20_000, message: "the older page's Take reached the output's command log" }).toBeGreaterThan(sent);
+      // The record kept every new page's edit.
+      expect((await storedRow(owner, made.id)).cues.map((c) => c.values?.f0)).toEqual(expect.arrayContaining(['Both at once A', 'Both at once B']));
+    } finally {
+      await setSwitch('team_designs', false).catch(() => undefined);
+      for (const c of contexts) await c.close().catch(() => undefined);
+      if (teamId) await dropDesignTeams(teamId);
+      if (ownTeamId) await dropDesignTeams(ownTeamId);
+    }
+  });
 });
 
 // A REFUSED SAVE READS ONLY WHAT CHANGED (#2615, docs/work-specs/live-publishing/evidence/fix-2615.md).

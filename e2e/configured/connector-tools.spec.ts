@@ -174,6 +174,21 @@ test.describe('remote MCP connector: the read tools', () => {
         graphics: [{ id: 'pool-1', graphicId: seededA.graphic, layer: 20 }],
         cues: [{ label: 'Pastor Lee', graphic: 'A team night names', values: { f0: 'Lee', f1: 'Pastor' } }],
       });
+      // The same production as a split record (live-publishing G5): its graphic names its design,
+      // stored once beside it; the tool answers exactly as it does for the whole record.
+      const row = await admin.from('team_productions').select('doc').eq('id', seededA.teamProduction).single();
+      if (row.error) throw new Error(row.error.message);
+      const whole = row.data.doc as { graphics: Array<Record<string, unknown>> };
+      const designs = whole.graphics.map((g, i) => ({ production_id: seededA.teamProduction, name: `connector-design-${i}`, body: g.template, bytes: JSON.stringify(g.template).length }));
+      const put = await admin.from('team_production_designs').insert(designs);
+      if (put.error) throw new Error(`designs: ${put.error.message}`);
+      const split = { ...whole, graphics: whole.graphics.map(({ template: _design, ...g }, i) => ({ ...g, designRef: `connector-design-${i}` })) };
+      const stored = await admin.from('team_productions').update({ doc: split }).eq('id', seededA.teamProduction).select('doc_form').single();
+      if (stored.error) throw new Error(`split: ${stored.error.message}`);
+      expect(stored.data.doc_form, 'the record is stored split').toBe(1);
+      const splitDetail = await call(clientA, 'noacg_library', { production: seededA.teamProduction });
+      expect(splitDetail.isError).not.toBe(true);
+      expect(splitDetail.structuredContent!.production, 'a split record answers as the whole one').toEqual(detail.structuredContent!.production);
       for (const id of [seededB.production, seededB.teamProduction]) {
         const refused = await call(clientA, 'noacg_library', { production: id });
         expect(refused.isError, id).toBe(true);
