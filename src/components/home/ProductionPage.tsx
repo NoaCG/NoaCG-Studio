@@ -511,6 +511,7 @@ const GRAPHIC_VERB_IO: GraphicVerbIo = {
   nameList,
   now: wallClock,
   stopGeneration: sendStopGeneration,
+  stopSending,
   sendsInOrder,
   setTimeout: (run, ms) => setTimeout(run, ms),
   clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
@@ -4537,6 +4538,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         // What the selection keys act on: the page's own selection, its first cue until one is picked.
         selected={selectedFolder ? folderName(selectedFolder) : (selectedCue?.label ?? null)}
         note={note}
+        stillSending={stillSending}
+        onStopSending={stopSending}
         now={now}
         rows={scenePanel?.rows ?? null}
         scenes={obsSceneList}

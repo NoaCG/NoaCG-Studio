@@ -1791,24 +1791,36 @@ export function subscribeStillSending(listener: () => void): () => void {
 
 /** Per production slug and graphic, the presses of this page on the numbered road still out (sent
  *  or waiting in their lane), each with what ends it: a later press that REPLACES the graphic ends
- *  every earlier one there (#2655 R7, newest wins). */
-const laneEnders = new Map<string, Set<AbortController>>();
+ *  every earlier one there (#2655 R7, newest wins). Ending one stops further attempts and ends a
+ *  wait in its lane; an attempt already on its way gets its answer, as before. All out is never
+ *  in here: no later press ends the panic control. */
+const laneEnders = new Map<string, Set<() => void>>();
 
 /** A press stopped before it left: nothing of it can land, so it is not owed (`sending stopped`). */
 const notSentError = () => Object.assign(new Error(stoppedError().message), { stopped: true, aired: false, sent: [] });
 
-/** A signal that aborts when any of these does, with that one's reason. */
-function eitherSignal(...signals: AbortSignal[]): AbortSignal {
+/** A signal that aborts when any of these does, with that one's reason, and the call that stops
+ *  listening (the page's stop signal lives for a whole show, so a press must not stay on it). */
+function eitherSignal(...signals: AbortSignal[]): { signal: AbortSignal; done: () => void } {
   const both = new AbortController();
+  const off: (() => void)[] = [];
   for (const signal of signals) {
     if (signal.aborted) {
       both.abort(signal.reason);
-      return both.signal;
+      return { signal: both.signal, done: () => {} };
     }
   }
-  for (const signal of signals) signal.addEventListener('abort', () => both.abort(signal.reason), { once: true });
-  return both.signal;
+  for (const signal of signals) {
+    const abort = () => both.abort(signal.reason);
+    signal.addEventListener('abort', abort, { once: true });
+    off.push(() => signal.removeEventListener('abort', abort));
+  }
+  return { signal: both.signal, done: () => off.forEach((f) => f()) };
 }
+
+/** A press a later press replaced while it still waited in its lane: it never left, so it cannot
+ *  land and is not owed. */
+const replacedError = () => Object.assign(new Error('a later press replaced it'), { stopped: true, aired: false, sent: [] });
 
 /** One item as `control_send_many` receives it: the command, plus the transport-only mark that
  *  says the database may put this one on the fast road (migration 0056 reads `fast` and inserts
@@ -1941,24 +1953,38 @@ async function sendControlVerbOnce(opts: {
   const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };
   // ON THE NUMBERED ROAD a later press that REPLACES one of this press's graphics ends it, and a
   // later press that only modifies one waits for it (#2655 R7). Ended here, before this press
-  // takes its own place in the lanes.
-  const ender = new AbortController();
-  const replaced = new Set(sender ? keys.filter((key) => replacesGraphic(opts.items, key.slice(opts.slug.length + 1))) : []);
-  if (sender) {
-    for (const key of replaced) for (const earlier of laneEnders.get(key) ?? []) earlier.abort(unansweredError());
-    for (const key of keys) laneEnders.set(key, (laneEnders.get(key) ?? new Set()).add(ender));
+  // takes its own place in the lanes. A press that replaces some graphics and only modifies others
+  // ends nothing: it waits as a modifying press does.
+  const graphicOf = (key: string) => key.slice(opts.slug.length + 1);
+  const replacing = !!sender && keys.every((key) => replacesGraphic(opts.items, graphicOf(key)));
+  const replaced = new Set(replacing ? keys : []);
+  // `landedRow`: its own row was heard (R3); `laneEnd`: a later replacing press ended it while it
+  // still waited in its lane. `superseded`: no further attempt once that happened.
+  const landedRow = new AbortController();
+  const laneEnd = new AbortController();
+  let superseded = false;
+  const end = () => {
+    superseded = true;
+    laneEnd.abort(replacedError());
+  };
+  if (sender && !opts.allOut) {
+    for (const key of replaced) for (const earlier of laneEnders.get(key) ?? []) earlier();
+    for (const key of keys) laneEnders.set(key, (laneEnders.get(key) ?? new Set()).add(end));
   }
+  const laneStop = eitherSignal(stop, landedRow.signal, laneEnd.signal);
+  const resendStop = eitherSignal(stop, landedRow.signal);
   const slow = {};
   // Its own row heard back lands it (R3): the press stops being sent at once.
   const oids = held ? wire.map((item) => oidOf(item.msg)).filter((oid): oid is string => !!oid) : [];
-  for (const oid of oids) awaitingRow.set(oid, () => ender.abort(unansweredError()));
+  for (const oid of oids) awaitingRow.set(oid, () => landedRow.abort(unansweredError()));
   const slowTimer = held ? setTimeout(() => (stillSending.add(slow), stillSendingChanged()), Math.max(0, now + RESEND_WINDOW_MS - Date.now())) : null;
   try {
     if (session && sender) {
-      const settled = await sendSeqVerb(opts.slug, wire, session, sender, resend, !!opts.allOut, {
+      const settled = await sendSeqVerb(opts.slug, wire, session, sender, { ...resend, stillNewest: () => !superseded }, !!opts.allOut, {
         held,
         replaces: (key) => replaced.has(key),
-        stop: opts.allOut ? ender.signal : eitherSignal(stop, ender.signal),
+        laneStop: opts.allOut ? landedRow.signal : laneStop.signal,
+        stop: opts.allOut ? landedRow.signal : resendStop.signal,
       });
       sent.skipped = settled.skipped;
       if (settled.superseded) sent.superseded = Object.keys(sender.base);
@@ -2005,9 +2031,11 @@ async function sendControlVerbOnce(opts: {
     for (const key of keys) if (newestSend.get(key) === send) newestSend.delete(key);
     for (const key of keys) {
       const enders = laneEnders.get(key);
-      enders?.delete(ender);
+      enders?.delete(end);
       if (enders?.size === 0) laneEnders.delete(key);
     }
+    laneStop.done();
+    resendStop.done();
     if (slowTimer) clearTimeout(slowTimer);
     for (const oid of oids) awaitingRow.delete(oid);
     if (stillSending.delete(slow)) stillSendingChanged();
@@ -2079,9 +2107,10 @@ async function sendControlVerbsOnce(
   opts: Omit<Parameters<typeof sendControlVerbOnce>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
 ): Promise<VerbSent> {
   const { batches, ...one } = opts;
-  // ALL OUT ENDS EVERY EARLIER PRESS of this page first, sent or not yet left (#2656 keeps All out
-  // itself on its window; #2655 R7a): nothing pressed before the panic is sent after it.
-  if (one.allOut) stopSending();
+  // ALL OUT ENDS EVERY EARLIER PRESS of this page (#2655 R7a): its verb calls `stopSending` the
+  // moment it is pressed (graphicVerbs.ts), so a press made while it cuts the server's layers is a
+  // press made after it. A caller that sends an All out with no press of its own ends them here.
+  if (one.allOut && one.madeIn === undefined) stopSending();
   // Every batch is numbered here, so the wait for the road comes first, as for one batch. The first
   // batch's resend window still runs from the press; a later one's from when it leaves, as before.
   const pressedAt = Date.now();
@@ -2183,7 +2212,7 @@ async function sendSeqVerb(
   sender: SenderBody,
   resend: { deadline: number; stillNewest: () => boolean },
   allOut: boolean,
-  lane: { held: boolean; replaces: (key: string) => boolean; stop: AbortSignal },
+  lane: { held: boolean; replaces: (key: string) => boolean; laneStop: AbortSignal; stop: AbortSignal },
 ): Promise<{ skipped: string[]; superseded: boolean }> {
   const graphics = Object.keys(sender.base);
   const keys = graphics.map((graphic) => `${slug}:${graphic}`);
@@ -2206,12 +2235,12 @@ async function sendSeqVerb(
           throw e;
         }
       },
-      // Newest wins by ending the earlier press (`laneEnders`), not by asking: a later press that
-      // only modifies the graphic never ends this one (R7).
-      { deadline, stillNewest: () => true, held, stop },
+      // Newest wins by ending the earlier press (`laneEnders`): a later press that only modifies the
+      // graphic never ends this one (R7).
+      { deadline, stillNewest: resend.stillNewest, held, stop },
     );
   };
-  await (allOut ? send({ waitedBehindHeld: false }) : seqQueue.run(keys, send, { held, replaces: lane.replaces, stop }));
+  await (allOut ? send({ waitedBehindHeld: false }) : seqQueue.run(keys, send, { held, replaces: lane.replaces, stop: lane.laneStop }));
   return { skipped: settled.skipped, superseded: settled.outcome === 'superseded' };
 }
 

@@ -233,6 +233,7 @@ export async function sendWithResend(
       const wait = RESEND_DELAYS_MS[attempt] ?? (opts.held ? RESEND_EVERY_MS : undefined);
       if (!isUnanswered(e) || wait === undefined) throw e;
       if (!opts.held && now() + wait + MIN_ATTEMPT_MS > opts.deadline) throw e;
+      if (!opts.stillNewest()) throw e;
       await abortable(sleep(wait), stop);
       if (stop?.aborted) throw stopped(e);
       if (!opts.stillNewest()) throw e;
@@ -332,9 +333,11 @@ const replacing = (msg: unknown): boolean => {
 };
 
 export function createSendDebts(): SendDebts {
-  /** Per graphic owed, the ids its newest failed send carried (none, when it carried none), and
-   *  whether that send replaced the graphic. */
-  const owed = new Map<string, { oids: Set<string>; replaced: boolean }>();
+  /** Per graphic, the failed sends it still owes: the ids each carried (none, when it carried none)
+   *  and whether it replaced the graphic. A newer failure that replaces the graphic makes every
+   *  older one moot; a newer one that only modifies it makes older modifying ones moot and keeps a
+   *  replacing one (#2655 R7: an Update after a lost Take does not stand in for the Take). */
+  const owed = new Map<string, { oids: Set<string>; replaced: boolean }[]>();
   let notices: string[] = [];
   const unchanged = (shown: string | null) => shown;
   const settle = () => {
@@ -342,6 +345,10 @@ export function createSendDebts(): SendDebts {
     const settled = notices;
     notices = [];
     return (shown: string | null) => (shown !== null && settled.some((s) => shown.includes(s)) ? null : shown);
+  };
+  const keep = (graphic: string, debts: { oids: Set<string>; replaced: boolean }[]) => {
+    if (debts.length > 0) owed.set(graphic, debts);
+    else owed.delete(graphic);
   };
   return {
     failed(items, notice) {
@@ -353,14 +360,15 @@ export function createSendDebts(): SendDebts {
         if (replacing(item.msg)) debt.replaced = true;
         newest.set(item.graphic, debt);
       }
-      for (const [graphic, debt] of newest) owed.set(graphic, debt);
+      for (const [graphic, debt] of newest) {
+        keep(graphic, debt.replaced ? [debt] : [...(owed.get(graphic) ?? []).filter((d) => d.replaced), debt]);
+      }
       notices.push(notice);
     },
     landed(items) {
       const replaces = new Set(items.filter((item) => !('msg' in item) || replacing(item.msg)).map((item) => item.graphic));
-      for (const item of items) {
-        if (owed.get(item.graphic)?.replaced && !replaces.has(item.graphic)) continue;
-        owed.delete(item.graphic);
+      for (const graphic of new Set(items.map((item) => item.graphic))) {
+        keep(graphic, replaces.has(graphic) ? [] : (owed.get(graphic) ?? []).filter((d) => d.replaced));
       }
       return settle();
     },
@@ -368,10 +376,12 @@ export function createSendDebts(): SendDebts {
       let any = false;
       for (const item of items) {
         const oid = oidIn(item.msg);
-        if (oid && owed.get(item.graphic)?.oids.has(oid)) {
-          owed.delete(item.graphic);
-          any = true;
-        }
+        const debts = owed.get(item.graphic);
+        if (!oid || !debts) continue;
+        const left = debts.filter((d) => !d.oids.has(oid));
+        if (left.length === debts.length) continue;
+        keep(item.graphic, left);
+        any = true;
       }
       return any ? settle() : null;
     },

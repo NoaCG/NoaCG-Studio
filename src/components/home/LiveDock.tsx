@@ -28,6 +28,8 @@ export default function LiveDock({
   published,
   selected,
   note,
+  stillSending = false,
+  onStopSending,
   now,
   rows,
   scenes,
@@ -48,6 +50,10 @@ export default function LiveDock({
   /** What the page's own selection holds, which Companion's selection keys act on (K2). */
   selected: string | null;
   note: string | null;
+  /** A Take sent until it lands has been out past the old 4 s window (#2655 R6). */
+  stillSending?: boolean;
+  /** Ends every press this page is still sending (hostedControl.ts `stopSending`). */
+  onStopSending?: () => void;
   /** The page's own clock, ticking every second. */
   now: number;
   /** The OS3 scene rows, while the switch is on; null otherwise. */
@@ -160,6 +166,14 @@ export default function LiveDock({
         </section>
       )}
       {/* Last, so a note coming and going moves no control (K5). */}
+      {stillSending && onStopSending && (
+        <p className="live-dock-note status-bad" data-testid="dock-still-sending">
+          Still sending{' '}
+          <button type="button" onClick={onStopSending} data-testid="stop-sending">
+            Stop sending
+          </button>
+        </p>
+      )}
       {note && (
         <p className={`live-dock-note ${note.startsWith('✓') ? 'status-ok' : 'status-bad'}`} data-testid="production-note">
           {note}

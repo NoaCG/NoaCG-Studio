@@ -271,6 +271,9 @@ export interface GraphicVerbIo {
   /** The current stop generation (hostedControl.ts `sendStopGeneration`, #2655 R7a). Absent, no
    *  press is ever stopped before it leaves. */
   stopGeneration?: () => number;
+  /** Ends every press this page is still sending or has not sent yet (hostedControl.ts
+   *  `stopSending`): All out calls it the moment it is pressed (#2655 R7a). */
+  stopSending?: () => void;
   /** The id a marker press of this sender is sent with (commandRoads.ts `mintOid`; a test names it
    *  after the press's number). */
   mintOid?: (n: number) => string;
@@ -674,9 +677,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
           ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
           : `${label} failed: ${(e as Error).message}`;
       // Owed: the batch that failed, as it was sent, and those after it. The ones before it landed.
+      // A press stopped before that batch left owes nothing more: none of it can land (#2655).
       const landed = io.verbsLanded(e);
       const failedItems = io.verbSentItems(e) ?? marked[landed] ?? [];
-      p.debts().failed([...failedItems, ...marked.slice(landed + 1).flat()], note);
+      const neverLeft = (e as { stopped?: unknown }).stopped === true && failedItems.length === 0;
+      p.debts().failed(neverLeft ? [] : [...failedItems, ...marked.slice(landed + 1).flat()], note);
       const uncertain = isUncertain(e);
       const skipped = io.verbsSkipped(e);
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
@@ -1029,6 +1034,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
    *  server's heads say is up, in one send. */
   const allOut: GraphicVerbs['allOut'] = async server => {
     if (!session.alive()) return;
+    // Nothing pressed before the panic is sent after it, and a press made while All out cuts the
+    // server's layers below is a press made after it (#2655 R7a): the line is drawn here, first.
+    io.stopSending?.();
     const s = sender();
     const p = page();
     // A folder's Take still being sent sends nothing more, and what of it lands after is cut too:

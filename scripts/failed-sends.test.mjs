@@ -394,3 +394,23 @@ test('R7: a failed Update is paid by a later landed Update of its graphic, as to
   debts.failed([{ graphic: 'score', msg: { t: 'update', data: {} } }], 'Update failed.');
   assert.equal(debts.landed([{ graphic: 'score', msg: { t: 'update', data: {} } }])('Update failed.'), null);
 });
+
+test('R7: a lost Take stays owed through a failed Update and a landed Update; its own row still settles it', () => {
+  const debts = createSendDebts();
+  const shown = 'Take is on this monitor only.';
+  debts.failed([{ graphic: 'g', msg: { t: 'update', data: {}, oid: 'take-1' } }, { graphic: 'g', msg: { t: 'play' } }], shown);
+  debts.failed([{ graphic: 'g', msg: { t: 'update', data: {}, oid: 'upd-1' } }], 'Update failed.');
+  assert.equal(debts.landed([{ graphic: 'g', msg: { t: 'update', data: {} } }])(shown), shown, 'the Take is still owed');
+  assert.equal(debts.owed(), 1);
+  const settle = debts.heard([{ graphic: 'g', msg: { t: 'update', data: {}, oid: 'take-1' } }]);
+  assert.ok(settle, 'the Take\'s own row is still recognised');
+  assert.equal(settle(shown), null);
+});
+
+test('R7: a newer failed Take makes an older one moot; an older one landing late does not clear it', () => {
+  const debts = createSendDebts();
+  debts.failed([{ graphic: 'g', msg: { t: 'play', oid: 'a' } }], 'one');
+  debts.failed([{ graphic: 'g', msg: { t: 'play', oid: 'b' } }], 'two');
+  assert.equal(debts.heard([{ graphic: 'g', msg: { t: 'play', oid: 'a' } }]), null, 'the older press is not owed any more');
+  assert.equal(debts.owed(), 1);
+});
