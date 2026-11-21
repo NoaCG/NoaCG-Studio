@@ -57,12 +57,12 @@
   }
  ],
  "fixes": [],
- "triggers": {},
+ "triggers": {
+  "checkin": "trig_01UK36vzA9nETzkPrfuYeaeG",
+  "at": "2026-11-21T21:55:00Z"
+ },
  "heartbeat": {
   "issue": 2678,
   "comment": 7069445213
- },
- "qualificationArchive": [
-  "session_017SdbwPrMJpCm83gAanymY2"
- ]
+ }
 }
