@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg, intoProduction } from './_svg-import';
 import { settleDurableWrites } from './_durable';
+import { qrReader } from './_qr';
 
 interface Template { slug: string; name: string; recipe: string | null; preview: string; contract?: string }
 const templates = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-templates/templates.json', import.meta.url), 'utf8')) as Template[];
@@ -154,7 +155,7 @@ async function importTemplate(page: Page, t: Template) {
 }
 
 for (const t of templates) {
-  test(`${t.name} template imports, keeps every named text, runs its controls and stays clean on air`, async ({ page }) => {
+  test(`${t.name} template imports, keeps every named text, runs its controls and stays clean on air`, async ({ page, browser }) => {
     test.setTimeout(120_000);
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
@@ -201,18 +202,15 @@ for (const t of templates) {
           const link = 'https://noacg.studio/j/friday-night-live';
           await page.getByTestId(`cue-field-${await fieldFor(air, 'Join link')}`).fill(link);
           await page.getByTestId('verb-update').click();
-          // The code drawn is the code of exactly this link, made by the encoder the graphic carries.
-          const drawn = () => air.locator('svg').first().evaluate((_, url) => {
-            const path = document.querySelector('[class$="-qr-code"] path');
-            const make = (window as unknown as { qrcode(t: number, l: string): { addData(s: string, m: string): void; make(): void; getModuleCount(): number; isDark(r: number, c: number): boolean } }).qrcode;
-            const qr = make(0, 'M');
-            qr.addData(url, 'Byte');
-            qr.make();
-            let d = '';
-            for (let r = 0; r < qr.getModuleCount(); r++) for (let c = 0; c < qr.getModuleCount(); c++) if (qr.isDark(r, c)) d += `M${c + 4} ${r + 4}h1v1h-1z`;
-            return !!path && path.getAttribute('d') === d;
-          }, link);
-          await expect.poll(drawn, { message: 'the QR encodes the Join link' }).toBe(true);
+          // A phone reading the code on air gets exactly this link.
+          const reader = await qrReader(browser);
+          try {
+            const code = air.locator('[class$="-qr-code"]');
+            await expect(code).toBeVisible();
+            await expect.poll(async () => reader.read(await code.screenshot()), { message: 'the QR on air decodes to the Join link' }).toBe(link);
+          } finally {
+            await reader.close();
+          }
         }
         if (t.contract && long[t.contract]) {
           for (const [title, value] of Object.entries(long[t.contract])) await page.getByTestId(`cue-field-${await fieldFor(air, title)}`).fill(value);
