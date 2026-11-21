@@ -32,7 +32,7 @@
 //   text     Text holds named text objects (and `f:` pictures) only, each spelled the one taught
 //            way: a word, then the row last after a space. A name the importer reads as a
 //            behaviour role must be that role's taught spelling (`Answer A`, never `Vastaus A`).
-//            A simple type (title, name tag, credits) uses its field set and nothing else, plus
+//            A simple type (title, lower third, credits) uses its field set and nothing else, plus
 //            a `numbered` field repeated with a number: editable credits draw each role and each
 //            name as its own line, `Credits` first (the layer the import binds), then `Credits 2`,
 //            `Credits 3` top to bottom. The import reads those lines by their looks, not names.

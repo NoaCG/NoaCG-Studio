@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0, .st1, .st2 {
+        fill: #fc0;
+      }
+
+      .st3 {
+        fill: #1d2b53;
+      }
+
+      .st4 {
+        fill: #2e4272;
+      }
+
+      .st5 {
+        fill: #fff;
+      }
+
+      .st5, .st2 {
+        font-family: Oswald-Medium, Oswald;
+        font-size: 44px;
+        font-weight: 500;
+      }
+
+      .st1 {
+        font-family: Oswald-Bold, Oswald;
+        font-size: 64px;
+        font-weight: 700;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Panel" class="st3" x="300" y="150" width="1320" height="780"/>
+    <rect id="Accent" class="st0" x="300" y="150" width="1320" height="8"/>
+    <text id="static:Heading" class="st1" transform="translate(380 270.92)"><tspan x="0" y="0">WEEKEND STANDINGS</tspan></text>
+  </g>
+  <g id="Moments">
+    <rect id="Row_1" class="st4" x="380" y="350" width="1160" height="104"/>
+    <rect id="Row_2" class="st4" x="380" y="490" width="1160" height="104"/>
+    <rect id="Row_3" class="st4" x="380" y="630" width="1160" height="104"/>
+  </g>
+  <g id="Text">
+    <text id="Position_1" class="st2" transform="translate(451.38 412.82)"><tspan x="0" y="0">1</tspan></text>
+    <text id="Name_1" class="st5" transform="translate(584 412.82)"><tspan x="0" y="0">NORTH</tspan></text>
+    <text id="Points_1" class="st2" transform="translate(1370.44 412.82)"><tspan x="0" y="0">12</tspan></text>
+    <text id="Position_2" class="st2" transform="translate(449.07 552.82)"><tspan x="0" y="0">2</tspan></text>
+    <text id="Name_2" class="st5" transform="translate(584 552.82)"><tspan x="0" y="0">WEST</tspan></text>
+    <text id="Points_2" class="st2" transform="translate(1378.54 552.82)"><tspan x="0" y="0">9</tspan></text>
+    <text id="Position_3" class="st2" transform="translate(449.09 692.82)"><tspan x="0" y="0">3</tspan></text>
+    <text id="Name_3" class="st5" transform="translate(584 692.82)"><tspan x="0" y="0">SOUTH</tspan></text>
+    <text id="Points_3" class="st2" transform="translate(1380.91 692.82)"><tspan x="0" y="0">7</tspan></text>
+  </g>
+</svg>

@@ -1,4 +1,4 @@
-# Editable credits
+# Editable end credits
 
 Open `SVG/editable-credits.svg` in Illustrator, Inkscape or another SVG editor. The SVG is the editable source, authored by NoaCG; it is not an Illustrator export. The PNG in `Previews/` is only a preview. Import the SVG to keep the text editable.
 
@@ -17,7 +17,7 @@ In Illustrator, rename text objects in the Layers panel and use **File > Save a 
 
 ## Import and play
 
-1. Import `editable-credits.svg`. On the Fields step, choose **Credits roll** and pick the first role (`Director`) as the Credits text if it was not picked automatically.
+1. Import `editable-credits.svg`. On the Fields step, choose **End credits** and pick the first role (`Director`) as the Credits text if it was not picked automatically.
 2. Check **Credits preview**: Director has Alex Rivera, Producer has Sam Lee, and Camera has Kim Park and Jo Berg.
 3. Keep **Show as: Editable, in this design's styling**. Choose **Plays as: Roll**, **Hold still** or **Cards**. Save the graphic into a production.
 4. On **Playout**, select its cue and paste the list into the **Credits** field. You can paste lines from a text file directly, or use **Fill from…**, **Paste rows** for spreadsheet rows.

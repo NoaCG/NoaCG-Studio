@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
-  <title>Game timer</title>
+  <title>Countdown</title>
   <desc>NoaCG Clean Studio template. A corner countdown: Title and Clock (1:00 = one minute), a Timer bar over its Track, and hidden Warning, Paused and Time up moments.</desc>
   <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
     <rect id="Panel" x="1576" y="48" width="296" height="144" rx="14" fill="#FFFFFF"/>

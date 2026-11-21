@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- NoaCG docs example - NAME TAG (a lower third). Imports as two text fields.
+<!-- NoaCG docs example - LOWER THIRD. Imports as two text fields.
      Two layers, top of the Layers panel first: Text (what the operator types) and Board (what
-     stays as drawn). A name tag is always Name and Role: one graphic for every person on the
+     stays as drawn). A lower third is always Name and Role: one graphic for every person on the
      show, retyped for each. Panel is the background and Edge is decoration. Full-frame 1920x1080
      artboard, transparent background. See https://noacg.studio/docs#first-graphic -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">

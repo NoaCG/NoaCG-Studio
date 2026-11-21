@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0, .st1 {
+        fill: #fc0;
+      }
+
+      .st2 {
+        fill: #1d2b53;
+      }
+
+      .st1 {
+        font-family: Oswald-Regular, Oswald;
+        font-size: 34px;
+      }
+
+      .st3 {
+        fill: #fff;
+        font-family: Oswald-Bold, Oswald;
+        font-size: 60px;
+        font-weight: 700;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Panel" class="st2" x="140" y="820" width="820" height="150"/>
+    <rect id="Accent" class="st0" x="140" y="820" width="16" height="150"/>
+  </g>
+  <g id="Text">
+    <text id="Name" class="st3" transform="translate(190 895)"><tspan x="0" y="0">Maija Meikäläinen</tspan></text>
+    <text id="Role" class="st1" transform="translate(190 942)"><tspan x="0" y="0">HOST</tspan></text>
+  </g>
+</svg>

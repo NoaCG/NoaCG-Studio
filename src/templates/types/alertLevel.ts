@@ -118,7 +118,7 @@ const levelStates: TypeBranch[] = ALERT_LEVELS.map((level, i) => ({
 
 export const alertLevelType: GraphicType = {
   id: 'alert-level',
-  name: 'Alert',
+  name: 'Alert level',
   description: 'An urgent notice whose severity level an operator can raise or lower on air.',
   structure: {
     prefix: 'alert',

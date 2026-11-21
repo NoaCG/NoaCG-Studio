@@ -1,6 +1,6 @@
 # Draw a clock or timer
 
-Open `SVG/digital-clock.svg` for a standalone clock, or `SVG/scorebug-clock.svg` for a score tracker with a clock beside it. These are editable SVG sources, created directly as vectors and live text. Open them in Illustrator, Inkscape or another SVG editor; no Illustrator source file is needed. Save a copy to make a reusable design of your own.
+Open `SVG/digital-clock.svg` for a standalone clock, or `SVG/scorebug-clock.svg` for a scoreboard with a clock beside it. These are editable SVG sources, created directly as vectors and live text. Open them in Illustrator, Inkscape or another SVG editor; no Illustrator source file is needed. Save a copy to make a reusable design of your own.
 
 ## Draw the time
 

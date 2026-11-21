@@ -46,7 +46,7 @@ import type { GraphicType } from './graphicType';
 
 export const rosterType: GraphicType = {
   id: 'roster',
-  name: 'Roster / ordered list',
+  name: 'Lineup',
   description: 'An ordered list with an operator-controlled focus row.',
   structure: {
     prefix: 'results-board',
@@ -182,7 +182,7 @@ export const rosterType: GraphicType = {
 
 export const standingsType: GraphicType = {
   id: 'standings',
-  name: 'Standings / result table',
+  name: 'Standings',
   description: 'A table of any columns, with a highlighted row and a final state.',
   structure: {
     prefix: 'results-board',

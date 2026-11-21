@@ -122,7 +122,7 @@
     ]
   },
   "score": {
-    "name": "The score tracker",
+    "name": "The scoreboard",
     "verbs": "a point, a flash, full time",
     "buttons": "a +1 and a −1 under each team's own name, plus New game, Clear flash when you draw a flash and Full time when you draw a Full time layer",
     "rows": {
@@ -527,7 +527,7 @@
     ]
   },
   "meter": {
-    "name": "The meter",
+    "name": "The goal meter",
     "verbs": "a bar fills toward a target",
     "buttons": "the Current and Target figures, each with + and −",
     "roles": [
@@ -567,7 +567,7 @@
     ]
   },
   "alert": {
-    "name": "The alert",
+    "name": "The pop-up alert",
     "verbs": "it plays, holds, and takes itself off",
     "buttons": "nothing extra: it clears itself after eight seconds, and Next clears it sooner",
     "roles": []
@@ -941,7 +941,7 @@
     ]
   },
   "credits": {
-    "name": "The credits roll",
+    "name": "The end credits",
     "verbs": "the credits play in the look you drew, as a roll, a still page or cards",
     "buttons": "one list of roles and names to paste or edit, plus Scroll speed (%) on a roll, or Card time (s) and Next card on cards. Credits kept as fixed artwork get Scroll speed (%) alone",
     "roles": [

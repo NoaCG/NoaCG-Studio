@@ -144,7 +144,7 @@ function scoreControls(ctx: RecipeContext): TypeControlEvent[] {
 
 export const scoreRecipe: BehaviourRecipe = {
   id: 'score',
-  name: 'Score tracker',
+  name: 'Scoreboard',
   description: 'A point per team with the flash you drew, a correction, full time and a new game.',
   category: 'scoreboard',
   defaultZone: 'top-center',

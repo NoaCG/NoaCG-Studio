@@ -106,7 +106,7 @@ test('a simple type keeps its one field set', () => {
   caught(audit(perName), 'text', /"Director name" is not a credits field - a credits graphic has Credits and Heading/);
   // Lower thirds used Name and Title in one file and Name and Role in another.
   const titled = mutate(example('name-tag.svg'), 'data-name="Role"', 'data-name="Title"');
-  caught(audit(titled), 'text', /mix title and name tag names/);
+  caught(audit(titled), 'text', /mix title and lower third names/);
 });
 
 test('editable credits number each further line of the sample, and nothing else', () => {
@@ -116,8 +116,8 @@ test('editable credits number each further line of the sample, and nothing else'
   caught(audit(lines('Credits', 'Credits 2', 'Director 3')), 'text', /"Director 3" is not a credits field - a credits graphic has Credits and Heading, then Credits 2, Credits 3 for each further line/);
   caught(audit(lines('Credits', 'Credits A')), 'text', /"Credits A" is not a credits field/);
   caught(audit(lines('Credits 2', 'Credits 3')), 'text', /a credits graphic has a "Credits" text/);
-  // A name tag has no numbered field.
-  caught(audit(lines('Name', 'Role', 'Role 2')), 'text', /"Role 2" is not a name tag field/);
+  // A lower third has no numbered field.
+  caught(audit(lines('Name', 'Role', 'Role 2')), 'text', /"Role 2" is not a lower third field/);
 });
 
 test('the behaviour words come from words.json at run time, never from a copy', () => {

@@ -21,7 +21,7 @@ test('editable SVG sources keep live named text and cannot masquerade as Illustr
   const source = readFileSync(new URL('../docs/tutorials/svg-examples/SVG/digital-clock.svg', import.meta.url), 'utf8');
   const entry = { slug: 'digital-clock', source: 'svg' };
   assert.doesNotThrow(() => checkSource(source, entry));
-  assert.throws(() => checkSource(source.replace('<title>Digital clock and timer</title>', ''), entry), /source has a title/);
+  assert.throws(() => checkSource(source.replace('<title>Clock</title>', ''), entry), /source has a title/);
   assert.throws(() => checkSource(source.replace(/<text\b[\s\S]*?<\/text>/, ''), entry), /editable live text/);
   assert.throws(() => checkSource(source.replace('inkscape:label="Text"', 'inkscape:label="Unknown"'), entry), /layer names/);
   assert.throws(() => checkSource(source.replace('<desc>', '<!-- Generator: Adobe Illustrator --><desc>'), entry), /must not claim/);
