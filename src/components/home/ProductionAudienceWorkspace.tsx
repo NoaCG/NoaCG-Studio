@@ -71,8 +71,8 @@ import {
 } from '../../model/questions';
 import { countWordTallies, type WordCount, type WordTally } from '../../model/wordCloud';
 import { stageWords, wordDestinationOf } from '../../control/wordStaging';
-import { pickerItems, savedCopyPlan, seededCue, type PickerGroup, type PickerItem, type PickerKind, type SavedDesign } from '../../control/audiencePickers';
-import { joinCardOf, joinCards } from '../../model/joinCues';
+import { JOIN_CARDS, linkedCopy, pickerItems, savedCopyPlan, seededCue, type PickerGroup, type PickerItem, type PickerKind, type SavedDesign } from '../../control/audiencePickers';
+import { joinCardOf } from '../../model/joinCues';
 import {
   chatIntakeFor,
   chatPlatformWord,
@@ -156,21 +156,22 @@ function useCandidates(backend: ObservableAudience, enabled: boolean): AudienceS
 }
 
 /**
- * Add one of the Q&A cards to the production, for messages, when nothing in it can hold one. The
- * card arrives with its one seeded cue (addGraphicToShow), which is the cue the message then fills,
- * so one press makes one card and one cue. Nothing airs.
+ * Add one of the catalog's designs when the operator picks it in a picker: a Q&A card (by its
+ * catalog name, which is what the Message picker lists), a live vote board, a word cloud or the
+ * Join card (by catalog id). It arrives with its one seeded cue (addGraphicToShow), which the pick
+ * then fills, so one press makes one graphic and one cue. Nothing airs.
  */
-async function addMessageCard(show: Show, cardName: string): Promise<{ shows: Show[] | null; graphicId: string | null; cueId: string | null; error: string | null }> {
-  const [{ variantsFor }, { buildDraftTemplate, initialDraft, mergeDraft }] = await Promise.all([
+async function addCatalogDesign(show: Show, idOrName: string): Promise<{ shows: Show[] | null; graphicId: string | null; cueId: string | null; error: string | null }> {
+  const [{ variantById, variantsFor }, { buildDraftTemplate, initialDraft, mergeDraft }] = await Promise.all([
     import('../../templates/catalog'),
     import('../wizard/draft'),
   ]);
-  const variant = variantsFor('audience').find((v) => v.name === cardName);
-  if (!variant) return { shows: null, graphicId: null, cueId: null, error: `${cardName} is not in this build.` };
-  const draft = mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) });
-  const built = buildDraftTemplate(variant, draft);
-  // A free name: the pickers offer the cards beside the production's own designs (D6), and a
-  // same-named graphic in the pool would otherwise be REPLACED by the card, artwork and all.
+  const variant = variantById(idOrName) ?? variantsFor('audience').find((v) => v.name === idOrName);
+  if (!variant) return { shows: null, graphicId: null, cueId: null, error: 'That graphic is not in this build.' };
+  const built = buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) }));
+  // A free name, on the production as stored: a same-named graphic already in the pool (one that
+  // lost its result fields, or the production's own design beside the built-ins, D6) would
+  // otherwise be REPLACED by this one, artwork and all.
   const stored = loadShows().find((x) => x.id === show.id) ?? show;
   const name = freeName(stored.graphics.map((g) => g.name), built.name);
   const template = name === built.name ? built : { ...built, name };
@@ -178,36 +179,7 @@ async function addMessageCard(show: Show, cardName: string): Promise<{ shows: Sh
   const failure = error ?? (await commitDurableWrites());
   if (failure) return { shows, graphicId: null, cueId: null, error: failure };
   const after = shows.find((x) => x.id === show.id);
-  const before = new Set(show.graphics.map((g) => g.id));
-  const graphic = after?.graphics.find((g) => !before.has(g.id)) ?? null;
-  const cue = graphic ? after?.cues?.find((c) => c.sourceId === graphic.id) ?? null : null;
-  return { shows, graphicId: graphic?.id ?? null, cueId: cue?.id ?? null, error: graphic ? null : 'The card was not added.' };
-}
-
-/**
- * Add one of the catalog's live vote boards for results, when the operator picks it (S5). The
- * board arrives with its one seeded cue (addGraphicToShow), which becomes the question's result
- * cue, so one press makes one board and one cue. Nothing airs.
- */
-async function addResultBoard(show: Show, id: string): Promise<{ shows: Show[] | null; graphicId: string | null; cueId: string | null; error: string | null }> {
-  const [{ variantById }, { buildDraftTemplate, initialDraft, mergeDraft }] = await Promise.all([
-    import('../../templates/catalog'),
-    import('../wizard/draft'),
-  ]);
-  const variant = variantById(id);
-  if (!variant) return { shows: null, graphicId: null, cueId: null, error: 'That graphic is not in this build.' };
-  const built = buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) }));
-  // A free name: a same-named graphic already in the pool (one that lost its result fields, say)
-  // would otherwise be REPLACED by this board, artwork and all.
-  const taken = new Set(show.graphics.map((g) => g.name));
-  let name = built.name;
-  for (let n = 2; taken.has(name); n += 1) name = `${built.name} ${n}`;
-  const template = name === built.name ? built : { ...built, name };
-  const { shows, error } = addGraphicToShow(show.id, template, {});
-  const failure = error ?? (await commitDurableWrites());
-  if (failure) return { shows, graphicId: null, cueId: null, error: failure };
-  const after = shows.find((x) => x.id === show.id);
-  const before = new Set(show.graphics.map((g) => g.id));
+  const before = new Set(stored.graphics.map((g) => g.id));
   const graphic = after?.graphics.find((g) => !before.has(g.id)) ?? null;
   const cue = graphic ? after?.cues?.find((c) => c.sourceId === graphic.id) ?? null : null;
   return { shows, graphicId: graphic?.id ?? null, cueId: cue?.id ?? null, error: graphic ? null : 'The graphic was not added.' };
@@ -239,18 +211,24 @@ async function addSavedDesign(show: Show, savedId: string): Promise<{ shows: Sho
     if (failure) return { shows, graphicId: null, cueId: null, error: failure };
   }
   const after = shows.find((x) => x.id === show.id);
-  const graphic = after?.graphics.find((g) => g.graphicId === doc.id && !g.sceneCopyOf) ?? null;
+  const copy = after ? linkedCopy(after, doc.id) : null;
+  const graphic = after?.graphics.find((g) => g.id === copy) ?? null;
   if (!after || !graphic) return { shows, graphicId: null, cueId: null, error: 'The design was not added.' };
   return { shows, graphicId: graphic.id, cueId: seededCue(after, graphic.id, seedValues(graphic.template.fields)), error: null };
 }
-
-/** The Join card in the catalog (templates/audience/joinCard.ts). */
-const JOIN_CARD_ID = 'jc01';
 
 /** Where a pick came from: a production graphic, a saved design or a built-in. */
 type PickOn = { graphicId?: string; saved?: string; board?: string };
 const pickOn = (item: PickerItem): PickOn =>
   item.group === 'production' ? { graphicId: item.id } : item.group === 'saved' ? { saved: item.id } : { board: item.id };
+
+/** A pick of a saved design or a built-in brings it into the production first: the graphic it
+ *  became and the seeded cue the pick fills. Null for a production graphic, already there. */
+async function bringIn(show: Show, on: PickOn) {
+  if (on.saved) return addSavedDesign(show, on.saved);
+  if (on.board) return addCatalogDesign(show, on.board);
+  return null;
+}
 
 /** Each picker's words: the production group's heading, what it says when the production has no
  *  design, and the built-in group's heading. */
@@ -1457,8 +1435,8 @@ export default function ProductionAudienceWorkspace({
     try {
       let chosen = on.graphicId ?? null;
       let adopt: string | null = null;
-      if (on.board || on.saved) {
-        const made = on.saved ? await addSavedDesign(show, on.saved) : await addResultBoard(show, on.board!);
+      const made = await bringIn(show, on);
+      if (made) {
         if (made.shows) setShows(made.shows);
         if (made.error || !made.graphicId) {
           setNote(`The vote board was not added: ${made.error}`);
@@ -1526,8 +1504,8 @@ export default function ProductionAudienceWorkspace({
     try {
       let chosen = on.graphicId ?? null;
       let adopt: string | null = null;
-      if (on.board || on.saved) {
-        const made = on.saved ? await addSavedDesign(show, on.saved) : await addResultBoard(show, on.board!);
+      const made = await bringIn(show, on);
+      if (made) {
         if (made.shows) setShows(made.shows);
         if (made.error || !made.graphicId) {
           setNote(`The word cloud was not added: ${made.error}`);
@@ -1680,11 +1658,11 @@ export default function ProductionAudienceWorkspace({
    */
   const prepare = async (
     row: AudienceSubmission,
-    on: { graphicId?: string; card?: string; saved?: string; again?: boolean } = {},
+    on: PickOn & { again?: boolean } = {},
   ) => {
     if (preparing) return;
     let graphicId = on.graphicId ?? target?.graphicId ?? null;
-    if (!graphicId && !on.card && !on.saved) {
+    if (!graphicId && !on.board && !on.saved) {
       setChoosing(row.id);
       return;
     }
@@ -1692,11 +1670,11 @@ export default function ProductionAudienceWorkspace({
     try {
       let base = show;
       let cueId: string | undefined;
-      if (on.card || on.saved) {
-        const made = on.saved ? await addSavedDesign(show, on.saved) : await addMessageCard(show, on.card!);
+      const made = await bringIn(show, on);
+      if (made) {
         if (made.shows) setShows(made.shows);
         if (made.error || !made.graphicId || !made.shows) {
-          setNote(`${on.saved ? 'The design' : on.card} was not added: ${made.error}`);
+          setNote(`${on.saved ? 'The design' : on.board} was not added: ${made.error}`);
           return;
         }
         graphicId = made.graphicId;
@@ -1726,7 +1704,7 @@ export default function ProductionAudienceWorkspace({
       kind="message"
       items={pickerItems(show, library, 'message')}
       busy={!!preparing}
-      onPick={(on) => void prepare(row, on.board ? { card: on.board } : on)}
+      onPick={(on) => void prepare(row, on)}
       onCancel={() => setChoosing(null)}
     />
   );
@@ -1757,13 +1735,13 @@ export default function ProductionAudienceWorkspace({
         setChoosingJoin(true);
         return;
       }
-      if (card === null) on = { board: JOIN_CARD_ID };
+      if (card === null) on = { board: JOIN_CARDS[0].id };
     }
     setQrBusy(true);
     try {
       let adopt: string | null = null;
-      if (on.saved || on.board) {
-        const made = on.saved ? await addSavedDesign(show, on.saved) : await addResultBoard(show, on.board!);
+      const made = await bringIn(show, on);
+      if (made) {
         if (made.shows) setShows(made.shows);
         if (made.error || !made.graphicId) {
           setNote(`The Join card was not added: ${made.error}`);
@@ -1775,15 +1753,14 @@ export default function ProductionAudienceWorkspace({
       const staged = stageShowJoin(show.id, joinUrl, { chosen, adopt });
       setShows(staged.shows);
       const failure = staged.error ?? (await commitDurableWrites());
-      const { plan } = staged.outcome();
+      const { plan, cueId } = staged.outcome();
       if (!failure && plan?.kind === 'choose') {
         setChoosingJoin(true);
         return;
       }
       setChoosingJoin(false);
-      const { cueId } = staged.outcome();
       const written = plan && (plan.kind === 'update' || plan.kind === 'add') && cueId ? plan : null;
-      const name = written ? loadShows().find((x) => x.id === show.id)?.graphics.find((g) => g.id === written.graphicId)?.name ?? 'the Join card' : '';
+      const name = written ? staged.shows.find((x) => x.id === show.id)?.graphics.find((g) => g.id === written.graphicId)?.name ?? 'the Join card' : '';
       setNote(
         failure
           ? `The Join card cue was not saved: ${failure}`
@@ -1974,7 +1951,7 @@ export default function ProductionAudienceWorkspace({
                   round={selectedRound ?? null}
                   words={selectedRound ? countWordTallies(wordTallies[selectedRound.id] ?? [], selected.hidden ?? []) : []}
                   destination={wordDestinationOf(show, selected.id)}
-                  clouds={pickerItems(show, library, 'words')}
+                  clouds={choosingResult === selected.id ? pickerItems(show, library, 'words') : []}
                   choosing={choosingResult === selected.id}
                   busy={busy}
                   live={!!rowStates[selected.id]?.live}
@@ -2035,7 +2012,7 @@ export default function ProductionAudienceWorkspace({
                     <button disabled={qrBusy} onClick={() => void addJoin()} data-testid="join-card-add">
                       {joinCardName ? `Add Join card to rundown on ${joinCardName}` : 'Add Join card to rundown'}
                     </button>
-                    {(joinCards(show).length > 0 || joinItems.some((i) => i.group === 'saved')) && (
+                    {joinItems.some((i) => i.group !== 'built-in') && (
                       <button disabled={qrBusy} onClick={() => setChoosingJoin(true)} data-testid="join-target-change">
                         Change
                       </button>
