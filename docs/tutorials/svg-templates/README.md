@@ -32,6 +32,10 @@ Ready-made broadcast graphics in one clean style. They are starting points: make
 | **Scoreboard, 4 players** | The same controls for four players along the top of the screen. |
 | **Winner** | A centred card: Title is the winner, Subtitle the badge above it. Choose an entrance such as Pop when you import. |
 | **End credits** | Paste the list in playout: the show title first, then one role per line, such as `Camera: Kim Park, Jo Berg`. The two-column design puts roles on the left. |
+| **Join card** | The `QR` group is where NoaCG draws the code for your production's join link. In Interaction, Add Join card puts the current link in its cue. |
+| **Live vote** | The room votes on their phones. The bars follow the votes; Close voting, Show result and Call the winner run the round. |
+| **Vote results** | The same controls on a side panel. In Interaction, Add results stages a round's counts and whether voting is open or closed. |
+| **Message** | In Interaction, Prepare puts a viewer's message and name on it: pasted, live chat or Twitch. |
 
 
 ---
@@ -51,6 +55,9 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **Scoreboards** | `Team 1`, `Score 1`, and so on | `Flash 1`, and so on | `Team box 1`, `Score box 1` |
 | **Winner** | `Title`, `Subtitle` | none | `Panel`, `Subtitle box`, `Confetti` |
 | **End credits** | `Heading`, `Credits`, `Credits 2`… | none | `Panel`, `Accent` |
+| **Join card** | `Title`, `Instructions` | none | `Panel`, `QR plate`, `QR` |
+| **Live vote, Vote results** | `Question`, `Option 1`, `Percent 1`, `Total votes` | `Bar 1` (visible), `Winner 1`, `Vote badge` (visible) | `Panel`, `Track 1` |
+| **Message** | `Name`, `Message` | none | `Name box`, `Message box` |
 
 Moments items except the timer bar are hidden groups: show one with its eye icon, edit it, hide it again before saving. Fixed words on the Board start with `static:`.
 
@@ -58,6 +65,7 @@ Moments items except the timer bar are hidden groups: show one with its eye icon
 
 - **Colours**: select every shape of one colour with Select > Same > Fill Color, then pick a new colour.
 - **More or fewer players**: in the 4-player scoreboard, select one player's `Team box`, `Score box`, `Team`, `Score` and `Flash` and copy them. Rename the copies to the next number, such as `Team 5` and `Score 5`. Delete a player's five parts to remove them. For more than five players, make each player narrower so the row still fits the screen.
+- **More or fewer vote options**: copy an option's `Track`, `Bar`, `Winner`, `Option` and `Percent` and rename them with the next number. A vote has two to eight options.
 - **More or fewer rules**: copy a rule's `Rule box`, `Badge`, `static:Rule number` and `Rule` text, and rename them with the next number.
 
 ## Numbers and clocks
