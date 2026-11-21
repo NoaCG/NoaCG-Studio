@@ -56,9 +56,10 @@ const read = (root, file) => readFileSync(path.join(root, file), 'utf8').replace
 /** Where a registered type is declared: the types/ file that holds `id: '<id>',`. */
 export function typeSource(root, id) {
   const dir = 'src/templates/types';
-  const pattern = new RegExp(`^\\s*id: '${id.replace(/[-]/g, '\\-')}',`, 'm');
+  const declaration = `id: '${id}',`;
   return readdirSync(path.join(root, dir)).filter((file) => file.endsWith('.ts')).sort()
-    .map((file) => `${dir}/${file}`).filter((file) => pattern.test(read(root, file)));
+    .map((file) => `${dir}/${file}`)
+    .filter((file) => read(root, file).split('\n').some((line) => line.trim() === declaration));
 }
 
 /** The recipe modules in registry order, read from registry.ts's list and its imports. */
