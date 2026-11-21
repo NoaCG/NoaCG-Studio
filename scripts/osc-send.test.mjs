@@ -229,11 +229,12 @@ test('a member waits its own delay; OSC cues keep rundown order and wait only wh
     control: async (c) => { log.push(`${c.cue.id}@${clock}`); return { ok: true, note: '✓' }; },
     off: async () => {},
     stopped: () => false,
-    // A clock that jumps by each wait: the order and the totals are what matter.
+    // One clock for every member, moved by each wait.
     wait: async (ms) => { waits.push(ms); clock += ms; },
+    now: () => clock,
   });
-  // The graphic waits its 300; L1 waits 500; L2 only the 300 left of its 800 after L1's wait.
-  assert.deepEqual([...waits].sort((a, b) => a - b), [300, 300, 500]);
+  // The graphic waits its 300; by then L1 has 200 of its 500 left, and L2 the 300 left of its 800.
+  assert.deepEqual([...waits].sort((a, b) => a - b), [200, 300, 300]);
   assert.deepEqual(log.filter((l) => l.startsWith('L')).map((l) => l.split('@')[0]), ['L1', 'L2'], 'OSC cues keep rundown order');
   assert.deepEqual(results.map((r) => r.cueId), ['A', 'L1', 'L2']);
 });
@@ -252,6 +253,39 @@ test('Out during a delay skips the member still waiting and takes nothing back',
   });
   assert.deepEqual(sent, []);
   assert.equal(results.find((r) => r.cueId === 'L').sent, false);
+});
+
+test('time spent sending an earlier OSC cue counts toward the next one\'s delay', async () => {
+  const plan = togetherPlan([osc('L1'), osc('L2', { delayMs: 100 }), osc('L3', { delayMs: 500 })], rundown());
+  let clock = 0;
+  const waits = [];
+  await runTogether(plan, {
+    server: async () => ({ ok: true, note: '' }),
+    graphic: async () => ({ ok: true, note: '' }),
+    // L1's send takes 200 ms: L2 is already due, L3 has 300 left.
+    control: async (c) => { if (c.cue.id === 'L1') clock += 200; return { ok: true, note: '✓' }; },
+    off: async () => {},
+    stopped: () => false,
+    wait: async (ms) => { waits.push(ms); clock += ms; },
+    now: () => clock,
+  });
+  assert.deepEqual(waits, [300]);
+});
+
+test('Out ends a waiting delay at once, so the folder can be taken again', async () => {
+  const plan = togetherPlan([osc('L', { delayMs: 10_000 })], rundown());
+  let stop = false;
+  setTimeout(() => { stop = true; }, 30);
+  const began = Date.now();
+  const results = await runTogether(plan, {
+    server: async () => ({ ok: true, note: '' }),
+    graphic: async () => ({ ok: true, note: '' }),
+    control: async () => ({ ok: true, note: '✓' }),
+    off: async () => {},
+    stopped: () => stop,
+  });
+  assert.ok(Date.now() - began < 1000, 'the run ended with the Out, not after 10 s');
+  assert.equal(results[0].sent, false);
 });
 
 test('a delay is read inside 0 to 10 s, and a server cue never waits', () => {

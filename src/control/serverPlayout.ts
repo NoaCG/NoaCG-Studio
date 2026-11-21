@@ -653,8 +653,11 @@ export interface TogetherSend {
   off: (m: SequenceMember | GraphicMember) => Promise<void>;
   /** Out or All out has been pressed since the run began. */
   stopped: () => boolean;
-  /** Wait this long before a delayed member (`togetherDelayMs`). Absent: a real timer. */
+  /** Wait this long before a delayed member (`togetherDelayMs`). Absent: a real timer that ends
+   *  early once `stopped()`, so an Out frees the folder for a new Take at once. */
   wait?: (ms: number) => Promise<void>;
+  /** The clock delays count on, in ms. Absent: `performance.now()`. */
+  now?: () => number;
 }
 
 /**
@@ -672,14 +675,27 @@ export async function runTogether(plan: Extract<TogetherPlan, { ok: true }>, sen
     if (r.ok && send.stopped()) await send.off(member);
     return { ...r, cueId: cue.id, label: cue.label, sent: true };
   };
-  const wait = send.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const now = send.now ?? (() => performance.now());
+  const wait =
+    send.wait ??
+    ((ms: number) =>
+      new Promise<void>((resolve) => {
+        const end = now() + ms;
+        const tick = () => (send.stopped() || now() >= end ? resolve() : setTimeout(tick, Math.min(50, end - now())));
+        tick();
+      }));
   const results: MemberResult[] = [];
   for (const m of plan.server) results.push(await one(m, () => send.server(m)));
-  // A member's delay counts from here, when the graphics and OSC phase starts. A member still
-  // waiting when Out or All out comes is skipped (`one` and the loop below ask after the wait).
+  // A member's delay counts from here, when the graphics and OSC phase starts, so time spent on an
+  // earlier send is not waited again. A member still waiting when Out or All out comes is skipped
+  // (`one` and the loop below ask after the wait).
+  const start = now();
+  const untilDue = async (cue: ShowCue) => {
+    const left = togetherDelayMs(cue) - (now() - start);
+    if (left > 0) await wait(left);
+  };
   const graphic = async (g: GraphicMember): Promise<MemberResult> => {
-    const ms = togetherDelayMs(g.cue);
-    if (ms) await wait(ms);
+    await untilDue(g.cue);
     return one(g, () => send.graphic(g));
   };
   // OSC goes in the same phase as the graphics, without waiting for the cloud's answer to them, so
@@ -688,14 +704,9 @@ export async function runTogether(plan: Extract<TogetherPlan, { ok: true }>, sen
   // its own delay.
   const controls = async (): Promise<MemberResult[]> => {
     const out: MemberResult[] = [];
-    let waited = 0;
     for (const c of plan.controls) {
       const { cue } = c;
-      const left = togetherDelayMs(cue) - waited;
-      if (left > 0) {
-        await wait(left);
-        waited += left;
-      }
+      await untilDue(cue);
       if (send.stopped()) out.push({ cueId: cue.id, label: cue.label, ok: false, sent: false, control: true, note: `${cue.label} was not sent: the folder was taken off first.` });
       else if (!send.control) out.push({ cueId: cue.id, label: cue.label, ok: false, sent: false, control: true, note: OSC_NOT_YET(cue.label) });
       else out.push({ ...(await send.control(c)), cueId: cue.id, label: cue.label, sent: true, control: true });
