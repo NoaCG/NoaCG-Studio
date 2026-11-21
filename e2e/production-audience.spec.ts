@@ -1705,7 +1705,7 @@ test('saved Vote results and Message templates are offered in their pickers and 
   const results = audience.getByTestId('result-choose');
   await expect(results.getByTestId('result-no-destination')).toBeVisible();
   // Saved designs before built-ins, every button with its own accessible name.
-  expect(await results.locator('.pd-aud-choose-group').evaluateAll((gs) => gs.map((g) => g.getAttribute('data-testid')))).toEqual(['result-choose-saved', 'result-choose-built-in']);
+  expect(await results.locator('.pd-aud-choose-group').evaluateAll((gs) => gs.map((g) => g.getAttribute('data-testid')))).toEqual(['result-group-saved', 'result-group-built-in']);
   const names = await results.getByRole('button').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label') ?? b.textContent));
   expect(new Set(names).size).toBe(names.length);
   const saved = results.getByRole('button', { name: 'Results on Vote results, saved design' });

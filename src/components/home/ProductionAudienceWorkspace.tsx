@@ -276,7 +276,7 @@ function DesignPicker({ kind, items, busy, onPick, onCancel }: { kind: PickerKin
         const list = items.filter((i) => i.group === group);
         if (!list.length) return null;
         return (
-          <div key={group} className="pd-aud-choose-group" role="group" aria-label={heading[group].replace(/:$/, '')} data-testid={`${words.prefix}-choose-${group}`}>
+          <div key={group} className="pd-aud-choose-group" role="group" aria-label={heading[group].replace(/:$/, '')} data-testid={`${words.prefix}-group-${group}`}>
             <span className="hint">{heading[group]}</span>
             {list.map((item) => (
               <button key={item.id} type="button" disabled={busy} aria-label={item.label} onClick={() => onPick(pickOn(item))} data-testid={testid[group]}>
