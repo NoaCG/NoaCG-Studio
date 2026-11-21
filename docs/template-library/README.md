@@ -15,6 +15,8 @@ Each row records:
 - `proof`: what a test observes (`observes`), and for a covered row the test file, the case in it
   and, where the test loops over an inventory, that inventory. The inventory must list each
   template, with the row's `recipe` when it names one.
+- `extensions` on a covered row: what the route still owes, each with its phase and the proof it
+  will need (Countdown's Reset, Warning and Time up; Standings' focus and final/provisional).
 - `recognition` on recipe rows: `automatic` (an untouched file is detected) or `author choice`.
 - `variants` on the end credits rows, and `looks` for every other untyped catalog design: a look
   is a capability of a family row (count-up, dial, crawl), not a file of its own.
@@ -27,8 +29,10 @@ adds the row as `planned` with an unassigned mechanism, and the gate keeps faili
 names its mechanism, proof and phase. `node scripts/template-coverage.mjs` checks without writing;
 the build runs the same check in `scripts/template-coverage.test.mjs`. It fails when a registered id
 has no row, a row's id is gone, a covered row loses a template, its proof case, its inventory entry
-or its recipe, its proof spec is quarantined, or an untyped design maps to no row. `--complete`
-also refuses every `planned` row; it becomes the gate when the last gap closes (phase TL7).
+or its recipe, its proof spec is quarantined, or an untyped design maps to no row. `coveredFloor` is the ratchet: every row once covered stays
+listed there (regeneration keeps it), and a listed row that is no longer `covered` fails, so
+coverage never goes back by an ordinary edit. `--complete`
+also refuses every `planned` row and every open extension; it becomes the gate when the last gap closes (phase TL7).
 
 ## names.json
 

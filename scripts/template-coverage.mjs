@@ -98,14 +98,21 @@ export function registryIds(root, { types, recipes, catalog }) {
 /** The matrix the registries call for: their rows in order, each keeping what the committed
  *  matrix says about it, and a new id as an unassigned `planned` row. */
 export function generateMatrix(registry, committed) {
-  const old = new Map((committed?.rows ?? []).map((row) => [`${row.kind}:${row.id}`, row]));
+  const old = new Map((committed?.rows ?? []).map((row) => [rowKey(row), row]));
   const rows = registry.rows.map(({ id, kind, source }) => {
     const prior = old.get(`${kind}:${id}`);
     if (prior) return { ...prior, id, kind, source };
     return { id, kind, source, mechanism: 'unassigned', status: 'planned', phase: null, templates: [], proof: { observes: '' } };
   });
-  return { ...(committed ?? {}), rows };
+  // The ratchet: a row once covered stays on the floor while it is registered, so turning it back
+  // to planned is refused rather than passing as an ordinary edit.
+  const registered = new Set(rows.map((row) => rowKey(row)));
+  const floor = new Set((committed?.coveredFloor ?? []).filter((key) => registered.has(key)));
+  for (const row of rows) if (row.status === 'covered') floor.add(rowKey(row));
+  return { ...(committed ?? {}), coveredFloor: [...floor].sort(), rows };
 }
+
+export const rowKey = (row) => `${row.kind}:${row.id}`;
 
 /** One row per line, so a diff of the matrix reads as a diff of rows. */
 export function formatMatrix(matrix) {
@@ -149,6 +156,10 @@ export function validateMatrix(matrix, { root = ROOT, untypedLooks = [], complet
     if (!row.proof?.observes) problems.push(`${at}: name its observable proof (a field update, control or output a test drives)`);
     if (!Array.isArray(row.source) || row.source.length === 0) problems.push(`${at}: no source file found for this id`);
     for (const file of row.source ?? []) if (!existsSync(path.join(root, file))) problems.push(`${at}: source ${file} is missing`);
+    for (const open of row.extensions ?? []) {
+      if (!PHASES.includes(open.phase) || !open.observes) problems.push(`${at}: an open extension names its phase and what its proof will observe`);
+      if (complete) problems.push(`${at}: open extension (${open.observes}), and complete coverage is required`);
+    }
     if (row.status === 'planned') {
       if (complete) problems.push(`${at}: planned, and complete coverage is required`);
       if (!PHASES.includes(row.phase)) problems.push(`${at}: a planned row names the phase that covers it (${PHASES.join(', ')})`);
@@ -186,6 +197,11 @@ export function validateMatrix(matrix, { root = ROOT, untypedLooks = [], complet
         else if (row.recipe !== undefined && entry.recipe !== row.recipe) problems.push(`${at}: ${inventory} lists ${slug} with recipe ${entry.recipe}, not ${row.recipe}`);
       }
     }
+  }
+  // Coverage never goes back: every row on the floor is still covered.
+  const statusOf = new Map(matrix.rows.map((row) => [rowKey(row), row.status]));
+  for (const key of matrix.coveredFloor ?? []) {
+    if (statusOf.has(key) && statusOf.get(key) !== 'covered') problems.push(`${key.replace(':', ' ')}: was covered and is now ${statusOf.get(key)} - coverage never goes back`);
   }
   // D9: every untyped catalog design is a look of some row.
   const looks = matrix.looks ?? {};

@@ -75,9 +75,34 @@ test('a new registry id gets a row only by regeneration, and stays failing until
     const generated = generateMatrix(registry, committed);
     assert.deepEqual(staleRows(committed, generated), ['type new: registered with no row - run node scripts/template-coverage.mjs --write, then assign it']);
     assert.deepEqual(generated.rows[0], coveredRow(), 'regeneration keeps an assigned row');
+    assert.deepEqual(generated.coveredFloor, ['type:a']);
     assert.ok(validateMatrix(generated, { root }).some((p) => /type new: assign its mechanism/.test(p)));
     const gone = generateMatrix({ rows: [] }, committed);
     assert.deepEqual(staleRows(committed, gone), ['type a: no longer registered - run node scripts/template-coverage.mjs --write']);
+  } finally { done(); }
+});
+
+test('coverage never goes back: a covered row stays on the floor, and turning it to planned fails', () => {
+  const { root, done } = fixture();
+  try {
+    const registry = { rows: [{ id: 'a', kind: 'type', source: ['src/types/a.ts'] }] };
+    const covered = generateMatrix(registry, { rows: [coveredRow()] });
+    assert.deepEqual(covered.coveredFloor, ['type:a']);
+    const demoted = generateMatrix(registry, { ...covered, rows: [{ ...plannedRow(), id: 'a' }] });
+    assert.deepEqual(demoted.coveredFloor, ['type:a'], 'regeneration keeps the floor');
+    assert.deepEqual(validateMatrix(demoted, { root }), ['type a: was covered and is now planned - coverage never goes back']);
+    const handEdited = { ...covered, coveredFloor: [] };
+    assert.ok(staleRows(handEdited, generateMatrix(registry, handEdited)).some((p) => /out of date/.test(p)), 'a floor emptied by hand is out of date');
+  } finally { done(); }
+});
+
+test('an open extension on a covered row names its phase and proof, and complete mode refuses it', () => {
+  const { root, done } = fixture();
+  try {
+    const open = { phase: 'TL5', observes: 'focus plays' };
+    assert.deepEqual(validateMatrix({ rows: [{ ...coveredRow(), extensions: [open] }] }, { root }), []);
+    assert.ok(validateMatrix({ rows: [{ ...coveredRow(), extensions: [{ observes: 'x' }] }] }, { root }).some((p) => /open extension names its phase/.test(p)));
+    assert.ok(validateMatrix({ rows: [{ ...coveredRow(), extensions: [open] }] }, { root, complete: true }).some((p) => /open extension \(focus plays\)/.test(p)));
   } finally { done(); }
 });
 

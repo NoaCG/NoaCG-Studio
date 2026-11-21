@@ -72,7 +72,7 @@ export const cr13: TemplateVariant = defineCreditsVariant(
   {
     name: 'Programme Roll',
     description:
-      'The theatre programme as a credits roll: a paper page with a print register, section ' +
+      'The theatre programme as end credits: a paper page with a print register, section ' +
       'headings under their own rule, and every credit set as a leader row - the role on the ' +
       'left, a dotted leader across, the name on the right.',
     uicolor: '4',

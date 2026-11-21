@@ -15,14 +15,19 @@ gate with `planned` rows allowed, and AC-8 for the D5 labels.
   scoreboard, duel-score, standings, live-poll, goal-meter, process-steps, roster), end credits
   scroll and columns, all 17 recipes. 70 planned with their phase: TL1 7, TL4 29, TL5 28, TL6 6.
 - Every covered row names its proof test, a case text found verbatim in it, the inventory the test
-  loops over (each template listed there with the row's recipe), and what it observes. The
+  loops over (each template listed there with the row's recipe), and what it observes, limited to
+  what that case asserts (after the final /so). What a covered route still owes is an open
+  `extensions` entry with its phase: 7 rows carry one (countdown, scoreboard, duel-score,
+  live-poll, goal-meter, end-credits-columns in TL4; standings in TL5).
+- `coveredFloor` lists the 31 covered rows; a listed row that is not covered fails (demotion
+  ratchet), and regeneration keeps the list. The
   proofs are `e2e/svg-templates.spec.ts` and `e2e/svg-examples.spec.ts`, neither quarantined.
 - The gate is `scripts/template-coverage.test.mjs` (build tier). It fails when a registered id
   has no row, a row names an unregistered id, a covered row loses a template, its proof file or
   case, its inventory entry or recipe, its proof spec is quarantined, a planned row has no
   mechanism, proof or phase, or an untyped design maps to no row. `--complete` refuses planned
   rows (TL7).
-  - `node --test scripts/template-coverage.test.mjs`: 6 pass, 0 fail (fixture cases for each
+  - `node --test scripts/template-coverage.test.mjs`: 8 pass, 0 fail (fixture cases for each
     failure, then the real registries through Vite).
   - Mutation: moving `docs/tutorials/svg-templates/SVG/quiz.svg` away made
     `node scripts/template-coverage.mjs` exit 1 with
@@ -40,7 +45,7 @@ gate with `planned` rows allowed, and AC-8 for the D5 labels.
 - `docs/template-library/names.json` lists 16 concepts with the recipe, type and kind label that
   carry each name, and the retired labels. `scripts/concept-names.test.mjs`: 5 pass. It checks
   the real registries and `graphicKindLabel`, that no two recipes or types share a name, and that
-  none of 411 user-facing files (app UI and type files read as strings and JSX text through the
+  none of 474 user-facing files (app UI and type files read as strings and JSX text through the
   TypeScript parser, docs pages, SVG authoring guide,
   tutorials, docs examples, skill copies, CLI README) uses a retired label.
 - Renamed labels (ids, role words, field titles and persisted keys unchanged):
@@ -51,6 +56,10 @@ gate with `planned` rows allowed, and AC-8 for the D5 labels.
   - chip kind labels: Timer to Countdown, Credits to End credits, Holding to Holding screen.
     Results stays: that family also holds lineups, brackets and timing towers. Alert stays as
     the family word for the alert category (Alert level types and breaking banners).
+  - end credits descriptions (cr02, cr13) and the editor's refusal for a key on imported end
+    credits (`CREDITS_REFUSAL`, its assertion in `e2e/editor-fidelity-trim.spec.ts` follows).
+    The emitted CSS comment in `importedDesign/creditsRoll.ts` keeps its words: it names a
+    section of exported code, and exports are out of scope.
   - the standings design description: "A quiet result table" to "Quiet standings".
   - inventories and templates: Score tracker, Meter, Alert, Credits roll, Digital clock and
     timer, Editable credits; Game timer to Countdown, Show countdown to Show clock (it runs the

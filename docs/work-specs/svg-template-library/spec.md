@@ -345,7 +345,11 @@ Actions. OW: the owner, with Illustrator on their own computer.
   `scripts/template-coverage.test.mjs`. A phase that covers a row sets `status: covered`, its
   `templates`, and `proof` (`test`, `case` text that appears verbatim in that test, `inventory`
   when the test loops over one; the inventory must list each template with the row's `recipe`),
-  and deletes `phase`. `--complete` is the TL7 gate. A quarantined proof spec fails its rows.
+  and deletes `phase`. `observes` names only what that case asserts; what the route still owes
+  is an `extensions` entry with its phase (Countdown Reset, Warning, Time up in TL4; Scoreboard
+  New game, Live vote Close and Call the winner, Goal meter bar fill, columns layout in TL4;
+  Standings focus and final/provisional in TL5). `coveredFloor` keeps every row once covered:
+  demoting one fails. `--complete` (TL7) also refuses open extensions. A quarantined proof spec fails its rows.
 - Untyped catalog designs map through `looks` (category default, variant overrides with a
   capability) or a row's `variants` (end credits by form, read from each design's animation
   preset). A new untyped design fails until mapped; `imported-design` is excluded.
