@@ -336,6 +336,34 @@ Actions. OW: the owner, with Illustrator on their own computer.
 
 (Each phase adds what the next must know.)
 
+### TL0 (inventory and gate)
+
+- Previous verified `main`: `df0c7a0e15b7b8d87ced52c8db73120d85dc1965`. Revert: `git revert -m 1 <the TL0 merge commit>`.
+- The matrix is `docs/template-library/coverage.json` (101 rows: 72 types, 8 untyped kinds, 17
+  recipes, 4 contracts; 31 covered at TL0). `node scripts/template-coverage.mjs --write`
+  regenerates it from the registries and keeps each row's assignment; the build gate is
+  `scripts/template-coverage.test.mjs`. A phase that covers a row sets `status: covered`, its
+  `templates`, and `proof` (`test`, `case` text that appears verbatim in that test, `inventory`
+  when the test loops over one; the inventory must list each template with the row's `recipe`),
+  and deletes `phase`. `--complete` is the TL7 gate. A quarantined proof spec fails its rows.
+- Untyped catalog designs map through `looks` (category default, variant overrides with a
+  capability) or a row's `variants` (end credits by form, read from each design's animation
+  preset). A new untyped design fails until mapped; `imported-design` is excluded.
+- Names: `docs/template-library/names.json`, checked by `scripts/concept-names.test.mjs` against
+  the registries, the chip kind labels (`graphicKindLabel`) and the user-facing surfaces it lists
+  (TypeScript comments are not scanned). Add a surface there when a phase adds one (the TL3
+  gallery and package pages). Template display names changed, slugs kept: Game timer is
+  Countdown, Show countdown is Show clock (it is the Clock recipe), Digital clock and timer is
+  Clock. Test titles in `e2e/svg-*.spec.ts` follow inventory names.
+- Illustrator exports are archived in `e2e/fixtures/illustrator-exports/` (19 files, byte
+  identical; `scripts/illustrator-exports.test.mjs`). TL3 points `e2e/svg-examples.spec.ts` at
+  them before moving `docs/tutorials/svg-examples`.
+- Trap: editing an inventory, README or authored SVG in `docs/tutorials/svg-*` needs both zips
+  repacked (`node scripts/illustrator/pack-svg-examples.mjs` and `--set templates`); the PDF print
+  runs Chromium. `e2e/downloads.spec.ts` compares the zip to the repo.
+- Trap: editing this spec changes `work.json`'s `specSha256`; TL0 updated it with the notes only
+  (acceptance unchanged).
+
 ## Non-goals
 
 - Redesigning the import workflow or its dropdown.
