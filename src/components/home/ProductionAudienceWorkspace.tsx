@@ -223,11 +223,18 @@ const pickOn = (item: PickerItem): PickOn =>
   item.group === 'production' ? { graphicId: item.id } : item.group === 'saved' ? { saved: item.id } : { board: item.id };
 
 /** A pick of a saved design or a built-in brings it into the production first: the graphic it
- *  became and the seeded cue the pick fills. Null for a production graphic, already there. */
+ *  became and the seeded cue the pick fills. A production graphic that is a saved design's copy
+ *  is picked with its still untouched seeded cue too: a pick whose staging failed after the copy
+ *  landed leaves that cue, and the retry (now listed under the production) fills it rather than
+ *  adding a second cue beside it. Null for any other production graphic: as before. */
 async function bringIn(show: Show, on: PickOn) {
   if (on.saved) return addSavedDesign(show, on.saved);
   if (on.board) return addCatalogDesign(show, on.board);
-  return null;
+  const shows = loadShows();
+  const stored = shows.find((x) => x.id === show.id) ?? show;
+  const copy = on.graphicId ? stored.graphics.find((g) => g.id === on.graphicId && g.graphicId) : undefined;
+  if (!copy) return null;
+  return { shows, graphicId: copy.id, cueId: seededCue(stored, copy.id, seedValues(copy.template.fields)), error: null };
 }
 
 /** Each picker's words: the production group's heading, what it says when the production has no
