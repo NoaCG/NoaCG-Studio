@@ -41,9 +41,12 @@ export interface DataPart {
   dataKey: string | null | undefined;
   /** Whether a published production's tree has been read from the server yet. */
   treeRead: boolean;
+  /** Bound presses queued on this page and not yet answered as landed or refused
+   *  (./productionDataSession.ts `pressBound`, #2617). Never in `liveData`. */
+  unsent: number;
 }
 
-export const NO_DATA: DataPart = { liveData: {}, dataKey: undefined, treeRead: false };
+export const NO_DATA: DataPart = { liveData: {}, dataKey: undefined, treeRead: false, unsent: 0 };
 
 /** What NoaCG Bridge last said for this production (./bridgeWatch.ts asks it). */
 export interface BridgePart {

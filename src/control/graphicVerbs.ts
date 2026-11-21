@@ -54,6 +54,7 @@ import type { LiveCueMap, VerbSent } from './liveCue';
 import type { ServerVerb, ServerVerbOutcome } from './serverPlayout';
 import type { SelectionTake, SendFailure } from './selectionAir';
 import type { PlayoutSession } from './playoutSession';
+import type { BoundPress } from './productionDataSession';
 import type { AppliedAppearance, PlaceHint } from './cueAdjust';
 import type { createSendDebts } from './failedSends';
 import { ALL_OUT_CONFIRM_MS, allOutTargets } from './allOut.ts';
@@ -75,6 +76,12 @@ import { isControlCue, isGraphicCue, isServerCue } from '../model/controlCue.ts'
  *  `uncertain`: the server did not answer, so it may still commit; `stale`: the server refused it
  *  because another screen changed a graphic first. */
 export type Sent = ({ ok: true } & VerbSent) | ({ ok: false; note: string } & SendFailure);
+
+/** A press that queued relative presses (#2617): its outcome so far, and their landing. */
+interface Queued {
+  done: PressDone;
+  landed: Promise<boolean>;
+}
 
 /** A graphic cue's Take, as one cue's or a folder's whole Take says it. */
 interface GraphicTake {
@@ -213,8 +220,13 @@ export interface GraphicPage {
   boundNow: (graphic: string) => Record<string, string>;
   /** Refuse a bound press while the published tree is unread, saying why; true when it may go. */
   boundReady: () => boolean;
-  /** Move the production tree (an operator press); false when the write did not land. */
+  /** Move the production tree by an absolute write (a list's `add` or `remove`); false when the
+   *  write did not land. */
   patchBound: (writes: TreeWrite[]) => Promise<boolean>;
+  /** Move the production tree by relative presses (an `adjust`, a declared `set`), queued and sent
+   *  until they land (productionDataSession.ts `pressBound`, #2617); false when one was refused or
+   *  dropped. */
+  pressBound: (presses: BoundPress[]) => Promise<boolean>;
   /** Write a cue's values as an edit (the ± bump on an unbound field). */
   writeCue: (cueId: string, values: Record<string, string>) => void;
   /** A cue's values as saved now (the draft's last save included), read when a press settles. */
@@ -327,6 +339,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return {
       ...p,
       patchBound: async (writes) => (alive() ? p.patchBound(writes) : false),
+      pressBound: async (presses) => (alive() ? p.pressBound(presses) : false),
       writeCue: (cueId, values) => alive() && p.writeCue(cueId, values),
       writeLive: (cueId, values) => alive() && p.writeLive(cueId, values),
       clearThroughBridge: async (note) => (alive() ? p.clearThroughBridge(note) : note),
@@ -860,6 +873,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
 
   /** A live press that sent nothing, and the sentence the note line said why. */
   const refused = (note: string): PressDone => ({ outcome: 'refused', note });
+  /** A press whose shared values are queued (#2617): what it came to once they land. The press
+   *  order (`afterPress`) is released at the queueing; only the press's own outcome waits. */
+  const outcomeOf = async (ran: PressDone | Queued): Promise<PressDone> =>
+    'landed' in ran ? ((await ran.landed) ? ran.done : { outcome: 'failed', note: SHARED_NOT_MOVED }) : ran;
   /** What a live press's send came to: taken by the server for its graphic, overtaken there by a
    *  later press, refused as stale, unanswered (it may still commit), or failed. */
   const doneOf = (sent: Sent, graphic: string): PressDone =>
@@ -887,16 +904,19 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     if (!still()) return refused(changedNote(graphic));
     const path = p.boundFields(graphic)[fieldKey];
     if (path) {
-      return afterPress(graphic, async (): Promise<PressDone> => {
+      // A RELATIVE press (#2617): "+delta on the path", queued at its turn and sent until it lands.
+      // The next press waits for this one to be queued, never for it to land, so presses never
+      // stack up behind a slow write; the outcome follows the landing.
+      const ran = await afterPress(graphic, async (): Promise<PressDone | Queued> => {
         if (!still()) return refused(changedNote(graphic));
         if (!p.boundReady()) return refused('The production data is not read yet.');
         try {
-          const landed = await p.patchBound([{ path, text: io.adjustedValue(p.boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
-          return landed === false ? { outcome: 'failed', note: SHARED_NOT_MOVED } : { outcome: 'accepted' };
+          return { done: { outcome: 'accepted' }, landed: p.pressBound([{ path, by: delta }]) };
         } finally {
           void saveAfter(p);
         }
       });
+      return outcomeOf(ran);
     }
     // A live candidate's field comes from its source only: a press would air a figure no
     // revision holds (E7.1). The layer's own candidate counts too, and both are asked again after
@@ -1062,7 +1082,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return aired ? { ...kept, ...aired } : kept;
   };
 
-  const pressEvent = async (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, bound: Record<string, string>, movedList: string[], still: () => boolean): Promise<PressDone> => {
+  const pressEvent = async (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, bound: Record<string, string>, movedList: string[], still: () => boolean): Promise<PressDone | Queued> => {
     // An event may READ a live candidate's fields, never move one: that figure would be in no
     // revision (E7.1).
     // Asked after the wait for the press before it, which a Take may have moved.
@@ -1118,9 +1138,22 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         if (Object.keys(kept).length > 0) p.writeLive(airCue.id, kept);
       });
     }
-    // The event went but its shared value did not move: that half failed, and the press says so.
-    if (went && (await p.patchBound(tree)) === false) return { outcome: 'failed', note: SHARED_NOT_MOVED };
-    return doneOf(outcome, graphic);
+    // ITS SHARED VALUES FOLLOW THE EVENT'S OUTCOME (fix-2617 R8a): went, they move; unknown (no
+    // answer, so it may still commit), its relative presses are queued all the same, since each
+    // lands once; refused, or failed with an answer, nothing moves.
+    const unknown = !outcome.ok && outcome.uncertain === true;
+    if (!went && !unknown) return doneOf(outcome, graphic);
+    // One press per bound field the button moves, each with its own delta or declared figure.
+    const presses: BoundPress[] = [
+      ...Object.entries(button.adjust ?? {}).flatMap(([key, by]) => (bound[key] ? [{ path: bound[key], by }] : [])),
+      ...Object.entries(button.set ?? {}).flatMap(([key, text]) => (bound[key] ? [{ path: bound[key], text }] : [])),
+    ];
+    const landed = presses.length > 0 ? p.pressBound(presses) : null;
+    if (!went) return doneOf(outcome, graphic);
+    // A list's add or remove is still today's absolute write (fix-2617, Left for later).
+    const lists = tree.filter((w) => w.verb === 'list');
+    if (lists.length > 0 && (await p.patchBound(lists)) === false) return { outcome: 'failed', note: SHARED_NOT_MOVED };
+    return landed ? { done: doneOf(outcome, graphic), landed } : doneOf(outcome, graphic);
   };
 
   /**
@@ -1167,7 +1200,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     if (!still()) return Promise.resolve(refused(changedNote(graphic)));
     const bound = p.boundFields(graphic);
     const moved = io.movedKeys(button);
-    return afterPress(graphic, () => pressEvent(s, p, sel, button, graphic, bound, moved, still));
+    return afterPress(graphic, () => pressEvent(s, p, sel, button, graphic, bound, moved, still)).then(outcomeOf);
   };
 
   /** Snap the live graphic straight to states (`{group: state}`; « Back and ⟲ Reset), with an

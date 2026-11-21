@@ -18,12 +18,45 @@
 import { applyPatch, diffResolved, getPath, replacementPatch, withTreeWrites, type JsonObject, type ResolvedValues, type TreeWrite } from '../model/productionData.ts';
 import { SHARED_NOT_MOVED } from './liveControls.ts';
 import type { ControlSendItem } from './hostedControl';
-import type { fetchProductionData, patchProductionData, patchProductionDataBySlug, productionDataKey } from './productionDataApi';
+import type { adjustProductionDataBySlug, BoundPressFailure, BoundPressWire, fetchProductionData, patchProductionData, patchProductionDataBySlug, productionDataKey } from './productionDataApi';
 import type { DataPart, PlayoutSession } from './playoutSession';
 
 /** How long a path the published row refused stays out of source writes before it is tried
  *  again: a minute, so a republish that binds it resumes it without a reload. */
 const UNBOUND_RETRY_MS = 60_000;
+
+/** THE BOUND-PRESS QUEUE (#2617; docs/work-specs/live-publishing/evidence/fix-2617.md R1 to R11).
+ *  At most this many presses ride one call. */
+export const PRESS_BATCH = 50;
+/** A call with no answer by then is given up on and sent again: the server's own statement limit
+ *  (8 s signed in) answers before it, so this only ends a lost connection. */
+export const PRESS_ATTEMPT_MS = 15_000;
+/** The resend's first wait and its ceiling; it doubles in between. */
+export const PRESS_BACKOFF_MS = 500;
+export const PRESS_BACKOFF_MAX_MS = 8_000;
+/** How long a given-up fallback figure can hold the next one back, at most (R10). */
+const PRESS_ABANDON_MS = 60_000;
+/** A press never goes after this: the server keeps its id 24 hours, so a resend cannot outlive it. */
+export const PRESS_MAX_AGE_MS = 60 * 60_000;
+
+/** A press on a bound field: "add N to this path" or "make this path this text". */
+export type BoundPress = { path: string; by: number } | { path: string; text: string };
+
+/** The page's figure for presses folded onto a tree, as the server folds them (migration 0125):
+ *  `adjustedValue`'s arithmetic and `retypeLeaf`'s types. */
+export function foldPresses(tree: JsonObject, presses: readonly BoundPress[]): JsonObject {
+  let out = tree;
+  for (const press of presses) {
+    const write: TreeWrite =
+      'by' in press
+        ? { path: press.path, text: String((parseInt(String(getPath(out, press.path) ?? ''), 10) || 0) + press.by), verb: 'adjust' }
+        : { path: press.path, text: press.text, verb: 'set' };
+    out = withTreeWrites(out, [write]);
+  }
+  return out;
+}
+
+const plural = (n: number) => (n === 1 ? '1 press' : `${n} presses`);
 
 export interface ProductionDataIo {
   /** False in a build with no backend: then no production has a key to read. */
@@ -32,6 +65,8 @@ export interface ProductionDataIo {
   saveLiveData: (productionId: string, data: JsonObject) => void;
   /** The doors of control/productionDataApi.ts, as they are there. */
   productionDataKey: typeof productionDataKey;
+  /** The relative door (migration 0125). Absent, the session writes figures as today (R10). */
+  adjustProductionDataBySlug?: typeof adjustProductionDataBySlug;
   fetchProductionData: typeof fetchProductionData;
   patchProductionData: typeof patchProductionData;
   patchProductionDataBySlug: typeof patchProductionDataBySlug;
@@ -41,6 +76,12 @@ export interface ProductionDataIo {
   note: (text: string) => void;
   /** Run `run` every `ms` until the answer is called: the timer a poll uses. */
   every?: (ms: number, run: () => void) => () => void;
+  /** Run `run` once after `ms` unless the answer is called first (default: setTimeout). */
+  after?: (ms: number, run: () => void) => () => void;
+  /** The clock (default: Date.now). */
+  now?: () => number;
+  /** A press id, a uuid (default: crypto.randomUUID). */
+  pressId?: () => string;
 }
 
 /** The sender the page hands in: the graphic verbs' `run` (control/graphicVerbs.ts). */
@@ -52,9 +93,14 @@ export interface ProductionDataSession {
   published: (slug: string | null) => () => void;
   /** The owner editing the tree (the Data workspace): one call, one write. */
   setLiveData: (next: JsonObject) => void;
-  /** An operator press moving a bound value (the ± stepper, an event's `adjust`). */
-  /** Answers false when the write did not land (the note line says why). */
+  /** An operator press moving a bound value by an ABSOLUTE write: a list's `add` or `remove`.
+   *  Answers false when the write did not land (the note line says why). */
   patchBoundValues: (writes: TreeWrite[]) => Promise<boolean>;
+  /** An operator press moving a bound value by a RELATIVE operation (the ± stepper, an event's
+   *  `adjust` or `set`). Published, it is queued with a press id and sent until it lands; answers
+   *  true when every press landed, false when one was refused or dropped (the note line says
+   *  why). Unpublished, the local tree moves at once. */
+  pressBound: (presses: BoundPress[]) => Promise<boolean>;
   /** A SOURCE READER's write (control/sheetSource.ts): a merge patch of the connected paths that
    *  changed. Answers true when it landed, false when nothing did (it is tried again), or the
    *  paths the published row does not bind yet, which were left out while the rest landed.
@@ -125,13 +171,20 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     if (from === mode && n < held) void refresh();
     else hold(from, n, { liveData: tree, treeRead: true });
   };
+  /** Reads out now: R10's figure is never counted from a tree a newer read is about to replace. */
+  let reading = 0;
   const refresh = async (): Promise<void> => {
     const from = mode;
     const key = part.get().dataKey;
     if (!key) return;
     const n = ++asked;
-    const current = await io.fetchProductionData(key);
-    if (current) hold(from, n, { liveData: current.data as JsonObject, treeRead: true });
+    reading += 1;
+    try {
+      const current = await io.fetchProductionData(key);
+      if (current) hold(from, n, { liveData: current.data as JsonObject, treeRead: true });
+    } finally {
+      reading -= 1;
+    }
   };
 
   /** The operator's road for a tree change: optimistic on both, so the figure on screen moves at
@@ -157,12 +210,186 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     }
   };
 
+  // ── THE BOUND-PRESS QUEUE (#2617) ────────────────────────────────────────────────────────────
+  //
+  // A relative press is never in the tree (R5): the tree is the server's, and air takes the figure
+  // from the server's rows. What the page holds is the queue, in press order, and its count in the
+  // data part. One call is out at a time; one with no answer goes again on a doubling wait; a press
+  // the server refuses is dropped and said; a failure never touches the queue or the tree beyond
+  // the read every write failure already makes.
+  interface Queued {
+    id: string;
+    press: BoundPress;
+    at: number;
+    slug: string;
+    settle: (landed: boolean) => void;
+  }
+  const now = () => (io.now ? io.now() : Date.now());
+  const after = (ms: number, run: () => void): (() => void) => {
+    if (io.after) return io.after(ms, run);
+    const timer = setTimeout(run, ms);
+    return () => clearTimeout(timer);
+  };
+  const pressId = () => (io.pressId ? io.pressId() : globalThis.crypto.randomUUID());
+  let queue: Queued[] = [];
+  let calling = false;
+  let waiting: (() => void) | null = null;
+  let backoff = 0;
+  /** The database has no relative door (PGRST202): figures go as today's absolute write (R10). */
+  let absolute = !io.adjustProductionDataBySlug;
+  /** R10's figure, computed once for the presses it covers and resent unchanged. */
+  let figure: { ids: string[]; patch: JsonObject } | null = null;
+  /** R10's attempts given up on but still on their way: one may commit late, so no NEW figure goes
+   *  until each has settled, or it could land behind that figure and undo it. */
+  const abandoned = new Set<Promise<unknown>>();
+
+  const counted = () => {
+    session.apply((parts) => (parts.data.unsent === queue.length ? parts : { ...parts, data: { ...parts.data, unsent: queue.length } }));
+  };
+  const settle = (ids: ReadonlySet<string>, landed: boolean) => {
+    const done = queue.filter((q) => ids.has(q.id));
+    if (done.length === 0) return 0;
+    queue = queue.filter((q) => !ids.has(q.id));
+    for (const q of done) q.settle(landed);
+    return done.length;
+  };
+  const drop = (items: readonly Queued[], why: string) => {
+    const n = settle(new Set(items.map((q) => q.id)), false);
+    if (n > 0 && session.alive()) io.note(`${plural(n)} not moved: ${why}`);
+  };
+  const resendLater = () => {
+    backoff = backoff ? Math.min(backoff * 2, PRESS_BACKOFF_MAX_MS) : PRESS_BACKOFF_MS;
+    waiting = after(backoff, () => {
+      waiting = null;
+      void pump();
+    });
+  };
+
+  /** One call out at a time, the oldest presses first; answers when that call has settled. */
+  const pump = async (): Promise<void> => {
+    if (calling || waiting || !session.alive()) return;
+    const old = queue.filter((q) => now() - q.at > PRESS_MAX_AGE_MS);
+    if (old.length > 0) drop(old, 'not sent within an hour.');
+    const callSlug = slug;
+    if (queue.length === 0 || callSlug === null) return counted();
+    const batch = queue.filter((q) => q.slug === callSlug).slice(0, PRESS_BATCH);
+    const from = mode;
+    const n = ++asked;
+    calling = true;
+    try {
+      if (absolute) await sendFigure(batch, callSlug, from, n);
+      else await sendRelative(batch, callSlug, from, n);
+      // An answer that settled none of the batch is no progress: wait before asking again.
+      if (batch.every((q) => queue.includes(q))) resendLater();
+      else backoff = 0;
+    } catch (error) {
+      const failure = (error as Partial<BoundPressFailure>).press;
+      if (failure === 'missing') {
+        absolute = true;
+        backoff = 0;
+      } else if (failure === 'refused') {
+        drop(batch, (error as Error).message);
+      } else {
+        resendLater();
+      }
+    } finally {
+      calling = false;
+      counted();
+    }
+    if (!waiting && queue.length > 0) return pump();
+  };
+
+  const sendRelative = async (batch: readonly Queued[], callSlug: string, from: number, n: number) => {
+    const abort = new AbortController();
+    const cancel = after(PRESS_ATTEMPT_MS, () => abort.abort());
+    const wire: BoundPressWire[] = batch.map((q) => ({ id: q.id, ...q.press }));
+    let answer;
+    try {
+      answer = await io.adjustProductionDataBySlug!(callSlug, wire, abort.signal);
+    } catch (error) {
+      if ((error as Partial<BoundPressFailure>).press) throw error;
+      throw Object.assign(new Error((error as Error)?.message ?? 'no answer'), { press: 'retry' as const });
+    } finally {
+      cancel();
+    }
+    // Settled whether or not its tree is the newest held: the ids landed (R5).
+    settle(new Set(answer.landed), true);
+    const refused = new Map(answer.refused.map((r) => [r.id, r.reason]));
+    if (refused.size > 0) drop(batch.filter((q) => refused.has(q.id)), [...new Set(refused.values())].join('; '));
+    answered(from, n, answer.data as JsonObject);
+  };
+
+  /** R10: no relative door. The figure the server tree and these presses make, computed once and
+   *  resent unchanged, so a resend writes the same value and cannot count twice. */
+  const sendFigure = async (batch: readonly Queued[], callSlug: string, from: number, n: number) => {
+    const queued = new Set(queue.map((q) => q.id));
+    if (!figure || !figure.ids.every((id) => queued.has(id))) {
+      // Counted only from a tree read from the server and not about to be replaced, and only once
+      // no earlier figure given up on can still land after it.
+      if (!part.get().treeRead || reading > 0 || abandoned.size > 0) throw Object.assign(new Error('the tree is being read'), { press: 'retry' as const });
+      const tree = part.get().liveData;
+      figure = { ids: batch.map((q) => q.id), patch: replacementPatch(tree, foldPresses(tree, batch.map((q) => q.press))) };
+    }
+    const { ids, patch } = figure;
+    let cancel = () => {};
+    try {
+      // Given up after the attempt's time, like the relative call: the figure is the same on a
+      // resend, so a late commit of this one changes nothing.
+      const call = Object.keys(patch).length > 0 ? io.patchProductionDataBySlug(callSlug, patch) : null;
+      const gaveUp = new Promise<never>((_, reject) => {
+        cancel = after(PRESS_ATTEMPT_MS, () => {
+          if (call) {
+            const settled = call.then(
+              () => undefined,
+              () => undefined,
+            );
+            abandoned.add(settled);
+            void settled.then(() => abandoned.delete(settled));
+            // Bounded: the database ends a call's write long before this (the API roles' statement
+            // timeouts are seconds), so a request still hung by then can no longer land.
+            after(PRESS_ABANDON_MS, () => abandoned.delete(settled));
+          }
+          reject(Object.assign(new Error('no answer'), { unanswered: true }));
+        });
+      });
+      const tree = call ? ((await Promise.race([call, gaveUp])) as JsonObject) : null;
+      figure = null;
+      settle(new Set(ids), true);
+      if (tree) answered(from, n, tree);
+    } catch (error) {
+      const message = (error as Error)?.message ?? '';
+      if (/^(not a bound path|not a field value|hosted control is switched off|unknown control slug)/.test(message)) {
+        figure = null;
+        throw Object.assign(new Error(message), { press: 'refused' as const });
+      }
+      throw Object.assign(new Error(message || 'no answer'), { press: 'retry' as const });
+    } finally {
+      cancel();
+    }
+  };
+
+  /** Whether a queued press of this page is on one of `paths` or inside it. */
+  const queuedUnder = (paths: readonly string[]): boolean =>
+    queue.some((q) => paths.some((p) => q.press.path === p || q.press.path.startsWith(`${p}.`)));
+
+  session.onDispose(() => {
+    waiting?.();
+    waiting = null;
+    settle(new Set(queue.map((q) => q.id)), false);
+  });
+
   return {
     published: (next) => {
       if (!session.alive()) return () => {};
       mode += 1;
       const from = mode;
+      // R9: a new address, or none, takes the old address's presses with it; a republish that
+      // keeps the slug keeps them.
+      const elsewhere = queue.filter((q) => q.slug !== next);
+      if (elsewhere.length > 0) drop(elsewhere, 'the production is no longer published at that address (one already on its way may have landed).');
       slug = next;
+      counted();
+      void pump();
       const id = session.key;
       const local = Boolean(id) && !next;
       const readsKey = Boolean(next) && io.backendConfigured;
@@ -259,11 +486,46 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
      */
     patchBoundValues: async (writes) => {
       if (writes.length === 0) return true;
+      // A list write is absolute, computed from the tree as the press saw it: with a press of this
+      // page still queued inside that list it would overwrite one that lands meanwhile, so it is
+      // refused and said (R1).
+      const lists = writes.filter((w) => w.verb === 'list').map((w) => w.path);
+      if (slug && lists.length > 0 && queuedUnder(lists)) {
+        if (session.alive()) io.note(`${SHARED_NOT_MOVED}: presses on that list are still sending. Press it again once they have landed.`);
+        return false;
+      }
       const before = part.get().liveData;
       const next = withTreeWrites(before, writes);
       const patch = replacementPatch(before, next);
       if (Object.keys(patch).length === 0) return true;
       return operatorWrite(mode, next, patch, SHARED_NOT_MOVED);
+    },
+
+    /**
+     * A RELATIVE PRESS ON A BOUND FIELD (#2617): "+1 on this path", or a declared `set`.
+     * Unpublished it moves the local tree at once, as a press always has. Published it is queued
+     * with a press id minted here and sent until it lands; the tree stays the server's (R5), and
+     * the data part's `unsent` counts it meanwhile (R7).
+     */
+    pressBound: (presses) => {
+      if (presses.length === 0) return Promise.resolve(true);
+      if (!session.alive()) return Promise.resolve(false);
+      if (!slug) {
+        const before = part.get().liveData;
+        const next = foldPresses(before, presses);
+        return operatorWrite(mode, next, replacementPatch(before, next), SHARED_NOT_MOVED);
+      }
+      const at = now();
+      const pressSlug = slug;
+      const landed = presses.map(
+        (press) =>
+          new Promise<boolean>((resolve) => {
+            queue.push({ id: pressId(), press, at, slug: pressSlug, settle: resolve });
+          }),
+      );
+      counted();
+      void pump();
+      return Promise.all(landed).then((all) => all.every(Boolean));
     },
 
     /**

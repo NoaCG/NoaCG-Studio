@@ -128,6 +128,7 @@ import {
   fetchProductionData,
   patchProductionData,
   patchProductionDataBySlug,
+  adjustProductionDataBySlug,
   productionDataKey,
 } from '../../control/productionDataApi';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
@@ -1797,6 +1798,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         fetchProductionData,
         patchProductionData,
         patchProductionDataBySlug,
+        adjustProductionDataBySlug,
         every: (ms, run) => {
           const timer = window.setInterval(run, ms);
           return () => window.clearInterval(timer);
@@ -1813,8 +1815,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     [session, backendConfigured],
   );
   useEffect(() => dataSession.published(hostedSlug), [dataSession, hostedSlug]);
-  const { liveData, dataKey, treeRead } = useStorePart(session.data);
-  const { setLiveData, patchBoundValues } = dataSession;
+  const { liveData, dataKey, treeRead, unsent: pressesUnsent } = useStorePart(session.data);
+  const { setLiveData, patchBoundValues, pressBound } = dataSession;
 
   /** Refuse a press on a shared value this page cannot count from yet, and say why. Bound presses
    *  are the only thing that has to wait: everything else on this surface reads the cue. */
@@ -3258,6 +3260,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     sendingFolders.size > 0 ||
     sendingNow > 0 ||
     sendOwed ||
+    pressesUnsent > 0 ||
     clearing ||
     Object.values(folderStates).some((f) => (f?.onAir.length ?? 0) > 0) ||
     folders.some((f) => folderPlayout.running(f.id));
@@ -3779,6 +3782,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     boundNow,
     boundReady: boundPressReady,
     patchBound: patchBoundValues,
+    pressBound,
     writeCue: (cueId, values) => setShows(updateShowCueChecked(id, cueId, { values }).shows),
     savedValues: (cueId) => cuesRef.current.find((c) => c.id === cueId)?.values,
     unsavedValues: (cueId) => {
@@ -4811,7 +4815,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           onWaits={noteProgramWaits}
           onReady={programReady}
           onOverflow={notePreviewOverflow}
-          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting), ran: ranLast })}
+          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, unsent: pressesUnsent, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting), ran: ranLast })}
           serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server') ? bridgeStatus.state : null}
           programChip={
             chipGraphic ? (

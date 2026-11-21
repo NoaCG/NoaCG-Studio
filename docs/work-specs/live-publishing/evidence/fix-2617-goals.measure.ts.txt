@@ -1,0 +1,182 @@
+import { expect, test } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { isLocalStackUrl } from '../../../scripts/configured-target.mjs';
+import { clearPublishedShows, dismissWizard, E2E_EMAIL, E2E_PASSWORD, signInAs, SUPABASE_URL, wipeMyGraphics } from '../_helpers';
+import { publishProduction } from '../../_publish';
+import { shutStatusPanel } from '../_panel';
+
+// GOAL PRESSES UNDER A SLOW DATABASE (#2617; the instrument of phase-9-load-diagnosis.md section 4,
+// focused on the quick button). One signed-in page, one personal production of MEASURE_GRAPHICS
+// graphics (a House Score bound to the production's data, the rest Hairlines), published, the score
+// on air. Goal is pressed every MEASURE_EVERY_MS for MEASURE_MS with the local database's container
+// limited to MEASURE_DB_CPUS CPUs (`docker update --cpus`), then the page is given MEASURE_SETTLE_MS
+// at that speed and the same again at full speed. Reports the presses, the server's score at each
+// point, and every data write request's time. Local stack only.
+
+const GRAPHICS = Number(process.env.MEASURE_GRAPHICS ?? 6);
+const MS = Number(process.env.MEASURE_MS ?? 60_000);
+const EVERY = Number(process.env.MEASURE_EVERY_MS ?? 2250);
+const CPUS = process.env.MEASURE_DB_CPUS ?? '';
+const SETTLE = Number(process.env.MEASURE_SETTLE_MS ?? 60_000);
+const OUT = process.env.MEASURE_OUT ?? '/tmp/noacg-measure';
+const TAG = process.env.MEASURE_TAG ?? 'run';
+const PATH = 'match.home.score';
+/** Staging-like requests (diagnosis section 4): each data write held this long before it goes, and
+ *  every MEASURE_CUT_EVERY-th one cut without reaching the server. 0 = off. */
+const DELAY = Number(process.env.MEASURE_DELAY_MS ?? 0);
+const CUT_EVERY = Number(process.env.MEASURE_CUT_EVERY ?? 0);
+
+const db = () => execFileSync('docker', ['ps', '--filter', 'name=supabase_db_', '--format', '{{.Names}}']).toString().trim().split('\n')[0];
+const cpus = (n: string) => execFileSync('docker', ['update', '--cpus', n, db()]);
+const psql = (sql: string) =>
+  execFileSync('docker', ['exec', '-e', 'PGPASSWORD=postgres', db(), 'psql', '-h', '127.0.0.1', '-U', 'supabase_admin', '-d', 'postgres', '-tAc', sql]).toString().trim();
+/** Mean time inside the hot functions since the last reset (track_functions = 'pl' on the local stack). */
+const funcs = () => JSON.parse(psql(`select coalesce(json_object_agg(funcname, json_build_object('calls', calls, 'mean_ms', round((total_time/calls)::numeric, 3))), '{}') from pg_stat_user_functions where calls > 0 and funcname in ('control_send_seq','control_data_patch_by_slug','control_data_adjust_by_slug','control_data_apply')`) || '{}');
+const resetFuncs = () => psql('select pg_stat_reset()');
+const pct = (xs: number[], p: number) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor((p / 100) * xs.length))] : null);
+
+test('goals under a slow database', async ({ page }) => {
+  if (!isLocalStackUrl(SUPABASE_URL)) throw new Error('local stack only');
+  test.setTimeout(MS + 2 * SETTLE + 10 * 60_000);
+  await signInAs(page, E2E_EMAIL, E2E_PASSWORD);
+  await dismissWizard(page).catch(() => undefined);
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  const made = await page.evaluate(
+    async ({ n, path }) => {
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+      const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+      const all = Object.values(CATALOG).flat();
+      const template = async (variantName: string, name: string) => {
+        const pick = all.find((v) => v.name === variantName)!;
+        const draft = mergeDraft(initialDraft(), { variantId: pick.id, lines: pick.suggestedLines.map((l) => ({ ...l })), zone: null, logoEnabled: null, animation: { presetId: null, outPresetId: null }, paletteId: null, customPalette: null, fontId: null });
+        return { ...(await formatTemplate(buildDraftTemplate(pick, draft))), name };
+      };
+      const { show, error } = m.createShowNamedChecked(`Goals ${Date.now()}`);
+      if (error) throw new Error(error);
+      const hair = await template('Hairline', 'x');
+      for (let i = 1; i < n; i++) m.addGraphicToShow(show.id, { ...hair, name: `Strap ${i}` }, {});
+      m.addGraphicToShow(show.id, await template('House Score', 'Goal score'), {});
+      m.setFieldBindings(show.id, [{ graphic: 'Goal score', fieldId: 'f1', path }]);
+      const failure = await commitDurableWrites();
+      if (failure) throw new Error(failure);
+      const record = m.loadShows().find((s) => s.id === show.id)!;
+      const g = record.graphics.find((x) => x.name === 'Goal score')!;
+      return { id: show.id, score: record.cues!.find((c) => c.sourceId === g.id)!.label };
+    },
+    { n: GRAPHICS, path: PATH },
+  );
+  await page.goto(`/app#/production/${made.id}`);
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  await publishProduction(page);
+  await shutStatusPanel(page);
+  const key = await page.evaluate(async (id) => (await (await __noacgImport('/src/control/productionDataApi.ts')).productionDataKey(id)) ?? '', made.id);
+  await page.evaluate(async ({ k, id }) => (await __noacgImport('/src/control/productionDataApi.ts')).patchProductionData(k, { match: { home: { score: 0 } } }, id), { k: key, id: made.id });
+  // The owner's own read over RLS: the data API's server half is not configured on this stack.
+  const score = () => page.evaluate(async (id) => {
+    const sb = await (await __noacgImport('/src/backend/supabase.ts')).getSupabase();
+    const { data } = await sb!.from('control_shows').select('data').eq('id', id).maybeSingle();
+    return Number((data?.data as { match?: { home?: { score?: unknown } } })?.match?.home?.score ?? NaN);
+  }, made.id);
+  const consent = page.getByTestId('analytics-consent');
+  if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
+  const row = page.locator('.pd-cue').filter({ has: page.locator('.pd-cue-label > strong', { hasText: made.score }) });
+  await row.getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  const goal = page.getByTestId('cue-action-goalA');
+  await expect(goal).toBeEnabled({ timeout: 20_000 });
+  await expect.poll(score, { timeout: 20_000 }).toBe(0);
+
+  const writes: { name: string; start: number; end?: number; status?: number; failed?: string }[] = [];
+  const open = new Map<object, (typeof writes)[number]>();
+  const apiWrites: string[] = [];
+  page.on('request', (r) => {
+    if (/\/api\//.test(r.url()) && r.method() !== 'GET') apiWrites.push(`${r.method()} ${new URL(r.url()).pathname}`);
+    const m = /\/rpc\/(control_data_[a-z_]+|control_send_many|control_send_seq|control_send)\b/.exec(r.url());
+    if (!m) return;
+    const w = { name: m[1], start: Date.now() };
+    writes.push(w);
+    open.set(r, w);
+  });
+  page.on('requestfinished', async (r) => {
+    const w = open.get(r);
+    if (!w) return;
+    w.end = Date.now();
+    w.status = (await r.response())?.status();
+  });
+  page.on('requestfailed', (r) => {
+    const w = open.get(r);
+    if (!w) return;
+    w.end = Date.now();
+    w.failed = r.failure()?.errorText ?? 'failed';
+  });
+
+  let routed = 0;
+  if (DELAY || CUT_EVERY) {
+    await page.route(/\/rest\/v1\/rpc\/control_data_(patch_by_slug|adjust_by_slug)/, async (route) => {
+      routed += 1;
+      const n = routed;
+      if (DELAY) await new Promise((r) => setTimeout(r, DELAY));
+      if (CUT_EVERY && n % CUT_EVERY === 0) return route.abort('timedout').catch(() => undefined);
+      return route.continue().catch(() => undefined);
+    });
+  }
+  resetFuncs();
+  if (CPUS) cpus(CPUS);
+  const start = Date.now();
+  let presses = 0;
+  try {
+    for (let k = 0; Date.now() - start < MS; k++) {
+      const wait = start + k * EVERY - Date.now();
+      if (wait > 0) await page.waitForTimeout(wait);
+      await goal.click();
+      presses += 1;
+    }
+    const pressedFor = Date.now() - start;
+    const tag = async () => (await page.getByTestId('program-air').textContent().catch(() => '')) ?? '';
+    const atEnd = { score: await score(), tag: await tag() };
+    await page.waitForTimeout(SETTLE);
+    const slowSettled = { score: await score(), tag: await tag() };
+    if (CPUS) cpus('4');
+    if (DELAY || CUT_EVERY) await page.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => undefined);
+    await page.waitForTimeout(SETTLE);
+    const fastSettled = { score: await score(), tag: await tag() };
+    const goalFuncs = funcs();
+    // Takes of the score: the path control_send_seq's bound-field step (0121, R5a) runs on.
+    resetFuncs();
+    for (let i = 0; i < 10; i++) {
+      await page.getByTestId('verb-take').click();
+      await page.waitForTimeout(800);
+    }
+    await page.waitForTimeout(2000);
+    const takeFuncs = funcs();
+    const notes = await page.getByTestId('production-note').allTextContents().catch(() => []);
+    const data = writes.filter((w) => w.name.startsWith('control_data_'));
+    const done = data.filter((w) => w.end !== undefined);
+    const ok = done.filter((w) => !w.failed && w.status !== undefined && w.status < 300);
+    const ms = done.map((w) => w.end! - w.start);
+    const sends = writes.filter((w) => !w.name.startsWith('control_data_'));
+    const result = {
+      tag: TAG, graphics: GRAPHICS, cpus: CPUS || 'full', delay: DELAY, cutEvery: CUT_EVERY, routed, every: EVERY, pressedFor, presses,
+      score: { atEnd, slowSettled, fastSettled },
+      dataWrites: { n: data.length, ok: ok.length, failed: done.length - ok.length, open: data.length - done.length, p50: pct(ms, 50), p95: pct(ms, 95), max: pct(ms, 100), names: [...new Set(data.map((w) => w.name))] },
+      eventSends: { n: sends.length, failed: sends.filter((w) => w.failed || (w.status ?? 0) >= 300).length, p50: pct(sends.filter((w) => w.end).map((w) => w.end! - w.start), 50) },
+      apiWrites,
+      goalFuncs,
+      takeFuncs,
+      notes: notes.map((n) => n.slice(0, 200)),
+    };
+    console.log(JSON.stringify(result));
+    mkdirSync(OUT, { recursive: true });
+    writeFileSync(`${OUT}/goals-${TAG}-${GRAPHICS}-${CPUS || 'full'}-d${DELAY}c${CUT_EVERY}-${Date.now()}.json`, JSON.stringify(result, null, 2));
+  } finally {
+    if (CPUS) cpus('4');
+    await clearPublishedShows(page).catch(() => undefined);
+  }
+});

@@ -266,3 +266,20 @@ test('owed() counts the graphics a failed send still owes, until a landing or it
   debts.landed([{ graphic: 'B' }]);
   assert.equal(debts.owed(), 0);
 });
+
+test('a bound press call is sent again only when nothing was recorded; a refusal is a refusal whatever its status (#2617)', async () => {
+  const { boundPressFailure } = await import('../src/control/failedSends.ts');
+  const kind = (code, status) => boundPressFailure(code === null ? null : { message: 'x', code }, status).press;
+  assert.equal(kind('PGRST202', 404), 'missing');
+  for (const code of ['57014', '55P03', '23514', '40001']) assert.equal(kind(code, 400), 'retry', code);
+  assert.equal(kind(null, 0), 'retry', 'no answer at all');
+  assert.equal(kind('', 503), 'retry');
+  assert.equal(kind('PGRST301', 401), 'retry', 'a lapsed sign-in');
+  assert.equal(kind('', 408), 'retry', 'a gateway timeout recorded nothing');
+  assert.equal(kind(null, 429), 'retry', 'a rate limit recorded nothing');
+  // PostgREST answers 42501 with 401 to a signed-out caller: still a refusal, never resent for an hour.
+  assert.equal(kind('42501', 401), 'refused');
+  assert.equal(kind('42501', 403), 'refused');
+  assert.equal(kind('P0001', 400), 'refused', 'unknown control slug');
+  assert.equal(kind('22023', 400), 'refused', 'not a press batch');
+});
