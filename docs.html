@@ -1272,7 +1272,7 @@ Storm warning issued</code></pre>
               what was on air without replaying the animations.</li>
           </ul>
 
-          <h3 id="casparcg-versions">Which server version you have matters</h3>
+          <h3 id="casparcg-versions">Server versions</h3>
           <div class="doc-table"><table>
             <tr><th>Server</th><th>Engine</th><th>What it means</th></tr>
             <tr><td><strong>2.3.x</strong></td><td>Chromium 71</td><td>The live output URL works with nothing to do. A graphic's own modern CSS can render differently: see below.</td></tr>
@@ -1630,8 +1630,7 @@ CG 1-20 STOP</code></pre>
         <section id="teams">
           <h2>Working with other people</h2>
           <p>
-            <strong>Running or preparing one show together</strong>, each person signed in as
-            themselves on their own device, is what a team is for.
+            A team lets several people prepare and run one show, each signed in as themselves on their own device.
           </p>
 
           <h3 id="teams-links">Links you can hand out</h3>
@@ -1661,8 +1660,7 @@ CG 1-20 STOP</code></pre>
             <li>Open a production you own and press <strong>Share</strong> in its header. The
               same dialog is <strong>Share with a team&hellip;</strong> in the
               <strong>&#8943;</strong> (More actions) menu on a production's card in
-              <strong>Productions</strong>. There is no team entry in the topbar or in Settings:
-              a production is the only door.</li>
+              <strong>Productions</strong>. There is no team entry in the topbar or in Settings. You always start from a production.</li>
             <li>Press <strong>&#65291; New team&hellip;</strong>. It is the quiet text button under
               the list, not the amber one in the footer.</li>
             <li>Fill in both boxes. <strong>Team name</strong> is what the class or the crew is
@@ -1688,8 +1686,8 @@ CG 1-20 STOP</code></pre>
             no email invitation.
           </p>
           <p>
-            <strong>A code is still a key.</strong> Anybody who has ever held a join link to any
-            team is one paste away from using a code they overheard.
+            <strong>Keep the code private anyway.</strong> Anybody who has ever had a join link, to any
+            team, can swap an overheard code into it.
           </p>
           <p>
             The person who gets the link opens it, signs in or makes an account, types the name
@@ -1883,7 +1881,7 @@ CG 1-20 STOP</code></pre>
             <li><strong>Pause</strong> on the card holds what the key sends. Nothing it sends goes
               on air, and the answer to each request says <code>"paused": true</code>. Your own
               presses still go on air. <strong>Resume</strong> sends the latest values once.</li>
-            <li><code>/api/data/update</code> is the older door that addresses one graphic by name
+            <li><code>/api/data/update</code> is the older route. It addresses one graphic by name
               and its fields by the labels the operator sees. It still works, and Pause holds it
               too.</li>
             <li>The full reference, limits, errors and a sample sender are in
@@ -1915,7 +1913,7 @@ CG 1-20 STOP</code></pre>
           </p>
           <p>
             <strong>Hall Cup</strong> is a school sports night. It has four graphics, one data
-            tree, one table and a hall full of phones. Every picture below was taken while
+            tree, one table and an audience with phones. Every picture below was taken while
             building it.
           </p>
 
@@ -1949,7 +1947,7 @@ CG 1-20 STOP</code></pre>
             scoreboards use the same four.
           </p>
 
-          <h3 id="example-tree">The tree: what the whole show knows</h3>
+          <h3 id="example-tree">Production data</h3>
           <p>
             Open the production and go to its <strong>Data</strong> tab. Press
             <strong>&#9662; Raw JSON</strong>, paste this in, and press <strong>Apply
@@ -1967,12 +1965,12 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/data-tree.png" width="1668" height="635" loading="lazy"
               alt="The Production data panel listing five values with their paths: match.teamA, match.scoreA, match.teamB, match.scoreB and tickerItems." />
             <figcaption>
-              <strong>Five values, five addresses.</strong> The panel shows one row per value.
+              <strong>The Production data panel.</strong> One row per value.
               The grey text on the left is that row's address.
             </figcaption>
           </figure>
           <p>
-            That address is a <strong>path</strong>. Dots walk down the tree. The number 2 lives
+            That address is a <strong>path</strong>. Each dot goes one level down the tree. The number 2 lives
             at <code>match.scoreA</code>, and the three ticker lines live together at
             <code>tickerItems</code>.
           </p>
@@ -1985,9 +1983,9 @@ CG 1-20 STOP</code></pre>
               is a boolean, <code>[1, 2]</code> is a list, and anything else is text. Number rows
               get &minus; and + buttons. A list is one line per item, which is what a ticker's
               text box takes.</li>
-            <li><strong>This is state, not a command.</strong> Nothing on this panel plays, stops
-              or takes a graphic. That is the rule of <a href="#data">Live data</a>. It is why a
-              feed can run all night without putting anything on air.</li>
+            <li><strong>Data does not cue anything.</strong> Nothing on this panel plays, stops
+              or takes a graphic, so a feed can run all night without putting anything on air. See
+              <a href="#data">Live data</a>.</li>
             <li><strong>Save the numbers you want to start from.</strong>
               <strong>&#11015; Save as seed</strong> stores the current tree in the production
               itself. <strong>&#10226; Reset to seed</strong> puts it back. Do it before the first
@@ -1995,7 +1993,7 @@ CG 1-20 STOP</code></pre>
               browser.</li>
           </ul>
 
-          <h3 id="example-bindings">The bindings: which field reads which path</h3>
+          <h3 id="example-bindings">Bindings</h3>
           <p>
             A path does nothing on its own. A <strong>binding</strong> points one field of one
             graphic at one path. Scroll to <strong>Bindings</strong> and press
@@ -2005,7 +2003,7 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/data-bindings.png" width="1668" height="1083" loading="lazy"
               alt="The Bindings list: both scoreboards bound to the same four paths and House Wire's Ticker items bound to tickerItems, each reading its value back, with House Strap's two fields left unbound." />
             <figcaption>
-              <strong>Nine bound, four left alone.</strong> Both scoreboards landed on the same
+              <strong>The Bindings list.</strong> Nine fields are bound and four are not. Both scoreboards landed on the same
               four paths, because they ask for the same four things. The right-hand column shows
               what each field shows right now. A mistyped path shows up here as a blank.
             </figcaption>
@@ -2057,11 +2055,10 @@ CG 1-20 STOP</code></pre>
               <a href="#data-api">Data API</a> writes into this same tree.</li>
           </ul>
 
-          <h3 id="example-tables">The table: rows an operator picks from</h3>
+          <h3 id="example-tables">Tables</h3>
           <p>
-            Hall Cup interviews three people. Their names belong to no particular moment in the
-            show. That is what a <strong>table</strong> is for: a bank of rows, none of them live.
-            The operator loads the row they want, when they want it.
+            Hall Cup interviews three people. Their names go in a <strong>table</strong>: a list of rows that the operator loads into a
+            cue when it is needed.
           </p>
           <p>
             Under <strong>Tables</strong>, choose <strong>Line-up / roster</strong> and press
@@ -2073,8 +2070,8 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/data-table.png" width="1668" height="555" loading="lazy"
               alt="The Interviews table on the Data tab: two columns called Name and Title, with three rows of guests." />
             <figcaption>
-              <strong>Two columns, three rows.</strong> The column names are the strap's field
-              titles. That is how a row finds its way into a graphic.
+              <strong>The Interviews table.</strong> The column names are the strap's field
+              titles. That is how a row is matched to a graphic.
             </figcaption>
           </figure>
           <p>The matching is by words again:</p>
@@ -2122,7 +2119,7 @@ CG 1-20 STOP</code></pre>
           <p>
             The first panel on the Audience tab is <strong>Chat sources</strong>. It asks for a
             Twitch channel or a YouTube video. Most people running a hall, a school event or a
-            club night have neither, and they are not missing anything.
+            club night have neither, and do not need one.
           </p>
           <p>
             Those two only pull an <em>existing</em> chat into the same inbox. The room's own join
@@ -2147,7 +2144,7 @@ CG 1-20 STOP</code></pre>
               you hand the link out, because a new name stops the old link working.</li>
             <li><strong>Give it to the room.</strong> Read it out, put it on a holding slide, or
               print a QR code of it. There is no app to install and nothing to sign in to.</li>
-            <li><strong>Open the door.</strong> On the Audience tab, tick <strong>Accepting
+            <li><strong>Start taking messages.</strong> On the Audience tab, tick <strong>Accepting
               messages</strong>. Until you do, every phone with the link says the production is
               not taking part right now.</li>
           </ol>
@@ -2180,7 +2177,7 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/audience-inbox.png" width="1662" height="425" loading="lazy"
               alt="The moderation inbox: filter tabs reading Inbox, Approved, Shortlist and All, then two arrivals, each with an editable name and message and a row of buttons ending in Send to rundown." />
             <figcaption>
-              <strong>The inbox, and the only way out of it.</strong> The two boxes on each row
+              <strong>The inbox.</strong> The two boxes on each row
               are the broadcast version, yours to tidy. Shortlist, Approve and Reject sort the
               pile. Now and Next point the presenter's screen at one message. Only Send to rundown
               reaches the rundown.
@@ -2204,7 +2201,7 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/audience-vote.png" width="1626" height="245" loading="lazy"
               alt="An open poll on the Audience tab: the question, its three options with a bar and a count each, and the buttons that stage the counts to a graphic or close the voting." />
             <figcaption>
-              <strong>The counts are here and nowhere else.</strong> The join page never shows a
+              <strong>The counts show only here.</strong> The join page never shows a
               tally, in any mode. The result reaches the room as a graphic, on air, when the
               operator chooses.
             </figcaption>
@@ -2444,8 +2441,7 @@ CG 1-20 STOP</code></pre>
           <p>
             <strong>What the package is.</strong>
             The folder is at the same time a valid <strong>SPX</strong> package and an
-            <strong>EBU OGraf v1</strong> graphic, with no build step. Zip it and it imports
-            through the studio's Import door, or plays in any OGraf renderer.
+            <strong>EBU OGraf v1</strong> graphic, with no build step. Zip it and the studio imports it, or play it in any OGraf renderer.
           </p>
           <p>
             The graphic itself is plain HTML, CSS and JavaScript. So the same sources also export
