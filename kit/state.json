@@ -159,6 +159,116 @@
     "windows": "owner machine, comment 7003555345, 8 passed",
     "archived": true
    }
+  },
+  {
+   "2603": {
+    "builder": "session_017SdbwMxXL5BYw5hsG1kjo5",
+    "pr": 2605,
+    "head": "5b293e7c",
+    "ci": "44694676725 green",
+    "codex": "clean",
+    "so": "full B+ on 423e8b8, deltas A-/A; fresh full /so on 5b293e7c requested 10:55Z",
+    "origin": "PR #717 2026-10-07, predates run",
+    "landed": "7b4e6e6611840a245a195a42a6f6fffef3f33fb3",
+    "postLanding": "all green incl deploy-verify 44725570558, CI 44725242393, Post-landing 44725242437, configured-suite 44725242315",
+    "owner": "rerun phase 9 step 2 on CasparCG 2.3"
+   },
+   "2604": {
+    "builder": "session_017SdbwPt7yB8VGsARNzGm5j",
+    "pr": 2606,
+    "head": "aa2b774b",
+    "ci": "44703462442 green",
+    "codex": "clean",
+    "so": "full A on 9e64bde; Rules-first /so missing, requested 10:54Z",
+    "landed": "24916b0dcde4245055744af624d854f8dce0dbba",
+    "postLanding": "all green incl deploy-verify 44736920857",
+    "owner": "rerun phase 9 step 4"
+   },
+   "2608": {
+    "builder": "session_017SdbwPt7yB8VGsARNzGm5j",
+    "nonce": "fix-2608-f-rst",
+    "started": "2026-11-20",
+    "base": "24916b0d",
+    "decision": "#2361 comment 7037766214",
+    "pr": 2610,
+    "landed": "8b5a3cd3d56abb93fe9c71b77ddc0de9e4d8de3c",
+    "postLanding": "all green incl deploy-verify 44775322233",
+    "followups": [
+     "#2611 ghost output after machine restart"
+    ]
+   },
+   "diag-load": {
+    "worker": "session_017SdbwPbpvz9VfmugZQ24ZL",
+    "nonce": "diag-load-9a",
+    "started": "2026-11-20T19:22Z",
+    "pr": 2619,
+    "issues": [
+     2614,
+     2615,
+     2616,
+     2617,
+     2618
+    ],
+    "q3": "no backwards move; unsaved text can sit minutes under load",
+    "q5": "same mechanism on production (Small, #2599); threshold differs",
+    "queued": "2026-11-20T19:56Z"
+   },
+   "2618": {
+    "builder": "session_017SdbwPCAPDpVX8phuXkWmn",
+    "nonce": "fix-2618-f-rt",
+    "started": "2026-11-20T19:57Z",
+    "pr": 2620,
+    "landed": "ea9af8947057061aa70b9eff70af48803dabca55",
+    "postLanding": "all green incl deploy-verify 44814303407"
+   },
+   "pendingOwner": null,
+   "2615": {
+    "builder": "session_017SdbwMevenxeKyGtGgJPP5",
+    "nonce": "fix-2615-f-rf",
+    "pr": 2627,
+    "head": "2a7fa4f2",
+    "migration": "0124 (not live-path)",
+    "so": "full A on 2a7fa4f",
+    "codex": "clean",
+    "ci": "44832908349 red on unrelated flake #2636; failed job rerun 23:15Z",
+    "hold": "until owner confirms backup"
+   },
+   "2616": {
+    "builder": "session_017SdbwRFDFfBoxgXwjUyE8P",
+    "nonce": "fix-2616-f-pb",
+    "pr": 2624,
+    "landed": "23c8cf79296d7574ee814d6dfa37039b9bb2c4c9",
+    "migrations": "0121,0122 applied to production and staging by post-land 44829596155 at 22:32Z, quiet window read; restore point NOT confirmed beforehand (hold attempt failed)"
+   },
+   "2617": {
+    "builder": "session_017SdbwLvSXm6ipxtgKHXUTi",
+    "nonce": "fix-2617-f-gl",
+    "pr": 2630,
+    "head": "59e14fb7",
+    "migration": "0125 live-path",
+    "so": "A on e80d2d5 (59e14fb rename only)",
+    "codex": "clean",
+    "ci": "44836945839 green",
+    "hold": "until owner confirms backup",
+    "followups": "Take window and audience_operator_add need own PRs; #2631 list add/remove; decide after 3-person staging rerun"
+   },
+   "2614": {
+    "builder": "session_017SdbwPffciyJ1TzwUN3KQ3",
+    "nonce": "fix-2614-f-tr",
+    "design": "G5-team-record.md",
+    "designPR": 2626,
+    "pr": 2646,
+    "head": "9ade21c5",
+    "migration": "0126 live-path",
+    "so": "full A on 9ade21c",
+    "codex": "clean",
+    "ci": "44848618218 green",
+    "preLand": "CORS preflight on production REST allowing header x-noacg-team-designs",
+    "switch": "team_designs on = owner step after reloads",
+    "followup": 2648
+   },
+   "ownerGrant": "2026-11-20: owner said yes in coordinator session to applying migrations for #2614-#2617 to production (quiet window, restore point, revertible, own reviewed PR each)",
+   "backupCheck": "owner asked to confirm a recent backup / PITR in the dashboard; no further migration PR is stamped until confirmed"
   }
  ],
  "triggers": {
@@ -262,7 +372,10 @@
   "2026-11-14: the phase 7 repairer sat idle 07:55-18:53 waiting on its own /so and CI with no wake; the coordinator's only check-in was 12 h away. Keep check-ins at most 4 h apart while a worker is active.",
   "2026-11-14: the phase 8 builder and a separate fix worker both fixed #2565 in parallel (PR #2570 duplicate of #2567). When the coordinator launches a fix for an issue a builder found, tell that builder at once that the fix is taken.",
   "Never detach the coordinator worktree: checkpoint publish requires its HEAD to be the recorded coordinator branch revision.",
-  "2026-11-17: #2573 passed its five-person checks and Windows checks but regressed team saves at seven typists (#2589). Fixes to shared save paths need a multi-editor load run before landing, not only after."
+  "2026-11-17: #2573 passed its five-person checks and Windows checks but regressed team saves at seven typists (#2589). Fixes to shared save paths need a multi-editor load run before landing, not only after.",
+  "Phase 9 found CasparCG 2.3 (Chromium 71) output broken by a runtime String.matchAll; the run's Chromium 71 check only parsed syntax. Output checks must cover runtime methods, and a real 2.3 smoke belongs in each output-touching phase, not only the owner's final check.",
+  "#2608 Rules-first took 4 rounds on a per-graphic model; the round-cap reassessment switched to one settled fact per output and it converged in 2. Run the reassessment at the cap, not later.",
+  "Holding a PR: disabling auto-merge 30 s after enabling raced the queue entry, and converting to draft did NOT remove it from the merge queue; it merged with migrations auto-applied. Confirm owner preconditions (restore point) BEFORE stamping a migration PR; there is no REST dequeue."
  ],
  "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open).",
  "phase3": {
@@ -406,6 +519,11 @@
  "pause": "2026-11-15 to 2026-11-17 06:37Z: weekly usage limit reached; all workers stopped; resumed after reset",
  "phase9": {
   "handedToOwner": "2026-11-17T15:45Z",
-  "checklist": "docs/work-specs/live-publishing/phase-9-checklist.md on main"
- }
+  "checklist": "docs/work-specs/live-publishing/phase-9-checklist.md on main",
+  "local": "PR 2594 (2026-11-17): steps 1 ok, 2 FAILED (CasparCG 2.3 matchAll -> #2603), 3 ok on 2.5 (D1 6.6/8.9/12.9 s), 4 FAILED light timing (-> #2604), 5 ok with gaps, 6 ok mouse, 8 ok",
+  "cloud": "PR 2613 (staging, switches off): step 7 not run (60-graphic publish statement timeout); step 9 FAILED (18/52 Takes lost, Goals 55/199, 14/39 messages lost; +5240 ms p95) because staging DB slows to 0.6-7.6 s medians at ~8 req/s; seven typists: 3 cues reverted to original text; step 11 ok; step 12 ok with gap",
+  "step2rerun": "PR 2609 merged: pass on CasparCG 2.3.3",
+  "cloudPR": "2613 queued 19:56Z"
+ },
+ "closePlan": "Owner (relayed 11-20): close the run when #2614-#2617 landed and checked on production by Sunday evening Helsinki, AND staging rerun with 3 people (1 taker, 2 editors) passes AC-6; 5-person as information only; no people limit. Hardware steps handed to owner. Step 10 undecided: ask one question if needed."
 }
