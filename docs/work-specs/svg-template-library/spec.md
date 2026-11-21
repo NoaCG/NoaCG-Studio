@@ -349,7 +349,10 @@ Actions. OW: the owner, with Illustrator on their own computer.
   is an `extensions` entry with its phase (Countdown Reset, Warning, Time up in TL4; Scoreboard
   New game, Live vote Close and Call the winner, Goal meter bar fill, columns layout in TL4;
   Standings focus and final/provisional in TL5). `coveredFloor` keeps every row once covered:
-  demoting one fails. `--complete` (TL7) also refuses open extensions. A quarantined proof spec fails its rows.
+  demoting one fails, and so does a row covered on `origin/main` and not here. The case must be a
+  `test(` title; each template's recipe is stated (`recipe` or `recipeBySlug`, null for none);
+  `selects: "recipe"` marks the examples loop that skips templates without a recipe.
+  `--complete` (TL7) also refuses open extensions. A quarantined proof spec fails its rows.
 - Untyped catalog designs map through `looks` (category default, variant overrides with a
   capability) or a row's `variants` (end credits by form, read from each design's animation
   preset). A new untyped design fails until mapped; `imported-design` is excluded.

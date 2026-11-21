@@ -8,7 +8,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { formatMatrix, generateMatrix, loadMatrix, loadRegistries, staleRows, summary, validateMatrix } from './template-coverage.mjs';
+import { spawnSync } from 'node:child_process';
+import { formatMatrix, generateMatrix, loadMatrix, loadRegistries, lostSince, MATRIX_FILE, staleRows, summary, validateMatrix } from './template-coverage.mjs';
 import { measured } from './measured.mjs';
 
 /** A small repository: one template, its inventory, a proof spec, a source file. */
@@ -46,10 +47,20 @@ test('a covered row that loses its evidence fails, whichever part goes', () => {
     const fails = (row, pattern) => assert.ok(validateMatrix({ rows: [row] }, { root }).some((p) => pattern.test(p)), String(pattern));
     fails({ ...coveredRow(), templates: ['lib/SVG/gone.svg'] }, /template lib\/SVG\/gone.svg is missing/);
     fails({ ...coveredRow(), templates: [] }, /covered with no template/);
-    fails({ ...coveredRow(), proof: { ...coveredRow().proof, case: 'renamed case' } }, /no longer holds the case/);
+    fails({ ...coveredRow(), proof: { ...coveredRow().proof, case: 'renamed case' } }, /has no test titled with the case/);
     fails({ ...coveredRow(), proof: { ...coveredRow().proof, test: 'e2e/gone.spec.ts' } }, /proof e2e\/gone.spec.ts is missing/);
     fails({ ...coveredRow(), recipe: 'score' }, /with recipe quiz, not score/);
     fails({ ...coveredRow(), proof: { observes: 'x' } }, /names its proof test/);
+    const unstated = coveredRow();
+    delete unstated.recipe;
+    fails(unstated, /name the recipe a is proved with/);
+    put('lib/items.json', JSON.stringify([{ slug: 'a', recipe: null }]));
+    fails({ ...coveredRow(), recipe: null, proof: { ...coveredRow().proof, selects: 'recipe' } }, /runs only entries with a recipe, and a has none/);
+    assert.deepEqual(validateMatrix({ rows: [{ ...coveredRow(), recipe: null }] }, { root }), [], 'a plain template on a loop that runs every entry holds');
+    put('lib/items.json', JSON.stringify([{ slug: 'a', recipe: 'quiz' }]));
+    put('e2e/a.spec.ts', "const items = read('lib/items.json');\n// imports and plays\ntest('something else', () => {});\n");
+    fails(coveredRow(), /has no test titled with the case/);
+    put('e2e/a.spec.ts', "const items = read('lib/items.json');\ntest(`${t.name} imports and plays`, () => {});\n");
     put('lib/items.json', JSON.stringify([]));
     fails(coveredRow(), /does not list a/);
     put('e2e/quarantine.json', JSON.stringify({ specs: { 'e2e/a.spec.ts': {} } }));
@@ -96,6 +107,13 @@ test('coverage never goes back: a covered row stays on the floor, and turning it
   } finally { done(); }
 });
 
+test('a row covered on origin/main and planned here fails, even with its floor entry removed', () => {
+  const base = { rows: [coveredRow(), plannedRow()] };
+  const now = { coveredFloor: [], rows: [{ ...coveredRow(), status: 'planned', phase: 'TL4' }, plannedRow()] };
+  assert.deepEqual(lostSince(base, now), ['type a: covered on origin/main and planned here - coverage never goes back']);
+  assert.deepEqual(lostSince(null, now), []);
+});
+
 test('an open extension on a covered row names its phase and proof, and complete mode refuses it', () => {
   const { root, done } = fixture();
   try {
@@ -129,6 +147,9 @@ test('the committed matrix matches the registries and every covered row holds', 
   measured(rows, 'coverage rows');
   measured(registry.untypedLooks.length, 'untyped catalog designs mapped to a row');
   assert.deepEqual(validateMatrix(committed, { untypedLooks: registry.untypedLooks }), []);
+  // Against the landed matrix, where this checkout has it (a shallow CI checkout may not).
+  const landed = spawnSync('git', ['show', `origin/main:${MATRIX_FILE}`], { encoding: 'utf8', windowsHide: true });
+  if (landed.status === 0) assert.deepEqual(lostSince(JSON.parse(landed.stdout), committed), []);
   // D9 scope: 72 types are the registry's, so only the fixed kinds are counted here.
   assert.equal(committed.rows.filter((row) => row.kind === 'untyped').length, 8);
   assert.equal(committed.rows.filter((row) => row.kind === 'contract').length, 4);

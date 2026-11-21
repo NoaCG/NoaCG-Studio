@@ -19,15 +19,21 @@ gate with `planned` rows allowed, and AC-8 for the D5 labels.
   what that case asserts (after the final /so). What a covered route still owes is an open
   `extensions` entry with its phase: 7 rows carry one (countdown, scoreboard, duel-score,
   live-poll, goal-meter, end-credits-columns in TL4; standings in TL5).
+- Recipe rows name what each recipe's case asserts (after the second /so). The proof case must be a
+  `test(` title; each template's recipe is checked against the inventory, and a loop that skips
+  recipe-less entries (`selects: "recipe"`) refuses a template without one. Probe: marking
+  `type ticker` covered by `ticker.svg` on the examples loop now fails with
+  `runs only entries with a recipe, and ticker has none`.
 - `coveredFloor` lists the 31 covered rows; a listed row that is not covered fails (demotion
-  ratchet), and regeneration keeps the list. The
+  ratchet), regeneration keeps the list, and where `origin/main` is present the test also refuses
+  a row covered there and not covered here. The
   proofs are `e2e/svg-templates.spec.ts` and `e2e/svg-examples.spec.ts`, neither quarantined.
 - The gate is `scripts/template-coverage.test.mjs` (build tier). It fails when a registered id
   has no row, a row names an unregistered id, a covered row loses a template, its proof file or
   case, its inventory entry or recipe, its proof spec is quarantined, a planned row has no
   mechanism, proof or phase, or an untyped design maps to no row. `--complete` refuses planned
   rows (TL7).
-  - `node --test scripts/template-coverage.test.mjs`: 8 pass, 0 fail (fixture cases for each
+  - `node --test scripts/template-coverage.test.mjs`: 9 pass, 0 fail (fixture cases for each
     failure, then the real registries through Vite).
   - Mutation: moving `docs/tutorials/svg-templates/SVG/quiz.svg` away made
     `node scripts/template-coverage.mjs` exit 1 with
@@ -45,7 +51,7 @@ gate with `planned` rows allowed, and AC-8 for the D5 labels.
 - `docs/template-library/names.json` lists 16 concepts with the recipe, type and kind label that
   carry each name, and the retired labels. `scripts/concept-names.test.mjs`: 5 pass. It checks
   the real registries and `graphicKindLabel`, that no two recipes or types share a name, and that
-  none of 474 user-facing files (app UI and type files read as strings and JSX text through the
+  none of the listed user-facing files (app UI and type files read as strings and JSX text through the
   TypeScript parser, docs pages, SVG authoring guide,
   tutorials, docs examples, skill copies, CLI README) uses a retired label.
 - Renamed labels (ids, role words, field titles and persisted keys unchanged):

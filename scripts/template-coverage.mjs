@@ -183,7 +183,8 @@ export function validateMatrix(matrix, { root = ROOT, untypedLooks = [], complet
     }
     if (quarantine.has(test)) problems.push(`${at}: proof ${test} is quarantined, so it is not passing`);
     const testText = read(root, test);
-    if (!testText.includes(proofCase)) problems.push(`${at}: ${test} no longer holds the case "${proofCase}"`);
+    // The case is a test's title, not any text: a comment or a helper holding it proves nothing.
+    if (!testText.split('\n').some((line) => /\btest(?:\.\w+)?\(/.test(line) && line.includes(proofCase))) problems.push(`${at}: ${test} has no test titled with the case "${proofCase}"`);
     if (inventory) {
       if (!existsSync(path.join(root, inventory))) {
         problems.push(`${at}: inventory ${inventory} is missing`);
@@ -194,8 +195,14 @@ export function validateMatrix(matrix, { root = ROOT, untypedLooks = [], complet
       for (const file of row.templates ?? []) {
         const slug = path.basename(file, '.svg');
         const entry = entries.find((item) => item.slug === slug);
+        // Each template's recipe is stated (null for none) and checked, because the proof's loop
+        // branches on it: a template whose recipe changed is no longer driven by the same case.
+        const expected = row.recipeBySlug && Object.hasOwn(row.recipeBySlug, slug) ? row.recipeBySlug[slug] : row.recipe;
         if (!entry) problems.push(`${at}: ${inventory} does not list ${slug}`);
-        else if (row.recipe !== undefined && entry.recipe !== row.recipe) problems.push(`${at}: ${inventory} lists ${slug} with recipe ${entry.recipe}, not ${row.recipe}`);
+        else if (expected === undefined) problems.push(`${at}: name the recipe ${slug} is proved with (null for none)`);
+        else if ((entry.recipe ?? null) !== expected) problems.push(`${at}: ${inventory} lists ${slug} with recipe ${entry.recipe}, not ${expected}`);
+        // A loop that runs only the entries with a recipe never reaches one without.
+        else if (row.proof.selects === 'recipe' && expected === null) problems.push(`${at}: ${test} runs only entries with a recipe, and ${slug} has none`);
       }
     }
   }
@@ -234,6 +241,15 @@ export function validateMatrix(matrix, { root = ROOT, untypedLooks = [], complet
     problems.push(`untyped design ${look.id} (${look.category}) maps to no row: list it on a row, in looks.variants, or map its category`);
   }
   return problems;
+}
+
+/** Coverage never goes back across a landing: every row covered in `base` (the matrix on
+ *  origin/main) is still covered. The in-file floor catches an edit to one row; this catches the
+ *  same edit made together with the floor. */
+export function lostSince(base, matrix) {
+  const now = new Map(matrix.rows.map((row) => [rowKey(row), row.status]));
+  return (base?.rows ?? []).filter((row) => row.status === 'covered' && now.has(rowKey(row)) && now.get(rowKey(row)) !== 'covered')
+    .map((row) => `${row.kind} ${row.id}: covered on origin/main and ${now.get(rowKey(row))} here - coverage never goes back`);
 }
 
 /** Compare the committed matrix with the one the registries call for. */
