@@ -31,8 +31,21 @@
   "wake": "send_later trig_013VvNGTo8LTPn2ysojmZDHT fired into this session 2026-11-21T21:17:46Z",
   "github": "cloud-queue-merge.yml dispatch stamped Reviewed on PR #2675 (run 44949414021); direct commit-status writes refused by the proxy"
  },
- "waitingOn": [],
- "inFlight": null,
+ "waitingOn": [
+  {
+   "what": "TL0 builder receipt (send_message) and its PR",
+   "eta": "2026-11-22T00:30:00Z"
+  }
+ ],
+ "inFlight": {
+  "phase": "TL0",
+  "step": "build",
+  "session": "session_017SdbwP9PDDR1UD9VwtNHrg",
+  "nonce": "tl0-b-3c00",
+  "branch": "claude/plan-svg-template-library-tl0-build",
+  "source": "df0c7a0e15b7b8d87ced52c8db73120d85dc1965",
+  "asOf": "2026-11-21T21:24:44Z"
+ },
  "owner": [
   {
    "what": "TL1o pilot round trip in Illustrator",
@@ -48,5 +61,8 @@
  "heartbeat": {
   "issue": 2678,
   "comment": 7069445213
- }
+ },
+ "qualificationArchive": [
+  "session_017SdbwPrMJpCm83gAanymY2"
+ ]
 }
