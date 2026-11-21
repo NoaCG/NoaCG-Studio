@@ -212,3 +212,52 @@ test('a badly typed message refuses before anything is sent, as the Bridge would
   }
   assert.equal(oscBlocker(osc('L', { control: control({ args: [{ type: 'i', value: '-5' }, { type: 'f', value: '1.5e2' }] }) }), [desk], true), null);
 });
+
+// ── Delays in All together (each member's own wait after the Take) ─────────────────────────────
+
+const { togetherDelayMs, MAX_TOGETHER_DELAY_MS } = await import('../src/model/showFolders.ts');
+
+test('a member waits its own delay; OSC cues keep rundown order and wait only what is left', async () => {
+  const winner = { ...strap, delayMs: 300 };
+  const plan = togetherPlan([winner, osc('L1', { delayMs: 500 }), osc('L2', { delayMs: 800 })], rundown());
+  const log = [];
+  let clock = 0;
+  const waits = [];
+  const results = await runTogether(plan, {
+    server: async () => ({ ok: true, note: '' }),
+    graphic: async () => { log.push(`graphic@${clock}`); return { ok: true, note: '✓ Winner' }; },
+    control: async (c) => { log.push(`${c.cue.id}@${clock}`); return { ok: true, note: '✓' }; },
+    off: async () => {},
+    stopped: () => false,
+    // A clock that jumps by each wait: the order and the totals are what matter.
+    wait: async (ms) => { waits.push(ms); clock += ms; },
+  });
+  // The graphic waits its 300; L1 waits 500; L2 only the 300 left of its 800 after L1's wait.
+  assert.deepEqual([...waits].sort((a, b) => a - b), [300, 300, 500]);
+  assert.deepEqual(log.filter((l) => l.startsWith('L')).map((l) => l.split('@')[0]), ['L1', 'L2'], 'OSC cues keep rundown order');
+  assert.deepEqual(results.map((r) => r.cueId), ['A', 'L1', 'L2']);
+});
+
+test('Out during a delay skips the member still waiting and takes nothing back', async () => {
+  const plan = togetherPlan([strap, osc('L', { delayMs: 1000 })], rundown());
+  let stop = false;
+  const sent = [];
+  const results = await runTogether(plan, {
+    server: async () => ({ ok: true, note: '' }),
+    graphic: async () => ({ ok: true, note: '✓ Winner' }),
+    control: async (c) => { sent.push(c.cue.id); return { ok: true, note: '✓' }; },
+    off: async () => {},
+    stopped: () => stop,
+    wait: async () => { stop = true; },
+  });
+  assert.deepEqual(sent, []);
+  assert.equal(results.find((r) => r.cueId === 'L').sent, false);
+});
+
+test('a delay is read inside 0 to 10 s, and a server cue never waits', () => {
+  assert.equal(togetherDelayMs({ delayMs: 250 }), 250);
+  assert.equal(togetherDelayMs({ delayMs: 99999 }), MAX_TOGETHER_DELAY_MS);
+  assert.equal(togetherDelayMs({ delayMs: -5 }), 0);
+  assert.equal(togetherDelayMs({ delayMs: 'x' }), 0);
+  assert.equal(togetherDelayMs({ source: 'playout', delayMs: 500 }), 0);
+});

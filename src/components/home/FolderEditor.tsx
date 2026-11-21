@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, PLAYOUT_CLIP_LAYER, playoutItemOf, type PlayoutItem, type ShowCue, type ShowFolder } from '../../model/shows';
-import { folderMode } from '../../model/showFolders';
+import { folderMode, MAX_TOGETHER_DELAY_MS, togetherDelayMs } from '../../model/showFolders';
 import { folderName } from '../../model/rundownRows';
 import { NEEDS, offerBlocked, effectiveEnd, type PlaybackAbility } from '../../control/cuePlayback';
 import { folderAirWords, folderChildren, type FolderAir } from '../../control/folderAir';
@@ -51,6 +51,7 @@ export default function FolderEditor({
   onMode,
   onEnd,
   onSlot,
+  onDelay,
 }: {
   folder: ShowFolder;
   /** Its cues, every run, in rundown order. */
@@ -75,12 +76,21 @@ export default function FolderEditor({
   onMode: (mode: ShowFolder['mode']) => string | null;
   onEnd: (end: 'loop' | null) => void;
   onSlot: (slot: { channel?: number | null; layer?: number | null }) => void;
+  /** All together: how long after the Take this cue goes, in ms; null removes it. */
+  onDelay?: (cueId: string, ms: number | null) => void;
 }) {
   const mode = folderMode(folder);
   const name = folderName(folder);
   const [refusal, setRefusal] = useState<string | null>(null);
   useEffect(() => setRefusal(null), [folder.id, mode]);
   // The name box is one edit, one write: a teammate's rename never lands mid-word (./useDeferredEdits).
+  // A delay box is one edit: committed when it is left or on Enter, never half-typed (0.5 on the
+  // way to 0.75 would act).
+  const delayEdits = useDeferredEdits((cueId, text) => {
+    const seconds = Number(text.replace(',', '.'));
+    if (text.trim() === '' || (Number.isFinite(seconds) && seconds >= 0)) onDelay?.(cueId, text.trim() === '' ? null : Math.round(seconds * 1000));
+  }, { settle: false });
+  const byId = new Map(members.map((c) => [c.id, c] as const));
   const nameEdits = useDeferredEdits((_key, text, closing) => {
     const next = text.trim();
     if (next && next !== folder.name) onRename(next, closing);
@@ -273,6 +283,25 @@ export default function FolderEditor({
               </span>
             )}
             <span className="pd-cue-layer">{c.address}</span>
+            {mode === 'together' && onDelay && byId.get(c.id) && !isServerCue(byId.get(c.id)!) && (
+              <label className="pd-folder-delay" title="How long after the folder's Take this cue goes, so lights can land with a graphic's animation. 0 to 10 seconds.">
+                <span>Delay</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={MAX_TOGETHER_DELAY_MS / 1000}
+                  step={0.1}
+                  inputMode="decimal"
+                  value={delayEdits.text(c.id, String(togetherDelayMs(byId.get(c.id)!) / 1000))}
+                  onChange={(e) => delayEdits.type(c.id, e.target.value)}
+                  onBlur={delayEdits.flush}
+                  onKeyDown={(e) => e.key === 'Enter' && delayEdits.flush()}
+                  aria-label={`Delay of ${c.label}, seconds`}
+                  data-testid="folder-child-delay"
+                />
+                <span className="muted">s</span>
+              </label>
+            )}
             {c.outcome === 'miss' && c.why && (
               <span className="pd-folder-where-why status-warn" data-testid="folder-child-why">
                 {c.why}

@@ -2158,9 +2158,18 @@ test('a winner graphic and a lighting cue go together on one folder Take, with n
   await page.reload();
   await expect(folder(page, 'Result')).toBeVisible();
   await holdFolder(page, 'Result');
+  // The lights land a second after the graphic: the OSC member's delay, set in the folder panel.
+  const delays = page.getByTestId('folder-child-delay');
+  await expect(delays, 'a graphic and an OSC cue each get a delay box').toHaveCount(2);
+  await delays.nth(1).fill('1');
+  await delays.nth(1).press('Enter');
+  await expect.poll(async () => evaluateInPage(page, async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.cues!.find((c) => c.label === 'Lights')!.delayMs, showId)).toBe(1000);
+  await parkFocusOffControls(page);
   await page.getByTestId('verb-take').click();
+  await expect(cue(page, 'Winner').locator('.pd-tag.up, .pd-tag.air')).toHaveCount(1);
+  expect(fake.osc, 'the lights wait their second').toHaveLength(0);
 
-  await expect.poll(() => fake.osc.length).toBe(1);
+  await expect.poll(() => fake.osc.length, { timeout: 5000 }).toBe(1);
   expect(fake.osc[0]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/go' });
   await expect(page.getByTestId('production-note')).toContainText('1 of 1 on air, 1 of 1 OSC sent');
   await expect(cue(page, 'Winner').locator('.pd-tag.up, .pd-tag.air')).toHaveCount(1);
