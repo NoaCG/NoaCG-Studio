@@ -77,8 +77,10 @@ export function isSplit(doc: unknown): boolean {
 
 /** A record of a form this build does not know: never held (G5 R11). */
 export class UnknownRecordForm extends Error {
+  readonly form: unknown;
   constructor(form: unknown) {
-    super(`This team production was saved by a newer version of NoaCG (record form ${String(form)}). Reload this page to edit.`);
+    super('This team production was saved by a newer version of NoaCG. Reload this page to edit.');
+    this.form = form;
   }
 }
 

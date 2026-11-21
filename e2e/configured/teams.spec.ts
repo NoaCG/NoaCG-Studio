@@ -1118,6 +1118,7 @@ test.describe('team designs: one copy of each design per production', () => {
       return context.newPage();
     };
     let teamId: string | null = null;
+    let ownTeamId: string | null = null;
     const owner = await open();
     try {
       await setSwitch('team_designs', false);
@@ -1264,6 +1265,35 @@ test.describe('team designs: one copy of each design per production', () => {
       // Nor can it write the publication (R7).
       const publish = await rest(older, `control_shows?id=eq.${made.id}`, { method: 'PATCH', body: { title: 'From an older page' } });
       expect(publish.text, 'a publish from an older page').toContain(REFUSED);
+      // Nor delete the production or its publication, even signed in as the team's owner (the only
+      // account allowed to delete): refused before anything is removed.
+      const olderOwner = await open(true);
+      await signIn(olderOwner);
+      const deleteRecord = await rest(olderOwner, `team_productions?id=eq.${made.id}&select=id`, { method: 'DELETE' });
+      expect(deleteRecord.text, 'an older page deleting the split production').toContain(REFUSED);
+      const deletePublication = await rest(olderOwner, `control_shows?id=eq.${made.id}&select=id`, { method: 'DELETE' });
+      expect(deletePublication.text, 'an older page deleting the publication').toContain(REFUSED);
+      expect((await storedRow(owner, made.id)).form, 'the record is still there, split').toBe(1);
+      // A team of the older page's own, with only a whole production: its heads poll (one query
+      // across all its teams) still fails while the split sibling exists; by-id reads of the whole
+      // production are recorded as the planner answers them (G5 section 8).
+      const own = await older.evaluate(async ({ teamName }) => {
+        const m = await __noacgImport('/src/model/shows.ts');
+        const { createTeam } = await __noacgImport('/src/backend/teams.ts');
+        const { moveProductionToTeam } = await __noacgImport('/src/backend/teamProductions.ts');
+        const { show } = m.createShowNamedChecked(`Older page's own ${Date.now()}`);
+        const { team, error } = await createTeam(teamName, 'Older page');
+        if (!team) throw new Error(`team: ${error}`);
+        const moved = await moveProductionToTeam(m.loadShows().find((s: { id: string }) => s.id === show.id)!, team.id);
+        return { id: show.id as string, teamId: team.id as string, error: moved.error };
+      }, { teamName: `${TEAM_NAME()} older designs` });
+      ownTeamId = own.teamId;
+      expect(own.error, 'the older page made a whole team production of its own').toBeNull();
+      const polled = await rest(older, 'team_productions?select=id,updated_at');
+      expect(polled.text, "the older page's heads poll, with a whole production of another team in it").toContain(REFUSED);
+      const byId = await rest(older, `team_productions?select=id&id=eq.${own.id}`);
+      test.info().annotations.push({ type: 'older page by-id read of a whole production beside a split one', description: `${byId.status} ${byId.text.slice(0, 120)}` });
+      expect(byId.status === 200 || byId.text.includes(REFUSED), `either read as today or refused with the words: ${byId.status} ${byId.text}`).toBe(true);
       // Its Takes still land (R14): a command row appears for the press.
       const commands = async () => JSON.parse((await rest(owner, `control_events?select=id&show_id=eq.${made.id}`)).text).length as number;
       const sent = await commands();
@@ -1276,6 +1306,7 @@ test.describe('team designs: one copy of each design per production', () => {
       await setSwitch('team_designs', false).catch(() => undefined);
       for (const c of contexts) await c.close().catch(() => undefined);
       if (teamId) await dropDesignTeams(teamId);
+      if (ownTeamId) await dropDesignTeams(ownTeamId);
     }
   });
 });

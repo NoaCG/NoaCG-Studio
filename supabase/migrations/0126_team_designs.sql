@@ -641,6 +641,7 @@ declare
   v_team    uuid := '00000000-0126-4000-8000-000000000001';
   v_tp      uuid := '00000000-0126-4000-8000-000000000002';
   v_other   uuid := '00000000-0126-4000-8000-000000000003';
+  v_team2   uuid := '00000000-0126-4000-8000-000000000004';
   v_signed  text;
   v_old     text := '{"accept":"application/json","x-noacg-production-copies":"1"}';
   v_new     text := '{"accept":"application/json","x-noacg-production-copies":"1","x-noacg-team-designs":"1"}';
@@ -715,6 +716,42 @@ begin
     end if;
     v_split := jsonb_build_object('name', 's', 'cues', '[]'::jsonb, 'graphics', jsonb_build_array(
       jsonb_build_object('id', 'g1', 'designRef', v_names[1]), jsonb_build_object('id', 'g2', 'designRef', v_names[2])));
+
+    -- A whole row, before anything is split: an unmarked read as the authenticated role is as today
+    -- (R2); a patch that would make it split is replaced, marked or not (R5).
+    set local role authenticated;
+    perform set_config('request.headers', v_old, true);
+    select count(*) into v_n from public.team_productions p where p.id = v_tp;
+    execute format('set local role %I', v_role);
+    if v_n <> 1 then raise exception '0126: an unmarked read of a whole row saw % rows', v_n; end if;
+    select p.updated_at into v_at from public.team_productions p where p.id = v_tp;
+    foreach v_err in array array[v_old, v_new] loop
+      perform set_config('request.headers', v_err, true);
+      v_got := public.team_production_patch_v2(v_tp, v_at, jsonb_build_array(jsonb_build_object('m', 'graphics', 'set', v_split->'graphics', 'u', 'u')));
+      if v_got->>'replaced' is distinct from 'true' then raise exception '0126: a patch_v2 making a whole row split answered %', v_got; end if;
+      v_got := public.team_production_patch(v_tp, v_at, jsonb_build_array(jsonb_build_object('m', 'graphics', 'set', v_split->'graphics', 'u', 'u')));
+      if v_got->>'replaced' is distinct from 'true' then raise exception '0126: a patch making a whole row split answered %', v_got; end if;
+    end loop;
+    if (select p.doc_form from public.team_productions p where p.id = v_tp) is not null then
+      raise exception '0126: a refused patch split the record';
+    end if;
+    -- A production of a team the caller is not in: every new function refuses.
+    insert into public.teams (id, name, owner_id) values (v_team2, '0126 self-check other', v_owner);
+    insert into public.team_productions (id, team_id, doc, updated_by) values (v_other, v_team2, v_whole, v_owner);
+    foreach v_err in array array['put', 'read', 'store'] loop
+      v_err2 := null;
+      begin
+        case v_err
+          when 'put' then perform public.team_designs_put(v_other, '[{"x":1}]');
+          when 'read' then perform public.team_designs_read(v_other, array['x']);
+          else perform public.team_production_store(v_other, now(), v_split);
+        end case;
+      exception when insufficient_privilege then v_err2 := sqlerrm;
+      end;
+      if v_err2 is distinct from 'not a member of the team that holds this production' then
+        raise exception '0126: % for a non-member answered %', v_err, coalesce(v_err2, 'no refusal');
+      end if;
+    end loop;
 
     -- Store: unmarked refused; switch off answers off.
     select p.updated_at into v_at from public.team_productions p where p.id = v_tp;
@@ -834,6 +871,9 @@ begin
     if not public.team_production_units_set(v_tp, v_rev, '{"m":{"name":"n"}}') then
       raise exception '0126: the map of a split record was not kept at its revision';
     end if;
+    if public.team_production_units_set(v_tp, v_rev - 1, '{"m":{"name":"n"}}') then
+      raise exception '0126: a map was kept at another revision';
+    end if;
 
     -- The select policy, as the authenticated role: unmarked refused on a split row; marked reads.
     set local role authenticated;
@@ -913,6 +953,16 @@ begin
     exception when insufficient_privilege then v_err := sqlerrm;
     end;
     if v_err is distinct from 'this account is suspended' then raise exception '0126: a suspended account put a design (%)', v_err; end if;
+    perform set_config('request.headers', v_new, true);
+    foreach v_err2 in array array['read', 'store'] loop
+      v_err := null;
+      begin
+        if v_err2 = 'read' then perform public.team_designs_read(v_tp, array['x']);
+        else perform public.team_production_store(v_tp, now(), v_split); end if;
+      exception when insufficient_privilege then v_err := sqlerrm;
+      end;
+      if v_err is distinct from 'this account is suspended' then raise exception '0126: a suspended account could % (%)', v_err2, coalesce(v_err, 'no refusal'); end if;
+    end loop;
 
     raise exception 'self-check-done';
   exception when others then

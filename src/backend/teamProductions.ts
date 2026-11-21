@@ -257,7 +257,9 @@ async function withAssets(sb: Backend, doc: Show, teamId: string): Promise<Show>
 // (`splitRecord`) only while the server has the designs and its `team_designs` switch is on.
 
 const DESIGNS_READ_EVERY_MS = 30_000;
-/** null until the first answer; false when the server has no `team_designs_state` (before 0126). */
+/** null until the first answer; false while the server has no `team_designs_state` (before 0126).
+ *  Asked again every 30 s whatever it answered, so a page opened before the migration is applied
+ *  starts saving split once it is (G5 section 7). */
 let designsInstalled: boolean | null = null;
 let designsOn = false;
 let designsAt = 0;
@@ -267,13 +269,16 @@ let designsAsking: Promise<string | null> | null = null;
  *  still unknown: a team fetch then fails like a read error and is retried with the read backoff
  *  (G5 section 3). Later failures keep the last answer. */
 async function designsReady(sb: Backend, now = Date.now()): Promise<string | null> {
-  if (designsInstalled === false) return null;
   if (designsInstalled !== null && now - designsAt < DESIGNS_READ_EVERY_MS) return null;
   designsAsking ??= (async () => {
     try {
       const { data, error } = await sb.rpc('team_designs_state');
       if (error) {
-        if (error.code === 'PGRST202') { designsInstalled = false; return null; }
+        if (error.code === 'PGRST202') {
+          designsInstalled = false;
+          designsAt = Date.now();
+          return null;
+        }
         return designsInstalled === null ? error.message : null;
       }
       const state = (data ?? {}) as { installed?: unknown; on?: unknown };
