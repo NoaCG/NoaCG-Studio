@@ -414,3 +414,27 @@ test('R7: a newer failed Take makes an older one moot; an older one landing late
   assert.equal(debts.heard([{ graphic: 'g', msg: { t: 'play', oid: 'a' } }]), null, 'the older press is not owed any more');
   assert.equal(debts.owed(), 1);
 });
+
+test('R3: its own row heard ends a held press without cutting the attempt in flight, whose answer is still read', async () => {
+  const settled = new AbortController();
+  let answer;
+  const answered = new Promise((r) => (answer = r));
+  const sending = sendWithResend(() => answered, { deadline: 0, stillNewest: () => true, held: true, settled: settled.signal });
+  settled.abort();
+  answer();
+  await sending;
+  // Heard while waiting between two attempts: no attempt after it.
+  const heard = new AbortController();
+  let attempts = 0;
+  const waiting = sendWithResend(
+    async () => {
+      attempts += 1;
+      throw unansweredError();
+    },
+    { deadline: 0, stillNewest: () => true, held: true, settled: heard.signal, sleep: () => new Promise(() => {}) },
+  );
+  await new Promise((r) => setImmediate(r));
+  heard.abort();
+  await assert.rejects(waiting, (e) => isUnanswered(e));
+  assert.equal(attempts, 1);
+});

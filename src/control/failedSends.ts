@@ -204,6 +204,9 @@ export async function sendWithResend(
     held?: boolean;
     /** Aborted: no further attempt, and the one in flight is abandoned now. */
     stop?: AbortSignal;
+    /** Aborted: no further attempt, and a wait between two ends now, but the attempt in flight
+     *  still gets its answer (its own row was heard: the answer says what it skipped). */
+    settled?: AbortSignal;
     now?: () => number;
     sleep?: (ms: number) => Promise<void>;
     /** Calls `fire` after `ms` unless the returned cancel is called first. */
@@ -233,9 +236,10 @@ export async function sendWithResend(
       const wait = RESEND_DELAYS_MS[attempt] ?? (opts.held ? RESEND_EVERY_MS : undefined);
       if (!isUnanswered(e) || wait === undefined) throw e;
       if (!opts.held && now() + wait + MIN_ATTEMPT_MS > opts.deadline) throw e;
-      if (!opts.stillNewest()) throw e;
-      await abortable(sleep(wait), stop);
+      if (!opts.stillNewest() || opts.settled?.aborted) throw e;
+      await abortable(abortable(sleep(wait), stop), opts.settled);
       if (stop?.aborted) throw stopped(e);
+      if (opts.settled?.aborted) throw e;
       if (!opts.stillNewest()) throw e;
     }
   }

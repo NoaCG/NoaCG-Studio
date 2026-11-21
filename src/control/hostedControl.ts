@@ -1972,7 +1972,6 @@ async function sendControlVerbOnce(opts: {
     for (const key of keys) laneEnders.set(key, (laneEnders.get(key) ?? new Set()).add(end));
   }
   const laneStop = eitherSignal(stop, landedRow.signal, laneEnd.signal);
-  const resendStop = eitherSignal(stop, landedRow.signal);
   const slow = {};
   // Its own row heard back lands it (R3): the press stops being sent at once.
   const oids = held ? wire.map((item) => oidOf(item.msg)).filter((oid): oid is string => !!oid) : [];
@@ -1984,7 +1983,8 @@ async function sendControlVerbOnce(opts: {
         held,
         replaces: (key) => replaced.has(key),
         laneStop: opts.allOut ? landedRow.signal : laneStop.signal,
-        stop: opts.allOut ? landedRow.signal : resendStop.signal,
+        stop: opts.allOut ? new AbortController().signal : stop,
+        settled: landedRow.signal,
       });
       sent.skipped = settled.skipped;
       if (settled.superseded) sent.superseded = Object.keys(sender.base);
@@ -2035,7 +2035,6 @@ async function sendControlVerbOnce(opts: {
       if (enders?.size === 0) laneEnders.delete(key);
     }
     laneStop.done();
-    resendStop.done();
     if (slowTimer) clearTimeout(slowTimer);
     for (const oid of oids) awaitingRow.delete(oid);
     if (stillSending.delete(slow)) stillSendingChanged();
@@ -2212,7 +2211,7 @@ async function sendSeqVerb(
   sender: SenderBody,
   resend: { deadline: number; stillNewest: () => boolean },
   allOut: boolean,
-  lane: { held: boolean; replaces: (key: string) => boolean; laneStop: AbortSignal; stop: AbortSignal },
+  lane: { held: boolean; replaces: (key: string) => boolean; laneStop: AbortSignal; stop: AbortSignal; settled: AbortSignal },
 ): Promise<{ skipped: string[]; superseded: boolean }> {
   const graphics = Object.keys(sender.base);
   const keys = graphics.map((graphic) => `${slug}:${graphic}`);
@@ -2237,7 +2236,7 @@ async function sendSeqVerb(
       },
       // Newest wins by ending the earlier press (`laneEnders`): a later press that only modifies the
       // graphic never ends this one (R7).
-      { deadline, stillNewest: resend.stillNewest, held, stop },
+      { deadline, stillNewest: resend.stillNewest, held, stop, settled: lane.settled },
     );
   };
   await (allOut ? send({ waitedBehindHeld: false }) : seqQueue.run(keys, send, { held, replaces: lane.replaces, stop: lane.laneStop }));
