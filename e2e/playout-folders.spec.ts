@@ -2136,3 +2136,36 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await page.waitForTimeout(300);
   expect(fake.osc).toHaveLength(2);
 });
+
+test('a winner graphic and a lighting cue go together on one folder Take, with no playout server', async ({ page }) => {
+  // docs/work-specs/osc-control-cues/spec.md AC-1: browser output, one Take, one datagram.
+  await seedSettings(page);
+  const fake = await fakeBridge(page, { features: ['state', 'playback', 'sequence', 'osc'] });
+  const showId = await production(page, [], { graphics: [{ name: 'Winner' }] });
+  await evaluateInPage(page, async (id) => {
+    const m = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    m.saveOscDestination(id, { id: 'desk', name: 'Lighting desk', host: '192.168.1.40', port: 8830 });
+    const { cueId } = m.addOscCue(id, 'desk');
+    m.setCueControl(id, cueId!, { v: 1, kind: 'osc', destinationId: 'desk', address: '/zeros/cue/go', args: [{ type: 's', value: '0' }, { type: 's', value: '5' }] });
+    m.updateShowCueChecked(id, cueId!, { label: 'Lights' });
+    const winner = m.loadShows().find((s) => s.id === id)!.cues!.find((c) => c.label === 'Winner')!.id;
+    const { folderId } = m.addFolderFromSelection(id, [winner, cueId!], 'Result');
+    m.setFolderMode(id, folderId!, 'together');
+    const failure = await commitDurableWrites();
+    if (failure) throw new Error(failure);
+  }, showId);
+  await page.reload();
+  await expect(folder(page, 'Result')).toBeVisible();
+  await holdFolder(page, 'Result');
+  await page.getByTestId('verb-take').click();
+
+  await expect.poll(() => fake.osc.length).toBe(1);
+  expect(fake.osc[0]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/go' });
+  await expect(page.getByTestId('production-note')).toContainText('1 of 1 on air, 1 of 1 OSC sent');
+  await expect(cue(page, 'Winner').locator('.pd-tag.up, .pd-tag.air')).toHaveCount(1);
+  await expect(cue(page, 'Lights')).not.toContainText('ON AIR');
+  await page.waitForTimeout(300);
+  expect(fake.osc, 'one Take, one datagram').toHaveLength(1);
+  expect(sent(fake), 'nothing went to a playout server').toEqual([]);
+});
