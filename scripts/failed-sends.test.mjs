@@ -539,3 +539,14 @@ test('the debt record: the same facts in any order owe the same graphics (press 
     }
   }
 });
+
+test('R7: wouldOwe says whether a failure is already paid by a later press that landed', () => {
+  const debts = createSendDebts();
+  debts.landed(out('g', 'o2'), 2);
+  assert.equal(debts.wouldOwe(take('g', 1, 't1'), 1), false, 'the Out pressed after it landed');
+  assert.equal(debts.wouldOwe(take('g', 3, 't3'), 3), true, 'pressed after the Out');
+  debts.landed(update('h', 'u2'), 2);
+  assert.equal(debts.wouldOwe(take('h', 1, 't1'), 1), true, 'an Update never pays a Take');
+  assert.equal(debts.wouldOwe(update('h', 'u1'), 1), false, 'but pays an Update');
+  assert.equal(debts.wouldOwe([...take('g', 1, 't1'), ...take('k', 1, 'k1')], 1), true, 'one graphic still owed');
+});

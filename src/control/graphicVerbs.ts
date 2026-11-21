@@ -344,7 +344,12 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
    *  never leaves (#2655 R7a). */
   const sender = (): VerbSender => {
     const s = pageSender();
-    return io.stopGeneration ? { ...s, madeIn: io.stopGeneration() } : s;
+    // An empty note says nothing: a press a later press of this page already replaced ends quietly
+    // and must not clear a notice another press put up (#2655 R7).
+    const note: VerbSender['note'] = (next) => {
+      if (next !== '') s.note(next);
+    };
+    return { ...s, note, ...(io.stopGeneration ? { madeIn: io.stopGeneration() } : {}) };
   };
   /** The page as a press reads it. Once the production closed, its writes move nothing: no cue,
    *  no tree and no Bridge clear for a closed production (§4.1 R3), as the session's folds and the
@@ -702,7 +707,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       const record = ownDebts();
       // The batches before the failed one landed: a fact the record judges by this press's order.
       if (record && landed > 0) p.note(record.landed(marked.slice(0, landed).flat(), order));
-      record?.failed(owedItems, note, order);
+      // A LATER PRESS ALREADY STANDS: an Out (or a Re-take) of this page landed while this press was
+      // still ending, so nothing is owed and nothing needs saying. "Send it again" would put back
+      // what the operator just took off (#2655 R7, newest wins).
+      const replacedSince = !stale && !!record && owedItems.length > 0 && !record.wouldOwe(owedItems, order);
+      if (!replacedSince) record?.failed(owedItems, note, order);
       const uncertain = isUncertain(e);
       const skipped = io.verbsSkipped(e);
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
@@ -717,6 +726,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
         const named = (e as { graphics?: unknown }).graphics;
         page().selectionStale(Array.isArray(named) ? (named as string[]) : [...new Set(marked.flat().map((item) => item.graphic))]);
       }
+      if (replacedSince) return { ok: false, note: '' };
       return { ok: false, note, ...(stale ? { stale: true as const } : uncertain ? { uncertain: true as const } : {}) };
     } finally {
       p.sending(-1);

@@ -1982,8 +1982,9 @@ async function sendControlVerbOnce(opts: {
         replaces: (key) => replaced.has(key),
         laneStop: opts.allOut ? landedRow.signal : laneStop.signal,
         stop: opts.allOut ? new AbortController().signal : stop,
-        // Ended by a later replacing press: no further attempt, and its wait ends now, so its debt
-        // is booked before more presses land.
+        // Ended by a later replacing press: no further attempt, and a wait between two ends now.
+        // An attempt already on its way still gets its answer (up to 8 s); if the later press lands
+        // first, the record finds this one already paid (failedSends.ts `wouldOwe`).
         settled: eitherSignal(landedRow.signal, laneEnd.signal).signal,
       });
       sent.skipped = settled.skipped;
