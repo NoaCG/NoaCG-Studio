@@ -41,14 +41,15 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
   const [destDraft, setDestDraft] = useState<Draft | null>(null);
   const [bridge, setBridge] = useState<{ ready: boolean; detail: string } | null>(null);
 
-  // Asked once per cue opened: an unpaired browser asks nothing (oscBridgeState).
+  // Asked once per cue opened and per pairing: an unpaired browser asks nothing (oscBridgeState).
+  const { agentUrl, agentToken } = playoutSettings;
   useEffect(() => {
     let live = true;
-    void oscBridgeState(playoutSettings).then((s) => live && setBridge(s));
+    void oscBridgeState({ agentUrl, agentToken }).then((s) => live && setBridge(s));
     return () => {
       live = false;
     };
-  }, [cue.id, playoutSettings]);
+  }, [cue.id, agentUrl, agentToken]);
 
   const writeControl = (next: OscControlV1) => {
     const r = setCueControl(show.id, cue.id, next);
