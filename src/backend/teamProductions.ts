@@ -252,12 +252,12 @@ async function withAssets(sb: Backend, doc: Show, teamId: string): Promise<Show>
 // ── The designs (live-publishing G5) ────────────────────────────────────────────────────────────
 //
 // A team record may name its graphics' designs (`designRef`) instead of carrying them, each design
-// stored once per production (migration 0125). This tab always holds whole records: every record it
+// stored once per production (migration 0126). This tab always holds whole records: every record it
 // receives is made whole before anything sees it (`resolveRecord`), and a save splits the record
 // (`splitRecord`) only while the server has the designs and its `team_designs` switch is on.
 
 const DESIGNS_READ_EVERY_MS = 30_000;
-/** null until the first answer; false when the server has no `team_designs_state` (before 0125). */
+/** null until the first answer; false when the server has no `team_designs_state` (before 0126). */
 let designsInstalled: boolean | null = null;
 let designsOn = false;
 let designsAt = 0;
