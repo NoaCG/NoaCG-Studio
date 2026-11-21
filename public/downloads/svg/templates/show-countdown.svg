@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
-  <title>Show countdown</title>
-  <desc>NoaCG Clean Studio template. A full-screen countdown before the show: Title, Clock (5:00) and Subtitle. Choose how Clock counts when you import.</desc>
+  <title>Show clock</title>
+  <desc>NoaCG Clean Studio template. A full-screen clock before the show: Title, Clock (5:00) and Subtitle. Choose how Clock counts when you import.</desc>
   <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
     <rect id="Panel" width="1920" height="1080" fill="#0F1729"/>
     <rect id="Clock_box" inkscape:label="Clock box" x="580" y="420" width="760" height="260" rx="24" fill="#FFFFFF"/>

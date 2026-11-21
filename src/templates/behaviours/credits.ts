@@ -67,7 +67,7 @@ function cardsMachine(): TypeMachine {
 
 export const creditsRecipe: BehaviourRecipe = {
   id: CREDITS_RECIPE_ID,
-  name: 'Credits roll',
+  name: 'End credits',
   // Both outcomes, because the pick decides it (#2033): separate role and name layers become the
   // styled, editable list; one multi-line text object stays fixed artwork that only rolls.
   description: 'Roles and names in the look you drew. One block of text rolls as drawn; separate role and name layers become an editable list that rolls, holds still or plays as cards.',

@@ -59,16 +59,16 @@ export type TemplateType =
 export const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
   'lower-third': 'Lower third',
   'info-card': 'Info card',
-  'end-credits': 'Credits',
+  'end-credits': 'End credits',
   'ticker': 'Ticker',
   'alert': 'Alert',
   'public-info': 'Public info',
   'fullscreen': 'Full screen',
   'bug': 'Bug',
-  'countdown': 'Timer',
+  'countdown': 'Countdown',
   'scoreboard': 'Scoreboard',
   'info-box': 'Info box',
-  'starting-soon': 'Holding',
+  'starting-soon': 'Holding screen',
   'infographic': 'Infographic',
   'quiz': 'Quiz',
   'frame': 'Frame',
@@ -93,8 +93,8 @@ export const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
  *  hold a graphic's CODE (the hosted dashboard reads the published payload, where the kind
  *  is derived via detectPrefix rather than stored). */
 const PREFIX_KIND_LABELS: Record<string, string> = {
-  'game-timer': 'Timer',
-  'credits': 'Credits',
+  'game-timer': 'Countdown',
+  'credits': 'End credits',
   'corner-bug': 'Bug',
   'versus': 'Versus',
 };

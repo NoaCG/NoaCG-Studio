@@ -13,7 +13,7 @@ import { rolesOf } from './recipe';
 
 export const meterRecipe: BehaviourRecipe = {
   id: 'meter',
-  name: 'Meter',
+  name: 'Goal meter',
   description: 'A bar that fills toward a target as the figure the operator types goes up.',
   category: 'infographic',
   defaultZone: 'mid-center',

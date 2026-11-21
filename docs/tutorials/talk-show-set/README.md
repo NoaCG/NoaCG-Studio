@@ -122,7 +122,7 @@ Board
 ```
 
 The scores must be plain numbers (`3`, not `3 pts`), because a +1 button can only count a number.
-NoaCG recognises the names and makes this a **score tracker** by itself.
+NoaCG recognises the names and makes this a **scoreboard** by itself.
 
 | Normal | Emma scores (+1) | Full time |
 |---|---|---|

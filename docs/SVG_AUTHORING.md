@@ -4,14 +4,14 @@
 **Layer names in 30 seconds** (drawing an SVG to import into NoaCG; the full system is https://noacg.studio/docs#svg-layers):
 
 - Three layers, top of the Layers panel first: `Text` is what the operator types, `Moments` is what NoaCG shows or moves, `Board` stays as drawn. No moments, no `Moments` layer.
-- Name each text for what it is, the row last after a space: `Question`, `Answer A`, `Team 1`, `Score 1`. A title is `Title` and `Subtitle`, a name tag `Name` and `Role`, credits `Heading` and `Credits`.
+- Name each text for what it is, the row last after a space: `Question`, `Answer A`, `Team 1`, `Score 1`. A title is `Title` and `Subtitle`, a lower third `Name` and `Role`, credits `Heading` and `Credits`.
 - A moment is a hidden group, with its row where it has one: `Selected A`, `Flash 1`, `Full time`. A bar is drawn at full length and left visible: `Bar 1`.
 - On the Board the background is `Panel`, a plate under a text is that text's name plus box (`Question box`, `Answer box A`, `Score box 1`), and fixed words start with `static:` (`static:Letter A`).
 - Anything else on the Board is decoration with any name. Every name is English. Save with File > Save a Copy > SVG.
 <!-- layer-cheat-sheet:end -->
 
 The files that follow these names exactly are `public/docs/examples/` (a quiz, a scoreboard, a
-live vote, a countdown, end credits, a ticker and a name tag); copy a layer tree from one of them.
+live vote, a countdown, end credits, a ticker and a lower third); copy a layer tree from one of them.
 `npm run build` fails when one of them, or a tutorial's `import-ready/` or `SVG/` file, breaks the
 system (`scripts/check-example-layers.mjs`).
 
@@ -255,9 +255,9 @@ from you: a two-letter logotype really can be the text you want editable.
 ## 5b. Drawing a graphic that DOES something
 
 A graphic can carry behaviour the operator drives live, with real buttons on the control page.
-There are thirteen: a **quiz**, a **score tracker**, a **live vote**, a **countdown**, a
-**meter**, an **alert**, a **survey board**, a **stepped list**, a **lineup**, a **puzzle board**,
-a **reveal**, a **bingo caller** and a **credits roll**. A **clock** can sit beside any one of
+They are a **quiz**, a **scoreboard**, a **live vote**, a **countdown**, a **goal meter**, a
+**pop-up alert**, a **survey board**, a **stepped list**, a **lineup**, a **puzzle board**, a
+**reveal**, a **bingo caller** and **end credits**. A **clock** can sit beside any one of
 them except the countdown. You draw what each moment looks like; NoaCG decides when each one
 is on. Your artwork is never redrawn.
 
@@ -279,8 +279,8 @@ is on. Your artwork is never redrawn.
 **Any hidden layer can be a switch or part of a choice, with no behaviour at all.** Hide a layer and
 name it `show:Sponsor`, and the operator gets Show Sponsor and Hide Sponsor. Hide two or more and
 name them `choice:Status/Live`, `choice:Status/Replay`, `choice:Status/Standby`, and the operator
-gets one button per option, with one look showing at a time. Both work beside a quiz or a score
-tracker on the same graphic, and both are offered in the Fields step on every hidden layer that
+gets one button per option, with one look showing at a time. Both work beside a quiz or a
+scoreboard on the same graphic, and both are offered in the Fields step on every hidden layer that
 nothing else claimed, so the names are a shortcut here too.
 
 **Naming is a shortcut, not a rule.** Every layer below is a picker in the Fields step, so a file
@@ -321,7 +321,7 @@ one text layer per answer, then the moments:
 Two to six answers. The operator gets Select answer, Lock it in and Reveal correct.
 <!-- behaviour:quiz:end -->
 
-### The score tracker — a point, a flash, full time
+### The scoreboard - a point, a flash, full time
 
 **Two or more teams**, however many you drew. A row is a team name and a figure.
 
@@ -350,7 +350,7 @@ that is the road for when you have lost track rather than fumbled.
 **Home and Away boards work too**, they just are not proposed for you: a board with two rows called
 `Home` and `Away` needs one pick per row in the Fields step, or one press of Fill them in there,
 which takes the two names top to bottom and the figure sitting on each one's row. The numbering is
-what tells NoaCG a board is a score tracker rather than a versus card, and a wrong guess made
+what tells NoaCG a board is a scoreboard rather than a versus card, and a wrong guess made
 silently would be worse than none.
 
 ### The standings — change the points and the rows trade places
@@ -424,7 +424,7 @@ board, so viewers can scan their way to the vote.
 
 For a match clock beside a score, a running time, or a "starts at 19:00" card. Draw one text
 layer reading minutes and seconds (`00:00`, `45:00`, `90:00`). Any name works. The Fields step
-then shows a **Clock** choice beside the behaviour, so a score tracker and a clock are one
+then shows a **Clock** choice beside the behaviour, so a scoreboard and a clock are one
 graphic. A time drawn with hours (`1:05:00`) is not offered the Clock.
 
 - **Counts up. You start it.** The operator gets Start, Pause and Reset.
@@ -479,7 +479,7 @@ separate looks, only one length per second remaining, so draw it full and NoaCG 
 
 **One clock per graphic.** If you draw a second time layer, leave it as ordinary text.
 
-### The meter - a bar fills toward a target
+### The goal meter - a bar fills toward a target
 
 For a fundraiser total, a signature count, anything that fills up. Draw the bar at its FULL
 length; NoaCG shortens it to the current figure's share of the target. Both figures are fields
@@ -496,10 +496,10 @@ with + and -, and nothing else is needed.
 The operator gets the Current and Target figures, each with + and −.
 <!-- behaviour:meter:end -->
 
-### The alert - it plays, holds, and takes itself off
+### The pop-up alert - it plays, holds, and takes itself off
 
 For a follower pop, a donation flash, a strap that must not sit there. Nothing to draw or name:
-pick Alert in the Fields step and the graphic clears itself eight seconds after it lands.
+pick Pop-up alert in the Fields step and the graphic clears itself eight seconds after it lands.
 
 <!-- behaviour:alert:start - generated by scripts/behaviour-docs.mjs from src/templates/behaviours/words.json; edit the JSON, then `npm run write:behaviour-docs` -->
 | Layer | Name it | What it is |
@@ -628,7 +628,7 @@ in order, one per line, so a controller can also write the whole list.
 Five to ninety numbers, one Called layer each. Name the numeral on each tile Number 1, Number 2 and so on, and it stays your drawing instead of arriving as a field. The operator gets Call it, Take back and New game, plus the Number to call box with + and − and the Called numbers box (one number per line, in the order they were called).
 <!-- behaviour:bingo:end -->
 
-### The credits roll - in your styling, easy to edit
+### The end credits - in your styling, easy to edit
 
 Draw a sample of the credits with each role and each name as its own one-line text layer: a
 role look and a name look, the role above its names or beside its first name. The import reads
@@ -829,7 +829,7 @@ Draw a short sample: each role and each name as its own text layer, one line eac
   the name column. Keep the roles on one aligned edge and the names on one aligned edge.
 - **A title above the block** in a look of its own stays an ordinary field.
 
-Choose **Credits roll** in the Fields step and pick the first role. The Credits preview
+Choose **End credits** in the Fields step and pick the first role. The Credits preview
 shows the roles and names it read. Where the columns of a role-beside drawing
 could be read either way, it asks which column holds the roles. **Show as** is *Editable, in
 this design's styling*, and **Plays as** is a **Roll**, **Hold still** (one page) or **Cards**

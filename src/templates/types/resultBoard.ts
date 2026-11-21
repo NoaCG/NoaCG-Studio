@@ -11,7 +11,7 @@ import { LIVE_POLL_CONTROLS, LIVE_POLL_MACHINE, livePollType } from './livePoll'
 
 export const resultBoardType: GraphicType = {
   id: 'result-board',
-  name: 'Vote result',
+  name: 'Vote results',
   description: 'A vote’s result as bars across, bars up or a donut, full screen, as a lower third or at the side.',
   structure: livePollType.structure,
   fields: [

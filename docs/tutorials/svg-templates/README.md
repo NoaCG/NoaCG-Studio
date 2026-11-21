@@ -1,11 +1,11 @@
 # NoaCG SVG templates
 
-Eleven ready-made broadcast graphics in one clean style. They are starting points: make one yours in Illustrator, save it as SVG and import it into NoaCG.
+Ready-made broadcast graphics in one clean style. They are starting points: make one yours in Illustrator, save it as SVG and import it into NoaCG.
 
 ## In this folder
 
 - **SVG**: the templates. Each SVG is its own editable source; open it directly in Illustrator or Inkscape.
-- **Previews**: a picture of every template. The quiz, scoreboards and game timer include more states.
+- **Previews**: a picture of every template. The quiz, scoreboards and countdown include more states.
 - **templates.json**: the list of templates and what each one does in NoaCG.
 
 ## Open, edit, export, import
@@ -23,8 +23,8 @@ Eleven ready-made broadcast graphics in one clean style. They are starting point
 | Template | What it does in NoaCG |
 |---|---|
 | **Lower third** | Type Name and Role. Take, then Update for the next person. |
-| **Game timer** | A corner countdown. Clock is minutes: the drawn `1:00` is one minute. Take starts it; Pause, Start and Reset control it. The timer bar shortens with the time left, Warning shows near the end and Time up at zero. |
-| **Show countdown** | A full-screen countdown before the show. At import, choose how Clock counts: from its time, or to a set time such as 18:00. |
+| **Countdown** | A corner countdown. Clock is minutes: the drawn `1:00` is one minute. Take starts it; Pause, Start and Reset control it. The timer bar shortens with the time left, Warning shows near the end and Time up at zero. |
+| **Show clock** | A full-screen clock before the show. At import, choose how Clock counts: down from its time, or to a set time such as 18:00. |
 | **Quiz** | Type the question and answers, choose the correct answer, then Take. Select answer, Lock it in and Reveal correct run the round. |
 | **Game rules** | A full-screen card with a heading and Rule 1 to Rule 5. |
 | **Be back soon** | A full-screen break card. Retype Title for a technical problem. |
@@ -43,8 +43,8 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | Template | Text | Moments | Board |
 |---|---|---|---|
 | **Lower third** | `Name`, `Role` | none | `Name box`, `Role box` |
-| **Game timer** | `Title`, `Clock` | `Timer bar` (visible), `Warning`, `Paused`, `Time up` | `Panel`, `Track` |
-| **Show countdown** | `Title`, `Clock`, `Subtitle` | none | `Panel`, `Clock box` |
+| **Countdown** | `Title`, `Clock` | `Timer bar` (visible), `Warning`, `Paused`, `Time up` | `Panel`, `Track` |
+| **Show clock** | `Title`, `Clock`, `Subtitle` | none | `Panel`, `Clock box` |
 | **Quiz** | `Question`, `Answer A` to `Answer D` | `Selected A`, `Correct A`, `Wrong A` per answer; `Locked in` | `Question box`, `Answer box A`, `Letter box A`, `static:Letter A` |
 | **Game rules** | `Rules heading`, `Rule 1` to `Rule 5` | none | `Panel`, `Accent`, `Rule box 1`, `Badge 1`, `static:Rule number 1` |
 | **Be back soon** | `Title`, `Subtitle` | none | `Panel`, `Accent` |

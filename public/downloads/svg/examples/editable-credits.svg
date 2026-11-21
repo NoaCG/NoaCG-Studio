@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" id="Frame" width="1920" height="1080" viewBox="0 0 1920 1080">
-  <title>Editable credits: roles above names</title>
-  <desc>Authored by NoaCG as an editable SVG source. Each role and name is a separate live text object. Import as editable credits to replace the sample with a pasted list.</desc>
+  <title>Editable end credits: roles above names</title>
+  <desc>Authored by NoaCG as an editable SVG source. Each role and name is a separate live text object. Import as editable end credits to replace the sample with a pasted list.</desc>
   <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
     <rect id="Panel" width="1920" height="1080" fill="#101c35"/>
     <rect id="Accent" x="864" y="226" width="192" height="6" fill="#ffcc00"/>

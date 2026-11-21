@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- NoaCG docs example - SCOREBOARD. Imports as a Score tracker.
+<!-- NoaCG docs example - SCOREBOARD. Imports as a Scoreboard.
      Three layers, top of the Layers panel first: Text (what the operator types), Moments (hidden
      groups NoaCG shows), Board (what stays as drawn). Team 1, Score 1, Team 2 and Score 2 are the
      names NoaCG reads; the scores must be plain numbers. Flash 1, Flash 2 and Full time are

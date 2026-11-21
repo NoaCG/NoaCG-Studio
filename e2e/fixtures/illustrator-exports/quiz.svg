@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #fc0;
+      }
+
+      .st1, .st2, .st3 {
+        fill: #1d2b53;
+      }
+
+      .st4 {
+        font-size: 48px;
+      }
+
+      .st4, .st5 {
+        fill: #fff;
+        font-family: Oswald-Medium, Oswald;
+        font-weight: 500;
+      }
+
+      .st2 {
+        font-size: 26px;
+      }
+
+      .st2, .st3 {
+        font-family: Oswald-Bold, Oswald;
+        font-weight: 700;
+      }
+
+      .st6 {
+        fill: none;
+        stroke: #fc0;
+        stroke-miterlimit: 10;
+        stroke-width: 8px;
+      }
+
+      .st3 {
+        font-size: 50px;
+      }
+
+      .st5 {
+        font-size: 40px;
+      }
+
+      .st7 {
+        display: none;
+      }
+
+      .st8 {
+        fill: #2da44e;
+      }
+
+      .st9 {
+        fill: #d7263d;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Question_box" class="st1" x="160" y="700" width="1600" height="100"/>
+    <rect id="Answer_box_A" class="st1" x="250" y="810" width="700" height="90"/>
+    <rect id="Answer_box_B" class="st1" x="1060" y="810" width="700" height="90"/>
+    <rect id="Answer_box_C" class="st1" x="250" y="910" width="700" height="90"/>
+    <rect id="Answer_box_D" class="st1" x="1060" y="910" width="700" height="90"/>
+    <rect id="Letter_box_A" class="st0" x="160" y="810" width="90" height="90"/>
+    <rect id="Letter_box_B" class="st0" x="970" y="810" width="90" height="90"/>
+    <rect id="Letter_box_C" class="st0" x="160" y="910" width="90" height="90"/>
+    <rect id="Letter_box_D" class="st0" x="970" y="910" width="90" height="90"/>
+    <text id="static:Letter_A" class="st3" transform="translate(191.23 875.25)"><tspan x="0" y="0">A</tspan></text>
+    <text id="static:Letter_B" class="st3" transform="translate(1000.3 875.25)"><tspan x="0" y="0">B</tspan></text>
+    <text id="static:Letter_C" class="st3" transform="translate(190.93 975.25)"><tspan x="0" y="0">C</tspan></text>
+    <text id="static:Letter_D" class="st3" transform="translate(1000.35 975.25)"><tspan x="0" y="0">D</tspan></text>
+  </g>
+  <g id="Moments">
+    <g id="Locked_in" class="st7">
+      <rect class="st0" x="1540" y="656" width="220" height="44"/>
+      <text class="st2" transform="translate(1593.97 688.53)"><tspan x="0" y="0">LOCKED IN</tspan></text>
+    </g>
+    <g id="Selected_A" class="st7">
+      <rect class="st6" x="254" y="814" width="692" height="82"/>
+    </g>
+    <g id="Correct_A" class="st7">
+      <rect class="st8" x="250" y="810" width="700" height="90"/>
+    </g>
+    <g id="Wrong_A" class="st7">
+      <rect class="st9" x="250" y="810" width="700" height="90"/>
+    </g>
+    <g id="Selected_B" class="st7">
+      <rect class="st6" x="1064" y="814" width="692" height="82"/>
+    </g>
+    <g id="Correct_B" class="st7">
+      <rect class="st8" x="1060" y="810" width="700" height="90"/>
+    </g>
+    <g id="Wrong_B" class="st7">
+      <rect class="st9" x="1060" y="810" width="700" height="90"/>
+    </g>
+    <g id="Selected_C" class="st7">
+      <rect class="st6" x="254" y="914" width="692" height="82"/>
+    </g>
+    <g id="Correct_C" class="st7">
+      <rect class="st8" x="250" y="910" width="700" height="90"/>
+    </g>
+    <g id="Wrong_C" class="st7">
+      <rect class="st9" x="250" y="910" width="700" height="90"/>
+    </g>
+    <g id="Selected_D" class="st7">
+      <rect class="st6" x="1064" y="914" width="692" height="82"/>
+    </g>
+    <g id="Correct_D" class="st7">
+      <rect class="st8" x="1060" y="910" width="700" height="90"/>
+    </g>
+    <g id="Wrong_D" class="st7">
+      <rect class="st9" x="1060" y="910" width="700" height="90"/>
+    </g>
+  </g>
+  <g id="Text">
+    <text id="Question" class="st4" transform="translate(677.41 769.44)"><tspan x="0" y="0">What is the capital of Finland?</tspan></text>
+    <text id="Answer_A" class="st5" transform="translate(280 871.2)"><tspan x="0" y="0">Turku</tspan></text>
+    <text id="Answer_B" class="st5" transform="translate(1090 871.2)"><tspan x="0" y="0">Helsinki</tspan></text>
+    <text id="Answer_C" class="st5" transform="translate(280 971.2)"><tspan x="0" y="0">Tampere</tspan></text>
+    <text id="Answer_D" class="st5" transform="translate(1090 971.2)"><tspan x="0" y="0">Oulu</tspan></text>
+  </g>
+</svg>

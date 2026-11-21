@@ -13,7 +13,7 @@ import { BEHAVIOUR_ROLE_ATTR, roleToken } from './behaviourData';
 
 /** The refusal every key on a sequence the editor cannot prove free has always carried. */
 export const SEQUENCE_REFUSAL = 'This sequence has calls, measured motion, loops or state-machine ownership. Canvas edits base placement; its animation is preserved.';
-export const CREDITS_REFUSAL = 'The credits roll measures this artwork and moves it on air. It takes no keys; its roll is preserved.';
+export const CREDITS_REFUSAL = 'End credits measure this artwork and move it on air. They take no keys; their roll is preserved.';
 export const LOOK_REFUSAL = 'This graphic shows and hides this layer on air. It takes no keys; its look is preserved.';
 export const GEOMETRY_REFUSAL = 'This graphic measures and moves this layer on air. It takes Opacity keys only; its placement is preserved.';
 

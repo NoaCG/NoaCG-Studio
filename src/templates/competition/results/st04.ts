@@ -21,7 +21,7 @@ export const st04: TemplateVariant = defineResultsVariant(
     category: 'results-board',
     name: 'Clean Results',
     styleTag: 'minimal',
-    description: 'A quiet result table: hairline rules, tabular figures, nothing boxed.',
+    description: 'Quiet standings: hairline rules, tabular figures, nothing boxed.',
     maxLines: 2,
     suggestedLines: [
       { title: 'Title', sample: 'FINAL RESULTS' },
@@ -36,7 +36,7 @@ export const st04: TemplateVariant = defineResultsVariant(
   {
     name: 'Clean Results',
     description:
-      'The quiet result table: no panel, hairline-ruled rows, tabular figures in declared ' +
+      'Quiet standings: no panel, hairline-ruled rows, tabular figures in declared ' +
       'columns, a soft highlight for the row being discussed, and an accent rule under the ' +
       'winner once the result is final.',
     uicolor: '7',

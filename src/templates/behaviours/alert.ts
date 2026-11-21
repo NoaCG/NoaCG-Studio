@@ -21,7 +21,7 @@ const HOLD = 8;
 
 export const alertRecipe: BehaviourRecipe = {
   id: 'alert',
-  name: 'Alert',
+  name: 'Pop-up alert',
   description: 'It plays, holds for eight seconds, and takes itself off - or Next takes it off sooner.',
   category: 'alert',
   defaultZone: 'top-center',

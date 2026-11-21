@@ -790,9 +790,9 @@ test('a quiz takes keys on its answers and its cues, its drawn moments refuse th
   const credits = await source(page);
   const layers = (await page.locator('.ef-track').evaluateAll(els => els.map(e => e.getAttribute('data-selector')!))).filter(s => s.startsWith('#'));
   expect(layers.length).toBeGreaterThan(0);
-  for (const selector of layers.slice(0, 3)) expect(await tryKey(page, { selector, property: 'opacity', value: .5 })).toContain('credits roll measures');
+  for (const selector of layers.slice(0, 3)) expect(await tryKey(page, { selector, property: 'opacity', value: .5 })).toContain('End credits measure');
   expect(await source(page)).toEqual(credits);
-  await select(page, layers[0]); await expect(page.getByText(/credits roll measures this artwork/)).toBeVisible();
+  await select(page, layers[0]); await expect(page.getByText(/End credits measure this artwork/)).toBeVisible();
 });
 
 

@@ -792,7 +792,7 @@ export default function BehaviourSection({
                 {numberFields.length === 1 ? 'One layer holds' : `${numberFields.length} layers hold`}{' '}
                 a plain figure ({numberFields.map((f) => f.title).join(', ')}), so the operator
                 already gets a + and a − for {numberFields.length === 1 ? 'it' : 'each'}, with no
-                behaviour chosen. The score tracker adds the flash you drew and a reset between
+                behaviour chosen. Scoreboard adds the flash you drew and a reset between
                 games.
               </p>
             )}
@@ -889,7 +889,7 @@ export default function BehaviourSection({
               </option>
               <option value="quiz">Quiz. Select an answer, lock it in, reveal it.</option>
               <option value="poll">Live vote. The room votes; the bars move; you show the result.</option>
-              <option value="score">Score tracker. A point per press, per team, and a new game.</option>
+              <option value="score">Scoreboard. A point per press, per team, and a new game.</option>
               {(timer || countdownDrawn) && <option value="timer">Countdown. It starts on air; you hold it, let it go, reset it.</option>}
               {/* Every other recipe, from the registry: a recipe added tomorrow is offered here
                   with no new line, in the words its declaration carries. */}

@@ -125,7 +125,7 @@ Imported credits are the same one list. How they are drawn decides whether it st
 
 - **Editable, in the design's styling** (the default where the drawing can be read). Each role
   and each name is its own one-line text layer, in one role look and one name look, the role
-  above its names or beside its first name. Choose **Credits roll** at import and pick the first
+  above its names or beside its first name. Choose **End credits** at import and pick the first
   role. The operator gets this page's list format in one field, so a paste from a spreadsheet,
   a linked Google Sheet or a last-minute edit on the production page all work, and every row
   copies the drawn role or name look. **Plays as** is a roll, one still page, or cards. A roll or

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
   <title>Score and clock</title>
-  <desc>Editable NoaCG SVG source with a score tracker and a separately chosen clock. Two live scores, two team names and Clock reading 12:00; hidden Flash groups show on score changes.</desc>
+  <desc>Editable NoaCG SVG source with a scoreboard and a separately chosen clock. Two live scores, two team names and Clock reading 12:00; hidden Flash groups show on score changes.</desc>
   <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
     <rect id="Panel" x="400" y="64" width="1120" height="112" fill="#101923"/>
     <rect id="Team_box_1" x="408" y="72" width="300" height="96" fill="#1d2b53"/>
