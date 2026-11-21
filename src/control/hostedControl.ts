@@ -1796,8 +1796,9 @@ export function subscribeStillSending(listener: () => void): () => void {
  *  in here: no later press ends the panic control. */
 const laneEnders = new Map<string, Set<() => void>>();
 
-/** A press stopped before it left: nothing of it can land, so it is not owed (`sending stopped`). */
-const notSentError = () => Object.assign(new Error(stoppedError().message), { stopped: true, aired: false, sent: [] });
+/** A press ended before it left (stopped, or replaced by a later press while it waited in its lane):
+ *  nothing of it can land, so it is not owed. */
+const notSentError = (message = stoppedError().message) => Object.assign(new Error(message), { stopped: true, aired: false, sent: [] });
 
 /** A signal that aborts when any of these does, with that one's reason, and the call that stops
  *  listening (the page's stop signal lives for a whole show, so a press must not stay on it). */
@@ -1818,9 +1819,6 @@ function eitherSignal(...signals: AbortSignal[]): { signal: AbortSignal; done: (
   return { signal: both.signal, done: () => off.forEach((f) => f()) };
 }
 
-/** A press a later press replaced while it still waited in its lane: it never left, so it cannot
- *  land and is not owed. */
-const replacedError = () => Object.assign(new Error('a later press replaced it'), { stopped: true, aired: false, sent: [] });
 
 /** One item as `control_send_many` receives it: the command, plus the transport-only mark that
  *  says the database may put this one on the fast road (migration 0056 reads `fast` and inserts
@@ -1965,7 +1963,7 @@ async function sendControlVerbOnce(opts: {
   let superseded = false;
   const end = () => {
     superseded = true;
-    laneEnd.abort(replacedError());
+    laneEnd.abort(notSentError('a later press replaced it'));
   };
   if (sender && !opts.allOut) {
     for (const key of replaced) for (const earlier of laneEnders.get(key) ?? []) earlier();
