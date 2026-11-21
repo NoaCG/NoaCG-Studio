@@ -1,9 +1,25 @@
 {
   "version": 2,
-  "specSha256": "a6c7cf6494cda9f1f54ec8242fe55c49e3799f76bf7796ea0cbd5e76267373ce",
+  "specSha256": "2f8fa2cdf64c238251dbd6b36db29a174204e0762f33d4c8ae786b454ec55f7e",
   "authority": {
     "status": "draft",
     "source": "Owner, 2026-11-21, planning session brief 'NoaCG: Unify SVG Templates and Examples'. Owner on scope: \"Everything in this plan\" (D1), and asked for an independent second opinion before building. D2-D7 taken by the planning session, reversible. Draft until the owner agrees; no implementation is authorized."
   },
-  "review": null
+  "review": {
+    "rounds": [
+      {
+        "reviewer": "so1",
+        "verdict": "agree with changes",
+        "base": "5de2f40",
+        "draft": "29155a0"
+      },
+      {
+        "reviewer": "so2",
+        "verdict": "agree with changes",
+        "base": "5de2f40",
+        "draft": "29155a0"
+      }
+    ],
+    "applied": "All required changes from both reviews applied in this revision; reviewer owner questions resolved as D1 (engines stay, last), D8 (QR card), D9 (untyped looks), Q1 open."
+  }
 }

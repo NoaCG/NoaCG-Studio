@@ -1,9 +1,10 @@
 # SVG Template Library: one library, every graphic type, working with its feature
 
 Authority: owner, 2026-11-21, in a planning session ("NoaCG: Unify SVG Templates and Examples").
-Owner on scope: "Everything in this plan", then "create the spec and then give me a
-second-opinion prompt". **Draft** until the owner agrees it after that second opinion. No
-implementation is authorized yet.
+Owner on scope: "Everything in this plan", then asked for an independent second opinion before
+building. Two independent reviews (so1, so2, 2026-11-21, against draft 29155a0 on base 5de2f40)
+both returned "agree with changes"; this revision applies every required change. **Draft** until
+the owner agrees it. No implementation is authorized yet.
 
 ## Owner brief (summary)
 
@@ -14,8 +15,7 @@ implementation is authorized yet.
 2. A customizable SVG template for **every** graphic type NoaCG supports, in particular a Join card
    (QR, instructions), Voting and Results that match it, and Messages and Chat (pasted, live chat,
    Twitch), one flexible model if possible. Add the vote template and the corner game show
-   countdown discussed earlier. The countdown pulses in the last 10 seconds and flashes boldly at
-   zero.
+   countdown. The countdown pulses in the last 10 seconds and flashes boldly at zero.
 3. Most important: a customized SVG works with the feature it was made for. Adding a Join card,
    staging results or showing a message lets the user pick their own design, with data and
    controls working.
@@ -24,210 +24,306 @@ implementation is authorized yet.
 6. Review first, reuse the existing architecture, no parallel system. Do not redesign the import
    workflow (its long dropdown stays out of scope).
 
-## What exists (review of 2026-11-21)
+## What exists
 
-**The contract already exists and is the base.** An imported SVG gets its behaviour from its layer
-names, through two mechanisms:
+**The contract base.** An imported SVG gets behaviour from its layer names through:
 
-- **Behaviour recipes** (`src/templates/behaviours/registry.ts`, 17: quiz, score, ranking,
-  countdown, vote, meter, alert, survey, list, lineup, puzzle, reveal, bingo, credits, switch,
-  choice, clock). The import step scores every recipe against the role words in
-  `behaviours/words.json` (`naming.ts` `bestProposal`) and proposes the best; the operator can
-  override it. No match means a plain graphic: one field per text layer, on/off. Every SVG import
-  is category `imported-design`, variant `svg01`; there is no type classification beyond recipes.
-- **Feature contracts by field title**, with no recipe:
-  - Join card: a visible non-text layer named `QR` draws a live QR code and adds a `Join link`
-    field (`importedDesign/svgQr.ts`).
-  - Messages (pasted, YouTube, Twitch all reach one inbox): a text layer titled Message, Comment,
-    Text, Body, Request or Question, plus optional Name, Author, From, Sender, Handle or Asked by
-    (`control/messageStaging.ts:29-30`).
-  - Results: the vote recipe's emitted fields Question, Options, Vote count, Vote status, Live
-    figures (`control/resultStaging.ts`, `behaviours/vote.ts:87-97`).
-- **Variable-length text**: the svg01 fit ladder (`importedDesign/runtime/svgFit.js`, rules in
-  `importedDesign/AGENTS.md`): fill the drawn box, optional growth, wrap, shrink to a floor,
-  squeeze; never clip; overflow reported to the operator. The box is found from geometry.
+- **Behaviour recipes** (`src/templates/behaviours/registry.ts:27`, 17 recipes). A recipe declares
+  roles, fields, states, controls and paint, and adds **no emitted JavaScript**
+  (`behaviours/recipe.ts:17-19`): a behaviour that needs code is a new field **kind** in the
+  imported-design runtime (`importedDesign/behaviourRuntime.ts`), added once for every recipe.
+  The import step proposes the best-scoring recipe (`naming.ts:208-214`); the operator can
+  override. Clock (`clock.ts:133`) and the self-clearing alert (`alert.ts:22-28`, no roles) are
+  never proposed: the author chooses them. No match means a plain graphic.
+- **Feature contracts by field title**: `QR` layer gives a generated code plus a `Join link` field
+  (`importedDesign/svgQr.ts`); Message/Name titles (`control/messageStaging.ts:29-30`, first match
+  wins); the vote recipe's emitted fields for results (`control/resultStaging.ts:62`, last match
+  wins); the word cloud's own target (`control/wordStaging.ts:25`).
+- **Variable-length text**: the svg01 fit ladder (`importedDesign/runtime/svgFit.js`): fill, grow
+  if allowed, wrap, shrink to a floor, squeeze; never clip; overflow reported.
 
-**Gap 1: features never offer library designs.** Join, Results and Messages look only at
-`show.graphics`. If none fits they offer hard-coded built-ins (jc01, pl01-pl14, four message
-cards). A custom design works only after the user adds it to the production by hand. Join has no
-picker: the first graphic with a `Join link` field wins (`ProductionAudienceWorkspace.tsx:223`).
-A quiz import's `Question` field makes it a message destination by accident.
+**Gaps.**
 
-**Gap 2: two collections in two styles.** `docs/tutorials/svg-templates` (11, Manrope "Clean
-Studio", hand-written SVG, previews with no generator) and `docs/tutorials/svg-examples` (22,
-Oswald; 19 built by `scripts/illustrator/build-svg-examples.jsx` with `.ai` files, 3 hand-written).
-Three stray sets: `docs/svg-samples` (24, old layer names, fail the layer check),
-`public/docs/examples` (7), `docs/tutorials/talk-show-set` (5).
-
-**Gap 3: coverage.** About 65 registered graphic types (`src/templates/types/registry.ts`) plus
-kinds with no type (end credits cr01-cr13, versus, frames, picture). About 17 have a downloadable
-SVG. The only gate (`scripts/check-svg-example-coverage.mjs`) checks one example per recipe.
-
-**Gap 4: behaviours an SVG cannot get today.** Ticker crawl and rotation; sponsor rotation and
-two-language notice rotation; transition or stinger (cover, hold, self-clear); stream
-notification queue; word cloud; question queue; speaking timer (needs two clocks, the import
-allows one); alert severity levels; bracket, map veto, match-up select and lock, player card
-stats. The import's animation presets are entrance and exit only.
-
-**Gap 5: naming.** Score tracker / Scoreboard; Credits roll / End credits / Credits; Countdown /
-Game timer / Show countdown / Digital clock and timer / Timer; Live vote / Vote result / Poll
-result; Standings / Results / Result table; Alert (self-clearing recipe) / Alert (severity type);
-Lineup / Roster; Meter / Goal meter; name tag / Lower third; Holding / Holding screen / Be back
-soon / Starting soon; Survey / Survey board. Stale counts: "thirteen" behaviours
-(`SVG_AUTHORING.md:257`), "Eleven" templates with 10 rows, "Nineteen graphics" for 22.
-
-**Countdown animation.** Warning and Time up are show/hide only (`behaviourRuntime.ts:46-57`,
-`lookCss`). The built-in game timers animate with CSS keyed on root classes. `LookRule.enter:
-'pop'` fires only on state repaints, never on clock ticks.
+1. Features never offer saved designs. Join, Results, Messages and Word cloud look only at
+   `show.graphics`, then offer hard-coded built-ins. Join has no picker: the first `Join link`
+   field wins (`ProductionAudienceWorkspace.tsx:222-223`). A quiz import's `Question` field makes
+   it a message destination by accident.
+2. Two collections in two styles (`docs/tutorials/svg-templates`, 11, Manrope, hand-written;
+   `docs/tutorials/svg-examples`, 22, Oswald, 19 native Illustrator exports with `.ai`). Three
+   stray sets read by tests: `docs/svg-samples` (24), `public/docs/examples` (7),
+   `docs/tutorials/talk-show-set` (5). Slugs collide: lower-third, quiz, end-credits.
+3. Coverage: **72 registered types** (`src/templates/types/registry.ts:64-167`), plus untyped
+   kinds (end credits cr01-cr09 and cr11-cr13, cr10 retired; versus; frames; production Picture,
+   `templates/picture.ts:80`, not a catalog category) and individual untyped looks (Big Stat
+   count-up, Turnout Dial, weather, election boards, breaking banners). About 17 types have an
+   SVG. The only gate checks one example per recipe.
+4. Many types have controls no existing recipe gives (list below, "Recipe extensions"), and five
+   need new runtime kinds (word cloud, ticker crawl, notification queue, speaking timer, sponsor
+   rotator with image writes).
+5. Naming: Score tracker / Scoreboard; Credits roll / End credits / Credits; Countdown / Game
+   timer / Show countdown / Digital clock and timer / Timer; Live vote / Vote result / Poll result;
+   Standings / Results / Result table; Alert (self-clearing recipe) / Alert (severity type);
+   Lineup / Roster; Meter / Goal meter; name tag / Lower third; Holding screen family; Survey /
+   Survey board. Stale counts in docs.
+6. Countdown warning and time-up are show/hide only. OGraf export rejects CSS animation
+   (`export/targets/ograf.ts:579-581`); motion must be GSAP so `goToTime` can seek it.
 
 ## Goal
 
-One Template Library: every graphic type has a working SVG template in one house style, grouped
-into packages by use, previewed on one page. A designer edits it in Illustrator, imports it, and
-the feature it was made for offers that design and drives it with its data and controls.
+One Template Library: every registered type, untyped kind, recipe and feature contract has a
+working SVG template in one visual family, grouped into packages by use, previewed on one page. A
+designer edits it in Illustrator, imports it, and the feature it was made for offers that design
+and drives it with its data and controls.
 
 ## Decisions
 
 Owner:
 
-- **D1. Scope: everything.** A working template for every graphic type, including the Gap 4
-  behaviours, which get new import routes in this plan (owner, 2026-11-21).
+- **D1. Scope: everything** in this plan, including new runtime kinds (owner, 2026-11-21). Engine
+  behaviours land last (Phase 6) so the library and existing-route templates are not held back.
 
-Taken by the planning session, recorded here so the owner can reverse them:
+Planning session, reversible:
 
-- **D2. One house style, SVG as the source.** Every template is a hand-written,
-  Illustrator-safe SVG in the Clean Studio style (Manrope, free). The `.ai` files and the
-  Illustrator build script retire; an SVG opens directly in Illustrator. The stray sets fold in
-  or are removed, with redirects for any public URL.
-- **D3. Packages by use plus a full zip.** One folder `docs/tutorials/svg-templates`, one
-  inventory where each entry names its `package`. Packages: Show basics (titles, lower thirds,
-  cards, bugs, holding screens, credits, transitions), Game show (quiz, scoreboards, countdown,
-  reveal, puzzle, bingo, survey), Audience (join card, live vote, vote results, messages, Q&A,
-  question queue, word cloud, notifications), Sport and competition (scorebug, clock, standings,
-  lineup, bracket, match-up, map round, speaking timer), Info and commerce (tickers, notices,
-  product, offer, lists, agenda). Single files from the preview page.
-- **D4. Built in versus download.** Each library entry names the graphic type it customizes and
-  says "Also built in" with the built-in designs when the catalog has that type.
-- **D5. One name per concept** (label changes only; recipe ids, type ids and persisted data keep
-  their ids): Scoreboard; End credits; Countdown (counts down); Clock (time of day, elapsed, or to
-  a set time); Live vote; Vote results; Standings; Lineup; Goal meter; Lower third; Holding screen;
-  Pop-up alert (the self-clearing recipe) and Alert level (the severity type); Join card; Message.
-- **D6. Feature pickers.** Join card, Results and Messages each list "Your designs" (library
-  graphics that meet the contract) beside the production's graphics and the built-ins; choosing
-  one adds it to the production. Join gets a remembered choice (`Show.joinTarget`, additive
-  optional field) like Results and Messages. The same pattern serves the new feature routes
-  (notifications, question queue, word cloud).
-- **D7. New behaviours are recipes.** Every Gap 4 behaviour is a declaration in the existing
-  recipe registry with role words in `words.json`, plus the smallest runtime support it needs in
-  the imported-design runtime. A behaviour an existing recipe already expresses (for example alert
-  levels as a `choice:` group) reuses it instead of a new recipe.
+- **D2. One visual family, SVG as the maintained source.** Layouts suit each graphic; one type
+  system (Manrope, OFL, licence and install note shipped in every zip). New templates are
+  hand-written, Illustrator-safe SVG. The 19 native Illustrator sources stay downloadable as
+  legacy until an edited replacement proves live text, hidden groups, embedded images and
+  off-artboard credits survive Illustrator (needs the owner, see Owner questions). Real
+  Illustrator exports are archived as importer fixtures in `e2e/fixtures/` before any folder
+  moves; they are the only coverage for `unwrapLookWrappers` (`e2e/svg-examples.spec.ts:8-10`).
+- **D3. Packages by use plus a full zip**, generated from one inventory where an entry may sit in
+  several packages. Zips are built at build time, not committed. Measure preview, zip and deploy
+  bytes in Phase 3.
+- **D4. Built-in alternatives.** Each entry names the type it customizes and lists "Built-in
+  alternatives" when the catalog has designs of that type.
+- **D5. One name per concept, labels only.** Recipe ids, type ids, role words and aliases, field
+  titles and persisted keys stay. Names: Scoreboard; End credits; Countdown (counts down from a
+  duration, game timer); Clock (count-up, duration, or countdown to a set time; not time of day,
+  `clock.ts:34-40`); Live vote; Vote results; Poll result stays distinct (it consumes Question and
+  Options rows, `types/dataBoards.ts:128`); Standings; Lineup; Goal meter; Lower third; Holding
+  screen; Pop-up alert (self-clearing recipe) and Alert level (severity type); Join card; Message.
+  Different controls never share a name. Numeric design counts are removed from pages
+  `check-copy` treats as selling the catalog (`scripts/check-copy.mjs:118-127`).
+- **D6. Feature pickers.** Join card, Vote results, Messages and Word cloud list, in order: the
+  production's compatible graphics, the active user's saved compatible graphics, built-ins. See
+  "Pickers and targets".
+- **D7. Mechanism per behaviour, not "every behaviour is a recipe".** Pure recipe where states,
+  controls and paint suffice; a recipe extension where an existing recipe almost fits; a new
+  runtime field kind (code in the imported-design runtime, gated by the runtime compatibility
+  rule) where code is needed. Each row in the matrix names its mechanism.
+- **D8. QR card keeps its built-in behaviour**: an operator-supplied QR image (`f:` picture slot,
+  `types/commerce.ts:288-312`). The live `QR` layer stays the Join card's and keeps its `Join link`
+  title, so a QR card never appears in the Join picker.
+- **D9. Untyped looks map to a family.** Big Stat, Turnout Dial and similar looks are recorded as
+  a capability of a family template (count-up, dial) without a file per look. AC-2 covers the 72
+  types, end credits (scroll, columns, pager, crawl, static board), versus, frames, Picture, the
+  17 recipes and the feature contracts.
 
-## The contract (documented once, generated from the registry)
+## Coverage model
 
-- **Purpose from layer names.** A recipe's role words, or a feature contract (`QR`;
-  `Message`/`Name`; the vote layers). `behaviours/layer-names.json` gains the feature contracts so
-  the docs page, the layer check (`scripts/check-example-layers.mjs`) and the agent skill read one
-  source.
-- **Fallback.** No match is a plain graphic, one field per text layer. Unchanged.
-- **Dynamic elements.** Named text layers are fields; hidden groups in `Moments` are states;
-  `QR` is a generated code; `Bar N` is a gauge; new recipes add their own roles (for example a
-  ticker's `Story` line and `Crawl` box).
-- **Text length.** The fit ladder; each template states the longest sample it is drawn for.
-- **Layout options.** Existing per-box alignment and growth; recipe-owned fields for
-  behaviour options (as `warnAt` today).
-- **Extending.** A new type is one recipe declaration or contract entry plus one template; the
-  library check fails if a recipe, a contract or a catalog type has no template.
+Phase 0 generates the matrix from the registries; the check reads it. Each row has: id, kind
+(type, untyped kind, recipe, contract), template file(s), mechanism, status (`covered` or
+`planned`), and the **observable proof**: a field update, control or output a test drives. The
+check fails if a `covered` row loses coverage or a new id appears without a row. Complete
+enforcement (no `planned` rows) switches on when the last gap closes.
 
-## Coverage matrix
+The 72 type ids:
 
-Phase 0 generates the authoritative matrix from `types/registry.ts`, the recipe registry and the
-contracts, and the library check reads it. Planning estimate by family:
+lower-third, sponsor-bug, countdown, topic-card, title-card, agenda, social-bug, poll,
+holding-screen, sign-off, ticker, scoreboard, speaking-timer, podium-score, quiz-board, quiz-show,
+duel-score, now-next, headline-card, process-steps, notice-card, statement-card, key-facts,
+recap-card, station-bug, live-bug, logo-bug, sponsor-strip, sponsor-rotator, event-bug, award-bug,
+status-chip, transition, call-to-action, product-card, offer-card, listing-card, goal-meter,
+milestone-track, qr-card, esports-score, map-round, matchup, head-to-head, player-card, roster,
+standings, bracket, timing-tower, nominee-reveal, verdict-card, winner-card, award-reveal,
+answer-board-3, answer-board-2, live-poll, result-board, viewer-question, qa-card, chat-highlight,
+question-queue, community-request, join-card, word-cloud, alert-level, public-notice,
+event-notification, scorebug, match-board, match-status, match-event, fixtures.
 
-| Family | Catalog types | Route |
-|---|---|---|
-| Static text cards and straps | lower third, social handle, call to action, title card, topic card, headline, notice card, statement card, now/next, sign-off, versus | plain fields |
-| Bugs and identity | station bug, logo bug, event bug, award bug, location chip, sponsor strip | plain fields, `f:` picture slot |
-| Frames and picture | frames, picture | plain, transparent hole |
-| Commerce and data | product, offer, listing, milestone track, fixtures, poll result | plain fields; milestone uses meter |
-| Quiz | quiz board, quiz show, answer board 3, answer board 2 | quiz |
-| Scores | scoreboard, two-player score, podium scores, scorebug | score (+ clock) |
-| Timers | countdown, holding screen | countdown, clock |
-| Results tables | standings, timing tower | ranking |
-| Vote | live vote, vote results | vote |
-| Progress | goal meter | meter |
-| Lists | process steps, key facts, recap card, agenda, roster | list, lineup |
-| Reveals | winner, verdict, nominee reveal, award reveal | reveal |
-| Status | live bug, sponsor bug, alert level | choice, switch |
-| Credits | end credits (scroll, columns) | credits |
-| Game extras | survey, puzzle, bingo | survey, puzzle, bingo |
-| Audience | join card, QR card, viewer question, Q&A card, chat highlight, community request | QR, Message contracts |
-| New routes | ticker, sponsor rotator, two-language notice, transition, event notification, word cloud, question queue, speaking timer, bracket, map round, match-up, head-to-head, player card, esports score, match board, match status, match event | new recipes (D7) or composition of existing ones |
+**Routes by mechanism** (planning view; Phase 0 confirms each against the type's file):
+
+- **Plain fields, existing**: lower-third, social-bug, call-to-action, title-card, topic-card,
+  headline-card, statement-card, now-next, sign-off, station-bug, logo-bug, event-bug, award-bug,
+  status-chip, sponsor-strip, sponsor-bug (static), product-card, offer-card, listing-card,
+  viewer-question, community-request.
+- **Picture slots**: qr-card (D8), frames (transparent camera windows), versus (two replaceable
+  logos), Picture (asset-backed file picker; a customized Picture must not take over the
+  production upload's own unlinked Picture graphic, `templates/pictureTarget.ts:22`). The
+  authored-SVG check gains an allowed picture-slot rule (`check-svg-example-coverage.mjs:35`
+  rejects every image today).
+- **Existing recipe, as is**: quiz-board, answer-board-3, answer-board-2 (quiz); scoreboard,
+  duel-score (score); countdown (countdown); holding-screen (clock, author's choice); standings
+  (ranking); live-poll, result-board (vote); goal-meter (meter); process-steps, key-facts,
+  recap-card (list); roster (lineup); live-bug (choice); end credits (credits); survey, puzzle,
+  bingo, switch, Pop-up alert (their recipes).
+- **Feature contracts**: join-card (QR + Join link); Message model for viewer-question,
+  community-request and pasted, YouTube and Twitch messages (Message, Name; optional public
+  source badge as its own authored field; Source and Reference stay off air).
+- **Recipe extensions** (controls the built-ins have and existing recipes lack):
+  notice-card Urgent/Standard (`types/briefings.ts:423-467`); public-notice language hold and
+  resume (`types/publicNotice.ts:98`); milestone-track tiers from threshold lines
+  (`types/goals.ts:243-255`); poll rows (`types/dataBoards.ts:128`); fixtures and agenda
+  structured rows (`types/sportsBoards.ts:30`, `types/dataBoards.ts:41`); timing-tower focus,
+  session and no re-sort, standings focus and final/provisional
+  (`types/competitionBoards.ts:229, 405-523`); nominee-reveal suspense, verdict choice and clear,
+  winner and award celebration (`types/reveals.ts:82, 192, 318, 428`); qa-card Show answer,
+  chat-highlight Hold and Dismiss (`types/audience.ts:116-190`); podium-score spotlight
+  (`types/podiumScore.ts:27-134`); quiz-show live 2/3/4 answers (`types/quizShow.ts:96`); scorebug
+  interval, resume and full time (`types/sportsBugs.ts:177`); match-board, match-status,
+  match-event payloads; alert-level with a visible initial level, direct selection of every
+  level and no empty value (`types/alertLevel.ts:161`, `behaviours/choice.ts:36`); transition
+  cover, hold and self-clear on timer edges (`types/transitions.ts:55`); ticker rotate mode;
+  question-queue editable list with Next and Previous (`types/audience.ts:262`); bracket,
+  map-round, matchup, head-to-head, player-card, esports-score payloads and controls
+  (`types/competitionBoards.ts:345`, `types/esports.ts:253`, `types/matchups.ts:111, 332`).
+- **New runtime kinds**: word cloud layout fed by staged counts (`templates/audience/wordCloud.ts`,
+  `control/wordStaging.ts:28`); ticker crawl measured on the artwork (`types/ticker.ts:7-16,149`);
+  notification FIFO of complete payloads (`streamNotifications/shared.ts:135-186`); speaking timer
+  with two clocks and one floor (`scoreboards/debateFloor.ts:74`; `importedDesign/behaviour.ts:481-493`
+  refuses a second clock today); sponsor rotator with image writes (`behaviourRuntime.ts:1008`
+  writes text only; `types/identityBugs.ts:498`).
+
+Recognition is recorded per template: **automatic** (untouched file is detected) or **author
+choice** (Clock direction, Pop-up alert, any recipe without distinctive evidence), and the CLI
+(`noacg scaffold --svg`, shared import defaults in `components/wizard/import/svgDefault.ts`)
+follows the same record. New role words are run against old, ambiguous and plain SVGs (the
+existing sweep, `scripts/svg-import-sweep.mjs`) because one best-scoring recipe wins.
+
+## Pickers and targets
+
+- **Candidates.** One pure helper over the production's graphics and the active user's saved
+  graphics (`model/library.ts` `loadGraphics()`, personal), using the existing matchers. The
+  library list is passed into `ProductionAudienceWorkspace` (`ProductionPage.tsx:750, 4769`).
+  Node-tested.
+- **Copy and save.** Choosing a saved design copies it into the production. An existing
+  production copy is reused by identity (a library backlink), never by name: a same-name add
+  replaces a design under existing cues (`model/shows.ts:888-924`). The saved target is the
+  production graphic id, not the library id. Collisions, duplicate clicks, failed saves and retry
+  leave no blank or duplicate cue. A team shares the production copy; personal libraries stay
+  private (`docs/SAVED_CONTENT_MODEL.md:34`, `docs/TEAMS_PLAN.md:17, 35`).
+- **Targets.** `Show.joinTarget` is optional and additive, added to `NOT_PUBLISHED`
+  (`model/publishedRecord.ts:27`) like `resultTarget` and `wordTarget`. An old show with zero Join
+  cards offers the built-in; with one, uses it; with several, asks once. Precedence is kept: the
+  per-question result cue before the remembered result target (`model/resultCues.ts:63`), explicit
+  changes of destination, independent `wordTarget`. Reload, deletion, replacement and team sync
+  each have a test. A Join cue encodes the current production link; nothing airs until Take.
+- **Message matching.** A graphic with positive quiz evidence (Correct or Selected answer fields)
+  is not a message destination; a Question-only card still is, and saved `messageTarget` choices
+  survive. Prepare and the cue editor's Fill apply one rule. First-match body and name, last-match
+  vote and Join, bound-field rejection, and vote and word-cloud exclusions are unchanged. Field
+  titles and machine tokens stay English and stable; visible artwork text may be translated.
+
+## Runtime compatibility (before the first new kind)
+
+The pairing check looks only for `noacgRepaint` (`behaviourRuntime.ts:59`) and the table reader
+accepts any string as a field kind (`blocks/behaviourData.ts:15, 255`). Before Phase 5 writes a
+new kind: a capability or version check refuses to write a kind an old interpreter cannot read;
+additive changes stay readable; breaking formats migrate on read. Tests: a frozen old import, an
+old export, and a reimport over edited artwork keeping field ids and cue values
+(`importedDesign/reimport.ts:126`).
+
+## Countdown motion
+
+Part of the corner game timer template and the countdown recipe, not shared `lookCss`. GSAP in the
+runtime so OGraf `goToTime` seeks it (`export/targets/ograf.ts:2092`): a pulse while `warning` is
+lit (the recipe's existing 10-second `warnAt`), one bounded, non-strobe flash when `expired`
+lights, then a readable resting state. Reduced motion shows the states without motion. Pause,
+Reset, snap and shuffled seeks are tested. `LookRule` gains the effect so it fires on clock-tick
+repaints, which `enter: 'pop'` does not today.
+
+## Exports
+
+Every new mechanism records its supported modes per target and is proven through the host
+interface: OGraf fields, actions and `goToTime` where advertised; SPX fields, Continue and Stop;
+CasparCG XML/JSON updates and Next (`e2e/exports.spec.ts:83, 389, 453, 597`).
+
+## Tests and budget
+
+Within `docs/work-specs/e2e-suite-budget` (November amendment distinguishes new spec files from
+edits): Node for registry completeness, packaging and pure matching; one batched real-browser
+import and render sweep over all templates instead of one browser test per template
+(`e2e/svg-templates.spec.ts:156`, `e2e/svg-examples.spec.ts:305`); the existing audience journeys
+(`e2e/production-audience.spec.ts`) for picker to air. Geometry, long text, hidden states, credits
+and export assertions are preserved when consolidating. Minutes are measured before and after,
+with a dated test-maintenance entry.
+
+## Old addresses
+
+Fragment aliases on the gallery and Downloads (`#examples`, `#svg-examples`); old SVG, PNG and ZIP
+URLs (`/downloads/NoaCG-SVG-examples.zip`, `/downloads/svg/examples/*`, `vercel.json:20` chain)
+still deliver usable files. Canonical ids are allocated before merging, with an old-to-new map
+tested against downloaded contents.
+
+## Consumers moved in the same landing as the change they depend on
+
+`e2e/downloads.spec.ts`, `e2e/svg-examples.spec.ts`, `e2e/svg-templates.spec.ts`,
+`e2e/import-svg.spec.ts:24, 147`, `e2e/import-svg-centred-title.spec.ts`,
+`e2e/score-tracker-moments.spec.ts`, `e2e/configured/imported-quiz-output.spec.ts`,
+`e2e/docs.spec.ts:272-343`, `e2e/_svg-import.ts:16-17`, `scripts/check-svg-example-coverage.mjs`
+and test, `scripts/svg-files.mjs` and test, `scripts/illustrator/pack-svg-examples.mjs`,
+`scripts/e2e-affected.mjs` and test, `covers:` headers, `scripts/check-example-layers.mjs:658-667`,
+`scripts/behaviour-docs.mjs`, `scripts/svg-figure-fit.test.mjs`, `src/downloads/links.ts`,
+`downloads.html`, `svg-templates.html`, `docs.html`, `ImportDesignStep.tsx`, `vercel.json`,
+`.gitattributes`, the authoring docs, the local skills, both distributed skill copies
+(`check:skill`), `cli/README.md`.
 
 ## Phases
 
-Each phase lands on its own through the merge queue.
+Each phase lands on its own through the merge queue and leaves `main` consistent.
 
-0. **Matrix and names.** Generated coverage matrix (script plus check). D5 labels across recipes,
-   words.json, app labels, docs, check-copy. Fix stale counts.
-1. **Contract and pickers.** Feature contracts in layer-names.json. D6 pickers: a pure library
-   candidates helper (Node-tested), pickers in `ProductionAudienceWorkspace.tsx`,
-   `Show.joinTarget`. Message matching no longer takes a quiz's `Question`.
-2. **Countdown animation.** Pulse while `warning` is lit, bold flash when `expired` lights, opacity
-   keyframes in `lookCss`; reduced-motion and non-real-time render behaviour decided and tested.
-3. **One library.** Merge folders and inventories, `package` field, page sections by package,
-   "Also built in" labels, downloads card with package zips, preview generator (Playwright renders
-   each state), old URLs and anchors redirected, tests and checks moved: `e2e/downloads.spec.ts`,
-   `e2e/svg-examples.spec.ts`, `e2e/svg-templates.spec.ts`, `check-svg-example-coverage.mjs`,
-   `svg-files.mjs`, `e2e-affected.mjs` path regexes, `vercel.json`, `.gitattributes`,
-   `ImportDesignStep.tsx` link, `docs.html`.
-4. **Templates on existing routes.** One house-style template per type in the matrix whose route
-   exists, including Join card, Live vote and Vote results matching it, Message (one model for
-   pasted, chat and Twitch, optional Name and source badge), Q&A, Corner countdown.
-5. **New routes.** One recipe per Gap 4 behaviour (D7), each landing with its runtime support,
-   its export behaviour (OGraf, SPX, CasparCG), its feature hookup where it has one
-   (notifications, question queue, word cloud) and its template.
-6. **Proof.** Every template imported, detected and driven; Join card, Vote results and Message
-   templates picked from the feature pickers end to end; an owner Illustrator round trip on a
-   sample per package.
+0. **Inventory and gate.** Generated coverage matrix with `covered` and `planned` rows and
+   observable proofs; gate against losing coverage. Archive the real Illustrator exports as
+   fixtures. D5 labels with their text assertions and copy checks.
+1. **Audience pilot.** Join card, Live vote, Vote results and Message templates in the house style;
+   pickers, copy and save, `joinTarget`, message matching. Library page and package format
+   prototyped on these four. Owner Illustrator round trip (edit, import, save, pick, Take) settles
+   style, gallery and packages before anything else is drawn.
+2. **Runtime compatibility.** The capability check and its three tests.
+3. **One library.** Merge inventories with canonical ids, packages built at build time, gallery by
+   package, built-in alternatives, old addresses, test consolidation and budget measurement, every
+   consumer above.
+4. **Templates on existing routes**, including the corner game timer with its motion and the
+   picture-slot templates.
+5. **Recipe extensions**, each landing with its template, controls, compatibility tests and export
+   proof.
+6. **New runtime kinds** (word cloud, ticker crawl, notification queue, speaking timer, sponsor
+   rotator), same landing rule. Any new feature hookup (for example a notification inbox) is
+   specified separately before it is built.
+7. **Close.** Complete-coverage enforcement on; owner confirms a sample per package.
 
 ## Acceptance criteria
 
-- AC-1. One Template Library page and one downloads card; no user-facing "Examples" set remains;
-  every old URL and anchor lands on the library.
-- AC-2. Every catalog type, recipe and feature contract has at least one template; the library
-  check fails otherwise.
-- AC-3. Every template imports with its expected recipe or contract detected and its controls
-  working, in one house style, with a preview of each state.
-- AC-4. A Join card, Vote results and Message template, imported unchanged, appear in their
-  feature's picker, and choosing one stages a working cue (QR encodes the link, results show the
-  counts, message shows body and name).
-- AC-5. The countdown pulses during the last stretch and flashes at zero; Pause, Reset and the bar
-  still work.
-- AC-6. One name per concept across app, docs, templates and inventories; stale counts fixed.
-- AC-7. Each new recipe plays correctly in every export target NoaCG supports.
-- AC-8. The import workflow's steps are unchanged apart from names and new recipe options.
-- AC-9. Graphics imported before this plan keep working unchanged.
+- AC-1. One Template Library page and one downloads card; no user-facing "Examples" set; every old
+  URL, file and anchor still delivers.
+- AC-2. Every row of the coverage model (D9 scope) is `covered`, with its observable proof
+  passing; the check fails otherwise.
+- AC-3. Every template imports with its recipe or contract detected, or, where recorded as author
+  choice, works after that documented choice; controls work; one visual family; a default preview
+  plus named operator-visible states with descriptive alt text.
+- AC-4. Join card, Vote results, Message and Word cloud templates, imported unchanged and saved,
+  appear in their picker; choosing one stages a working cue without duplicate or blank cues
+  (QR encodes the current link; results show row counts, open and closed status, reveal, and a
+  repeated stage of the same round updates one cue; message shows body and name).
+- AC-5. Live vote, Vote results and Poll result pass separate cases (imported vote has no
+  automatic close; Figures selector versus Live figures timing).
+- AC-6. Countdown pulses in the last 10 seconds and flashes once at zero; Pause, Reset, bar,
+  reduced motion and OGraf seeks behave.
+- AC-7. Each mechanism plays in every export target with its supported modes recorded.
+- AC-8. One name per concept across app, docs, templates and inventories; ids unchanged.
+- AC-9. Graphics and exports made before this plan keep working; reimport keeps field ids and cue
+  values.
+- AC-10. Pickers are keyboard-operable with distinct accessible names; samples with long
+  translated names and instructions fit; Alert level is readable without colour or flashing.
+- AC-11. The import workflow's steps are unchanged apart from names and new recipe options.
 
-## Risks to settle before building
+## Owner questions
 
-- **E2E budget** (`docs/work-specs/e2e-suite-budget`). Roughly 65 templates must not mean 65 new
-  browser imports per landing. Prefer Node-level detection checks for all, and browser tests per
-  route rather than per template.
-- **Emitted runtime.** `lookCss` and every new recipe change the runtime baked into exported
-  graphics; the frozen-interpreter pairing and versioning must hold, and old exports keep their
-  runtime.
-- **CSS animation** does not follow motion speed, reduced motion, or OGraf non-real-time
-  `goToTime`; a snap replays it.
-- **Repo weight.** Previews and several zips that repeat the same bytes; consider building zips at
-  deploy instead of committing them.
-- **Taste at scale.** A sample set per package is judged before the rest is drawn.
-- **Illustrator safety** cannot be checked in a cloud container. `check-example-layers.mjs` is the
-  machine proxy; the owner's round trip (Phase 6) is the real check.
-- **Message matching change** may drop a destination an existing production relies on.
-- **Label renames** may break copy checks and tests that select by text.
+- Q1. Once the pilot passes your Illustrator round trip, may SVG be the only maintained source for
+  templates, with the existing `.ai` files kept as legacy downloads? Recommended: yes.
 
 ## Non-goals
 
 - Redesigning the import workflow or its dropdown.
 - Changing built-in catalog designs.
-- A second cue or control system: new behaviours use the existing recipes, controls and rundown.
+- A second cue or control system.
+- A file per untyped look (D9).
