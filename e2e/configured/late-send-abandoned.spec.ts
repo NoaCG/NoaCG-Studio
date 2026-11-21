@@ -11,6 +11,8 @@
 //
 // Mutation-tested (before #2671): with the attempt deadline taken out, the held Take commits at 6 s
 // and the output's entrance count reads 1.
+// Mutation-tested (#2671): with a replacing press cancelling the held Take's attempt in flight
+// (`stop` in place of `settled`), walk 2 fails at "the late Take copy was answered".
 //
 // SINCE #2655 a Take no server answers is not given up on after 4 s: it is sent until it lands,
 // "still sending" beside Stop sending (docs/work-specs/live-publishing/evidence/fix-2655.md R2,
