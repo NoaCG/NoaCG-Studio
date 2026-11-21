@@ -287,3 +287,14 @@ Phase 5 (folders), notes for the phases after it:
 - Play through still refuses OSC cues ("is an OSC cue").
 - `e2e/playout-folders.spec.ts`: the AC-1 journey (a graphic and an OSC cue in an All together
   folder, browser output, one Take, one datagram, nothing to a playout server).
+
+Phase 6 (Companion), notes:
+
+- `rundownPanelRows` sends an OSC cue as a cue row with `source: null`, which every Companion
+  module version already reads (an unknown source reads as none), so no panel calls it a graphic or
+  a file and the module needs no release. `take_cue`, `trigger_cue` and the per-cue refusals were
+  done in phase 3: a refused press puts its reason on the note line.
+- Still open, an owner decision: releasing NoaCG Bridge (moving `bridgeVersion` in
+  `cli/package.json`) publishes everything under the changelog's `## Unreleased`, which now also
+  holds the audio reader work. Until that release, an operator's Bridge cannot send OSC.
+- Phase 7 (owner hardware, AC-11) waits on that release.
