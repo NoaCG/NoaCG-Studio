@@ -722,11 +722,16 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             }
             const folder = list.find((r) => r.host.toLowerCase() === target.host.toLowerCase() && r.port === target.port)?.mediaFolder;
             let items: { name: string; bytes?: number }[] = [];
+            let unlisted: string | null = null;
             if (folder) {
               const r = await adapter.list(target, 'media');
-              items = r.ok ? r.value : [];
+              if (r.ok) items = r.value;
+              else unlisted = r.error.detail;
             }
-            send(200, { ok: true, v: PLAYOUT_V, servers: list, check: await checkMediaFolder(folder, items) }, true);
+            let check = await checkMediaFolder(folder, items);
+            // A server that did not list its files proves nothing about the folder: never "linked".
+            if (unlisted && check.state === 'linked') check = { state: 'unchecked', folder, detail: `${folder} can be read, but ${at} did not list its files, so it was not checked: ${unlisted}` };
+            send(200, { ok: true, v: PLAYOUT_V, servers: list, check }, true);
             return;
           }
           if (url === '/audio/start') {

@@ -51,6 +51,11 @@ export default function ClipTimeline({
     abort.current?.abort();
     const controller = new AbortController();
     abort.current = controller;
+    // Another file or server: the old waveform, its length and any drag go, so no handle is set on it.
+    setWave(null);
+    setDrag(null);
+    const c = canvas.current;
+    c?.getContext('2d')?.clearRect(0, 0, c.width, c.height);
     setProblem(null);
     setProgress(0);
     void loadWaveform(settings, name, { signal: controller.signal, onProgress: (f) => setProgress(f) }).then((r) => {

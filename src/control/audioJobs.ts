@@ -51,6 +51,8 @@ export async function runAudioJob(settings: PlayoutSettings, request: AudioJobRe
   } finally {
     follow.signal?.removeEventListener('abort', cancel);
   }
+  // Cancelled while the last answer was on its way: the caller asked for no result.
+  if (follow.signal?.aborted) return { ok: false, detail: 'Cancelled.', cancelled: true };
   if (job.state === 'done') return { ok: true, job };
   if (job.state === 'cancelled') return { ok: false, detail: 'Cancelled.', cancelled: true };
   return { ok: false, detail: job.problem?.detail ?? 'NoaCG Bridge could not read the file.', code: job.problem?.code };

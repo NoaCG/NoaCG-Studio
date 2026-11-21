@@ -34,6 +34,9 @@ export interface AudioJobDeps {
 
 interface Job {
   key: string;
+  /** How many starts share this job: the same request asked again is the same job, so one asker's
+   *  Cancel stops it only when nobody else is still waiting for it. */
+  holders: number;
   reply: AudioJobReply;
   finishedAt?: number;
   controller: AbortController;
@@ -64,12 +67,16 @@ export class AudioJobs {
     this.forgetOld();
     const key = JSON.stringify([target, request.kind, request.name, request.trimIn ?? null, request.trimOut ?? null, request.bins ?? null]);
     for (const job of this.jobs.values()) {
-      if (job.key === key && (job.reply.state === 'queued' || job.reply.state === 'running')) return { ...job.reply };
+      if (job.key === key && (job.reply.state === 'queued' || job.reply.state === 'running')) {
+        job.holders++;
+        return { ...job.reply };
+      }
     }
     const id = randomUUID();
     const controller = new AbortController();
     const job: Job = {
       key,
+      holders: 1,
       controller,
       reply: { ok: true, id, state: 'queued', progress: 0 },
       run: async () => {
@@ -108,6 +115,9 @@ export class AudioJobs {
   cancel(id: string): AudioJobReply | null {
     const job = this.jobs.get(id);
     if (!job) return null;
+    if (job.reply.state !== 'queued' && job.reply.state !== 'running') return { ...job.reply };
+    job.holders = Math.max(0, job.holders - 1);
+    if (job.holders > 0) return { ...job.reply };
     if (job.reply.state === 'queued') {
       this.waiting.splice(this.waiting.indexOf(job), 1);
       job.reply = { ...job.reply, state: 'cancelled' };

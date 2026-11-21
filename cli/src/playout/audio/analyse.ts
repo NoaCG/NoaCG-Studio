@@ -102,15 +102,24 @@ function lastError(stderr: string): string | null {
   return lines.length ? lines[lines.length - 1].replace(/^\[[^\]]*\]\s*/, '') : null;
 }
 
+/**
+ * CasparCG plays an audio stream only when its disposition is nothing or exactly "default"
+ * (av_producer.cpp, 2.3.3 and 2.5.0): a commentary, dub or description track is left out, so it is
+ * left out of the measurement and the waveform too.
+ */
+export function playsOnServer(disposition: Record<string, number> | undefined): boolean {
+  return !disposition || Object.entries(disposition).every(([flag, on]) => !on || flag === 'default');
+}
+
 export async function probe(tools: AudioTools, file: string, opts: JobOptions = {}): Promise<ProbeResult> {
   await tools.verify();
   const { stdout } = await run(tools.ffprobe, ['-v', 'error', '-of', 'json', '-show_streams', '-show_format', '-i', asInput(file)], opts);
   const json = JSON.parse(stdout.toString('utf8')) as {
-    streams?: { index: number; codec_type?: string; codec_name?: string; channels?: number; sample_rate?: string; channel_layout?: string; duration?: string }[];
+    streams?: { index: number; codec_type?: string; codec_name?: string; channels?: number; sample_rate?: string; channel_layout?: string; duration?: string; disposition?: Record<string, number> }[];
     format?: { duration?: string };
   };
   const audio = (json.streams ?? [])
-    .filter((s) => s.codec_type === 'audio' && (s.channels ?? 0) > 0)
+    .filter((s) => s.codec_type === 'audio' && (s.channels ?? 0) > 0 && playsOnServer(s.disposition))
     .map((s) => ({ index: s.index, channels: s.channels ?? 0, rate: Number(s.sample_rate) || 0, codec: s.codec_name ?? 'unknown', ...(s.channel_layout ? { layout: s.channel_layout } : {}) }));
   const lengths = [json.format?.duration, ...(json.streams ?? []).map((s) => s.duration)].map(Number).filter((n) => Number.isFinite(n) && n > 0);
   return { seconds: lengths.length ? Math.max(...lengths) : null, audio };
