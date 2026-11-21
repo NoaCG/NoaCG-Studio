@@ -279,9 +279,10 @@ test('a press made while the resolve is on its way waits for it and goes numbere
   expect(sendsById()).toBe(0);
 });
 
-// Driven through the page's own send module, so the numbers are the page's: the Out leaves 50 ms
+// Driven through the page's own send module, so the numbers are the page's: the Update leaves 50 ms
 // after the Take, both while the resolve is held. Fault-injected: with one wait per press and the
-// Out's waking first, the Out took the lower number and the Take then stood over it.
+// second press waking first, it took the lower number and the Take then stood over it. (An Update,
+// not an Out, since #2655 R7: an Out replaces the graphic and ends a Take it was pressed after.)
 test('two presses made while the resolve is on its way keep their order (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   const { numbered } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
@@ -290,19 +291,19 @@ test('two presses made while the resolve is on its way keep their order (#1697)'
   const showId = page.url().split('/production/')[1];
   await page.evaluate(async (showId) => {
     const { sendControlVerb } = await __noacgImport('/src/control/hostedControl.ts');
-    const press = (t: 'play' | 'stop') => sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] });
-    const take = press('play');
+    const take = sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
     await new Promise((r) => setTimeout(r, 50));
-    await Promise.all([take, press('stop')]);
+    await Promise.all([take, sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'update', data: {} } }] })]);
   }, showId);
   const take = numbered.find((n) => n.t === 'play');
-  const out = numbered.find((n) => n.t === 'stop');
-  expect(take && out, 'both went numbered').toBeTruthy();
-  expect(take!.press, 'the Take is numbered before the Out it was pressed before').toBeLessThan(out!.press);
+  const update = numbered.find((n) => n.t === 'update');
+  expect(take && update, 'both went numbered').toBeTruthy();
+  expect(take!.press, 'the Take is numbered before the Update it was pressed before').toBeLessThan(update!.press);
 });
 
 // All out, a verb of several batches, numbers them all at its press. Pressed the moment the resolve
-// lands, while an older Take still waits for it, it must still come after that Take.
+// lands, while an older Take still waits for it, it must still come after that Take. Since #2655
+// R7a it ends that Take first: the Take is never sent, so it can never air after the All out.
 test('All out pressed as the resolve lands is numbered after an older waiting Take (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   const { numbered } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
@@ -314,12 +315,14 @@ test('All out pressed as the resolve lands is numbered after an older waiting Ta
     const take = sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
     while (!sendsInOrder('status-slug')) await new Promise((r) => setTimeout(r, 2));
     const allOut = sendControlVerbs({ slug: 'status-slug', showId, batches: [[{ graphic: 'Guest Strap', msg: { t: 'stop' } }]], allOut: true });
-    await Promise.all([take, allOut]);
+    await Promise.all([take.catch(() => null), allOut]);
   }, showId);
   const take = numbered.find((n) => n.t === 'play');
   const out = numbered.find((n) => n.t === 'stop');
-  expect(take && out, 'both went numbered').toBeTruthy();
-  expect(take!.press, 'the Take is numbered before the All out pressed after it').toBeLessThan(out!.press);
+  expect(out, 'the All out went numbered').toBeTruthy();
+  // Ended before it left, it is never sent; if it had already left as the All out was pressed, it
+  // still carries the lower number, so the server refuses it after the panic.
+  if (take) expect(take.press, 'the Take is numbered before the All out pressed after it').toBeLessThan(out!.press);
 });
 
 test('a press on a production the resolve called missing asks again, and goes numbered once it exists (#1697)', async ({ page }) => {
