@@ -595,7 +595,7 @@ function surface({ bound = {}, tree = {}, patchOk = true } = {}) {
   const sender = {
     published: 'slug-1', showId: 'show-1',
     here: () => {}, logSent: () => {}, armSpecFor: () => null, applyHere: () => false, fastEvent: () => false,
-    debts: () => ({ landed: () => (shown) => shown, failed: (items, note) => log.push(['owed', note]), owed: () => 0 }),
+    debts: () => ({ landed: () => (shown) => shown, failed: (items, note) => log.push(['owed', note]), owed: () => 0, replacedSince: () => false }),
     outputUsable: () => true, sending: () => {}, owed: () => {}, loggedAt: () => {}, noOutput: () => {},
     note: (n) => typeof n === 'string' && notes.push(n),
   };
