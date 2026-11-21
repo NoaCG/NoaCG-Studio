@@ -26,7 +26,7 @@ export interface DesignServer {
 
 /** G5 R15: at most 1 MB of JSON per put (or one design), at most 8 designs per read. Puts go in
  *  half that (#2667): a put is one statement under the 8 s limit, and on hosted staging a 1 MB put
- *  took up to 6.4 s while another large write ran. A first split of 60 graphics is then about 11
+ *  took up to 6.4 s while another large write ran. A first split of 60 graphics is then about 12
  *  puts instead of 6. */
 export const PUT_BYTES = 500_000;
 export const READ_NAMES = 8;
@@ -137,10 +137,14 @@ export async function splitRecord(id: string, stored: Record<string, unknown>, s
     batch = [];
     bytes = 0;
   };
+  // Counted in UTF-8 bytes, as the request carries them: a design's text in another script is up to
+  // three bytes a character.
+  const utf8 = new TextEncoder();
   for (const [text, body] of fresh) {
-    if (batch.length > 0 && bytes + text.length > PUT_BYTES) await send();
+    const size = utf8.encode(text).length;
+    if (batch.length > 0 && bytes + size > PUT_BYTES) await send();
     batch.push([text, body]);
-    bytes += text.length;
+    bytes += size;
   }
   await send();
   return {
