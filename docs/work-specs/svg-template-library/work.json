@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "9aeee76dd70ef36c509b9150295cbae3b7191a2ec68862e7018cf169864df5ab",
+  "specSha256": "cb06bc77d333b1e1a06b678cee54766f8e0ab6dfa1a4c9e775d986cc3272da18",
   "authority": {
     "status": "agreed",
     "source": "Owner, 2026-11-21, planning session brief 'NoaCG: Unify SVG Templates and Examples'. Owner on scope: \"Everything in this plan\" (D1), and asked for an independent second opinion before building. D2-D7 taken by the planning session, reversible. Revised after two independent reviews (so1, so2). Owner on Q1 (SVG as sole maintained source, .ai kept as legacy downloads): \"yes\". 2026-11-21, owner: \"the plan is agreed\". It runs as its own plan run. Run authorization, 2026-11-21: end date \"No date, run until done\"; block renewal \"Yes, renew automatically\"."

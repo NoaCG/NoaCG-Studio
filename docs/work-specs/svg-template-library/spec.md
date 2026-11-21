@@ -384,7 +384,9 @@ Actions. OW: the owner, with Illustrator on their own computer.
   cloud picker already offers saved word clouds; its template is TL6's.
 - Join: `Show.joinTarget` (additive, not published) and `model/joinCues.ts` `planJoinCue`; the
   write is `stageShowJoin` in `model/shows.ts`, rebased, one Join cue per card. Add Join card
-  with no Join card and no saved design adds the built-in as before.
+  with no Join card and no saved design adds the built-in as before. A second press now updates
+  the Join cue instead of adding a second one (`e2e/configured/audience-live.spec.ts` moved with
+  it: after a rename, the one Join cue holds the new link).
 - Message: `messageStaging.ts` `destinationFields` leaves out graphics with a Correct answer or
   Selected answer field; a remembered `messageTarget` on such a graphic keeps working.
 - Templates: `join-card`, `live-vote`, `vote-results`, `message` in
@@ -395,6 +397,20 @@ Actions. OW: the owner, with Illustrator on their own computer.
 - Library page prototype: `scripts/svg-files.mjs` `SVG_PACKAGES` renders an Audience package
   section (default preview plus each named state, alt text on every picture) above the two sets;
   public copies include the state previews. Package zips stay TL3's.
+- Rules (state rules this phase sets; written after coding, so the final `/so` challenges them):
+  - R1. A pick never replaces a pool graphic by name. A saved design reuses its linked copy
+    (`graphicId`, not an OBS scene copy), else it and any built-in get a free name, computed on
+    the production as stored.
+  - R2. One pick, one cue: the pick fills the seeded cue of the design it brought in; no blank
+    cue is left beside it, and a retry after a failed save fills that same seeded cue.
+  - R3. Join: the explicit pick, else the remembered `joinTarget` while it is a Join card, else
+    the only Join card, else the operator is asked. An explicit pick that is no longer a Join card
+    asks again. One Join cue per card: the cue labelled Join card, else one with no link yet;
+    another cue holding a link is never overwritten. `joinTarget` is written only by an explicit
+    pick and is not published.
+  - R4. Messages: a graphic with a Correct answer or Selected answer field is not offered; a
+    remembered `messageTarget` on one keeps working.
+  - R5. Nothing airs from a pick: every path writes cues only.
 - Trap: a text whose drawn centre is within 5% of its panel's centre is read as centred and grows
   both ways; the Join card states `text-anchor="start"` so its texts stay left of the QR.
 - Trap: the Vote results template has no per-row count readout; the vote recipe prints each row's

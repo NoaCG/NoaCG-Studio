@@ -45,7 +45,7 @@ Run: `npm run test:e2e -- e2e/svg-templates.spec.ts -g "(Join card|Live vote|Vot
     keyboard pick stages one cue with the body and the name, and Take airs both.
 - Join card: the browser journey needs a published link (the configured suite). Its rules are
   pinned in Node (`scripts/audience-pickers.test.mjs`): none offers the picker, one is used,
-  several ask once and the pick is remembered, one Join cue per card is updated with the link,
+  several ask once and the pick is remembered, one Join cue per card (labelled Join card, else one with no link) is updated with the link, a stale pick asks again, an operator cue holding a link is kept,
   a copied design's seeded cue is the one filled. The QR encoding the link is the AC-3 case above.
   With no Join card and nothing saved, Add Join card adds the built-in as before.
 
@@ -75,7 +75,7 @@ Run: `npm run test:e2e -- e2e/production-audience.spec.ts -g "saved Vote results
 
 ## Commands
 
-- `node --test scripts/audience-pickers.test.mjs`: 8 pass.
+- `node --test scripts/audience-pickers.test.mjs`: 10 pass.
 - `npm run gates -- run --changed origin/main`: see the PR for the final run.
 - `node scripts/template-coverage.mjs`: 101 rows, 38 covered (join-card, result-board,
   viewer-question, community-request, and the join-link, message and vote-results contracts).
