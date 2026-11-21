@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Message</title>
+  <desc>NoaCG Clean Studio template. A viewer's message and who it is from, for pasted, live chat and Twitch messages.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="From_box" inkscape:label="From box" x="120" y="690" width="420" height="60" rx="12" fill="#2E5BFF"/>
+    <rect id="Message_box" inkscape:label="Message box" x="120" y="760" width="1180" height="230" rx="16" fill="#FFFFFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="From" x="148" y="731" font-size="28" font-weight="800" fill="#FFFFFF">Sam from Leeds</text>
+    <text id="Message" x="160" y="834" font-size="38" font-weight="600" fill="#0F1729">What was the hardest part of building the set?</text>
+  </g>
+</svg>
