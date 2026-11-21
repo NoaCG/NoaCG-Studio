@@ -691,7 +691,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
       markers.failed(pressed, landed, skipped, uncertain && !stale);
       settle((graphic, batch) => batch < landed && !skipped.includes(graphic));
-      p.owed(true);
+      // Owed only while a debt is: a press that never left, or one a later press already paid,
+      // leaves nothing a row could ever clear (#2655).
+      p.owed(p.debts().owed() > 0);
       // Refused as stale on any road, this page learned the head: a live candidate there must not
       // then follow on its own over the other screen's change.
       if (stale) {

@@ -77,7 +77,11 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
       debtCalls.push(['landed', items.length]);
       return (shown) => shown;
     },
-    failed: (items, note) => debtCalls.push(['failed', items.map((i) => `${i.graphic}:${i.msg.t}`), note]),
+    failed: (items, note) => {
+      debtCalls.push(['failed', items.map((i) => `${i.graphic}:${i.msg.t}`), note]);
+      // As the real record does: a failure carrying items is owed (failedSends.ts createSendDebts).
+      if (items.length > 0) owedCount = Math.max(owedCount, 1);
+    },
     owed: () => owedCount,
   };
   const sender = {
@@ -3850,4 +3854,15 @@ test('an event moving two fields bound to one path queues each field\'s own delt
   r.sends[0].answer.resolve({ ...noneLeft });
   assert.deepEqual(await pressing, { outcome: 'accepted' });
   assert.deepEqual(r.log.filter(([k]) => k === 'press'), [['press', 'match.home+1,match.home+3,match.away=0']]);
+});
+
+// #2655: a press stopped before it ever left owes nothing, so PROGRAM is not left "not confirmed"
+// by something no row can ever settle.
+test('a press stopped before it left owes nothing and leaves nothing unconfirmed', async () => {
+  const r = rig();
+  const take = r.verbs.send([[{ graphic: 'A', msg: { t: 'play' } }]], 'Take');
+  r.sends[0].answer.reject(Object.assign(new Error('sending stopped'), { stopped: true, items: [] }));
+  assert.deepEqual(await take, { ok: false, note: 'Take failed: sending stopped' });
+  assert.deepEqual(r.debtCalls.at(-1), ['failed', [], 'Take failed: sending stopped']);
+  assert.deepEqual(r.log.at(-1), ['owed', false]);
 });
