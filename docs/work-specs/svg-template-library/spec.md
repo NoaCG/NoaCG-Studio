@@ -271,7 +271,7 @@ and test, `scripts/svg-files.mjs` and test, `scripts/illustrator/pack-svg-exampl
 
 Each phase lands on its own through `/queue-merge`, leaves `main` consistent, and adds what the
 next must know to "Phase notes". Ids are the run's ids. CA: a qualified cloud worker plus GitHub
-Actions. OW: the owner, with Illustrator on his own computer.
+Actions. OW: the owner, with Illustrator on their own computer.
 
 - **TL0. Inventory and gate** (CA; AC-2 gate with `planned` rows allowed, AC-8). Generated
   coverage matrix with `covered` and `planned` rows and observable proofs; gate against losing
@@ -282,7 +282,7 @@ Actions. OW: the owner, with Illustrator on his own computer.
   style; pickers, copy and save, `joinTarget`, message matching. Library page and package format
   prototyped on these four.
 - **TL1o. Pilot round trip** (OW; depends on TL1). The owner downloads the four pilot templates,
-  edits them in Illustrator, imports, saves, picks each in its feature and takes it. His receipt
+  edits them in Illustrator, imports, saves, picks each in its feature and takes it. The owner's receipt
   settles house style, gallery and packages, and confirms SVG as the maintained source (Q1).
 - **TL2. Runtime compatibility** (CA; AC-9). The capability check and its three tests.
 - **TL3. One library** (CA; depends on TL1o; AC-1, AC-11, tests and budget section). Merge

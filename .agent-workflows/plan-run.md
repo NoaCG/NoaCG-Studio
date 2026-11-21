@@ -17,7 +17,7 @@
 
 - `live-publishing`: `docs/work-specs/live-publishing/spec.md`, `phases.json` and `runbook.md`; phase 1 is `docs/work-specs/retire-hosted-control/spec.md`. Started by the owner 2026-11-10 in Claude Code Cloud (run issue #2361, project `plan-live-publishing-2026-11-10`): all nine phases of `phases.json`, no end date, standing block renewal, and the migrations of phases 4, 6 and 7 in a quiet window when live-path. A new session continues it with `continue`; it never opens a second project.
 
-- `svg-template-library`: `docs/work-specs/svg-template-library/spec.md`; phases TL0 to TL8 with acceptance and environments in its `## Phases`. TL1o and TL8 are owner phases with Illustrator on his computer. Agreed and authorized by the owner 2026-11-21: no end date (runs until complete), standing block renewal.
+- `svg-template-library`: `docs/work-specs/svg-template-library/spec.md`; phases TL0 to TL8 with acceptance and environments in its `## Phases`. TL1o and TL8 are owner phases with Illustrator on the owner's computer. Agreed and authorized by the owner 2026-11-21: no end date (runs until complete), standing block renewal.
 
 ## Boundaries
 
