@@ -2089,6 +2089,11 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   const editor = page.getByTestId('osc-cue-editor');
   await expect(editor).toBeVisible();
   await expect(editor.getByTestId('osc-bridge-status')).toHaveText('NoaCG Bridge ready');
+  // The (i) explains every field in place, and links the full guide.
+  await editor.getByTestId('osc-help').click();
+  await expect(page.getByTestId('osc-help-panel')).toContainText('OSC port');
+  await expect(page.getByTestId('osc-help-panel').getByRole('link', { name: 'Full guide' })).toHaveAttribute('href', '/docs#osc');
+  await page.keyboard.press('Escape');
   await expect(editor.getByTestId('osc-take-blocked')).toContainText('no destination');
 
   await editor.getByTestId('osc-destination').selectOption('+new');

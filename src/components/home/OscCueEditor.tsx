@@ -12,6 +12,7 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { uuid } from '../../model/id';
 import { oscBridgeState, type PlayoutSettings } from '../../control/playoutLink';
 import { useDeferredEdits } from './useDeferredEdits';
+import InfoTip from './InfoTip';
 
 const ARG_TYPES: { type: OscArgType; label: string }[] = [
   { type: 's', label: 'Text' },
@@ -120,6 +121,16 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
     <div className="pd-editor" data-testid="osc-cue-editor">
       <div className="pd-editor-head">
         <span className="pd-editor-kicker">OSC{cueNo > 0 ? ` · ${cueNo}` : ''}</span>
+        <InfoTip label="How an OSC cue works" testid="osc-help">
+          <span className="pd-osc-help">
+            <strong>Take</strong> sends one message to a device. It never goes on air.
+            <br /><strong>Destination</strong>: the device's IP address and its OSC port, from its settings or manual.
+            <br /><strong>OSC address</strong>: the command, starting with /, exactly as the device lists it.
+            <br /><strong>Arguments</strong>: values after the address. Text, Whole number or Decimal, as the device asks: &quot;5&quot; and 5 differ.
+            <br />Graphic and lights together: put both in an All together folder.
+            <br /><a href="/docs#osc" target="_blank" rel="noreferrer">Full guide</a>
+          </span>
+        </InfoTip>
         <input
           className="pd-cue-title"
           value={edits.text('label', cue.label)}
