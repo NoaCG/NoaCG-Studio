@@ -3,12 +3,15 @@
    (NoaCG-Brand-Kit/BRAND-MANUAL.md §3). The page is static and fully readable
    with no JavaScript; src/docs/docs.ts only highlights the section nav.
 
-   READING COMFORT (owner, 2026-09-28: "I get tired after a few paragraphs"). The prose is set
-   in IBM Plex Sans, the brand's reading face (BRAND-MANUAL.md §4), at 17px on 1.65, in
-   `--text` (12.5:1 on the ground; the old #b7bcc4 at 15px read as dim), and no prose line is
-   wider than `--measure`, about 70 characters. Space Grotesk stays on the header, h1-h3 and
-   the wordmark, where it is display type and the landing's own. Pictures, tables and the
-   layer panels keep the full 780px column: they are looked at, not read line by line.
+   READING COMFORT. The prose is set in IBM Plex Sans, the brand's reading face
+   (BRAND-MANUAL.md §4), in `--text` (12.5:1 on the ground; the old #b7bcc4 read as dim). Space
+   Grotesk stays on the header, h1-h3 and the wordmark, where it is display type and the
+   landing's own. The first setting (owner, 2026-09-28) was 17px on 1.65 with a 570px measure
+   inside a 780px column. The owner found that narrow and heavy (2026-11-21): the right edge
+   moved between text and tables, and little fitted on a screen. So it is 16px on 1.6, prose
+   runs to `--measure` (700px, about 90 characters), and tables, label rows and pictures use the
+   column, which reaches the header's right edge. The page also shows ONE guide at a time
+   (docs.ts, "Pages" below), because 14,000 words in one scroll read as too much text.
 
    THE SITE'S CHROME is not here: the brand tokens and faces, the width, the top bar, the buttons
    and the footer are src/site-chrome.css, which every page using this stylesheet links first. */
@@ -17,7 +20,7 @@
   --text: #cdd2d9;
   --caption: #9aa3b1;
   --read: var(--font-ui);
-  --measure: 570px;
+  --measure: 700px;
   color-scheme: dark;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -40,12 +43,12 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.28em; text-transform: uppercase; color: var(--amber);
 }
 h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; letter-spacing: -0.02em; margin: 12px 0 14px; }
-.lede { font-family: var(--read); font-size: 19px; line-height: 1.6; color: var(--text); max-width: var(--measure); }
+.lede { font-family: var(--read); font-size: 18px; line-height: 1.6; color: var(--text); max-width: var(--measure); }
 .lede a, .doc-body p a, .doc-body li a, .doc-body td a { color: var(--amber); }
 .lede a:hover, .doc-body p a:hover, .doc-body li a:hover, .doc-body td a:hover { color: var(--glow); }
 
 /* ── Two-column shell: sticky section nav beside the content ── */
-.doc-grid { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 48px; padding: 30px 0 90px; align-items: start; }
+.doc-grid { display: grid; grid-template-columns: 212px minmax(0, 1fr); gap: 48px; padding: 30px 0 90px; align-items: start; }
 .doc-nav { position: sticky; top: 26px; font-family: var(--read); }
 .doc-nav a {
   display: block; font-size: 14px; color: var(--dim); padding: 5px 0 5px 12px;
@@ -96,37 +99,63 @@ h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; l
 }
 
 /* ── Content ── */
-.doc-body { max-width: 780px; min-width: 0; font-family: var(--read); font-size: 17px; line-height: 1.65; color: var(--text); }
-.doc-body section { padding: 40px 0 8px; }
-.doc-body section + section { border-top: 1px solid var(--line); margin-top: 40px; }
+.doc-body { min-width: 0; font-family: var(--read); font-size: 16px; line-height: 1.6; color: var(--text); }
+.doc-body section { padding: 32px 0 4px; }
+.doc-body section + section { border-top: 1px solid var(--line); margin-top: 32px; }
 /* Space Grotesk from 21px up only: below that it is a display face doing a text face's job. */
-h2 { font-size: 30px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 16px; scroll-margin-top: 24px; }
-h3 { font-size: 21px; font-weight: 600; line-height: 1.3; margin: 40px 0 10px; scroll-margin-top: 24px; }
-h4 { font-family: var(--read); font-size: 17px; font-weight: 600; margin: 28px 0 6px; scroll-margin-top: 24px; }
+h2 { font-size: 28px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 12px; scroll-margin-top: 24px; }
+h3 { font-size: 20px; font-weight: 600; line-height: 1.3; margin: 30px 0 8px; scroll-margin-top: 24px; }
+h4 { font-family: var(--read); font-size: 16px; font-weight: 600; margin: 22px 0 4px; scroll-margin-top: 24px; }
 .doc-body h2, .doc-body h3 { font-family: "Space Grotesk", Arial, sans-serif; }
 .doc-body h2, .doc-body h3, .doc-body h4 { color: var(--paper); }
-/* The measure: prose never runs wider than about 70 characters. A table, a picture or a
+/* The measure: prose never runs wider than about 90 characters. A table, a row list or a
    command block keeps the whole column. */
 .doc-body p, .doc-body ul, .doc-body ol, .doc-body h3, .doc-body h4, .callout, .doc-shot figcaption { max-width: var(--measure); }
-.doc-body p { margin: 0 0 1em; }
+.doc-body p { margin: 0 0 0.8em; }
 .doc-body p strong, .doc-body li strong { color: var(--paper); font-weight: 600; }
-.doc-body ol, .doc-body ul { margin: 0 0 1.1em 24px; }
-.doc-body li { margin: 8px 0; }
+.doc-body ol, .doc-body ul { margin: 0 0 0.9em 24px; }
+.doc-body li { margin: 4px 0; }
 .doc-body li::marker { color: var(--faint); font-family: var(--mono); font-size: 14px; }
+/* STEPS. A numbered list is a sequence the reader follows, so each number is a marker the eye
+   can find again after looking away at the app. */
+.doc-body ol { list-style: none; margin-left: 0; counter-reset: step; }
+.doc-body ol > li { counter-increment: step; position: relative; padding-left: 34px; margin: 7px 0; }
+.doc-body ol > li::before {
+  content: counter(step); position: absolute; left: 0; top: 2px; width: 21px; height: 21px;
+  display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+  font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--amber);
+}
+/* LABEL ROWS. A list whose every item is "a short label, then what it means" is set in two
+   columns across the whole column: the reader scans the labels and reads one row. The markup is
+   <ul class="doc-rows"><li><strong>Label.</strong> <span>Explanation</span></li>, so with no
+   stylesheet it is still an ordinary list of sentences. Keep a label to about 26 characters. */
+.doc-body .doc-rows { list-style: none; margin: 10px 0 18px; max-width: none; border-top: 1px solid var(--line); }
+.doc-body .doc-rows > li {
+  display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px;
+  margin: 0; padding: 8px 0; border-bottom: 1px solid var(--line);
+}
+.doc-rows > li > strong { font-size: 15px; line-height: 1.5; }
+.doc-rows > li > span { font-size: 15.5px; line-height: 1.55; }
+.doc-body .callout .doc-rows { border-top: 0; margin: 4px 0 0; }
+.callout .doc-rows > li:last-child { border-bottom: 0; padding-bottom: 2px; }
+@media (max-width: 700px) {
+  .doc-body .doc-rows > li { grid-template-columns: 1fr; gap: 2px; }
+}
 
 /* A SHELF SECTION holds one guide per graphic kind, so a kind's heading has to read as the top
    of a guide rather than as one more sub-head. It carries the rule the section boundary would
    have given it, and its own sub-heads drop to h4. */
 .doc-body h3.doc-kind {
   font-size: 24px; letter-spacing: -0.01em; max-width: none;
-  margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--line);
+  margin-top: 36px; padding-top: 26px; border-top: 1px solid var(--line);
 }
 /* A section INSIDE a section (the Graphics topic's pages) is a page of that topic, not a new
    topic: it takes none of the top-level spacing or rule. A type page's h3.doc-kind draws its
    own rule, and the how-to pages sit under a plain h3. */
 .doc-body section section { padding: 0; }
 .doc-body section section + section { border-top: 0; margin-top: 0; }
-.doc-body section.doc-sub > h3 { font-size: 24px; letter-spacing: -0.01em; margin-top: 48px; }
+.doc-body section.doc-sub > h3 { font-size: 24px; letter-spacing: -0.01em; margin-top: 36px; }
 /* The shelf's own contents list. No markers and no indent: it is a set of doors, not prose.
    The links keep the body's amber, so they read as the same kind of link as every other. */
 .doc-body .doc-kinds { list-style: none; margin-left: 0; }
@@ -184,7 +213,7 @@ pre.prompt {
 /* Tables (export settings, versions, troubleshooting) */
 .doc-table { width: 100%; overflow-x: auto; margin: 14px 0; }
 table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 9px 12px; border: 1px solid var(--line); font-size: 15px; line-height: 1.55; vertical-align: top; }
+th, td { text-align: left; padding: 7px 11px; border: 1px solid var(--line); font-size: 14.5px; line-height: 1.55; vertical-align: top; }
 th {
   font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--faint); background: rgba(20, 25, 34, 0.6);
@@ -210,7 +239,7 @@ td strong { color: var(--paper); }
    on purpose: a thin line and the page's own panel tint, so the picture is what carries. The
    caption says what to look at in it, since a reader who has never used the product cannot
    tell which part of a screenshot is the point. */
-.doc-shot { margin: 18px 0 20px; }
+.doc-shot { margin: 14px 0 16px; max-width: var(--measure); }
 /* Every shot is lazy, so its box must be the right height BEFORE it loads: an explicit width
    plus `height: auto` lets the width/height attributes reserve it. `width: auto` would not - an
    unloaded image has no size to be auto from, so the box sits at 2px and grows on load, and
@@ -231,8 +260,18 @@ td strong { color: var(--paper); }
    than a laptop screen and pushes its own layer panel out of view, so it is capped and set on the
    left edge, where the caption starts. */
 .doc-shot.tall img { width: 440px; max-width: 100%; }
+/* TWO SHOTS SIDE BY SIDE, where one step follows the other. At half the column a screenshot is
+   an orientation picture, so docs.ts lets a click open it to the full column and back. */
+.doc-shots { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 14px 0 18px; align-items: start; }
+.doc-shots .doc-shot { margin: 0; max-width: none; }
+.doc-shots.is-zoomable .doc-shot img { cursor: zoom-in; }
+.doc-shots .doc-shot.is-wide { grid-column: 1 / -1; }
+.doc-shots.is-zoomable .doc-shot.is-wide img { cursor: zoom-out; }
+@media (max-width: 640px) {
+  .doc-shots { grid-template-columns: 1fr; }
+}
 .doc-shot figcaption {
-  margin-top: 10px; font-size: 14px; color: var(--caption); line-height: 1.55;
+  margin-top: 7px; font-size: 13.5px; color: var(--caption); line-height: 1.55;
 }
 .doc-shot figcaption strong { color: var(--text); }
 .doc-shot figcaption a { color: var(--amber); }
@@ -240,7 +279,7 @@ td strong { color: var(--paper); }
 
 /* A type's layer panel beside its list of layer names. */
 .doc-example {
-  display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 24px;
+  display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 28px;
   align-items: start; margin: 18px 0;
 }
 .doc-example h4 { margin-top: 0; }
@@ -308,7 +347,7 @@ td strong { color: var(--paper); }
    someone tries it). */
 .callout {
   margin: 16px 0; padding: 13px 17px; border: 1px solid var(--line); border-left: 3px solid var(--amber);
-  border-radius: 0 8px 8px 0; background: rgba(20, 25, 34, 0.55); font-size: 16px; line-height: 1.6;
+  border-radius: 0 8px 8px 0; background: rgba(20, 25, 34, 0.55); font-size: 15.5px; line-height: 1.6;
   color: var(--text);
 }
 .callout > :last-child { margin-bottom: 0; }
@@ -350,7 +389,14 @@ td strong { color: var(--paper); }
   }
   @page { margin: 14mm; }
   body { background: #ffffff; }
-  .doc-nav, .cmd-copy { display: none; }
+  .doc-nav, .cmd-copy, .doc-pager { display: none; }
+  /* Paper gets the whole document, whichever page was on screen. */
+  .doc-hero { display: block !important; }
+  .doc-body [hidden] { display: block !important; content-visibility: visible !important; }
+  .docs-paged .doc-body section { padding: 32px 0 4px; }
+  .docs-paged .doc-body section section { padding: 0; }
+  .docs-paged .doc-body section + section { border-top: 1px solid var(--line); margin-top: 32px; }
+  .docs-paged .doc-body section section + section { border-top: 0; margin-top: 0; }
   a, header.top a, footer.site a { text-decoration: underline; }
   /* The nav is gone from every print, so its grid track has to go with it or the sheet carries a
      230px empty column and a 48px gutter down the left of every page. */
@@ -364,6 +410,50 @@ td strong { color: var(--paper); }
 }
 
 /* A list of fields and what each is for (#osc-fields). */
-.doc-body dl { margin: 0 0 1.1em; max-width: var(--measure); }
-.doc-body dt { color: var(--paper); font-weight: 600; margin-top: 12px; }
-.doc-body dd { margin: 4px 0 0; }
+.doc-body dl {
+  display: grid; grid-template-columns: 224px minmax(0, 1fr);
+  margin: 10px 0 18px; border-top: 1px solid var(--line);
+}
+.doc-body dt, .doc-body dd { margin: 0; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.doc-body dt { padding-right: 24px; }
+.doc-body dt { color: var(--paper); font-weight: 600; font-size: 15px; line-height: 1.5; }
+.doc-body dd { font-size: 15.5px; line-height: 1.55; }
+@media (max-width: 700px) {
+  .doc-body dl { grid-template-columns: 1fr; }
+  .doc-body dt { border-bottom: 0; padding-bottom: 0; }
+  .doc-body dd { padding-top: 2px; }
+}
+
+/* ── Pages ──
+   With docs.ts running, the page shows ONE guide at a time: every section the left nav links is
+   a page, and the others carry `hidden="until-found"`, so the browser's find-in-page still
+   reaches them and docs.ts opens the page a match is on. Every #anchor keeps working: a link to
+   an id shows the page that holds it. Without the module nothing here applies and the whole
+   document shows, which is also what prints.
+   An inline script in docs.html sets `docs-js` before first paint and the module sets
+   `docs-ready`, so a reader never sees the full document collapse to one page. The inline
+   script sets `docs-ready` itself after three seconds in case the module never arrives. */
+.docs-js:not(.docs-ready) .doc-grid { visibility: hidden; }
+.docs-paged .doc-hero { display: none; }
+.docs-paged.docs-first .doc-hero { display: block; }
+.docs-paged .doc-body section { padding: 0; margin-top: 0; border-top: 0; scroll-margin-top: 24px; }
+/* A page inside the Graphics topic is headed by an h3. Alone on the screen it is the page's
+   title, so it takes the h2's size and loses the rule that separated it from the page above. */
+.docs-paged .doc-body h3.doc-kind,
+.docs-paged .doc-body section.doc-sub > h3 { font-size: 28px; line-height: 1.2; margin: 0 0 12px; padding-top: 0; border-top: 0; }
+.doc-pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: var(--measure);
+  margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line);
+}
+.doc-pager a {
+  display: block; padding: 11px 16px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel); color: var(--paper); font-weight: 600; font-size: 15px;
+  transition: border-color 0.15s ease;
+}
+.doc-pager a:hover { border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
+.doc-pager a:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.doc-pager small {
+  display: block; font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
+}
+.doc-pager .next { grid-column: 2; text-align: right; }
