@@ -390,3 +390,41 @@ Staging per round, from the taker's page (median / p95 / max, ms):
 - Switches: all four off before each dispatch and after, read back. Staging stands at all four off.
 
 UTC time of the addendum's last run end: 2026-11-21 18:24.
+
+### Addendum: the 60-graphic first publish after #2669 (2026-11-21, ending 19:23 UTC)
+
+Asked by the coordinator: step 7's first publish only, from `main` at 96119a26 (after #2669), once
+with `team_designs` on and once off, `production_copies` on, `auto_publish` and `partial_writes`
+off. Scratch branch `scratch/p9-rerun-3p-5` (not for `main`): the same instruments plus a recorder
+of every write the owner's page sends during set-up, with its body size and time
+(`pub-*-setup-writes.json`), and staging's spread from the owner's page during set-up
+(`pub-*-setup-staging.json`). Times "at" below are seconds from the start of the test.
+
+| | `team_designs` on | `team_designs` off |
+|---|---|---|
+| Run | [44939237101](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44939237101) | [44940227752](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44940227752) |
+| Lands on the first press | **no**: "Publish failed: Your latest change is still saving. Publish again in a moment." | **yes** |
+| Press to landed | second press landed 20 s after it was pressed (236 s after the first press; the instrument waits up to 180 s before pressing again) | 44.8 s |
+| `control_shows` publish write | 5,118,751 bytes, 2.67 s, at 311.6 s | 5,119,525 bytes, 8.77 s, at 110.1 s |
+| Record save before the publish | 12 `team_designs_put` calls of 420 to 482 KB (at 90.3 to 109.3 s, 18.4 s in all), then `team_production_store` 26 KB in 0.78 s | `team_production_save_v2` 5,131,567 bytes in 12.7 s (at 86.4 s) |
+| Staging from the owner's page during set-up: median / p95 / max | 420 / 10,517 / 17,115 ms (376 requests, 0 failed) | 691 / 11,833 / 14,592 ms (313 requests, 3 failed) |
+| Switches before / after | all four off / all four off | all four off / all four off |
+
+- **`team_designs` on:** the first press came while the page was still storing the designs (the
+  `team_designs_put` calls ran from 90 to 110 s), and Publish refused with "still saving", the
+  page's answer while a change is not yet stored; the second press, once the store had finished,
+  landed in 20 s with a 2.7 s publish write. The publish write itself is still the whole output,
+  5.1 MB, with the switch on.
+- **`team_designs` off:** landed on the first press in 44.8 s. The page first saved the whole
+  5.1 MB record (12.7 s), then wrote the 5.1 MB publish (8.8 s).
+- **After the publish, with `team_designs` off, the run stopped:** a teammate's page opening the
+  production still read "Not published" (`data-started="false"`) after 60 s. In that minute
+  staging's p95 from the owner's page was 11 to 13 s, `control_show_resolve` took 11.5 s and 8.6 s,
+  and one 5.1 MB `team_production_save_v2` was cancelled by the page (`net::ERR_ABORTED`). The
+  trace is in the run's `hosted-results-1` artifact. Not filed: from here it cannot be told apart
+  from staging's slowness at that moment.
+- The earlier timeout (#2667) did not recur in either run: no publish answered with a statement
+  timeout.
+- Switches read back all four off after each run; staging stands at all four off.
+
+UTC time of the addendum's last run end: 2026-11-21 19:23.
