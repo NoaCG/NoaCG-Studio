@@ -22,6 +22,11 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43583442187"
     },
+    "e2e/configured/teams.spec.ts": {
+      "since": "2026-11-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44896577757"
+    },
     "e2e/import-svg-credits.spec.ts": {
       "since": "2026-11-20",
       "count": 3,
