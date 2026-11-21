@@ -174,3 +174,33 @@ export function destinationProblem(d: Pick<OscDestination, 'name' | 'host' | 'po
 export function emptyOscControl(destinationId: string): OscControlV1 {
   return { v: 1, kind: 'osc', destinationId, address: '', args: [] };
 }
+
+/** Why this OSC message would be refused by NoaCG Bridge's encoder, or null - checked before a Take
+ *  so a folder never sends its graphics and then fails on its OSC cue. The same rules as
+ *  cli/src/playout/osc.ts `encodeOscMessage`: an address of printable ASCII with no pattern
+ *  characters, string, int32 and float32 values, at most 16 arguments and 1024 encoded bytes. */
+export function oscMessageProblem(control: Pick<OscControlV1, 'address' | 'args'>): string | null {
+  const address = control.address.trim();
+  if (!address.startsWith('/')) return 'The OSC address starts with /.';
+  if (!/^\/[\x21-\x7e]*$/.test(address)) return 'The OSC address has no spaces or special characters.';
+  if (/[#*,?[\]{}]/.test(address)) return 'The OSC address may not contain # * , ? [ ] { }.';
+  if (control.args.length > 16) return 'An OSC message carries at most 16 arguments.';
+  const padded = (bytes: number) => (Math.floor(bytes / 4) + 1) * 4;
+  const utf8 = (text: string) => new TextEncoder().encode(text).length;
+  let size = padded(utf8(address)) + padded(1 + control.args.length);
+  for (const [i, arg] of control.args.entries()) {
+    const where = `Argument ${i + 1}`;
+    if (arg.type === 's') {
+      if (arg.value.includes('\0')) return `${where} contains a NUL character.`;
+      size += padded(utf8(arg.value));
+      continue;
+    }
+    const text = arg.value.trim();
+    const n = Number(text);
+    if (arg.type === 'i' && (!/^[+-]?\d+$/.test(text) || !Number.isSafeInteger(n) || n < -2147483648 || n > 2147483647)) return `${where} is not a whole number from -2147483648 to 2147483647.`;
+    if (arg.type === 'f' && (!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(text) || !Number.isFinite(n) || !Number.isFinite(Math.fround(n)))) return `${where} is not a decimal number.`;
+    size += 4;
+  }
+  if (size > 1024) return `The OSC message is ${size} bytes; at most 1024 are sent.`;
+  return null;
+}

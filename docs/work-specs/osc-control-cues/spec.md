@@ -263,3 +263,27 @@ Phase 4 (authoring), notes for the phases after it:
 - `e2e/playout-folders.spec.ts` holds the journey (+ Add, destination, address, arguments, Take,
   Send test, reload) against `e2e/_fakeBridge.ts`, which now answers `/osc` and records each
   request in `fake.osc`.
+
+Phase 5 (folders), notes for the phases after it:
+
+- All together: `togetherPlan` collects OSC cues as `controls`; one whose `controlBlockerOf`
+  (`oscBlocker`) refuses stops the whole Take before anything is sent, naming it. `runTogether`
+  sends the server cues first as before, then the graphics and the OSC cues in the same phase: the
+  OSC cues one after another in rundown order, without waiting for the graphics' cloud answer. An
+  OSC send is never taken back after Out or All out; one not yet sent when Out comes is skipped.
+  `togetherNote` counts it apart: "1 of 1 on air, 1 of 1 OSC sent".
+- The folder's own Take check (`takeBlocker` for a folder in `serverPlayout.ts`) now carries
+  `controlBlockerOf` too, so the TAKE button and the panel judge an OSC member the same way.
+- One by one: a step onto an OSC cue sends it through the cue's own Take and takes nothing off
+  (`StepMember.control`), so the graphic it goes with stays up. Decided here: a lights cue in a
+  run of graphics is a side effect, not a replacement.
+- A One-by-one folder that holds an OSC cue keeps its step for the tab in session storage, wherever
+  the step stands (`spx-gfx-osc-steps:<production>`, `io.oscSteps`), and it is put back after a
+  reload, so the next press goes on instead of sending an earlier OSC cue again. Folders without an
+  OSC cue read their step off the air as before.
+- `oscBlocker` now also checks the message as the Bridge's encoder will (`oscMessageProblem` in
+  `model/controlCue.ts`: address, values, 16 arguments, 1024 bytes), so an All together folder
+  never sends its graphics and then fails on a badly typed OSC cue.
+- Play through still refuses OSC cues ("is an OSC cue").
+- `e2e/playout-folders.spec.ts`: the AC-1 journey (a graphic and an OSC cue in an All together
+  folder, browser output, one Take, one datagram, nothing to a playout server).
