@@ -154,7 +154,8 @@ event-notification, scorebug, match-board, match-status, match-event, fixtures.
 - **Existing recipe, as is**: quiz-board, answer-board-3, answer-board-2 (quiz); scoreboard,
   duel-score (score); countdown (countdown); holding-screen (clock, author's choice); standings
   (ranking); live-poll, result-board (vote); goal-meter (meter); process-steps, key-facts,
-  recap-card (list); roster (lineup); live-bug (choice); end credits (credits); survey, puzzle,
+  recap-card (list); roster (lineup); winner, verdict, nominee and award reveals start from the
+  reveal recipe and gain their own controls as recipe extensions; live-bug (choice); end credits (credits); survey, puzzle,
   bingo, switch, Pop-up alert (their recipes).
 - **Feature contracts**: join-card (QR + Join link); Message model for viewer-question,
   community-request and pasted, YouTube and Twitch messages (Message, Name; optional public
@@ -215,7 +216,7 @@ existing sweep, `scripts/svg-import-sweep.mjs`) because one best-scoring recipe 
 
 ## Runtime compatibility (before the first new kind)
 
-The pairing check looks only for `noacgRepaint` (`behaviourRuntime.ts:59`) and the table reader
+The pairing check looks only for `noacgRepaint` (`behaviourRuntime.ts:59-62`) and the table reader
 accepts any string as a field kind (`blocks/behaviourData.ts:15, 255`). Before Phase 5 writes a
 new kind: a capability or version check refuses to write a kind an old interpreter cannot read;
 additive changes stay readable; breaking formats migrate on read. Tests: a frozen old import, an
@@ -277,14 +278,14 @@ Actions. OW: the owner, with Illustrator on their own computer.
   coverage matrix with `covered` and `planned` rows and observable proofs; gate against losing
   coverage. Archive the real Illustrator exports as importer fixtures. D5 labels with their text
   assertions and copy checks.
-- **TL1. Audience pilot** (CA; AC-4, AC-10 for the pickers, AC-3 for the four pilot templates,
+- **TL1. Audience pilot** (CA; depends on TL0; AC-4 for Join card, Vote results and Message, AC-10 for the pickers, AC-3 for the four pilot templates,
   AC-9 for saved targets). Join card, Live vote, Vote results and Message templates in the house
   style; pickers, copy and save, `joinTarget`, message matching. Library page and package format
   prototyped on these four.
 - **TL1o. Pilot round trip** (OW; depends on TL1). The owner downloads the four pilot templates,
   edits them in Illustrator, imports, saves, picks each in its feature and takes it. The owner's receipt
   settles house style, gallery and packages, and confirms SVG as the maintained source (Q1).
-- **TL2. Runtime compatibility** (CA; AC-9). The capability check and its three tests.
+- **TL2. Runtime compatibility** (CA; depends on TL0; AC-9). The capability check and its three tests.
 - **TL3. One library** (CA; depends on TL1o; AC-1, AC-11, tests and budget section). Merge
   inventories with canonical ids, packages built at build time, gallery by package, built-in
   alternatives, old addresses, test consolidation and budget measurement, every consumer listed
@@ -292,9 +293,9 @@ Actions. OW: the owner, with Illustrator on their own computer.
 - **TL4. Templates on existing routes** (CA; depends on TL3; AC-3, AC-5, AC-6, AC-7 for the
   countdown motion). Every type whose route exists, including the corner game timer with its
   motion and the picture-slot templates.
-- **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension). Each
+- **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension, AC-10 for Alert level). Each
   extension lands with its template, controls, compatibility tests and export proof.
-- **TL6. New runtime kinds** (CA; depends on TL5; AC-3, AC-7, AC-9 per kind). Word cloud, ticker
+- **TL6. New runtime kinds** (CA; depends on TL5; AC-3, AC-7, AC-9 per kind, AC-4 for the Word cloud template). Word cloud, ticker
   crawl, notification queue, speaking timer, sponsor rotator. Any new feature hookup (for example
   a notification inbox) is specified separately before it is built.
 - **TL7. Close** (CA; depends on TL6; AC-2 complete, AC-8). Complete-coverage enforcement on, no
