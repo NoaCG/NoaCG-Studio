@@ -33,17 +33,18 @@
  },
  "waitingOn": [
   {
-   "what": "TL0 checker verdict (waits for exact-merge checks)",
-   "eta": "2026-11-22T00:00:00Z"
+   "what": "TL1 builder receipt and its PR",
+   "eta": "2026-11-22T04:00:00Z"
   }
  ],
  "inFlight": {
-  "phase": "TL0",
-  "step": "check",
-  "session": "session_017SdbwR1evJYjqPfZovB674",
-  "nonce": "tl0-c-3e96",
-  "merge": "fba398c20eba8d875a256472dd30cda3761c93c3",
-  "asOf": "2026-11-21T22:32:53Z"
+  "phase": "TL1",
+  "step": "build",
+  "session": "session_017SdbwMKvf4PuJ1By6SnUme",
+  "nonce": "tl1-b-080e",
+  "branch": "claude/plan-svg-template-library-tl1-build",
+  "source": "fba398c20eba8d875a256472dd30cda3761c93c3",
+  "asOf": "2026-11-21T22:52:40Z"
  },
  "owner": [
   {
@@ -68,12 +69,15 @@
   "#2679 (P3 docs screenshot)",
   "#2681 (P3 gate hardening)"
  ],
- "tl0Build": {
+ "notes": [
+  "Check briefs: pass the phase brief notes to the checker as NOTES (the check template omits them); TL0 needed its planned-rows scope note.",
+  "Actor names: use the template casing (lowercase phase id) in build/check records; TL0 pass recorded under the launch record name checker-TL0-tl0-c-3e96 with receiptActor noted."
+ ],
+ "tl0": {
   "pr": 2680,
   "merge": "fba398c20eba8d875a256472dd30cda3761c93c3",
-  "builder": "session_017SdbwP9PDDR1UD9VwtNHrg"
- },
- "notes": [
-  "Check briefs: pass the phase brief notes to the checker as NOTES (the check template omits them); TL0 needed its planned-rows scope note."
- ]
+  "pass": "2026-11-21T22:52Z",
+  "archived": true,
+  "nits": "4 TL7 naming nits: https://github.com/NoaCG/NoaCG-Studio/pull/2680#issuecomment-7070472364"
+ }
 }
