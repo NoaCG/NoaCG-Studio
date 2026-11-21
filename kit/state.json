@@ -44,7 +44,8 @@
   "nonce": "tl1-b-080e",
   "branch": "claude/plan-svg-template-library-tl1-build",
   "source": "fba398c20eba8d875a256472dd30cda3761c93c3",
-  "asOf": "2026-11-21T22:52:40Z"
+  "asOf": "2026-11-21T23:24:49Z",
+  "progress": "progressing: review fixes committed, simplify pass, CI running"
  },
  "owner": [
   {
@@ -59,7 +60,7 @@
  "fixes": [],
  "triggers": {
   "checkin": "trig_01UK36vzA9nETzkPrfuYeaeG",
-  "at": "2026-11-21T22:27:00Z"
+  "at": "2026-11-21T23:55:00Z"
  },
  "heartbeat": {
   "issue": 2678,
@@ -71,7 +72,8 @@
  ],
  "notes": [
   "Check briefs: pass the phase brief notes to the checker as NOTES (the check template omits them); TL0 needed its planned-rows scope note.",
-  "Actor names: use the template casing (lowercase phase id) in build/check records; TL0 pass recorded under the launch record name checker-TL0-tl0-c-3e96 with receiptActor noted."
+  "Actor names: use the template casing (lowercase phase id) in build/check records; TL0 pass recorded under the launch record name checker-TL0-tl0-c-3e96 with receiptActor noted.",
+  "2026-11-21T23:24Z: worker rate limit status allowed_warning on the seven_day window; a usage stop pauses workers and check-ins (interaction run precedent)."
  ],
  "tl0": {
   "pr": 2680,
