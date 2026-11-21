@@ -631,6 +631,8 @@ export interface MemberTake {
   /** Sent, and only its output can say whether it is on air: an imported OGraf package, whose
    *  Graphic answers on the output alone (control/ografOutcome.ts). */
   unconfirmed?: true;
+  /** An OSC message whose send may have left this computer: its On Out is owed all the same. */
+  uncertain?: true;
 }
 
 export interface MemberResult extends MemberTake {

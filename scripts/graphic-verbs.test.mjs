@@ -153,7 +153,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     },
     clearMisses: (ids) => log.push(['clearMisses', ids.join(',')]),
     noteStep: (cue) => log.push(['noteStep', cue.id]),
-    stopFolders: () => log.push(['stopFolders']),
+    stopFolders: () => { log.push(['stopFolders']); },
     outUnnamed: async () => log.push(['outUnnamed']),
     clearThroughBridge: async (note) => `bridge: ${note}`,
     clearing: (on) => log.push(['clearing', on]),
@@ -752,6 +752,41 @@ test('All out with nothing to clear sends nothing; unpublished it asks no heads 
   await r2.verbs.allOut();
   assert.equal(r2.log.filter(([k]) => k === 'headsSay' || k === 'headsStillOn').length, 0);
   assert.deepEqual(r2.liveCue(), {});
+});
+
+test('All out clears the graphics without waiting for the On Out messages, then says their failures', async () => {
+  const r = rig({ liveCue: {} });
+  r.heads.say = new Map([['Clock', false]]);
+  let failOsc;
+  r.page.stopFolders = () => new Promise((resolve) => (failOsc = resolve));
+  const a = r.verbs.allOut();
+  await settle();
+  assert.equal(r.sends.length, 1, 'the clear is sent while the On Out messages are still on their way');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await settle();
+  failOsc(['Lights, On Out was not sent: refused']);
+  await a;
+  assert.ok(r.notes.some((n) => n.includes('Lights, On Out was not sent: refused')));
+});
+
+test('an OSC cue\'s Take that may have left owes its On Out without moving the step', async () => {
+  const r = rig();
+  const lights = { id: 'l1', label: 'Lights', source: 'control', sourceId: '', values: {}, control: { v: 1, kind: 'osc', destinationId: 'd', address: '/go', args: [] } };
+  r.page.controlSend = async () => 'uncertain';
+  r.page.oweOut = (cue) => r.log.push(['oweOut', cue.id]);
+  await r.verbs.take(lights);
+  assert.deepEqual(r.log.filter(([k]) => k === 'noteStep' || k === 'oweOut'), [['oweOut', 'l1']]);
+  r.page.controlSend = async () => true;
+  await r.verbs.take(lights);
+  assert.deepEqual(r.log.filter(([k]) => k === 'noteStep' || k === 'oweOut'), [['oweOut', 'l1'], ['noteStep', 'l1']]);
+});
+
+test('All out names an On Out message that did not go (osc-control-cues follow-up)', async () => {
+  const r = rig({ liveCue: {} });
+  r.heads.say = new Map([['Strap', false], ['Score', false], ['Clock', false]]);
+  r.page.stopFolders = () => Promise.resolve(['Lights, On Out was not sent: refused']);
+  await r.verbs.allOut();
+  assert.equal(r.notes.at(-1), 'Lights, On Out was not sent: refused');
 });
 
 test('a published All out that knows of nothing clears every graphic the heads have no word on', async () => {

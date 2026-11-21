@@ -2126,6 +2126,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-osc-dest, .pd-osc-arg { display: flex; flex-wrap: wrap; gap: 6px; align-items: end; }
 .pd-osc-arg select { flex: 0 0 auto; }
 .pd-osc-arg input { flex: 1 1 8em; min-width: 0; }
+/* The On Out message: the same fields, under a hairline so the two messages read apart. */
+.pd-osc-out { grid-column: 1 / -1; display: grid; grid-template-columns: inherit; gap: 8px 14px; padding-top: 8px; border-top: 1px solid var(--line, rgba(255, 255, 255, 0.08)); }
+.pd-osc-tests { display: flex; gap: 8px; flex-wrap: wrap; }
 .pd-cue-kind--server { color: #cbd5e1; background: rgba(203, 213, 225, 0.1); }
 .pd-cue-kind--missing { color: var(--danger); background: rgba(239, 68, 68, 0.12); }
 .pd-rundown .pd-cue-label {

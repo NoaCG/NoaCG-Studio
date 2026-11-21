@@ -306,3 +306,17 @@ Follow-up (owner request of 2026-11-21): a delay per cue in All together folders
 - Each graphic and OSC cue in an All together folder can wait 0 to 10 seconds after the folder's
   Take (`ShowCue.delayMs`, `setCueDelay`, `togetherDelayMs`), set in the folder's panel. Server
   files have none. An Out during the wait stops the cues still waiting. Copy and paste keep it.
+
+Follow-up (owner request of 2026-11-21): an On Out message.
+
+- An OSC cue can carry a second message to the same destination (`OscControlV1.out`, additive
+  optional; a malformed one makes the cue read-only like any record this build cannot read). The
+  Take's check covers it, so a folder never goes up with lights it cannot bring back.
+- It is sent once, when the folder that sent the cue's Take goes out: Out, All out (its failures
+  join All out's note), or a One-by-one folder's press back to the top. Stepping on sends nothing,
+  a cue whose Take was refused owes nothing (an uncertain send still owes it), and an Out while the Take is on its way sends it as
+  soon as the Take lands. The session's end sends nothing. What is owed is kept for the tab
+  (`spx-gfx-osc-sent:<production>`, `io.oscSent`), so an Out after a reload still sends it.
+- A standalone OSC cue has no Out; an OSC cue taken on its own inside an All together folder owes
+  nothing.
+- The editor has On Out address and arguments under the Take message, and Send On Out test.

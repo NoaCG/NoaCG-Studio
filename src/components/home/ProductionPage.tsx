@@ -491,6 +491,30 @@ const oscStepStore = (showId: string): NonNullable<FolderPlayoutIo['oscSteps']> 
     },
   };
 };
+/** Which OSC cues each folder owes an On Out message, kept for this tab per production (folderPlayout
+ *  `io.oscSent`), so an Out after a reload still brings the lights back. */
+const oscSentStore = (showId: string): NonNullable<FolderPlayoutIo['oscSent']> => {
+  const key = `spx-gfx-osc-sent:${showId}`;
+  return {
+    load: () => {
+      try {
+        const raw: unknown = JSON.parse(sessionStorage.getItem(key) ?? '{}');
+        if (!raw || typeof raw !== 'object') return {};
+        return Object.fromEntries(Object.entries(raw).filter((e): e is [string, string[]] => Array.isArray(e[1]) && e[1].every((id) => typeof id === 'string')));
+      } catch {
+        return {};
+      }
+    },
+    save: (sent) => {
+      try {
+        if (Object.keys(sent).length) sessionStorage.setItem(key, JSON.stringify(sent));
+        else sessionStorage.removeItem(key);
+      } catch {
+        // Storage refused: kept in memory only.
+      }
+    },
+  };
+};
 /** The verbs' browser half (control/graphicVerbs.ts): the wire's doors, the press rules of
  *  control/controlModel.ts (which Node cannot load), the clock and the bound presses' timer. */
 const GRAPHIC_VERB_IO: GraphicVerbIo = {
@@ -921,7 +945,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const folderMemory = usePacedPart(session.folders, wholePart);
   const { folderSteps, takeMisses, sending: sendingFolders } = folderMemory;
   const folderPage = useRef<FolderPage | null>(null);
-  const folderPlayout = useMemo(() => createFolderPlayout(session, { ...FOLDER_IO, oscSteps: oscStepStore(id) }, () => folderPage.current!), [session, id]);
+  const folderPlayout = useMemo(() => createFolderPlayout(session, { ...FOLDER_IO, oscSteps: oscStepStore(id), oscSent: oscSentStore(id) }, () => folderPage.current!), [session, id]);
   // A One-by-one step that stood on an OSC cue before a reload stands there again (spec D8). Run
   // after the render that fills the folder page.
   const rundownLoaded = !!show?.cues?.length;
@@ -3519,7 +3543,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
   /** ONE OSC CUE'S SEND (docs/work-specs/osc-control-cues/spec.md D1, D7, D9): the cue as saved
    *  now, through the paired Bridge, once. A press is one send id; nothing here resends. */
-  const controlTake = async (cue: ShowCue, label: string): Promise<{ ok: boolean; note: string }> => {
+  const controlTake = async (cue: ShowCue, label: string, which: 'take' | 'out' = 'take'): Promise<{ ok: boolean; note: string; uncertain?: true }> => {
     // Read from the store at the press, not the render: an edit landed a moment ago (a field left
     // for Send test) is what goes out.
     const stored = loadShows().find((s) => s.id === id);
@@ -3528,15 +3552,15 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     const onScreen = oscPending.current?.(cue.id) ?? null;
     onScreen?.flush();
     const now = onScreen?.cue ?? stored?.cues?.find((c) => c.id === cue.id) ?? cue;
-    const built = oscRequest(now, stored?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id));
+    const built = oscRequest(now, stored?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id), which);
     if (!built.ok) return { ok: false, note: `${label} was not sent: ${built.reason}` };
     const outcome = await sendOsc(loadPlayoutSettings(), built.request);
-    return { ok: outcome.state === 'sent', note: oscNote(now.label, built.destination.name, outcome) };
+    return { ok: outcome.state === 'sent', note: oscNote(now.label, built.destination.name, outcome, which), ...(outcome.state === 'uncertain' ? { uncertain: true as const } : {}) };
   };
-  const controlSend = async (cue: ShowCue, label: string): Promise<boolean> => {
-    const { ok, note } = await controlTake(cue, label);
+  const controlSend = async (cue: ShowCue, label: string, which: 'take' | 'out' = 'take'): Promise<boolean | 'uncertain'> => {
+    const { ok, note, uncertain } = await controlTake(cue, label, which);
     setNote(note);
-    return ok;
+    return ok || (uncertain ? 'uncertain' : false);
   };
   const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
     // The graphic verb accepts All out before it gives its native cues the panic cut.
@@ -3795,6 +3819,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     },
     playoutVerb,
     controlSend,
+    oweOut: folderPlayout.oweOut,
     clearMisses,
     noteStep,
     stopFolders: () => folderPlayout.stopAll('all-out', sceneFolderIds(show)),
@@ -3924,6 +3949,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     serverVerb,
     takeGraphic: takeGraphicCue,
     controlTake: (cue) => controlTake(cue, `Take of ${cue.label}`),
+    controlOut: (cue) => controlTake(cue, `On Out of ${cue.label}`, 'out'),
     takeCue,
     send: sendVerb,
     flush: async () => {
@@ -5298,7 +5324,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
             takeBlocked={takeBlockerFor(editingCue)}
             rehearsing={!hostedSlug}
             playoutSettings={playoutSettings}
-            onSendTest={(cue) => void controlSend(cue, 'Send test')}
+            onSendTest={(cue, which) => void controlSend(cue, 'Send test', which)}
             setNote={setNote}
             writeRundown={writeRundown}
             pendingRef={oscPending}
