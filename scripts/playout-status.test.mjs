@@ -151,6 +151,10 @@ test('PROGRAM says what is known of the last command, and never more (data-sourc
   assert.equal(air({}).state, 'idle', 'nothing pressed yet: nothing to say');
   assert.equal(air({}).text, '');
   assert.equal(air({ sending: 1, owed: true, loggedAt: at }).state, 'pending', 'a send in flight outranks the last answer');
+  // #2655 R6: a Take sent until it lands says so, with Stop sending, ahead of everything else.
+  const still = air({ sending: 1, stillSending: true, unsent: 2, lost: true, loggedAt: at });
+  assert.deepEqual([still.state, still.text, still.stoppable], ['pending', 'still sending', true]);
+  assert.equal(air({ sending: 1, loggedAt: at }).stoppable, undefined, 'a send inside the old window offers no stop');
   const logged = air({ loggedAt: at });
   assert.equal(logged.state, 'logged');
   assert.equal(logged.text, `logged ${hms(at)}`);

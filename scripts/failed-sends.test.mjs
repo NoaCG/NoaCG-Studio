@@ -283,3 +283,271 @@ test('a bound press call is sent again only when nothing was recorded; a refusal
   assert.equal(kind('P0001', 400), 'refused', 'unknown control slug');
   assert.equal(kind('22023', 400), 'refused', 'not a press batch');
 });
+
+// ── #2655: a press sent until it lands (docs/work-specs/live-publishing/evidence/fix-2655.md) ──
+
+const failed = await import('../src/control/failedSends.ts');
+
+test('R2: a held press is never given up on by time: 0.4, 1 and 2 s, then every 4 s, until it lands', async () => {
+  const r = rig(...Array.from({ length: 12 }, () => unansweredError()));
+  await sendWithResend(r.send, { ...r.opts, held: true });
+  assert.equal(r.attempts(), 13, 'twelve unanswered attempts, then the one that landed');
+  assert.deepEqual(r.slept, [400, 1000, 2000, ...Array(9).fill(failed.RESEND_EVERY_MS)]);
+});
+
+test('R2: a held press cuts its first four attempts at 1.5 s and every later one at 8 s', async () => {
+  const cuts = [];
+  let attempts = 0;
+  const timer = (ms, fire) => {
+    cuts.push(ms);
+    // Every attempt hangs until its cut, except the eighth.
+    if (attempts < 8) queueMicrotask(fire);
+    return () => {};
+  };
+  await sendWithResend(
+    () => {
+      attempts += 1;
+      return attempts === 8 ? Promise.resolve() : new Promise(() => {});
+    },
+    { deadline: 0, stillNewest: () => true, held: true, sleep: async () => {}, timer },
+  );
+  assert.deepEqual(cuts.slice(0, 8), [1500, 1500, 1500, 1500, 8000, 8000, 8000, 8000]);
+});
+
+test('R2: a press that is not held keeps today\'s 4 s window', async () => {
+  const r = rig(...Array.from({ length: 12 }, () => unansweredError()));
+  await assert.rejects(sendWithResend(r.send, r.opts), (e) => isUnanswered(e));
+  assert.equal(r.attempts(), RESEND_DELAYS_MS.length + 1);
+});
+
+test('R2: a refusal still ends a held press at once', async () => {
+  const r = rig(unansweredError(), new Error('hosted control is switched off'));
+  await assert.rejects(sendWithResend(r.send, { ...r.opts, held: true }), /switched off/);
+  assert.equal(r.attempts(), 2);
+});
+
+test('R6: Stop sending ends a held press during an attempt and during a wait, and nothing more is sent', async () => {
+  // During an attempt: the request is cancelled at once.
+  const stop = new AbortController();
+  let signalSeen = null;
+  const during = sendWithResend(
+    (signal) => {
+      signalSeen = signal;
+      return new Promise(() => {});
+    },
+    { deadline: 0, stillNewest: () => true, held: true, stop: stop.signal },
+  );
+  await new Promise((r) => setImmediate(r));
+  stop.abort(failed.stoppedError());
+  await assert.rejects(during, (e) => failed.isStopped(e) && e.message === failed.STOPPED);
+  assert.equal(signalSeen.aborted, true, 'its request was cancelled');
+
+  // During a wait between attempts: no attempt after it.
+  const stop2 = new AbortController();
+  let attempts = 0;
+  const between = sendWithResend(
+    async () => {
+      attempts += 1;
+      throw unansweredError();
+    },
+    { deadline: 0, stillNewest: () => true, held: true, stop: stop2.signal, sleep: () => new Promise(() => {}) },
+  );
+  await new Promise((r) => setImmediate(r));
+  stop2.abort(failed.stoppedError());
+  await assert.rejects(between, (e) => failed.isStopped(e));
+  assert.equal(attempts, 1);
+});
+
+test('R6: a stopped press is owed (a copy may still land) and is not sent again', () => {
+  const e = failed.stoppedError();
+  assert.equal(isUnanswered(e), true);
+  assert.equal(failed.isUncertain(e), true);
+});
+
+test('R6a: an unknown outcome is owed but never sent again', async () => {
+  const e = failed.maybeLandedError('another screen changed it while it was being sent');
+  assert.equal(failed.isUncertain(e), true);
+  assert.equal(isUnanswered(e), false);
+  const r = rig(unansweredError(), e);
+  await assert.rejects(sendWithResend(r.send, { ...r.opts, held: true }), (x) => failed.isMaybeLanded(x));
+  assert.equal(r.attempts(), 2);
+});
+
+test('R7: a lost Take stays owed when an Update of its graphic lands; an Out of it settles it', () => {
+  const debts = createSendDebts();
+  const take = [
+    { graphic: 'score', msg: { t: 'update', data: {}, oid: 't1' } },
+    { graphic: 'score', msg: { t: 'play' } },
+    { graphic: 'bug', msg: { t: 'stop' } },
+  ];
+  debts.failed(take, 'Take is on this monitor only.');
+  const shown = 'Take is on this monitor only.';
+  assert.equal(debts.landed([{ graphic: 'score', msg: { t: 'update', data: {} } }])(shown), shown, 'an Update does not pay a Take');
+  assert.equal(debts.owed(), 2);
+  assert.equal(debts.landed([{ graphic: 'score', msg: { t: 'stop' } }])(shown), shown, 'the peer the Take took off is still owed');
+  assert.equal(debts.owed(), 1);
+  assert.equal(debts.landed([{ graphic: 'bug', msg: { t: 'play' } }])(shown), null);
+});
+
+test('R7: a failed Update is paid by a later landed Update of its graphic, as today', () => {
+  const debts = createSendDebts();
+  debts.failed([{ graphic: 'score', msg: { t: 'update', data: {} } }], 'Update failed.');
+  assert.equal(debts.landed([{ graphic: 'score', msg: { t: 'update', data: {} } }])('Update failed.'), null);
+});
+
+test('R7: a lost Take stays owed through a failed Update and a landed Update; its own row still settles it', () => {
+  const debts = createSendDebts();
+  const shown = 'Take is on this monitor only.';
+  debts.failed([{ graphic: 'g', msg: { t: 'update', data: {}, oid: 'take-1' } }, { graphic: 'g', msg: { t: 'play' } }], shown);
+  debts.failed([{ graphic: 'g', msg: { t: 'update', data: {}, oid: 'upd-1' } }], 'Update failed.');
+  assert.equal(debts.landed([{ graphic: 'g', msg: { t: 'update', data: {} } }])(shown), shown, 'the Take is still owed');
+  assert.equal(debts.owed(), 1);
+  const settle = debts.heard([{ graphic: 'g', msg: { t: 'update', data: {}, oid: 'take-1' } }]);
+  assert.ok(settle, 'the Take\'s own row is still recognised');
+  assert.equal(settle(shown), null);
+});
+
+test('R7: a newer failed Take makes an older one moot; an older one landing late does not clear it', () => {
+  const debts = createSendDebts();
+  debts.failed([{ graphic: 'g', msg: { t: 'play', oid: 'a' } }], 'one');
+  debts.failed([{ graphic: 'g', msg: { t: 'play', oid: 'b' } }], 'two');
+  assert.equal(debts.heard([{ graphic: 'g', msg: { t: 'play', oid: 'a' } }]), null, 'the older press is not owed any more');
+  assert.equal(debts.owed(), 1);
+});
+
+test('R3: its own row heard ends a held press without cutting the attempt in flight, whose answer is still read', async () => {
+  const settled = new AbortController();
+  let answer;
+  const answered = new Promise((r) => (answer = r));
+  const sending = sendWithResend(() => answered, { deadline: 0, stillNewest: () => true, held: true, settled: settled.signal });
+  settled.abort();
+  answer();
+  await sending;
+  // Heard while waiting between two attempts: no attempt after it.
+  const heard = new AbortController();
+  let attempts = 0;
+  const waiting = sendWithResend(
+    async () => {
+      attempts += 1;
+      throw unansweredError();
+    },
+    { deadline: 0, stillNewest: () => true, held: true, settled: heard.signal, sleep: () => new Promise(() => {}) },
+  );
+  await new Promise((r) => setImmediate(r));
+  heard.abort();
+  await assert.rejects(waiting, (e) => isUnanswered(e));
+  assert.equal(attempts, 1);
+});
+
+test('R6: one stop ending two presses gives each its own error, so neither carries the other\'s ids', async () => {
+  const stop = new AbortController();
+  const hang = () => new Promise(() => {});
+  const a = sendWithResend(hang, { deadline: 0, stillNewest: () => true, held: true, stop: stop.signal });
+  const b = sendWithResend(hang, { deadline: 0, stillNewest: () => true, held: true, stop: stop.signal });
+  await new Promise((r) => setImmediate(r));
+  stop.abort(failed.stoppedError());
+  const [ea, eb] = await Promise.all([a.catch((e) => e), b.catch((e) => e)]);
+  assert.notEqual(ea, eb);
+  assert.ok(failed.isStopped(ea) && failed.isStopped(eb) && isUnanswered(eb));
+  ea.sent = ['take A'];
+  assert.equal(eb.sent, undefined);
+});
+
+test('R7: an Out that landed before the Take pressed ahead of it finished failing settles that Take', () => {
+  const debts = createSendDebts();
+  const shown = 'Take is on this monitor only.';
+  // The Out (press 2) lands while the Take (press 1) is still ending; then the Take fails.
+  debts.landed([{ graphic: 'g', msg: { t: 'stop' } }], 2);
+  debts.failed([{ graphic: 'g', msg: { t: 'play', oid: 't' } }], shown, 1);
+  assert.equal(debts.owed(), 0, 'the Out already replaced it');
+  // An Update that landed first does not pay a Take pressed before it.
+  debts.landed([{ graphic: 'h', msg: { t: 'update' } }], 4);
+  debts.failed([{ graphic: 'h', msg: { t: 'play', oid: 'u' } }], shown, 3);
+  assert.equal(debts.owed(), 1);
+  // But it pays an Update pressed before it.
+  debts.landed([{ graphic: 'k', msg: { t: 'update' } }], 6);
+  debts.failed([{ graphic: 'k', msg: { t: 'update', oid: 'v' } }], 'Update failed.', 5);
+  assert.equal(debts.owed(), 1);
+  // A press made after the landing is owed as before.
+  debts.failed([{ graphic: 'g', msg: { t: 'play', oid: 'w' } }], shown, 7);
+  assert.equal(debts.owed(), 2);
+});
+
+// ── #2655, the Repeated-family reassessment: the debt record's one rule, facts in any order ──
+
+/** Every ordering of `facts`. */
+function permutations(facts) {
+  if (facts.length <= 1) return [facts];
+  return facts.flatMap((f, i) => permutations([...facts.slice(0, i), ...facts.slice(i + 1)]).map((rest) => [f, ...rest]));
+}
+
+const apply = (debts, fact) =>
+  fact.kind === 'failed' ? debts.failed(fact.items, fact.note, fact.order) : fact.kind === 'landed' ? debts.landed(fact.items, fact.order) : debts.heard(fact.items);
+
+const take = (g, n, oid) => [{ graphic: g, msg: { t: 'update', data: {}, oid } }, { graphic: g, msg: { t: 'play' } }];
+const out = (g, oid) => [{ graphic: g, msg: { t: 'stop', oid } }];
+const update = (g, oid) => [{ graphic: g, msg: { t: 'update', data: {}, oid } }];
+
+test('the debt record: the same facts in any order owe the same graphics (press order, not arrival order)', () => {
+  const scenarios = [
+    // Take 1 stuck, Out 2 replaces it and fails, then the Take's attempt fails: the Out is owed.
+    { facts: [{ kind: 'failed', items: take('g', 1, 't1'), note: 'Take', order: 1 }, { kind: 'failed', items: out('g', 'o2'), note: 'Out', order: 2 }], owed: 1 },
+    // ... and the Out's own row comes back: nothing is owed.
+    {
+      facts: [
+        { kind: 'failed', items: take('g', 1, 't1'), note: 'Take', order: 1 },
+        { kind: 'failed', items: out('g', 'o2'), note: 'Out', order: 2 },
+        { kind: 'heard', items: out('g', 'o2') },
+      ],
+      owed: 0,
+    },
+    // ... the TAKE's row comes back instead: the Out is still owed (an older landing pays nothing newer).
+    {
+      facts: [
+        { kind: 'failed', items: take('g', 1, 't1'), note: 'Take', order: 1 },
+        { kind: 'failed', items: out('g', 'o2'), note: 'Out', order: 2 },
+        { kind: 'heard', items: take('g', 1, 't1') },
+      ],
+      owed: 1,
+    },
+    // The Out lands by its answer, the Take before it fails: the Out paid it.
+    { facts: [{ kind: 'failed', items: take('g', 1, 't1'), note: 'Take', order: 1 }, { kind: 'landed', items: out('g', 'o2'), order: 2 }], owed: 0 },
+    // An older Take lands by its answer, the newer Out fails: the Out is owed.
+    { facts: [{ kind: 'landed', items: take('g', 1, 't1'), order: 1 }, { kind: 'failed', items: out('g', 'o2'), note: 'Out', order: 2 }], owed: 1 },
+    // A later Update lands: it pays a failed Update, never a failed Take.
+    { facts: [{ kind: 'failed', items: take('g', 1, 't1'), note: 'Take', order: 1 }, { kind: 'landed', items: update('g', 'u2'), order: 2 }], owed: 1 },
+    { facts: [{ kind: 'failed', items: update('g', 'u1'), note: 'Update', order: 1 }, { kind: 'landed', items: update('g', 'u2'), order: 2 }], owed: 0 },
+    // Two graphics: each is settled only by its own facts.
+    {
+      facts: [
+        { kind: 'failed', items: take('a', 1, 'a1'), note: 'Take a', order: 1 },
+        { kind: 'failed', items: take('b', 2, 'b2'), note: 'Take b', order: 2 },
+        { kind: 'heard', items: take('a', 1, 'a1') },
+        { kind: 'landed', items: update('b', 'u3'), order: 3 },
+      ],
+      owed: 1,
+    },
+    // A press that never left but moved this monitor is owed with no ids: only a later press pays it.
+    { facts: [{ kind: 'failed', items: [{ graphic: 'g', msg: { t: 'play' } }], note: 'Take', order: 1 }, { kind: 'heard', items: take('g', 9, 'x') }], owed: 1 },
+    { facts: [{ kind: 'failed', items: [{ graphic: 'g', msg: { t: 'play' } }], note: 'Take', order: 1 }, { kind: 'landed', items: out('g', 'o2'), order: 2 }], owed: 0 },
+  ];
+  for (const [i, { facts, owed }] of scenarios.entries()) {
+    for (const order of permutations(facts)) {
+      const debts = createSendDebts();
+      for (const fact of order) apply(debts, fact);
+      assert.equal(debts.owed(), owed, `scenario ${i}, facts in the order ${order.map((f) => `${f.kind}:${f.order ?? f.items[0].msg.oid}`).join(', ')}`);
+    }
+  }
+});
+
+test('R7: replacedSince says whether a later REPLACING press of this page already landed on every graphic', () => {
+  const debts = createSendDebts();
+  debts.landed(out('g', 'o2'), 2);
+  assert.equal(debts.replacedSince(take('g', 1, 't1'), 1), true, 'the Out pressed after it landed');
+  assert.equal(debts.replacedSince(take('g', 3, 't3'), 3), false, 'pressed after the Out');
+  debts.landed(update('h', 'u2'), 2);
+  assert.equal(debts.replacedSince(take('h', 1, 't1'), 1), false, 'an Update never silences a Take');
+  assert.equal(debts.replacedSince(update('h', 'u1'), 1), false, 'nor an Update: a later modifying press may carry other fields');
+  assert.equal(debts.replacedSince([...take('g', 1, 't1'), ...take('k', 1, 'k1')], 1), false, 'one graphic not replaced');
+  assert.equal(debts.replacedSince([], 1), false);
+});

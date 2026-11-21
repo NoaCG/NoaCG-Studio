@@ -185,7 +185,11 @@ test('W1: a Take sends before its own save, with the typed value from memory, an
   await page.getByTestId('verb-take').click();
   await expect.poll(() => sends.some((b) => b.includes('W1 typed first')), { message: 'the Take is sent with the typed value', timeout: 10_000 }).toBe(true);
   await expect.poll(() => airPlays(air), { message: 'air plays it while the save is held', timeout: 30_000 }).toBe('1');
-  expect(await page.evaluate(() => (window as unknown as { __held?: number }).__held ?? 0), 'a save was owed and is still held').toBeGreaterThan(0);
+  // The Take's own save starts only once its send is answered, which can come after air plays
+  // (#2400): polled, with every write still held, so it proves the same order.
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __held?: number }).__held ?? 0), { message: 'a save was owed and is still held', timeout: 10_000 })
+    .toBeGreaterThan(0);
   await page.evaluate(() => { (window as unknown as { __holdWrites?: boolean }).__holdWrites = false; });
   // The save lands after the send: the typed value is the cue's.
   await expect(page.getByTestId('cue-unsent')).toBeEmpty({ timeout: 15_000 });
@@ -248,7 +252,14 @@ test('a press another screen overtook is refused, writes nothing, and the operat
   let release!: () => void;
   const released = new Promise<void>((r) => (release = r));
   const answered = holdNextPress(a, released);
+  let aSends = 0;
+  a.on('request', (r) => {
+    if (r.url().includes('/rpc/control_send_seq')) aSends += 1;
+  });
   await a.getByTestId('verb-out').click();
+  // A's first attempt is abandoned at 1.5 s and sent again (#2655: an Out is sent until it lands),
+  // so whatever A reads next follows an attempt nobody answered.
+  await expect.poll(() => aSends, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
   await b.getByTestId('verb-retake').click();
   await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('2');
   const before = await head(page, hosted);
@@ -267,10 +278,12 @@ test('a press another screen overtook is refused, writes nothing, and the operat
   expect((await head(page, hosted)).on).toBe(true);
   await expect.poll(() => airPlays(air), { timeout: 5_000 }).toBe('2');
 
-  // And A is told, in plain words, what happened and what air did.
-  await expect(a.getByTestId('production-note')).toContainText(`${GRAPHIC} was changed from another screen, so air did not change.`, {
-    timeout: 15_000,
-  });
+  // And A is told, in plain words, what is known. A copy of its Out that went unanswered might have
+  // landed before B's re-take, as far as A can tell, so A is never told "air did not change"
+  // (#2655 R6a): the outcome is unknown until a row says otherwise.
+  const aNote = a.getByTestId('production-note');
+  await expect(aNote).toContainText('not confirmed (another screen changed it while it was being sent)', { timeout: 15_000 });
+  await expect(aNote).not.toContainText('air did not change');
   // A's own page follows the log, so it ends agreeing with air.
   await expect(a.getByTestId('live-cue-chip')).toContainText('on air:', { timeout: 30_000 });
 
@@ -475,7 +488,8 @@ test('a press of several batches never undoes a later press, and nothing pressed
 
   // ── C. The panic control (review 2 ordering:F2). H is on air. A press on H is held; a press
   //    {Take G, Update H} queues behind it; an All out of H, which never queues, lands first.
-  //    Both earlier presses then arrive and are refused whole: G never airs after the All out. ──
+  //    Since #2655 R7a the All out ends both earlier presses as it is pressed: the queued one
+  //    never leaves ("sending stopped"), and G never airs after the All out. ──
   await onAir(['H']);
   await holdFirst((b) => !b.p_sender?.all_out && b.p_items?.length === 1 && b.p_items[0].graphic === 'H');
   const c = await op.evaluate(async ({ slug }) => {
@@ -498,9 +512,7 @@ test('a press of several batches never undoes a later press, and nothing pressed
     return { p4: await p4, p5: await p5, allOut };
   }, { slug: hosted });
   await op.unrouteAll({ behavior: 'ignoreErrors' });
-  expect((c.p5 as { superseded?: string[] }).superseded, 'the press queued before the All out was refused whole').toEqual(
-    expect.arrayContaining(['G', 'H']),
-  );
+  expect((c.p5 as { error?: string }).error, 'the press queued before the All out never left').toBe('sending stopped');
 
   const heads = await page.evaluate(
     async ({ slug }) => {
@@ -794,6 +806,117 @@ test('a renderer whose new resolve keeps timing out boots on today\'s road and a
 
   await air.unrouteAll({ behavior: 'ignoreErrors' });
   await Promise.all([op.close(), air.close()]);
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+});
+
+// A PRESS SENT UNTIL IT LANDS NEVER AIRS TWICE (#2655 R4,
+// docs/work-specs/live-publishing/evidence/fix-2655.md "R4, the proof"). The page now sends a Take
+// or an Out again for as long as the server does not answer, so copies of one press can reach
+// control_send_seq long after the original landed: after the page stopped waiting for it, and
+// after the head's `recent` list (the last 64 presses) has forgotten it. Driven at the RPC, as a
+// page sends it, so each case is exact: every copy is answered as a duplicate or refused, and the
+// log holds the press's rows once. "Racing itself" is two copies sent together after the original
+// landed; a copy racing the original itself is serialised by the head lock (R4 proof, point 1).
+test('a copy of a held press never writes again: after it landed, after `recent` forgot it, and racing itself', async ({ page }) => {
+  test.setTimeout(300_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
+  await clearPublishedShows(page);
+  const { hosted } = await publishScorebug(page, `Held Copies ${Date.now()}`);
+
+  const result = await page.evaluate(async (slug) => {
+    const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+    const { hostedControlTailSeq } = await __noacgImport('/src/control/hostedControl.ts');
+    const sb = (await getSupabase())!;
+    type Head = Record<string, { rev?: number; by?: string; press?: number }>;
+    const resolve = async () => (await sb.rpc('control_show_resolve', { p_slug: slug })).data as { epoch: string; graphics?: Head };
+    let { epoch } = await resolve();
+    const S = crypto.randomUUID();
+    const OTHER = crypto.randomUUID();
+    let otherPress = 0;
+    const press = async (id: string, n: number, items: { graphic: string; msg: Record<string, unknown> }[]) => {
+      const head = (await resolve()).graphics ?? {};
+      const base = Object.fromEntries([...new Set(items.map((i) => i.graphic))].map((g) => [g, head[g]?.rev ?? 0]));
+      return { id, press: n, epoch, base, items };
+    };
+    const send = async (p: { id: string; press: number; epoch: string; base: Record<string, number>; items: unknown[] }) => {
+      const { data, error } = await sb.rpc('control_send_seq', { p_slug: slug, p_items: p.items, p_sender: { id: p.id, press: p.press, epoch: p.epoch, base: p.base } });
+      if (error) throw new Error(`${error.code} ${error.message}`);
+      return data as { ok: boolean; duplicate?: boolean; refused?: string; graphics?: Head; head?: { graphics?: Head } };
+    };
+    const take = (graphic: string, oid: string) => [
+      { graphic, msg: { t: 'update', data: { n: oid }, oid } },
+      { graphic, msg: { t: 'play', oid: `${oid}-play` } },
+    ];
+    /** 65 presses of another page on other graphics, paced under the burst cap: `recent` forgets. */
+    const roll = async (tag: string) => {
+      for (let k = 0; k < 65; k += 1) {
+        otherPress += 1;
+        const answer = await send(await press(OTHER, otherPress, [{ graphic: `${tag}${k}`, msg: { t: 'play', oid: `${tag}-${k}-${crypto.randomUUID()}` } }]));
+        if (!answer.ok) throw new Error(`roll press refused: ${JSON.stringify(answer)}`);
+        await new Promise((r) => setTimeout(r, 130));
+      }
+    };
+    const rowsWith = async (oid: string) => {
+      let after = 0;
+      let count = 0;
+      for (;;) {
+        const tail = await hostedControlTailSeq(slug, after, epoch);
+        const rows = tail?.rows ?? [];
+        if (rows.length === 0) return count;
+        count += rows.filter((r) => (r.msg as { oid?: string }).oid === oid).length;
+        after = rows[rows.length - 1].seq;
+      }
+    };
+
+    // ── 1. The original lands; its copy later, after `recent` forgot it, is a duplicate. ──
+    const p1 = await press(S, 1, take('G', 'o1'));
+    const first = await send(p1);
+    epoch = (await resolve()).epoch;
+    const racing = await Promise.all([send(p1), send(p1)]);
+    await roll('r1-');
+    const late1 = await send(p1);
+
+    // ── 2. A press on two graphics, one of them pressed again by the same page since. ──
+    const p2 = await press(S, 2, [...take('H', 'o2'), ...take('J', 'o2j')]);
+    await send(p2);
+    await send(await press(S, 3, take('J', 'o3')));
+    await roll('r2-');
+    const late2 = await send(p2);
+
+    // ── 3. Another screen took the graphic since. ──
+    const p4 = await press(S, 4, take('K', 'o4'));
+    await send(p4);
+    otherPress += 1;
+    await send(await press(OTHER, otherPress, take('K', 'other-k')));
+    await roll('r3-');
+    const late4 = await send(p4);
+
+    return {
+      first,
+      racing,
+      late1,
+      late2,
+      late4,
+      rows: { o1: await rowsWith('o1'), o2: await rowsWith('o2'), o2j: await rowsWith('o2j'), o4: await rowsWith('o4') },
+      S,
+    };
+  }, hosted);
+
+  expect(result.first.ok, 'the original lands').toBe(true);
+  for (const copy of result.racing) expect(copy.ok && copy.duplicate, 'a copy racing the landing is a duplicate').toBe(true);
+  expect(result.late1.ok && result.late1.duplicate, 'after `recent` forgot it, the head still knows it: a duplicate').toBe(true);
+  // A mix of this page's later press and this press: refused, and the page reads it as landed (R6a).
+  expect(result.late2.ok).toBe(false);
+  expect(result.late2.graphics?.H).toMatchObject({ by: result.S, press: 2 });
+  expect(result.late2.graphics?.J).toMatchObject({ by: result.S, press: 3 });
+  // Another screen's later press: refused as stale, nothing written.
+  expect(result.late4).toMatchObject({ ok: false, refused: 'stale' });
+  // THE CLAIM: every press's rows are in the log once.
+  expect(result.rows).toEqual({ o1: 1, o2: 1, o2j: 1, o4: 1 });
+
   await clearPublishedShows(page);
   await wipeMyGraphics(page);
 });

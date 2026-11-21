@@ -250,14 +250,27 @@ export interface AirFacts {
   ran?: boolean;
   /** Bound presses this page has queued and the server has not yet answered (#2617). */
   unsent?: number;
+  /** A press sent until it lands has been out longer than the old 4 s window (#2655 R6). */
+  stillSending?: boolean;
 }
 
 /** A time of day to the second, in this computer's locale. */
 export const hms = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 /** PROGRAM's status tag: its state, its words and its tooltip. Empty words show nothing. */
-export function programAir(f: AirFacts): { state: AirState; text: string; title: string } {
+export function programAir(f: AirFacts): { state: AirState; text: string; title: string; stoppable?: true } {
   if (!f.published) return { state: 'local', text: 'this page only', title: 'Not published: a Take plays on this monitor and nowhere else.' };
+  // First of all: a Take on a slow server, still being sent, never given up on in silence, never
+  // "sent", with the one control that ends it (#2655 R6). A bound press unsent at the same moment
+  // is shown once this ends.
+  if (f.stillSending) {
+    return {
+      state: 'pending',
+      text: 'still sending',
+      title: 'The server is slow. It is sent again until it lands, or until you stop it.',
+      stoppable: true,
+    };
+  }
   // Ahead of everything else published: presses this page holds that have not landed (#2617).
   if (f.unsent && f.unsent > 0) {
     return {

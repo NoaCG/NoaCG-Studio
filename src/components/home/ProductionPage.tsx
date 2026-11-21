@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
 import { joinedScenes, obsScenesOf, sceneFolderIds, sceneGraphicNames, sceneLink, type ObsScene } from '../../model/obsScenes';
@@ -224,6 +224,10 @@ import {
   publishedLeaseDoor,
   firstPublishedSources,
   sendControlVerbs,
+  sendStopGeneration,
+  stillSendingCount,
+  stopSending,
+  subscribeStillSending,
   untilAnswered,
   libraryGraphicDigests,
   sendsInOrder,
@@ -242,7 +246,7 @@ import {
   type LiveCueMap,
 } from '../../control/hostedControl';
 import type { ReplayItem } from '../../control/outputRecovery';
-import { createSendDebts } from '../../control/failedSends';
+import { createSendDebts, stoppedError } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import { fastEventGraphics, needsServerInstant } from '../../control/matchClockWire';
 import { type ProgramStageHandle } from './ProgramStage';
@@ -491,6 +495,14 @@ const oscStepStore = (showId: string): NonNullable<FolderPlayoutIo['oscSteps']> 
     },
   };
 };
+/** One stop per playout session (#2655 R3), aborted when that session ends. */
+const sessionStops = new WeakMap<PlayoutSession, AbortController>();
+function stopOf(session: PlayoutSession): AbortController {
+  let stop = sessionStops.get(session);
+  if (!stop) sessionStops.set(session, (stop = new AbortController()));
+  return stop;
+}
+
 /** Which OSC cues each folder owes an On Out message, kept for this tab per production (folderPlayout
  *  `io.oscSent`), so an Out after a reload still brings the lights back. */
 const oscSentStore = (showId: string): NonNullable<FolderPlayoutIo['oscSent']> => {
@@ -531,6 +543,8 @@ const GRAPHIC_VERB_IO: GraphicVerbIo = {
   pressSend,
   nameList,
   now: wallClock,
+  stopGeneration: sendStopGeneration,
+  stopSending,
   sendsInOrder,
   setTimeout: (run, ms) => setTimeout(run, ms),
   clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
@@ -865,6 +879,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
    *  session, because effects that never restart (the log follower) keep the one they first saw. */
   const session = useMemo(() => createPlayoutSession(id), [id]);
   const sessionEnd = useRef<{ session: PlayoutSession; timer: ReturnType<typeof setTimeout> } | null>(null);
+  /** Ends every press this session still sends when the session ends (#2655 R3): one per session,
+   *  so a page mounted again in its place keeps its own presses. */
+  const sessionStop = useMemo(() => stopOf(session), [session]);
   /** One send id per deliberate OSC press, unique to this page load (control/oscSend.ts). */
   /** The open OSC editor's view of its cue, unsaved typing included (home/OscCueEditor). */
   const oscPending = useRef<((cueId: string) => { cue: ShowCue; flush: () => void } | null) | null>(null);
@@ -876,9 +893,17 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     return () => {
       // Revoke Bridge sends at route commit, before the deferred store disposal.
       mountedSession.current = null;
-      sessionEnd.current = { session, timer: setTimeout(() => session.dispose()) };
+      // A Take still being sent until it lands ends with its production (#2655 R3): it must not air
+      // after the operator has moved on. An All out pressed before the end still goes.
+      sessionEnd.current = {
+        session,
+        timer: setTimeout(() => {
+          session.dispose();
+          sessionStop.abort(stoppedError());
+        }),
+      };
     };
-  }, [session]);
+  }, [session, sessionStop]);
   const pageCanDispatch = () => mountedSession.current === session && session.alive();
   // ── Live status: which cue is on air ON EACH LAYER, and what each graphic was last sent. Several
   // graphics are up at once by design, so the marker is a map keyed by graphic name. Both live in
@@ -1841,6 +1866,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   );
   useEffect(() => dataSession.published(hostedSlug), [dataSession, hostedSlug]);
   const { liveData, dataKey, treeRead, unsent: pressesUnsent } = useStorePart(session.data);
+  /** A Take sent until it lands has been out past the old 4 s window (#2655 R6). */
+  const stillSending = useSyncExternalStore(subscribeStillSending, stillSendingCount) > 0;
   const { setLiveData, patchBoundValues, pressBound } = dataSession;
 
   /** Refuse a press on a shared value this page cannot count from yet, and say why. Bound presses
@@ -3016,6 +3043,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     // (#1886): judged against the clock as this page's PROGRAM holds it.
     serverInstant: (item) => needsServerInstant(clockSpecsRef.current.clocks.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
     debts: () => sendDebts.current,
+    stop: sessionStop.signal,
     outputUsable: () => usableOutputRef.current,
     sending: (delta) => {
       // When this page's newest send left: its row can arrive before its answer does.
@@ -3249,7 +3277,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         take: async (cue) => {
           const taken = await verbs.takeGraphic(cue, 'Take');
           if (!taken) return 'its graphic is gone';
-          if (!taken.ok) return taken.note;
+          // One a later press of this page already replaced did not fail: that press stands.
+          if (!taken.ok) return taken.replaced ? null : taken.note;
           noteStep(cue);
           return null;
         },
@@ -4175,7 +4204,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         if (refused) setNote(refused);
         else if (isControlCue(cue)) void controlSend(cue, label);
         else if (isServerCue(cue)) void serverVerb(cue, 'take', label, { direct: true }).then((r) => r && setNote(r.note));
-        else void takeGraphicCue(cue, label, true).then((r) => r && setNote(r.note));
+        else void takeGraphicCue(cue, label, true).then((r) => r && !r.replaced && setNote(r.note));
         return;
       }
       case 'hold':
@@ -4557,6 +4586,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         // What the selection keys act on: the page's own selection, its first cue until one is picked.
         selected={selectedFolder ? folderName(selectedFolder) : (selectedCue?.label ?? null)}
         note={note}
+        stillSending={stillSending}
+        onStopSending={stopSending}
         now={now}
         rows={scenePanel?.rows ?? null}
         scenes={obsSceneList}
@@ -4842,7 +4873,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           onWaits={noteProgramWaits}
           onReady={programReady}
           onOverflow={notePreviewOverflow}
-          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, unsent: pressesUnsent, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting), ran: ranLast })}
+          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, unsent: pressesUnsent, stillSending, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting), ran: ranLast })}
+          onStopSending={stopSending}
           serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server') ? bridgeStatus.state : null}
           programChip={
             chipGraphic ? (

@@ -298,7 +298,7 @@ async function walk(seed, road, steps) {
     armSpecFor: () => null,
     applyHere: (items) => applyCommand(items),
     fastEvent: (graphic) => !CLOCK_GRAPHICS.has(graphic),
-    debts: () => ({ landed: () => (shown) => shown, failed: () => {}, owed: () => 0 }),
+    debts: () => ({ landed: () => (shown) => shown, failed: () => {}, owed: () => 0, replacedSince: () => false }),
     outputUsable: () => true,
     sending: () => {},
     owed: () => {},
