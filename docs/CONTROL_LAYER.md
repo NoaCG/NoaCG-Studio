@@ -217,7 +217,8 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
   `control_tail`. There is no second command path.
 - `control_shows` (id = the local Show.id) carries the capability `slug`, the `panel` spec
   (name/fields/image paths/entries per graphic, never full templates, and since #2667 not the
-  script either: the payload carries it, and rows published before keep theirs), the shared `staged`
+  script either: the payload carries it, an OGraf graphic's in its package; a row published before
+  keeps its scripts until a publish rewrites the panel), the shared `staged`
   buffer, and `live` — each graphic's own report of applied data + machine state.
 - **Entries are published, not authored.** The panel spec carries each
   graphic's saved `ControlEntry` rows (docs/SAVED_CONTENT_MODEL.md §4), read out of the

@@ -94,7 +94,7 @@ export interface PanelGraphicSpec {
    * The graphic's script, carried only by rows an older build published. It was there for the
    * hosted control page's event buttons; that page is retired (docs/work-specs/retire-hosted-control)
    * and nothing reads it now. A publish no longer writes it: it repeated every graphic's script
-   * beside the payload's own copy, nearly doubling the publish write (issue #2667: 9.7 MB of request
+   * beside the payload's own copy (an imported OGraf graphic's script travels in its package assets), nearly doubling the publish write (issue #2667: 9.7 MB of request
    * for a 60-graphic production, most of it parsed inside the one statement the 8 s limit cuts).
    */
   js?: string;
@@ -365,7 +365,7 @@ export interface ControlEventRow {
 }
 
 /** The stored operator spec for a show — one entry per graphic, no template payload and no
- *  script (the payload carries both). The
+ *  script (the payload carries both; an OGraf graphic's in its package). The
  *  entries come from the library via the shared resolver (model/library.ts), by `graphicId`
  *  with a unique-name fallback, so hosted publish and show export agree on the lookup.
  *
@@ -398,7 +398,7 @@ export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(
 }
 
 /** The stored panel's saved entries of the graphics whose records this library lacks (issue #779),
- *  and only theirs (live-publishing G4: the whole panel carries every graphic's script). An instance
+ *  and only theirs (live-publishing G4: a panel published before #2667 carries every graphic's script). An instance
  *  without migration 0120 reads the whole panel, as before. */
 export async function publishedPanelEntries(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>, showId: string, names: string[]): Promise<PanelGraphicSpec[]> {
   const { data, error } = await sb.rpc('control_panel_entries', { p_show: showId, p_names: names });
