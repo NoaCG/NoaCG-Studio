@@ -1715,8 +1715,9 @@ test('saved Vote results and Message templates are offered in their pickers and 
   await expect(audience.getByTestId('audience-round-stage')).toHaveText('Add results to rundown on Vote results');
   // Stopped, then staged again: the same one cue now says closed.
   await stopLive(audience, 'Encore?');
+  await expect(note).toContainText('The result cue on “Vote results” now carries the final counts');
   await audience.getByTestId('audience-round-stage').click();
-  await expect(note).toContainText('✓ Updated the result cue on “Vote results”');
+  await expect(note).toContainText('✓ The result cue on “Vote results” now carries the final 3 votes');
   await settleDurableWrites(audience);
   const copy = (await pool()).find((g) => g.savedAs === 'Vote results')!;
   expect(copy.cues, 'one cue on the copy, no blank seed beside it').toHaveLength(1);
