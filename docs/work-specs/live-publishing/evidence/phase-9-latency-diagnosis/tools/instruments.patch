@@ -1,0 +1,1469 @@
+diff --git a/e2e/configured/_five.ts b/e2e/configured/_five.ts
+index bdea8f6c..bbae325c 100644
+--- a/e2e/configured/_five.ts
++++ b/e2e/configured/_five.ts
+@@ -1,6 +1,6 @@
+ import { expect, type Browser, type BrowserContext, type Frame, type Page } from '@playwright/test';
+ import { createClient } from '@supabase/supabase-js';
+-import { isLocalStackUrl } from '../../scripts/configured-target.mjs';
++import { configuredTarget, isLocalStackUrl } from '../../scripts/configured-target.mjs';
+ import { installDoor } from '../_door';
+ import { settleDurableWrites } from '../_durable';
+ import { publishProduction } from '../_publish';
+@@ -62,7 +62,7 @@ const memberEmail = (i: number) => `e2e-five-${i}${domain()}`;
+ 
+ /** The service client for the scene's own accounts: local stack only. */
+ function admin() {
+-  if (!isLocalStack()) throw new Error('the five-person scene mints accounts: only against a local stack');
++  if (!writable()) throw new Error('the five-person scene mints accounts: only against a local stack or the declared staging project');
+   return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+ }
+ 
+@@ -74,6 +74,9 @@ async function dropMinted(emails: string[]): Promise<void> {
+ 
+ /** True when the backend is a local stack: the only place this scene may mint accounts or write switches. */
+ export const isLocalStack = () => isLocalStackUrl(SUPABASE_URL);
++/** PHASE 9 CLOUD (not for main): the scene may also mint accounts and write switches on the hosted
++ *  staging project, admitted only by scripts/configured-target.mjs's declared route. */
++export const writable = () => ['local', 'hosted-staging'].includes(configuredTarget(process.env).kind);
+ 
+ const t0 = Date.now();
+ export const log = (...a: unknown[]) => console.log(`[five ${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
+@@ -82,7 +85,7 @@ const row = (page: Page, label: string) =>
+   page.locator('.pd-cue').filter({ has: page.locator('.pd-cue-label > strong', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) });
+ 
+ async function selectCue(page: Page, label: string): Promise<void> {
+-  await row(page, label).getByTestId('select-cue').click();
++  await row(page, label).getByTestId('select-cue').click({ timeout: 15_000 });
+   await expect(page.locator('.pd-cue.selected .pd-cue-label > strong')).toHaveText(label);
+ }
+ 
+@@ -94,7 +97,7 @@ const textBox = (page: Page) => page.getByTestId('cue-editor').locator('input[ty
+  * a House Score whose home score is bound to the production's data; moves it into a new team and
+  * publishes it from there.
+  */
+-async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people' | 'output' | 'outputContext' | 'minted' | 'slug' | 'key'>> {
++async function build(owner: Page, editors: number, fill = 0): Promise<Omit<Scene, 'people' | 'output' | 'outputContext' | 'minted' | 'slug' | 'key'>> {
+   await signInAs(owner, E2E_EMAIL, E2E_PASSWORD);
+   await dismissWizard(owner).catch(() => undefined);
+   await clearPublishedShows(owner);
+@@ -103,7 +106,7 @@ async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people'
+   await expect(owner.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+   const stamp = Date.now();
+   const made = await owner.evaluate(
+-    async ({ name, editors, path }) => {
++    async ({ name, editors, path, fill }) => {
+       const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+       const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+       const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
+@@ -134,6 +137,8 @@ async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people'
+       const edits = Array.from({ length: editors }, (_, i) => `Five edit ${String.fromCharCode(65 + i)}`);
+       for (const n of [...takes, ...edits]) add(await template('Hairline', n));
+       add(await template('House Score', 'Five score'));
++      // Phase 9 step 7: a large production, filled with more lower thirds nobody touches.
++      for (let i = 1; i <= fill; i++) add(await template('Hairline', `Five fill ${i}`));
+       m.setFieldBindings(show.id, [{ graphic: 'Five score', fieldId: 'f1', path }]);
+       const failure = await commitDurableWrites();
+       if (failure) throw new Error(failure);
+@@ -144,7 +149,7 @@ async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people'
+       };
+       return { id: show.id, takes: takes.map(labelOf), edits: edits.map(labelOf), score: labelOf('Five score') };
+     },
+-    { name: `Five people ${stamp}`, editors, path: SCORE_PATH },
++    { name: `Five people ${stamp}`, editors, path: SCORE_PATH, fill },
+   );
+   // The team: `E2E team ` prefix, so teams.spec.ts's sweep removes it if this run dies.
+   const team = await owner.evaluate(
+@@ -162,11 +167,48 @@ async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people'
+   );
+   await owner.goto(`/app#/production/${made.id}`);
+   await expect(owner.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+-  await publishProduction(owner);
++  // PHASE 9 CLOUD: a large production can still be saving; do what the note says and publish again.
++  publishLog.length = 0;
++  const t0 = Date.now();
++  for (let attempt = 1; ; attempt++) {
++    if (attempt > 1 && !(await owner.getByTestId('production-publish').isVisible())) {
++      log(`publish button gone after ${Date.now() - t0} ms; status ${await owner.getByTestId('production-status').textContent({ timeout: 2_000 }).catch(() => '?')}`);
++      break;
++    }
++    if (attempt > 1 && !(await owner.getByTestId('production-publish').isEnabled().catch(() => false))) {
++      const status = await owner.getByTestId('production-status').textContent({ timeout: 2_000 }).catch(() => '?');
++      log(`publish button disabled after ${Date.now() - t0} ms; status ${status}`);
++      publishLog.push({ attempt, ms: Date.now() - t0, ok: false, note: `button disabled; status ${status}` });
++      throw new Error(`publish did not land and the button is disabled (status ${status})`);
++    }
++    try {
++      await publishProduction(owner);
++      log(`published on attempt ${attempt} after ${Date.now() - t0} ms`);
++      publishLog.push({ attempt, ms: Date.now() - t0, ok: true, note: '' });
++      break;
++    } catch (e) {
++      // PHASE 9 RERUN: a slow publish can still land after the helper's 30 s; wait for it before pressing again.
++      const landed = await owner.locator('[data-testid="production-status"][data-started="true"]').waitFor({ timeout: 180_000 }).then(() => true, () => false);
++      if (landed) {
++        log(`publish attempt ${attempt} landed after ${Date.now() - t0} ms (past the helper's 30 s)`);
++        publishLog.push({ attempt, ms: Date.now() - t0, ok: true, note: 'landed after the 30 s helper wait' });
++        break;
++      }
++      const note = (await owner.getByTestId('production-note').first().textContent({ timeout: 2_000 }).catch(() => '')) ?? '';
++      log(`publish attempt ${attempt} after ${Date.now() - t0} ms: ${note}`);
++      publishLog.push({ attempt, ms: Date.now() - t0, ok: false, note: note.slice(0, 200) });
++      if (attempt >= 12) throw e;
++      await owner.keyboard.press('Escape').catch(() => undefined);
++      await owner.waitForTimeout(10_000);
++    }
++  }
+   await shutStatusPanel(owner);
+   return { showId: made.id, teamId: team.id, code: team.code, takes: made.takes, edits: made.edits, score: made.score };
+ }
+ 
++/** PHASE 9 RERUN: each publish attempt of the last set-up. */
++export const publishLog: { attempt: number; ms: number; ok: boolean; note: string }[] = [];
++
+ /** Sign a member in, join the team by its code, and open the production. */
+ async function join(page: Page, email: string, code: string, showId: string, name: string): Promise<void> {
+   await signInAs(page, email, E2E_PASSWORD);
+@@ -193,8 +235,8 @@ export async function openProduction(page: Page, showId: string): Promise<void>
+ }
+ 
+ /** The service-role switch writes (`system_settings`), local stack only. */
+-export async function setSwitch(key: 'auto_publish' | 'partial_writes' | 'team_designs', on: boolean): Promise<void> {
+-  if (!isLocalStack()) throw new Error('switches are written only on a local stack');
++export async function setSwitch(key: 'auto_publish' | 'partial_writes' | 'team_designs' | 'production_copies', on: boolean): Promise<void> {
++  if (!writable()) throw new Error('switches are written only on a local stack or the declared staging project');
+   const res = await fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
+     method: 'POST',
+     headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
+@@ -209,12 +251,12 @@ export async function setSwitch(key: 'auto_publish' | 'partial_writes' | 'team_d
+  * other one minted on the local stack. Opens one output, waits for it to hold every graphic, and puts
+  * the score on air, so that during a run the taker's Takes are the only ones the output plays.
+  */
+-export async function setUp(browser: Browser, owner: Page, pages: number): Promise<Scene> {
+-  if (pages < 5) throw new Error('the scene needs five people');
+-  const editors = pages - 3;
+-  const built = await build(owner, editors);
++export async function setUp(browser: Browser, owner: Page, pages: number, opts: { fill?: number; roles?: Person['role'][] } = {}): Promise<Scene> {
++  const roles: Person['role'][] = opts.roles ?? ['taker', 'messages', 'quick', ...Array.from({ length: pages - 3 }, () => 'editor' as const)];
++  if (!opts.roles && pages < 5) throw new Error('the scene needs five people');
++  const editors = roles.filter((r) => r === 'editor').length;
++  const built = await build(owner, editors, opts.fill ?? 0);
+   log('built and published', built.showId);
+-  const roles: Person['role'][] = ['taker', 'messages', 'quick', ...Array.from({ length: editors }, () => 'editor' as const)];
+   const emails = roles.map((_, i) => (i === 0 ? E2E_EMAIL : memberEmail(i)));
+   const minted = emails.slice(1);
+   const sb = admin();
+@@ -273,14 +315,16 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
+   await output.goto(`/output?production=${encodeURIComponent(slug)}`);
+   const graphics = built.takes.length + built.edits.length + 1;
+   await expect
+-    .poll(async () => { const r = await readyOf(output); return r ? r.n === r.of && r.of >= graphics : false; }, { timeout: 180_000, intervals: [100] })
++    .poll(async () => { const r = await readyOf(output); return r ? r.n === r.of && r.of >= graphics + (opts.fill ?? 0) : false; }, { timeout: 300_000, intervals: [100] })
+     .toBe(true);
+   log('output holds every graphic');
+-  const quick = people.find((p) => p.role === 'quick')!;
++  const quick = people.find((p) => p.role === 'quick');
++  if (quick) {
+   await selectCue(quick.page, quick.cue!);
+   await quick.page.getByTestId('verb-take').click();
+   await expect(quick.page.getByTestId('cue-action-goalA')).toBeEnabled({ timeout: 20_000 });
+   await expect.poll(async () => (await framePlays(output)).some((f) => f.plays.length > 0), { timeout: 20_000, message: 'the score is on air' }).toBe(true);
++  }
+   // MEASURE_NET=slow (the measurement only): every page and the output at 20 Mbit/s and 50 ms from
+   // here on. Set-up is not timed. A page taken offline and back loses its throttle (one CDP setting).
+   if (NET === 'slow') for (const p of [...people.map((x) => x.page), output]) await throttle(p, 'slow');
+@@ -320,6 +364,8 @@ export interface RunOptions {
+   offlineMs?: number;
+   /** false: only the taker runs (the single-page comparison). */
+   everyone?: boolean;
++  /** Phase 9 step 7: editors type key by key without pausing, a new text as soon as the last is typed. */
++  keys?: boolean;
+ }
+ 
+ const sleepUntil = async (page: Page, at: number) => {
+@@ -344,9 +390,14 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
+     const page = taker.page;
+     for (let i = 0; live(); i++) {
+       const label = scene.takes[i % scene.takes.length];
+-      await selectCue(page, label);
++      try {
++        await selectCue(page, label);
++      } catch (e) {
++        report.errors.push(`taker select at ${Date.now() - start} ms: ${String(e).split('\n')[0].slice(0, 160)}`);
++        continue;
++      }
+       const before = await nowOn(page);
+-      await page.getByTestId('verb-take').click();
++      await page.getByTestId('verb-take').click({ timeout: 15_000 });
+       const presses = (await readLpm(page)).presses.filter((p) => p.kind === 'click' && p.target === 'verb-take' && p.t >= before);
+       const pressAt = presses[0]?.t ?? before;
+       let ranAt: number | null = null;
+@@ -360,9 +411,19 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
+         if (plays.length) ranAt = plays[0].playAt;
+         else await page.waitForTimeout(20);
+       }
+-      report.takes.push({ pressAt, ranAt, label });
++      // DIAG 9b: the press's sends (control_send_seq) and the output's realtime frames after the press.
++      const lpmAfter = await readLpm(page).catch(() => null);
++      const sends = (lpmAfter?.sends ?? []).filter((s) => s.t >= pressAt - 5 && /control_send/.test(s.name)).map((s) => ({ t: +(s.t - pressAt).toFixed(1), end: s.end ? +(s.end - pressAt).toFixed(1) : null, st: s.status ?? null, k: (s.kinds ?? []).join(','), f: s.failed ? 1 : 0 }));
++      const outLpm = await readLpm(scene.output).catch(() => null);
++      const oframes = (outLpm?.frames ?? []).filter((f) => f.t >= pressAt && (ranAt === null || f.t <= ranAt + 5)).map((f) => ({ t: +(f.t - pressAt).toFixed(1), d: f.data.slice(0, 60) }));
++      const allSends = (lpmAfter?.sends ?? []).filter((s) => s.t >= pressAt - 5 && s.t <= (ranAt ?? pressAt + 10_000)).map((s) => s.name);
++      (report.takes as unknown[]).push({ pressAt, ranAt, label, sends, oframes, others: allSends.length });
+       await page.waitForTimeout(250);
+-      await page.getByTestId('verb-out').click();
++      // PHASE 9 CLOUD: a Take the server never confirmed leaves Out disabled; record it and go on.
++      await page.getByTestId('verb-out').click({ timeout: 15_000 }).catch(async (e) => {
++        const note = (await page.locator('p', { hasText: 'Take is on this monitor only' }).first().textContent({ timeout: 1_000 }).catch(() => null)) ?? '';
++        report.errors.push(`taker out at ${Date.now() - start} ms: ${String(e).split('\n')[0].slice(0, 120)} | ${note.slice(0, 160)}`);
++      });
+       await page.waitForTimeout(400);
+     }
+   };
+@@ -392,7 +453,7 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
+         report.messages.push(entry);
+         try {
+           await ws.getByTestId('message-paste-body').fill(body);
+-          await ws.getByTestId('message-paste-add').click();
++          await ws.getByTestId('message-paste-add').click({ timeout: 20_000 });
+           const r = ws.locator('.pd-aud-row', { hasText: body });
+           await expect(r).toBeVisible({ timeout: 20_000 });
+           await r.getByTestId('audience-prepare').click();
+@@ -423,6 +484,13 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
+     let back: Promise<void> | null = null;
+     let isBack = false;
+     for (let k = 1; live(); k++) {
++      if (opts.keys) {
++        const text = `${p.cue} by ${n} #${k}`;
++        await textBox(page).selectText();
++        await page.keyboard.type(text, { delay: 35 });
++        record.typed.push(text);
++        continue;
++      }
+       await sleepUntil(page, start + k * tick);
+       if (!live()) break;
+       // The editor that lost its connection stops once it is back, so its last text is one typed
+@@ -459,8 +527,8 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
+ 
+   const loops: Promise<void>[] = [takerLoop().catch(fail('taker'))];
+   if (everyone) {
+-    loops.push(quickLoop(by('quick')[0]).catch(fail('quick')));
+-    loops.push(messagesLoop(by('messages')[0]).catch(fail('messages')));
++    if (by('quick').length) loops.push(quickLoop(by('quick')[0]).catch(fail('quick')));
++    if (by('messages').length) loops.push(messagesLoop(by('messages')[0]).catch(fail('messages')));
+     by('editor').forEach((p, n) => loops.push(editorLoop(p, n).catch(fail(`editor ${n}`))));
+   }
+   await Promise.all(loops);
+diff --git a/e2e/configured/_helpers.ts b/e2e/configured/_helpers.ts
+index 6e02fa2e..97022ed8 100644
+--- a/e2e/configured/_helpers.ts
++++ b/e2e/configured/_helpers.ts
+@@ -86,7 +86,7 @@ export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
+  */
+ export async function dismissWizard(page: Page): Promise<void> {
+   const modal = page.locator('.wz-modal');
+-  await expect(modal).toBeVisible();
++  await expect(modal).toBeVisible({ timeout: 30_000 }); // PHASE 9 CLOUD: staging boots slower under load
+   await page.locator('.wz-modal .gallery-close').click();
+   await expect(modal).toBeHidden();
+ }
+diff --git a/e2e/configured/measure/_measure.ts b/e2e/configured/measure/_measure.ts
+index f933ea6f..b7ba7015 100644
+--- a/e2e/configured/measure/_measure.ts
++++ b/e2e/configured/measure/_measure.ts
+@@ -61,6 +61,7 @@ export const OPERATOR_STAMPS = () => {
+         // Realtime sends broadcasts as binary frames; read them as text to find the press id.
+         const text = typeof e.data === 'string' ? e.data : e.data instanceof ArrayBuffer ? new TextDecoder().decode(e.data) : '';
+         if (text.includes('lp2deck:')) frames.push({ t, data: text.slice(0, 600) });
++        else if (text.includes('realtime:seq-') || text.includes('realtime:cmd-') || text.includes('realtime:log-')) frames.push({ t, data: text.slice(0, 120) });
+       });
+     }
+   };
+diff --git a/e2e/instruments/_p9.ts b/e2e/instruments/_p9.ts
+new file mode 100644
+index 00000000..baf87450
+--- /dev/null
++++ b/e2e/instruments/_p9.ts
+@@ -0,0 +1,191 @@
++// PHASE 9 CLOUD (live-publishing run #2361): shared pieces of the staging instruments. Not for main:
++// these files run only through hosted-latency.yml's `spec` dispatch, on the hosted staging project.
++import { expect, test, type Browser, type Page } from '@playwright/test';
++import { mkdirSync, writeFileSync } from 'node:fs';
++import { configuredTarget } from '../../scripts/configured-target.mjs';
++import { E2E_EMAIL, E2E_PASSWORD, SERVICE_ROLE_KEY, SUPABASE_URL, signInAs } from '../configured/_helpers';
++import { lastTexts, pageCues, serverState, setSwitch, type RunReport, type Scene, type Settled } from '../configured/_five';
++
++/** Only shard 1 runs the work; the others run one empty test so their job reads green. */
++export const SHARD1 = (process.env.SHARD ?? '1/1').startsWith('1/');
++
++/** Refuse anything but the declared staging project (or a local stack, for a dry run here). */
++export function admitStaging(): string {
++  const t = configuredTarget(process.env);
++  if (t.kind !== 'hosted-staging' && t.kind !== 'local') throw new Error(`phase 9 cloud runs only on hosted staging: ${t.kind} ${'reason' in t ? t.reason : ''}`);
++  if (/kprolrchuldgfrzspthy/i.test(SUPABASE_URL)) throw new Error('production ref: refusing');
++  return t.kind;
++}
++
++/** One line per result in the job log, and a file in test-results (uploaded as an artifact). */
++export function emit(name: string, data: unknown): void {
++  const line = JSON.stringify(data);
++  console.log(`P9RESULT ${name} ${line}`);
++  const path = test.info().outputPath(`${name}.json`);
++  mkdirSync(test.info().outputDir, { recursive: true });
++  writeFileSync(path, line);
++}
++
++const service = (path: string, init: { method?: string; body?: unknown; prefer?: string } = {}) =>
++  fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
++    method: init.method ?? 'GET',
++    headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', ...(init.prefer ? { prefer: init.prefer } : {}) },
++    body: init.body === undefined ? undefined : JSON.stringify(init.body),
++  });
++
++/** The switch rows as the staging project holds them. */
++export async function readSwitches(): Promise<Record<string, unknown>> {
++  const r = await service('system_settings?select=key,value&key=in.(auto_publish,partial_writes,production_copies,team_designs)');
++  const rows = (await r.json()) as { key: string; value: unknown }[];
++  return Object.fromEntries(rows.map((x) => [x.key, x.value]));
++}
++
++/** What the two state functions answer, asked as the signed-in owner (the role the app asks as). */
++export async function states(page: Page): Promise<{ auto: unknown; partial: unknown }> {
++  return page.evaluate(async () => {
++    const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
++    const sb = (await getSupabase())!;
++    const [a, p] = await Promise.all([sb.rpc('auto_publish_state'), sb.rpc('partial_writes_state')]);
++    return { auto: a.error ? { error: a.error.message } : a.data, partial: p.error ? { error: p.error.message } : p.data };
++  });
++}
++
++/** The states as the owner sees them, from a context of its own: the scene's build signs the owner's page in itself. */
++export async function ownerStates(browser: Browser): Promise<{ auto: unknown; partial: unknown }> {
++  const context = await browser.newContext();
++  try {
++    const page = await context.newPage();
++    await signInOwner(page);
++    return { ...(await states(page)), designs: await designsState(page) } as { auto: unknown; partial: unknown };
++  } finally {
++    await context.close();
++  }
++}
++
++export async function signInOwner(page: Page): Promise<void> {
++  await signInAs(page, E2E_EMAIL, E2E_PASSWORD);
++}
++
++/** Every switch back to what this run found (an absent row reads as off, so it is written off). */
++export async function restoreSwitches(before: Record<string, unknown>): Promise<Record<string, unknown>> {
++  const errors: string[] = [];
++  for (const key of ['auto_publish', 'partial_writes', 'production_copies', 'team_designs'] as const) {
++    const on = Boolean((before[key] as { on?: boolean } | undefined)?.on);
++    await setSwitch(key, on).catch((e) => errors.push(`${key}: ${String(e)}`));
++  }
++  const after = await readSwitches().catch((e) => ({ error: String(e) }));
++  return { after, errors };
++}
++
++/** Set the four switches for a run. */
++export async function setSwitches(on: { auto_publish: boolean; partial_writes: boolean; production_copies: boolean; team_designs: boolean }): Promise<void> {
++  for (const [k, v] of Object.entries(on)) await setSwitch(k as keyof typeof on, v);
++}
++
++/** Response times of every request to the staging project from these pages, per minute of the run. */
++export function watchStaging(pages: Page[]) {
++  const host = new URL(SUPABASE_URL).host;
++  const t0 = Date.now();
++  const rows: { at: number; ms: number }[] = [];
++  let failed = 0;
++  let aborted = 0;
++  for (const ctx of new Set(pages.map((p) => p.context()))) {
++    ctx.on('requestfinished', (req) => {
++      if (!req.url().includes(host)) return;
++      const t = req.timing();
++      if (t.responseEnd > 0) rows.push({ at: Date.now() - t0, ms: t.responseEnd });
++    });
++    ctx.on('requestfailed', (req) => {
++      if (!req.url().includes(host)) return;
++      failed += 1;
++      if ((req.failure()?.errorText ?? '').includes('ABORTED')) aborted += 1;
++    });
++  }
++  return () => {
++    const byMin = new Map<number, number[]>();
++    for (const r of rows) {
++      const m = Math.floor(r.at / 60_000);
++      byMin.set(m, [...(byMin.get(m) ?? []), r.ms]);
++    }
++    const all = rows.map((r) => r.ms);
++    return {
++      requests: rows.length, failed, aborted, all: stats(all.map((x) => Math.round(x))),
++      perMinute: [...byMin.entries()].sort((a, b) => a[0] - b[0]).map(([m, v]) => ({ minute: m, ...stats(v.map((x) => Math.round(x))) })),
++    };
++  };
++}
++
++/** What team_designs_state answers for the owner (installed, on). */
++export async function designsState(page: Page): Promise<unknown> {
++  return page.evaluate(async () => {
++    const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
++    const r = await (await getSupabase())!.rpc('team_designs_state');
++    return r.error ? { error: r.error.message } : r.data;
++  });
++}
++
++/** Wait until the server and every page hold each editor's last text, or the time is up. */
++export async function settle(s: Scene, report: RunReport, timeoutMs = 90_000, needPublished = true) {
++  const lastOf = lastTexts(report);
++  const began = Date.now();
++  const end = began + timeoutMs;
++  let state!: Settled;
++  const pages: Record<string, Record<string, string>> = {};
++  const read = async () => {
++    const [got, ...each] = await Promise.all([serverState(s), ...s.people.map((p) => pageCues(p.page, s.showId).catch(() => ({})))]);
++    state = got;
++    s.people.forEach((p, i) => (pages[p.email] = each[i]));
++  };
++  const ok = () => Object.entries(lastOf).every(([cue, text]) => state.cues[cue] === text && (!needPublished || state.published.includes(text)) && Object.values(pages).every((c) => c[cue] === text));
++  await read();
++  while (!ok() && Date.now() < end) {
++    await s.people[0].page.waitForTimeout(2_000);
++    await read();
++  }
++  const stood = Object.entries(lastOf).map(([cue, text]) => ({
++    cue,
++    typed: text,
++    record: state.cues[cue],
++    published: state.published.includes(text),
++    pagesHolding: Object.values(pages).filter((c) => c[cue] === text).length,
++    pages: Object.keys(pages).length,
++  }));
++  return { ok: ok(), settledInMs: Math.min(Date.now() - began, timeoutMs), stood, score: state.score, conflicted: state.conflicted, labels: state.labels };
++}
++
++/** Each editor's own page: box, record, team save state (#2589). */
++export async function probe(s: Scene) {
++  return Promise.all(
++    s.people
++      .filter((p) => p.role === 'editor')
++      .map(async (p) => {
++        const box = await p.page.getByTestId('cue-editor').locator('input[type="text"][data-testid^="cue-field-"]').first().inputValue({ timeout: 2_000 }).catch(() => null);
++        const state = await p.page
++          .evaluate(
++            async ({ id, cue }) => {
++              const { getTeamState, teamEditOwed } = await __noacgImport('/src/backend/teamProductions.ts');
++              const { loadShows } = await __noacgImport('/src/model/shows.ts');
++              const team = getTeamState();
++              const c = loadShows().find((x) => x.id === id)?.cues?.find((x) => x.label === cue);
++              return { record: c ? Object.values(c.values ?? {})[0] ?? '' : null, saving: team.saving[id] ?? null, note: team.notes[id] ?? null, owed: teamEditOwed(id) };
++            },
++            { id: s.showId, cue: p.cue! },
++          )
++          .catch((e) => ({ error: String(e).split('\n')[0] }));
++        return { cue: p.cue, box, ...state };
++      }),
++  );
++}
++
++export const ranOf = (r: RunReport) => r.takes.filter((t) => t.ranAt !== null).map((t) => Math.round((t.ranAt! - t.pressAt) * 10) / 10);
++export const pct = (v: number[], p: number) => {
++  if (!v.length) return null;
++  const s = [...v].sort((a, b) => a - b);
++  return s[Math.min(s.length - 1, Math.ceil((p / 100) * s.length) - 1)];
++};
++export const stats = (v: number[]) => ({ n: v.length, p50: pct(v, 50), p95: pct(v, 95), max: v.length ? Math.max(...v) : null });
++
++/** A screenshot into test-results (uploaded). */
++export const shot = (page: Page, name: string) => page.screenshot({ path: test.info().outputPath(`${name}.png`) }).catch(() => undefined);
++
++export { expect };
+diff --git a/e2e/instruments/_p9r.ts b/e2e/instruments/_p9r.ts
+new file mode 100644
+index 00000000..6c485863
+--- /dev/null
++++ b/e2e/instruments/_p9r.ts
+@@ -0,0 +1,133 @@
++// PHASE 9 STAGING RERUN (live-publishing run #2361, after #2620 #2624 #2627 #2630 #2646). Not for
++// main: runs only through hosted-latency.yml's `spec` dispatch, on the hosted staging project.
++import { test, type Browser, type Page } from '@playwright/test';
++import { log, openProduction, publishLog, run, setUp, tearDown, type Person, type Scene } from '../configured/_five';
++import { admitStaging, emit, ownerStates, pct, probe, ranOf, readSwitches, restoreSwitches, settle, setSwitches, SHARD1, shot, stats, watchStaging } from './_p9';
++
++export type Switches = { auto_publish: boolean; partial_writes: boolean; production_copies: boolean; team_designs: boolean };
++export const ON: Switches = { auto_publish: true, partial_writes: true, production_copies: true, team_designs: true };
++// Production today: the three new switches off, production_copies on (publish-guard.spec.ts).
++export const PROD: Switches = { auto_publish: false, partial_writes: false, production_copies: true, team_designs: false };
++
++/** The soak: `roles` for `ms`, one reload at 40 %, one editor offline 20 s at 60 %. */
++export function soak(name: string, roles: Person['role'][], sw: Switches, ms = 600_000) {
++  test.describe.configure({ retries: 0 });
++  if (!SHARD1) return test('idle shard', () => {});
++  test(name, async ({ page, browser }) => {
++    test.setTimeout(ms + 14 * 60_000);
++    emit('target', { kind: admitStaging() });
++    const before = await readSwitches();
++    emit('switches-before', before);
++    let scene: Scene | null = null;
++    try {
++      await setSwitches(sw);
++      emit('switches-during', await readSwitches());
++      emit('states', await ownerStates(browser));
++      scene = await setUp(browser, page, roles.length, { roles });
++      emit('publish', publishLog);
++      const net = watchStaging(scene.people.map((p) => p.page));
++      const report = await run(scene, { ms, reloadAt: 0.4, offlineAt: 0.6, offlineMs: 20_000 });
++      const netRun = net();
++      log('run over; settling');
++      const atEnd = await probe(scene);
++      for (const [i, p] of scene.people.entries()) await shot(p.page, `${name}-person${i}-${p.role}`);
++      const settled = await settle(scene, report, 120_000, false);
++      emit('soak', {
++        ms, pages: roles.length, roles, takes: report.takes.length, lost: report.takes.filter((t) => t.ranAt === null).length,
++        lostTakes: report.takes.filter((t) => t.ranAt === null), pressToRan: stats(ranOf(report)), goals: report.goals, score: settled.score,
++        messages: report.messages.length, prepared: report.messages.filter((m) => m.prepared).length, messageErrors: report.messages.filter((m) => m.error).map((m) => m.error),
++        edits: report.edits.map((e) => ({ cue: e.cue, by: e.by, texts: e.typed.length, last: e.typed[e.typed.length - 1] })),
++        reloads: report.reloads, offline: report.offline, errors: report.errors, settled, atEnd, afterSettle: await probe(scene), staging: netRun, stagingAll: net(),
++      });
++    } finally {
++      await tearDown(scene, page).catch(() => undefined);
++      emit('switches-after', await restoreSwitches(before));
++    }
++  });
++}
++
++/** Interleaved pairs: `roundMs` with everyone working, `roundMs` with the taker alone, order alternating. */
++export function pairs(name: string, roles: Person['role'][], sw: Switches, rounds: number, roundMs = Number(process.env.DIAG_ROUND_MS ?? 45_000)) {
++  test.describe.configure({ retries: 0 });
++  if (!SHARD1) return test('idle shard', () => {});
++  test(name, async ({ page, browser }) => {
++    const firstAlone = Number(process.env.GITHUB_RUN_NUMBER ?? 0) % 2 === 1;
++    test.setTimeout(rounds * 2 * (roundMs + 15_000) + 8 * 60_000);
++    emit('target', { kind: admitStaging() });
++    const before = await readSwitches();
++    emit('switches-before', before);
++    let scene: Scene | null = null;
++    const out: Record<string, unknown>[] = [];
++    try {
++      await setSwitches(sw);
++      emit('switches-during', await readSwitches());
++      scene = await setUp(browser, page, roles.length, { roles });
++      const takerNet = watchStaging([page]);
++      for (let r = 0; r < rounds; r++) {
++        const order: ('all' | 'alone')[] = (r % 2 === 0) !== firstAlone ? ['all', 'alone'] : ['alone', 'all'];
++        for (const mode of order) {
++          if (mode === 'alone') for (const p of scene.people.slice(1)) await p.page.goto('about:blank');
++          else for (const p of scene.people.slice(1)) if (p.page.url() === 'about:blank') await openProduction(p.page, scene.showId);
++          const net = watchStaging([page]);
++          const report = await run(scene, { ms: roundMs, everyone: mode === 'all', reloadAt: null, offlineAt: null });
++          const samples = ranOf(report);
++          out.push({ round: r, mode, samples, lost: report.takes.length - samples.length, errors: report.errors, staging: net().all, takes: report.takes });
++          log(`round ${r} ${mode}: n ${samples.length} p95 ${pct(samples, 95)} errors ${report.errors.length}`);
++        }
++      }
++      emit('taker-staging', takerNet());
++    } finally {
++      emit('pairs', { pages: roles.length, roles, firstAlone, rounds: out });
++      await tearDown(scene, page).catch(() => undefined);
++      emit('switches-after', await restoreSwitches(before));
++    }
++  });
++}
++
++/** Step 7: a 60-graphic production, two typists key by key and a taker; records the publish. */
++export function step7(name: string, sw: Switches, rounds = 2, roundMs = 60_000) {
++  test.describe.configure({ retries: 0 });
++  if (!SHARD1) return test('idle shard', () => {});
++  test(name, async ({ page, browser }: { page: Page; browser: Browser }) => {
++    test.setTimeout(rounds * (2 * roundMs + 70_000) + 14 * 60_000);
++    emit('target', { kind: admitStaging() });
++    const before = await readSwitches();
++    emit('switches-before', before);
++    let scene: Scene | null = null;
++    const out: Record<string, unknown>[] = [];
++    const t0 = Date.now();
++    try {
++      await setSwitches(sw);
++      emit('switches-during', await readSwitches());
++      emit('states', await ownerStates(browser));
++      try {
++        scene = await setUp(browser, page, 3, { fill: 54, roles: ['taker', 'editor', 'editor'] });
++      } finally {
++        emit('publish', { attempts: publishLog, setUpMs: Date.now() - t0 });
++      }
++      const net = watchStaging(scene.people.map((p) => p.page));
++      for (let r = 0; r < rounds; r++) {
++        const order: ('all' | 'alone')[] = r % 2 === 0 ? ['all', 'alone'] : ['alone', 'all'];
++        for (const mode of order) {
++          if (mode === 'alone') for (const p of scene.people.slice(1)) await p.page.goto('about:blank');
++          else for (const p of scene.people.slice(1)) if (p.page.url() === 'about:blank') await openProduction(p.page, scene.showId);
++          const report = await run(scene, { ms: roundMs, everyone: mode === 'all', keys: true, reloadAt: null, offlineAt: null });
++          const samples = ranOf(report);
++          const entry: Record<string, unknown> = { round: r, mode, samples, lost: report.takes.length - samples.length, errors: report.errors };
++          if (mode === 'all') {
++            entry.typed = report.edits.map((e) => ({ cue: e.cue, texts: e.typed.length, last: e.typed[e.typed.length - 1] }));
++            entry.atEnd = await probe(scene);
++            entry.settled = await settle(scene, report, 60_000, false);
++          }
++          out.push(entry);
++          log(`round ${r} ${mode}: n ${samples.length} p95 ${pct(samples, 95)} errors ${report.errors.length}`);
++        }
++      }
++      emit('staging', net());
++    } finally {
++      emit('step7', { rounds: out });
++      await tearDown(scene, page).catch(() => undefined);
++      emit('switches-after', await restoreSwitches(before));
++    }
++  });
++}
+diff --git a/e2e/instruments/p9-auto.ts b/e2e/instruments/p9-auto.ts
+new file mode 100644
+index 00000000..4d579b83
+--- /dev/null
++++ b/e2e/instruments/p9-auto.ts
+@@ -0,0 +1,289 @@
++// PHASE 9 CLOUD, dry runs of checklist steps 11 and 12 on hosted staging (not for main): with
++// auto_publish and partial_writes switched ON in staging only, after both state functions report
++// installed. Records what the production page's light said and when, and what the outputs held.
++import { test, type Page } from '@playwright/test';
++import { installDoor } from '../_door';
++import { bootstrapGraphic } from '../_create';
++import { publishProduction } from '../_publish';
++import { setSwitch } from '../configured/_five';
++import { clearPublishedShows, readyOf, signIn, unpublishForCleanup, wipeMyGraphics, SERVICE_ROLE_KEY, SUPABASE_URL } from '../configured/_helpers';
++import { admitStaging, emit, expect, readSwitches, restoreSwitches, SHARD1, shot, states } from './_p9';
++
++test.describe.configure({ retries: 0 });
++
++const SCOREBUG = 'House Scorebug';
++const STRAP = 'Hairline';
++
++async function libraryGraphic(page: Page, name: string): Promise<void> {
++  await bootstrapGraphic(page, { name });
++  expect(
++    await page.evaluate(async () => {
++      const { createGraphic } = await __noacgImport('/src/model/library.ts');
++      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
++      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
++      const { template } = useTemplateStore.getState();
++      const { error } = createGraphic(template, { name: template.name });
++      return error ?? (await commitDurableWrites());
++    }),
++  ).toBeFalsy();
++}
++
++async function editInLibrary(page: Page, showId: string, graphic: string, note: string): Promise<boolean> {
++  return page.evaluate(
++    async ([id, name, comment]) => {
++      const { loadShows, updateCopyFromLibrary } = await __noacgImport('/src/model/shows.ts');
++      const { loadGraphics, newerLibraryDesign, resolveSavedGraphicDoc, updateGraphic } = await __noacgImport('/src/model/library.ts');
++      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
++      const pooled = loadShows().find((s) => s.id === id)?.graphics.find((g) => g.name === name);
++      const doc = pooled ? resolveSavedGraphicDoc(pooled, loadGraphics()) : undefined;
++      if (!pooled || !doc) return false;
++      const { error } = updateGraphic(doc.id, { template: { ...doc.template, css: `${doc.template.css}\n/* ${comment} */` } });
++      if (error) return false;
++      const newer = newerLibraryDesign(pooled, loadGraphics());
++      if (!newer) return false;
++      const updated = updateCopyFromLibrary(id, pooled.id, newer, pooled.savedAt);
++      return !updated.error && !(await commitDurableWrites());
++    },
++    [showId, graphic, note] as [string, string, string],
++  );
++}
++
++const service = (path: string) =>
++  fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } }).then((r) => r.json());
++
++async function server(showId: string) {
++  const rows = await service(`control_shows?id=eq.${showId}&select=published_rev,output`);
++  const output = rows[0]?.output as { ver?: { n: number }; cues?: { label: string; values?: Record<string, string> }[]; graphics?: { key: string }[] } | undefined;
++  return { published: rows[0]?.published_rev ?? null, n: output?.ver?.n ?? null, labels: (output?.cues ?? []).map((c) => c.label), text: JSON.stringify(output?.cues ?? []), graphics: (output?.graphics ?? []).map((g) => g.key) };
++}
++
++/** Record every change of the production page's light: tone and text, with a timestamp. */
++async function watchLight(page: Page): Promise<void> {
++  await page.evaluate(() => {
++    const w = window as unknown as { __p9light?: { t: number; tone: string | null; text: string }[]; __p9timer?: number };
++    w.__p9light = [];
++    let last = '';
++    w.__p9timer = window.setInterval(() => {
++      const el = document.querySelector('[data-testid="production-status"]');
++      const tone = el?.getAttribute('data-tone') ?? null;
++      const text = (el?.textContent ?? '').trim().slice(0, 160);
++      const key = `${tone}|${text}`;
++      if (key !== last) { last = key; w.__p9light!.push({ t: Date.now(), tone, text }); }
++    }, 50);
++  });
++}
++const light = (page: Page) => page.evaluate(() => (window as unknown as { __p9light?: { t: number; tone: string | null; text: string }[] }).__p9light ?? []);
++const holds = async (out: Page) => ((await readyOf(out)) as { v?: { n: number } } | null)?.v?.n ?? 0;
++const outputUrl = (slug: string, name: string, extra = '') => `/output?production=${encodeURIComponent(slug)}&destination=browser&name=${encodeURIComponent(name)}&debug=1${extra}`;
++const selectCue = async (page: Page, hasText: string) => page.getByTestId('select-cue').filter({ hasText }).first().click({ timeout: 30_000 });
++
++if (!SHARD1) test('idle shard', () => {});
++else
++  test('steps 11 and 12: automatic updates and a design change on air', async ({ page, browser }) => {
++    test.setTimeout(20 * 60_000);
++    emit('target', { kind: admitStaging() });
++    const before = await readSwitches();
++    emit('switches-before', before);
++    const result: Record<string, unknown> = {};
++    try {
++      await installDoor(page.context());
++      await signIn(page);
++      await page.keyboard.press('Escape');
++      const st = await states(page);
++      emit('states', st);
++      const installed = (st.auto as { installed?: boolean })?.installed === true && (st.partial as { installed?: boolean })?.installed === true;
++      if (!installed) throw new Error(`not installed on staging: ${JSON.stringify(st)}`);
++      await setSwitch('production_copies', true);
++      await setSwitch('auto_publish', false);
++      await setSwitch('partial_writes', false);
++      await clearPublishedShows(page);
++      await wipeMyGraphics(page);
++      await libraryGraphic(page, SCOREBUG);
++      await libraryGraphic(page, STRAP);
++      const showId = await page.evaluate(
++        async ([showName, names]) => {
++          const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
++          const { loadGraphics } = await __noacgImport('/src/model/library.ts');
++          const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
++          const { show, error } = createShowNamedChecked(showName);
++          if (error) throw new Error(error);
++          for (const name of names) {
++            const doc = loadGraphics().find((g) => g.name === name)!;
++            const added = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
++            if (added.error) throw new Error(added.error);
++          }
++          const failure = await commitDurableWrites();
++          if (failure) throw new Error(failure);
++          return show.id;
++        },
++        [`P9 auto ${Date.now()}`, [SCOREBUG, STRAP]] as [string, string[]],
++      );
++      await page.goto(`/app#/production/${showId}`);
++      await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
++      await publishProduction(page);
++      const slug = await page.evaluate(async (id) => {
++        const { loadShows } = await __noacgImport('/src/model/shows.ts');
++        return loadShows().find((x) => x.id === id)?.outputSlug ?? '';
++      }, showId);
++
++      // Outputs opened BEFORE the switch: one of this build, one behaving as an older build.
++      const viewers = await browser.newContext();
++      await installDoor(viewers);
++      const air = await viewers.newPage();
++      await air.goto(outputUrl(slug, 'Desk A'));
++      const old = await viewers.newPage();
++      await old.goto(outputUrl(slug, 'Old', '&oldbuild=1'));
++      await expect.poll(() => holds(air), { timeout: 90_000 }).toBeGreaterThan(0);
++      await expect.poll(() => holds(old), { timeout: 90_000 }).toBeGreaterThan(0);
++
++      // Switch on in staging, with the page open; the page reads the switch every 30 s.
++      await setSwitch('partial_writes', true);
++      await setSwitch('auto_publish', true);
++      const switchedAt = Date.now();
++      emit('states-on', await states(page));
++      await watchLight(page);
++      await expect.poll(async () => page.getByTestId('production-status').textContent(), { timeout: 60_000 }).toContain('Reload Old when nothing is on air').catch(() => undefined);
++      result.oldNamedAfterMs = (await page.getByTestId('production-status').textContent())?.includes('Reload Old') ? Date.now() - switchedAt : null;
++      await page.waitForTimeout(Math.max(0, 35_000 - (Date.now() - switchedAt)));
++      await shot(page, 'step11-after-switch-on');
++
++      // 11.1: edits with no press.
++      const changes: Record<string, unknown>[] = [];
++      const measure = async (name: string, act: () => Promise<void>, landed: (s: Awaited<ReturnType<typeof server>>) => boolean) => {
++        const n0 = (await server(showId)).n ?? 0;
++        const t0 = Date.now();
++        await act();
++        let serverMs: number | null = null, airMs: number | null = null, oldMs: number | null = null;
++        const end = t0 + 90_000;
++        while (Date.now() < end && (serverMs === null || airMs === null || oldMs === null)) {
++          const s = await server(showId);
++          if (serverMs === null && landed(s) && (s.n ?? 0) > n0) serverMs = Date.now() - t0;
++          if (serverMs !== null) {
++            if (airMs === null && (await holds(air)) === s.n) airMs = Date.now() - t0;
++            if (oldMs === null && (await holds(old)) === s.n) oldMs = Date.now() - t0;
++          }
++          await page.waitForTimeout(100);
++        }
++        const seen = (await light(page)).filter((x) => x.t >= t0).map((x) => ({ ms: x.t - t0, tone: x.tone, text: x.text }));
++        const pressVisible = await page.getByTestId('production-publish-changes').count();
++        changes.push({ name, serverMs, deskAMs: airMs, oldMs, light: seen, publishChangesButton: pressVisible });
++      };
++      await measure(
++        'cue text typed',
++        async () => {
++          await selectCue(page, STRAP);
++          const box = page.getByTestId('cue-editor').locator('input[type="text"][data-testid^="cue-field-"]').first();
++          await box.selectText();
++          await page.keyboard.type('P9 typed text', { delay: 40 });
++        },
++        (s) => s.text.includes('P9 typed text'),
++      );
++      await shot(page, 'step11-after-typed');
++      const edit = (change: string, arg: string) =>
++        page.evaluate(async ({ id, change, arg }) => {
++          const shows = await __noacgImport('/src/model/shows.ts');
++          const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
++          const s = shows.loadShows().find((x) => x.id === id)!;
++          if (change === 'remove-graphic') shows.removeShowGraphic(id, s.graphics.find((g) => g.name === arg)!.id);
++          if (change === 'add-graphic') {
++            const added = shows.addGraphicToShow(id, { ...s.graphics.find((g) => g.name === 'Hairline')!.template, name: arg });
++            if (added.error) throw new Error(added.error);
++          }
++          if (change === 'label') shows.updateShowCue(id, (s.cues ?? [])[0].id, { label: arg });
++          const failure = await commitDurableWrites();
++          if (failure) throw new Error(failure);
++        }, { id: showId, change, arg });
++      await measure('graphic added', () => edit('add-graphic', 'P9 second strap'), (s) => s.graphics.includes('P9 second strap'));
++      await measure('graphic removed', () => edit('remove-graphic', 'P9 second strap'), (s) => !s.graphics.includes('P9 second strap'));
++      result.changes = changes;
++      result.statusAfterEdits = { tone: await page.getByTestId('production-status').getAttribute('data-tone'), text: await page.getByTestId('production-status').textContent() };
++      await shot(page, 'step11-after-edits');
++
++      // 11.2: close the page with a change not yet published; another computer opens it.
++      await page.route('**/rest/v1/control_shows**', (r) => (r.request().method() === 'GET' ? r.continue() : r.abort()));
++      await page.route('**/rest/v1/rpc/control_publish**', (r) => r.abort());
++      await edit('label', 'P9 closed unpublished');
++      await page.waitForTimeout(5_000);
++      const heldBack = !(await server(showId)).labels.includes('P9 closed unpublished');
++      await page.close();
++      const other = await browser.newContext();
++      await installDoor(other);
++      const page2 = await other.newPage();
++      await signIn(page2);
++      await page2.keyboard.press('Escape').catch(() => undefined);
++      const t2 = Date.now();
++      await page2.goto(`/app#/production/${showId}`);
++      await expect(page2.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
++      let publishedMs: number | null = null;
++      await expect
++        .poll(async () => (await server(showId)).labels.includes('P9 closed unpublished'), { timeout: 120_000, intervals: [500] })
++        .toBe(true)
++        .then(() => (publishedMs = Date.now() - t2))
++        .catch(() => undefined);
++      result.closedUnpublished = { heldBackBeforeClose: heldBack, publishedFromOtherComputerMs: publishedMs };
++
++      // 11.3: which outputs the page asks to reload.
++      await watchLight(page2);
++      await page2.waitForTimeout(5_000);
++      const status2 = (await page2.getByTestId('production-status').textContent()) ?? '';
++      await page2.getByTestId('production-status').click();
++      const panelText = (await page2.getByTestId('production-status-panel').textContent().catch(() => '')) ?? '';
++      await shot(page2, 'step11-reload-old-output');
++      await page2.keyboard.press('Escape');
++      result.reload = { status: status2, oldNamed: /Reload Old when nothing is on air/.test(status2 + panelText), deskANamed: /Reload Desk A/.test(status2 + panelText), panel: panelText.slice(0, 600) };
++
++      // 12 runs with only current outputs: the older one's reload notice outranks every other light.
++      await old.close();
++      const tOld = Date.now();
++      await expect.poll(async () => (await page2.getByTestId('production-status').textContent()) ?? '', { timeout: 120_000, intervals: [500] }).not.toContain('Reload Old').catch(() => undefined);
++      result.oldGone = { afterMs: Date.now() - tOld, status: await page2.getByTestId('production-status').textContent(), tone: await page2.getByTestId('production-status').getAttribute('data-tone') };
++      await shot(page2, 'step12-before-old-closed-light');
++
++      // 12: the scorebug's design changes while it is on air, with no press.
++      await selectCue(page2, 'P9 closed unpublished');
++      await page2.getByTestId('verb-take').click();
++      await expect.poll(() => air.locator('body').getAttribute('data-plays'), { timeout: 30_000 }).toBe('1');
++      const onAir = air.locator(`iframe[title="${SCOREBUG}"]:not([data-prepared])`);
++      await onAir.evaluate((el) => el.setAttribute('data-probe', 'before'));
++      const t3 = Date.now();
++      const changed = await editInLibrary(page2, showId, SCOREBUG, 'p9 design change');
++      let namedMs: number | null = null;
++      await expect
++        .poll(async () => (await page2.getByTestId('production-status').textContent()) ?? '', { timeout: 120_000, intervals: [200] })
++        .toContain(`${SCOREBUG}: new design at next Take`)
++        .then(() => (namedMs = Date.now() - t3))
++        .catch(() => undefined);
++      const tone12 = await page2.getByTestId('production-status').getAttribute('data-tone');
++      const stillSameFrame = await onAir.getAttribute('data-probe').catch(() => null);
++      await shot(page2, 'step12-new-design-at-next-take');
++      await shot(air, 'step12-output-still-old');
++      const light12 = (await light(page2)).filter((x) => x.t >= t3).map((x) => ({ ms: x.t - t3, tone: x.tone, text: x.text }));
++      // Out, then Take again: the new design.
++      await page2.getByTestId('verb-out').click();
++      await expect.poll(async () => ((await readyOf(air)) as { chg?: unknown } | null)?.chg ?? null, { timeout: 60_000 }).toBeNull().catch(() => undefined);
++      await page2.waitForTimeout(1_000);
++      await selectCue(page2, 'P9 closed unpublished');
++      await page2.getByTestId('verb-take').click();
++      await expect.poll(() => air.locator('body').getAttribute('data-plays'), { timeout: 30_000 }).toBe('2').catch(() => undefined);
++      const newOnAir = air.locator(`iframe[title="${SCOREBUG}"]:not([data-prepared])`);
++      const hasNewDesign = await newOnAir
++        .first()
++        .evaluate((el) => {
++          const doc = (el as HTMLIFrameElement).contentDocument;
++          return (doc?.documentElement.outerHTML ?? (el as HTMLIFrameElement).srcdoc ?? '').includes('p9 design change');
++        })
++        .catch((e) => `unreadable: ${String(e).slice(0, 120)}`);
++      await shot(air, 'step12-output-after-next-take');
++      result.step12 = { libraryEdit: changed, namedAfterMs: namedMs, tone: tone12, frameKeptWhileOnAir: stillSameFrame === 'before', light: light12, nextTakeHasNewDesign: hasNewDesign, plays: await air.locator('body').getAttribute('data-plays') };
++
++      await page2.getByTestId('verb-out').click().catch(() => undefined);
++      await unpublishForCleanup(page2).catch(() => undefined);
++      await clearPublishedShows(page2).catch(() => undefined);
++      await wipeMyGraphics(page2).catch(() => undefined);
++      await other.close();
++      await viewers.close();
++    } finally {
++      emit('auto', result);
++      emit('switches-after', await restoreSwitches(before));
++    }
++  });
+diff --git a/e2e/instruments/p9-seven.ts b/e2e/instruments/p9-seven.ts
+new file mode 100644
+index 00000000..948630bd
+--- /dev/null
++++ b/e2e/instruments/p9-seven.ts
+@@ -0,0 +1,43 @@
++// PHASE 9 CLOUD, a report for #2589 on hosted staging (not for main): seven typists (ten pages:
++// taker, messages, quick, seven editors) on one team production, both switches on as in phase 8's
++// ten-page runs. One reload, one 20 s offline. Each editor's own page probed at the end and after settling.
++import { test } from '@playwright/test';
++import { log, run, setSwitch, setUp, tearDown, type Scene } from '../configured/_five';
++import { admitStaging, emit, probe, ranOf, readSwitches, restoreSwitches, settle, SHARD1, ownerStates, states, stats } from './_p9';
++
++test.describe.configure({ retries: 0 });
++
++if (!SHARD1) test('idle shard', () => {});
++else
++  test('seven typists', async ({ page, browser }) => {
++    const ms = Number(process.env.P9_MS ?? 480_000);
++    test.setTimeout(ms + 13 * 60_000);
++    emit('target', { kind: admitStaging() });
++    const before = await readSwitches();
++    emit('switches-before', before);
++    let scene: Scene | null = null;
++    try {
++      const st = await ownerStates(browser);
++      emit('states', st);
++      const installed = (st.auto as { installed?: boolean })?.installed === true && (st.partial as { installed?: boolean })?.installed === true;
++      if (!installed) throw new Error(`switches not installed on staging: ${JSON.stringify(st)}`);
++      await setSwitch('production_copies', true);
++      await setSwitch('partial_writes', true);
++      await setSwitch('auto_publish', true);
++      emit('states-on', await ownerStates(browser));
++      scene = await setUp(browser, page, 10);
++      const report = await run(scene, { ms, reloadAt: 0.4, offlineAt: 0.6, offlineMs: 20_000 });
++      log('run over; settling');
++      const atEnd = await probe(scene);
++      const settled = await settle(scene, report, 120_000, true);
++      const lost = report.takes.filter((t) => t.ranAt === null).length;
++      emit('seven', {
++        ms, pages: 10, takes: report.takes.length, lost, pressToRan: stats(ranOf(report)), goals: report.goals, score: settled.score,
++        messages: report.messages.length, prepared: report.messages.filter((m) => m.prepared).length,
++        reloads: report.reloads, offline: report.offline, errors: report.errors, settled, atEnd, afterSettle: await probe(scene),
++      });
++    } finally {
++      await tearDown(scene, page).catch(() => undefined);
++      emit('switches-after', await restoreSwitches(before));
++    }
++  });
+diff --git a/e2e/instruments/p9-step12.ts b/e2e/instruments/p9-step12.ts
+new file mode 100644
+index 00000000..43fd830e
+--- /dev/null
++++ b/e2e/instruments/p9-step12.ts
+@@ -0,0 +1,290 @@
++// PHASE 9 CLOUD variant of p9-auto.ts: no older output, so the light can show the O3 note (step 12).
++// PHASE 9 CLOUD, dry runs of checklist steps 11 and 12 on hosted staging (not for main): with
++// auto_publish and partial_writes switched ON in staging only, after both state functions report
++// installed. Records what the production page's light said and when, and what the outputs held.
++import { test, type Page } from '@playwright/test';
++import { installDoor } from '../_door';
++import { bootstrapGraphic } from '../_create';
++import { publishProduction } from '../_publish';
++import { setSwitch } from '../configured/_five';
++import { clearPublishedShows, readyOf, signIn, unpublishForCleanup, wipeMyGraphics, SERVICE_ROLE_KEY, SUPABASE_URL } from '../configured/_helpers';
++import { admitStaging, emit, expect, readSwitches, restoreSwitches, SHARD1, shot, states } from './_p9';
++
++test.describe.configure({ retries: 0 });
++
++const SCOREBUG = 'House Scorebug';
++const STRAP = 'Hairline';
++
++async function libraryGraphic(page: Page, name: string): Promise<void> {
++  await bootstrapGraphic(page, { name });
++  expect(
++    await page.evaluate(async () => {
++      const { createGraphic } = await __noacgImport('/src/model/library.ts');
++      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
++      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
++      const { template } = useTemplateStore.getState();
++      const { error } = createGraphic(template, { name: template.name });
++      return error ?? (await commitDurableWrites());
++    }),
++  ).toBeFalsy();
++}
++
++async function editInLibrary(page: Page, showId: string, graphic: string, note: string): Promise<boolean> {
++  return page.evaluate(
++    async ([id, name, comment]) => {
++      const { loadShows, updateCopyFromLibrary } = await __noacgImport('/src/model/shows.ts');
++      const { loadGraphics, newerLibraryDesign, resolveSavedGraphicDoc, updateGraphic } = await __noacgImport('/src/model/library.ts');
++      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
++      const pooled = loadShows().find((s) => s.id === id)?.graphics.find((g) => g.name === name);
++      const doc = pooled ? resolveSavedGraphicDoc(pooled, loadGraphics()) : undefined;
++      if (!pooled || !doc) return false;
++      const { error } = updateGraphic(doc.id, { template: { ...doc.template, css: `${doc.template.css}\n/* ${comment} */` } });
++      if (error) return false;
++      const newer = newerLibraryDesign(pooled, loadGraphics());
++      if (!newer) return false;
++      const updated = updateCopyFromLibrary(id, pooled.id, newer, pooled.savedAt);
++      return !updated.error && !(await commitDurableWrites());
++    },
++    [showId, graphic, note] as [string, string, string],
++  );
++}
++
++const service = (path: string) =>
++  fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } }).then((r) => r.json());
++
++async function server(showId: string) {
++  const rows = await service(`control_shows?id=eq.${showId}&select=published_rev,output`);
++  const output = rows[0]?.output as { ver?: { n: number }; cues?: { label: string; values?: Record<string, string> }[]; graphics?: { key: string }[] } | undefined;
++  return { published: rows[0]?.published_rev ?? null, n: output?.ver?.n ?? null, labels: (output?.cues ?? []).map((c) => c.label), text: JSON.stringify(output?.cues ?? []), graphics: (output?.graphics ?? []).map((g) => g.key) };
++}
++
++/** Record every change of the production page's light: tone and text, with a timestamp. */
++async function watchLight(page: Page): Promise<void> {
++  await page.evaluate(() => {
++    const w = window as unknown as { __p9light?: { t: number; tone: string | null; text: string }[]; __p9timer?: number };
++    w.__p9light = [];
++    let last = '';
++    w.__p9timer = window.setInterval(() => {
++      const el = document.querySelector('[data-testid="production-status"]');
++      const tone = el?.getAttribute('data-tone') ?? null;
++      const text = (el?.textContent ?? '').trim().slice(0, 160);
++      const key = `${tone}|${text}`;
++      if (key !== last) { last = key; w.__p9light!.push({ t: Date.now(), tone, text }); }
++    }, 50);
++  });
++}
++const light = (page: Page) => page.evaluate(() => (window as unknown as { __p9light?: { t: number; tone: string | null; text: string }[] }).__p9light ?? []);
++const holds = async (out: Page) => ((await readyOf(out)) as { v?: { n: number } } | null)?.v?.n ?? 0;
++const outputUrl = (slug: string, name: string, extra = '') => `/output?production=${encodeURIComponent(slug)}&destination=browser&name=${encodeURIComponent(name)}&debug=1${extra}`;
++const selectCue = async (page: Page, hasText: string) => page.getByTestId('select-cue').filter({ hasText }).first().click({ timeout: 30_000 });
++
++if (!SHARD1) test('idle shard', () => {});
++else
++  test('step 12 with current outputs only', async ({ page, browser }) => {
++    test.setTimeout(20 * 60_000);
++    emit('target', { kind: admitStaging() });
++    const before = await readSwitches();
++    emit('switches-before', before);
++    const result: Record<string, unknown> = {};
++    try {
++      await installDoor(page.context());
++      await signIn(page);
++      await page.keyboard.press('Escape');
++      const st = await states(page);
++      emit('states', st);
++      const installed = (st.auto as { installed?: boolean })?.installed === true && (st.partial as { installed?: boolean })?.installed === true;
++      if (!installed) throw new Error(`not installed on staging: ${JSON.stringify(st)}`);
++      await setSwitch('production_copies', true);
++      await setSwitch('auto_publish', false);
++      await setSwitch('partial_writes', false);
++      await clearPublishedShows(page);
++      await wipeMyGraphics(page);
++      await libraryGraphic(page, SCOREBUG);
++      await libraryGraphic(page, STRAP);
++      const showId = await page.evaluate(
++        async ([showName, names]) => {
++          const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
++          const { loadGraphics } = await __noacgImport('/src/model/library.ts');
++          const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
++          const { show, error } = createShowNamedChecked(showName);
++          if (error) throw new Error(error);
++          for (const name of names) {
++            const doc = loadGraphics().find((g) => g.name === name)!;
++            const added = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
++            if (added.error) throw new Error(added.error);
++          }
++          const failure = await commitDurableWrites();
++          if (failure) throw new Error(failure);
++          return show.id;
++        },
++        [`P9 auto ${Date.now()}`, [SCOREBUG, STRAP]] as [string, string[]],
++      );
++      await page.goto(`/app#/production/${showId}`);
++      await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
++      await publishProduction(page);
++      const slug = await page.evaluate(async (id) => {
++        const { loadShows } = await __noacgImport('/src/model/shows.ts');
++        return loadShows().find((x) => x.id === id)?.outputSlug ?? '';
++      }, showId);
++
++      // Outputs opened BEFORE the switch: one of this build, one behaving as an older build.
++      const viewers = await browser.newContext();
++      await installDoor(viewers);
++      const air = await viewers.newPage();
++      await air.goto(outputUrl(slug, 'Desk A'));
++      const old = await viewers.newPage();
++      await old.goto(outputUrl(slug, 'Old'));
++      await expect.poll(() => holds(air), { timeout: 90_000 }).toBeGreaterThan(0);
++      await expect.poll(() => holds(old), { timeout: 90_000 }).toBeGreaterThan(0);
++
++      // Switch on in staging, with the page open; the page reads the switch every 30 s.
++      await setSwitch('partial_writes', true);
++      await setSwitch('auto_publish', true);
++      const switchedAt = Date.now();
++      emit('states-on', await states(page));
++      await watchLight(page);
++      await expect.poll(async () => page.getByTestId('production-status').textContent(), { timeout: 60_000 }).toContain('Reload Old when nothing is on air').catch(() => undefined);
++      result.oldNamedAfterMs = (await page.getByTestId('production-status').textContent())?.includes('Reload Old') ? Date.now() - switchedAt : null;
++      await page.waitForTimeout(Math.max(0, 35_000 - (Date.now() - switchedAt)));
++      await shot(page, 'step11-after-switch-on');
++
++      // 11.1: edits with no press.
++      const changes: Record<string, unknown>[] = [];
++      const measure = async (name: string, act: () => Promise<void>, landed: (s: Awaited<ReturnType<typeof server>>) => boolean) => {
++        const n0 = (await server(showId)).n ?? 0;
++        const t0 = Date.now();
++        await act();
++        let serverMs: number | null = null, airMs: number | null = null, oldMs: number | null = null;
++        const end = t0 + 90_000;
++        while (Date.now() < end && (serverMs === null || airMs === null || oldMs === null)) {
++          const s = await server(showId);
++          if (serverMs === null && landed(s) && (s.n ?? 0) > n0) serverMs = Date.now() - t0;
++          if (serverMs !== null) {
++            if (airMs === null && (await holds(air)) === s.n) airMs = Date.now() - t0;
++            if (oldMs === null && (await holds(old)) === s.n) oldMs = Date.now() - t0;
++          }
++          await page.waitForTimeout(100);
++        }
++        const seen = (await light(page)).filter((x) => x.t >= t0).map((x) => ({ ms: x.t - t0, tone: x.tone, text: x.text }));
++        const pressVisible = await page.getByTestId('production-publish-changes').count();
++        changes.push({ name, serverMs, deskAMs: airMs, oldMs, light: seen, publishChangesButton: pressVisible });
++      };
++      await measure(
++        'cue text typed',
++        async () => {
++          await selectCue(page, STRAP);
++          const box = page.getByTestId('cue-editor').locator('input[type="text"][data-testid^="cue-field-"]').first();
++          await box.selectText();
++          await page.keyboard.type('P9 typed text', { delay: 40 });
++        },
++        (s) => s.text.includes('P9 typed text'),
++      );
++      await shot(page, 'step11-after-typed');
++      const edit = (change: string, arg: string) =>
++        page.evaluate(async ({ id, change, arg }) => {
++          const shows = await __noacgImport('/src/model/shows.ts');
++          const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
++          const s = shows.loadShows().find((x) => x.id === id)!;
++          if (change === 'remove-graphic') shows.removeShowGraphic(id, s.graphics.find((g) => g.name === arg)!.id);
++          if (change === 'add-graphic') {
++            const added = shows.addGraphicToShow(id, { ...s.graphics.find((g) => g.name === 'Hairline')!.template, name: arg });
++            if (added.error) throw new Error(added.error);
++          }
++          if (change === 'label') shows.updateShowCue(id, (s.cues ?? [])[0].id, { label: arg });
++          const failure = await commitDurableWrites();
++          if (failure) throw new Error(failure);
++        }, { id: showId, change, arg });
++      await measure('graphic added', () => edit('add-graphic', 'P9 second strap'), (s) => s.graphics.includes('P9 second strap'));
++      await measure('graphic removed', () => edit('remove-graphic', 'P9 second strap'), (s) => !s.graphics.includes('P9 second strap'));
++      result.changes = changes;
++      result.statusAfterEdits = { tone: await page.getByTestId('production-status').getAttribute('data-tone'), text: await page.getByTestId('production-status').textContent() };
++      await shot(page, 'step11-after-edits');
++
++      // 11.2: close the page with a change not yet published; another computer opens it.
++      await page.route('**/rest/v1/control_shows**', (r) => (r.request().method() === 'GET' ? r.continue() : r.abort()));
++      await page.route('**/rest/v1/rpc/control_publish**', (r) => r.abort());
++      await edit('label', 'P9 closed unpublished');
++      await page.waitForTimeout(5_000);
++      const heldBack = !(await server(showId)).labels.includes('P9 closed unpublished');
++      await page.close();
++      const other = await browser.newContext();
++      await installDoor(other);
++      const page2 = await other.newPage();
++      await signIn(page2);
++      await page2.keyboard.press('Escape').catch(() => undefined);
++      const t2 = Date.now();
++      await page2.goto(`/app#/production/${showId}`);
++      await expect(page2.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
++      let publishedMs: number | null = null;
++      await expect
++        .poll(async () => (await server(showId)).labels.includes('P9 closed unpublished'), { timeout: 120_000, intervals: [500] })
++        .toBe(true)
++        .then(() => (publishedMs = Date.now() - t2))
++        .catch(() => undefined);
++      result.closedUnpublished = { heldBackBeforeClose: heldBack, publishedFromOtherComputerMs: publishedMs };
++
++      // 11.3: which outputs the page asks to reload.
++      await watchLight(page2);
++      await page2.waitForTimeout(5_000);
++      const status2 = (await page2.getByTestId('production-status').textContent()) ?? '';
++      await page2.getByTestId('production-status').click();
++      const panelText = (await page2.getByTestId('production-status-panel').textContent().catch(() => '')) ?? '';
++      await shot(page2, 'step11-reload-old-output');
++      await page2.keyboard.press('Escape');
++      result.reload = { status: status2, oldNamed: /Reload Old when nothing is on air/.test(status2 + panelText), deskANamed: /Reload Desk A/.test(status2 + panelText), panel: panelText.slice(0, 600) };
++
++      // 12 runs with only current outputs: the older one's reload notice outranks every other light.
++      // Variant: both outputs run the current build, so nothing outranks the step 12 note.
++      const tOld = Date.now();
++      await expect.poll(async () => (await page2.getByTestId('production-status').textContent()) ?? '', { timeout: 120_000, intervals: [500] }).not.toContain('Reload Old').catch(() => undefined);
++      result.oldGone = { afterMs: Date.now() - tOld, status: await page2.getByTestId('production-status').textContent(), tone: await page2.getByTestId('production-status').getAttribute('data-tone') };
++      await shot(page2, 'step12-before-old-closed-light');
++
++      // 12: the scorebug's design changes while it is on air, with no press.
++      await selectCue(page2, 'P9 closed unpublished');
++      await page2.getByTestId('verb-take').click();
++      await expect.poll(() => air.locator('body').getAttribute('data-plays'), { timeout: 30_000 }).toBe('1');
++      const onAir = air.locator(`iframe[title="${SCOREBUG}"]:not([data-prepared])`);
++      await onAir.evaluate((el) => el.setAttribute('data-probe', 'before'));
++      const t3 = Date.now();
++      const changed = await editInLibrary(page2, showId, SCOREBUG, 'p9 design change');
++      let namedMs: number | null = null;
++      await expect
++        .poll(async () => (await page2.getByTestId('production-status').textContent()) ?? '', { timeout: 120_000, intervals: [200] })
++        .toContain(`${SCOREBUG}: new design at next Take`)
++        .then(() => (namedMs = Date.now() - t3))
++        .catch(() => undefined);
++      const tone12 = await page2.getByTestId('production-status').getAttribute('data-tone');
++      const stillSameFrame = await onAir.getAttribute('data-probe').catch(() => null);
++      await shot(page2, 'step12-new-design-at-next-take');
++      await shot(air, 'step12-output-still-old');
++      const light12 = (await light(page2)).filter((x) => x.t >= t3).map((x) => ({ ms: x.t - t3, tone: x.tone, text: x.text }));
++      // Out, then Take again: the new design.
++      await page2.getByTestId('verb-out').click();
++      await expect.poll(async () => ((await readyOf(air)) as { chg?: unknown } | null)?.chg ?? null, { timeout: 60_000 }).toBeNull().catch(() => undefined);
++      await page2.waitForTimeout(1_000);
++      await selectCue(page2, 'P9 closed unpublished');
++      await page2.getByTestId('verb-take').click();
++      await expect.poll(() => air.locator('body').getAttribute('data-plays'), { timeout: 30_000 }).toBe('2').catch(() => undefined);
++      const newOnAir = air.locator(`iframe[title="${SCOREBUG}"]:not([data-prepared])`);
++      const hasNewDesign = await newOnAir
++        .first()
++        .evaluate((el) => {
++          const doc = (el as HTMLIFrameElement).contentDocument;
++          return (doc?.documentElement.outerHTML ?? (el as HTMLIFrameElement).srcdoc ?? '').includes('p9 design change');
++        })
++        .catch((e) => `unreadable: ${String(e).slice(0, 120)}`);
++      await shot(air, 'step12-output-after-next-take');
++      result.step12 = { libraryEdit: changed, namedAfterMs: namedMs, tone: tone12, frameKeptWhileOnAir: stillSameFrame === 'before', light: light12, nextTakeHasNewDesign: hasNewDesign, plays: await air.locator('body').getAttribute('data-plays') };
++
++      await page2.getByTestId('verb-out').click().catch(() => undefined);
++      await unpublishForCleanup(page2).catch(() => undefined);
++      await clearPublishedShows(page2).catch(() => undefined);
++      await wipeMyGraphics(page2).catch(() => undefined);
++      await other.close();
++      await viewers.close();
++    } finally {
++      emit('auto', result);
++      emit('switches-after', await restoreSwitches(before));
++    }
++  });
+diff --git a/e2e/instruments/p9-step7.ts b/e2e/instruments/p9-step7.ts
+new file mode 100644
+index 00000000..2c04773e
+--- /dev/null
++++ b/e2e/instruments/p9-step7.ts
+@@ -0,0 +1,51 @@
++// PHASE 9 CLOUD, checklist step 7 on hosted staging (not for main): a team production of 60
++// graphics; two operators, each their own staging account, type key by key into different cues
++// without pausing while a third takes. Interleaved with the taker alone, switches as production today.
++import { test } from '@playwright/test';
++import { log, openProduction, run, setSwitch, setUp, tearDown, type Scene } from '../configured/_five';
++import { admitStaging, emit, pct, probe, ranOf, readSwitches, restoreSwitches, settle, SHARD1, shot } from './_p9';
++
++test.describe.configure({ retries: 0 });
++
++if (!SHARD1) test('idle shard', () => {});
++else
++  test('step 7: two typists and a taker on 60 graphics', async ({ page, browser }) => {
++    const rounds = Number(process.env.P9_ROUNDS ?? 4);
++    const roundMs = 60_000;
++    test.setTimeout(rounds * (2 * roundMs + 70_000) + 12 * 60_000);
++    emit('target', { kind: admitStaging() });
++    const before = await readSwitches();
++    emit('switches-before', before);
++    let scene: Scene | null = null;
++    const out: Record<string, unknown>[] = [];
++    try {
++      await setSwitch('auto_publish', false);
++      await setSwitch('partial_writes', false);
++      await setSwitch('production_copies', true);
++      // 3 lower thirds to take, 2 to edit, a score and 54 more: 60 graphics.
++      scene = await setUp(browser, page, 3, { fill: 54, roles: ['taker', 'editor', 'editor'] });
++      emit('step7-scene', { graphics: scene.takes.length + scene.edits.length + 1 + 54 });
++      for (let r = 0; r < rounds; r++) {
++        const order: ('all' | 'alone')[] = r % 2 === 0 ? ['all', 'alone'] : ['alone', 'all'];
++        for (const mode of order) {
++          if (mode === 'alone') for (const p of scene.people.slice(1)) await p.page.goto('about:blank');
++          else for (const p of scene.people.slice(1)) if (p.page.url() === 'about:blank') await openProduction(p.page, scene.showId);
++          const report = await run(scene, { ms: roundMs, everyone: mode === 'all', keys: true, reloadAt: null, offlineAt: null });
++          const samples = ranOf(report);
++          const entry: Record<string, unknown> = { round: r, mode, samples, lost: report.takes.length - samples.length, errors: report.errors };
++          if (mode === 'all') {
++            entry.typed = report.edits.map((e) => ({ cue: e.cue, texts: e.typed.length, last: e.typed[e.typed.length - 1] }));
++            entry.atEnd = await probe(scene);
++            entry.settled = await settle(scene, report, 60_000, false);
++            if (r === 0) for (const [i, p] of scene.people.entries()) await shot(p.page, `step7-person${i}-${p.role}`);
++          }
++          out.push(entry);
++          log(`round ${r} ${mode}: n ${samples.length} p95 ${pct(samples, 95)} errors ${report.errors.length}`);
++        }
++      }
++    } finally {
++      emit('step7', { rounds: out });
++      await tearDown(scene, page).catch(() => undefined);
++      emit('switches-after', await restoreSwitches(before));
++    }
++  });
+diff --git a/e2e/instruments/p9-step9-pair.ts b/e2e/instruments/p9-step9-pair.ts
+new file mode 100644
+index 00000000..b013c9f9
+--- /dev/null
++++ b/e2e/instruments/p9-step9-pair.ts
+@@ -0,0 +1,43 @@
++// PHASE 9 CLOUD, checklist step 9's timing on hosted staging (not for main): press to ran with five
++// people working against the taker's page alone, interleaved rounds, switches as production today.
++import { test } from '@playwright/test';
++import { log, openProduction, run, setSwitch, setUp, tearDown, type Scene } from '../configured/_five';
++import { admitStaging, emit, pct, ranOf, readSwitches, restoreSwitches, SHARD1 } from './_p9';
++
++test.describe.configure({ retries: 0 });
++
++if (!SHARD1) test('idle shard', () => {});
++else
++  test('step 9: interleaved pairs', async ({ page, browser }) => {
++    const rounds = Number(process.env.P9_ROUNDS ?? 6);
++    const roundMs = 45_000;
++    // Alternate which side goes first between dispatches.
++    const firstAlone = Number(process.env.GITHUB_RUN_NUMBER ?? 0) % 2 === 1;
++    test.setTimeout(rounds * 2 * roundMs + 10 * 60_000);
++    emit('target', { kind: admitStaging() });
++    const before = await readSwitches();
++    emit('switches-before', before);
++    let scene: Scene | null = null;
++    const out: { round: number; mode: string; samples: number[]; lost: number; errors: string[] }[] = [];
++    try {
++      await setSwitch('auto_publish', false);
++      await setSwitch('partial_writes', false);
++      await setSwitch('production_copies', true);
++      scene = await setUp(browser, page, 5);
++      for (let r = 0; r < rounds; r++) {
++        const order: ('all' | 'alone')[] = (r % 2 === 0) !== firstAlone ? ['all', 'alone'] : ['alone', 'all'];
++        for (const mode of order) {
++          if (mode === 'alone') for (const p of scene.people.slice(1)) await p.page.goto('about:blank');
++          else for (const p of scene.people.slice(1)) if (p.page.url() === 'about:blank') await openProduction(p.page, scene.showId);
++          const report = await run(scene, { ms: roundMs, everyone: mode === 'all', reloadAt: null, offlineAt: null });
++          const samples = ranOf(report);
++          out.push({ round: r, mode, samples, lost: report.takes.length - samples.length, errors: report.errors });
++          log(`round ${r} ${mode}: n ${samples.length} p95 ${pct(samples, 95)} errors ${report.errors.length}`);
++        }
++      }
++    } finally {
++      emit('step9-pair', { pages: 5, firstAlone, rounds: out });
++      await tearDown(scene, page).catch(() => undefined);
++      emit('switches-after', await restoreSwitches(before));
++    }
++  });
+diff --git a/e2e/instruments/p9-step9-soak.ts b/e2e/instruments/p9-step9-soak.ts
+new file mode 100644
+index 00000000..c5e8db6b
+--- /dev/null
++++ b/e2e/instruments/p9-step9-soak.ts
+@@ -0,0 +1,41 @@
++// PHASE 9 CLOUD, checklist step 9 on hosted staging (not for main): five people, each a staging test
++// account in its own browser context, one team production, switches as production has them today
++// (auto_publish and partial_writes off, production_copies on). One reload, one 20 s offline.
++import { test } from '@playwright/test';
++import { log, run, setSwitch, setUp, tearDown, type Scene } from '../configured/_five';
++import { admitStaging, emit, probe, ranOf, readSwitches, restoreSwitches, settle, SHARD1, shot, ownerStates, states, stats } from './_p9';
++
++test.describe.configure({ retries: 0 });
++
++if (!SHARD1) test('idle shard', () => {});
++else
++  test('step 9: five people, ten minutes', async ({ page, browser }) => {
++    const ms = Number(process.env.P9_MS ?? 600_000);
++    test.setTimeout(ms + 12 * 60_000);
++    emit('target', { kind: admitStaging() });
++    const before = await readSwitches();
++    emit('switches-before', before);
++    let scene: Scene | null = null;
++    try {
++      emit('states', await ownerStates(browser));
++      await setSwitch('auto_publish', false);
++      await setSwitch('partial_writes', false);
++      await setSwitch('production_copies', true);
++      scene = await setUp(browser, page, 5);
++      const report = await run(scene, { ms, reloadAt: 0.4, offlineAt: 0.6, offlineMs: 20_000 });
++      log('run over; settling');
++      const atEnd = await probe(scene);
++      for (const [i, p] of scene.people.entries()) await shot(p.page, `step9-person${i}-${p.role}`);
++      await shot(scene.output, 'step9-output');
++      const settled = await settle(scene, report, 120_000, false);
++      const lost = report.takes.filter((t) => t.ranAt === null).length;
++      emit('step9-soak', {
++        ms, pages: 5, takes: report.takes.length, lost, pressToRan: stats(ranOf(report)), goals: report.goals, score: settled.score,
++        messages: report.messages.length, prepared: report.messages.filter((m) => m.prepared).length, messageErrors: report.messages.filter((m) => m.error).map((m) => m.error),
++        reloads: report.reloads, offline: report.offline, errors: report.errors, settled, atEnd, afterSettle: await probe(scene),
++      });
++    } finally {
++      await tearDown(scene, page).catch(() => undefined);
++      emit('switches-after', await restoreSwitches(before));
++    }
++  });
+diff --git a/e2e/instruments/p9r-3p-on.ts b/e2e/instruments/p9r-3p-on.ts
+new file mode 100644
+index 00000000..97a8491f
+--- /dev/null
++++ b/e2e/instruments/p9r-3p-on.ts
+@@ -0,0 +1,2 @@
++import { ON, soak } from './_p9r';
++soak('p9r-3p-on', ['taker', 'editor', 'editor'], ON);
+diff --git a/e2e/instruments/p9r-3p-pairs.ts b/e2e/instruments/p9r-3p-pairs.ts
+new file mode 100644
+index 00000000..8a6c0406
+--- /dev/null
++++ b/e2e/instruments/p9r-3p-pairs.ts
+@@ -0,0 +1,2 @@
++import { ON, pairs } from './_p9r';
++pairs('p9r-3p-pairs', ['taker', 'editor', 'editor'], process.env.DIAG_AUTO === '0' ? { ...ON, auto_publish: false } : ON, Number(process.env.DIAG_ROUNDS ?? 7));
+diff --git a/e2e/instruments/p9r-3p-prod.ts b/e2e/instruments/p9r-3p-prod.ts
+new file mode 100644
+index 00000000..b439064c
+--- /dev/null
++++ b/e2e/instruments/p9r-3p-prod.ts
+@@ -0,0 +1,2 @@
++import { PROD, soak } from './_p9r';
++soak('p9r-3p-prod', ['taker', 'editor', 'editor'], PROD);
+diff --git a/e2e/instruments/p9r-5p-on.ts b/e2e/instruments/p9r-5p-on.ts
+new file mode 100644
+index 00000000..51a296d7
+--- /dev/null
++++ b/e2e/instruments/p9r-5p-on.ts
+@@ -0,0 +1,2 @@
++import { ON, soak } from './_p9r';
++soak('p9r-5p-on', ['taker', 'messages', 'quick', 'editor', 'editor'], ON);
+diff --git a/e2e/instruments/p9r-step7.ts b/e2e/instruments/p9r-step7.ts
+new file mode 100644
+index 00000000..d9fcabae
+--- /dev/null
++++ b/e2e/instruments/p9r-step7.ts
+@@ -0,0 +1,2 @@
++import { PROD, step7 } from './_p9r';
++step7('p9r-step7', { ...PROD, team_designs: true });
+diff --git a/e2e/instruments/p9r-switches.ts b/e2e/instruments/p9r-switches.ts
+new file mode 100644
+index 00000000..98a5310d
+--- /dev/null
++++ b/e2e/instruments/p9r-switches.ts
+@@ -0,0 +1,13 @@
++// PHASE 9 STAGING RERUN (not for main): read the staging switches, put them back to what the rerun
++// found before its first run (all off; team_designs had no row), read them back.
++import { test } from '@playwright/test';
++import { admitStaging, emit, readSwitches, restoreSwitches, SHARD1 } from './_p9';
++
++test.describe.configure({ retries: 0 });
++if (!SHARD1) test('idle shard', () => {});
++else
++  test('p9r-switches', async () => {
++    emit('target', { kind: admitStaging() });
++    emit('switches-found', await readSwitches());
++    emit('switches-after', await restoreSwitches({ auto_publish: { on: false }, partial_writes: { on: false }, production_copies: { on: false }, team_designs: { on: false } }));
++  });
