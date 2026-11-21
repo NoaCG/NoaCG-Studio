@@ -269,57 +269,71 @@ and test, `scripts/svg-files.mjs` and test, `scripts/illustrator/pack-svg-exampl
 
 ## Phases
 
-Each phase lands on its own through the merge queue and leaves `main` consistent.
+Each phase lands on its own through `/queue-merge`, leaves `main` consistent, and adds what the
+next must know to "Phase notes". Ids are the run's ids. CA: a qualified cloud worker plus GitHub
+Actions. OW: the owner, with Illustrator on his own computer.
 
-0. **Inventory and gate.** Generated coverage matrix with `covered` and `planned` rows and
-   observable proofs; gate against losing coverage. Archive the real Illustrator exports as
-   fixtures. D5 labels with their text assertions and copy checks.
-1. **Audience pilot.** Join card, Live vote, Vote results and Message templates in the house style;
-   pickers, copy and save, `joinTarget`, message matching. Library page and package format
-   prototyped on these four. Owner Illustrator round trip (edit, import, save, pick, Take) settles
-   style, gallery and packages before anything else is drawn.
-2. **Runtime compatibility.** The capability check and its three tests.
-3. **One library.** Merge inventories with canonical ids, packages built at build time, gallery by
-   package, built-in alternatives, old addresses, test consolidation and budget measurement, every
-   consumer above.
-4. **Templates on existing routes**, including the corner game timer with its motion and the
-   picture-slot templates.
-5. **Recipe extensions**, each landing with its template, controls, compatibility tests and export
-   proof.
-6. **New runtime kinds** (word cloud, ticker crawl, notification queue, speaking timer, sponsor
-   rotator), same landing rule. Any new feature hookup (for example a notification inbox) is
-   specified separately before it is built.
-7. **Close.** Complete-coverage enforcement on; owner confirms a sample per package.
+- **TL0. Inventory and gate** (CA; AC-2 gate with `planned` rows allowed, AC-8). Generated
+  coverage matrix with `covered` and `planned` rows and observable proofs; gate against losing
+  coverage. Archive the real Illustrator exports as importer fixtures. D5 labels with their text
+  assertions and copy checks.
+- **TL1. Audience pilot** (CA; AC-4, AC-10 for the pickers, AC-3 for the four pilot templates,
+  AC-9 for saved targets). Join card, Live vote, Vote results and Message templates in the house
+  style; pickers, copy and save, `joinTarget`, message matching. Library page and package format
+  prototyped on these four.
+- **TL1o. Pilot round trip** (OW; depends on TL1). The owner downloads the four pilot templates,
+  edits them in Illustrator, imports, saves, picks each in its feature and takes it. His receipt
+  settles house style, gallery and packages, and confirms SVG as the maintained source (Q1).
+- **TL2. Runtime compatibility** (CA; AC-9). The capability check and its three tests.
+- **TL3. One library** (CA; depends on TL1o; AC-1, AC-11, tests and budget section). Merge
+  inventories with canonical ids, packages built at build time, gallery by package, built-in
+  alternatives, old addresses, test consolidation and budget measurement, every consumer listed
+  above.
+- **TL4. Templates on existing routes** (CA; depends on TL3; AC-3, AC-5, AC-6, AC-7 for the
+  countdown motion). Every type whose route exists, including the corner game timer with its
+  motion and the picture-slot templates.
+- **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension). Each
+  extension lands with its template, controls, compatibility tests and export proof.
+- **TL6. New runtime kinds** (CA; depends on TL5; AC-3, AC-7, AC-9 per kind). Word cloud, ticker
+  crawl, notification queue, speaking timer, sponsor rotator. Any new feature hookup (for example
+  a notification inbox) is specified separately before it is built.
+- **TL7. Close** (CA; depends on TL6; AC-2 complete, AC-8). Complete-coverage enforcement on, no
+  `planned` rows; final names and counts check.
+- **TL8. Owner confirmation** (OW; depends on TL7). The owner confirms one sample per package in
+  Illustrator and on air.
 
 ## Acceptance criteria
 
-- AC-1. One Template Library page and one downloads card; no user-facing "Examples" set; every old
-  URL, file and anchor still delivers.
-- AC-2. Every row of the coverage model (D9 scope) is `covered`, with its observable proof
-  passing; the check fails otherwise.
-- AC-3. Every template imports with its recipe or contract detected, or, where recorded as author
-  choice, works after that documented choice; controls work; one visual family; a default preview
-  plus named operator-visible states with descriptive alt text.
-- AC-4. Join card, Vote results, Message and Word cloud templates, imported unchanged and saved,
-  appear in their picker; choosing one stages a working cue without duplicate or blank cues
-  (QR encodes the current link; results show row counts, open and closed status, reveal, and a
-  repeated stage of the same round updates one cue; message shows body and name).
-- AC-5. Live vote, Vote results and Poll result pass separate cases (imported vote has no
-  automatic close; Figures selector versus Live figures timing).
-- AC-6. Countdown pulses in the last 10 seconds and flashes once at zero; Pause, Reset, bar,
-  reduced motion and OGraf seeks behave.
-- AC-7. Each mechanism plays in every export target with its supported modes recorded.
-- AC-8. One name per concept across app, docs, templates and inventories; ids unchanged.
-- AC-9. Graphics and exports made before this plan keep working; reimport keeps field ids and cue
-  values.
-- AC-10. Pickers are keyboard-operable with distinct accessible names; samples with long
-  translated names and instructions fit; Alert level is readable without colour or flashing.
-- AC-11. The import workflow's steps are unchanged apart from names and new recipe options.
+### AC-1: One Template Library page and one downloads card; no user-facing "Examples" set; every old URL, file and anchor still delivers.
+
+### AC-2: Every row of the coverage model (D9 scope) is `covered`, with its observable proof passing; the check fails otherwise.
+
+### AC-3: Every template imports with its recipe or contract detected, or, where recorded as author choice, works after that documented choice; controls work; one visual family; a default preview plus named operator-visible states with descriptive alt text.
+
+### AC-4: Join card, Vote results, Message and Word cloud templates, imported unchanged and saved, appear in their picker; choosing one stages a working cue without duplicate or blank cues (QR encodes the current link; results show row counts, open and closed status, reveal, and a repeated stage of the same round updates one cue; message shows body and name).
+
+### AC-5: Live vote, Vote results and Poll result pass separate cases (imported vote has no automatic close; Figures selector versus Live figures timing).
+
+### AC-6: Countdown pulses in the last 10 seconds and flashes once at zero; Pause, Reset, bar, reduced motion and OGraf seeks behave.
+
+### AC-7: Each mechanism plays in every export target with its supported modes recorded.
+
+### AC-8: One name per concept across app, docs, templates and inventories; ids unchanged.
+
+### AC-9: Graphics and exports made before this plan keep working; reimport keeps field ids and cue values.
+
+### AC-10: Pickers are keyboard-operable with distinct accessible names; samples with long translated names and instructions fit; Alert level is readable without colour or flashing.
+
+### AC-11: The import workflow's steps are unchanged apart from names and new recipe options.
 
 ## Owner questions
 
 - Q1. Once the pilot passes the owner's Illustrator round trip, SVG is the only maintained source
   for templates, and the existing `.ai` files stay as legacy downloads. Owner, 2026-11-21: "yes".
+
+## Phase notes
+
+(Each phase adds what the next must know.)
 
 ## Non-goals
 
