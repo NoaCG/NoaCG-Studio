@@ -344,3 +344,49 @@ Pooled (`pairs-pooled-new14.json`, `pairs-pooled-28.json`):
   (`1c-pairs-switches-*.json`, `1d-pairs-switches-*.json`).
 
 UTC time of the addendum's last run end: 2026-11-21 17:36.
+
+### Addendum: pairs with the switches off and as production (2026-11-21, 17:38 to 18:24 UTC)
+
+Asked by the coordinator: the same pairs method, one dispatch of 7 pairs with all four switches
+off, one with the switches as production has them (`production_copies` on, the other three off).
+Same scratch branch and source (5634c2f); the 50 ms rule unchanged. Files: `off-pairs-*.json`,
+`prod-pairs-*.json`. Each dispatch started with the taker alone in round 0.
+
+| | All four off | As production |
+|---|---|---|
+| Run | [44931119423](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44931119423) | [44932505778](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44932505778) |
+| Takes with 3 people: timed, never ran | 181, 0 | 68, **8** |
+| Takes alone: timed, never ran | 217, 0 | 101, **8** |
+| 3 people p95 | 537 ms | 5,641 ms |
+| alone p95 | 744 ms | 4,780 ms |
+| **Difference** | **-206.6 ms** | **+860.5 ms** |
+| Bootstrap 95 % | -760.3 to +582.5 | -1,753.1 to +3,777.3 |
+| Staging, taker's page: median / p95 / max | 213 / 861 / 4,331 ms | 354 / 10,316 / 35,756 ms |
+| Staging requests cancelled by the page | 22 of 1,320 | 289 of 758 |
+
+Staging per round, from the taker's page (median / p95 / max, ms):
+
+| Round | Off, 3 people | Off, alone | Production, 3 people | Production, alone |
+|---|---|---|---|---|
+| 0 | 211 / 557 / 776 | 224 / 907 / 1,410 | 1,057 / 10,316 / 10,316 | 226 / 1,149 / 9,755 |
+| 1 | 240 / 1,266 / 2,133 | 292 / 1,696 / 2,152 | 1,457 / 11,125 / 11,125 | 1,183 / 35,735 / 35,756 |
+| 2 | 214 / 645 / 943 | 205 / 731 / 1,336 | 267 / 9,029 / 15,719 | 3,882 / 22,055 / 27,384 |
+| 3 | 225 / 750 / 2,204 | 216 / 805 / 929 | 329 / 1,441 / 2,313 | 225 / 824 / 24,589 |
+| 4 | 209 / 1,582 / 4,331 | 195 / 317 / 364 | 249 / 2,743 / 2,918 | 202 / 399 / 430 |
+| 5 | 217 / 995 / 1,921 | 204 / 888 / 1,116 | 774 / 4,096 / 9,362 | 1,019 / 15,447 / 26,163 |
+| 6 | 213 / 1,517 / 1,689 | 200 / 351 / 590 | 1,142 / 11,227 / 11,227 | 2,891 / 23,997 / 33,800 |
+
+- **All four off:** no Take lost; the difference is negative and the range spans -760 to +583, so
+  this dispatch cannot say whether 3 people stay within 50 ms. Staging swung in both modes (round
+  1 alone had a p95 of 2,566 ms for press to ran).
+- **As production:** staging was very slow for most of the run, in the alone rounds as much as in
+  the 3-person rounds (alone, round 1: slowest answer 35.8 s). Takes were lost in both modes, 8 and
+  8, so in that window even a single page lost Takes. The difference (+860.5 ms) has a range of
+  -1,753 to +3,777 and says nothing about 3 people against one.
+- No other `hosted-latency` run overlapped either dispatch: the workflow's concurrency group
+  queued this one behind another session's run 44932145979, which ended at 18:07:33, two seconds
+  before this one's jobs started. What else reached staging in that window cannot be seen from
+  here.
+- Switches: all four off before each dispatch and after, read back. Staging stands at all four off.
+
+UTC time of the addendum's last run end: 2026-11-21 18:24.
