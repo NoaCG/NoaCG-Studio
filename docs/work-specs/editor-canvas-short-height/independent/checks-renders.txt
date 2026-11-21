@@ -1,8 +1,0 @@
-independent-check	Fresh layout and phone review captures	2026-10-11T10:50:59.4927875Z [1/6] [chromium] › e2e/editor-alpha-entry.spec.ts:6:1 › phone-preview keeps a useful canvas width
-independent-check	Fresh layout and phone review captures	2026-10-11T10:51:02.5188671Z [2/6] [chromium] › e2e/editor-alpha-entry.spec.ts:16:3 › wizard alpha shortcut and return work on desktop
-independent-check	Fresh layout and phone review captures	2026-10-11T10:51:07.6303653Z [3/6] [chromium] › e2e/editor-alpha-entry.spec.ts:16:3 › wizard alpha shortcut and return work on phone
-independent-check	Fresh layout and phone review captures	2026-10-11T10:51:13.1981677Z [4/6] [chromium] › e2e/editor-alpha-entry.spec.ts:16:3 › wizard alpha shortcut and return work on landscape
-independent-check	Fresh layout and phone review captures	2026-10-11T10:51:18.0913754Z [5/6] [chromium] › e2e/editor-canvas-short-height.spec.ts:17:1 › short desktop layout recovers canvas while ordinary laptop and phone keep their panels
-independent-check	Fresh layout and phone review captures	2026-10-11T10:51:25.4900864Z [6/6] [chromium] › e2e/editor-canvas-short-height.spec.ts:51:1 › compact canvas exposes movement resize and rotation and retains group navigation
-independent-check	Fresh layout and phone review captures	2026-10-11T10:51:35.4361782Z ##[notice]  6 passed (41.9s)
-independent-check	Fresh layout and phone review captures	2026-10-11T10:51:35.4372295Z   6 passed (41.9s)

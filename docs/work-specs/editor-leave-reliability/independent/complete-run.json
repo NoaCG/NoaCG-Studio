@@ -1,1 +1,0 @@
-{"conclusion":"failure","headSha":"6b8dbeb43abe45d8c8c145f8af66b440fca0121f","jobs":[{"completedAt":"2026-10-13T21:59:38Z","conclusion":"failure","databaseId":115555729340,"name":"qualification","startedAt":"2026-10-13T21:46:42Z","status":"completed","steps":[],"url":"https://github.com/NoaCG/NoaCG-Studio/actions/runs/38472743447/job/115555729340"}],"status":"completed"}

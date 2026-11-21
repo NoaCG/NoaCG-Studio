@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="140" height="120" viewBox="0 0 140 120">
-  <!-- Pulse Arena - SYNTHETIC brand mark for the custom-lane type sweep (invented esports
-       league, no real marks used). A two-colour angular monogram: a cyan hex frame around a
-       magenta pulse bolt - deliberately FULL-COLOUR (two inks), so the knock rule must leave
-       it alone and wait for a well. Transparent backing. Landscape-ish 1.17:1. -->
-  <path d="M70 4 L128 36 L128 84 L70 116 L12 84 L12 36 Z"
-        fill="none" stroke="#2DE1FC" stroke-width="10" stroke-linejoin="miter" />
-  <path d="M78 22 L48 66 L68 66 L58 98 L94 52 L72 52 Z" fill="#FF2D78" />
-</svg>

@@ -1,7 +1,0 @@
-interface:
-  display_name: "Cleanup worktrees"
-  short_description: "Remove only safely merged worktree leftovers"
-  default_prompt: "Use $cleanup-worktrees to inspect and safely remove finished worktrees."
-
-policy:
-  allow_implicit_invocation: false

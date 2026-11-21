@@ -1,3 +1,0 @@
-# NoaCG Studio
-
-@AGENTS.md

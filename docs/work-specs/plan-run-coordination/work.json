@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "specSha256": "30f4a9f078c0db0b65d428d0d99272342c8e99199086a19adceffd405c41c33e",
-  "authority": {
-    "status": "agreed",
-    "source": "owner, 2026-10-11: \"Improve /plan-run through planning, implementation, verification and landing, starting from the actual guided-mod run. Keep the changes proportionate to the evidence.\" with the two prioritised improvements (no intermediate checker-note pull requests; a binary checker verdict on the planned user outcome), the deadline, restart and same-day-window rules, and the cloud assessment and trial."
-  },
-  "review": null
-}
