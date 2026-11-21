@@ -25,7 +25,7 @@
 // covers: src/backend/teamProductions.ts, src/backend/assets.ts, src/backend/pacing.ts
 // covers: src/backend/savedRevision.ts, src/control/autoPublish.ts, src/components/home/useAutoPublish.ts
 // covers: src/control/publishParts.ts, src/control/publishRevision.ts, src/control/messageStaging.ts
-// covers: src/backend/teamDesigns.ts, src/backend/supabase.ts, supabase/migrations/0125_team_designs.sql
+// covers: src/backend/teamDesigns.ts
 // A REFUSED SAVE READS ONLY WHAT CHANGED (#2615, live-publishing evidence/fix-2615.md): the describe at the end.
 // covers: supabase/migrations/0124_team_save_refusal_token.sql, src/backend/unitPatch.ts
 

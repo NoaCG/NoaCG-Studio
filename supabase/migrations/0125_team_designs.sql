@@ -262,6 +262,10 @@ declare
   v_rev     bigint;
 begin
   if not public.team_designs_marked() then perform public.team_designs_reload(); end if;
+  -- Asked here as well as in team_production_member: a write for the caller asks first (0088).
+  if public.is_suspended() then
+    raise exception 'this account is suspended' using errcode = '42501';
+  end if;
   perform public.team_production_member(p_id);
   if p_doc is null or jsonb_typeof(p_doc) <> 'object' then
     raise exception 'a team production document must be a JSON object' using errcode = 'check_violation';
