@@ -37,7 +37,7 @@ import { acknowledgeTeamEdit, pendingTeamEdits, retainTeamEdit } from '../model/
 import { cueTextKey, replaceRundown, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../model/rundownHistory';
 import { blobToDataUrl, classifyAssetRefusal, dataUrlToBlob, externalizeSharedAssets, rehydrateSharedAssets } from './assets';
 import { backoffDelay } from './pacing';
-import { diff, storedMap, type PatchOp, type UnitMap } from './unitPatch';
+import { applyPatch, applyToMap, diff, PatchRefused, storedMap, type PatchOp, type UnitMap } from './unitPatch';
 import { noteWritten, partialWritesOn, unitPace } from './partialWrites';
 
 export interface TeamRundownReceipt {
@@ -335,7 +335,7 @@ async function saveTeamProduction(
           sent.push({ ...op, put });
         } else sent.push(op);
       }
-      const { data, error } = await sb.rpc('team_production_patch', { p_id: id, p_expected: expected, p_ops: sent });
+      const { data, error } = await saveRpc(sb, 'team_production_patch', { p_id: id, p_expected: expected, p_ops: sent });
       if (error) return { answer: null, error: error.message };
       const a = data as { saved?: boolean; replaced?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show; rev?: unknown; units?: unknown } | null;
       if (!a || typeof a.updated_at !== 'string') return { answer: null, error: 'The save was not answered.' };
@@ -348,13 +348,13 @@ async function saveTeamProduction(
         }
         return { answer: { saved: true, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null }, error: null };
       }
-      // Another save came first: today's conflict answer, merged as before.
-      if (!a.replaced) return { answer: { saved: false, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null, doc: await withAssets(sb, a.doc as Show, teamId) }, error: null };
+      // Another save came first: its document, from the answer or read (#2615), merged as before.
+      if (!a.replaced) return refusedAnswer(sb, id, teamId, a as RefusalRow);
       // The stored document could not take the patch: the whole document, below.
     }
   }
   const p_doc = await withoutAssets(sb, doc, teamId, inParts);
-  const { data, error } = await sb.rpc('team_production_save', { p_id: id, p_expected: expected, p_doc });
+  const { data, error } = await saveRpc(sb, 'team_production_save', { p_id: id, p_expected: expected, p_doc });
   if (error) return { answer: null, error: error.message };
   const a = data as { saved?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show; rev?: unknown } | null;
   if (!a || typeof a.updated_at !== 'string') return { answer: null, error: 'The save was not answered.' };
@@ -363,12 +363,75 @@ async function saveTeamProduction(
     noteWritten(id, a.rev, a.updated_at);
     void Promise.resolve(sb.rpc('team_production_units_set', { p_id: id, p_rev: a.rev, p_units: { m: map } })).catch(() => {});
   }
-  return {
-    answer: a.saved
-      ? { saved: true, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null }
-      : { saved: false, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null, doc: await withAssets(sb, a.doc as Show, teamId) },
-    error: null,
-  };
+  if (a.saved) return { answer: { saved: true, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null }, error: null };
+  return refusedAnswer(sb, id, teamId, a as RefusalRow);
+}
+
+// ── A refusal without the document (#2615, evidence/fix-2615.md) ───────────────────────────────
+//
+// The v2 save functions answer a lost compare-and-swap with the token alone. The page then reads
+// the stored version as the units that differ from the last version it read that way, applied to
+// the stored form it kept of that version. Those maps hash the stored JSON text (`f: "s1"`), so they
+// never mix with G4's maps in `teamBases` or `doc_units`.
+
+/** False once this instance answered that it has no v2 save functions: the old ones, for the rest
+ *  of the page's session (R2). */
+let leanSaves = true;
+
+/** Per production: the stored form (file references, not data) of the last version read with
+ *  `team_production_changes`, its token and its map (R4). Memory only. */
+const teamReads = new Map<string, { token: string; doc: Record<string, unknown>; map: UnitMap }>();
+
+type RefusalRow = { updated_at: string; updated_by?: string | null; doc?: Show };
+
+async function saveRpc(sb: Backend, name: 'team_production_save' | 'team_production_patch', args: Record<string, unknown>) {
+  if (leanSaves) {
+    const answer = await sb.rpc(`${name}_v2`, args);
+    if (answer.error?.code !== 'PGRST202') return answer;
+    leanSaves = false;
+  }
+  return sb.rpc(name, args);
+}
+
+/** A refusal as the save pump takes it: the teammate's document with its files, and its token. An
+ *  older function's refusal carries the document (R2); a v2 refusal is read (R3 to R6). */
+async function refusedAnswer(sb: Backend, id: string, teamId: string, a: RefusalRow): Promise<{ answer: SaveAnswer | null; error: string | null }> {
+  if ('doc' in a) return { answer: { saved: false, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null, doc: await withAssets(sb, a.doc as Show, teamId) }, error: null };
+  const read = await readTeamChanges(sb, id);
+  if ('error' in read) return { answer: null, error: read.error };
+  return { answer: { saved: false, updatedAt: read.token, updatedBy: read.updatedBy, doc: await withAssets(sb, read.doc as unknown as Show, teamId) }, error: null };
+}
+
+/** One stored version of a team record, read as what changed since the version this page last read
+ *  (R3, R4): once with the kept map, and once more with an empty map when the kept form will not take
+ *  the answer. An answer whose kept form was replaced, or whose session ended, while it was out is
+ *  dropped. */
+async function readTeamChanges(sb: Backend, id: string): Promise<{ token: string; updatedBy: string | null; doc: Record<string, unknown> } | { error: string }> {
+  const owner = running;
+  // Twice at most: a kept form that will not take the answer is deleted, so the second read is whole.
+  for (let pass = 0; pass < 2; pass++) {
+    const kept = teamReads.get(id);
+    const { data, error } = await sb.rpc('team_production_changes', { p_id: id, p_map: { f: 's1', m: kept?.map ?? {} } });
+    if (error) {
+      // An instance with the v2 saves but no read (a revert half done): the old saves from here on,
+      // whose refusals carry the document, so the attempt's retry merges as before.
+      if (error.code === 'PGRST202') leanSaves = false;
+      return { error: error.message };
+    }
+    if (running !== owner || teamReads.get(id) !== kept) return { error: 'The team production changed while it was read.' };
+    const a = data as { updated_at?: unknown; updated_by?: string | null; ops?: unknown } | null;
+    if (!a || typeof a.updated_at !== 'string' || !Array.isArray(a.ops)) return { error: 'The team production could not be read.' };
+    const ops = a.ops as PatchOp[];
+    try {
+      const doc = applyPatch(kept?.doc ?? {}, ops);
+      teamReads.set(id, { token: a.updated_at, doc, map: applyToMap(kept?.map ?? {}, ops, doc) });
+      return { token: a.updated_at, updatedBy: a.updated_by ?? null, doc };
+    } catch (failed) {
+      if (!(failed instanceof PatchRefused)) throw failed;
+      teamReads.delete(id);
+    }
+  }
+  return { error: 'The team production could not be read.' };
 }
 
 // ── The controller ──────────────────────────────────────────────────────────────────────────────
@@ -532,6 +595,7 @@ export function stopTeamSync(): void {
   failureNotes.clear();
   knownAssets.clear();
   refusedAssets.clear();
+  teamReads.clear();
   noteRead(false);
   noteSave(false);
   saveRetries.clear();
@@ -690,7 +754,7 @@ async function refreshOnce(): Promise<void> {
     });
   }
   const listed = new Set(heads.map((h) => h.id));
-  for (const id of [...server.keys()]) if (!listed.has(id) && !changed.has(id)) server.delete(id);
+  for (const id of [...server.keys()]) if (!listed.has(id) && !changed.has(id)) { server.delete(id); teamReads.delete(id); }
 
   // A record with an edit on its way up stays as this tab has it; its save reconciles it.
   const records: Show[] = [];
@@ -1047,6 +1111,7 @@ export async function deleteTeamProduction(show: Show): Promise<{ error: string 
   if (error) return { error: error.message };
   if (!Array.isArray(data) || data.length === 0) return { error: 'Only the team owner can delete a team production.' };
   server.delete(show.id);
+  teamReads.delete(show.id);
   removeTeamShow(show.id);
   void refreshTeams();
   return { error: null };

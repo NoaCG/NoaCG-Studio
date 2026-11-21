@@ -743,10 +743,20 @@
       "level": "WARN",
       "detail": "Function `public.team_production_patch(p_id uuid, p_expected timestamp with time zone, p_ops jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_patch`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_team_production_patch_v2_p_id uuid, p_expected timestamp with time zone, p_ops jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_production_patch_v2(p_id uuid, p_expected timestamp with time zone, p_ops jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_patch_v2`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_team_production_save_p_id uuid, p_expected timestamp with time zone, p_doc jsonb": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.team_production_save(p_id uuid, p_expected timestamp with time zone, p_doc jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_save`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_team_production_save_v2_p_id uuid, p_expected timestamp with time zone, p_doc jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_production_save_v2(p_id uuid, p_expected timestamp with time zone, p_doc jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_production_save_v2`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_team_production_units_set_p_id uuid, p_rev bigint, p_units jsonb": {
       "name": "authenticated_security_definer_function_executable",
