@@ -94,8 +94,9 @@ export interface PanelGraphicSpec {
    * The graphic's script, carried only by rows an older build published. It was there for the
    * hosted control page's event buttons; that page is retired (docs/work-specs/retire-hosted-control)
    * and nothing reads it now. A publish no longer writes it: it repeated every graphic's script
-   * beside the payload's own copy (an imported OGraf graphic's script travels in its package assets), nearly doubling the publish write (issue #2667: 9.7 MB of request
-   * for a 60-graphic production, most of it parsed inside the one statement the 8 s limit cuts).
+   * beside the payload's own copy (an OGraf graphic's travels in its package assets), nearly
+   * doubling the publish write (issue #2667: 9.7 MB of request for a 60-graphic production, most of
+   * it parsed inside the one statement the 8 s limit cuts).
    */
   js?: string;
   images: { value: string; label: string }[];
