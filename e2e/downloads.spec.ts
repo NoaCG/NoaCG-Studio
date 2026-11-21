@@ -300,10 +300,10 @@ test('one SVG templates card holds both zips, and each zip matches the repo', as
   await expect(card.getByTestId('svg-templates-page')).toHaveAttribute('href', SVG_TEMPLATES_URL);
   // A card like the others: in the tool grid, as tall as its content, under the Bridge on a wide
   // window and last on a phone.
-  const bridge = await page.getByTestId('download-bridge').boundingBox();
-  const box = await card.boundingBox();
-  expect(Math.abs(box!.x - bridge!.x), 'the SVG card shares the Bridge column').toBeLessThan(2);
-  expect(box!.y).toBeGreaterThan(bridge!.y + bridge!.height);
+  // Both boxes in one read: the Bridge card grows as its version line resolves.
+  const [bridge, box] = await page.evaluate(() => ['bridge', 'svg-templates'].map((id) => document.getElementById(id)!.getBoundingClientRect().toJSON() as DOMRect));
+  expect(Math.abs(box.x - bridge.x), 'the SVG card shares the Bridge column').toBeLessThan(2);
+  expect(box.top).toBeGreaterThanOrEqual(bridge.bottom);
   await page.setViewportSize({ width: 390, height: 800 });
   const tops = await page.locator('.dl-card').evaluateAll((cards) => cards.map((c) => [c.id, c.getBoundingClientRect().top] as const).sort((x, y) => x[1] - y[1]).map(([id]) => id));
   expect(tops.at(-1)).toBe('svg-templates');
