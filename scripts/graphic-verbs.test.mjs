@@ -70,7 +70,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
   const debtCalls = [];
   let sending = 0;
   let owedCount = 0;
-  let wouldOwe = true;
+  let replacedSince = false;
   const inFlight = [];
   const timers = [];
   const debts = {
@@ -85,7 +85,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     },
     owed: () => owedCount,
     // Nothing in these walks lands a later press before an earlier one fails, unless a test says so.
-    wouldOwe: () => wouldOwe,
+    replacedSince: () => replacedSince,
   };
   const sender = {
     published,
@@ -229,7 +229,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     return press(view, ...rest);
   };
   const verbs = { ...created, event: seeded(created.event), bump: seeded(created.bump), snap: seeded(created.snap) };
-  return { setOwed: (n) => (owedCount = n), setWouldOwe: (v) => (wouldOwe = v), timers, inFlight, state, session, verbs, log, sends, flushes, draft, saved, resolved, notes, debtCalls, sender, page, heads, liveCue: () => session.air.get().liveCue, moves: () => session.air.get().moves };
+  return { setOwed: (n) => (owedCount = n), setReplacedSince: (v) => (replacedSince = v), timers, inFlight, state, session, verbs, log, sends, flushes, draft, saved, resolved, notes, debtCalls, sender, page, heads, liveCue: () => session.air.get().liveCue, moves: () => session.air.get().moves };
 }
 
 // ── The sender ──────────────────────────────────────────────────────────────────────────────────
@@ -3883,10 +3883,15 @@ test('a press stopped before it left that already moved this monitor is owed, wi
 // failure is already paid, so it ends quietly: no "Send it again" for what was just taken off.
 test('a press a later landed press already replaced ends with no notice and owes nothing', async () => {
   const r = rig();
-  r.setWouldOwe(false);
-  const take = r.verbs.send([[{ graphic: 'A', msg: { t: 'play' } }]], 'Take');
-  r.sends[0].answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, aired: true }));
-  const sent = await take;
-  assert.deepEqual(sent, { ok: false, note: '' });
+  r.setReplacedSince(true);
+  const sent = r.verbs.send([[{ graphic: 'A', msg: { t: 'play' } }]], 'Take');
+  r.sends.at(-1).answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, aired: true }));
+  assert.deepEqual(await sent, { ok: false, note: 'A later press replaced it.', replaced: true });
   assert.ok(!r.debtCalls.some((c) => c[0] === 'failed'), 'nothing booked');
+  // Through a verb that writes the note line: nothing is written.
+  const notes = r.notes.length;
+  const ran = r.verbs.run([[{ graphic: 'A', msg: { t: 'play' } }]], 'Take');
+  r.sends.at(-1).answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, aired: true }));
+  assert.equal(await ran, null);
+  assert.equal(r.notes.length, notes, 'the note line is left as it was');
 });

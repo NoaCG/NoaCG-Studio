@@ -1868,7 +1868,8 @@ async function sendControlVerbOnce(opts: {
   /** The stop generation the press was made in (`sendStopGeneration`, read at the press). A press
    *  made before the operator's Stop sending or an All out is never sent (#2655 R7a). Absent, now. */
   madeIn?: number;
-  /** The stop signal of the press's generation, when its caller already holds it. */
+  /** A stop of the caller's own, beside the page's (`stopSending`): the playout session's, which
+   *  ends with its production (#2655 R3). Inside, the two combined. */
   stop?: AbortSignal;
 }): Promise<VerbSent> {
   const now = opts.pressedAt ?? Date.now();
@@ -2083,12 +2084,23 @@ function pressSender(slug: string, session: SeqSession, items: readonly ControlS
 /** One press's send, counted while it is on the wire, whichever road it takes and including the
  *  wait for the road: an automatic publish never runs a step beside it (sendsInFlight.ts, G3 R10). */
 export function sendControlVerb(opts: Parameters<typeof sendControlVerbOnce>[0]): ReturnType<typeof sendControlVerbOnce> {
-  return countedFirst(() => sendControlVerbOnce(opts));
+  return countedFirst(() => withOwnStop(opts.stop, (stop) => sendControlVerbOnce({ ...opts, stop })));
 }
 
 /** Several batches of one press, counted the same way. */
 export function sendControlVerbs(opts: Parameters<typeof sendControlVerbsOnce>[0]): Promise<VerbSent> {
-  return countedFirst(() => sendControlVerbsOnce(opts));
+  return countedFirst(() => withOwnStop(opts.stop, (stop) => sendControlVerbsOnce({ ...opts, stop })));
+}
+
+/** The page's stop of this generation, and the caller's own when it has one, as one signal that
+ *  stops listening once the press ends. */
+async function withOwnStop<R>(own: AbortSignal | undefined, send: (stop: AbortSignal) => Promise<R>): Promise<R> {
+  const both = own ? eitherSignal(own, stopControl.signal) : { signal: stopControl.signal, done: () => {} };
+  try {
+    return await send(both.signal);
+  } finally {
+    both.done();
+  }
 }
 
 /** Counted as a send in flight for its first RESEND_WINDOW_MS only (#2655 R9a): a press sent until

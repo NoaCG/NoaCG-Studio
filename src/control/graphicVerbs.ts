@@ -87,6 +87,8 @@ interface Queued {
 interface GraphicTake {
   ok: boolean;
   note: string;
+  /** Failed because a later press of this page already replaced it: say nothing (#2655 R7). */
+  replaced?: true;
   /** Sent, and only its output can say whether it is on air (an imported OGraf package). */
   unconfirmed?: true;
 }
@@ -137,6 +139,8 @@ export interface VerbSender {
   /** The stop generation the press was made in (hostedControl.ts `sendStopGeneration`), stamped
    *  by the verbs when they take the page at the press. Absent, the press is made as it leaves. */
   madeIn?: number;
+  /** Aborted when this page's playout session ends: every press it still sends stops (#2655 R3). */
+  stop?: AbortSignal;
 }
 
 /** What the module needs from the page while the page still owns it, as its latest render has it. */
@@ -335,6 +339,10 @@ const figuresOf = (msg: { t: string }): Record<string, string> | undefined => {
   return m.t === 'update' ? m.data : m.t === 'event' ? m.payload : undefined;
 };
 
+/** What a press a later press of this page already replaced came to (#2655 R7): for a list of what
+ *  each graphic came to and a press's mark, never the note line. */
+export const REPLACED_NOTE = 'A later press replaced it.';
+
 /** Refused at the session's end: nothing more is sent for a production that is closed (§4.1 R3). */
 const ENDED_NOTE = 'This production is closed, so nothing was sent.';
 
@@ -344,10 +352,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
    *  never leaves (#2655 R7a). */
   const sender = (): VerbSender => {
     const s = pageSender();
-    // An empty note says nothing: a press a later press of this page already replaced ends quietly
-    // and must not clear a notice another press put up (#2655 R7).
+    // A press a later press of this page already replaced ends quietly: its note never reaches the
+    // note line, so it neither shows nor clears another press's notice (#2655 R7).
     const note: VerbSender['note'] = (next) => {
-      if (next !== '') s.note(next);
+      if (next !== REPLACED_NOTE) s.note(next);
     };
     return { ...s, note, ...(io.stopGeneration ? { madeIn: io.stopGeneration() } : {}) };
   };
@@ -666,6 +674,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
         serverInstant: p.serverInstant,
         allOut,
         ...(p.madeIn !== undefined ? { madeIn: p.madeIn } : {}),
+        ...(p.stop ? { stop: p.stop } : {}),
       });
       markers.answer(pressed, (m) => reachedOutput(sent, m.graphic));
       settle((graphic) => reachedOutput(sent, graphic));
@@ -710,7 +719,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       // A LATER PRESS ALREADY STANDS: an Out (or a Re-take) of this page landed while this press was
       // still ending, so nothing is owed and nothing needs saying. "Send it again" would put back
       // what the operator just took off (#2655 R7, newest wins).
-      const replacedSince = !stale && !!record && owedItems.length > 0 && !record.wouldOwe(owedItems, order);
+      const replacedSince = !stale && !!record && record.replacedSince(owedItems, order);
       if (!replacedSince) record?.failed(owedItems, note, order);
       const uncertain = isUncertain(e);
       const skipped = io.verbsSkipped(e);
@@ -726,7 +735,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
         const named = (e as { graphics?: unknown }).graphics;
         page().selectionStale(Array.isArray(named) ? (named as string[]) : [...new Set(marked.flat().map((item) => item.graphic))]);
       }
-      if (replacedSince) return { ok: false, note: '' };
+      if (replacedSince) return { ok: false, note: REPLACED_NOTE, replaced: true };
       return { ok: false, note, ...(stale ? { stale: true as const } : uncertain ? { uncertain: true as const } : {}) };
     } finally {
       p.sending(-1);
@@ -830,7 +839,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
     const sent = await sending;
     if (!sent.ok) {
       for (const { c } of captured) c.undo(sent);
-      return { ok: false, note: sent.note };
+      return { ok: false, note: sent.note, ...(sent.replaced ? { replaced: true as const } : {}) };
     }
     // A capture lands only with its press on the output; a later press that overtook it stands.
     for (const { g, c } of captured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
@@ -936,7 +945,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
    *  later press, refused as stale, unanswered (it may still commit), or failed. */
   const doneOf = (sent: Sent, graphic: string): PressDone =>
     !sent.ok
-      ? { outcome: sent.stale ? 'refused' : sent.uncertain ? 'unknown' : 'failed', note: sent.note }
+      ? { outcome: sent.stale || sent.replaced ? 'refused' : sent.uncertain ? 'unknown' : 'failed', note: sent.note }
       : reachedOutput(sent, graphic)
         ? { outcome: 'accepted' }
         : { outcome: 'refused', note: 'A later press replaced it.' };
@@ -1321,7 +1330,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
           if (!appearance) return void (result.updated += 1);
           const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data: {}, appearance } }]], 'Send to on-air graphics');
           if (sent.ok && reachedOutput(sent, graphic)) result.updated += 1;
-          else result.failed.push({ graphic, note: sent.ok ? 'A later press replaced it.' : sent.note });
+          else result.failed.push({ graphic, note: sent.ok ? REPLACED_NOTE : sent.note });
         }),
       ),
     );

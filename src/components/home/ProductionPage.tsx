@@ -245,7 +245,7 @@ import {
   type LiveCueMap,
 } from '../../control/hostedControl';
 import type { ReplayItem } from '../../control/outputRecovery';
-import { createSendDebts } from '../../control/failedSends';
+import { createSendDebts, stoppedError } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import { fastEventGraphics, needsServerInstant } from '../../control/matchClockWire';
 import { type ProgramStageHandle } from './ProgramStage';
@@ -494,6 +494,14 @@ const oscStepStore = (showId: string): NonNullable<FolderPlayoutIo['oscSteps']> 
     },
   };
 };
+/** One stop per playout session (#2655 R3), aborted when that session ends. */
+const sessionStops = new WeakMap<PlayoutSession, AbortController>();
+function stopOf(session: PlayoutSession): AbortController {
+  let stop = sessionStops.get(session);
+  if (!stop) sessionStops.set(session, (stop = new AbortController()));
+  return stop;
+}
+
 /** The verbs' browser half (control/graphicVerbs.ts): the wire's doors, the press rules of
  *  control/controlModel.ts (which Node cannot load), the clock and the bound presses' timer. */
 const GRAPHIC_VERB_IO: GraphicVerbIo = {
@@ -846,6 +854,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
    *  session, because effects that never restart (the log follower) keep the one they first saw. */
   const session = useMemo(() => createPlayoutSession(id), [id]);
   const sessionEnd = useRef<{ session: PlayoutSession; timer: ReturnType<typeof setTimeout> } | null>(null);
+  /** Ends every press this session still sends when the session ends (#2655 R3): one per session,
+   *  so a page mounted again in its place keeps its own presses. */
+  const sessionStop = useMemo(() => stopOf(session), [session]);
   /** One send id per deliberate OSC press, unique to this page load (control/oscSend.ts). */
   /** The open OSC editor's view of its cue, unsaved typing included (home/OscCueEditor). */
   const oscPending = useRef<((cueId: string) => { cue: ShowCue; flush: () => void } | null) | null>(null);
@@ -863,11 +874,11 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         session,
         timer: setTimeout(() => {
           session.dispose();
-          stopSending();
+          sessionStop.abort(stoppedError());
         }),
       };
     };
-  }, [session]);
+  }, [session, sessionStop]);
   const pageCanDispatch = () => mountedSession.current === session && session.alive();
   // ── Live status: which cue is on air ON EACH LAYER, and what each graphic was last sent. Several
   // graphics are up at once by design, so the marker is a map keyed by graphic name. Both live in
@@ -3007,6 +3018,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     // (#1886): judged against the clock as this page's PROGRAM holds it.
     serverInstant: (item) => needsServerInstant(clockSpecsRef.current.clocks.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
     debts: () => sendDebts.current,
+    stop: sessionStop.signal,
     outputUsable: () => usableOutputRef.current,
     sending: (delta) => {
       // When this page's newest send left: its row can arrive before its answer does.
@@ -3240,7 +3252,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         take: async (cue) => {
           const taken = await verbs.takeGraphic(cue, 'Take');
           if (!taken) return 'its graphic is gone';
-          if (!taken.ok) return taken.note;
+          // One a later press of this page already replaced did not fail: that press stands.
+          if (!taken.ok) return taken.replaced ? null : taken.note;
           noteStep(cue);
           return null;
         },
@@ -4164,7 +4177,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         if (refused) setNote(refused);
         else if (isControlCue(cue)) void controlSend(cue, label);
         else if (isServerCue(cue)) void serverVerb(cue, 'take', label, { direct: true }).then((r) => r && setNote(r.note));
-        else void takeGraphicCue(cue, label, true).then((r) => r && setNote(r.note));
+        else void takeGraphicCue(cue, label, true).then((r) => r && !r.replaced && setNote(r.note));
         return;
       }
       case 'hold':

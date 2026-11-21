@@ -324,9 +324,10 @@ interface SendDebts {
   heard(items: readonly { graphic: string; msg?: unknown }[]): ((shown: string | null) => string | null) | null;
   /** How many graphics are still owed: a failed send of theirs that nothing has settled yet. */
   owed(): number;
-  /** Whether this failure, of this press order, would be owed if booked now: false when a later
-   *  press of this page already landed on every graphic it carries and paid it (#2655 R7). */
-  wouldOwe(items: readonly { graphic: string; msg?: unknown }[], order: number): boolean;
+  /** Whether a later press of this page that REPLACES the graphic already landed on every graphic
+   *  this failure carries (or its own row came back): then it is paid, and ends quietly (#2655
+   *  R7). A later press that only modified a graphic does not silence it. */
+  replacedSince(items: readonly { graphic: string; msg?: unknown }[], order: number): boolean;
 }
 
 /** commandRoads.ts `oidOf`, restated because this file imports nothing. */
@@ -431,13 +432,10 @@ export function createSendDebts(): SendDebts {
       return owedGraphics().length < before ? settle() : null;
     },
     owed: () => owedGraphics().length,
-    wouldOwe(items, order) {
-      return [...new Set(items.map((item) => item.graphic))].some((graphic) => {
+    replacedSince(items, order) {
+      return items.length > 0 && [...new Set(items.map((item) => item.graphic))].every((graphic) => {
         const mine = items.filter((item) => item.graphic === graphic);
-        if (mine.some((item) => heardIds.has(oidIn(item.msg) ?? ''))) return false;
-        if ((replacedAt.get(graphic) ?? -Infinity) > order) return false;
-        const replaces = mine.some((item) => replacing(item.msg));
-        return replaces || !((touchedAt.get(graphic) ?? -Infinity) > order);
+        return mine.some((item) => heardIds.has(oidIn(item.msg) ?? '')) || (replacedAt.get(graphic) ?? -Infinity) > order;
       });
     },
   };

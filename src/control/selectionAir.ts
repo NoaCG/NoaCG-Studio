@@ -769,6 +769,9 @@ const keepIn = (io: SelectionAirIo, air: SelectionAir): void => {
 export interface SendFailure {
   uncertain?: true;
   stale?: true;
+  /** A later press of this page that replaces the graphic landed first (#2655 R7): nothing is owed
+   *  and nothing needs saying; the note is only for a list of what each graphic came to. */
+  replaced?: true;
 }
 
 /** A Take, an Out or an Update put this cue's selection on the layer (none: a cue without one, or

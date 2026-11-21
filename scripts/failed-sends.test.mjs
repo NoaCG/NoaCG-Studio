@@ -540,13 +540,14 @@ test('the debt record: the same facts in any order owe the same graphics (press 
   }
 });
 
-test('R7: wouldOwe says whether a failure is already paid by a later press that landed', () => {
+test('R7: replacedSince says whether a later REPLACING press of this page already landed on every graphic', () => {
   const debts = createSendDebts();
   debts.landed(out('g', 'o2'), 2);
-  assert.equal(debts.wouldOwe(take('g', 1, 't1'), 1), false, 'the Out pressed after it landed');
-  assert.equal(debts.wouldOwe(take('g', 3, 't3'), 3), true, 'pressed after the Out');
+  assert.equal(debts.replacedSince(take('g', 1, 't1'), 1), true, 'the Out pressed after it landed');
+  assert.equal(debts.replacedSince(take('g', 3, 't3'), 3), false, 'pressed after the Out');
   debts.landed(update('h', 'u2'), 2);
-  assert.equal(debts.wouldOwe(take('h', 1, 't1'), 1), true, 'an Update never pays a Take');
-  assert.equal(debts.wouldOwe(update('h', 'u1'), 1), false, 'but pays an Update');
-  assert.equal(debts.wouldOwe([...take('g', 1, 't1'), ...take('k', 1, 'k1')], 1), true, 'one graphic still owed');
+  assert.equal(debts.replacedSince(take('h', 1, 't1'), 1), false, 'an Update never silences a Take');
+  assert.equal(debts.replacedSince(update('h', 'u1'), 1), false, 'nor an Update: a later modifying press may carry other fields');
+  assert.equal(debts.replacedSince([...take('g', 1, 't1'), ...take('k', 1, 'k1')], 1), false, 'one graphic not replaced');
+  assert.equal(debts.replacedSince([], 1), false);
 });
