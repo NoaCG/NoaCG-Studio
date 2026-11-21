@@ -43,6 +43,22 @@ export const SVG_SETS = [
   },
 ];
 
+/**
+ * PACKAGES BY USE (svg-template-library D3, prototyped in TL1 on the audience pilot): a package
+ * lists the inventory entries that name it in `packages`, so one entry can sit in several. Each
+ * tile shows the default preview and every named state the operator sees, each with its alt text.
+ * TL3 merges the inventories and builds the package zips; until then a package's files are the
+ * per-file downloads here and the whole templates zip.
+ */
+export const SVG_PACKAGES = [
+  {
+    id: 'audience',
+    title: 'Audience',
+    blurb: 'Join card, Live vote, Vote results and Message. Import one and Interaction offers it for its feature: the Join card for Add Join card, Vote results for Add results, Message for Prepare.',
+    set: 'templates',
+  },
+];
+
 const publicDir = (set, root) => path.join(root, 'public', 'downloads', 'svg', set.id);
 export const fileUrl = (set, slug, ext) => `/downloads/svg/${set.id}/${slug}.${ext}`;
 
@@ -56,6 +72,7 @@ function expectedFiles(set, root) {
   for (const entry of readInventory(set, root)) {
     files.set(`${entry.slug}.svg`, path.join(root, set.source, 'SVG', `${entry.slug}.svg`));
     files.set(`${entry.slug}.png`, path.join(root, set.source, 'Previews', `${entry.preview}.png`));
+    for (const state of entry.states ?? []) files.set(`${state.preview}.png`, path.join(root, set.source, 'Previews', `${state.preview}.png`));
   }
   return files;
 }
@@ -87,13 +104,43 @@ export function checkSvgFiles(root = ROOT) {
   return problems;
 }
 
-/** The page body: per set, a heading with its zip, then a grid of previews with an SVG download each. */
+/** A package's section: its entries with the default preview and each named state, alt text on all. */
+function renderPackage(pkg, root) {
+  const set = SVG_SETS.find((s) => s.id === pkg.set);
+  const entries = readInventory(set, root).filter((entry) => (entry.packages ?? []).includes(pkg.id));
+  const tiles = entries.map((entry) => {
+    const states = (entry.states ?? []).map((state) => `
+            <li><img src="${fileUrl(set, state.preview, 'png')}" alt="${escapeHtml(state.alt)}" width="960" height="540" loading="lazy" /><span>${escapeHtml(state.name)}</span></li>`);
+    return `        <li class="svg-tile svg-tile--package" data-testid="svg-package-${pkg.id}-${entry.slug}">
+          <img src="${fileUrl(set, entry.slug, 'png')}" alt="${escapeHtml(entry.alt ?? '')}" width="960" height="540" loading="lazy" />
+          <span class="svg-name">${escapeHtml(entry.name)}</span>
+          <a class="svg-get" href="${fileUrl(set, entry.slug, 'svg')}" download aria-label="Download ${escapeHtml(entry.name)} SVG">SVG</a>${states.length ? `
+          <ul class="svg-states" aria-label="${escapeHtml(entry.name)} states">${states.join('')}
+          </ul>` : ''}
+        </li>`;
+  });
+  return `    <section class="svg-set svg-package" id="${pkg.id}" data-testid="svg-package-${pkg.id}">
+      <div class="svg-set-head">
+        <div>
+          <h2>${escapeHtml(pkg.title)}</h2>
+          <p>${escapeHtml(pkg.blurb)}</p>
+        </div>
+      </div>
+      <ul class="svg-grid">
+${tiles.join('\n')}
+      </ul>
+    </section>`;
+}
+
+/** The page body: the packages, then per set a heading with its zip and a grid of previews with
+ *  an SVG download each. */
 export function renderSvgGallery(root = ROOT) {
-  return SVG_SETS.map((set) => {
+  const packages = SVG_PACKAGES.map((pkg) => renderPackage(pkg, root));
+  return [...packages, ...SVG_SETS.map((set) => {
     const tiles = readInventory(set, root).map((entry) => {
       const name = escapeHtml(entry.name);
       return `        <li class="svg-tile" data-testid="svg-file-${set.id}-${entry.slug}">
-          <img src="${fileUrl(set, entry.slug, 'png')}" alt="" width="960" height="540" loading="lazy" />
+          <img src="${fileUrl(set, entry.slug, 'png')}" alt="${escapeHtml(entry.alt ?? '')}" width="960" height="540" loading="lazy" />
           <span class="svg-name">${name}</span>
           <a class="svg-get" href="${fileUrl(set, entry.slug, 'svg')}" download>SVG</a>
         </li>`;
@@ -110,7 +157,7 @@ export function renderSvgGallery(root = ROOT) {
 ${tiles.join('\n')}
       </ul>
     </section>`;
-  }).join('\n\n');
+  })].join('\n\n');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

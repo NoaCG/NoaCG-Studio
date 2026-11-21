@@ -5,6 +5,7 @@
   <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
     <rect id="Panel" x="120" y="680" width="1060" height="320" rx="20" fill="#FFFFFF"/>
     <rect id="Accent" x="120" y="680" width="12" height="320" rx="6" fill="#2E5BFF"/>
+    <rect id="Text_box" inkscape:label="Text box" x="448" y="704" width="708" height="272" rx="12" fill="#FFFFFF"/>
     <rect id="QR_plate" inkscape:label="QR plate" x="168" y="712" width="256" height="256" rx="14" fill="#EEF2FA"/>
     <g id="QR">
       <rect x="182" y="726" width="228" height="228" fill="#0F1729"/>
