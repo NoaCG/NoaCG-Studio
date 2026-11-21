@@ -70,13 +70,17 @@ test('every section-nav link points at a section that exists', async ({ page }) 
 // toggle is pressed. Every page stays one click away, and without the module every link shows.
 const TOPICS = ['Getting started', 'Make a graphic', 'Put it on air', 'Run the show', 'AI agents & the CLI'];
 
-// Scroll a section to the top and wait for the nav to highlight it. The page can still grow above
-// the section while it settles (fonts and pictures arriving), so the scroll repeats until it holds.
-async function readSection(page: Page, id: string) {
-  await expect(async () => {
-    await page.locator(`section[id="${id}"]`).evaluate((el) => el.scrollIntoView({ behavior: 'instant' }));
-    await expect(page.locator(`.doc-nav a[href="#${id}"]`)).toHaveClass(/is-active/, { timeout: 1000 });
-  }).toPass();
+// ONE GUIDE AT A TIME (owner, 2026-11-21: the page "feels like there's so much text"). Every
+// section the nav links is a page, and docs.ts shows the one the address names. Open a page the
+// way a reader does, by its link's address, and wait for the nav to highlight it.
+async function openPage(page: Page, id: string) {
+  await page.evaluate((id) => { location.hash = id; }, id);
+  await expect(page.locator(`.doc-nav a[href="#${id}"]`)).toHaveClass(/is-active/);
+}
+
+// Every page, in the nav's order: what a check that used to read the whole document walks now.
+async function pageIds(page: Page) {
+  return page.locator('.doc-nav a[href^="#"]').evaluateAll((links) => links.map((a) => (a as HTMLAnchorElement).hash.slice(1)));
 }
 
 test('the section nav opens on five topics and unfolds the one being read', async ({ page }) => {
@@ -87,7 +91,7 @@ test('the section nav opens on five topics and unfolds the one being read', asyn
   await expect(nav.locator('a[href="#quiz"]')).toBeHidden();
 
   // Reading a type page unfolds its topic and highlights the page, and only that topic is open.
-  await readSection(page, 'quiz');
+  await openPage(page, 'quiz');
   await expect(nav.locator('a[href="#quiz"]')).toBeVisible();
   await expect(nav.locator('a[href="#teams"]')).toBeHidden();
 
@@ -96,12 +100,50 @@ test('the section nav opens on five topics and unfolds the one being read', asyn
   await show.locator('.doc-nav-toggle').click();
   await expect(show.locator('.doc-nav-toggle')).toHaveAttribute('aria-expanded', 'true');
   await expect(nav.locator('a[href="#teams"]')).toBeVisible();
+  await expect(page.locator('#quiz')).toBeVisible();
 
-  // Scrolling on into the next topic moves the fold with the reader.
-  await readSection(page, 'dashboard');
+  // Going on into the next topic moves the fold with the reader.
+  await openPage(page, 'dashboard');
   await expect(show).toHaveClass(/is-current/);
   await expect(nav.locator('a[href="#teams"]')).toBeVisible();
   await expect(nav.locator('a[href="#quiz"]')).toBeHidden();
+});
+
+test('one guide shows at a time, and every address still reaches its text', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/docs');
+  // The first view is the page head and Getting started, and nothing else.
+  await expect(page.locator('.doc-hero')).toBeVisible();
+  await expect(page.locator('#getting-started')).toBeVisible();
+  await expect(page.locator('#casparcg')).toBeHidden();
+  await expect(page.locator('.doc-pager a')).toHaveText(['NextGraphics']);
+
+  // A page of the Graphics topic shows alone: not the topic's opening text, not its neighbours.
+  await openPage(page, 'quiz');
+  await expect(page.locator('#quiz h3.doc-kind')).toBeInViewport();
+  await expect(page.locator('.doc-hero')).toBeHidden();
+  await expect(page.locator('#graphics > div').first()).toBeHidden();
+  await expect(page.locator('#scoreboards')).toBeHidden();
+  // Previous and Next follow the nav's order.
+  await expect(page.locator('.doc-pager a')).toHaveText(['PreviousScoreboard', 'NextLive vote']);
+  await page.locator('.doc-pager a.next').click();
+  await expect(page).toHaveURL(/\/docs#svg-vote$/);
+  await expect(page.locator('#svg-vote')).toBeVisible();
+  await expect(page.locator('#quiz')).toBeHidden();
+
+  // An address INSIDE a page opens that page and lands on the heading. These are the ids the
+  // app, the landing and pull requests link to, so each must survive the paging.
+  for (const [id, holder] of [['casparcg-connect', 'casparcg'], ['data-api', 'data'], ['example-vote', 'data-example'], ['agent-setup', 'claude-code']]) {
+    await page.goto('about:blank');
+    await page.goto(`/docs#${id}`);
+    await expect(page.locator(`[id="${id}"]`)).toBeInViewport();
+    await expect(page.locator(`.doc-nav a[href="#${holder}"]`)).toHaveClass(/is-active/);
+  }
+  // The topic's own address is its opening text.
+  await page.goto('about:blank');
+  await page.goto('/docs#graphics');
+  await expect(page.locator('#graphics .doc-kinds')).toBeVisible();
+  await expect(page.locator('#first-graphic')).toBeHidden();
 });
 
 test('on a phone the nav above the text stays five topics and unfolds only on a tap', async ({ page }) => {
@@ -337,7 +379,7 @@ test('the graphics topic has one page per type, each with its file, layers and n
 // `Content-Disposition: inline` (noacg.studio does, measured 2026-09-21): the attribute decides.
 // A reader who is told to download a file and gets a page of SVG markup instead is stuck.
 test('an example link downloads the file rather than opening it', async ({ page }) => {
-  await page.goto('/docs');
+  await page.goto('/docs#svg-layers-files');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.locator('#svg-layers-files a[href="/docs/examples/quiz.svg"]').click(),
@@ -587,10 +629,21 @@ test('every docs screenshot loads at the size the page reserved for it', async (
   // Two per type: the example as it renders, and the Fields step after the drop.
   await expect(page.locator('#graphics .doc-type .doc-shot img')).toHaveCount(12);
   await expect(page.locator('#data-example .doc-shot img')).toHaveCount(7);
+  // One guide shows at a time, so each page is opened in turn and its own shots are read. The
+  // total has to come back to every shot in the document: one on a page no link reaches would
+  // otherwise never be looked at.
+  const seen = new Set<string>();
+  for (const id of await pageIds(page)) {
+    await openPage(page, id);
+    const visible = await page.locator('.doc-shot img:visible').evaluateAll((imgs) => imgs.map((img) => img.getAttribute('src')!));
+    for (const src of visible) seen.add(src);
+  }
   const shots = page.locator('.doc-shot img');
   const count = await shots.count();
+  expect(seen.size).toBe(count);
   for (let i = 0; i < count; i++) {
     const img = shots.nth(i);
+    await openPage(page, (await img.evaluate((el) => el.closest('section[id]')!.id)));
     // `loading="lazy"` means nothing fetches until the frame is near the viewport.
     await img.scrollIntoViewIfNeeded();
     await expect(img).toHaveJSProperty('complete', true);
@@ -615,7 +668,7 @@ test('every docs screenshot loads at the size the page reserved for it', async (
 });
 
 test('every command block is one copy-paste, with a copy button', async ({ page }) => {
-  await page.goto('/docs');
+  await page.goto('/docs#claude-code');
   const blocks = page.locator('.doc-body pre');
   const count = await blocks.count();
   expect(count).toBeGreaterThanOrEqual(10);
@@ -649,7 +702,11 @@ test('mobile docs commands fit clear of Copy and still copy exactly', async ({ p
   await expect(copy).toBeVisible();
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
 
-  const clashes = await blocks.evaluateAll((shells) => shells.flatMap((shell) => {
+  // Every page in turn: a block on a page that is not showing has no boxes to measure.
+  const clashes: string[] = [];
+  for (const id of await pageIds(page)) {
+    await openPage(page, id);
+    clashes.push(...await page.locator('.doc-body .cmd:visible').evaluateAll((shells) => shells.flatMap((shell) => {
     const pre = shell.querySelector('pre');
     const button = shell.querySelector('.cmd-copy')?.getBoundingClientRect();
     if (!pre || !button || pre.textContent?.includes('\n')) return [];
@@ -661,14 +718,17 @@ test('mobile docs commands fit clear of Copy and still copy exactly', async ({ p
       line.top < button.bottom && line.bottom > button.top,
     );
     return underButton || pre.scrollWidth > pre.clientWidth ? [pre.innerText] : [];
-  }));
+    })));
+  }
   expect(clashes).toEqual([]);
+  await openPage(page, 'claude-code');
 
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await copy.click();
   await expect(copy).toHaveText('Copied');
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(installLine);
 
+  await openPage(page, 'data-example');
   const json = blocks.filter({ hasText: 'Junior final starts at 19:30' }).locator('pre');
   await expect(json).toHaveCSS('white-space', 'pre');
   expect(await json.evaluate((pre) => pre.scrollWidth > pre.clientWidth)).toBe(true);
@@ -723,7 +783,7 @@ test('Getting started points a coding-agent owner at the CLI', async ({ page }) 
   // with its own door, and the list under it names both roads to air. The order is the studio's
   // first screen (owner, 2026-09-28, EntryStep.tsx) - a template, your own SVG, AI - so a reader
   // who starts here recognises it. The order is the point, so it is pinned by position.
-  const ways = callout.locator('ol > li');
+  const ways = callout.locator('ul > li');
   await expect(ways).toHaveCount(3);
   await expect(ways.nth(0).locator('a[href="/app#/new"]')).toHaveCount(1);
   await expect(ways.nth(1).locator('a[href="#first-graphic"]')).toHaveCount(1);
