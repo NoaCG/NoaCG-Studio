@@ -1,7 +1,8 @@
 // A TAKE THAT LANDS AFTER ITS PAGE GAVE UP ON IT IS NOT REPORTED AS FAILED (#917).
 //
 // Both attempts of a send can be abandoned at their 1.5 s deadline while the server commits one
-// anyway (failedSends.ts ATTEMPT_TIMEOUT_MS, WHAT THIS CANNOT DO). Seen on hosted staging: the
+// anyway (failedSends.ts ATTEMPT_TIMEOUT_MS, WHAT THIS CANNOT DO; a held press is cut at 8 s since
+// #2671, and its copies can still commit after it is ended). Seen on hosted staging: the
 // Take was on air and the page said "on this monitor only" for as long as anyone looked, because
 // its follower dropped the returning row as its own and nothing withdrew the notice.
 //
@@ -61,8 +62,9 @@ async function answerLate(op: Page): Promise<void> {
   });
 }
 
-/** Every attempt held until the page has given up on it, then dropped. What the first attempt
- *  carried is kept, so the test can commit it from outside the page: the late commit. */
+/** Every attempt held, then dropped at HOLD_MS with a network failure (before a held attempt's 8 s
+ *  cut, #2671, so the page sends it again 0.4 s later). What the first attempt carried is kept, so
+ *  the test can commit it from outside the page: the late commit. */
 async function holdThenDrop(op: Page): Promise<() => Promise<void>> {
   const kept: { url: string; headers: Record<string, string>; body: string }[] = [];
   await op.route(SEND, async (route) => {

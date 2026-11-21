@@ -338,6 +338,23 @@ test('R2a (#2671): after a busy head a held press goes again in 0.4 s for its fi
   // A press that is not held is unchanged: its 4 s window, R2's waits.
   assert.deepEqual(await run(failed.headBusyError, false), [400, 1000]);
   assert.equal(isUnanswered(failed.headBusyError()), true, 'a busy head is still unanswered');
+  // The 10 s count from the PRESS: a press that waited 9.5 s in its lane gets one fast resend.
+  const late = async () => {
+    let t = 1_000_000;
+    const slept = [];
+    let attempts = 0;
+    await sendWithResend(
+      async () => {
+        attempts += 1;
+        if (attempts > 3) return;
+        t += 1100;
+        throw failed.headBusyError();
+      },
+      { deadline: 0, stillNewest: () => true, held: true, pressedAt: t - 8500, now: () => t, sleep: async (ms) => { slept.push(ms); t += ms; } },
+    );
+    return slept;
+  };
+  assert.deepEqual(await late(), [failed.BUSY_RESEND_MS, 1000, 2000]);
   assert.equal(failed.isHeadBusy(unansweredError()), false);
 });
 

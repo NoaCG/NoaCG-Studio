@@ -225,6 +225,9 @@ export async function sendWithResend(
     stillNewest: () => boolean;
     /** Sent until it lands (#2655): no deadline, the long schedule above. */
     held?: boolean;
+    /** Epoch ms of the press, when it was made before this call (a press that waited in its lane):
+     *  a busy head is followed fast only while the PRESS is under BUSY_FAST_MS old (R2a). */
+    pressedAt?: number;
     /** Aborted: no further attempt, and the one in flight is abandoned now. */
     stop?: AbortSignal;
     /** Aborted: no further attempt, and a wait between two ends now, but the attempt in flight
@@ -248,7 +251,7 @@ export async function sendWithResend(
   const stopped = (last: unknown) =>
     stop?.reason instanceof Error ? Object.assign(new Error(stop.reason.message), stop.reason) : last ?? stoppedError();
   let last: unknown = null;
-  const pressedAt = now();
+  const pressedAt = opts.pressedAt ?? now();
   for (let attempt = 0; ; attempt += 1) {
     if (stop?.aborted) throw stopped(last);
     const ms = opts.held ? HELD_ATTEMPT_MS : Math.min(ATTEMPT_TIMEOUT_MS, opts.deadline - now());

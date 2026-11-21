@@ -106,7 +106,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // What the server answered each Take copy that reached it.
   const takeAnswers: unknown[] = [];
   op.on('response', async (r) => {
-    if (!/\/rpc\/control_send_seq\b/.test(r.url())) return;
+    if (!/\/rpc\/control_send_(many|seq)\b/.test(r.url())) return;
     const body = r.request().postDataJSON() as { p_items?: { msg?: { t?: string } }[] } | null;
     if (!body?.p_items?.some((item) => item.msg?.t === 'play')) return;
     takeAnswers.push(await r.json().catch(() => null));

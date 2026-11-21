@@ -2219,9 +2219,10 @@ let lastPress = 0;
  * HOW LONG A STALLED SEND HOLDS THE NEXT ONE OF ITS GRAPHIC: one attempt's deadline
  * (failedSends.ts ATTEMPT_TIMEOUT_MS), after which that attempt is abandoned and counts as
  * unanswered anyway. Past it, the next press leaves; if the abandoned one lands after all, the
- * server refuses it as superseded. A held earlier press is cut only at 8 s (#2671): past the same
- * 1.5 s a later press that replaces its graphic leaves and ends it (fix-2655.md R7), and its
- * attempt in flight runs to its answer, which the server gives as skipped.
+ * server refuses it as superseded. A held earlier press is cut only at 8 s (#2671): a later press
+ * that replaces its graphic ends it when that press is made (fix-2655.md R7: no further copy, the
+ * attempt in flight runs to its answer, which the server gives as skipped) and leaves the lane
+ * after at most these 1.5 s.
  */
 const seqQueue = createGraphicFifo(ATTEMPT_TIMEOUT_MS);
 
@@ -2261,7 +2262,7 @@ async function sendSeqVerb(
       },
       // Newest wins by ending the earlier press (`laneEnders`): a later press that only modifies the
       // graphic never ends this one (R7).
-      { deadline, stillNewest: resend.stillNewest, held, stop, settled: lane.settled },
+      { deadline, stillNewest: resend.stillNewest, held, stop, settled: lane.settled, pressedAt: resend.deadline - RESEND_WINDOW_MS },
     );
   };
   // Ended while it still waited in its lanes (Stop sending, All out, a replacing press, its own
