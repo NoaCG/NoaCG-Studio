@@ -125,9 +125,9 @@ export const CONTROL_KEPT = 'This production has OSC cues this version cannot ch
  * of ./ografTyped.ts `typedFrozen`): model/shows.ts `patchShowChecked` (both of its writes) and
  * ./rundownHistory.ts `replaceRundown` ask it. A write is refused whole when it would change any byte
  * of a control cue this build cannot read, or remove one; change a readable control cue's message
- * other than through its writer (`write`, cue id to the exact bytes it writes); or give a cue a
- * control record it did not have, unless an undo brings it back (`restored`) or it is a copy of a
- * message this record already holds.
+ * other than through its writer (`write`, cue id to the exact bytes it writes) or an undo or redo
+ * (`restored`); or give a cue a control record it did not have, unless an undo brings it back or it
+ * is a copy of a message this record already holds.
  */
 export function controlFrozen(
   before: ControlKept | null,
@@ -142,6 +142,9 @@ export function controlFrozen(
   }
   for (const [id, kept] of before?.cues ?? []) {
     if (write.has(id)) continue;
+    // An undo or redo puts a readable message back as the record held it; a later version's cue
+    // still never changes here.
+    if (!kept.whole && restored.has(id)) continue;
     const cue = now.get(id);
     if (!cue) {
       if (kept.whole) return CONTROL_KEPT;

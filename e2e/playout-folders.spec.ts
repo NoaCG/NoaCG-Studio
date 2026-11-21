@@ -2108,6 +2108,14 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   const row = cue(page, 'Lights: winner');
   await expect(row).toContainText('Lighting desk  /zeros/cue/go "0" "5"');
   await expect(editor.getByTestId('osc-take-blocked')).toHaveCount(0);
+  // An edit is one undo step, and undo puts the message back.
+  await editor.getByTestId('osc-address').fill('/other');
+  await editor.getByTestId('osc-address').press('Tab');
+  await expect(row).toContainText('/other');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(row).toContainText('/zeros/cue/go');
+  await expect(editor.getByTestId('osc-address')).toHaveValue('/zeros/cue/go');
   expect(fake.osc, 'editing sends nothing').toHaveLength(0);
 
   await page.getByTestId('verb-take').click();

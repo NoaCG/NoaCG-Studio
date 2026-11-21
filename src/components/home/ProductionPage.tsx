@@ -815,6 +815,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const session = useMemo(() => createPlayoutSession(id), [id]);
   const sessionEnd = useRef<{ session: PlayoutSession; timer: ReturnType<typeof setTimeout> } | null>(null);
   /** One send id per deliberate OSC press, unique to this page load (control/oscSend.ts). */
+  /** The open OSC editor's view of its cue, unsaved typing included (home/OscCueEditor). */
+  const oscPending = useRef<((cueId: string) => { cue: ShowCue; flush: () => void } | null) | null>(null);
   const [nextSendId] = useState(() => sendIds(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now())));
   const mountedSession = useRef<PlayoutSession | null>(null);
   useLayoutEffect(() => {
@@ -3486,7 +3488,11 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     // Read from the store at the press, not the render: an edit landed a moment ago (a field left
     // for Send test) is what goes out.
     const stored = loadShows().find((s) => s.id === id);
-    const now = stored?.cues?.find((c) => c.id === cue.id) ?? cue;
+    // The OSC editor's boxes as they stand, typing not yet saved included, then saved: a hardware
+    // Take blurs nothing, and must send what the operator sees.
+    const onScreen = oscPending.current?.(cue.id) ?? null;
+    onScreen?.flush();
+    const now = onScreen?.cue ?? stored?.cues?.find((c) => c.id === cue.id) ?? cue;
     const built = oscRequest(now, stored?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id));
     if (!built.ok) {
       setNote(`${label} was not sent: ${built.reason}`);
@@ -5252,6 +5258,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
             playoutSettings={playoutSettings}
             onSendTest={(cue) => void controlSend(cue, 'Send test')}
             setNote={setNote}
+            writeRundown={writeRundown}
+            pendingRef={oscPending}
           />
         )}
 

@@ -5,9 +5,10 @@
 // Text boxes are deferred (home/useDeferredEdits): a keystroke is not a write, and nothing here
 // sends - only Send test and Take do.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MutableRefObject } from 'react';
 import { readControl, type OscArg, type OscArgType, type OscControlV1, type OscDestination } from '../../model/controlCue';
 import { removeOscDestination, saveOscDestination, setCueControl, updateShowCueChecked, type Show, type ShowCue } from '../../model/shows';
+import { commitDurableWrites } from '../../model/durableStore';
 import { uuid } from '../../model/id';
 import { oscBridgeState, type PlayoutSettings } from '../../control/playoutLink';
 import { useDeferredEdits } from './useDeferredEdits';
@@ -31,11 +32,17 @@ interface Props {
   /** Send the cue once, as Take would (the page's `controlSend`). */
   onSendTest: (cue: ShowCue) => void;
   setNote: (note: string) => void;
+  /** The page's undoable rundown write (useRundownAuthoring `writeRundown`): every edit of this cue
+   *  goes through it, so it is one undo step and never clears the history. */
+  writeRundown: (write: () => { shows: Show[]; error: string | null }, label: string, failed?: string) => Promise<boolean>;
+  /** Filled by this editor: the cue as it stands on screen, typing not yet saved included, and the
+   *  flush that saves it. A Take reads it, so a hardware press sends what the operator sees. */
+  pendingRef: MutableRefObject<((cueId: string) => { cue: ShowCue; flush: () => void } | null) | null>;
 }
 
 type Draft = { id: string; name: string; host: string; port: string };
 
-export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, rehearsing, playoutSettings, onSendTest, setNote }: Props) {
+export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, rehearsing, playoutSettings, onSendTest, setNote, writeRundown, pendingRef }: Props) {
   const control = readControl(cue.control);
   const destinations = show.oscDestinations ?? [];
   const [destDraft, setDestDraft] = useState<Draft | null>(null);
@@ -51,17 +58,11 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
     };
   }, [cue.id, agentUrl, agentToken]);
 
-  const writeControl = (next: OscControlV1) => {
-    const r = setCueControl(show.id, cue.id, next);
-    setShows(r.shows);
-    if (r.error) setNote(r.error);
-  };
+  const writeControl = (next: OscControlV1) => void writeRundown(() => setCueControl(show.id, cue.id, next), 'Edit OSC cue', 'The OSC cue was not saved');
 
   const edits = useDeferredEdits((key, text) => {
     if (key === 'label') {
-      const r = updateShowCueChecked(show.id, cue.id, { label: text.trim() || 'OSC cue' });
-      setShows(r.shows);
-      if (r.error) setNote(r.error);
+      void writeRundown(() => updateShowCueChecked(show.id, cue.id, { label: text.trim() || 'OSC cue' }), 'Rename cue', 'The cue name was not saved');
       return;
     }
     if (!control) return;
@@ -72,6 +73,21 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
     }
   });
 
+  // What a press reads: the cue with the boxes' unsaved text over it (home/AGENTS.md: a Take pressed
+  // between a keystroke and a save airs the keystroke).
+  const onScreen = control ? {
+    ...cue,
+    label: edits.text('label', cue.label).trim() || cue.label,
+    control: { ...control, address: edits.text('address', control.address), args: control.args.map((a, i) => ({ ...a, value: edits.text(`arg:${i}`, a.value) })) },
+  } : null;
+  const { flush } = edits;
+  useEffect(() => {
+    pendingRef.current = (cueId) => (onScreen && cueId === onScreen.id ? { cue: onScreen, flush } : null);
+  });
+  useEffect(() => () => {
+    pendingRef.current = null;
+  }, [pendingRef]);
+
   if (!control) {
     return (
       <div className="pd-editor" data-testid="osc-cue-editor">
@@ -81,13 +97,17 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
   }
 
   const setArgs = (args: OscArg[]) => writeControl({ ...control, args });
-  const saveDestination = () => {
+  // The form closes only on a save storage has agreed to (src/components/AGENTS.md): a refused one
+  // keeps what was typed and says why.
+  const saveDestination = async () => {
     if (!destDraft) return;
-    const port = Number(destDraft.port);
-    const r = saveOscDestination(show.id, { id: destDraft.id, name: destDraft.name, host: destDraft.host, port });
+    const draft = destDraft;
+    const r = saveOscDestination(show.id, { id: draft.id, name: draft.name, host: draft.host, port: Number(draft.port) });
     setShows(r.shows);
     if (r.error) return setNote(r.error);
-    if (control.destinationId !== destDraft.id) writeControl({ ...control, destinationId: destDraft.id });
+    const failure = await commitDurableWrites();
+    if (failure) return setNote(`The destination was not saved: ${failure}`);
+    if (control.destinationId !== draft.id) writeControl({ ...control, destinationId: draft.id });
     setDestDraft(null);
   };
   const editing = (d?: OscDestination): Draft => (d ? { id: d.id, name: d.name, host: d.host, port: String(d.port) } : { id: uuid(), name: '', host: '', port: '' });
@@ -139,10 +159,16 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
             <label className="pd-field"><span>Name</span><input value={destDraft.name} onChange={(e) => setDestDraft({ ...destDraft, name: e.target.value })} data-testid="osc-dest-name" placeholder="Lighting desk" /></label>
             <label className="pd-field"><span>Address</span><input value={destDraft.host} onChange={(e) => setDestDraft({ ...destDraft, host: e.target.value })} data-testid="osc-dest-host" placeholder="192.168.1.40" /></label>
             <label className="pd-field"><span>Port</span><input inputMode="numeric" value={destDraft.port} onChange={(e) => setDestDraft({ ...destDraft, port: e.target.value })} data-testid="osc-dest-port" placeholder="8830" /></label>
-            <button type="button" className="btn-small" onClick={saveDestination} data-testid="osc-dest-save">Save</button>
+            <button type="button" className="btn-small" onClick={() => void saveDestination()} data-testid="osc-dest-save">Save</button>
             <button type="button" className="btn-small" onClick={() => setDestDraft(null)}>Cancel</button>
             {destinations.some((d) => d.id === destDraft.id) && (
-              <button type="button" className="btn-small" data-testid="osc-dest-remove" onClick={() => { const r = removeOscDestination(show.id, destDraft.id); setShows(r.shows); if (r.error) setNote(r.error); setDestDraft(null); }}>Remove</button>
+              <button type="button" className="btn-small" data-testid="osc-dest-remove" onClick={() => void (async () => {
+                const r = removeOscDestination(show.id, destDraft.id);
+                setShows(r.shows);
+                const failure = r.error ?? (await commitDurableWrites());
+                if (failure) return setNote(`The destination was not removed: ${failure}`);
+                setDestDraft(null);
+              })()}>Remove</button>
             )}
           </div>
         )}
