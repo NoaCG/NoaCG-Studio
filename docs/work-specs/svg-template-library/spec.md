@@ -371,6 +371,36 @@ Actions. OW: the owner, with Illustrator on their own computer.
 - Trap: editing this spec changes `work.json`'s `specSha256`; TL0 updated it with the notes only
   (acceptance unchanged).
 
+### TL1 (audience pilot)
+
+- Previous verified `main`: `fba398c20eba8d875a256472dd30cda3761c93c3`. Revert: `git revert -m 1 <the TL1 merge commit>`.
+- Pickers: `src/control/audiencePickers.ts` `pickerItems(show, library, kind)` lists production,
+  saved, built-in for `join`, `results`, `message` and `words`, with the staging matchers; one
+  `DesignPicker` in `ProductionAudienceWorkspace.tsx` renders all four (test ids
+  `<prefix>-choose-graphic`, `-saved`, the old built-in ids, groups `<prefix>-group-<group>`).
+  The library is `ProductionPage`'s `pickerLibrary`. A saved design is copied by
+  `addSavedDesign`: reused by its `graphicId` link, else added under a free name; the pick fills
+  the copy's seeded cue (`seededCue`), so there is no blank cue beside the staged one. The Word
+  cloud picker already offers saved word clouds; its template is TL6's.
+- Join: `Show.joinTarget` (additive, not published) and `model/joinCues.ts` `planJoinCue`; the
+  write is `stageShowJoin` in `model/shows.ts`, rebased, one Join cue per card. Add Join card
+  with no Join card and no saved design adds the built-in as before.
+- Message: `messageStaging.ts` `destinationFields` leaves out graphics with a Correct answer or
+  Selected answer field; a remembered `messageTarget` on such a graphic keeps working.
+- Templates: `join-card`, `live-vote`, `vote-results`, `message` in
+  `docs/tutorials/svg-templates` (inventory fields `packages`, `alt`, `states`, `contract`). Layer
+  names follow `layer-names.json`: the Join card's texts are `Label` and `Call to action` (the
+  built-in Join card's titles), the Message's name is `From` (a lower third owns `Name`), and a
+  moment such as `Vote badge` is drawn hidden.
+- Library page prototype: `scripts/svg-files.mjs` `SVG_PACKAGES` renders an Audience package
+  section (default preview plus each named state, alt text on every picture) above the two sets;
+  public copies include the state previews. Package zips stay TL3's.
+- Trap: a text whose drawn centre is within 5% of its panel's centre is read as centred and grows
+  both ways; the Join card states `text-anchor="start"` so its texts stay left of the QR.
+- Trap: the Vote results template has no per-row count readout; the vote recipe prints each row's
+  share and the total count line. A raw count per row would be a new derived value in the runtime
+  (TL5 or TL6 with the compatibility check).
+
 ## Non-goals
 
 - Redesigning the import workflow or its dropdown.

@@ -18,6 +18,8 @@ Ready-made broadcast graphics in one clean style. They are starting points: make
 - Save with File > Save a Copy > SVG. Tick **Use Artboards** and keep **Font: SVG**.
 - In NoaCG, choose New graphic > Import graphic and drop the SVG. Check **What it does**, then put the graphic in a production.
 
+---
+
 ## The templates
 
 | Template | What it does in NoaCG |
@@ -60,6 +62,8 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **Message** | `From`, `Message` | none | `From box`, `Message box` |
 
 Moments items except the timer bar are hidden groups: show one with its eye icon, edit it, hide it again before saving. Fixed words on the Board start with `static:`.
+
+---
 
 ## Make it your own
 
