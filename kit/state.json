@@ -33,24 +33,17 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2680 through the merge queue",
-   "eta": "2026-11-21T23:15:00Z"
+   "what": "TL0 checker verdict (waits for exact-merge checks)",
+   "eta": "2026-11-22T00:00:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL0",
-  "step": "build: queued",
-  "session": "session_017SdbwP9PDDR1UD9VwtNHrg",
-  "nonce": "tl0-b-3c00",
-  "branch": "claude/plan-svg-template-library-tl0-build",
-  "source": "df0c7a0e15b7b8d87ced52c8db73120d85dc1965",
-  "asOf": "2026-11-21T22:19Z",
-  "progress": "progressing: commits on branch, first CI run started 21:56Z",
-  "pr": 2680,
-  "head": "ebc5dc80a068bda82f253e6db0124c00bb9c4e38",
-  "receipt": "RECEIPT tl0-b-3c00 at 2026-11-21T22:17:50Z: CI 44954600048 green except Reviewed; Ordinary row; final /so A on ebc5dc8 (delta from full A on eeacaed); Codex clean",
-  "stamp": "cloud-queue-merge run 44956063795 success; auto-merge on 22:18:54Z",
-  "repairOwnerComment": 7070095703
+  "step": "check",
+  "session": "session_017SdbwR1evJYjqPfZovB674",
+  "nonce": "tl0-c-3e96",
+  "merge": "fba398c20eba8d875a256472dd30cda3761c93c3",
+  "asOf": "2026-11-21T22:32:53Z"
  },
  "owner": [
   {
@@ -74,5 +67,13 @@
  "followups": [
   "#2679 (P3 docs screenshot)",
   "#2681 (P3 gate hardening)"
+ ],
+ "tl0Build": {
+  "pr": 2680,
+  "merge": "fba398c20eba8d875a256472dd30cda3761c93c3",
+  "builder": "session_017SdbwP9PDDR1UD9VwtNHrg"
+ },
+ "notes": [
+  "Check briefs: pass the phase brief notes to the checker as NOTES (the check template omits them); TL0 needed its planned-rows scope note."
  ]
 }
