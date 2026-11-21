@@ -38,7 +38,7 @@ import { isForeignGraphic, verifyForeignPackage } from '../model/foreignPackage'
 import { joinNameCandidates, joinShortUrl } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, SEQ_HEAD_EVENT, commandTopic, createAppliedOnce, logTopic, oidOf, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
-import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, isUnanswered, maybeLandedError, rpcFailure, seqRoadVerdict, sendWithResend, stoppedError, unansweredError, type SeqRoadAsker } from './failedSends';
+import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, headBusyError, isRefusal, isUnanswered, maybeLandedError, rpcFailure, seqRoadVerdict, sendWithResend, stoppedError, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
 import { noteSendStarted } from './sendsInFlight';
 import { obsScenesOf, SCENE_ID, type ObsScene } from '../model/obsScenes';
@@ -2219,7 +2219,9 @@ let lastPress = 0;
  * HOW LONG A STALLED SEND HOLDS THE NEXT ONE OF ITS GRAPHIC: one attempt's deadline
  * (failedSends.ts ATTEMPT_TIMEOUT_MS), after which that attempt is abandoned and counts as
  * unanswered anyway. Past it, the next press leaves; if the abandoned one lands after all, the
- * server refuses it as superseded.
+ * server refuses it as superseded. A held earlier press is cut only at 8 s (#2671): past the same
+ * 1.5 s a later press that replaces its graphic leaves and ends it (fix-2655.md R7), and its
+ * attempt in flight runs to its answer, which the server gives as skipped.
  */
 const seqQueue = createGraphicFifo(ATTEMPT_TIMEOUT_MS);
 
@@ -2281,8 +2283,9 @@ async function sendSeqVerb(
 /**
  * `control_send_seq`: the batch `control_send_many` takes, plus who pressed it and what they had
  * seen (migration 0071). A lock timeout (55P03: the head held past the RPC's own 1 s, which is below
- * this page's 1.5 s attempt so the answer arrives) wrote nothing and the send is idempotent, so it
- * counts as unanswered and is sent again (review latency:F9 and latency:L2).
+ * every attempt's cut so the answer arrives) wrote nothing and the send is idempotent, so it
+ * counts as unanswered and is sent again (review latency:F9 and latency:L2), soon for a held press
+ * (`headBusyError`, #2671 R2a).
  */
 async function sendSeqBatch(slug: string, items: WireItem[], sender: SenderBody, signal: AbortSignal, held = false): Promise<SendAnswer | null> {
   const sb = await getSupabase();
@@ -2299,7 +2302,7 @@ async function sendSeqBatch(slug: string, items: WireItem[], sender: SenderBody,
     }
     if (error.code === '55P03') {
       console.warn(`[control] control_send_seq: ${status} 55P03 ${error.message.slice(0, 160)}`);
-      throw unansweredError();
+      throw headBusyError();
     }
     throw rpcFailure('control_send_seq', error, status);
   }

@@ -295,7 +295,7 @@ test('R2: a held press is never given up on by time: 0.4, 1 and 2 s, then every 
   assert.deepEqual(r.slept, [400, 1000, 2000, ...Array(9).fill(failed.RESEND_EVERY_MS)]);
 });
 
-test('R2: a held press cuts its first four attempts at 1.5 s and every later one at 8 s', async () => {
+test('R2 (#2671): every attempt of a held press is cut at 8 s, the first included', async () => {
   const cuts = [];
   let attempts = 0;
   const timer = (ms, fire) => {
@@ -311,7 +311,34 @@ test('R2: a held press cuts its first four attempts at 1.5 s and every later one
     },
     { deadline: 0, stillNewest: () => true, held: true, sleep: async () => {}, timer },
   );
-  assert.deepEqual(cuts.slice(0, 8), [1500, 1500, 1500, 1500, 8000, 8000, 8000, 8000]);
+  assert.deepEqual(cuts.slice(0, 8), Array(8).fill(failed.HELD_ATTEMPT_MS));
+});
+
+test('R2a (#2671): after a busy head a held press goes again in 0.4 s for its first 10 s, then R2\'s waits', async () => {
+  // Each copy waits its 1.1 s at the head and is refused 55P03; the clock moves with it.
+  const run = async (failure, held) => {
+    let t = 1_000_000;
+    const slept = [];
+    let attempts = 0;
+    await sendWithResend(
+      async () => {
+        attempts += 1;
+        if (attempts > 12) return;
+        t += 1100;
+        throw failure();
+      },
+      { deadline: t + RESEND_WINDOW_MS, stillNewest: () => true, held, now: () => t, sleep: async (ms) => { slept.push(ms); t += ms; } },
+    ).catch(() => {});
+    return slept;
+  };
+  // Answers at 1.1, 2.6, 4.1, 5.6, 7.1, 8.6 s are under 10 s; the one at 10.1 s is not.
+  assert.deepEqual(await run(failed.headBusyError, true), [...Array(6).fill(failed.BUSY_RESEND_MS), ...Array(6).fill(failed.RESEND_EVERY_MS)]);
+  // Any other unanswered ending keeps R2's waits by attempt number.
+  assert.deepEqual(await run(unansweredError, true), [400, 1000, 2000, ...Array(9).fill(failed.RESEND_EVERY_MS)]);
+  // A press that is not held is unchanged: its 4 s window, R2's waits.
+  assert.deepEqual(await run(failed.headBusyError, false), [400, 1000]);
+  assert.equal(isUnanswered(failed.headBusyError()), true, 'a busy head is still unanswered');
+  assert.equal(failed.isHeadBusy(unansweredError()), false);
 });
 
 test('R2: a press that is not held keeps today\'s 4 s window', async () => {
@@ -550,4 +577,98 @@ test('R7: replacedSince says whether a later REPLACING press of this page alread
   assert.equal(debts.replacedSince(update('h', 'u1'), 1), false, 'nor an Update: a later modifying press may carry other fields');
   assert.equal(debts.replacedSince([...take('g', 1, 't1'), ...take('k', 1, 'k1')], 1), false, 'one graphic not replaced');
   assert.equal(debts.replacedSince([], 1), false);
+});
+
+// ── #2671: the held schedule against a reference model built from the Rules (fix-2655.md R2, R2a) ──
+//
+// The oracle restates the Rules, not sendWithResend: each attempt ends at its answer or at the 8 s
+// cut; the next starts after that end plus 0.4 s for a busy head answered before the press is 10 s
+// old, otherwise R2's wait by attempt number. Attempts never overlap (one copy the page waits on).
+// A virtual clock drives timers, so each scenario runs in microseconds.
+
+function modelSchedule(plan) {
+  const r2 = [400, 1000, 2000];
+  const out = [];
+  let start = 0;
+  for (let k = 0; k < plan.length; k += 1) {
+    const step = plan[k];
+    const end = step.kind === 'hang' ? start + 8000 : start + step.after;
+    out.push({ start, end });
+    if (step.kind === 'land' || step.kind === 'refuse') break;
+    const wait = step.kind === 'busy' && end < 10_000 ? 400 : (r2[k] ?? 4000);
+    start = end + wait;
+  }
+  return out;
+}
+
+async function runHeld(plan) {
+  let t = 0;
+  const due = [];
+  const at = (ms, fn) => {
+    const e = { when: t + ms, fn, live: true };
+    due.push(e);
+    return () => { e.live = false; };
+  };
+  const seen = [];
+  const sending = sendWithResend(
+    () => {
+      const k = seen.length;
+      const step = plan[k] ?? { kind: 'land', after: 10 };
+      const entry = { start: t, end: null };
+      seen.push(entry);
+      return new Promise((resolve, reject) => {
+        if (step.kind === 'hang') return;
+        at(step.after, () => {
+          if (entry.end !== null) return;
+          entry.end = t;
+          if (step.kind === 'land') resolve();
+          else if (step.kind === 'refuse') reject(new Error('refused'));
+          else if (step.kind === 'busy') reject(failed.headBusyError());
+          else reject(unansweredError());
+        });
+      });
+    },
+    {
+      deadline: 0,
+      stillNewest: () => true,
+      held: true,
+      now: () => t,
+      timer: (ms, fire) => at(ms, () => {
+        const open = seen.find((e) => e.end === null);
+        if (open && ms === failed.HELD_ATTEMPT_MS) open.end = t;
+        fire();
+      }),
+    },
+  ).catch(() => {});
+  let settled = false;
+  void sending.then(() => { settled = true; });
+  for (let guard = 0; guard < 10_000 && !settled; guard += 1) {
+    await new Promise((r) => setImmediate(r));
+    const live = due.filter((e) => e.live).sort((a, b) => a.when - b.when);
+    if (live.length === 0) continue;
+    const next = live[0];
+    next.live = false;
+    t = next.when;
+    next.fn();
+  }
+  await sending;
+  return seen;
+}
+
+test('R2a (#2671): the held schedule matches the reference model, one copy at a time', async () => {
+  let seed = 2671;
+  const rand = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+  const kinds = ['busy', 'busy', 'busy', 'hang', 'lost'];
+  for (let scenario = 0; scenario < 300; scenario += 1) {
+    const n = 1 + Math.floor(rand() * 10);
+    const plan = Array.from({ length: n }, () => {
+      const kind = kinds[Math.floor(rand() * kinds.length)];
+      return { kind, after: kind === 'busy' ? 1000 + Math.floor(rand() * 400) : Math.floor(rand() * 3000) };
+    });
+    plan.push({ kind: rand() < 0.8 ? 'land' : 'refuse', after: Math.floor(rand() * 500) });
+    const got = await runHeld(plan);
+    const want = modelSchedule(plan);
+    assert.deepEqual(got.map((a) => [a.start, a.end]), want.map((a) => [a.start, a.end]), `scenario ${scenario}: ${JSON.stringify(plan)}`);
+    for (let k = 1; k < got.length; k += 1) assert.ok(got[k].start >= got[k - 1].end, `scenario ${scenario}: two copies out at once`);
+  }
 });

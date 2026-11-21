@@ -39,7 +39,8 @@ test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
-/** Past one attempt's deadline (ATTEMPT_TIMEOUT_MS, 1.5 s), so every attempt is abandoned. */
+/** Past one attempt's deadline (ATTEMPT_TIMEOUT_MS, 1.5 s) for a press that is not held; a held
+ *  press reads it (HELD_ATTEMPT_MS, 8 s, #2671). Either way the Take is on air. */
 const ANSWER_LATE_MS = 1700;
 /** Past the old window (RESEND_WINDOW_MS, 4 s): before #2655 the page gave up before this. */
 const HOLD_MS = 5000;
@@ -131,7 +132,8 @@ test('a Take that commits after its page gave up takes the "on this monitor only
   const takenAt = Date.now();
   await op.getByTestId('verb-take').click();
   await expect.poll(airPlays, { timeout: 30_000 }).toBe(1);
-  // Every attempt abandoned unanswered by now: the send is over.
+  // The send is over by now: its answer at 1.7 s is read (a held attempt is cut only at 8 s, #2671),
+  // or, for a press that is not held, every attempt was abandoned unanswered.
   await op.waitForTimeout(Math.max(0, takenAt + SETTLED_MS - Date.now()));
   await expect(chip).toContainText('on air:');
   await expect(notice, 'a Take on air is not "on this monitor only"').toHaveCount(0);
