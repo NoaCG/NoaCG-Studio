@@ -190,11 +190,11 @@ for (const t of templates) {
         // and long translated words fit their plates without cutting or overlap (AC-10).
         const long: Record<string, Record<string, string>> = {
           'join-link': {
-            Title: 'Machen Sie mit bei unserer Livesendung',
-            Instructions: 'Scannen Sie den Code mit der Kamera Ihres Telefons, um abzustimmen und der Moderation eine Frage zu senden.',
+            Label: 'Machen Sie mit bei unserer Livesendung',
+            'Call to action': 'Scannen Sie den Code mit der Kamera Ihres Telefons, um abzustimmen und der Moderation eine Frage zu senden.',
           },
           message: {
-            Name: 'Maria-Magdalena Österberg-Lindqvist',
+            From: 'Maria-Magdalena Österberg-Lindqvist',
             Message: 'Wie lange haben Sie gebraucht, um das ganze Bühnenbild für diese Sendung zu bauen, und was war dabei am schwierigsten?',
           },
         };

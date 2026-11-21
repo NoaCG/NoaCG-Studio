@@ -35,7 +35,7 @@ Ready-made broadcast graphics in one clean style. They are starting points: make
 | **Join card** | The `QR` group is where NoaCG draws the code for your production's join link. In Interaction, Add Join card puts the current link in its cue. |
 | **Live vote** | The room votes on their phones. The bars follow the votes; Close voting, Show result and Call the winner run the round. |
 | **Vote results** | The same controls on a side panel. In Interaction, Add results stages a round's counts and whether voting is open or closed. |
-| **Message** | In Interaction, Prepare puts a viewer's message and name on it: pasted, live chat or Twitch. |
+| **Message** | In Interaction, Prepare puts a viewer's message and name on it (in `From`): pasted, live chat or Twitch. |
 
 
 ---
@@ -55,9 +55,9 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **Scoreboards** | `Team 1`, `Score 1`, and so on | `Flash 1`, and so on | `Team box 1`, `Score box 1` |
 | **Winner** | `Title`, `Subtitle` | none | `Panel`, `Subtitle box`, `Confetti` |
 | **End credits** | `Heading`, `Credits`, `Credits 2`… | none | `Panel`, `Accent` |
-| **Join card** | `Title`, `Instructions` | none | `Panel`, `QR plate`, `QR` |
-| **Live vote, Vote results** | `Question`, `Option 1`, `Percent 1`, `Total votes` | `Bar 1` (visible), `Winner 1`, `Vote badge` (visible) | `Panel`, `Track 1` |
-| **Message** | `Name`, `Message` | none | `Name box`, `Message box` |
+| **Join card** | `Label`, `Call to action` | none | `Panel`, `QR plate`, `QR` |
+| **Live vote, Vote results** | `Question`, `Option 1`, `Percent 1`, `Total votes` | `Bar 1` (visible), `Winner 1`, `Vote badge` | `Panel`, `Track 1` |
+| **Message** | `From`, `Message` | none | `From box`, `Message box` |
 
 Moments items except the timer bar are hidden groups: show one with its eye icon, edit it, hide it again before saving. Fixed words on the Board start with `static:`.
 

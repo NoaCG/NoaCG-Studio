@@ -27,7 +27,7 @@
     <g id="Winner_4" inkscape:label="Winner 4" style="display:none">
       <rect x="1212" y="760" width="568" height="116" rx="14" fill="none" stroke="#1DB56C" stroke-width="6"/>
     </g>
-    <g id="Vote_badge" inkscape:label="Vote badge">
+    <g id="Vote_badge" inkscape:label="Vote badge" style="display:none">
       <rect x="1236" y="160" width="230" height="44" rx="22" fill="#1DB56C"/>
       <text x="1351" y="190" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">VOTING OPEN</text>
     </g>

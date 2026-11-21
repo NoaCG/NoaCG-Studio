@@ -11,7 +11,7 @@
     </g>
   </g>
   <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
-    <text id="Title" x="464" text-anchor="start" y="778" font-size="52" font-weight="800" fill="#0F1729">Join the show</text>
-    <text id="Instructions" x="464" text-anchor="start" y="840" font-size="30" font-weight="600" fill="#3A4560">Scan the code to vote and ask a question</text>
+    <text id="Label" x="464" text-anchor="start" y="778" font-size="52" font-weight="800" fill="#0F1729">Join the show</text>
+    <text id="Call_to_action" inkscape:label="Call to action" x="464" text-anchor="start" y="840" font-size="30" font-weight="600" fill="#3A4560">Scan the code to vote and ask a question</text>
   </g>
 </svg>
