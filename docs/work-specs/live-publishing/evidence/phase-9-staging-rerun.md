@@ -313,3 +313,34 @@ Run 44926364732 (`4-step7-*.json`):
   needs a fix.
 
 UTC time of the last run's end: 2026-11-21 17:00.
+
+### Addendum: 14 more pairs (2026-11-21, 17:07 to 17:36 UTC)
+
+Asked by the coordinator to narrow the timing range: two more dispatches of 7 pairs, switches on,
+same method, same scratch branch and source (5634c2f). The 50 ms rule is unchanged.
+
+| Run | Pairs | Difference | Bootstrap 95 % | Staging, taker's page: median / p95 / max |
+|---|---|---|---|---|
+| [44928271068](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44928271068) | 7 | +712.6 ms | +3.9 to +1,173.2 | 196 / 461 / 3,442 ms |
+| [44929702637](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44929702637) | 7 | +818.5 ms | +170.3 to +1,231.2 | 160 / 510 / 6,805 ms |
+
+Pooled (`pairs-pooled-new14.json`, `pairs-pooled-28.json`):
+
+| | Pairs | 3 people p95 | alone p95 | Difference | Bootstrap 95 % |
+|---|---|---|---|---|---|
+| the new 14 | 14 | 1,135 ms (301 Takes) | 382 ms (419 Takes) | **+753.2 ms** | +162.6 to +1,014.5 |
+| all 28 | 28 | 987 ms (606 Takes) | 457 ms (828 Takes) | **+529.8 ms** | +8.0 to +818.6 |
+
+- **Timing: failed.** Over the new 14 the whole bootstrap range is above 50 ms; over all 28 the
+  point estimate is +530 ms and the range starts at +8 ms.
+- The tail is in the 3-person rounds: 8 of the 14 new 3-person rounds have a p95 above 900 ms
+  (928 to 3,233 ms), against 1 of the 14 alone rounds (1,046 ms). The staging p95 seen from the
+  taker's page in those 8 rounds was 388 to 1,621 ms, and under 1 s in 5 of them (388 to 960 ms),
+  so those slow Takes are not explained by slow staging answers alone.
+- **One Take did not run within 10 s** (44929702637, round 5 with everyone working; Out was not
+  left disabled and no note showed). Staging's slowest answer to the taker in that round was
+  6,805 ms. Every other Take across the 28 pairs ran.
+- Switches: all four off before each dispatch, on during, off after, read back
+  (`1c-pairs-switches-*.json`, `1d-pairs-switches-*.json`).
+
+UTC time of the addendum's last run end: 2026-11-21 17:36.
