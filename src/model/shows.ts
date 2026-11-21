@@ -68,7 +68,7 @@ import {
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
 import { patchAdjust, promotedMembers, readAdjust, stepPatch, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
 import { cueShortcutHolders, normalizeCueShortcut } from './cueShortcuts.ts';
-import { controlFrozen, controlKeep, isGraphicCue, isServerCue, type ControlRecord, type OscDestination } from './controlCue.ts';
+import { CONTROL_KEPT, controlFrozen, controlKeep, controlReadOnly, destinationProblem, emptyOscControl, isControlCue, isGraphicCue, isServerCue, readControl, type ControlRecord, type OscDestination } from './controlCue.ts';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -1222,6 +1222,9 @@ function patchShowChecked(
   draft?: { cueId: string; before: string },
   draftOptions?: CueDraftWriteOptions,
   draftText?: { submitted: CueFields; apply: (fields: CueFields) => (show: Show, at: string) => boolean | string },
+  /** The control writer's allowance (`addOscCue`, `setCueControl`): cue id to the message bytes it
+   *  writes (./controlCue.ts `controlFrozen`). */
+  controlWrite?: ReadonlyMap<string, string>,
 ): { shows: Show[]; error: string | null } {
   const all = readEditable();
   const visible = () => all.filter((s) => !s.deleted);
@@ -1241,7 +1244,7 @@ function patchShowChecked(
   if (typeof result === 'string') return { shows: visible(), error: result };
   if (!result) return { shows: visible(), error: null };
   // The mutation ran on this read only: refused, the stored productions are read again.
-  const frozen = separateAfterWrite(show, scenes) ?? selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite) ?? controlFrozen(control, show);
+  const frozen = separateAfterWrite(show, scenes) ?? selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite) ?? controlFrozen(control, show, undefined, controlWrite);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   scrubHiddenWords(show); // W11: this tab's copy too, before the rebased pass decides the stored one
@@ -1265,7 +1268,7 @@ function patchShowChecked(
     const mutate = draftText && previousCommit && cueFieldsKey(previousCommit.text) === expected
       ? draftText.apply(followCueCommit(draftText.submitted, previousCommit.submitted, previousCommit.text))
       : mutateOptimistic;
-    const refusal = storedPatch(mutate, write, typedWrite)(fresh, at);
+    const refusal = storedPatch(mutate, write, typedWrite, controlWrite)(fresh, at);
     if (refusal) return { refused: refusal };
     return { value: JSON.stringify(list) };
   }, {
@@ -1287,6 +1290,7 @@ function storedPatch(
   mutate: (show: Show, at: string) => boolean | string,
   write?: SelectionWrite,
   typedWrite?: ReadonlyMap<string, string | null>,
+  controlWrite?: ReadonlyMap<string, string>,
 ) {
   return (fresh: Show, at: string): string | null => {
     const scenesFresh = sceneSnapshot(fresh);
@@ -1299,7 +1303,7 @@ function storedPatch(
     const separatedFresh = separateAfterWrite(fresh, scenesFresh);
     if (separatedFresh) return separatedFresh;
     scrubHiddenWords(fresh); // W11 uses the stored rule, including after a cross-tab change.
-    const frozenFresh = selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite) ?? controlFrozen(controlFresh, fresh);
+    const frozenFresh = selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite) ?? controlFrozen(controlFresh, fresh, undefined, controlWrite);
     if (frozenFresh) return frozenFresh;
     fresh.updatedAt = at;
     return null;
@@ -1384,6 +1388,61 @@ export function addShowCue(
     return true;
   }, Boolean(seed?.stagedFrom));
   return { shows, cueId, error };
+}
+
+/** Append an OSC cue (docs/work-specs/osc-control-cues/spec.md D2): a control cue with no graphic
+ *  and no server item, sending to `destinationId` ('' while the production has none). `after` puts
+ *  it right after that cue, in that cue's folder, as addShowCue does. */
+export function addOscCue(showId: string, destinationId: string, after?: string): { shows: Show[]; cueId: string | null; error: string | null } {
+  const id = uuid();
+  const control = emptyOscControl(destinationId);
+  let cueId: string | null = null;
+  const { shows, error } = patchShowChecked(showId, (show) => {
+    const cue: ShowCue = { id, sourceId: '', source: 'control', label: 'OSC cue', values: {}, control: { ...control, args: [] } };
+    show.cues = after === undefined ? appendCue(show.cues ?? [], cue) : insertAfter(show.cues ?? [], after, cue);
+    cueId = id;
+    return true;
+  }, false, undefined, undefined, undefined, undefined, undefined, new Map([[id, JSON.stringify(control)]]));
+  return { shows, cueId: error ? null : cueId, error };
+}
+
+/** Replace an OSC cue's message with `control`, as the editor holds it. Refused for a cue this build
+ *  cannot read, and for anything that is not an OSC message. */
+export function setCueControl(showId: string, cueId: string, control: ControlRecord): { shows: Show[]; error: string | null } {
+  const read = readControl(control);
+  if (!read) return { shows: loadShows(), error: 'This OSC message could not be read.' };
+  const bytes = JSON.stringify(read);
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue || !isControlCue(cue)) return 'This cue is no longer in the production.';
+    if (controlReadOnly(cue)) return CONTROL_KEPT;
+    cue.control = JSON.parse(bytes) as ControlRecord;
+    return true;
+  }, false, undefined, undefined, undefined, undefined, undefined, new Map([[cueId, bytes]]));
+}
+
+/** Add or change one of the production's OSC destinations, by id. */
+export function saveOscDestination(showId: string, destination: OscDestination): { shows: Show[]; error: string | null } {
+  const clean = { id: destination.id, name: destination.name.trim(), host: destination.host.trim(), port: destination.port };
+  const problem = destinationProblem(clean);
+  if (problem) return { shows: loadShows(), error: problem };
+  return patchShowChecked(showId, (show) => {
+    const list = show.oscDestinations ?? [];
+    show.oscDestinations = list.some((d) => d.id === clean.id) ? list.map((d) => (d.id === clean.id ? clean : d)) : [...list, clean];
+    return true;
+  });
+}
+
+/** Remove a destination. Cues that sent to it keep their messages and name the missing device. */
+export function removeOscDestination(showId: string, destinationId: string): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const list = show.oscDestinations ?? [];
+    if (!list.some((d) => d.id === destinationId)) return false;
+    const rest = list.filter((d) => d.id !== destinationId);
+    if (rest.length) show.oscDestinations = rest;
+    else delete show.oscDestinations;
+    return true;
+  });
 }
 
 /** Clips share one layer below every graphic, on purpose: one clip at a time, and a strap

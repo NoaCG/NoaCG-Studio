@@ -156,3 +156,18 @@ export function controlFrozen(
   }
   return null;
 }
+
+/** Why a destination cannot be saved, or null: a name, an address and a port 1 to 65535. */
+export function destinationProblem(d: Pick<OscDestination, 'name' | 'host' | 'port'>): string | null {
+  if (!d.name.trim()) return 'Give the destination a name.';
+  const host = d.host.trim();
+  if (!host) return 'Enter the device’s IP address or name.';
+  if (/\s/.test(host) || host.includes('/') || host.length > 253) return 'Enter only the IP address or name, for example 192.168.1.40.';
+  if (!Number.isInteger(d.port) || d.port < 1 || d.port > 65535) return 'The port is a whole number from 1 to 65535.';
+  return null;
+}
+
+/** A new OSC cue's message: to `destinationId`, no address yet, no arguments. */
+export function emptyOscControl(destinationId: string): OscControlV1 {
+  return { v: 1, kind: 'osc', destinationId, address: '', args: [] };
+}

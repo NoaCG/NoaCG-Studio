@@ -127,8 +127,8 @@ test('the control gate is asked by both writes of patchShowChecked and by the un
   const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
   const shows = read('src/model/shows.ts');
   assert.match(shows, /const control = controlKeep\(show\);/);
-  assert.match(shows, /typedFrozen\(typed, show, undefined, typedWrite\) \?\? controlFrozen\(control, show\)/);
+  assert.match(shows, /typedFrozen\(typed, show, undefined, typedWrite\) \?\? controlFrozen\(control, show, undefined, controlWrite\)/);
   assert.match(shows, /const controlFresh = controlKeep\(fresh\);/);
-  assert.match(shows, /typedFrozen\(typedFresh, fresh, undefined, typedWrite\) \?\? controlFrozen\(controlFresh, fresh\)/);
+  assert.match(shows, /typedFrozen\(typedFresh, fresh, undefined, typedWrite\) \?\? controlFrozen\(controlFresh, fresh, undefined, controlWrite\)/);
   assert.match(read('src/model/rundownHistory.ts'), /controlFrozen\(controlKeep\(show\), next, restored\)/);
 });

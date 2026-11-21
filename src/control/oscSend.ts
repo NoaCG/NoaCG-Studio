@@ -65,3 +65,14 @@ export function oscNote(label: string, destination: string, outcome: OscOutcome)
   if (outcome.state === 'uncertain') return `${label}: ${outcome.detail}`;
   return `${label} was not sent: ${outcome.detail}`;
 }
+
+/** The rundown row's dim summary for an OSC cue: where it sends and what, as an operator reads it -
+ *  `Lighting desk  /zeros/cue/go "0" "5"`. */
+export function oscRowSummary(cue: Pick<ShowCue, 'source' | 'control'>, destinations: readonly OscDestination[] | undefined): string {
+  if (controlReadOnly(cue)) return 'OSC cue from a newer version';
+  const control = readControl(cue.control);
+  if (!control) return 'OSC cue';
+  const dest = (destinations ?? []).find((d) => d.id === control.destinationId);
+  const args = control.args.map((a) => (a.type === 's' ? `"${a.value}"` : a.value)).join(' ');
+  return [dest ? dest.name : 'no destination', control.address.trim() || 'no address', args].filter(Boolean).join('  ');
+}
