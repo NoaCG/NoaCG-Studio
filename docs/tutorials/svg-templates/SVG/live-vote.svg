@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Live vote</title>
+  <desc>NoaCG Clean Studio template. The room votes on their phones: a question, Option 1 to Option 4 with their bars and percentages, the total, a Vote now badge while voting is open and a Winner mark per option.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="360" y="160" width="1200" height="800" rx="24" fill="#FFFFFF"/>
+    <rect id="Accent" x="360" y="160" width="1200" height="12" rx="6" fill="#2E5BFF"/>
+    <rect id="Track_1" inkscape:label="Track 1" x="420" y="438" width="1080" height="22" rx="11" fill="#E4E9F2"/>
+    <rect id="Track_2" inkscape:label="Track 2" x="420" y="556" width="1080" height="22" rx="11" fill="#E4E9F2"/>
+    <rect id="Track_3" inkscape:label="Track 3" x="420" y="674" width="1080" height="22" rx="11" fill="#E4E9F2"/>
+    <rect id="Track_4" inkscape:label="Track 4" x="420" y="792" width="1080" height="22" rx="11" fill="#E4E9F2"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <rect id="Bar_1" inkscape:label="Bar 1" x="420" y="438" width="1080" height="22" rx="11" fill="#2E5BFF"/>
+    <g id="Winner_1" inkscape:label="Winner 1" style="display:none">
+      <rect x="392" y="376" width="1136" height="106" rx="14" fill="none" stroke="#1DB56C" stroke-width="6"/>
+    </g>
+    <rect id="Bar_2" inkscape:label="Bar 2" x="420" y="556" width="1080" height="22" rx="11" fill="#2E5BFF"/>
+    <g id="Winner_2" inkscape:label="Winner 2" style="display:none">
+      <rect x="392" y="494" width="1136" height="106" rx="14" fill="none" stroke="#1DB56C" stroke-width="6"/>
+    </g>
+    <rect id="Bar_3" inkscape:label="Bar 3" x="420" y="674" width="1080" height="22" rx="11" fill="#2E5BFF"/>
+    <g id="Winner_3" inkscape:label="Winner 3" style="display:none">
+      <rect x="392" y="612" width="1136" height="106" rx="14" fill="none" stroke="#1DB56C" stroke-width="6"/>
+    </g>
+    <rect id="Bar_4" inkscape:label="Bar 4" x="420" y="792" width="1080" height="22" rx="11" fill="#2E5BFF"/>
+    <g id="Winner_4" inkscape:label="Winner 4" style="display:none">
+      <rect x="392" y="730" width="1136" height="106" rx="14" fill="none" stroke="#1DB56C" stroke-width="6"/>
+    </g>
+    <g id="Vote_badge" inkscape:label="Vote badge">
+      <rect x="1310" y="200" width="210" height="48" rx="24" fill="#1DB56C"/>
+      <text x="1415" y="233" text-anchor="middle" font-size="22" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">VOTE NOW</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Question" x="420" y="300" font-size="50" font-weight="800" fill="#0F1729">Where should we go next?</text>
+    <text id="Option_1" inkscape:label="Option 1" x="420" y="420" font-size="38" font-weight="700" fill="#0F1729">Coast</text>
+    <text id="Percent_1" inkscape:label="Percent 1" x="1500" y="420" text-anchor="end" font-size="38" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Option_2" inkscape:label="Option 2" x="420" y="538" font-size="38" font-weight="700" fill="#0F1729">Forest</text>
+    <text id="Percent_2" inkscape:label="Percent 2" x="1500" y="538" text-anchor="end" font-size="38" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Option_3" inkscape:label="Option 3" x="420" y="656" font-size="38" font-weight="700" fill="#0F1729">City</text>
+    <text id="Percent_3" inkscape:label="Percent 3" x="1500" y="656" text-anchor="end" font-size="38" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Option_4" inkscape:label="Option 4" x="420" y="774" font-size="38" font-weight="700" fill="#0F1729">Mountains</text>
+    <text id="Percent_4" inkscape:label="Percent 4" x="1500" y="774" text-anchor="end" font-size="38" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Total_votes" inkscape:label="Total votes" x="420" y="908" font-size="28" font-weight="600" fill="#5A6680">0 votes</text>
+  </g>
+</svg>

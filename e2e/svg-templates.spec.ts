@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { dropSvg, intoProduction } from './_svg-import';
 import { settleDurableWrites } from './_durable';
 
-interface Template { slug: string; name: string; recipe: string | null; preview: string }
+interface Template { slug: string; name: string; recipe: string | null; preview: string; contract?: string }
 const templates = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-templates/templates.json', import.meta.url), 'utf8')) as Template[];
 const file = (slug: string) => fileURLToPath(new URL(`../docs/tutorials/svg-templates/SVG/${slug}.svg`, import.meta.url));
 
@@ -115,7 +115,7 @@ async function checkAir(page: Page, air: FrameLocator, label: string): Promise<v
 }
 
 const role = (air: FrameLocator, name: string) => air.locator(`[data-noacg-role~="${name}"]`);
-const kind: Record<string, string> = { countdown: 'timer', clock: 'none' };
+const kind: Record<string, string> = { countdown: 'timer', clock: 'none', vote: 'poll' };
 
 async function fieldFor(air: FrameLocator, title: string): Promise<string> {
   const field = await air.locator('svg').first().evaluate((_, name) => {
@@ -168,8 +168,10 @@ for (const t of templates) {
 
     // Every text the Text layer names is an operator field (credits fold theirs into one list,
     // a clock owns its own readout).
+    // (a vote writes its rows and total from the round, so those layers are not typed fields).
     if (t.recipe !== 'credits') {
-      for (const name of namedTexts(t.slug).filter((n) => n !== 'Clock' && !/^Score \d/.test(n))) await fieldFor(air, name);
+      const driven = (n: string) => n === 'Clock' || /^Score \d/.test(n) || (t.recipe === 'vote' && (/^(Option|Percent) \d/.test(n) || n === 'Total votes'));
+      for (const name of namedTexts(t.slug).filter((n) => !driven(n))) await fieldFor(air, name);
       await checkAir(page, air, `${t.slug}-1-take`);
     }
 
@@ -183,6 +185,62 @@ for (const t of templates) {
         await page.getByTestId('verb-update').click();
         await expect(air.locator(`#${field}`)).toHaveText('Technical difficulties');
         await checkAir(page, air, `${t.slug}-2-retyped`);
+        // AUDIENCE CONTRACTS (svg-template-library TL1): the QR draws the Join link the cue holds,
+        // and long translated words fit their plates without cutting or overlap (AC-10).
+        const long: Record<string, Record<string, string>> = {
+          'join-link': {
+            Title: 'Machen Sie mit bei unserer Livesendung',
+            Instructions: 'Scannen Sie den Code mit der Kamera Ihres Telefons, um abzustimmen und der Moderation eine Frage zu senden.',
+          },
+          message: {
+            Name: 'Maria-Magdalena Österberg-Lindqvist',
+            Message: 'Wie lange haben Sie gebraucht, um das ganze Bühnenbild für diese Sendung zu bauen, und was war dabei am schwierigsten?',
+          },
+        };
+        if (t.contract === 'join-link') {
+          const link = 'https://noacg.studio/j/friday-night-live';
+          await page.getByTestId(`cue-field-${await fieldFor(air, 'Join link')}`).fill(link);
+          await page.getByTestId('verb-update').click();
+          // The code drawn is the code of exactly this link, made by the encoder the graphic carries.
+          const drawn = () => air.locator('svg').first().evaluate((_, url) => {
+            const path = document.querySelector('[class$="-qr-code"] path');
+            const make = (window as unknown as { qrcode(t: number, l: string): { addData(s: string, m: string): void; make(): void; getModuleCount(): number; isDark(r: number, c: number): boolean } }).qrcode;
+            const qr = make(0, 'M');
+            qr.addData(url, 'Byte');
+            qr.make();
+            let d = '';
+            for (let r = 0; r < qr.getModuleCount(); r++) for (let c = 0; c < qr.getModuleCount(); c++) if (qr.isDark(r, c)) d += `M${c + 4} ${r + 4}h1v1h-1z`;
+            return !!path && path.getAttribute('d') === d;
+          }, link);
+          await expect.poll(drawn, { message: 'the QR encodes the Join link' }).toBe(true);
+        }
+        if (t.contract && long[t.contract]) {
+          for (const [title, value] of Object.entries(long[t.contract])) await page.getByTestId(`cue-field-${await fieldFor(air, title)}`).fill(value);
+          await page.getByTestId('verb-update').click();
+          for (const value of Object.values(long[t.contract])) await expect(air.locator('text', { hasText: value.slice(0, 20) }).first()).toBeVisible();
+          await checkAir(page, air, `${t.slug}-3-long`);
+        }
+        break;
+      }
+      case 'vote': {
+        // Voting open: the badge shows, the bars follow the counts, the figures wait for the result.
+        const options = await fieldFor(air, 'Options');
+        await page.getByTestId(`cue-field-${options}`).fill('Coast | 3\nForest | 1\nCity | 0\nMountains | 0');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'option/1')).toHaveText('Coast');
+        await expect(role(air, 'badge')).toHaveClass(/imported-design-on/);
+        await expect(role(air, 'percent/1')).not.toHaveClass(/imported-design-on/);
+        await checkAir(page, air, `${t.slug}-2-voting`);
+        await page.getByTestId('cue-action-close').click();
+        await expect(role(air, 'badge')).not.toHaveClass(/imported-design-on/);
+        await page.getByTestId('cue-action-result').click();
+        await expect(role(air, 'percent/1')).toHaveText('75%');
+        await expect(role(air, 'percent/1')).toHaveClass(/imported-design-on/);
+        await checkAir(page, air, `${t.slug}-3-result`);
+        await page.getByTestId('cue-action-call').click();
+        await expect(role(air, 'winner/1')).toHaveClass(/imported-design-on/);
+        await expect(role(air, 'winner/2')).not.toHaveClass(/imported-design-on/);
+        await checkAir(page, air, `${t.slug}-4-winner`);
         break;
       }
       case 'quiz':

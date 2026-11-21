@@ -40,6 +40,7 @@ import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
 import { scrubHiddenWords } from './wordCues';
 import { planResultCue, readResultCues, type ResultPlan, type ResultTargetKey } from './resultCues';
+import { joinLinkField, planJoinCue, type JoinPlan } from './joinCues';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
 import { loadGraphics, type GraphicDoc } from './library';
@@ -581,6 +582,11 @@ export interface Show {
    *  rundown", remembered like `resultTarget` (control/wordStaging.ts, interaction phase 6 W7).
    *  ADDITIVE OPTIONAL; absent = not chosen yet. */
   wordTarget?: string;
+  /** Which Join card "Add Join card to rundown" fills: the pool graphic id the operator chose when
+   *  the production had several, or picked from the Join picker (control/audiencePickers.ts
+   *  `planJoinCue`). ADDITIVE OPTIONAL; absent = not chosen, and a production with one Join card
+   *  uses it. */
+  joinTarget?: string;
   /** Each question's one RESULT CUE: question id to cue id (model/resultCues.ts, S1). Saved with
    *  the production so a reload, another tab and another operator update the same cue. ADDITIVE
    *  OPTIONAL; absent = no result staged. */
@@ -2995,6 +3001,41 @@ export function stageShowResult(
     show.resultCues = { ...readResultCues(show.resultCues), [questionId]: cue.id };
     // An explicit pick is remembered, whether it added a cue or landed on the one already there (S5).
     if (opts.chosen && takes(show.graphics.find((g) => g.id === opts.chosen)?.template.fields ?? [])) show[opts.target ?? 'resultTarget'] = opts.chosen;
+    return true;
+  }, true);
+  return { shows, error, outcome: () => (error ? { plan: null, cueId: null } : { plan, cueId }) };
+}
+
+/**
+ * "Add Join card to rundown" on a Join card already in the pool (control/audiencePickers.ts
+ * `planJoinCue`, decided on the record as stored when the write runs): the card's Join cue gets
+ * the production's current link, or the card gets one cue holding it. One Join cue per card, so a
+ * second press, a renamed link or a reload never adds a blank or second cue. An explicit pick
+ * (`chosen`) is remembered as `joinTarget`. Nothing airs.
+ */
+export function stageShowJoin(
+  showId: string,
+  link: string,
+  opts: { chosen?: string | null; adopt?: string | null; label?: string } = {},
+): { shows: Show[]; error: string | null; outcome: () => { plan: JoinPlan | null; cueId: string | null } } {
+  let plan: JoinPlan | null = null;
+  let cueId: string | null = null;
+  const newId = uuid();
+  const { shows, error } = patchShowChecked(showId, (show) => {
+    const p = planJoinCue(show, opts.chosen ?? null, opts.adopt ?? null);
+    plan = p;
+    cueId = null;
+    if (p.kind !== 'update' && p.kind !== 'add') return false;
+    const graphic = show.graphics.find((g) => g.id === p.graphicId)!;
+    const field = joinLinkField(graphic.template.fields ?? [])!;
+    let cue = p.kind === 'update' ? show.cues?.find((c) => c.id === p.cueId) : undefined;
+    if (cue) cue.values = { ...cue.values, [field]: link };
+    else {
+      cue = { id: newId, sourceId: graphic.id, label: opts.label ?? 'Join card', values: { ...seedValues(graphic.template.fields), [field]: link } };
+      show.cues = appendCue(show.cues ?? [], cue);
+    }
+    cueId = cue.id;
+    if (opts.chosen && opts.chosen === graphic.id) show.joinTarget = graphic.id;
     return true;
   }, true);
   return { shows, error, outcome: () => (error ? { plan: null, cueId: null } : { plan, cueId }) };

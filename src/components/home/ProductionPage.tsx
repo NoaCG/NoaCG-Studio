@@ -4769,6 +4769,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           <ProductionAudienceWorkspace
             show={show}
             setShows={setShows}
+            library={pickerLibrary}
             publish={started ? null : { run: () => void publish(), unavailable: backendConfigured ? null : 'Publishing needs the cloud backend, and this build runs offline' }}
             joinName={{
               draft: nameDraft,

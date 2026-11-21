@@ -8,7 +8,9 @@ import {
   setShowMessageTarget,
   setShowPollLiveFigures,
   loadShows,
+  seedValues,
   setShowJoinPage,
+  stageShowJoin,
   setShowQuestions,
   showQuestions,
   stageShowResult,
@@ -19,6 +21,7 @@ import {
   type YouTubeShowSource,
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
+import { loadGraphics } from '../../model/library';
 import {
   AUDIENCE_LIMITS,
   addInChunks,
@@ -66,7 +69,9 @@ import {
   type ShowQuestion,
 } from '../../model/questions';
 import { countWordTallies, type WordCount, type WordTally } from '../../model/wordCloud';
-import { stageWords, WORD_CLOUDS, wordDestinationOf, wordDestinations } from '../../control/wordStaging';
+import { stageWords, wordDestinationOf } from '../../control/wordStaging';
+import { pickerItems, savedCopyPlan, seededCue, type PickerGroup, type PickerItem, type PickerKind, type SavedDesign } from '../../control/audiencePickers';
+import { joinCardOf, joinCards } from '../../model/joinCues';
 import {
   chatIntakeFor,
   chatPlatformWord,
@@ -86,22 +91,18 @@ import { MESSAGE_SHEET_STARTER, messageSheetId } from '../../audience/sheetMessa
 import { parseSheetLink } from '../../control/sheetSource';
 import { uuid } from '../../model/id';
 import {
-  RESULT_BOARDS,
   pollFieldMap,
   rememberedResultTarget,
   resultDestinationOf,
   roundsToFinalise,
-  resultDestinations,
   stageResults,
   type ResultOutcome,
 } from '../../control/resultStaging';
 import LibMenu from './LibMenu';
 import {
-  MESSAGE_CARDS,
   destinationRefusal,
   messageDestinations,
-  messageFields,
-  lastTitled,
+  destinationFields,
   rememberedDestination,
   stageMessage,
   type StageResult,
@@ -211,42 +212,85 @@ const resultLabel = (question: string) => `Vote — ${question.slice(0, 32)}`;
 /** A word cloud cue's name in the rundown. */
 const wordCloudLabel = (question: string) => `Words: ${question.slice(0, 32)}`;
 
+/**
+ * Bring a SAVED design into the production for a picker (svg-template-library D6): its copy in
+ * the pool when there is one (reused by identity, control/audiencePickers.ts `savedCopyPlan`),
+ * else a new copy under a free name, linked back to the library record. The cue the pick fills is
+ * the copy's one seeded cue, so one pick makes one cue, and a retry after a failed save fills the
+ * cue the first try left rather than adding a second. Nothing airs.
+ */
+async function addSavedDesign(show: Show, savedId: string): Promise<{ shows: Show[] | null; graphicId: string | null; cueId: string | null; error: string | null }> {
+  const doc = loadGraphics().find((g) => g.id === savedId);
+  if (!doc) return { shows: null, graphicId: null, cueId: null, error: 'That saved design is no longer in your library.' };
+  const plan = savedCopyPlan(show, doc);
+  let shows: Show[] = loadShows();
+  if ('name' in plan) {
+    const added = addGraphicToShow(show.id, plan.name === doc.template.name ? doc.template : { ...doc.template, name: plan.name }, { graphicId: doc.id });
+    shows = added.shows;
+    const failure = added.error ?? (await commitDurableWrites());
+    if (failure) return { shows, graphicId: null, cueId: null, error: failure };
+  }
+  const after = shows.find((x) => x.id === show.id);
+  const graphic = after?.graphics.find((g) => g.graphicId === doc.id && !g.sceneCopyOf) ?? null;
+  if (!after || !graphic) return { shows, graphicId: null, cueId: null, error: 'The design was not added.' };
+  return { shows, graphicId: graphic.id, cueId: seededCue(after, graphic.id, seedValues(graphic.template.fields)), error: null };
+}
+
 /** The Join card in the catalog (templates/audience/joinCard.ts). */
 const JOIN_CARD_ID = 'jc01';
 
+/** Where a pick came from: a production graphic, a saved design or a built-in. */
+type PickOn = { graphicId?: string; saved?: string; board?: string };
+const pickOn = (item: PickerItem): PickOn =>
+  item.group === 'production' ? { graphicId: item.id } : item.group === 'saved' ? { saved: item.id } : { board: item.id };
+
+/** Each picker's words: the production group's heading, what it says when the production has no
+ *  design, and the built-in group's heading. */
+const PICKER_WORDS: Record<PickerKind, { here: string; empty: string; builtIn: string; prefix: string; builtInTestid: string }> = {
+  results: { here: 'Results on:', empty: 'No graphic here can show results.', builtIn: 'Add a vote board:', prefix: 'result', builtInTestid: 'result-choose-board' },
+  message: { here: 'Prepare on:', empty: 'No graphic here can show a message.', builtIn: 'Add a card for it:', prefix: 'audience', builtInTestid: 'audience-choose-card' },
+  words: { here: 'Word cloud on:', empty: 'No graphic here can show words.', builtIn: 'Add a word cloud:', prefix: 'word', builtInTestid: 'word-choose-board' },
+  join: { here: 'Join card on:', empty: 'No Join card here yet.', builtIn: 'Add the built-in Join card:', prefix: 'join', builtInTestid: 'join-choose-board' },
+};
+const GROUP_ORDER: PickerGroup[] = ['production', 'saved', 'built-in'];
+
 /**
- * "Add Join card to rundown" (interaction spec, Join; AC-11): one Join card cue whose Join link is
- * the production's link. A Join card already in the production gets the new cue; otherwise the card
- * is added with its one seeded cue. Its QR is drawn by the graphic from that field. Nothing airs.
+ * THE AUDIENCE PICKER (svg-template-library D6, AC-10): the production's designs, then the
+ * user's saved designs, then the built-ins, as plain buttons in tab order. Each group is a named
+ * group and each button's accessible name says what it does, the design and where it comes from
+ * (`pickerItems` keeps them distinct). Nothing airs: a pick stages a cue.
  */
-async function addJoinCard(show: Show, link: string): Promise<{ shows: Show[] | null; error: string | null }> {
-  const existing = show.graphics.find((g) => lastTitled(g.template.fields ?? [], ['join link']));
-  if (existing) {
-    const field = lastTitled(existing.template.fields ?? [], ['join link'])!;
-    const { shows, error } = addShowCue(show.id, existing.id, { label: 'Join card', values: { [field]: link } });
-    const failure = error ?? (await commitDurableWrites());
-    return { shows, error: failure };
-  }
-  const [{ variantById }, { buildDraftTemplate, initialDraft, mergeDraft }] = await Promise.all([
-    import('../../templates/catalog'),
-    import('../wizard/draft'),
-  ]);
-  const variant = variantById(JOIN_CARD_ID);
-  if (!variant) return { shows: null, error: 'The Join card is not in this build.' };
-  // The link goes into the cue, never into the graphic's own defaults: a graphic holding an
-  // absolute URL is refused by the publish gate (validation/templateBench.ts).
-  const template = buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) }));
-  const added = addGraphicToShow(show.id, template, {});
-  if (added.error) return { shows: added.shows, error: added.error };
-  const before = new Set(show.graphics.map((g) => g.id));
-  const after = added.shows.find((x) => x.id === show.id);
-  const graphic = after?.graphics.find((g) => !before.has(g.id));
-  const cue = graphic ? after?.cues?.find((c) => c.sourceId === graphic.id) : undefined;
-  const field = graphic ? lastTitled(graphic.template.fields ?? [], ['join link']) : null;
-  if (!cue || !field) return { shows: added.shows, error: 'The Join card was added without its cue.' };
-  const filled = updateShowCueChecked(show.id, cue.id, { values: { ...cue.values, [field]: link } });
-  const failure = filled.error ?? (await commitDurableWrites());
-  return { shows: filled.shows, error: failure };
+function DesignPicker({ kind, items, busy, onPick, onCancel }: { kind: PickerKind; items: PickerItem[]; busy: boolean; onPick: (on: PickOn) => void; onCancel: () => void }) {
+  const words = PICKER_WORDS[kind];
+  const heading: Record<PickerGroup, string> = { production: words.here, saved: 'Add a saved design:', 'built-in': words.builtIn };
+  const testid: Record<PickerGroup, string> = { production: `${words.prefix}-choose-graphic`, saved: `${words.prefix}-choose-saved`, 'built-in': words.builtInTestid };
+  const here = items.some((i) => i.group === 'production');
+  return (
+    <div className="pd-aud-choose" role="group" aria-label={words.here.replace(/:$/, '')} data-testid={`${words.prefix}-choose`}>
+      {!here && (
+        <span className="hint" data-testid={`${words.prefix}-no-destination`}>
+          {words.empty}
+        </span>
+      )}
+      {GROUP_ORDER.map((group) => {
+        const list = items.filter((i) => i.group === group);
+        if (!list.length) return null;
+        return (
+          <div key={group} className="pd-aud-choose-group" role="group" aria-label={heading[group].replace(/:$/, '')} data-testid={`${words.prefix}-choose-${group}`}>
+            <span className="hint">{heading[group]}</span>
+            {list.map((item) => (
+              <button key={item.id} type="button" disabled={busy} aria-label={item.label} onClick={() => onPick(pickOn(item))} data-testid={testid[group]}>
+                {item.name}
+              </button>
+            ))}
+          </div>
+        );
+      })}
+      <button type="button" onClick={onCancel} data-testid={`${words.prefix}-choose-cancel`}>
+        Cancel
+      </button>
+    </div>
+  );
 }
 
 /** A stable number per Blob, so a replaced Blob logo of the same size still reads as a change. */
@@ -387,9 +431,9 @@ export function CueMessageFill({
 }
 
 /** Whether a field of this pool graphic is where a message goes, so the cue editor offers Fill. */
-export function isMessageBodyField(show: Pick<Show, 'graphics'>, graphicId: string, fieldId: string): boolean {
+export function isMessageBodyField(show: Pick<Show, 'graphics' | 'messageTarget'>, graphicId: string, fieldId: string): boolean {
   const g = show.graphics.find((x) => x.id === graphicId);
-  return Boolean(g && messageFields(g.template.fields ?? [])?.body === fieldId);
+  return Boolean(g && destinationFields(show, g)?.body === fieldId);
 }
 
 /** A message source the operator connects here, as the add form names it. */
@@ -865,9 +909,13 @@ export default function ProductionAudienceWorkspace({
   setShows,
   publish = null,
   joinName = null,
+  library = [],
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
+  /** The active user's saved graphics (model/library.ts `loadGraphics`): the pickers offer the
+   *  compatible ones after the production's own (svg-template-library D6). */
+  library?: readonly SavedDesign[];
   /** Publish this production, offered where phones would join (AC-8): a press, never automatic. */
   publish?: { run: () => void; unavailable: string | null } | null;
   /** The link's name (moved here from Links): the claim stays with the page, which owns its
@@ -944,7 +992,6 @@ export default function ProductionAudienceWorkspace({
    */
   /** Where results go, once chosen (Show.resultTarget, S5), and what could take them. */
   const resultTarget = rememberedResultTarget(show);
-  const resultGraphics = useMemo(() => resultDestinations(show), [show]);
   const canRunLiveFigures = useMemo(
     () => show.graphics.some((g) => pollFieldMap(g.template.fields ?? [])?.live),
     [show.graphics],
@@ -1397,13 +1444,13 @@ export default function ProductionAudienceWorkspace({
    * gets a new one, and the note says so. With nowhere remembered, the operator chooses (S5): one of
    * the production's result graphics, or a catalog vote board, added with its one cue. Nothing airs.
    */
-  const addResults = async (round: AudienceRound, on: { graphicId?: string; board?: string } = {}) => {
+  const addResults = async (round: AudienceRound, on: PickOn = {}) => {
     if (!round.questionId || !takeTurn()) return;
     try {
       let chosen = on.graphicId ?? null;
       let adopt: string | null = null;
-      if (on.board) {
-        const made = await addResultBoard(show, on.board);
+      if (on.board || on.saved) {
+        const made = on.saved ? await addSavedDesign(show, on.saved) : await addResultBoard(show, on.board!);
         if (made.shows) setShows(made.shows);
         if (made.error || !made.graphicId) {
           setNote(`The vote board was not added: ${made.error}`);
@@ -1466,13 +1513,13 @@ export default function ProductionAudienceWorkspace({
    * press, a reload or another tab updates that same cue; with nowhere remembered the operator
    * chooses one of the production's word clouds, or the catalog's, added with its one cue. Nothing airs.
    */
-  const addWordCloud = async (q: ShowQuestion, round: AudienceRound, on: { graphicId?: string; board?: string } = {}) => {
+  const addWordCloud = async (q: ShowQuestion, round: AudienceRound, on: PickOn = {}) => {
     if (!takeTurn()) return;
     try {
       let chosen = on.graphicId ?? null;
       let adopt: string | null = null;
-      if (on.board) {
-        const made = await addResultBoard(show, on.board);
+      if (on.board || on.saved) {
+        const made = on.saved ? await addSavedDesign(show, on.saved) : await addResultBoard(show, on.board!);
         if (made.shows) setShows(made.shows);
         if (made.error || !made.graphicId) {
           setNote(`The word cloud was not added: ${made.error}`);
@@ -1625,11 +1672,11 @@ export default function ProductionAudienceWorkspace({
    */
   const prepare = async (
     row: AudienceSubmission,
-    on: { graphicId?: string; card?: string; again?: boolean } = {},
+    on: { graphicId?: string; card?: string; saved?: string; again?: boolean } = {},
   ) => {
     if (preparing) return;
     let graphicId = on.graphicId ?? target?.graphicId ?? null;
-    if (!graphicId && !on.card) {
+    if (!graphicId && !on.card && !on.saved) {
       setChoosing(row.id);
       return;
     }
@@ -1637,11 +1684,11 @@ export default function ProductionAudienceWorkspace({
     try {
       let base = show;
       let cueId: string | undefined;
-      if (on.card) {
-        const made = await addMessageCard(show, on.card);
+      if (on.card || on.saved) {
+        const made = on.saved ? await addSavedDesign(show, on.saved) : await addMessageCard(show, on.card!);
         if (made.shows) setShows(made.shows);
         if (made.error || !made.graphicId || !made.shows) {
-          setNote(`${on.card} was not added: ${made.error}`);
+          setNote(`${on.saved ? 'The design' : on.card} was not added: ${made.error}`);
           return;
         }
         graphicId = made.graphicId;
@@ -1664,38 +1711,78 @@ export default function ProductionAudienceWorkspace({
     }
   };
 
-  /** Where messages go, as the row's first Prepare asks it: the compatible graphics, or the cards. */
+  /** Where messages go, as the row's first Prepare asks it: the production's compatible graphics,
+   *  the saved designs that can hold a message, then the cards (D6). */
   const destinationChoice = (row: AudienceSubmission) => (
-    <div className="pd-aud-choose" data-testid="audience-choose">
-      {destinations.length > 0 ? (
-        <>
-          <span className="hint">Prepare on:</span>
-          {destinations.map((d) => (
-            <button key={d.graphicId} disabled={!!preparing} onClick={() => void prepare(row, { graphicId: d.graphicId })} data-testid="audience-choose-graphic">
-              {d.name}
-            </button>
-          ))}
-        </>
-      ) : (
-        <>
-          <span className="hint" data-testid="audience-no-destination">
-            No graphic here can show a message. Add a card for it:
-          </span>
-          {MESSAGE_CARDS.map((card) => (
-            <button key={card} disabled={!!preparing} onClick={() => void prepare(row, { card })} data-testid="audience-choose-card">
-              {card}
-            </button>
-          ))}
-        </>
-      )}
-      <button onClick={() => setChoosing(null)} data-testid="audience-choose-cancel">
-        Cancel
-      </button>
-    </div>
+    <DesignPicker
+      kind="message"
+      items={pickerItems(show, library, 'message')}
+      busy={!!preparing}
+      onPick={(on) => void prepare(row, on.board ? { card: on.board } : on)}
+      onCancel={() => setChoosing(null)}
+    />
   );
 
   const joinUrl = live && show.joinSlug ? joinPageUrl(show.joinSlug) : null;
   const joinQrSvg = useMemo(() => (joinUrl ? qrSvg(joinUrl) : null), [joinUrl]);
+  /** The Join picker is open: several Join cards and none remembered, saved designs to choose
+   *  from, or Change. */
+  const [choosingJoin, setChoosingJoin] = useState(false);
+  const joinItems = useMemo(() => pickerItems(show, library, 'join'), [show, library]);
+  const joinCard = joinCardOf(show);
+  const joinCardName = typeof joinCard === 'string' && joinCard !== 'choose' ? show.graphics.find((g) => g.id === joinCard)?.name ?? null : null;
+
+  /**
+   * "Add Join card to rundown" (svg-template-library "Pickers and targets"): the production's
+   * current link goes into its Join card's one Join cue (model/joinCues.ts). With one Join card
+   * that card; with several, the operator picks once and it is remembered (`joinTarget`); with
+   * none, the Join picker offers saved designs and the built-in, or the built-in is added straight
+   * away when nothing is saved, as before. Nothing airs.
+   */
+  const addJoin = async (on: PickOn = {}) => {
+    if (!joinUrl || qrBusy) return;
+    let chosen = on.graphicId ?? null;
+    if (!chosen && !on.saved && !on.board) {
+      const card = joinCardOf(show);
+      const saved = joinItems.some((i) => i.group === 'saved');
+      if (card === 'choose' || (card === null && saved)) {
+        setChoosingJoin(true);
+        return;
+      }
+      if (card === null) on = { board: JOIN_CARD_ID };
+    }
+    setQrBusy(true);
+    try {
+      let adopt: string | null = null;
+      if (on.saved || on.board) {
+        const made = on.saved ? await addSavedDesign(show, on.saved) : await addResultBoard(show, on.board!);
+        if (made.shows) setShows(made.shows);
+        if (made.error || !made.graphicId) {
+          setNote(`The Join card was not added: ${made.error}`);
+          return;
+        }
+        chosen = made.graphicId;
+        adopt = made.cueId;
+      }
+      const staged = stageShowJoin(show.id, joinUrl, { chosen, adopt });
+      setShows(staged.shows);
+      const failure = staged.error ?? (await commitDurableWrites());
+      const { plan } = staged.outcome();
+      if (!failure && plan?.kind === 'choose') {
+        setChoosingJoin(true);
+        return;
+      }
+      setChoosingJoin(false);
+      const name = loadShows().find((x) => x.id === show.id)?.graphics.find((g) => g.id === (plan && 'graphicId' in plan ? plan.graphicId : ''))?.name ?? 'the Join card';
+      setNote(
+        failure
+          ? `The Join card cue was not saved: ${failure}`
+          : `✓ The Join card cue on “${name}” has the current link. Take it when you want it on air.`,
+      );
+    } finally {
+      setQrBusy(false);
+    }
+  };
   const [copied, setCopied] = useState(false);
   const selectedTally = selectedRound ? tallies[selectedRound.id] : undefined;
   const sum = (counts: number[] | undefined) => (counts ?? []).reduce((a, b) => a + b, 0);
@@ -1842,32 +1929,13 @@ export default function ProductionAudienceWorkspace({
                     </span>
                   </div>
                   {choosingResult === selected.id && selectedRound && (
-                    <div className="pd-aud-choose" data-testid="result-choose">
-                      {resultGraphics.length > 0 ? (
-                        <>
-                          <span className="hint">Results on:</span>
-                          {resultGraphics.map((d) => (
-                            <button key={d.graphicId} disabled={busy} onClick={() => void addResults(selectedRound, { graphicId: d.graphicId })} data-testid="result-choose-graphic">
-                              {d.name}
-                            </button>
-                          ))}
-                        </>
-                      ) : (
-                        <>
-                          <span className="hint" data-testid="result-no-destination">
-                            No graphic here can show results. Add a vote board:
-                          </span>
-                          {RESULT_BOARDS.map((b) => (
-                            <button key={b.id} disabled={busy} onClick={() => void addResults(selectedRound, { board: b.id })} data-testid="result-choose-board">
-                              {b.name}
-                            </button>
-                          ))}
-                        </>
-                      )}
-                      <button onClick={() => setChoosingResult(null)} data-testid="result-choose-cancel">
-                        Cancel
-                      </button>
-                    </div>
+                    <DesignPicker
+                      kind="results"
+                      items={pickerItems(show, library, 'results')}
+                      busy={busy}
+                      onPick={(on) => void addResults(selectedRound, on)}
+                      onCancel={() => setChoosingResult(null)}
+                    />
                   )}
                   {/* HOW THIS PRODUCTION SHOWS ITS NUMBERS (owner ruling, 2026-08-30): off by
                       default, a property of the SHOW rather than of a question. */}
@@ -1894,7 +1962,7 @@ export default function ProductionAudienceWorkspace({
                   round={selectedRound ?? null}
                   words={selectedRound ? countWordTallies(wordTallies[selectedRound.id] ?? [], selected.hidden ?? []) : []}
                   destination={wordDestinationOf(show, selected.id)}
-                  clouds={wordDestinations(show)}
+                  clouds={pickerItems(show, library, 'words')}
                   choosing={choosingResult === selected.id}
                   busy={busy}
                   live={!!rowStates[selected.id]?.live}
@@ -1952,22 +2020,18 @@ export default function ProductionAudienceWorkspace({
                     </button>
                   </div>
                   <div className="pd-aud-round-actions">
-                    <button
-                      disabled={qrBusy}
-                      onClick={() => {
-                        setQrBusy(true);
-                        void addJoinCard(show, joinUrl)
-                          .then(({ shows, error }) => {
-                            if (shows) setShows(shows);
-                            setNote(error ?? '✓ Join card added to the rundown. Take it when you want it on air.');
-                          })
-                          .finally(() => setQrBusy(false));
-                      }}
-                      data-testid="join-card-add"
-                    >
-                      Add Join card to rundown
+                    <button disabled={qrBusy} onClick={() => void addJoin()} data-testid="join-card-add">
+                      {joinCardName ? `Add Join card to rundown on ${joinCardName}` : 'Add Join card to rundown'}
                     </button>
+                    {(joinCards(show).length > 0 || joinItems.some((i) => i.group === 'saved')) && (
+                      <button disabled={qrBusy} onClick={() => setChoosingJoin(true)} data-testid="join-target-change">
+                        Change
+                      </button>
+                    )}
                   </div>
+                  {choosingJoin && (
+                    <DesignPicker kind="join" items={joinItems} busy={qrBusy} onPick={(on) => void addJoin(on)} onCancel={() => setChoosingJoin(false)} />
+                  )}
                   {joinName && (
                     <div className="pd-aud-round-actions" data-testid="join-name">
                       <input
@@ -2352,11 +2416,11 @@ function WordPanel({
   round: AudienceRound | null;
   words: WordCount[];
   destination: { graphicId: string; name: string } | null;
-  clouds: { graphicId: string; name: string }[];
+  clouds: PickerItem[];
   choosing: boolean;
   busy: boolean;
   live: boolean;
-  onStage: (on?: { graphicId?: string; board?: string }) => void;
+  onStage: (on?: PickOn) => void;
   onChoose: (open: boolean) => void;
   onHide: (key: string, hide: boolean) => void;
   onSimulate: (() => void) | null;
@@ -2405,34 +2469,7 @@ function WordPanel({
           {hidden ? `, ${hidden} hidden` : ''}. The cue changes on air only when you Take or Update it.
         </span>
       </div>
-      {choosing && round && (
-        <div className="pd-aud-choose" data-testid="word-choose">
-          {clouds.length > 0 ? (
-            <>
-              <span className="hint">Word cloud on:</span>
-              {clouds.map((d) => (
-                <button key={d.graphicId} disabled={busy} onClick={() => onStage({ graphicId: d.graphicId })} data-testid="word-choose-graphic">
-                  {d.name}
-                </button>
-              ))}
-            </>
-          ) : (
-            <>
-              <span className="hint" data-testid="word-no-destination">
-                No graphic here can show words. Add a word cloud:
-              </span>
-              {WORD_CLOUDS.map((b) => (
-                <button key={b.id} disabled={busy} onClick={() => onStage({ board: b.id })} data-testid="word-choose-board">
-                  {b.name}
-                </button>
-              ))}
-            </>
-          )}
-          <button onClick={() => onChoose(false)} data-testid="word-choose-cancel">
-            Cancel
-          </button>
-        </div>
-      )}
+      {choosing && round && <DesignPicker kind="words" items={clouds} busy={busy} onPick={(on) => onStage(on)} onCancel={() => onChoose(false)} />}
     </>
   );
 }
