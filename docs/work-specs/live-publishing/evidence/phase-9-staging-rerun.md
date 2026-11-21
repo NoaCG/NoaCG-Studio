@@ -199,3 +199,117 @@ Two rounds of 60 s with both typing key by key, each against 60 s of the taker a
   60-graphic publish on staging. Only this rerun's instrument was changed.
 
 UTC time of the last run's end: 2026-11-21 10:34.
+
+## Second rerun, after the Take fix (#2662), 2026-11-21 afternoon
+
+Source: `main` at 5634c2f, which adds #2662 (the fix for #2655; #2657 above was closed as its
+duplicate). Same instruments: `phase-9-staging-rerun/instruments.patch` applied unchanged to
+5634c2f on the scratch branch `scratch/p9-rerun-3p-2` (not for `main`), the same route through
+`hosted-latency.yml`, the same accounts, the same judgement. Data: `phase-9-staging-rerun-2/`, the
+JSON files each run wrote, named by run.
+
+**Verdict for AC-6 at 3 people: failed on timing only.** No Take was lost in any run and every
+text held, but the pooled p95 difference over 14 pairs is +189 ms (bootstrap 95 %: -474 to +869),
+above 50 ms. A new publish defect showed up in step 7: #2667.
+
+### Runs
+
+| Run | What | Result |
+|---|---|---|
+| [44919806869](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44919806869) | 1a: 3 people, switches on, 10 min | 0 of 366 Takes lost |
+| [44921040603](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44921040603) | 1a: 7 pairs, switches on | +820.4 ms |
+| [44922393066](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44922393066) | 1b: 3 people, switches on, 10 min | 0 of 249 Takes lost |
+| [44923696718](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44923696718) | 1b: 7 pairs, switches on | -6.4 ms |
+| [44925104806](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44925104806) | 2: 3 people, switches as production, 10 min | 0 of 248 Takes lost |
+| [44926364732](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44926364732) | 4: step 7, 60 graphics, `team_designs` on | publish timed out twice, landed on the third press at 434 s |
+
+### Switches
+
+Every run read them before, during and after (`*-switches-*.json`). Before each run: all four off.
+During: as in the first rerun ("on" for runs 1; `production_copies` only for run 2;
+`team_designs` and `production_copies` for step 7). After each run: all four off, read back with
+the service role. Staging stands as this rerun found it: `auto_publish`, `partial_writes`,
+`production_copies` and `team_designs` off.
+
+### Run 1: the pass mark
+
+| | 1a (44919806869) | 1b (44922393066) |
+|---|---|---|
+| Takes, never ran | 366, **0** | 249, **0** |
+| Press to ran | median 224 ms, p95 528 ms, max 5,167 ms | median 213 ms, p95 1,448 ms, max 7,782 ms |
+| Editor A last text (149 typed) | on the record, published, on all 3 pages | on the record, published, on all 3 pages |
+| Editor B last text (95 typed) | on the record, published, on all 3 pages | on the record, published, on all 3 pages |
+| Settled after the run | 10.5 s | 25.4 s |
+| "(conflicted copy)" | none | none |
+| Reload, 20 s offline | done | done |
+
+**Pairs**, 14 pooled (`pairs-pooled.json`):
+
+| | Takes timed | median | p95 | never ran |
+|---|---|---|---|---|
+| taker alone | 409 | 172 ms | 592 ms | 0 |
+| 3 people working | 305 | 196 ms | 781 ms | 0 |
+| **difference** | | | **+189.1 ms** (bootstrap 95 %: -474.0 to +869.4) | |
+
+Per dispatch: +820.4 ms (bootstrap -1,081 to +1,381) and -6.4 ms (-406 to +672). Both started
+with everyone working in round 0 (even run numbers); the order alternated round by round. The
+slow tail is in both modes: in 1a, round 2 alone had a p95 of 1,281 ms and round 6 alone one Take
+at 5,400 ms; with everyone working, rounds 1, 2, 3 and 6 each had one Take of 1.9 to 3.2 s. In 1b,
+rounds 0 and 1 alone had p95s of 853 and 928 ms, and rounds 2 and 4 with everyone had 1,458 and
+1,123 ms. Staging from the taker's page during the pairs: median 147 ms, p95 623 ms (1a); median
+142 ms, p95 393 ms (1b).
+
+### AC-6 verdict, item by item
+
+| Item | Result |
+|---|---|
+| No Take lost (each Take airs) | **ok.** 0 of 366 and 0 of 249, and 0 lost in 28 pair rounds. |
+| No editor's last text lost, no different cue overwritten | **ok.** Both runs: each editor's last text on the record and all 3 pages, on its own cue; no conflicted copy. |
+| Goals and messages all counted | **not in the scene** (taker and two editors only). |
+| Press to ran within 50 ms p95 of a single page | **failed.** +189.1 ms pooled over 14 pairs; the bootstrap range (-474.0 to +869.4) is wide, and the alone rounds show the same kind of tail, so staging's own swings are a large part of it. |
+
+### Staging response times during runs 1 and 2
+
+All requests to staging from every page (`*-soak.json`, `staging`):
+
+| | 1a | 1b | 2 |
+|---|---|---|---|
+| whole run, median / p95 / max | 198 / 542 / 9,120 ms | 144 / 1,193 / 14,556 ms | 155 / 1,612 / 8,243 ms |
+| requests, cancelled by the page | 3,246, 18 | 3,046, 38 | 3,465, 49 |
+| slowest minute (p95) | minute 9: 2,240 ms | minute 9: 11,725 ms | minute 0: 3,175 ms |
+
+The per-minute medians stayed between 133 and 358 ms in all three runs, except 671 ms in 1b's
+last minute. Before the fix the same scene lost 8 Takes while staging's per-minute medians were
+0.6 to 2.6 s; this time staging slowed less, so the runs show the fix kept every Take through
+p95 spikes of 1 to 12 s, not through a slowdown as long as the one in the first rerun.
+
+### Run 2: 3 people, switches as production has them (information)
+
+Run 44925104806: 248 Takes, **0 never ran**; press to ran median 229 ms, p95 2,283 ms, max
+4,387 ms. Both editors' last texts on the record and all 3 pages, not published (as expected with
+`auto_publish` off), settled 4.3 s after the run. No conflicted copy.
+
+### Run 4: step 7, 60 graphics, `team_designs` on (information)
+
+Run 44926364732 (`4-step7-*.json`):
+
+- **Publish:** press 1 answered "Publish failed: canceling statement due to statement timeout"
+  213 s after it; press 2 the same at 406 s; press 3 landed, 434 s after the first press. This
+  morning (44894000539) the same publish landed on the first press in 64 s. Filed as #2667 (P2,
+  area: control).
+- Then two rounds of 60 s with both typing key by key against the taker alone: 11 Takes with both
+  typing and 19 alone, **none lost**. Press to ran with both typing 243 to 5,419 ms (one Take each
+  round above 2 s); alone 147 to 361 ms.
+- Each typist reached 6 or 7 texts a minute; each last text reached the record and all 3 pages
+  15 to 19 s after the round, on its own cue, no conflicted copy.
+- Staging during the typing: median 154 ms, p95 1,218 ms, max 18.1 s; 4 of 742 requests
+  cancelled.
+
+### Defects
+
+- #2667 (P2, area: control): the 60-graphic publish can still fail with a statement timeout.
+- The timing failure is not filed as a separate defect: no Take was lost, and the alone rounds
+  carry the same tail. The coordinator decides whether the 50 ms rule is met by another method or
+  needs a fix.
+
+UTC time of the last run's end: 2026-11-21 17:00.
