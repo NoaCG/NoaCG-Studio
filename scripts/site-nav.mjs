@@ -45,6 +45,7 @@ export const SITE_PAGES = {
   '/terms': { file: 'terms.html', name: 'Terms' },
   '/docs': { file: 'docs.html', name: 'Documentation' },
   '/downloads': { file: 'downloads.html', name: 'Downloads' },
+  '/svg-templates': { file: 'svg-templates.html', name: 'SVG templates' },
   '/whats-new': { file: 'whats-new.html', name: "What's new" },
   '/roadmap': { file: 'roadmap.html', name: 'Roadmap' },
 };

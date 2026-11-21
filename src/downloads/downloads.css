@@ -2,32 +2,24 @@
    (src/site-chrome.css); the headings, command blocks and copy button are the docs'
    (src/docs/docs.css); this file adds only the tool cards. */
 
-/* The tools side by side, so none reads as the main one: they are for different people. The
-   Bridge runs long, so it takes the whole left column, with the Companion module beside it (both
-   are for the operator) and the CLI under that. One column on a phone or a narrow window. */
+/* The tools side by side, so none reads as the main one: they are for different people. Two
+   columns that stack their cards independently: the Bridge runs long, so the SVG templates card
+   sits under it on the left, with the Companion module and the CLI on the right (both columns are
+   about the same height). One column on a phone or a narrow window, where the SVG card goes last:
+   it is files to edit, not a tool, so it must not come before one. */
 .dl-grid.doc-body {
   max-width: none;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: auto 1fr;
   gap: 24px;
   padding: 26px 0 80px;
   align-items: start;
 }
-.dl-grid.doc-body > #bridge { grid-row: span 2; }
+.dl-col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 @media (max-width: 900px) {
-  .dl-grid.doc-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
-  .dl-grid.doc-body > #bridge { grid-row: auto; }
-}
-
-/* The SVG examples sit UNDER the tools, full width: they are example files to learn
-   from, not another tool, so they must not read as one of them. The grid above keeps its
-   own bottom padding off (padding-bottom 0 here takes it back) so the gap between the two rows
-   is the grid's 24px gap, not 80px. */
-.dl-grid.doc-body:has(+ .dl-extra) { padding-bottom: 0; }
-.dl-extra.doc-body {
-  max-width: none;
-  padding: 24px 0 80px;
+  .dl-grid.doc-body { grid-template-columns: minmax(0, 1fr); }
+  .dl-col { display: contents; }
+  .dl-grid.doc-body > .dl-col > #svg-templates { order: 1; }
 }
 
 /* A card is a section on the docs' reading type, without the docs' between-sections rule:
@@ -50,6 +42,8 @@
 .doc-body .dl-card .dl-meta { font-family: var(--mono); font-size: 12px; color: var(--faint); margin: 6px 0; }
 .dl-card [data-version] { color: var(--paper); }
 .doc-body .dl-card .dl-actions { margin: 18px 0 8px; }
+/* Two downloads on one card (the SVG templates): side by side, wrapping on a narrow card. */
+.doc-body .dl-card .dl-actions.dl-pair { display: flex; flex-wrap: wrap; gap: 12px; }
 /* The docs colour every link in a paragraph amber; the download BUTTON keeps the landing's
    near-black label, or it reads as an empty amber bar. */
 .doc-body .dl-card .dl-actions a.btn,

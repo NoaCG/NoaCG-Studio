@@ -1,4 +1,4 @@
-// guards: docs/tutorials/svg-examples/**, public/docs/examples/svg-examples/**, src/templates/behaviours/**
+// guards: docs/tutorials/svg-examples/**, src/templates/behaviours/**
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

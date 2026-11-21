@@ -68,6 +68,7 @@ export const DEPLOY_AFFECTING_SCRIPTS = new Set([
   // generators and what they read, the catalog index, /panel.json, the Skew Protection
   // pinning (deploy-affecting-paths.test.mjs walks the imports).
   'scripts/agent-prompt.mjs',
+  'scripts/behaviour-docs.mjs',
   'scripts/catalogIndexPlugin.mjs',
   'scripts/measured-receipt.mjs',
   'scripts/measured.mjs',
@@ -75,6 +76,7 @@ export const DEPLOY_AFFECTING_SCRIPTS = new Set([
   'scripts/roadmap.mjs',
   'scripts/site-nav.mjs',
   'scripts/skewProtectionPlugin.mjs',
+  'scripts/svg-files.mjs',
   'scripts/whats-new.mjs',
   // The backend rule a test or measurement build is judged by (#2508). The site's own build sets
   // none of its switches, but it imports them, so an edit here still builds.

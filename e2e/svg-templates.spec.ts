@@ -1,4 +1,4 @@
-// THE SVG TEMPLATES (docs/tutorials/svg-templates/, offered at /downloads#svg-templates): the
+// THE SVG TEMPLATES (docs/tutorials/svg-templates/, offered at /svg-templates): the
 // ready-made Clean Studio set students open in Illustrator, restyle and import. Each file is
 // imported through the real door exactly as the README says, put in a production and run: every
 // named text arrives as a field and reaches the output, and each behaviour's controls change it.

@@ -144,9 +144,9 @@ test('svg import: the design step says the workflow in one line and links the ex
   await expect(line).toContainText('Name your layers');
   await expect(line).toContainText('SVG');
   await expect(line).toContainText('choose what it does');
-  const examples = line.locator('a[href^="/downloads"]');
+  const examples = line.locator('a[href^="/svg-templates"]');
   await expect(examples).toBeVisible();
-  await expect(examples).toHaveAttribute('href', '/downloads#svg-examples');
+  await expect(examples).toHaveAttribute('href', '/svg-templates#examples');
 
   for (const size of [{ width: 1366, height: 768 }, { width: 1280, height: 800 }]) {
     await page.setViewportSize(size);

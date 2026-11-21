@@ -281,9 +281,9 @@ test('the graphics topic has one page per type, each with its file, layers and n
     const moments = !['end-credits', 'tickers'].includes(id);
     expect(await layers.allTextContents()).toEqual(id === 'end-credits' ? ['Text'] : moments ? ['Text', 'Moments', 'Board'] : ['Text', 'Board']);
   }
-  // One lower-third file in the complete examples gallery; no retired variant links return.
-  await expect(page.locator('a[href*="lower-third"]')).toHaveCount(1);
-  await expect(page.locator('#svg-example-files + p + ul a[href="/docs/examples/svg-examples/lower-third.svg"]')).toHaveCount(1);
+  // The SVG files live on their own page (/svg-templates); the docs list none of them.
+  await expect(page.locator('a[href*="lower-third"]')).toHaveCount(0);
+  await expect(page.locator('#svg-layers-package a[href="/svg-templates"]')).toHaveCount(1);
   // The Layer names page opens with the system: the three layers, the row rule, one full tree
   // and the table of every name, generated from words.json so it cannot drift from the matcher.
   const layerNames = page.locator('#svg-layers');
@@ -726,7 +726,7 @@ test('Getting started points a coding-agent owner at the CLI', async ({ page }) 
   await expect(ways).toHaveCount(3);
   await expect(ways.nth(0).locator('a[href="/app#/new"]')).toHaveCount(1);
   await expect(ways.nth(1).locator('a[href="#first-graphic"]')).toHaveCount(1);
-  await expect(ways.nth(1).locator('a[href="/downloads#svg-examples"]')).toHaveCount(1);
+  await expect(ways.nth(1).locator('a[href="/svg-templates"]')).toHaveCount(1);
   await expect(ways.nth(2).locator('a[href="#claude-code"]')).toHaveCount(1);
   const start = page.locator('#getting-started');
   await expect(start.locator('a[href="#browser-source"]')).toHaveCount(1);

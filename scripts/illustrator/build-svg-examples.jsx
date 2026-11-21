@@ -6,7 +6,7 @@
 // teaches (Text, Moments, Board; src/templates/behaviours/layer-names.json), saves the .ai into
 // Illustrator/, writes the SVG into SVG/ with exportFile(ExportType.SVG), which is the same SVG
 // export plug-in that "File > Save a Copy > SVG" runs, with the settings the NoaCG docs teach, and
-// writes a PNG of every state into Previews/. The package is the one /downloads#svg-examples
+// writes a PNG of every state into Previews/. The package is the one /svg-templates#examples
 // offers (src/downloads/links.ts).
 //
 // A graphic with no moments gets NO Moments layer: Illustrator's SVG save drops an empty layer

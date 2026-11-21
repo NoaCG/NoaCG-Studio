@@ -195,6 +195,8 @@ function sitemap(entries) {
     { loc: `${SITE_ORIGIN}/ograf`, priority: '0.8' },
     // The Downloads page (downloads.html) — NoaCG Bridge, the Companion module and the NoaCG CLI, the tools you install.
     { loc: `${SITE_ORIGIN}/downloads`, priority: '0.7' },
+    // The SVG templates page (svg-templates.html) - every SVG template and example, one download each.
+    { loc: `${SITE_ORIGIN}/svg-templates`, priority: '0.6' },
     // What's new (whats-new.html) and the roadmap (roadmap.html) - public pages built from
     // docs/whats-new/ and docs/GOALS.md.
     { loc: `${SITE_ORIGIN}/whats-new`, priority: '0.6' },
