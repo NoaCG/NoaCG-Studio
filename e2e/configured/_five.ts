@@ -1,6 +1,6 @@
 import { expect, type Browser, type BrowserContext, type Frame, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { isLocalStackUrl } from '../../scripts/configured-target.mjs';
+import { configuredTarget, isLocalStackUrl } from '../../scripts/configured-target.mjs';
 import { installDoor } from '../_door';
 import { settleDurableWrites } from '../_durable';
 import { publishProduction } from '../_publish';
@@ -62,7 +62,7 @@ const memberEmail = (i: number) => `e2e-five-${i}${domain()}`;
 
 /** The service client for the scene's own accounts: local stack only. */
 function admin() {
-  if (!isLocalStack()) throw new Error('the five-person scene mints accounts: only against a local stack');
+  if (!writable()) throw new Error('the five-person scene mints accounts: only against a local stack or the declared staging project');
   return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 }
 
@@ -74,6 +74,9 @@ async function dropMinted(emails: string[]): Promise<void> {
 
 /** True when the backend is a local stack: the only place this scene may mint accounts or write switches. */
 export const isLocalStack = () => isLocalStackUrl(SUPABASE_URL);
+/** PHASE 9 CLOUD (not for main): the scene may also mint accounts and write switches on the hosted
+ *  staging project, admitted only by scripts/configured-target.mjs's declared route. */
+export const writable = () => ['local', 'hosted-staging'].includes(configuredTarget(process.env).kind);
 
 const t0 = Date.now();
 export const log = (...a: unknown[]) => console.log(`[five ${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
@@ -82,7 +85,7 @@ const row = (page: Page, label: string) =>
   page.locator('.pd-cue').filter({ has: page.locator('.pd-cue-label > strong', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) });
 
 async function selectCue(page: Page, label: string): Promise<void> {
-  await row(page, label).getByTestId('select-cue').click();
+  await row(page, label).getByTestId('select-cue').click({ timeout: 15_000 });
   await expect(page.locator('.pd-cue.selected .pd-cue-label > strong')).toHaveText(label);
 }
 
@@ -94,7 +97,7 @@ const textBox = (page: Page) => page.getByTestId('cue-editor').locator('input[ty
  * a House Score whose home score is bound to the production's data; moves it into a new team and
  * publishes it from there.
  */
-async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people' | 'output' | 'outputContext' | 'minted' | 'slug' | 'key'>> {
+async function build(owner: Page, editors: number, fill = 0): Promise<Omit<Scene, 'people' | 'output' | 'outputContext' | 'minted' | 'slug' | 'key'>> {
   await signInAs(owner, E2E_EMAIL, E2E_PASSWORD);
   await dismissWizard(owner).catch(() => undefined);
   await clearPublishedShows(owner);
@@ -103,7 +106,7 @@ async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people'
   await expect(owner.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   const stamp = Date.now();
   const made = await owner.evaluate(
-    async ({ name, editors, path }) => {
+    async ({ name, editors, path, fill }) => {
       const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
       const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
       const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
@@ -134,6 +137,8 @@ async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people'
       const edits = Array.from({ length: editors }, (_, i) => `Five edit ${String.fromCharCode(65 + i)}`);
       for (const n of [...takes, ...edits]) add(await template('Hairline', n));
       add(await template('House Score', 'Five score'));
+      // Phase 9 step 7: a large production, filled with more lower thirds nobody touches.
+      for (let i = 1; i <= fill; i++) add(await template('Hairline', `Five fill ${i}`));
       m.setFieldBindings(show.id, [{ graphic: 'Five score', fieldId: 'f1', path }]);
       const failure = await commitDurableWrites();
       if (failure) throw new Error(failure);
@@ -144,7 +149,7 @@ async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people'
       };
       return { id: show.id, takes: takes.map(labelOf), edits: edits.map(labelOf), score: labelOf('Five score') };
     },
-    { name: `Five people ${stamp}`, editors, path: SCORE_PATH },
+    { name: `Five people ${stamp}`, editors, path: SCORE_PATH, fill },
   );
   // The team: `E2E team ` prefix, so teams.spec.ts's sweep removes it if this run dies.
   const team = await owner.evaluate(
@@ -162,10 +167,47 @@ async function build(owner: Page, editors: number): Promise<Omit<Scene, 'people'
   );
   await owner.goto(`/app#/production/${made.id}`);
   await expect(owner.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
-  await publishProduction(owner);
+  // PHASE 9 CLOUD: a large production can still be saving; do what the note says and publish again.
+  publishLog.length = 0;
+  const t0 = Date.now();
+  for (let attempt = 1; ; attempt++) {
+    if (attempt > 1 && !(await owner.getByTestId('production-publish').isVisible())) {
+      log(`publish button gone after ${Date.now() - t0} ms; status ${await owner.getByTestId('production-status').textContent({ timeout: 2_000 }).catch(() => '?')}`);
+      break;
+    }
+    if (attempt > 1 && !(await owner.getByTestId('production-publish').isEnabled().catch(() => false))) {
+      const status = await owner.getByTestId('production-status').textContent({ timeout: 2_000 }).catch(() => '?');
+      log(`publish button disabled after ${Date.now() - t0} ms; status ${status}`);
+      publishLog.push({ attempt, ms: Date.now() - t0, ok: false, note: `button disabled; status ${status}` });
+      throw new Error(`publish did not land and the button is disabled (status ${status})`);
+    }
+    try {
+      await publishProduction(owner);
+      log(`published on attempt ${attempt} after ${Date.now() - t0} ms`);
+      publishLog.push({ attempt, ms: Date.now() - t0, ok: true, note: '' });
+      break;
+    } catch (e) {
+      // PHASE 9 RERUN: a slow publish can still land after the helper's 30 s; wait for it before pressing again.
+      const landed = await owner.locator('[data-testid="production-status"][data-started="true"]').waitFor({ timeout: 180_000 }).then(() => true, () => false);
+      if (landed) {
+        log(`publish attempt ${attempt} landed after ${Date.now() - t0} ms (past the helper's 30 s)`);
+        publishLog.push({ attempt, ms: Date.now() - t0, ok: true, note: 'landed after the 30 s helper wait' });
+        break;
+      }
+      const note = (await owner.getByTestId('production-note').first().textContent({ timeout: 2_000 }).catch(() => '')) ?? '';
+      log(`publish attempt ${attempt} after ${Date.now() - t0} ms: ${note}`);
+      publishLog.push({ attempt, ms: Date.now() - t0, ok: false, note: note.slice(0, 200) });
+      if (attempt >= 12) throw e;
+      await owner.keyboard.press('Escape').catch(() => undefined);
+      await owner.waitForTimeout(10_000);
+    }
+  }
   await shutStatusPanel(owner);
   return { showId: made.id, teamId: team.id, code: team.code, takes: made.takes, edits: made.edits, score: made.score };
 }
+
+/** PHASE 9 RERUN: each publish attempt of the last set-up. */
+export const publishLog: { attempt: number; ms: number; ok: boolean; note: string }[] = [];
 
 /** Sign a member in, join the team by its code, and open the production. */
 async function join(page: Page, email: string, code: string, showId: string, name: string): Promise<void> {
@@ -193,8 +235,8 @@ export async function openProduction(page: Page, showId: string): Promise<void> 
 }
 
 /** The service-role switch writes (`system_settings`), local stack only. */
-export async function setSwitch(key: 'auto_publish' | 'partial_writes' | 'team_designs', on: boolean): Promise<void> {
-  if (!isLocalStack()) throw new Error('switches are written only on a local stack');
+export async function setSwitch(key: 'auto_publish' | 'partial_writes' | 'team_designs' | 'production_copies', on: boolean): Promise<void> {
+  if (!writable()) throw new Error('switches are written only on a local stack or the declared staging project');
   const res = await fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
     method: 'POST',
     headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
@@ -209,12 +251,12 @@ export async function setSwitch(key: 'auto_publish' | 'partial_writes' | 'team_d
  * other one minted on the local stack. Opens one output, waits for it to hold every graphic, and puts
  * the score on air, so that during a run the taker's Takes are the only ones the output plays.
  */
-export async function setUp(browser: Browser, owner: Page, pages: number): Promise<Scene> {
-  if (pages < 5) throw new Error('the scene needs five people');
-  const editors = pages - 3;
-  const built = await build(owner, editors);
+export async function setUp(browser: Browser, owner: Page, pages: number, opts: { fill?: number; roles?: Person['role'][] } = {}): Promise<Scene> {
+  const roles: Person['role'][] = opts.roles ?? ['taker', 'messages', 'quick', ...Array.from({ length: pages - 3 }, () => 'editor' as const)];
+  if (!opts.roles && pages < 5) throw new Error('the scene needs five people');
+  const editors = roles.filter((r) => r === 'editor').length;
+  const built = await build(owner, editors, opts.fill ?? 0);
   log('built and published', built.showId);
-  const roles: Person['role'][] = ['taker', 'messages', 'quick', ...Array.from({ length: editors }, () => 'editor' as const)];
   const emails = roles.map((_, i) => (i === 0 ? E2E_EMAIL : memberEmail(i)));
   const minted = emails.slice(1);
   const sb = admin();
@@ -273,14 +315,16 @@ export async function setUp(browser: Browser, owner: Page, pages: number): Promi
   await output.goto(`/output?production=${encodeURIComponent(slug)}`);
   const graphics = built.takes.length + built.edits.length + 1;
   await expect
-    .poll(async () => { const r = await readyOf(output); return r ? r.n === r.of && r.of >= graphics : false; }, { timeout: 180_000, intervals: [100] })
+    .poll(async () => { const r = await readyOf(output); return r ? r.n === r.of && r.of >= graphics + (opts.fill ?? 0) : false; }, { timeout: 300_000, intervals: [100] })
     .toBe(true);
   log('output holds every graphic');
-  const quick = people.find((p) => p.role === 'quick')!;
+  const quick = people.find((p) => p.role === 'quick');
+  if (quick) {
   await selectCue(quick.page, quick.cue!);
   await quick.page.getByTestId('verb-take').click();
   await expect(quick.page.getByTestId('cue-action-goalA')).toBeEnabled({ timeout: 20_000 });
   await expect.poll(async () => (await framePlays(output)).some((f) => f.plays.length > 0), { timeout: 20_000, message: 'the score is on air' }).toBe(true);
+  }
   // MEASURE_NET=slow (the measurement only): every page and the output at 20 Mbit/s and 50 ms from
   // here on. Set-up is not timed. A page taken offline and back loses its throttle (one CDP setting).
   if (NET === 'slow') for (const p of [...people.map((x) => x.page), output]) await throttle(p, 'slow');
@@ -320,6 +364,8 @@ export interface RunOptions {
   offlineMs?: number;
   /** false: only the taker runs (the single-page comparison). */
   everyone?: boolean;
+  /** Phase 9 step 7: editors type key by key without pausing, a new text as soon as the last is typed. */
+  keys?: boolean;
 }
 
 const sleepUntil = async (page: Page, at: number) => {
@@ -344,9 +390,14 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
     const page = taker.page;
     for (let i = 0; live(); i++) {
       const label = scene.takes[i % scene.takes.length];
-      await selectCue(page, label);
+      try {
+        await selectCue(page, label);
+      } catch (e) {
+        report.errors.push(`taker select at ${Date.now() - start} ms: ${String(e).split('\n')[0].slice(0, 160)}`);
+        continue;
+      }
       const before = await nowOn(page);
-      await page.getByTestId('verb-take').click();
+      await page.getByTestId('verb-take').click({ timeout: 15_000 });
       const presses = (await readLpm(page)).presses.filter((p) => p.kind === 'click' && p.target === 'verb-take' && p.t >= before);
       const pressAt = presses[0]?.t ?? before;
       let ranAt: number | null = null;
@@ -362,7 +413,11 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
       }
       report.takes.push({ pressAt, ranAt, label });
       await page.waitForTimeout(250);
-      await page.getByTestId('verb-out').click();
+      // PHASE 9 CLOUD: a Take the server never confirmed leaves Out disabled; record it and go on.
+      await page.getByTestId('verb-out').click({ timeout: 15_000 }).catch(async (e) => {
+        const note = (await page.locator('p', { hasText: 'Take is on this monitor only' }).first().textContent({ timeout: 1_000 }).catch(() => null)) ?? '';
+        report.errors.push(`taker out at ${Date.now() - start} ms: ${String(e).split('\n')[0].slice(0, 120)} | ${note.slice(0, 160)}`);
+      });
       await page.waitForTimeout(400);
     }
   };
@@ -392,7 +447,7 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
         report.messages.push(entry);
         try {
           await ws.getByTestId('message-paste-body').fill(body);
-          await ws.getByTestId('message-paste-add').click();
+          await ws.getByTestId('message-paste-add').click({ timeout: 20_000 });
           const r = ws.locator('.pd-aud-row', { hasText: body });
           await expect(r).toBeVisible({ timeout: 20_000 });
           await r.getByTestId('audience-prepare').click();
@@ -423,6 +478,13 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
     let back: Promise<void> | null = null;
     let isBack = false;
     for (let k = 1; live(); k++) {
+      if (opts.keys) {
+        const text = `${p.cue} by ${n} #${k}`;
+        await textBox(page).selectText();
+        await page.keyboard.type(text, { delay: 35 });
+        record.typed.push(text);
+        continue;
+      }
       await sleepUntil(page, start + k * tick);
       if (!live()) break;
       // The editor that lost its connection stops once it is back, so its last text is one typed
@@ -459,8 +521,8 @@ export async function run(scene: Scene, opts: RunOptions): Promise<RunReport> {
 
   const loops: Promise<void>[] = [takerLoop().catch(fail('taker'))];
   if (everyone) {
-    loops.push(quickLoop(by('quick')[0]).catch(fail('quick')));
-    loops.push(messagesLoop(by('messages')[0]).catch(fail('messages')));
+    if (by('quick').length) loops.push(quickLoop(by('quick')[0]).catch(fail('quick')));
+    if (by('messages').length) loops.push(messagesLoop(by('messages')[0]).catch(fail('messages')));
     by('editor').forEach((p, n) => loops.push(editorLoop(p, n).catch(fail(`editor ${n}`))));
   }
   await Promise.all(loops);
