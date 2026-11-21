@@ -19,7 +19,7 @@
 // ends it as landed. The third walk is the notice this file was written for, reached the way an
 // operator now reaches it: Stop sending, then the late commit takes the notice down.
 // Mutation-tested: with the press never held (hostedControl.ts `held` forced false), the second
-// walk fails at "still sending" and the notice appears at about 3.4 s.
+// walk fails at "still sending": the tag reads "not confirmed", the old give-up.
 // covers: src/control/hostedControl.ts, src/control/seqSend.ts, src/control/playoutStatus.ts
 // covers: src/components/home/PlayoutMonitors.tsx
 // covers: src/control/failedSends.ts
