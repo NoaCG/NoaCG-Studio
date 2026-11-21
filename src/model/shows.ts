@@ -50,6 +50,7 @@ import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
 import {
   appendCue,
   foldSelection,
+  MAX_TOGETHER_DELAY_MS,
   insertAfter,
   leaveFolders,
   liveFolderIds,
@@ -98,6 +99,11 @@ export interface ShowCue {
    *  message, read only through ./controlCue.ts `readControl`; one this build cannot read makes the
    *  cue read-only (`controlReadOnly`). Every other write keeps it byte for byte. */
   control?: ControlRecord | { v?: unknown; [later: string]: unknown };
+  /** ADDITIVE OPTIONAL. How long after an All together folder's Take this cue goes, in ms (0 to
+   *  10000), so a lighting cue can land with a graphic's animation. Read only through
+   *  ./showFolders.ts `togetherDelayMs`; a graphic or OSC cue in an All together folder honours it,
+   *  anything else sends at once. */
+  delayMs?: number;
   /** The operator-facing name — "Anna Andersson — Presenter". */
   label: string;
   /** fieldId -> value, the cue's prepared data. A cue OWNS its values (an entry is only a
@@ -1475,6 +1481,21 @@ export function removeOscDestination(showId: string, destinationId: string): { s
     const rest = list.filter((d) => d.id !== destinationId);
     if (rest.length) show.oscDestinations = rest;
     else delete show.oscDestinations;
+    return true;
+  });
+}
+
+/** Set how long after an All together folder's Take this cue goes (ms, 0 to 10000); null or 0
+ *  removes it. */
+export function setCueDelay(showId: string, cueId: string, ms: number | null): { shows: Show[]; error: string | null } {
+  const next = ms === null ? 0 : Math.round(ms);
+  if (!Number.isFinite(next) || next < 0 || next > MAX_TOGETHER_DELAY_MS) return { shows: loadShows(), error: `A delay is 0 to ${MAX_TOGETHER_DELAY_MS / 1000} seconds.` };
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return 'This cue is no longer in the production.';
+    if ((cue.delayMs ?? 0) === next) return false;
+    if (next) cue.delayMs = next;
+    else delete cue.delayMs;
     return true;
   });
 }

@@ -300,3 +300,9 @@ Phase 6 (Companion), notes:
 - Phase 7 (owner hardware, AC-11) is the owner's ZerOS desk check with Bridge 0.13.1.
 - Operator help: the public docs have `#osc` (fields, folders, what Sent means, network rules), and
   the OSC cue editor has an (i) with the same fields in brief and a link to it.
+
+Follow-up (owner request of 2026-11-21): a delay per cue in All together folders.
+
+- Each graphic and OSC cue in an All together folder can wait 0 to 10 seconds after the folder's
+  Take (`ShowCue.delayMs`, `setCueDelay`, `togetherDelayMs`), set in the folder's panel. Server
+  files have none. An Out during the wait stops the cues still waiting. Copy and paste keep it.

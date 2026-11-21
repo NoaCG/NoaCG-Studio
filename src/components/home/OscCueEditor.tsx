@@ -127,7 +127,7 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
             <br /><strong>Destination</strong>: the device's IP address and its OSC port, from its settings or manual.
             <br /><strong>OSC address</strong>: the command, starting with /, exactly as the device lists it.
             <br /><strong>Arguments</strong>: values after the address. Text, Whole number or Decimal, as the device asks: &quot;5&quot; and 5 differ.
-            <br />Graphic and lights together: put both in an All together folder.
+            <br />Graphic and lights together: put both in an All together folder. Each can have a Delay there.
             <br /><a href="/docs#osc" target="_blank" rel="noreferrer">Full guide</a>
           </span>
         </InfoTip>

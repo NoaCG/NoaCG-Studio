@@ -469,3 +469,15 @@ export function joinRefusal(
   }
   return null;
 }
+
+/** The longest delay an All together member may carry, in ms. */
+export const MAX_TOGETHER_DELAY_MS = 10_000;
+
+/** How long after an All together Take this cue goes, in ms: its own `delayMs`, kept inside 0 to
+ *  10 s. A server cue always goes at once - its sends are chained, so one wait would hold back every
+ *  file after it. */
+export function togetherDelayMs(cue: Pick<ShowCue, 'source' | 'delayMs'>): number {
+  if (isServerCue(cue)) return 0;
+  const ms = cue.delayMs;
+  return typeof ms === 'number' && Number.isFinite(ms) ? Math.min(MAX_TOGETHER_DELAY_MS, Math.max(0, Math.round(ms))) : 0;
+}

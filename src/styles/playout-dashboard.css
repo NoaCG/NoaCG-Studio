@@ -2967,3 +2967,6 @@ button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgb
 .pd-shortcut-placeholder { color: var(--text-dim); font-size: 13px; }
 .pd-shortcut-line { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13px; }
 
+/* An All together member's delay (FolderEditor): a short number box at the end of its row. */
+.pd-folder-editor .pd-folder-delay { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; font-size: 12px; }
+.pd-folder-editor .pd-folder-delay input { width: 4.5em; }

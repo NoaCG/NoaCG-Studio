@@ -26,6 +26,7 @@ import {
   setFolderObsScene,
   setShowObsScenes,
   setFolderPlayback,
+  setCueDelay,
   setCueAuto,
   type PlayoutItem,
   type SheetShowSource,
@@ -5065,6 +5066,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
                 }}
                 onEnd={(end) => setShows(setFolderPlayback(show.id, id, { end }))}
                 onSlot={(patch) => setShows(setFolderPlayback(show.id, id, patch))}
+                onDelay={(cueId, ms) => void writeRundown(() => setCueDelay(show.id, cueId, ms), 'Set delay', 'The delay was not saved')}
               /></AccountAuthoringGate>
             );
           })()}
