@@ -58,7 +58,10 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
     };
   }, [cue.id, agentUrl, agentToken]);
 
-  const writeControl = (next: OscControlV1) => void writeRundown(() => setCueControl(show.id, cue.id, next), 'Edit OSC cue', 'The OSC cue was not saved');
+  /** One edit as a change to the message as stored when its write runs, never this render's copy:
+   *  two edits queued back to back (a destination, then an address) both land. */
+  const writeControl = (change: (current: OscControlV1) => OscControlV1) =>
+    void writeRundown(() => setCueControl(show.id, cue.id, change), 'Edit OSC cue', 'The OSC cue was not saved');
 
   const edits = useDeferredEdits((key, text) => {
     if (key === 'label') {
@@ -66,10 +69,10 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
       return;
     }
     if (!control) return;
-    if (key === 'address') writeControl({ ...control, address: text });
+    if (key === 'address') writeControl((c) => ({ ...c, address: text }));
     else if (key.startsWith('arg:')) {
       const at = Number(key.slice(4));
-      writeControl({ ...control, args: control.args.map((a, i) => (i === at ? { ...a, value: text } : a)) });
+      writeControl((c) => ({ ...c, args: c.args.map((a, i) => (i === at ? { ...a, value: text } : a)) }));
     }
   });
 
@@ -96,7 +99,7 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
     );
   }
 
-  const setArgs = (args: OscArg[]) => writeControl({ ...control, args });
+  const setArgs = (change: (args: OscArg[]) => OscArg[]) => writeControl((c) => ({ ...c, args: change(c.args) }));
   // The form closes only on a save storage has agreed to (src/components/AGENTS.md): a refused one
   // keeps what was typed and says why.
   const saveDestination = async () => {
@@ -107,7 +110,7 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
     if (r.error) return setNote(r.error);
     const failure = await commitDurableWrites();
     if (failure) return setNote(`The destination was not saved: ${failure}`);
-    if (control.destinationId !== draft.id) writeControl({ ...control, destinationId: draft.id });
+    writeControl((c) => (c.destinationId === draft.id ? c : { ...c, destinationId: draft.id }));
     setDestDraft(null);
   };
   const editing = (d?: OscDestination): Draft => (d ? { id: d.id, name: d.name, host: d.host, port: String(d.port) } : { id: uuid(), name: '', host: '', port: '' });
@@ -142,7 +145,11 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
           <select
             value={current ? current.id : ''}
             data-testid="osc-destination"
-            onChange={(e) => (e.target.value === '+new' ? setDestDraft(editing()) : writeControl({ ...control, destinationId: e.target.value }))}
+            onChange={(e) => {
+              const chosen = e.target.value;
+              if (chosen === '+new') setDestDraft(editing());
+              else writeControl((c) => ({ ...c, destinationId: chosen }));
+            }}
           >
             {!current && <option value="">{control.destinationId ? 'Missing device - choose one' : 'Choose…'}</option>}
             {destinations.map((d) => (
@@ -187,7 +194,10 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
 
         {control.args.map((arg, i) => (
           <div className="pd-osc-arg" key={i} data-testid="osc-arg">
-            <select value={arg.type} aria-label={`Argument ${i + 1} type`} onChange={(e) => setArgs(control.args.map((a, j) => (j === i ? { ...a, type: e.target.value as OscArgType } : a)))}>
+            <select value={arg.type} aria-label={`Argument ${i + 1} type`} onChange={(e) => {
+              const type = e.target.value as OscArgType;
+              setArgs((args) => args.map((a, j) => (j === i ? { ...a, type } : a)));
+            }}>
               {ARG_TYPES.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)}
             </select>
             <input
@@ -198,10 +208,10 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
               spellCheck={false}
               data-testid="osc-arg-value"
             />
-            <button type="button" className="btn-small" aria-label={`Remove argument ${i + 1}`} onClick={() => setArgs(control.args.filter((_, j) => j !== i))}>✕</button>
+            <button type="button" className="btn-small" aria-label={`Remove argument ${i + 1}`} onClick={() => setArgs((args) => args.filter((_, j) => j !== i))}>✕</button>
           </div>
         ))}
-        <button type="button" className="btn-small" data-testid="osc-arg-add" disabled={control.args.length >= 16} onClick={() => setArgs([...control.args, { type: 's', value: '' }])}>
+        <button type="button" className="btn-small" data-testid="osc-arg-add" disabled={control.args.length >= 16} onClick={() => setArgs((args) => (args.length >= 16 ? args : [...args, { type: 's', value: '' }]))}>
           + Argument
         </button>
       </div>

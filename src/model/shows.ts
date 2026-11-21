@@ -1430,7 +1430,19 @@ export function addOscCue(showId: string, destinationId: string, after?: string)
 
 /** Replace an OSC cue's message with `control`, as the editor holds it. Refused for a cue this build
  *  cannot read, and for anything that is not an OSC message. */
-export function setCueControl(showId: string, cueId: string, control: ControlRecord): { shows: Show[]; error: string | null } {
+export function setCueControl(
+  showId: string,
+  cueId: string,
+  /** The new message, or a change to the message as stored when this write runs: an edit then
+   *  touches only its own field and never puts back what another edit since has changed. */
+  change: ControlRecord | ((current: ControlRecord) => ControlRecord),
+): { shows: Show[]; error: string | null } {
+  let control: ControlRecord;
+  if (typeof change === 'function') {
+    const current = readControl(loadShows().find((s) => s.id === showId)?.cues?.find((c) => c.id === cueId)?.control);
+    if (!current) return { shows: loadShows(), error: 'This OSC cue is no longer in the production.' };
+    control = change(current);
+  } else control = change;
   const read = readControl(control);
   if (!read) return { shows: loadShows(), error: 'This OSC message could not be read.' };
   const bytes = JSON.stringify(read);
