@@ -175,6 +175,12 @@ async function build(owner: Page, editors: number, fill = 0): Promise<Omit<Scene
       log(`publish button gone after ${Date.now() - t0} ms; status ${await owner.getByTestId('production-status').textContent({ timeout: 2_000 }).catch(() => '?')}`);
       break;
     }
+    if (attempt > 1 && !(await owner.getByTestId('production-publish').isEnabled().catch(() => false))) {
+      const status = await owner.getByTestId('production-status').textContent({ timeout: 2_000 }).catch(() => '?');
+      log(`publish button disabled after ${Date.now() - t0} ms; status ${status}`);
+      publishLog.push({ attempt, ms: Date.now() - t0, ok: false, note: `button disabled; status ${status}` });
+      throw new Error(`publish did not land and the button is disabled (status ${status})`);
+    }
     try {
       await publishProduction(owner);
       log(`published on attempt ${attempt} after ${Date.now() - t0} ms`);
