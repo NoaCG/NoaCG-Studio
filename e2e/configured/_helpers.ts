@@ -86,7 +86,7 @@ export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
  */
 export async function dismissWizard(page: Page): Promise<void> {
   const modal = page.locator('.wz-modal');
-  await expect(modal).toBeVisible();
+  await expect(modal).toBeVisible({ timeout: 30_000 }); // PHASE 9 CLOUD: staging boots slower under load
   await page.locator('.wz-modal .gallery-close').click();
   await expect(modal).toBeHidden();
 }
