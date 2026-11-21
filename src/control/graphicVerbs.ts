@@ -568,6 +568,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
   const sendWith = async (p: VerbSender, batches: ControlSendItem[][], label: string, allOut = false, moved?: Record<string, string>): Promise<Sent> => {
     // This send's place among this page's presses: its debt and its landing are judged by it.
     const order = (sendOrder += 1);
+    // The record of the production this press was made in: a press still ending after its
+    // production closed books nothing into the next one's (#2655).
+    const debts = p.debts();
+    const ownDebts = () => (session.alive() ? debts : null);
     const stamp = ++sendSeq;
     // Counted as the send leaves, so a send pressed later always counts after this one.
     const looked = new Set(batches.flat().filter((item) => item.msg.t === 'stop' || (item.msg.t === 'update' && item.msg.appearance !== undefined)).map((item) => item.graphic));
@@ -660,8 +664,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       });
       markers.answer(pressed, (m) => reachedOutput(sent, m.graphic));
       settle((graphic) => reachedOutput(sent, graphic));
-      p.note(p.debts().landed(marked.flat(), order));
-      p.owed(p.debts().owed() > 0);
+      const record = ownDebts();
+      if (record) {
+        p.note(record.landed(marked.flat(), order));
+        p.owed(record.owed() > 0);
+      }
       p.loggedAt(io.now());
       // A graphic went up with nothing reporting that could air it: the status says "No output" in
       // red until something connects (playout-workflow-simplification AC-2). Never blocked.
@@ -685,7 +692,17 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       const landed = io.verbsLanded(e);
       const failedItems = io.verbSentItems(e) ?? marked[landed] ?? [];
       const neverLeft = (e as { stopped?: unknown }).stopped === true && failedItems.length === 0;
-      p.debts().failed(neverLeft ? [] : [...failedItems, ...marked.slice(landed + 1).flat()], note, order);
+      // One that never left but moved this monitor is owed all the same, with no ids: no row can
+      // pay it, only a later press of its graphics (failedSends.ts `createSendDebts`).
+      const owedItems = neverLeft
+        ? io.verbAired(e)
+          ? marked.slice(landed).flat().map(({ graphic, msg }) => ({ graphic, msg: { t: msg.t } }))
+          : []
+        : [...failedItems, ...marked.slice(landed + 1).flat()];
+      const record = ownDebts();
+      // The batches before the failed one landed: a fact the record judges by this press's order.
+      if (record && landed > 0) p.note(record.landed(marked.slice(0, landed).flat(), order));
+      record?.failed(owedItems, note, order);
       const uncertain = isUncertain(e);
       const skipped = io.verbsSkipped(e);
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
@@ -693,7 +710,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       settle((graphic, batch) => batch < landed && !skipped.includes(graphic));
       // Owed only while a debt is: a press that never left, or one a later press already paid,
       // leaves nothing a row could ever clear (#2655).
-      p.owed(p.debts().owed() > 0);
+      if (record) p.owed(record.owed() > 0);
       // Refused as stale on any road, this page learned the head: a live candidate there must not
       // then follow on its own over the other screen's change.
       if (stale) {

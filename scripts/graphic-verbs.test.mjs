@@ -3866,3 +3866,12 @@ test('a press stopped before it left owes nothing and leaves nothing unconfirmed
   assert.deepEqual(r.debtCalls.at(-1), ['failed', [], 'Take failed: sending stopped']);
   assert.deepEqual(r.log.at(-1), ['owed', false]);
 });
+
+test('a press stopped before it left that already moved this monitor is owed, with no ids a row could match', async () => {
+  const r = rig();
+  const take = r.verbs.send([[{ graphic: 'A', msg: { t: 'play' } }]], 'Take');
+  r.sends[0].answer.reject(Object.assign(new Error('sending stopped'), { stopped: true, items: [], aired: true }));
+  assert.match((await take).note, /^Take is on this monitor only/);
+  assert.deepEqual(r.debtCalls.at(-1), ['failed', ['A:play'], (await take).note]);
+  assert.deepEqual(r.log.at(-1), ['owed', true]);
+});

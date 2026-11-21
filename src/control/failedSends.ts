@@ -340,71 +340,94 @@ const replacing = (msg: unknown): boolean => {
 };
 
 export function createSendDebts(): SendDebts {
-  /** Per graphic, the failed sends it still owes: the ids each carried (none, when it carried none)
-   *  and whether it replaced the graphic. A newer failure that replaces the graphic makes every
-   *  older one moot; a newer one that only modifies it makes older modifying ones moot and keeps a
-   *  replacing one (#2655 R7: an Update after a lost Take does not stand in for the Take). */
-  const owed = new Map<string, { oids: Set<string>; replaced: boolean }[]>();
+  /**
+   * ONE RULE, FACTS IN ANY ORDER (#2655, the Repeated-family reassessment). Every fact about a
+   * send carries its press order: it failed (with these ids), it landed by its answer, its own row
+   * was heard. Per graphic, a failure of order o is owed unless its own row was heard, or a landing
+   * of a LATER press of this page is known that replaces the graphic (or, for a failure that only
+   * modified it, any later landing of it). A slow spell delivers these facts in any order (an Out
+   * lands while the Take before it is still ending; an older press fails after a newer one), so
+   * nothing here depends on which call came first.
+   */
+  type Debt = { order: number; replaced: boolean; oids: Set<string>; paid: boolean };
+  const debts = new Map<string, Debt[]>();
+  /** Per graphic, the latest order of a landing that replaced it, and of any landing of it. */
+  const replacedAt = new Map<string, number>();
+  const touchedAt = new Map<string, number>();
+  /** Ids heard back before their failure was booked (bounded, oldest first out). */
+  const heardIds = new Set<string>();
   let notices: string[] = [];
+  /** A call with no order is ordered by when it is made (tests, and any caller that has none). */
+  let calls = 0;
+  const orderOf = (order: number | undefined) => {
+    calls += 1;
+    return order ?? calls;
+  };
+  const owedOn = (graphic: string): boolean =>
+    (debts.get(graphic) ?? []).some(
+      (d) => !d.paid && !((replacedAt.get(graphic) ?? -Infinity) > d.order) && !(!d.replaced && (touchedAt.get(graphic) ?? -Infinity) > d.order),
+    );
+  const owedGraphics = () => [...debts.keys()].filter(owedOn);
+  /** A graphic owed nothing now can only be owed again by a new failure: landings and rows only pay. */
+  const prune = () => {
+    for (const graphic of [...debts.keys()]) if (!owedOn(graphic)) debts.delete(graphic);
+  };
+  const landing = (graphic: string, order: number, replaces: boolean) => {
+    touchedAt.set(graphic, Math.max(touchedAt.get(graphic) ?? -Infinity, order));
+    if (replaces) replacedAt.set(graphic, Math.max(replacedAt.get(graphic) ?? -Infinity, order));
+  };
   const unchanged = (shown: string | null) => shown;
   const settle = () => {
-    if (owed.size > 0 || notices.length === 0) return unchanged;
+    prune();
+    if (debts.size > 0 || notices.length === 0) return unchanged;
     const settled = notices;
     notices = [];
     return (shown: string | null) => (shown !== null && settled.some((s) => shown.includes(s)) ? null : shown);
   };
-  /** Per graphic, the press order of the newest landed press that replaced it, and of any landed
-   *  press of it: a failure booked AFTER a later press already landed is judged by press order, not
-   *  by which call came first (#2655 R7: an Out lands while the Take before it is still ending). */
-  const replacedAt = new Map<string, number>();
-  const touchedAt = new Map<string, number>();
-  const keep = (graphic: string, debts: { oids: Set<string>; replaced: boolean }[]) => {
-    if (debts.length > 0) owed.set(graphic, debts);
-    else owed.delete(graphic);
-  };
   return {
     failed(items, notice, order) {
-      const newest = new Map<string, { oids: Set<string>; replaced: boolean }>();
+      const at = orderOf(order);
+      const newest = new Map<string, Debt>();
       for (const item of items) {
-        const debt = newest.get(item.graphic) ?? { oids: new Set<string>(), replaced: false };
+        const debt = newest.get(item.graphic) ?? { order: at, replaced: false, oids: new Set<string>(), paid: false };
         const oid = oidIn(item.msg);
         if (oid) debt.oids.add(oid);
         if (replacing(item.msg)) debt.replaced = true;
         newest.set(item.graphic, debt);
       }
       for (const [graphic, debt] of newest) {
-        // Already paid by a later press of this page that landed first.
-        if (order !== undefined && (replacedAt.get(graphic) ?? -Infinity) > order) continue;
-        if (order !== undefined && !debt.replaced && (touchedAt.get(graphic) ?? -Infinity) > order) continue;
-        keep(graphic, debt.replaced ? [debt] : [...(owed.get(graphic) ?? []).filter((d) => d.replaced), debt]);
+        // Its own row may already have come back: then it landed, at its own order.
+        if ([...debt.oids].some((oid) => heardIds.has(oid))) {
+          debt.paid = true;
+          landing(graphic, debt.order, debt.replaced);
+        }
+        debts.set(graphic, [...(debts.get(graphic) ?? []), debt]);
       }
       notices.push(notice);
+      prune();
     },
     landed(items, order) {
+      const at = orderOf(order);
       const replaces = new Set(items.filter((item) => !('msg' in item) || replacing(item.msg)).map((item) => item.graphic));
-      for (const graphic of new Set(items.map((item) => item.graphic))) {
-        if (order !== undefined) {
-          touchedAt.set(graphic, Math.max(touchedAt.get(graphic) ?? -Infinity, order));
-          if (replaces.has(graphic)) replacedAt.set(graphic, Math.max(replacedAt.get(graphic) ?? -Infinity, order));
-        }
-        keep(graphic, replaces.has(graphic) ? [] : (owed.get(graphic) ?? []).filter((d) => d.replaced));
-      }
+      for (const graphic of new Set(items.map((item) => item.graphic))) landing(graphic, at, replaces.has(graphic));
       return settle();
     },
     heard(items) {
-      let any = false;
+      const before = owedGraphics().length;
       for (const item of items) {
         const oid = oidIn(item.msg);
-        const debts = owed.get(item.graphic);
-        if (!oid || !debts) continue;
-        const left = debts.filter((d) => !d.oids.has(oid));
-        if (left.length === debts.length) continue;
-        keep(item.graphic, left);
-        any = true;
+        if (!oid) continue;
+        heardIds.add(oid);
+        if (heardIds.size > 2048) heardIds.delete(heardIds.values().next().value as string);
+        for (const debt of debts.get(item.graphic) ?? []) {
+          if (debt.paid || !debt.oids.has(oid)) continue;
+          debt.paid = true;
+          landing(item.graphic, debt.order, debt.replaced);
+        }
       }
-      return any ? settle() : null;
+      return owedGraphics().length < before ? settle() : null;
     },
-    owed: () => owed.size,
+    owed: () => owedGraphics().length,
   };
 }
 

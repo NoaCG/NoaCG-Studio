@@ -472,3 +472,70 @@ test('R7: an Out that landed before the Take pressed ahead of it finished failin
   debts.failed([{ graphic: 'g', msg: { t: 'play', oid: 'w' } }], shown, 7);
   assert.equal(debts.owed(), 2);
 });
+
+// ── #2655, the Repeated-family reassessment: the debt record's one rule, facts in any order ──
+
+/** Every ordering of `facts`. */
+function permutations(facts) {
+  if (facts.length <= 1) return [facts];
+  return facts.flatMap((f, i) => permutations([...facts.slice(0, i), ...facts.slice(i + 1)]).map((rest) => [f, ...rest]));
+}
+
+const apply = (debts, fact) =>
+  fact.kind === 'failed' ? debts.failed(fact.items, fact.note, fact.order) : fact.kind === 'landed' ? debts.landed(fact.items, fact.order) : debts.heard(fact.items);
+
+const take = (g, n, oid) => [{ graphic: g, msg: { t: 'update', data: {}, oid } }, { graphic: g, msg: { t: 'play' } }];
+const out = (g, oid) => [{ graphic: g, msg: { t: 'stop', oid } }];
+const update = (g, oid) => [{ graphic: g, msg: { t: 'update', data: {}, oid } }];
+
+test('the debt record: the same facts in any order owe the same graphics (press order, not arrival order)', () => {
+  const scenarios = [
+    // Take 1 stuck, Out 2 replaces it and fails, then the Take's attempt fails: the Out is owed.
+    { facts: [{ kind: 'failed', items: take('g', 1, 't1'), note: 'Take', order: 1 }, { kind: 'failed', items: out('g', 'o2'), note: 'Out', order: 2 }], owed: 1 },
+    // ... and the Out's own row comes back: nothing is owed.
+    {
+      facts: [
+        { kind: 'failed', items: take('g', 1, 't1'), note: 'Take', order: 1 },
+        { kind: 'failed', items: out('g', 'o2'), note: 'Out', order: 2 },
+        { kind: 'heard', items: out('g', 'o2') },
+      ],
+      owed: 0,
+    },
+    // ... the TAKE's row comes back instead: the Out is still owed (an older landing pays nothing newer).
+    {
+      facts: [
+        { kind: 'failed', items: take('g', 1, 't1'), note: 'Take', order: 1 },
+        { kind: 'failed', items: out('g', 'o2'), note: 'Out', order: 2 },
+        { kind: 'heard', items: take('g', 1, 't1') },
+      ],
+      owed: 1,
+    },
+    // The Out lands by its answer, the Take before it fails: the Out paid it.
+    { facts: [{ kind: 'failed', items: take('g', 1, 't1'), note: 'Take', order: 1 }, { kind: 'landed', items: out('g', 'o2'), order: 2 }], owed: 0 },
+    // An older Take lands by its answer, the newer Out fails: the Out is owed.
+    { facts: [{ kind: 'landed', items: take('g', 1, 't1'), order: 1 }, { kind: 'failed', items: out('g', 'o2'), note: 'Out', order: 2 }], owed: 1 },
+    // A later Update lands: it pays a failed Update, never a failed Take.
+    { facts: [{ kind: 'failed', items: take('g', 1, 't1'), note: 'Take', order: 1 }, { kind: 'landed', items: update('g', 'u2'), order: 2 }], owed: 1 },
+    { facts: [{ kind: 'failed', items: update('g', 'u1'), note: 'Update', order: 1 }, { kind: 'landed', items: update('g', 'u2'), order: 2 }], owed: 0 },
+    // Two graphics: each is settled only by its own facts.
+    {
+      facts: [
+        { kind: 'failed', items: take('a', 1, 'a1'), note: 'Take a', order: 1 },
+        { kind: 'failed', items: take('b', 2, 'b2'), note: 'Take b', order: 2 },
+        { kind: 'heard', items: take('a', 1, 'a1') },
+        { kind: 'landed', items: update('b', 'u3'), order: 3 },
+      ],
+      owed: 1,
+    },
+    // A press that never left but moved this monitor is owed with no ids: only a later press pays it.
+    { facts: [{ kind: 'failed', items: [{ graphic: 'g', msg: { t: 'play' } }], note: 'Take', order: 1 }, { kind: 'heard', items: take('g', 9, 'x') }], owed: 1 },
+    { facts: [{ kind: 'failed', items: [{ graphic: 'g', msg: { t: 'play' } }], note: 'Take', order: 1 }, { kind: 'landed', items: out('g', 'o2'), order: 2 }], owed: 0 },
+  ];
+  for (const [i, { facts, owed }] of scenarios.entries()) {
+    for (const order of permutations(facts)) {
+      const debts = createSendDebts();
+      for (const fact of order) apply(debts, fact);
+      assert.equal(debts.owed(), owed, `scenario ${i}, facts in the order ${order.map((f) => `${f.kind}:${f.order ?? f.items[0].msg.oid}`).join(', ')}`);
+    }
+  }
+});
