@@ -201,7 +201,7 @@ test('the OSC guide names what it needs, every field, and how it fires with a gr
   const guide = page.locator('#osc');
   await expect(guide.getByRole('heading', { name: 'Send lighting cues with OSC' })).toBeVisible();
   await expect(guide).toContainText('NoaCG Bridge 0.13.0 or later');
-  await expect(guide.locator('dt')).toHaveText(['Name', 'Destination', 'OSC address', 'Arguments']);
+  await expect(guide.locator('dt')).toHaveText(['Name', 'Destination', 'OSC address', 'Arguments', 'On Out']);
   await expect(guide).toContainText('put both in an All together folder');
   await expect(guide).toContainText('give the OSC cue a Delay');
   await expect(guide).toContainText('--allow-public-osc');

@@ -488,13 +488,14 @@ const settle = async () => {
 /** A folder rig: `held` calls wait for `answer(i, result)`; otherwise each answers at once with
  *  `auto(call)`. The server's ownership and the page's liveCue move as the page's own verbs move
  *  them: a server take puts its cue up on its item, an Out takes it off. */
-function folderRig({ folders, cues, items = rundown().items, graphicOf = (c) => ({ 'g-strap': 'Hairline', 'g-bug': 'Bug', 'g-g1': 'One', 'g-g2': 'Two' })[c.sourceId] ?? null } = {}) {
+function folderRig({ folders, cues, items = rundown().items, graphicOf = (c) => ({ 'g-strap': 'Hairline', 'g-bug': 'Bug', 'g-g1': 'One', 'g-g2': 'Two' })[c.sourceId] ?? null, io = {} } = {}) {
   const session = createPlayoutSession('prod-1');
   const log = [];
   const saves = [];
   const calls = [];
   const notes = [];
   let held = false;
+  const oscFails = new Set();
   let liveCue = {};
   let ownership = NO_OWNERSHIP;
   let clock = 5000;
@@ -520,7 +521,7 @@ function folderRig({ folders, cues, items = rundown().items, graphicOf = (c) => 
     folderName: (f) => f.name,
     takeBlocker: () => null,
     stepBlocker: () => null,
-    together: rundown({ items, graphicOf: (c) => (graphicOf(c) ? { name: graphicOf(c), layer: { 'g-strap': 20, 'g-bug': 22 }[c.sourceId] ?? 30 } : null) }),
+    together: rundown({ items, graphicOf: (c) => (graphicOf(c) ? { name: graphicOf(c), layer: { 'g-strap': 20, 'g-bug': 22 }[c.sourceId] ?? 30 } : null), controlBlockerOf: () => null }),
     ownership: () => ownership,
     liveCueOf: () => liveCue,
     setLiveCue: (fold) => {
@@ -543,7 +544,15 @@ function folderRig({ folders, cues, items = rundown().items, graphicOf = (c) => 
         liveCue = { ...liveCue, [graphicOf(c)]: c.id };
         return { ok: true, note: `✓ ${label}: ${c.label}` };
       }),
+    // An OSC cue's Take message and its On Out message, each answering as told (`oscFails`).
+    controlTake: (c) => call('osc', `take ${c.id}`, () => (oscFails.has(`take ${c.id}`) ? { ok: false, note: `${c.label} was not sent: refused` } : { ok: true, note: `✓ ${c.label}: OSC sent` })),
+    controlOut: (c) => call('osc', `out ${c.id}`, () => (oscFails.has(`out ${c.id}`) ? { ok: false, note: `${c.label}, On Out was not sent: refused` } : { ok: true, note: `✓ ${c.label}: On Out OSC sent` })),
     takeCue: async (c) => {
+      if (c.source === 'control') {
+        const t = await page.controlTake(c);
+        if (t.ok) fp.noteStep(c);
+        return;
+      }
       if (c.source === 'playout') {
         const o = await page.serverVerb(c, 'take', 'Take');
         if (o?.ok) fp.noteStep(c);
@@ -561,8 +570,9 @@ function folderRig({ folders, cues, items = rundown().items, graphicOf = (c) => 
     },
     note: (text) => notes.push(text),
   };
-  const fp = createFolderPlayout(session, { now: () => clock }, () => page);
+  const fp = createFolderPlayout(session, { now: () => clock, ...io }, () => page);
   return {
+    oscFails,
     session, fp, page, log, calls, notes, saves,
     hold: () => (held = true),
     /** Answer the oldest call still waiting of this kind (or the call at `i`). */
@@ -993,4 +1003,87 @@ test('All out keeps an OBS scene\'s step, starts every other folder again, and s
   assert.ok(!t.log.some((line) => line.startsWith('server take bed')), 'nothing more is sent');
   r.fp.stopAll('all-out');
   assert.deepEqual(r.folders().folderSteps, { M: null, S: null }, 'with the switch off, as before');
+});
+
+// ── On Out: an OSC cue's second message, sent when its folder goes out ─────────────────────────
+
+const osc = (id, folderId, out = { address: '/back', args: [] }) => ({
+  id, source: 'control', sourceId: '', label: id.toUpperCase(), values: {}, folderId,
+  control: { v: 1, kind: 'osc', destinationId: 'd', address: '/go', args: [], ...(out ? { out } : {}) },
+});
+const oscLog = (r) => r.log.filter((l) => l.startsWith('osc '));
+
+test('On Out: an All-together folder\'s Out sends the On Out of each OSC cue its Take sent, once', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: [graphic('strap', 'A'), osc('lights', 'A'), osc('plain', 'A', null)] });
+  await r.fp.take(TOGETHER);
+  assert.deepEqual(oscLog(r), ['osc take lights', 'osc take plain']);
+  await r.fp.out(TOGETHER);
+  assert.deepEqual(oscLog(r).slice(2), ['osc out lights'], 'only the cue with an On Out message');
+  assert.equal(r.notes.at(-1), '✓ Out: Opening');
+  await r.fp.out(TOGETHER);
+  assert.equal(oscLog(r).length, 3, 'a second Out owes nothing');
+});
+
+test('On Out: a cue whose Take was not sent is owed nothing; a failed On Out is named on the Out note', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: [osc('a', 'A'), osc('b', 'A')] });
+  r.oscFails.add('take a');
+  r.oscFails.add('out b');
+  await r.fp.take(TOGETHER);
+  await r.fp.out(TOGETHER);
+  assert.deepEqual(oscLog(r), ['osc take a', 'osc take b', 'osc out b']);
+  assert.equal(r.notes.at(-1), 'Out: Opening did not take all of it off. B, On Out was not sent: refused');
+});
+
+test('On Out: Out while an OSC Take is on its way sends its On Out as soon as the Take lands', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: [osc('lights', 'A')] });
+  r.hold();
+  const done = r.fp.take(TOGETHER);
+  await settle();
+  const out = r.fp.out(TOGETHER);
+  await settle();
+  assert.deepEqual(oscLog(r), ['osc take lights'], 'nothing owed yet, so Out sends nothing');
+  r.answer('take lights');
+  await settle();
+  assert.equal(oscLog(r).at(-1), 'osc out lights');
+  r.answer('out lights');
+  await done;
+  await out;
+});
+
+test('On Out: All out sends what every folder owes and answers the failures; the session\'s end sends nothing', async () => {
+  const B = { id: 'B', name: 'Close', mode: 'together' };
+  const r = folderRig({ folders: [TOGETHER, B], cues: [osc('a', 'A'), osc('b', 'B')] });
+  r.oscFails.add('out b');
+  await r.fp.take(TOGETHER);
+  await r.fp.take(B);
+  assert.deepEqual(await r.fp.stopAll('all-out'), ['B, On Out was not sent: refused']);
+  assert.deepEqual(oscLog(r).slice(2), ['osc out a', 'osc out b']);
+
+  const ended = folderRig({ folders: [TOGETHER], cues: [osc('a', 'A')] });
+  await ended.fp.take(TOGETHER);
+  ended.session.dispose();
+  assert.deepEqual(oscLog(ended), ['osc take a']);
+});
+
+test('On Out: a One-by-one folder sends it on its last press or Out, not when it steps on', async () => {
+  const M = { id: 'M', name: 'Steps', mode: 'manual' };
+  const r = folderRig({ folders: [M], cues: [osc('lights', 'M'), graphic('g1', 'M')] });
+  await r.fp.step(M);
+  await r.fp.step(M);
+  assert.deepEqual(oscLog(r), ['osc take lights'], 'stepping on to the graphic sends no On Out');
+  await r.fp.step(M);
+  assert.deepEqual(oscLog(r), ['osc take lights', 'osc out lights'], 'the press that goes back to the top does');
+  assert.equal(r.notes.at(-1), '✓ Steps: back to its first cue');
+});
+
+test('On Out: what a folder owes is kept for the tab, so an Out after a reload still sends it', async () => {
+  let kept = {};
+  const io = { oscSent: { load: () => kept, save: (sent) => (kept = sent) } };
+  const before = folderRig({ folders: [TOGETHER], cues: [osc('lights', 'A')], io });
+  await before.fp.take(TOGETHER);
+  assert.deepEqual(kept, { A: ['lights'] });
+  const after = folderRig({ folders: [TOGETHER], cues: [osc('lights', 'A')], io });
+  await after.fp.out(TOGETHER);
+  assert.deepEqual(oscLog(after), ['osc out lights']);
+  assert.deepEqual(kept, {});
 });

@@ -1620,6 +1620,10 @@ CG 1-20 STOP</code></pre>
               number</strong> an integer, <strong>Decimal</strong> a number with a decimal point. Use the
               type the device asks for: the text <code>"5"</code> and the number <code>5</code> are
               different messages.</dd>
+            <dt>On Out</dt>
+            <dd>Optional. A second message to the same device, sent when the folder that sent this
+              cue goes out, for example to bring the lights back to normal. It has its own address
+              and arguments, and <strong>Send On Out test</strong> checks it.</dd>
           </dl>
           <p>Many devices accept a command both ways. A desk that lists
             <code>/zeros/cue/go/0/5</code> "as a string" and <code>/zeros/cue/go "0" "5"</code> "as
@@ -1637,6 +1641,10 @@ CG 1-20 STOP</code></pre>
               In a <strong>One by one</strong> folder an OSC cue is one step,
               and the graphic before it stays up. A <strong>Play through</strong> folder does not take
               OSC cues.</li>
+            <li>An OSC cue with an <strong>On Out</strong> message sends it once when its folder goes
+              out: <strong>Out</strong>, <strong>All out</strong>, or the press that takes a
+              <strong>One by one</strong> folder back to its first cue. Stepping on to the next cue
+              sends nothing, and a cue whose Take was not sent sends no On Out.</li>
             <li>Stream Deck keys from <a href="#companion">Companion</a> fire OSC cues like any cue.</li>
             <li><em>Sent</em> means the message left this computer. OSC has no receipt, so a device that
               is switched off still reads as sent. Use <strong>Send test</strong> to check.</li>

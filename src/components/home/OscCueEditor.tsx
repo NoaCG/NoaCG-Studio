@@ -6,7 +6,7 @@
 // sends - only Send test and Take do.
 
 import { useEffect, useState, type MutableRefObject } from 'react';
-import { readControl, type OscArg, type OscArgType, type OscControlV1, type OscDestination } from '../../model/controlCue';
+import { readControl, type OscArg, type OscArgType, type OscControlV1, type OscDestination, type OscMessage } from '../../model/controlCue';
 import { removeOscDestination, saveOscDestination, setCueControl, updateShowCueChecked, type Show, type ShowCue } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
 import { uuid } from '../../model/id';
@@ -30,8 +30,8 @@ interface Props {
   /** Unpublished: graphics play on this page only, while OSC reaches the device for real. */
   rehearsing: boolean;
   playoutSettings: PlayoutSettings;
-  /** Send the cue once, as Take would (the page's `controlSend`). */
-  onSendTest: (cue: ShowCue) => void;
+  /** Send the cue's Take or On Out message once (the page's `controlSend`). */
+  onSendTest: (cue: ShowCue, which: 'take' | 'out') => void;
   setNote: (note: string) => void;
   /** The page's undoable rundown write (useRundownAuthoring `writeRundown`): every edit of this cue
    *  goes through it, so it is one undo step and never clears the history. */
@@ -71,9 +71,13 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
     }
     if (!control) return;
     if (key === 'address') writeControl((c) => ({ ...c, address: text }));
+    else if (key === 'out-address') writeControl((c) => withOut(c, (m) => ({ ...m, address: text })));
     else if (key.startsWith('arg:')) {
       const at = Number(key.slice(4));
       writeControl((c) => ({ ...c, args: c.args.map((a, i) => (i === at ? { ...a, value: text } : a)) }));
+    } else if (key.startsWith('out-arg:')) {
+      const at = Number(key.slice(8));
+      writeControl((c) => withOut(c, (m) => ({ ...m, args: m.args.map((a, i) => (i === at ? { ...a, value: text } : a)) })));
     }
   });
 
@@ -82,7 +86,17 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
   const onScreen = control ? {
     ...cue,
     label: edits.text('label', cue.label).trim() || cue.label,
-    control: { ...control, address: edits.text('address', control.address), args: control.args.map((a, i) => ({ ...a, value: edits.text(`arg:${i}`, a.value) })) },
+    control: {
+      ...control,
+      address: edits.text('address', control.address),
+      args: control.args.map((a, i) => ({ ...a, value: edits.text(`arg:${i}`, a.value) })),
+      ...(control.out || edits.text('out-address', '') ? {
+        out: {
+          address: edits.text('out-address', control.out?.address ?? ''),
+          args: (control.out?.args ?? []).map((a, i) => ({ ...a, value: edits.text(`out-arg:${i}`, a.value) })),
+        },
+      } : {}),
+    },
   } : null;
   const { flush } = edits;
   useEffect(() => {
@@ -101,6 +115,46 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
   }
 
   const setArgs = (change: (args: OscArg[]) => OscArg[]) => writeControl((c) => ({ ...c, args: change(c.args) }));
+  const setOutArgs = (change: (args: OscArg[]) => OscArg[]) => writeControl((c) => withOut(c, (m) => ({ ...m, args: change(m.args) })));
+  /** One message's address and arguments: the Take message, or the On Out one (`prefix` 'out-'). */
+  const messageFields = (message: OscMessage, prefix: '' | 'out-', change: (change: (args: OscArg[]) => OscArg[]) => void) => (
+    <>
+      <label className="pd-field">
+        <span>{prefix ? 'On Out address' : 'OSC address'}</span>
+        <input
+          value={edits.text(`${prefix}address`, message.address)}
+          onChange={(e) => edits.type(`${prefix}address`, e.target.value)}
+          onBlur={edits.flush}
+          placeholder={prefix ? 'Optional: sent when the folder goes out' : '/zeros/cue/go'}
+          spellCheck={false}
+          data-testid={`osc-${prefix}address`}
+        />
+      </label>
+      {message.args.map((arg, i) => (
+        <div className="pd-osc-arg" key={i} data-testid={`osc-${prefix}arg`}>
+          <select value={arg.type} aria-label={`${prefix ? 'On Out argument' : 'Argument'} ${i + 1} type`} onChange={(e) => {
+            const type = e.target.value as OscArgType;
+            change((args) => args.map((a, j) => (j === i ? { ...a, type } : a)));
+          }}>
+            {ARG_TYPES.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)}
+          </select>
+          <input
+            value={edits.text(`${prefix}arg:${i}`, arg.value)}
+            onChange={(e) => edits.type(`${prefix}arg:${i}`, e.target.value)}
+            onBlur={edits.flush}
+            aria-label={`${prefix ? 'On Out argument' : 'Argument'} ${i + 1}`}
+            spellCheck={false}
+            data-testid={`osc-${prefix}arg-value`}
+          />
+          <button type="button" className="btn-small" aria-label={`Remove ${prefix ? 'On Out argument' : 'argument'} ${i + 1}`} onClick={() => change((args) => args.filter((_, j) => j !== i))}>✕</button>
+        </div>
+      ))}
+      <button type="button" className="btn-small" data-testid={`osc-${prefix}arg-add`} disabled={message.args.length >= 16} onClick={() => change((args) => (args.length >= 16 ? args : [...args, { type: 's', value: '' }]))}>
+        + Argument
+      </button>
+    </>
+  );
+  const out = control.out ?? { address: '', args: [] };
   // The form closes only on a save storage has agreed to (src/components/AGENTS.md): a refused one
   // keeps what was typed and says why.
   const saveDestination = async () => {
@@ -127,6 +181,7 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
             <br /><strong>Destination</strong>: the device's IP address and its OSC port, from its settings or manual.
             <br /><strong>OSC address</strong>: the command, starting with /, exactly as the device lists it.
             <br /><strong>Arguments</strong>: values after the address. Text, Whole number or Decimal, as the device asks: &quot;5&quot; and 5 differ.
+            <br /><strong>On Out</strong>: optional. Sent when the folder that sent this cue goes out, for example lights back to normal.
             <br />Graphic and lights together: put both in an All together folder. Each can have a Delay there.
             <br /><a href="/docs#osc" target="_blank" rel="noreferrer">Full guide</a>
           </span>
@@ -191,45 +246,32 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
           </div>
         )}
 
-        <label className="pd-field">
-          <span>OSC address</span>
-          <input
-            value={edits.text('address', control.address)}
-            onChange={(e) => edits.type('address', e.target.value)}
-            onBlur={edits.flush}
-            placeholder="/zeros/cue/go"
-            spellCheck={false}
-            data-testid="osc-address"
-          />
-        </label>
-
-        {control.args.map((arg, i) => (
-          <div className="pd-osc-arg" key={i} data-testid="osc-arg">
-            <select value={arg.type} aria-label={`Argument ${i + 1} type`} onChange={(e) => {
-              const type = e.target.value as OscArgType;
-              setArgs((args) => args.map((a, j) => (j === i ? { ...a, type } : a)));
-            }}>
-              {ARG_TYPES.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)}
-            </select>
-            <input
-              value={edits.text(`arg:${i}`, arg.value)}
-              onChange={(e) => edits.type(`arg:${i}`, e.target.value)}
-              onBlur={edits.flush}
-              aria-label={`Argument ${i + 1}`}
-              spellCheck={false}
-              data-testid="osc-arg-value"
-            />
-            <button type="button" className="btn-small" aria-label={`Remove argument ${i + 1}`} onClick={() => setArgs((args) => args.filter((_, j) => j !== i))}>✕</button>
-          </div>
-        ))}
-        <button type="button" className="btn-small" data-testid="osc-arg-add" disabled={control.args.length >= 16} onClick={() => setArgs((args) => (args.length >= 16 ? args : [...args, { type: 's', value: '' }]))}>
-          + Argument
-        </button>
+        {messageFields(control, '', setArgs)}
+        <div className="pd-osc-out" data-testid="osc-out">{messageFields(out, 'out-', setOutArgs)}</div>
       </div>
 
-      <button type="button" data-testid="osc-send-test" disabled={!!takeBlocked} onClick={() => { edits.flush(); onSendTest(cue); }}>
-        Send test
-      </button>
+      <div className="pd-osc-tests">
+        <button type="button" data-testid="osc-send-test" disabled={!!takeBlocked} onClick={() => { edits.flush(); onSendTest(cue, 'take'); }}>
+          Send test
+        </button>
+        {out.address.trim() && (
+          <button type="button" data-testid="osc-send-out-test" disabled={!!takeBlocked} onClick={() => { edits.flush(); onSendTest(cue, 'out'); }}>
+            Send On Out test
+          </button>
+        )}
+      </div>
     </div>
   );
+}
+
+/** The cue's message with its On Out message changed; an On Out left with no address and no
+ *  arguments is removed, so a cue without one keeps the record it always had. */
+function withOut(c: OscControlV1, change: (m: OscMessage) => OscMessage): OscControlV1 {
+  const next = change(c.out ?? { address: '', args: [] });
+  if (!next.address && !next.args.length) {
+    const rest = { ...c };
+    delete rest.out;
+    return rest;
+  }
+  return { ...c, out: next };
 }

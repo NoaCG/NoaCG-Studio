@@ -242,7 +242,8 @@ export interface GraphicPage {
   clearMisses: (ids: readonly string[]) => void;
   noteStep: (cue: ShowCue) => void;
   /** All out's other halves: stop every folder still being sent, clear what no cue names. */
-  stopFolders: () => void;
+  /** Stop every folder's Take and send what On Out messages they owe; answers the failures. */
+  stopFolders: () => Promise<string[]> | void;
   outUnnamed: () => Promise<void>;
   /** All out's fallback sentence through the Bridge (the publish flow's). */
   clearThroughBridge: (note: string) => Promise<string>;
@@ -1016,7 +1017,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const p = page();
     // A folder's Take still being sent sends nothing more, and what of it lands after is cut too:
     // nothing airs after the panic control. Every One-by-one folder starts again from its first cue.
-    p.stopFolders();
+    const oscOuts = p.stopFolders();
     // The panic control cuts, as it always did, whatever fade out a clip is set to.
     const cutFailures: string[] = [];
     let lastCutNote = '';
@@ -1030,8 +1031,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       lastCutNote = cut.note;
       if (!cut.ok) cutFailures.push(cut.note);
     }
+    const oscFailures = (await oscOuts) ?? [];
     const report = (graphicFailure?: string) => {
-      const note = [...cutFailures, graphicFailure].filter(Boolean).join(' ') || lastCutNote;
+      const note = [...cutFailures, ...oscFailures, graphicFailure].filter(Boolean).join(' ') || lastCutNote;
       if (note) (server?.report ?? s.note)(note);
     };
     await p.outUnnamed();

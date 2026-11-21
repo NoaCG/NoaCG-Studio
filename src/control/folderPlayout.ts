@@ -39,6 +39,7 @@ import { folderStep, type StepMember } from './folderStep.ts';
 import { leftAlone, pressOuts, withLiveCue } from './liveCue.ts';
 import { clockRank, runTogether, togetherNote, togetherPlan } from './serverPlayout.ts';
 import { isControlCue, isGraphicCue, isServerCue } from '../model/controlCue.ts';
+import { hasOscOut } from './oscSend.ts';
 
 /** Why a run stopped: Out on its folder, All out (what lands after is cut), or the session's end
  *  (nothing more is sent at all). */
@@ -85,6 +86,8 @@ export interface FolderPage {
   takeGraphic: (cue: ShowCue, label: string) => Promise<MemberTake | null>;
   /** An OSC cue's one send (docs/work-specs/osc-control-cues D8); absent, OSC members are refused. */
   controlTake?: (cue: ShowCue) => Promise<MemberTake>;
+  /** An OSC cue's On Out message, sent once; absent, nothing is sent on Out. */
+  controlOut?: (cue: ShowCue) => Promise<MemberTake>;
   /** A cue's own Take, as its TAKE button runs it. */
   takeCue: (cue: ShowCue) => Promise<void>;
   /** The page's sender (`sendVerb`). */
@@ -103,6 +106,9 @@ export interface FolderPlayoutIo {
    *  never on air, so after a reload the air cannot say a step passed it, and the next press would
    *  send it again. Absent: not kept. */
   oscSteps?: { load: () => Record<string, string>; save: (steps: Record<string, string>) => void };
+  /** Which OSC cues each folder sent a Take for and owes an On Out message, kept for this tab so
+   *  an Out after a reload still sends it. Absent: kept in memory only. */
+  oscSent?: { load: () => Record<string, string[]>; save: (sent: Record<string, string[]>) => void };
 }
 
 export interface FolderPlayout {
@@ -114,10 +120,11 @@ export interface FolderPlayout {
   step: (folder: ShowFolder) => Promise<void>;
   /** Take cues off for a step; false, with the note said, when one did not go off. */
   off: (cues: readonly ShowCue[]) => Promise<boolean>;
-  /** Stop every folder still being sent. All out also sends every One-by-one folder to the top. */
+  /** Stop every folder still being sent. All out also sends every One-by-one folder to the top,
+   *  and every folder's owed On Out messages; it answers their failures' sentences. */
   /** `keep`: folders whose One-by-one step All out leaves where it is, the production's OBS
    *  scenes (obs-scenes OS1b C9). Their runs still stop. */
-  stopAll: (reason: 'all-out' | 'ended', keep?: ReadonlySet<string>) => void;
+  stopAll: (reason: 'all-out' | 'ended', keep?: ReadonlySet<string>) => Promise<string[]>;
   /** A folder's Take or step is still being sent. */
   running: (folderId: string) => boolean;
   /** Forget why these cues' last folder Take missed them: they were taken since, or taken off. */
@@ -162,6 +169,34 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
   };
   const misses = field('takeMisses');
 
+  // ON OUT MESSAGES. An OSC cue a folder sent is owed its On Out message when that folder goes out:
+  // Out, All out, or a One-by-one folder's last press. Only a cue whose Take message was sent is
+  // owed one, and each is sent once.
+  const owed: Record<string, string[]> = { ...(io.oscSent?.load() ?? {}) };
+  const keepOwed = () => io.oscSent?.save(Object.fromEntries(Object.entries(owed).filter(([, ids]) => ids.length)));
+  const owe = (folderId: string, cue: ShowCue) => {
+    if (!hasOscOut(cue)) return;
+    const ids = owed[folderId] ?? [];
+    if (ids.includes(cue.id)) return;
+    owed[folderId] = [...ids, cue.id];
+    keepOwed();
+  };
+  /** Send what a folder owes, in the order its cues were sent; the failures' sentences. */
+  const sendOuts = async (p: FolderPage, folderId: string): Promise<string[]> => {
+    const ids = owed[folderId] ?? [];
+    if (!ids.length) return [];
+    delete owed[folderId];
+    keepOwed();
+    const failed: string[] = [];
+    for (const id of ids) {
+      const cue = p.cues.find((c) => c.id === id);
+      if (!cue || !hasOscOut(cue) || !p.controlOut || !session.alive()) continue;
+      const r = await p.controlOut(cue);
+      if (!r.ok) failed.push(r.note);
+    }
+    return failed;
+  };
+
   const clearMisses = (ids: readonly string[]) =>
     misses((m) => (ids.some((id) => id in m) ? Object.fromEntries(Object.entries(m).filter(([id]) => !ids.includes(id))) : m));
 
@@ -178,7 +213,9 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
 
   const noteStep = (cue: ShowCue) => {
     const folder = cue.folderId ? page().folders.get(cue.folderId) : undefined;
-    if (folder && folderMode(folder) === 'manual') steps((m) => (m[folder.id] === cue.id ? m : { ...m, [folder.id]: cue.id }));
+    if (!folder || folderMode(folder) !== 'manual') return;
+    steps((m) => (m[folder.id] === cue.id ? m : { ...m, [folder.id]: cue.id }));
+    if (isControlCue(cue)) owe(folder.id, cue);
   };
 
   /** Whether a cue is on air now, from the store as it stands and liveCue as last set. */
@@ -263,7 +300,21 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
       const results: MemberResult[] = await runTogether(plan, {
         server: async (m) => (await p.serverVerb(m.cue, 'take', `Take of ${m.cue.label}`, { takenAt: t0 + (rank.get(m.cue.id) ?? 0) })) ?? { ok: false, note: `${m.cue.label} plays a file this production no longer lists.` },
         graphic: async (g) => (await p.takeGraphic(g.cue, `Take of ${g.cue.label}`)) ?? { ok: false, note: `${g.cue.label} points at a graphic this production no longer has.` },
-        ...(p.controlTake ? { control: (c: { cue: ShowCue }) => p.controlTake!(c.cue) } : {}),
+        ...(p.controlTake ? {
+          control: async (c: { cue: ShowCue }) => {
+            const r = await p.controlTake!(c.cue);
+            if (!r.ok) return r;
+            // Out came while this message was on its way: the folder already sent what it owed, so
+            // this cue's On Out goes now. After the session's end nothing more is sent.
+            if (run.stop === 'out' || run.stop === 'all-out') {
+              if (hasOscOut(c.cue) && p.controlOut && session.alive()) {
+                const back = await p.controlOut(c.cue);
+                if (!back.ok) p.note(back.note);
+              }
+            } else owe(folder.id, c.cue);
+            return r;
+          },
+        } : {}),
         off: (m) => offLate(p, m, run.stop),
         stopped: () => run.stop !== null,
       });
@@ -294,6 +345,8 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     steps((m) => (m[folder.id] === null ? m : { ...m, [folder.id]: null }));
     const members = p.members.get(folder.id) ?? [];
     clearMisses(members.map((c) => c.id));
+    // The lights go back with the graphics, not after them.
+    const outs = sendOuts(p, folder.id);
     const notes: string[] = [];
     for (const cue of members.filter((c) => isServerCue(c) && onAirNow(p, c))) {
       const off = await p.serverVerb(cue, 'out', `Out of ${cue.label}`);
@@ -301,6 +354,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     }
     const graphicsFailed = await graphicsOff(p, members.filter((c) => isGraphicCue(c) && onAirNow(p, c)));
     if (graphicsFailed) notes.push(graphicsFailed);
+    notes.push(...(await outs));
     p.note(notes.length ? `Out: ${p.folderName(folder)} did not take all of it off. ${notes.join(' ')}` : `✓ Out: ${p.folderName(folder)}`);
   };
 
@@ -345,7 +399,8 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
       if (!(await offWith(p, off))) return;
       if (!cue) {
         steps((m) => ({ ...m, [folder.id]: null }));
-        p.note(`✓ ${name}: back to its first cue`);
+        const failed = await sendOuts(p, folder.id);
+        p.note(failed.length ? failed.join(' ') : `✓ ${name}: back to its first cue`);
         return;
       }
       if (run.stop) return;
@@ -364,20 +419,24 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     }));
   };
 
-  const stopAll = (reason: 'all-out' | 'ended', keep?: ReadonlySet<string>) => {
+  const stopAll = async (reason: 'all-out' | 'ended', keep?: ReadonlySet<string>): Promise<string[]> => {
     // A folder's Take still being sent sends nothing more, and what of it lands after is cut too:
     // nothing airs after the panic control. A scene's too: what had not landed was not on air, so
     // cutting it leaves "out" out, and its server cues must never start after All out.
     for (const run of runs.values()) run.stop = reason;
     if (reason === 'ended') {
       runs.clear();
-      return;
+      return [];
     }
     // Every One-by-one folder starts again from its first cue, but an OBS scene keeps its place.
     steps((m) => Object.fromEntries(Object.keys(m).map((id) => [id, keep?.has(id) ? m[id] : null])));
+    const p = page();
+    const failed: string[] = [];
+    for (const folderId of Object.keys(owed)) if (!keep?.has(folderId)) failed.push(...(await sendOuts(p, folderId)));
+    return failed;
   };
 
-  session.onDispose(() => stopAll('ended'));
+  session.onDispose(() => void stopAll('ended'));
 
   return {
     take,

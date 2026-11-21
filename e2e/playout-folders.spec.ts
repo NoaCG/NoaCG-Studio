@@ -2132,6 +2132,14 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await expect.poll(() => fake.osc.length).toBe(2);
   expect(new Set(fake.osc.map((o) => o.sendId)).size, 'each press is its own send').toBe(2);
 
+  // On Out: a second message, typed here and tested on its own button.
+  await expect(editor.getByTestId('osc-send-out-test'), 'no On Out test without an On Out address').toHaveCount(0);
+  await editor.getByTestId('osc-out-address').fill('/zeros/cue/release');
+  await editor.getByTestId('osc-out-address').press('Tab');
+  await editor.getByTestId('osc-send-out-test').click();
+  await expect.poll(() => fake.osc.length).toBe(3);
+  expect(fake.osc[2]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/release', args: [] });
+
   // Selecting, reloading and selecting again send nothing.
   await selectCue(page, 'Hairline');
   await settleDurableWrites(page);
@@ -2139,7 +2147,7 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await expect(cue(page, 'Lights: winner')).toContainText('/zeros/cue/go');
   await selectCue(page, 'Lights: winner');
   await page.waitForTimeout(300);
-  expect(fake.osc).toHaveLength(2);
+  expect(fake.osc).toHaveLength(3);
 });
 
 test('a winner graphic and a lighting cue go together on one folder Take, with no playout server', async ({ page }) => {
@@ -2152,7 +2160,7 @@ test('a winner graphic and a lighting cue go together on one folder Take, with n
     const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     m.saveOscDestination(id, { id: 'desk', name: 'Lighting desk', host: '192.168.1.40', port: 8830 });
     const { cueId } = m.addOscCue(id, 'desk');
-    m.setCueControl(id, cueId!, { v: 1, kind: 'osc', destinationId: 'desk', address: '/zeros/cue/go', args: [{ type: 's', value: '0' }, { type: 's', value: '5' }] });
+    m.setCueControl(id, cueId!, { v: 1, kind: 'osc', destinationId: 'desk', address: '/zeros/cue/go', args: [{ type: 's', value: '0' }, { type: 's', value: '5' }], out: { address: '/zeros/cue/release', args: [] } });
     m.updateShowCueChecked(id, cueId!, { label: 'Lights' });
     const winner = m.loadShows().find((s) => s.id === id)!.cues!.find((c) => c.label === 'Winner')!.id;
     const { folderId } = m.addFolderFromSelection(id, [winner, cueId!], 'Result');
@@ -2182,4 +2190,12 @@ test('a winner graphic and a lighting cue go together on one folder Take, with n
   await page.waitForTimeout(300);
   expect(fake.osc, 'one Take, one datagram').toHaveLength(1);
   expect(sent(fake), 'nothing went to a playout server').toEqual([]);
+
+  // Out takes the winner off and sends the lights' On Out message, once.
+  await page.getByTestId('verb-out').click();
+  await expect.poll(() => fake.osc.length).toBe(2);
+  expect(fake.osc[1]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/release' });
+  await expect(cue(page, 'Winner').locator('.pd-tag.up, .pd-tag.air')).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(fake.osc).toHaveLength(2);
 });

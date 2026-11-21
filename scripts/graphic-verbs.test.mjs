@@ -153,7 +153,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     },
     clearMisses: (ids) => log.push(['clearMisses', ids.join(',')]),
     noteStep: (cue) => log.push(['noteStep', cue.id]),
-    stopFolders: () => log.push(['stopFolders']),
+    stopFolders: () => { log.push(['stopFolders']); },
     outUnnamed: async () => log.push(['outUnnamed']),
     clearThroughBridge: async (note) => `bridge: ${note}`,
     clearing: (on) => log.push(['clearing', on]),
@@ -752,6 +752,14 @@ test('All out with nothing to clear sends nothing; unpublished it asks no heads 
   await r2.verbs.allOut();
   assert.equal(r2.log.filter(([k]) => k === 'headsSay' || k === 'headsStillOn').length, 0);
   assert.deepEqual(r2.liveCue(), {});
+});
+
+test('All out names an On Out message that did not go (osc-control-cues follow-up)', async () => {
+  const r = rig({ liveCue: {} });
+  r.heads.say = new Map([['Strap', false], ['Score', false], ['Clock', false]]);
+  r.page.stopFolders = () => Promise.resolve(['Lights, On Out was not sent: refused']);
+  await r.verbs.allOut();
+  assert.equal(r.notes.at(-1), 'Lights, On Out was not sent: refused');
 });
 
 test('a published All out that knows of nothing clears every graphic the heads have no word on', async () => {

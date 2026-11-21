@@ -9,7 +9,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './lib/tsResolve.mjs';
 
-const { oscBlocker, oscNote, oscRequest, oscRowSummary, sendIds } = await import('../src/control/oscSend.ts');
+const { hasOscOut, oscBlocker, oscNote, oscRequest, oscRowSummary, sendIds } = await import('../src/control/oscSend.ts');
+const { readControl } = await import('../src/model/controlCue.ts');
 const { decideVerb } = await import('../src/control/verbDispatch.ts');
 const { verbView } = await import('../src/control/verbView.ts');
 const { directBlocker, takeBlockerFor } = await import('../src/control/takeBlockers.ts');
@@ -48,6 +49,21 @@ test('the note says sent, not sent with the reason, or uncertain', () => {
   assert.equal(oscNote('Lights', 'Lighting desk', { state: 'sent', to: '192.168.1.40:8830', repeat: false }), '✓ Lights: OSC sent to Lighting desk');
   assert.equal(oscNote('Lights', 'Lighting desk', { state: 'refused', detail: 'Too many.' }), 'Lights was not sent: Too many.');
   assert.equal(oscNote('Lights', 'Lighting desk', { state: 'uncertain', detail: 'Send uncertain. Check the desk.' }), 'Lights: Send uncertain. Check the desk.');
+});
+
+test('On Out: the second message goes to the same device; a bad one blocks the Take; an empty one is none', () => {
+  const lights = osc('Lights', { control: control({ out: { address: ' /zeros/cue/release ', args: [{ type: 'i', value: '5' }] } }) });
+  const built = oscRequest(lights, [desk], 'p:1:Lights', 'out');
+  assert.deepEqual(built.request, { sendId: 'p:1:Lights', host: '192.168.1.40', port: 8830, address: '/zeros/cue/release', args: [{ type: 'i', value: '5' }] });
+  assert.equal(hasOscOut(lights), true);
+  assert.equal(hasOscOut(osc('L')), false);
+  assert.equal(hasOscOut(osc('L', { control: control({ out: { address: '  ', args: [] } }) })), false);
+  assert.match(oscRequest(osc('L'), [desk], 'x', 'out').reason, /no On Out message/);
+  assert.equal(oscBlocker(osc('L', { control: control({ out: { address: '/back', args: [{ type: 'i', value: 'x' }] } }) }), [desk], true), 'L, On Out: Argument 1 is not a whole number from -2147483648 to 2147483647.');
+  // A malformed On Out is a record this build cannot read: the cue is read-only, never half sent.
+  assert.equal(readControl(control({ out: { address: 5 } })), null);
+  assert.equal(oscNote('Lights', 'Lighting desk', { state: 'sent', to: 'x', repeat: false }, 'out'), '✓ Lights: On Out OSC sent to Lighting desk');
+  assert.equal(oscNote('Lights', 'Lighting desk', { state: 'refused', detail: 'Too many.' }, 'out'), 'Lights, On Out was not sent: Too many.');
 });
 
 test('a held Take key fires an OSC cue once; a graphic keeps its own rule', () => {

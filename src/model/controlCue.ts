@@ -31,14 +31,22 @@ export interface OscArg {
   value: string;
 }
 
+/** One OSC message: an address and its typed arguments. */
+export interface OscMessage {
+  address: string;
+  args: OscArg[];
+}
+
 /** Version 1 of a cue's control record: one OSC message to one production destination. */
-export interface OscControlV1 {
+export interface OscControlV1 extends OscMessage {
   v: 1;
   kind: 'osc';
   /** An `OscDestination.id` of the same production; '' while none is chosen. */
   destinationId: string;
-  address: string;
-  args: OscArg[];
+  /** ADDITIVE OPTIONAL. A second message to the same destination, sent when the folder that sent
+   *  this cue's Take goes out (Out, All out, a One-by-one folder's last press). Absent or with an
+   *  empty address: nothing is sent on Out. */
+  out?: OscMessage;
 }
 
 export type ControlRecord = OscControlV1;
@@ -66,7 +74,19 @@ export function readControl(raw: unknown): ControlRecord | null {
   if (c.v !== 1 || c.kind !== 'osc') return null;
   if (typeof c.destinationId !== 'string' || typeof c.address !== 'string') return null;
   if (!Array.isArray(c.args) || !c.args.every(isArg)) return null;
+  if (c.out !== undefined && !isMessage(c.out)) return null;
   return c as unknown as OscControlV1;
+}
+
+function isMessage(raw: unknown): raw is OscMessage {
+  if (!raw || typeof raw !== 'object') return false;
+  const m = raw as Record<string, unknown>;
+  return typeof m.address === 'string' && Array.isArray(m.args) && m.args.every(isArg);
+}
+
+/** The message this OSC cue sends when its folder goes out, or null when it has none. */
+export function oscOutMessage(control: Pick<OscControlV1, 'out'>): OscMessage | null {
+  return control.out && control.out.address.trim() ? control.out : null;
 }
 
 /** Whether a control cue is one this build cannot read: the whole cue is then read-only and never
@@ -179,7 +199,7 @@ export function emptyOscControl(destinationId: string): OscControlV1 {
  *  so a folder never sends its graphics and then fails on its OSC cue. The same rules as
  *  cli/src/playout/osc.ts `encodeOscMessage`: an address of printable ASCII with no pattern
  *  characters, string, int32 and float32 values, at most 16 arguments and 1024 encoded bytes. */
-export function oscMessageProblem(control: Pick<OscControlV1, 'address' | 'args'>): string | null {
+export function oscMessageProblem(control: OscMessage): string | null {
   const address = control.address.trim();
   if (!address.startsWith('/')) return 'The OSC address starts with /.';
   if (!/^\/[\x21-\x7e]*$/.test(address)) return 'The OSC address has no spaces or special characters.';
