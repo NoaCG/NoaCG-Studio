@@ -456,8 +456,9 @@ export interface StudioReply {
  * folder holds the server's files. `not-linked`: no folder is set. `access-denied`: Windows refused
  * this user (sign in to the share). `offline`: the folder cannot be reached. `not-this-server`: the
  * folder answers but holds none of the files the server lists, or different copies of them.
+ * `unchecked`: the folder can be read, but the server did not list its files to compare.
  */
-export type MediaFolderState = 'linked' | 'not-linked' | 'access-denied' | 'offline' | 'not-this-server';
+export type MediaFolderState = 'linked' | 'not-linked' | 'access-denied' | 'offline' | 'not-this-server' | 'unchecked';
 
 export interface MediaFolderCheck {
   state: MediaFolderState;

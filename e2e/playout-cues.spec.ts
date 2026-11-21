@@ -692,6 +692,30 @@ test('Normalize sets the level so the part airs at the target, and an older Brid
   expect(await storedLevels(page)).toEqual([7]);
 });
 
+test('a level moved while Normalize measures is kept, and a cancelled measurement changes nothing', async ({ page }) => {
+  await seedSettings(page);
+  const bridge = await fakeBridge(page, { ...NORMALIZES, holdAudio: true });
+  await productionPage(page);
+  await addClip(page);
+  await page.getByTestId('clip-normalize-run').click();
+  await expect(page.getByTestId('clip-normalize-run')).toHaveText('Measuring… 40%');
+  const level = page.getByTestId('clip-level');
+  await level.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByTestId('clip-level-value')).toHaveText('−1 dB');
+  bridge.holdAudio = false;
+  await expect(page.getByTestId('clip-normalize-state')).toHaveText('The cue changed while it was measured. Normalize again.');
+  expect(await storedLevels(page)).toEqual([-1]);
+  // Cancelled before the answer: the level stays where it was.
+  bridge.holdAudio = true;
+  await page.getByTestId('clip-normalize-run').click();
+  await expect(page.getByTestId('clip-normalize-cancel')).toBeVisible();
+  bridge.holdAudio = false;
+  await page.getByTestId('clip-normalize-cancel').click();
+  await expect(page.getByTestId('clip-normalize-run')).toHaveText('Normalize to −23 LUFS');
+  expect(await storedLevels(page)).toEqual([-1]);
+});
+
 test('a normalized cue goes out with its gain, and a loud file is held at -1 dBTP and says so', async ({ page }) => {
   await seedSettings(page);
   const bridge = await fakeBridge(page, { ...NORMALIZES, measures: { '': { kind: 'measured', integrated: -31, truePeak: -4, seconds: 60, layout: 'stereo' } } });
