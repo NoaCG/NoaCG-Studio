@@ -30,17 +30,16 @@ code that implements it. Where something is expected rather than measured, the p
 
 ## Structure
 
-- **One guide shows at a time** (owner, 2026-11-21: one scroll of 14,000 words "feels like
-  there's so much text"). Every section the left nav links is a page; `docs.ts` shows the one
-  the address names and hides the rest with `hidden="until-found"`, so find-in-page still reaches
-  them. A new section therefore needs a nav link, or it shows on every page. The document in
-  `docs.html` stays one complete page: that is what shows without the module, and what prints.
-- **The layout** (same owner note: the 570px text line was "so narrow"). Prose runs to
-  `--measure` (700px). Tables, pictures and label rows use the column, which reaches the
-  header's right edge. A list whose items are "a short label, then what it means" is a
-  `<ul class="doc-rows">` with the explanation in a `<span>`; keep a label to about 26
-  characters. A numbered list is for steps in order, never for alternatives.
-
+- **One guide shows at a time**, because the owner found the whole document in one scroll too
+  much text. Every section the left nav links is a page; `docs.ts` shows the one the address
+  names and hides the rest with `hidden="until-found"`, so find-in-page still reaches them. A new
+  section therefore needs a nav link, or it shows on every page. The document in `docs.html`
+  stays one complete page: that is what shows without the module, and what prints.
+- **The layout.** Prose runs to `--measure`, which the owner asked to be longer than the first
+  setting. Tables, pictures and label rows use the column, which reaches the header's right
+  edge. A list whose items are "a short label, then what it means" is a `<ul class="doc-rows">`
+  with the explanation in a `<span>`; keep a label short enough for the label column. A numbered
+  list is for steps in order, never for alternatives.
 - **The left nav shows five topics first, each topic's pages indented under it** (owner,
   2026-08-26 "only the most important information on the left", and 2026-09-21 for the type
   pages). A topic's head links to its first section; `docs.ts` folds every topic but the one
