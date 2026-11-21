@@ -1685,8 +1685,8 @@ test('saved Vote results and Message templates are offered in their pickers and 
   const showId = await productionFor(page, 'Pilot Night');
   const audience = await openWorkspace(page, 'audience');
   const note = audience.getByTestId('audience-note');
-  const program = page.frameLocator('[data-testid="program-stage"] iframe');
-  const role = (name: string) => program.locator(`[data-noacg-role~="${name}"]`);
+  const program = (graphic: string) => page.frameLocator(`[data-testid="program-stage"] iframe[title="${graphic}"]`);
+  const role = (name: string) => program('Vote results').locator(`[data-noacg-role~="${name}"]`);
   const pool = () =>
     audience.evaluate(async (id) => {
       const { loadShows } = await __noacgImport('/src/model/shows.ts');
@@ -1753,6 +1753,6 @@ test('saved Vote results and Message templates are offered in their pickers and 
   expect(Object.values(card.cues[0])).toEqual(expect.arrayContaining(['Is there an encore tonight?', 'Sam']));
   await page.locator('.pd-cue', { hasText: 'Is there an encore tonight?' }).first().click();
   await page.getByTestId('verb-take').click();
-  await expect(program.locator('text', { hasText: 'Is there an encore tonight?' })).toBeVisible();
-  await expect(program.locator('text', { hasText: 'Sam' })).toBeVisible();
+  await expect(program('Message').locator('text', { hasText: 'Is there an encore tonight?' })).toBeVisible();
+  await expect(program('Message').locator('text', { hasText: 'Sam' })).toBeVisible();
 });
