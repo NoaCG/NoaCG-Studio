@@ -1,15 +1,13 @@
-// The docs page's section nav: fold each topic's pages under its head, and highlight the
-// link for the section on screen. The page is complete without this module (every link
-// shows and plain anchors already work), so everything here is progressive and silently
+// The docs page's section nav and its pages: fold each topic's links under its head, and show
+// ONE guide at a time. The page is complete without this module (the whole document shows, every
+// link shows and plain anchors already work), so everything here is progressive and silently
 // stands down when it has nothing to do.
 
+const root = document.documentElement;
 const nav = document.querySelector('.doc-nav');
-if (nav) {
+const body = document.querySelector<HTMLElement>('.doc-body');
+if (nav && body) {
   const links = Array.from(nav.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'));
-  const byId = new Map(links.map((link) => [link.hash.slice(1), link]));
-  const sections = Array.from(document.querySelectorAll<HTMLElement>('.doc-body section[id]')).filter((s) =>
-    byId.has(s.id),
-  );
 
   // A newcomer's first view is the five topic heads. Each topic with pages under it gets a
   // toggle, and while the nav is sticky beside the text the topic being read opens itself,
@@ -47,9 +45,8 @@ if (nav) {
   const openActiveTopic = () => {
     if (sticky.matches) for (const topic of topics) setOpen(topic, topic === activeTopic);
   };
-  const activate = (id: string) => {
-    const link = byId.get(id);
-    if (!link || link === active) return;
+  const activate = (link: HTMLAnchorElement) => {
+    if (link === active) return;
     active?.classList.remove('is-active');
     link.classList.add('is-active');
     active = link;
@@ -62,30 +59,103 @@ if (nav) {
   };
   sticky.addEventListener('change', openActiveTopic);
 
-  // The section being read is the last one whose top has crossed the upper third of the
-  // viewport. A plain scroll listener (rAF-coalesced) over a couple of dozen rect reads is
-  // cheap, works for keyboard, anchor and drag scrolling alike, and needs no observer
-  // bookkeeping.
-  let queued = false;
-  const update = () => {
-    queued = false;
-    const line = window.innerHeight * 0.34;
-    let current = sections[0];
-    for (const section of sections) {
-      if (section.getBoundingClientRect().top <= line) current = section;
+  // PAGES. Every section the nav links is a page, in the nav's order, and one shows at a time.
+  // The Graphics topic is a section that holds its pages as nested sections, so its own opening
+  // text is wrapped here to be a page beside them. The others are hidden with "until-found":
+  // the browser's find-in-page still searches them and fires `beforematch` on the one it lands
+  // in, and where that is not supported the value behaves as a plain `hidden`.
+  const graphics = document.getElementById('graphics');
+  const intro = document.createElement('div');
+  if (graphics) {
+    while (graphics.firstChild && !(graphics.firstChild instanceof HTMLElement && graphics.firstChild.matches('section'))) {
+      intro.appendChild(graphics.firstChild);
     }
-    if (current) activate(current.id);
-  };
-  const schedule = () => {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(update);
-  };
-  document.addEventListener('scroll', schedule, { passive: true });
-  window.addEventListener('resize', schedule);
-  update();
-}
+    graphics.prepend(intro);
+  }
+  type DocPage = { el: HTMLElement; link: HTMLAnchorElement; title: string };
+  const pages: DocPage[] = [];
+  for (const link of links) {
+    const section = document.getElementById(link.hash.slice(1));
+    const el = section === graphics ? intro : section;
+    const title = (section?.querySelector('h2, h3')?.textContent ?? link.textContent ?? '').trim();
+    if (el) pages.push({ el, link, title });
+  }
 
+  const pager = document.createElement('nav');
+  pager.className = 'doc-pager';
+  pager.setAttribute('aria-label', 'Previous and next page');
+  body.appendChild(pager);
+  const pagerLink = (page: DocPage | undefined, className: string, label: string) => {
+    if (!page) return;
+    const a = document.createElement('a');
+    a.className = className;
+    a.href = page.link.hash;
+    const small = document.createElement('small');
+    small.textContent = label;
+    a.append(small, page.title);
+    pager.appendChild(a);
+  };
+
+  // Show the page that holds `target`, and land on the target: a heading inside a page, or the
+  // page's own top. The first page beside the sticky nav starts from the top of the window, so
+  // the page head above it shows.
+  // 'none' leaves the scroll alone (first load without a hash, and a find-in-page match, which
+  // the browser scrolls to itself).
+  const show = (target: HTMLElement | null, scroll: 'land' | 'none') => {
+    const at = target === graphics ? intro : target;
+    const index = Math.max(0, pages.findIndex((page) => at !== null && page.el.contains(at)));
+    const page = pages[index];
+    if (!page) return;
+    for (const other of pages) {
+      if (other === page) other.el.removeAttribute('hidden');
+      else other.el.setAttribute('hidden', 'until-found');
+    }
+    root.classList.toggle('docs-first', index === 0);
+    activate(page.link);
+    pager.replaceChildren();
+    pagerLink(pages[index - 1], 'prev', 'Previous');
+    pagerLink(pages[index + 1], 'next', 'Next');
+    if (scroll === 'none') return;
+    if (at && at !== page.el) at.scrollIntoView({ behavior: 'instant' });
+    else if (index === 0 && sticky.matches) window.scrollTo({ top: 0, behavior: 'instant' });
+    else page.el.scrollIntoView({ behavior: 'instant' });
+  };
+  const fromHash = () => {
+    let id = '';
+    try {
+      id = decodeURIComponent(location.hash.slice(1));
+    } catch {
+      // A malformed escape in the hash names nothing: fall through to the first page.
+    }
+    return id ? document.getElementById(id) : null;
+  };
+
+  if (pages.length > 0) {
+    root.classList.add('docs-paged');
+    for (const page of pages) {
+      page.el.addEventListener('beforematch', () => show(page.el, 'none'));
+    }
+    window.addEventListener('hashchange', () => show(fromHash(), 'land'));
+    // A link to the hash the address already has changes nothing the browser reports, so it is
+    // handled here: pressing "Quiz" twice still goes to the top of Quiz.
+    document.addEventListener('click', (event) => {
+      const a = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href^="#"]') : null;
+      if (a && a.hash === location.hash) show(fromHash(), 'land');
+    });
+    const first = fromHash();
+    show(first, first ? 'land' : 'none');
+  }
+}
+root.classList.add('docs-ready');
+
+// Two screenshots side by side are half the column each, so a click opens one to the full
+// column and a second click puts it back.
+for (const pair of Array.from(document.querySelectorAll<HTMLElement>('.doc-shots'))) {
+  pair.classList.add('is-zoomable');
+  pair.addEventListener('click', (event) => {
+    if (event.target instanceof HTMLImageElement) event.target.closest('.doc-shot')?.classList.toggle('is-wide');
+  });
+}
 
 // Copy buttons. Every command block on this page is meant to be one copy-paste, so each
 // <pre> gets a button that puts its text on the clipboard. The markup in docs.html stays a

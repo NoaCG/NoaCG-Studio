@@ -27,6 +27,13 @@
   <meta property="og:url" content="https://noacg.studio/docs" />
   <link rel="stylesheet" href="/src/site-chrome.css" />
   <link rel="stylesheet" href="/src/docs/docs.css" />
+  <!-- docs.ts shows one guide at a time. This marks the page before first paint so the whole
+       document is never drawn and then collapsed (docs.css "Pages"). If the module never
+       arrives, the page shows in full after three seconds. -->
+  <script>
+    document.documentElement.classList.add('docs-js');
+    setTimeout(function () { document.documentElement.classList.add('docs-ready'); }, 3000);
+  </script>
 </head>
 <body>
   <div class="wrap">
@@ -113,17 +120,20 @@
                second copy is the one that goes stale. -->
           <div class="callout">
             <span class="lbl">Three ways to start</span>
-            <ol>
-              <li><strong>A template.</strong> Pick a design from the catalog, then set its text,
-                colors and logo. <a href="/app#/new">Open the studio&nbsp;&rarr;</a></li>
-              <li><strong>Your own design.</strong> Name the layers in Illustrator, save an SVG,
+            <ul class="doc-rows">
+              <li><strong>A template.</strong>
+                <span>Pick a design from the catalog, then set its text,
+                colors and logo. <a href="/app#/new">Open the studio&nbsp;&rarr;</a></span></li>
+              <li><strong>Your own design.</strong>
+                <span>Name the layers in Illustrator, save an SVG,
                 import it and choose what it does.
                 <a href="#first-graphic">Import an SVG&nbsp;&rarr;</a> or
-                <a href="/svg-templates">get an SVG template&nbsp;&rarr;</a></li>
-              <li><strong>Your coding agent.</strong> Use Claude Code or Codex with the
+                <a href="/svg-templates">get an SVG template&nbsp;&rarr;</a></span></li>
+              <li><strong>Your coding agent.</strong>
+                <span>Use Claude Code or Codex with the
                 <strong>NoaCG CLI</strong>. Describe the graphic you want, and it appears in your
-                NoaCG library. <a href="#claude-code">Set up your agent&nbsp;&rarr;</a></li>
-            </ol>
+                NoaCG library. <a href="#claude-code">Set up your agent&nbsp;&rarr;</a></span></li>
+            </ul>
           </div>
           <p>Then put it on air:</p>
           <ul>
@@ -182,6 +192,7 @@
                 your library. <strong>Skip to finish</strong> in the footer of any earlier step
                 jumps here and keeps the defaults.</li>
             </ol>
+            <div class="doc-shots">
             <figure class="doc-shot">
               <img src="/docs/svg-drop.png" width="1560" height="1290" loading="lazy"
                 alt="The Import graphic step, with the drop zone and the export settings open beneath it." />
@@ -197,6 +208,7 @@
                 reads.
               </figcaption>
             </figure>
+            </div>
 
             <h4 id="first-air">On air</h4>
             <p>
@@ -211,21 +223,26 @@
 
           <section id="svg" class="doc-sub">
             <h3>Prepare the SVG file</h3>
-            <ul id="svg-rules">
-              <li><strong>Give it a size.</strong> Use a 1920&times;1080 artboard with a transparent
+            <ul id="svg-rules" class="doc-rows">
+              <li><strong>Give it a size.</strong>
+                <span>Use a 1920&times;1080 artboard with a transparent
                 background and draw the graphic where it sits on screen, so a lower third goes at
                 the bottom of that artboard. In Illustrator tick <strong>Use Artboards</strong> when
                 you save the SVG, or the file is cut down to the drawing. A smaller artboard imports
-                as a floating object that you place in the wizard.</li>
-              <li><strong>Keep text as text.</strong> Do not convert text to outlines, because
-                outlined text cannot be edited.</li>
-              <li><strong>Name your layers.</strong> The name is the label the operator sees. For
-                the types below it is also how NoaCG finds each part.</li>
-              <li><strong>Embed pictures.</strong> Linked pictures are removed, because an exported
-                graphic has to play without a network.</li>
-              <li><strong>No animation or scripts.</strong> SVG animation, scripts and
+                as a floating object that you place in the wizard.</span></li>
+              <li><strong>Keep text as text.</strong>
+                <span>Do not convert text to outlines, because
+                outlined text cannot be edited.</span></li>
+              <li><strong>Name your layers.</strong>
+                <span>The name is the label the operator sees. For
+                the types below it is also how NoaCG finds each part.</span></li>
+              <li><strong>Embed pictures.</strong>
+                <span>Linked pictures are removed, because an exported
+                graphic has to play without a network.</span></li>
+              <li><strong>No animation or scripts.</strong>
+                <span>SVG animation, scripts and
                 <code>&lt;foreignObject&gt;</code> are removed. Add motion in the Animation
-                step.</li>
+                step.</span></li>
             </ul>
 
             <h4 id="svg-export">Export settings</h4>
@@ -586,7 +603,7 @@
               A question and two to six answers. The operator selects an answer, locks it in and
               reveals the correct one.
             </p>
-            <figure class="doc-shot">
+            <figure class="doc-shot tall">
               <img src="/docs/type-quiz.png" width="1560" height="1058" loading="lazy"
                 alt="The example quiz board: a question over four lettered answer rows." />
               <figcaption>
@@ -684,7 +701,7 @@
               The audience votes on their phones at your <a href="#audience">join link</a>, and the
               bars grow with the count.
             </p>
-            <figure class="doc-shot">
+            <figure class="doc-shot tall">
               <img src="/docs/type-live-vote.png" width="1560" height="1058" loading="lazy"
                 alt="The example vote board: a question over three options, each with an amber bar and a percentage." />
               <figcaption>
@@ -774,7 +791,7 @@
           <section id="countdowns" class="doc-type">
             <h3 class="doc-kind">Countdown</h3>
             <p>A clock that counts down to zero. The operator sets the length in minutes.</p>
-            <figure class="doc-shot">
+            <figure class="doc-shot tall">
               <img src="/docs/type-countdown.png" width="1560" height="958" loading="lazy"
                 alt="The example countdown card: NIGHT SIGNAL, STARTING IN, 05:00 in large amber digits over a thin bar." />
               <figcaption>
@@ -1025,16 +1042,19 @@ Storm warning issued</code></pre>
           </table></div>
 
           <h3 id="artwork-in">Ways in</h3>
-          <ul>
-            <li><strong>As the graphic itself.</strong> <a href="/app#/new">The studio</a> &rarr;
+          <ul class="doc-rows">
+            <li><strong>As the graphic itself.</strong>
+                <span><a href="/app#/new">The studio</a> &rarr;
               <strong>New graphic</strong> &rarr; <strong>Import graphic</strong> takes a PNG, a
               JPEG or a WebP as well as an SVG. A picture has no layers to read, so you place the
-              text fields yourself.</li>
-            <li><strong>As a logo on a catalog design.</strong> Designs with a logo slot let you
+              text fields yourself.</span></li>
+            <li><strong>As a logo on a catalog design.</strong>
+                <span>Designs with a logo slot let you
               upload your file while you make the graphic. You can also leave it empty and fill it
-              at playout.</li>
-            <li><strong>As a file in the graphic.</strong> Not available yet. The editor lists the
-              files a graphic carries but cannot add one.</li>
+              at playout.</span></li>
+            <li><strong>As a file in the graphic.</strong>
+                <span>Not available yet. The editor lists the
+              files a graphic carries but cannot add one.</span></li>
           </ul>
           <p>
             Pictures for a live show are separate. On a production, <strong>Add pictures</strong>
@@ -1180,18 +1200,22 @@ Storm warning issued</code></pre>
             <li>Load it once and leave it up. The operator cues the graphics from NoaCG.</li>
           </ul>
           <p>For every browser source:</p>
-          <ul>
-            <li><strong>The page is already transparent.</strong> Do not add a chroma key. If you
+          <ul class="doc-rows">
+            <li><strong>No chroma key.</strong>
+                <span>The page is already transparent. If you
               see a black or white box behind the graphic, the host is forcing a background: check
-              its custom CSS and background settings.</li>
-            <li><strong>Match the resolution exactly.</strong> Graphics are made in real pixels,
+              its custom CSS and background settings.</span></li>
+            <li><strong>Match the resolution.</strong>
+                <span>Graphics are made in real pixels,
               1920&times;1080 unless you chose otherwise. A different size scales the picture
-              instead of cropping it, and scaled text looks soft.</li>
-            <li><strong>Resize the source, never the layer it sits on.</strong> In OBS, set the
+              instead of cropping it, and scaled text looks soft.</span></li>
+            <li><strong>Resize the source.</strong>
+                <span>Never resize the layer it sits on. In OBS, set the
               browser source's own Width and Height. Dragging its box in the scene scales the
-              finished picture, and the text goes soft again.</li>
-            <li><strong>Set the source's FPS to the channel's.</strong> Motion plays at the right
-              speed at any rate, but a 30 fps source in a 50 Hz channel judders.</li>
+              finished picture, and the text goes soft again.</span></li>
+            <li><strong>Match the frame rate.</strong>
+                <span>Set the source's FPS to the channel's. Motion plays at the right
+              speed at any rate, but a 30 fps source in a 50 Hz channel judders.</span></li>
           </ul>
 
           <h3 id="obs">OBS Studio</h3>
@@ -1272,7 +1296,7 @@ Storm warning issued</code></pre>
               what was on air without replaying the animations.</li>
           </ul>
 
-          <h3 id="casparcg-versions">Which server version you have matters</h3>
+          <h3 id="casparcg-versions">Server versions</h3>
           <div class="doc-table"><table>
             <tr><th>Server</th><th>Engine</th><th>What it means</th></tr>
             <tr><td><strong>2.3.x</strong></td><td>Chromium 71</td><td>The live output URL works with nothing to do. A graphic's own modern CSS can render differently: see below.</td></tr>
@@ -1512,23 +1536,28 @@ CG 1-20 STOP</code></pre>
           </p>
 
           <h3 id="production-run">Running it</h3>
-          <ul>
-            <li><strong>Preview, then take.</strong> The page has two panes. Preview is what you
+          <ul class="doc-rows">
+            <li><strong>Preview, then take.</strong>
+                <span>The page has two panes. Preview is what you
               are checking, program is what the audience sees. Select a cue, check it in preview,
               then press <strong>Take</strong>. Selecting and previewing never reach air, and an
-              edit airs only on a take, never while you type.</li>
-            <li><strong>Any browser can drive it</strong>, including an OBS dock or a phone at the
-              desk.</li>
-            <li><strong>Quick presses keep their order.</strong> A second press on the same graphic
+              edit airs only on a take, never while you type.</span></li>
+            <li><strong>Any browser can drive it.</strong>
+                <span>That includes an OBS dock or a phone at the
+              desk.</span></li>
+            <li><strong>Quick presses keep their order.</strong>
+                <span>A second press on the same graphic
               leaves once the first has reached the server, so it lands a fraction of a second
-              later than a press on its own.</li>
-            <li><strong>It recovers by itself.</strong> Every command is saved in order. After a
+              later than a press on its own.</span></li>
+            <li><strong>It recovers by itself.</strong>
+                <span>Every command is saved in order. After a
               network drop or a restart, the output catches up in that order and rebuilds what
-              was on air without replaying the animations.</li>
-            <li><strong>Pictures need no template.</strong> <strong>&#65291; Add
+              was on air without replaying the animations.</span></li>
+            <li><strong>Pictures need no template.</strong>
+                <span><strong>&#65291; Add
               pictures&hellip;</strong> turns image files into cues, such as a holding slide or a
               sponsor card. There is one picture layer per production, so a new still replaces
-              the last one.</li>
+              the last one.</span></li>
           </ul>
         </section>
 
@@ -1630,8 +1659,7 @@ CG 1-20 STOP</code></pre>
         <section id="teams">
           <h2>Working with other people</h2>
           <p>
-            <strong>Running or preparing one show together</strong>, each person signed in as
-            themselves on their own device, is what a team is for.
+            A team lets several people prepare and run one show, each signed in as themselves on their own device.
           </p>
 
           <h3 id="teams-links">Links you can hand out</h3>
@@ -1661,8 +1689,7 @@ CG 1-20 STOP</code></pre>
             <li>Open a production you own and press <strong>Share</strong> in its header. The
               same dialog is <strong>Share with a team&hellip;</strong> in the
               <strong>&#8943;</strong> (More actions) menu on a production's card in
-              <strong>Productions</strong>. There is no team entry in the topbar or in Settings:
-              a production is the only door.</li>
+              <strong>Productions</strong>. There is no team entry in the topbar or in Settings. You always start from a production.</li>
             <li>Press <strong>&#65291; New team&hellip;</strong>. It is the quiet text button under
               the list, not the amber one in the footer.</li>
             <li>Fill in both boxes. <strong>Team name</strong> is what the class or the crew is
@@ -1688,8 +1715,8 @@ CG 1-20 STOP</code></pre>
             no email invitation.
           </p>
           <p>
-            <strong>A code is still a key.</strong> Anybody who has ever held a join link to any
-            team is one paste away from using a code they overheard.
+            <strong>Keep the code private anyway.</strong> Anybody who has ever had a join link, to any
+            team, can swap an overheard code into it.
           </p>
           <p>
             The person who gets the link opens it, signs in or makes an account, types the name
@@ -1759,15 +1786,18 @@ CG 1-20 STOP</code></pre>
             <strong>Readable name</strong> row changes it to something you can say out loud. Do
             that before you give the link out, because a new name breaks the old one.
           </p>
-          <ul>
-            <li><strong>Nothing viewers send airs on its own.</strong> Messages land in a
-              moderation inbox, and an operator picks what goes into the graphic.</li>
-            <li><strong>Votes count live</strong> into poll graphics. Open the vote on the
+          <ul class="doc-rows">
+            <li><strong>Nothing viewers send airs on its own.</strong>
+                <span>Messages land in a
+              moderation inbox, and an operator picks what goes into the graphic.</span></li>
+            <li><strong>Votes count live.</strong>
+                <span>They go into poll graphics. Open the vote on the
               Audience tab. The board's own buttons close it, show the result and call the
               winner. The board can be one of ours or
-              <a href="#svg-vote">one you drew yourself</a>.</li>
-            <li><strong>A presenter view</strong> (a separate link) shows the host what is coming
-              without giving them operator controls.</li>
+              <a href="#svg-vote">one you drew yourself</a>.</span></li>
+            <li><strong>The host gets a presenter view.</strong>
+                <span>It is a separate link that shows
+              what is coming, without operator controls.</span></li>
           </ul>
           <p>
             You do not need a Twitch or YouTube channel for any of this.
@@ -1883,7 +1913,7 @@ CG 1-20 STOP</code></pre>
             <li><strong>Pause</strong> on the card holds what the key sends. Nothing it sends goes
               on air, and the answer to each request says <code>"paused": true</code>. Your own
               presses still go on air. <strong>Resume</strong> sends the latest values once.</li>
-            <li><code>/api/data/update</code> is the older door that addresses one graphic by name
+            <li><code>/api/data/update</code> is the older route. It addresses one graphic by name
               and its fields by the labels the operator sees. It still works, and Pause holds it
               too.</li>
             <li>The full reference, limits, errors and a sample sender are in
@@ -1915,7 +1945,7 @@ CG 1-20 STOP</code></pre>
           </p>
           <p>
             <strong>Hall Cup</strong> is a school sports night. It has four graphics, one data
-            tree, one table and a hall full of phones. Every picture below was taken while
+            tree, one table and an audience with phones. Every picture below was taken while
             building it.
           </p>
 
@@ -1949,7 +1979,7 @@ CG 1-20 STOP</code></pre>
             scoreboards use the same four.
           </p>
 
-          <h3 id="example-tree">The tree: what the whole show knows</h3>
+          <h3 id="example-tree">Production data</h3>
           <p>
             Open the production and go to its <strong>Data</strong> tab. Press
             <strong>&#9662; Raw JSON</strong>, paste this in, and press <strong>Apply
@@ -1967,12 +1997,12 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/data-tree.png" width="1668" height="635" loading="lazy"
               alt="The Production data panel listing five values with their paths: match.teamA, match.scoreA, match.teamB, match.scoreB and tickerItems." />
             <figcaption>
-              <strong>Five values, five addresses.</strong> The panel shows one row per value.
+              <strong>The Production data panel.</strong> One row per value.
               The grey text on the left is that row's address.
             </figcaption>
           </figure>
           <p>
-            That address is a <strong>path</strong>. Dots walk down the tree. The number 2 lives
+            That address is a <strong>path</strong>. Each dot goes one level down the tree. The number 2 lives
             at <code>match.scoreA</code>, and the three ticker lines live together at
             <code>tickerItems</code>.
           </p>
@@ -1980,22 +2010,24 @@ CG 1-20 STOP</code></pre>
             You do not have to paste JSON. The row at the bottom adds a path and a value by hand.
             If the path does not exist yet, it is created.
           </p>
-          <ul>
-            <li><strong>The type is kept.</strong> <code>4</code> is a number, <code>true</code>
+          <ul class="doc-rows">
+            <li><strong>The type is kept.</strong>
+                <span><code>4</code> is a number, <code>true</code>
               is a boolean, <code>[1, 2]</code> is a list, and anything else is text. Number rows
               get &minus; and + buttons. A list is one line per item, which is what a ticker's
-              text box takes.</li>
-            <li><strong>This is state, not a command.</strong> Nothing on this panel plays, stops
-              or takes a graphic. That is the rule of <a href="#data">Live data</a>. It is why a
-              feed can run all night without putting anything on air.</li>
-            <li><strong>Save the numbers you want to start from.</strong>
-              <strong>&#11015; Save as seed</strong> stores the current tree in the production
+              text box takes.</span></li>
+            <li><strong>Data does not cue anything.</strong>
+                <span>Nothing on this panel plays, stops
+              or takes a graphic, so a feed can run all night without putting anything on air. See
+              <a href="#data">Live data</a>.</span></li>
+            <li><strong>Save a starting point.</strong>
+                <span><strong>&#11015; Save as seed</strong> stores the current tree in the production
               itself. <strong>&#10226; Reset to seed</strong> puts it back. Do it before the first
               rehearsal: until the production is published, the live tree exists only in this
-              browser.</li>
+              browser.</span></li>
           </ul>
 
-          <h3 id="example-bindings">The bindings: which field reads which path</h3>
+          <h3 id="example-bindings">Bindings</h3>
           <p>
             A path does nothing on its own. A <strong>binding</strong> points one field of one
             graphic at one path. Scroll to <strong>Bindings</strong> and press
@@ -2005,7 +2037,7 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/data-bindings.png" width="1668" height="1083" loading="lazy"
               alt="The Bindings list: both scoreboards bound to the same four paths and House Wire's Ticker items bound to tickerItems, each reading its value back, with House Strap's two fields left unbound." />
             <figcaption>
-              <strong>Nine bound, four left alone.</strong> Both scoreboards landed on the same
+              <strong>The Bindings list.</strong> Nine fields are bound and four are not. Both scoreboards landed on the same
               four paths, because they ask for the same four things. The right-hand column shows
               what each field shows right now. A mistyped path shows up here as a blank.
             </figcaption>
@@ -2057,11 +2089,10 @@ CG 1-20 STOP</code></pre>
               <a href="#data-api">Data API</a> writes into this same tree.</li>
           </ul>
 
-          <h3 id="example-tables">The table: rows an operator picks from</h3>
+          <h3 id="example-tables">Tables</h3>
           <p>
-            Hall Cup interviews three people. Their names belong to no particular moment in the
-            show. That is what a <strong>table</strong> is for: a bank of rows, none of them live.
-            The operator loads the row they want, when they want it.
+            Hall Cup interviews three people. Their names go in a <strong>table</strong>: a list of rows that the operator loads into a
+            cue when it is needed.
           </p>
           <p>
             Under <strong>Tables</strong>, choose <strong>Line-up / roster</strong> and press
@@ -2073,8 +2104,8 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/data-table.png" width="1668" height="555" loading="lazy"
               alt="The Interviews table on the Data tab: two columns called Name and Title, with three rows of guests." />
             <figcaption>
-              <strong>Two columns, three rows.</strong> The column names are the strap's field
-              titles. That is how a row finds its way into a graphic.
+              <strong>The Interviews table.</strong> The column names are the strap's field
+              titles. That is how a row is matched to a graphic.
             </figcaption>
           </figure>
           <p>The matching is by words again:</p>
@@ -2122,7 +2153,7 @@ CG 1-20 STOP</code></pre>
           <p>
             The first panel on the Audience tab is <strong>Chat sources</strong>. It asks for a
             Twitch channel or a YouTube video. Most people running a hall, a school event or a
-            club night have neither, and they are not missing anything.
+            club night have neither, and do not need one.
           </p>
           <p>
             Those two only pull an <em>existing</em> chat into the same inbox. The room's own join
@@ -2147,7 +2178,7 @@ CG 1-20 STOP</code></pre>
               you hand the link out, because a new name stops the old link working.</li>
             <li><strong>Give it to the room.</strong> Read it out, put it on a holding slide, or
               print a QR code of it. There is no app to install and nothing to sign in to.</li>
-            <li><strong>Open the door.</strong> On the Audience tab, tick <strong>Accepting
+            <li><strong>Start taking messages.</strong> On the Audience tab, tick <strong>Accepting
               messages</strong>. Until you do, every phone with the link says the production is
               not taking part right now.</li>
           </ol>
@@ -2180,7 +2211,7 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/audience-inbox.png" width="1662" height="425" loading="lazy"
               alt="The moderation inbox: filter tabs reading Inbox, Approved, Shortlist and All, then two arrivals, each with an editable name and message and a row of buttons ending in Send to rundown." />
             <figcaption>
-              <strong>The inbox, and the only way out of it.</strong> The two boxes on each row
+              <strong>The inbox.</strong> The two boxes on each row
               are the broadcast version, yours to tidy. Shortlist, Approve and Reject sort the
               pile. Now and Next point the presenter's screen at one message. Only Send to rundown
               reaches the rundown.
@@ -2204,7 +2235,7 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/audience-vote.png" width="1626" height="245" loading="lazy"
               alt="An open poll on the Audience tab: the question, its three options with a bar and a count each, and the buttons that stage the counts to a graphic or close the voting." />
             <figcaption>
-              <strong>The counts are here and nowhere else.</strong> The join page never shows a
+              <strong>The counts show only here.</strong> The join page never shows a
               tally, in any mode. The result reaches the room as a graphic, on air, when the
               operator chooses.
             </figcaption>
@@ -2444,8 +2475,7 @@ CG 1-20 STOP</code></pre>
           <p>
             <strong>What the package is.</strong>
             The folder is at the same time a valid <strong>SPX</strong> package and an
-            <strong>EBU OGraf v1</strong> graphic, with no build step. Zip it and it imports
-            through the studio's Import door, or plays in any OGraf renderer.
+            <strong>EBU OGraf v1</strong> graphic, with no build step. Zip it and the studio imports it, or play it in any OGraf renderer.
           </p>
           <p>
             The graphic itself is plain HTML, CSS and JavaScript. So the same sources also export
