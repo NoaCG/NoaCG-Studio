@@ -3,8 +3,8 @@
 Authority: owner, 2026-11-21, in a planning session ("NoaCG: Unify SVG Templates and Examples").
 Owner on scope: "Everything in this plan", then asked for an independent second opinion before
 building. Two independent reviews (so1, so2, 2026-11-21, against draft 29155a0 on base 5de2f40)
-both returned "agree with changes"; this revision applies every required change. **Draft** until
-the owner agrees it. No implementation is authorized yet.
+both returned "agree with changes"; this revision applies every required change. **Agreed** by
+the owner on 2026-11-21 ("the plan is agreed"). It runs as its own plan run.
 
 ## Owner brief (summary)
 
@@ -88,7 +88,7 @@ Planning session, reversible:
   system (Manrope, OFL, licence and install note shipped in every zip). New templates are
   hand-written, Illustrator-safe SVG. The 19 native Illustrator sources stay downloadable as
   legacy until an edited replacement proves live text, hidden groups, embedded images and
-  off-artboard credits survive Illustrator (needs the owner, see Owner questions). Real
+  off-artboard credits survive Illustrator (owner Q1: yes). Real
   Illustrator exports are archived as importer fixtures in `e2e/fixtures/` before any folder
   moves; they are the only coverage for `unwrapLookWrappers` (`e2e/svg-examples.spec.ts:8-10`).
 - **D3. Packages by use plus a full zip**, generated from one inventory where an entry may sit in
@@ -318,8 +318,8 @@ Each phase lands on its own through the merge queue and leaves `main` consistent
 
 ## Owner questions
 
-- Q1. Once the pilot passes your Illustrator round trip, may SVG be the only maintained source for
-  templates, with the existing `.ai` files kept as legacy downloads? Recommended: yes.
+- Q1. Once the pilot passes the owner's Illustrator round trip, SVG is the only maintained source
+  for templates, and the existing `.ai` files stay as legacy downloads. Owner, 2026-11-21: "yes".
 
 ## Non-goals
 
