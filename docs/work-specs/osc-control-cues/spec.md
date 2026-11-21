@@ -314,7 +314,7 @@ Follow-up (owner request of 2026-11-21): an On Out message.
   Take's check covers it, so a folder never goes up with lights it cannot bring back.
 - It is sent once, when the folder that sent the cue's Take goes out: Out, All out (its failures
   join All out's note), or a One-by-one folder's press back to the top. Stepping on sends nothing,
-  a cue whose Take was not sent owes nothing, and an Out while the Take is on its way sends it as
+  a cue whose Take was refused owes nothing (an uncertain send still owes it), and an Out while the Take is on its way sends it as
   soon as the Take lands. The session's end sends nothing. What is owed is kept for the tab
   (`spx-gfx-osc-sent:<production>`, `io.oscSent`), so an Out after a reload still sends it.
 - A standalone OSC cue has no Out; an OSC cue taken on its own inside an All together folder owes

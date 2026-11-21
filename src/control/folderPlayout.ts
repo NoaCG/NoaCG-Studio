@@ -303,7 +303,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
         ...(p.controlTake ? {
           control: async (c: { cue: ShowCue }) => {
             const r = await p.controlTake!(c.cue);
-            if (!r.ok) return r;
+            if (!r.ok && !r.uncertain) return r;
             // Out came while this message was on its way: the folder already sent what it owed, so
             // this cue's On Out goes now. After the session's end nothing more is sent.
             if (run.stop === 'out' || run.stop === 'all-out') {

@@ -545,7 +545,7 @@ function folderRig({ folders, cues, items = rundown().items, graphicOf = (c) => 
         return { ok: true, note: `✓ ${label}: ${c.label}` };
       }),
     // An OSC cue's Take message and its On Out message, each answering as told (`oscFails`).
-    controlTake: (c) => call('osc', `take ${c.id}`, () => (oscFails.has(`take ${c.id}`) ? { ok: false, note: `${c.label} was not sent: refused` } : { ok: true, note: `✓ ${c.label}: OSC sent` })),
+    controlTake: (c) => call('osc', `take ${c.id}`, () => (oscFails.has(`take ${c.id}`) ? { ok: false, note: `${c.label} was not sent: refused` } : oscFails.has(`unsure ${c.id}`) ? { ok: false, note: `${c.label}: Send uncertain.`, uncertain: true } : { ok: true, note: `✓ ${c.label}: OSC sent` })),
     controlOut: (c) => call('osc', `out ${c.id}`, () => (oscFails.has(`out ${c.id}`) ? { ok: false, note: `${c.label}, On Out was not sent: refused` } : { ok: true, note: `✓ ${c.label}: On Out OSC sent` })),
     takeCue: async (c) => {
       if (c.source === 'control') {
@@ -1024,13 +1024,14 @@ test('On Out: an All-together folder\'s Out sends the On Out of each OSC cue its
   assert.equal(oscLog(r).length, 3, 'a second Out owes nothing');
 });
 
-test('On Out: a cue whose Take was not sent is owed nothing; a failed On Out is named on the Out note', async () => {
-  const r = folderRig({ folders: [TOGETHER], cues: [osc('a', 'A'), osc('b', 'A')] });
+test('On Out: a cue whose Take was refused is owed nothing, one that may have left is; a failed On Out is named on the Out note', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: [osc('a', 'A'), osc('b', 'A'), osc('c', 'A')] });
   r.oscFails.add('take a');
   r.oscFails.add('out b');
+  r.oscFails.add('unsure c');
   await r.fp.take(TOGETHER);
   await r.fp.out(TOGETHER);
-  assert.deepEqual(oscLog(r), ['osc take a', 'osc take b', 'osc out b']);
+  assert.deepEqual(oscLog(r), ['osc take a', 'osc take b', 'osc take c', 'osc out b', 'osc out c']);
   assert.equal(r.notes.at(-1), 'Out: Opening did not take all of it off. B, On Out was not sent: refused');
 });
 

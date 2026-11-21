@@ -3543,7 +3543,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
   /** ONE OSC CUE'S SEND (docs/work-specs/osc-control-cues/spec.md D1, D7, D9): the cue as saved
    *  now, through the paired Bridge, once. A press is one send id; nothing here resends. */
-  const controlTake = async (cue: ShowCue, label: string, which: 'take' | 'out' = 'take'): Promise<{ ok: boolean; note: string }> => {
+  const controlTake = async (cue: ShowCue, label: string, which: 'take' | 'out' = 'take'): Promise<{ ok: boolean; note: string; uncertain?: true }> => {
     // Read from the store at the press, not the render: an edit landed a moment ago (a field left
     // for Send test) is what goes out.
     const stored = loadShows().find((s) => s.id === id);
@@ -3555,7 +3555,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     const built = oscRequest(now, stored?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id), which);
     if (!built.ok) return { ok: false, note: `${label} was not sent: ${built.reason}` };
     const outcome = await sendOsc(loadPlayoutSettings(), built.request);
-    return { ok: outcome.state === 'sent', note: oscNote(now.label, built.destination.name, outcome, which) };
+    return { ok: outcome.state === 'sent', note: oscNote(now.label, built.destination.name, outcome, which), ...(outcome.state === 'uncertain' ? { uncertain: true as const } : {}) };
   };
   const controlSend = async (cue: ShowCue, label: string, which: 'take' | 'out' = 'take'): Promise<boolean> => {
     const { ok, note } = await controlTake(cue, label, which);
