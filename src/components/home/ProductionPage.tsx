@@ -307,6 +307,7 @@ import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
 import { isControlCue, isGraphicCue, isServerCue } from '../../model/controlCue.ts';
 import { oscBlocker, oscNote, oscRequest, sendIds } from '../../control/oscSend';
+import OscCueEditor from './OscCueEditor';
 
 /** The draft's browser moments (control/cueDraft.ts): the page hidden or closing, or the account
  *  pausing, saves at once; the account asking for a save flushes. */
@@ -816,6 +817,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const session = useMemo(() => createPlayoutSession(id), [id]);
   const sessionEnd = useRef<{ session: PlayoutSession; timer: ReturnType<typeof setTimeout> } | null>(null);
   /** One send id per deliberate OSC press, unique to this page load (control/oscSend.ts). */
+  /** The open OSC editor's view of its cue, unsaved typing included (home/OscCueEditor). */
+  const oscPending = useRef<((cueId: string) => { cue: ShowCue; flush: () => void } | null) | null>(null);
   const [nextSendId] = useState(() => sendIds(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now())));
   const mountedSession = useRef<PlayoutSession | null>(null);
   useLayoutEffect(() => {
@@ -3484,8 +3487,15 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** ONE OSC CUE'S SEND (docs/work-specs/osc-control-cues/spec.md D1, D7, D9): the cue as saved
    *  now, through the paired Bridge, once. A press is one send id; nothing here resends. */
   const controlSend = async (cue: ShowCue, label: string): Promise<boolean> => {
-    const now = cuesRef.current.find((c) => c.id === cue.id) ?? cue;
-    const built = oscRequest(now, latestShow.current?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id));
+    // Read from the store at the press, not the render: an edit landed a moment ago (a field left
+    // for Send test) is what goes out.
+    const stored = loadShows().find((s) => s.id === id);
+    // The OSC editor's boxes as they stand, typing not yet saved included, then saved: a hardware
+    // Take blurs nothing, and must send what the operator sees.
+    const onScreen = oscPending.current?.(cue.id) ?? null;
+    onScreen?.flush();
+    const now = onScreen?.cue ?? stored?.cues?.find((c) => c.id === cue.id) ?? cue;
+    const built = oscRequest(now, stored?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id));
     if (!built.ok) {
       setNote(`${label} was not sent: ${built.reason}`);
       return false;
@@ -5237,6 +5247,24 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
             loudnessTarget={show.loudnessTarget}
           />
           )}</DraftView>
+        )}
+
+        {/* An OSC cue: one message to a device, never on air (home/OscCueEditor). */}
+        {editingCue && isControlCue(editingCue) && (
+          <OscCueEditor
+            key={editingCue.id}
+            show={show}
+            cue={editingCue}
+            cueNo={editingCueNo}
+            setShows={setShows}
+            takeBlocked={takeBlockerFor(editingCue)}
+            rehearsing={!hostedSlug}
+            playoutSettings={playoutSettings}
+            onSendTest={(cue) => void controlSend(cue, 'Send test')}
+            setNote={setNote}
+            writeRundown={writeRundown}
+            pendingRef={oscPending}
+          />
         )}
 
         {editingCue && <CueAccentControl key={`${show.id}:${editingCue.id}`} show={show} cue={editingCue} setShows={setShows} onPreview={color => setAccentPreview(color ? { productionId: show.id, cueId: editingCue.id, color } : null)} fallback={routeColor(show.rundownColors, selectedPlayoutItem && !selectedVmix ? throughRoleOf(editingCue) ? folderSlot(playoutSettings, throughRoleOf(editingCue)!.folder).channel : channelOf(playoutSettings, selectedPlayoutItem) : undefined)} />}

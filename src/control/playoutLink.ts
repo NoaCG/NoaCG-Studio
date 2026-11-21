@@ -1112,6 +1112,16 @@ export type OscSendResult =
   | { state: 'sent'; to: string; repeat: boolean }
   | { state: 'refused' | 'uncertain' | 'no-bridge'; detail: string };
 
+/** Whether the paired Bridge can send OSC now, for the OSC cue editor's status line. An unpaired
+ *  browser asks nothing of any local address (docs/work-specs/osc-control-cues/spec.md D5). */
+export async function oscBridgeState(settings: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>): Promise<{ ready: boolean; detail: string }> {
+  if (!bridgePaired(settings)) return { ready: false, detail: 'Connect NoaCG Bridge in Playout settings to send OSC cues.' };
+  const probed = await probeBridge(settings.agentUrl);
+  if (probed.unreachable) return { ready: false, detail: probed.unreachable.detail };
+  if (!probed.features.includes('osc')) return { ready: false, detail: 'This NoaCG Bridge is too old to send OSC cues. Download the current NoaCG Bridge.' };
+  return { ready: true, detail: 'NoaCG Bridge ready' };
+}
+
 /**
  * ONE OSC MESSAGE THROUGH THE PAIRED BRIDGE. Needs a paired browser and nothing else: no playout
  * server, no CasparCG, no vMix, so a browser-only production can fire a lighting desk. The Bridge

@@ -125,9 +125,9 @@ export const CONTROL_KEPT = 'This production has OSC cues this version cannot ch
  * of ./ografTyped.ts `typedFrozen`): model/shows.ts `patchShowChecked` (both of its writes) and
  * ./rundownHistory.ts `replaceRundown` ask it. A write is refused whole when it would change any byte
  * of a control cue this build cannot read, or remove one; change a readable control cue's message
- * other than through its writer (`write`, cue id to the exact bytes it writes); or give a cue a
- * control record it did not have, unless an undo brings it back (`restored`) or it is a copy of a
- * message this record already holds.
+ * other than through its writer (`write`, cue id to the exact bytes it writes) or an undo or redo
+ * (`restored`); or give a cue a control record it did not have, unless an undo brings it back or it
+ * is a copy of a message this record already holds.
  */
 export function controlFrozen(
   before: ControlKept | null,
@@ -142,6 +142,9 @@ export function controlFrozen(
   }
   for (const [id, kept] of before?.cues ?? []) {
     if (write.has(id)) continue;
+    // An undo or redo puts a readable message back as the record held it; a later version's cue
+    // still never changes here.
+    if (!kept.whole && restored.has(id)) continue;
     const cue = now.get(id);
     if (!cue) {
       if (kept.whole) return CONTROL_KEPT;
@@ -155,4 +158,19 @@ export function controlFrozen(
     if (before?.ids.has(cue.id) || controlReadOnly(cue) || !before?.held.has(JSON.stringify(cue.control ?? null))) return CONTROL_KEPT;
   }
   return null;
+}
+
+/** Why a destination cannot be saved, or null: a name, an address and a port 1 to 65535. */
+export function destinationProblem(d: Pick<OscDestination, 'name' | 'host' | 'port'>): string | null {
+  if (!d.name.trim()) return 'Give the destination a name.';
+  const host = d.host.trim();
+  if (!host) return 'Enter the device’s IP address or name.';
+  if (/\s/.test(host) || host.includes('/') || host.length > 253) return 'Enter only the IP address or name, for example 192.168.1.40.';
+  if (!Number.isInteger(d.port) || d.port < 1 || d.port > 65535) return 'The port is a whole number from 1 to 65535.';
+  return null;
+}
+
+/** A new OSC cue's message: to `destinationId`, no address yet, no arguments. */
+export function emptyOscControl(destinationId: string): OscControlV1 {
+  return { v: 1, kind: 'osc', destinationId, address: '', args: [] };
 }

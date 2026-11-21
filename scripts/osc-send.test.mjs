@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './lib/tsResolve.mjs';
 
-const { oscBlocker, oscNote, oscRequest, sendIds } = await import('../src/control/oscSend.ts');
+const { oscBlocker, oscNote, oscRequest, oscRowSummary, sendIds } = await import('../src/control/oscSend.ts');
 const { decideVerb } = await import('../src/control/verbDispatch.ts');
 const { verbView } = await import('../src/control/verbView.ts');
 const { directBlocker, takeBlockerFor } = await import('../src/control/takeBlockers.ts');
@@ -35,6 +35,13 @@ test('the cue names its own problem, and never falls back to another destination
   assert.match(oscBlocker(osc('L', { control: { v: 2 } }), [desk], true), /newer version/);
   assert.match(oscBlocker(osc('L'), [desk], false), /Connect NoaCG Bridge/);
   assert.equal(oscRequest(osc('L'), [], 'x').ok, false);
+});
+
+test('the rundown row says where it sends and what, strings quoted and numbers bare', () => {
+  assert.equal(oscRowSummary(osc('L'), [desk]), 'Lighting desk  /zeros/cue/go  "0" "5"');
+  assert.equal(oscRowSummary(osc('L', { control: control({ args: [{ type: 'i', value: '5' }, { type: 'f', value: '1.5' }] }) }), [desk]), 'Lighting desk  /zeros/cue/go  5 1.5');
+  assert.equal(oscRowSummary(osc('L', { control: control({ destinationId: '', address: '', args: [] }) }), []), 'no destination  no address');
+  assert.equal(oscRowSummary(osc('L', { control: { v: 2 } }), [desk]), 'OSC cue from a newer version');
 });
 
 test('the note says sent, not sent with the reason, or uncertain', () => {
