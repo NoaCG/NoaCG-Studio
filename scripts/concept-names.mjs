@@ -5,15 +5,16 @@
 //   - the registries: a recipe's or type's `name` and the kind word on a chip
 //     (`graphicKindLabel`) equal the concept's name. scripts/concept-names.test.mjs loads the real
 //     registries through Vite and runs `checkRegistryNames`.
-//   - the surfaces a user reads: no retired label appears in the listed files. In TypeScript the
-//     comments are stripped first, because a maintainer's note is not copy (scripts/check-copy.mjs
-//     draws the same line).
+//   - the surfaces a user reads: no retired label appears in the listed files. In TypeScript only
+//     strings and JSX text are read, because a maintainer's comment is not copy
+//     (scripts/check-copy.mjs draws the same line).
 // Labels only: ids, role words, field titles and persisted keys never change, so nothing here
 // reads or writes one.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
 export const NAMES_FILE = 'docs/template-library/names.json';
@@ -44,38 +45,21 @@ export function retiredPattern(label) {
   return new RegExp(`(?<![\\w-])${escaped}(?![\\w-])`, 'gi');
 }
 
-/** TypeScript with its comments blanked out, line numbers kept. Strings are left alone, so a
- *  `//` inside one is not a comment. */
-export function stripComments(source) {
-  let out = '';
-  let i = 0;
-  let quote = null;
-  while (i < source.length) {
-    const c = source[i];
-    const next = source[i + 1];
-    if (quote) {
-      out += c;
-      if (c === '\\') { out += next ?? ''; i += 2; continue; }
-      if (c === quote) quote = null;
-      i += 1;
-      continue;
+/** The copy in TypeScript: string literals, template text and JSX text, each with its line.
+ *  Comments are not copy, so they never reach the scan. The TypeScript parser decides what is
+ *  what, so an apostrophe in JSX text or a quote in a regular expression cannot confuse it. */
+export function codeCopy(source, file = 'x.tsx') {
+  const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind);
+  const pieces = [];
+  const visit = (node) => {
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateLiteralToken(node) || ts.isJsxText(node)) {
+      pieces.push({ text: node.text, line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1 });
     }
-    if (c === '/' && next === '/') {
-      while (i < source.length && source[i] !== '\n') i += 1;
-      continue;
-    }
-    if (c === '/' && next === '*') {
-      const end = source.indexOf('*/', i + 2);
-      const stop = end === -1 ? source.length : end + 2;
-      out += source.slice(i, stop).replace(/[^\n]/g, ' ');
-      i = stop;
-      continue;
-    }
-    if (c === '"' || c === "'" || c === '`') quote = c;
-    out += c;
-    i += 1;
-  }
-  return out;
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return pieces;
 }
 
 /** Every retired label in one text: [{ label, name, line }]. */
@@ -108,9 +92,11 @@ export function scanSurfaces(root = ROOT, names = loadNames(root)) {
     for (const file of filesUnder(root, surface)) {
       files += 1;
       const raw = readFileSync(path.join(root, file), 'utf8');
-      const text = CODE.test(file) ? stripComments(raw) : raw;
-      for (const hit of findRetired(text, names.concepts)) {
-        problems.push(`${file}:${hit.line}: "${hit.label}" is retired - say "${hit.name}"`);
+      const pieces = CODE.test(file) ? codeCopy(raw, file) : [{ text: raw, line: 1 }];
+      for (const piece of pieces) {
+        for (const hit of findRetired(piece.text, names.concepts)) {
+          problems.push(`${file}:${piece.line + hit.line - 1}: "${hit.label}" is retired - say "${hit.name}"`);
+        }
       }
     }
   }

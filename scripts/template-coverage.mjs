@@ -249,6 +249,10 @@ export function summary(matrix) {
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const args = process.argv.slice(2);
   const committed = existsSync(path.join(ROOT, MATRIX_FILE)) ? loadMatrix() : null;
+  if (!committed && !args.includes('--write')) {
+    console.error(`template-coverage: ${MATRIX_FILE} is missing - run node scripts/template-coverage.mjs --write`);
+    process.exit(1);
+  }
   const registry = await loadRegistries();
   const generated = generateMatrix(registry, committed);
   if (args.includes('--write')) {

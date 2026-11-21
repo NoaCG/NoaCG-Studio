@@ -75,7 +75,7 @@ export const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
   'transition': 'Transition',
   'esports-score': 'Esports score',
   'matchup': 'Match-up',
-  'results-board': 'Standings',
+  'results-board': 'Results',
   'reveal': 'Reveal',
   'poll': 'Live vote',
   'audience': 'Audience',

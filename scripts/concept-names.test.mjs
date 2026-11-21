@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { checkRegistryNames, findRetired, loadNames, retiredPattern, scanSurfaces, stripComments } from './concept-names.mjs';
+import { checkRegistryNames, findRetired, loadNames, retiredPattern, scanSurfaces, codeCopy } from './concept-names.mjs';
 import { withSsrServer } from './catalogIndexPlugin.mjs';
 import { measured } from './measured.mjs';
 
@@ -19,11 +19,10 @@ test('a retired label matches as a whole phrase in any case, never inside a long
   assert.deepEqual(findRetired('one\nA Score tracker here', concepts), [{ label: 'Score tracker', name: 'Scoreboard', line: 2 }]);
 });
 
-test('comments are not copy; strings and JSX text are', () => {
-  const source = "// Score tracker\nconst a = 'Score tracker'; /* Score\ntracker */\n<p>Score tracker</p>\nconst url = 'https://x'; // Score tracker";
-  const stripped = stripComments(source);
-  assert.equal(stripped.split('\n').length, source.split('\n').length, 'line numbers are kept');
-  assert.deepEqual(findRetired(stripped, [{ name: 'Scoreboard', retired: ['Score tracker'] }]).map((hit) => hit.line), [2, 4]);
+test('in code, strings and JSX text are copy and comments are not, whatever quotes they hold', () => {
+  const source = "// Score tracker\nconst a = 'Score tracker'; /* Score\ntracker */\nconst p = <p>Don't</p>;\nconst u = 'https://x'; const b = 'Score tracker';\nconst t = <b>Score tracker</b>;\nconst re = /'/; const c = `Score tracker`;";
+  const lines = codeCopy(source).flatMap((piece) => findRetired(piece.text, [{ name: 'Scoreboard', retired: ['Score tracker'] }]).map((hit) => piece.line + hit.line - 1));
+  assert.deepEqual(lines, [2, 5, 6, 7]);
 });
 
 test('the registries carry each concept name, and no two recipes or types share one', () => {

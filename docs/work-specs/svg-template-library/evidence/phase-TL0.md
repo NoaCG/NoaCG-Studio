@@ -40,15 +40,18 @@ gate with `planned` rows allowed, and AC-8 for the D5 labels.
 - `docs/template-library/names.json` lists 16 concepts with the recipe, type and kind label that
   carry each name, and the retired labels. `scripts/concept-names.test.mjs`: 5 pass. It checks
   the real registries and `graphicKindLabel`, that no two recipes or types share a name, and that
-  none of 373 user-facing files (app UI with comments stripped, docs pages, SVG authoring guide,
+  none of 411 user-facing files (app UI and type files read as strings and JSX text through the
+  TypeScript parser, docs pages, SVG authoring guide,
   tutorials, docs examples, skill copies, CLI README) uses a retired label.
 - Renamed labels (ids, role words, field titles and persisted keys unchanged):
   - recipes: score "Score tracker" to Scoreboard; meter "Meter" to Goal meter; alert "Alert" to
     Pop-up alert; credits "Credits roll" to End credits.
   - types: roster "Roster / ordered list" to Lineup; standings "Standings / result table" to
     Standings; result-board "Vote result" to Vote results; alert-level "Alert" to Alert level.
-  - chip kind labels: Timer to Countdown, Credits to End credits, Holding to Holding screen,
-    Results to Standings.
+  - chip kind labels: Timer to Countdown, Credits to End credits, Holding to Holding screen.
+    Results stays: that family also holds lineups, brackets and timing towers. Alert stays as
+    the family word for the alert category (Alert level types and breaking banners).
+  - the standings design description: "A quiet result table" to "Quiet standings".
   - inventories and templates: Score tracker, Meter, Alert, Credits roll, Digital clock and
     timer, Editable credits; Game timer to Countdown, Show countdown to Show clock (it runs the
     Clock recipe). Slugs unchanged. READMEs, CLOCKS.md, EDITABLE-CREDITS.md, SVG titles, the

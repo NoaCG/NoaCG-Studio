@@ -271,7 +271,7 @@ export const standingsType: GraphicType = {
     {
       id: 'st04',
       name: 'Clean Results',
-      description: 'A quiet result table: hairline rules, tabular figures, nothing boxed.',
+      description: 'Quiet standings: hairline rules, tabular figures, nothing boxed.',
       styleTag: 'minimal',
       palette: paletteById('ivory'),
       fontId: 'inter',
