@@ -230,12 +230,24 @@ const pickOn = (item: PickerItem): PickOn =>
 async function bringIn(show: Show, on: PickOn) {
   if (on.saved) return addSavedDesign(show, on.saved);
   if (on.board) return addCatalogDesign(show, on.board);
+  if (!on.graphicId) return null;
   const shows = loadShows();
-  const stored = shows.find((x) => x.id === show.id) ?? show;
-  const copy = on.graphicId ? stored.graphics.find((g) => g.id === on.graphicId && g.graphicId) : undefined;
-  if (!copy) return null;
-  return { shows, graphicId: copy.id, cueId: seededCue(stored, copy.id, seedValues(copy.template.fields)), error: null };
+  const cueId = copySeededCue(shows.find((x) => x.id === show.id) ?? show, on.graphicId);
+  return cueId === undefined ? null : { shows, graphicId: on.graphicId, cueId, error: null };
 }
+
+/** The untouched seeded cue of a production graphic that is a saved design's copy (null when it
+ *  has none left), or undefined for any other graphic. Every road to a destination asks it - a
+ *  pick, the remembered target, a question's own result graphic - so a retry after a failed write
+ *  fills the cue the first try left whichever road it takes (R2). */
+function copySeededCue(show: Show, graphicId: string | null | undefined): string | null | undefined {
+  const copy = graphicId ? show.graphics.find((g) => g.id === graphicId && g.graphicId) : undefined;
+  return copy ? seededCue(show, copy.id, seedValues(copy.template.fields)) : undefined;
+}
+
+/** The same, read on the production as stored. */
+const storedSeededCue = (show: Show, graphicId: string | null | undefined) =>
+  copySeededCue(loadShows().find((x) => x.id === show.id) ?? show, graphicId) ?? null;
 
 /** Each picker's words: the production group's heading, what it says when the production has no
  *  design, and the built-in group's heading. */
@@ -1451,7 +1463,7 @@ export default function ProductionAudienceWorkspace({
         }
         chosen = made.graphicId;
         adopt = made.cueId;
-      }
+      } else adopt = storedSeededCue(show, resultDestinationOf(show, round.questionId)?.graphicId);
       // The round and its counts as the provider has them NOW, after every other wait of this
       // press (S28). A reading that fails writes nothing: this page's last reading is never written.
       const read = async () => {
@@ -1520,7 +1532,7 @@ export default function ProductionAudienceWorkspace({
         }
         chosen = made.graphicId;
         adopt = made.cueId;
-      }
+      } else adopt = storedSeededCue(show, wordDestinationOf(show, q.id)?.graphicId);
       // The words as the provider counts them NOW, every one of them (like S28): a reading that
       // fails writes nothing.
       const list = await backend.wordCounts(round.id).catch(() => null);
@@ -1677,7 +1689,8 @@ export default function ProductionAudienceWorkspace({
     try {
       let base = show;
       let cueId: string | undefined;
-      const made = await bringIn(show, on);
+      // The resolved destination, the remembered one included, so a retry fills a copy's seed (R2).
+      const made = await bringIn(show, on.saved || on.board ? on : { graphicId: graphicId ?? undefined });
       if (made) {
         if (made.shows) setShows(made.shows);
         if (made.error || !made.graphicId || !made.shows) {
