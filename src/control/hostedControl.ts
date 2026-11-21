@@ -38,9 +38,9 @@ import { isForeignGraphic, verifyForeignPackage } from '../model/foreignPackage'
 import { joinNameCandidates, joinShortUrl } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, SEQ_HEAD_EVENT, commandTopic, createAppliedOnce, logTopic, oidOf, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
-import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
+import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, isUnanswered, maybeLandedError, rpcFailure, seqRoadVerdict, sendWithResend, stoppedError, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
-import { counted } from './sendsInFlight';
+import { noteSendStarted } from './sendsInFlight';
 import { obsScenesOf, SCENE_ID, type ObsScene } from '../model/obsScenes';
 import { partialWritesOn } from '../backend/partialWrites';
 import { forgetOwnPublish, noteOwnPublish, notePublishedBoxes, ownPublish, pruneDue, publishInParts } from './publishParts';
@@ -51,7 +51,9 @@ import {
   createGraphicFifo,
   createPressBook,
   createSeqSession,
+  heldPress,
   learnHead,
+  replacesGraphic,
   readSendAnswer,
   senderBody,
   settleAnswer,
@@ -1745,6 +1747,79 @@ const newestSend = new Map<string, object>();
  *  ATTEMPT_TIMEOUT_MS). Bounded like any applied set (commandRoads.ts REMEMBERED). */
 const heard = createAppliedOnce();
 
+/** A press sent until it lands, by its commands' ids: the row of any of them heard back ends it as
+ *  landed at once (#2655 R3), rather than at its next attempt. */
+const awaitingRow = new Map<string, () => void>();
+function hear(msg: unknown): void {
+  heard.claim(msg);
+  const oid = oidOf(msg);
+  if (oid) awaitingRow.get(oid)?.();
+}
+
+/**
+ * STOP SENDING (#2655 R6, R7a). Every press of this page takes the generation current when it was
+ * made (`sendStopGeneration`, read at the press by graphicVerbs.ts) and the signal of that
+ * generation. `stopSending` ends them all: an attempt in flight is abandoned, a wait in a lane or
+ * for the road ends, and a press made before it that has not left yet never leaves. The
+ * operator's Stop sending calls it, and so does All out before it leaves, so nothing pressed
+ * before the panic is sent after it.
+ */
+let stopGeneration = 0;
+let stopControl = new AbortController();
+export const sendStopGeneration = (): number => stopGeneration;
+export function stopSending(): void {
+  stopGeneration += 1;
+  const ended = stopControl;
+  stopControl = new AbortController();
+  ended.abort(stoppedError());
+}
+
+/**
+ * THE PRESSES SENT UNTIL THEY LAND THAT HAVE BEEN OUT LONGER THAN THE OLD WINDOW (#2655 R6): while
+ * any is, PROGRAM reads "still sending" beside Stop sending. A React page subscribes.
+ */
+const stillSending = new Set<object>();
+const stillSendingListeners = new Set<() => void>();
+const stillSendingChanged = () => {
+  for (const listener of stillSendingListeners) listener();
+};
+export const stillSendingCount = (): number => stillSending.size;
+export function subscribeStillSending(listener: () => void): () => void {
+  stillSendingListeners.add(listener);
+  return () => stillSendingListeners.delete(listener);
+}
+
+/** Per production slug and graphic, the presses of this page on the numbered road still out (sent
+ *  or waiting in their lane), each with what ends it: a later press that REPLACES the graphic ends
+ *  every earlier one there (#2655 R7, newest wins). Ending one stops further attempts and ends a
+ *  wait in its lane; an attempt already on its way gets its answer, as before. All out is never
+ *  in here: no later press ends the panic control. */
+const laneEnders = new Map<string, Set<() => void>>();
+
+/** A press ended before it left (stopped, or replaced by a later press while it waited in its lane):
+ *  nothing of it can land, so it is not owed. */
+const notSentError = (message = stoppedError().message) => Object.assign(new Error(message), { stopped: true, aired: false, sent: [] });
+
+/** A signal that aborts when any of these does, with that one's reason, and the call that stops
+ *  listening (the page's stop signal lives for a whole show, so a press must not stay on it). */
+function eitherSignal(...signals: AbortSignal[]): { signal: AbortSignal; done: () => void } {
+  const both = new AbortController();
+  const off: (() => void)[] = [];
+  for (const signal of signals) {
+    if (signal.aborted) {
+      both.abort(signal.reason);
+      return { signal: both.signal, done: () => {} };
+    }
+  }
+  for (const signal of signals) {
+    const abort = () => both.abort(signal.reason);
+    signal.addEventListener('abort', abort, { once: true });
+    off.push(() => signal.removeEventListener('abort', abort));
+  }
+  return { signal: both.signal, done: () => off.forEach((f) => f()) };
+}
+
+
 /** One item as `control_send_many` receives it: the command, plus the transport-only mark that
  *  says the database may put this one on the fast road (migration 0056 reads `fast` and inserts
  *  `graphic` and `msg`, so the mark never reaches the log or a receiver). */
@@ -1790,14 +1865,27 @@ async function sendControlVerbOnce(opts: {
   /** When the press was made, if before this call (`sendControlVerbs` may have waited for the road):
    *  its resend window and its stamp run from the press. Absent, now. */
   pressedAt?: number;
+  /** The stop generation the press was made in (`sendStopGeneration`, read at the press). A press
+   *  made before the operator's Stop sending or an All out is never sent (#2655 R7a). Absent, now. */
+  madeIn?: number;
+  /** A stop of the caller's own, beside the page's (`stopSending`): the playout session's, which
+   *  ends with its production (#2655 R3). Inside, the two combined. */
+  stop?: AbortSignal;
 }): Promise<VerbSent> {
   const now = opts.pressedAt ?? Date.now();
   const { showId } = opts;
+  // Made before a Stop sending or an All out: it never leaves (#2655 R7a). All out itself is the
+  // press that stopped the others.
+  if (!opts.allOut && opts.madeIn !== undefined && opts.madeIn !== stopGeneration) {
+    throw notSentError();
+  }
+  const stop = opts.stop ?? stopControl.signal;
   // A press made before this production's resolve has decided the road waits for it, within its own
   // resend window: sent by row id instead, it would have no per-graphic order (#1697). One made
   // while others still wait joins them, so it cannot be numbered ahead of them.
   const missing =
     (!roadKnown(opts.slug) || roadWaits.has(opts.slug)) && (await roadDecided(opts.slug, now + RESEND_WINDOW_MS - MIN_ATTEMPT_MS));
+  if (stop.aborted && !opts.allOut) throw notSentError();
   // A follower that is catching up takes NOTHING fast, its own presses included (see `recovering`
   // above): the walk is fetching rows older than this press and a frame applied now would land
   // ahead of them.
@@ -1815,6 +1903,8 @@ async function sendControlVerbOnce(opts: {
   // the send: the server has no sequence road, or no such production.
   const waitRanOut = !session && !missing && !givenUp() && !!(await getSupabase().catch(() => null));
   const sender = session ? (opts.sender ?? pressSender(opts.slug, session, opts.items, !!opts.allOut)) : null;
+  // SENT UNTIL IT LANDS (#2655 R1) when no copy of it can ever air twice (seqSend.ts `heldPress`).
+  const held = !!sender && heldPress(opts.items, sender.epoch ?? null, !!opts.allOut);
   // A batch numbered at an earlier press leaves this page's monitor alone on every graphic the page
   // has pressed again since: that later press is what stands, on air and here (the server leaves
   // it too, per graphic). Applied, the older batch put the graphic back on the monitor while air
@@ -1823,7 +1913,7 @@ async function sendControlVerbOnce(opts: {
   const overtaken = (graphic: string) => pressedBefore.has(graphic);
   const wire: WireItem[] = [];
   const fast: ControlSendItem[] = [];
-  const held: string[] = [];
+  const heldBack: string[] = [];
   for (const item of opts.items) {
     // Who pressed, and when, ride beside the id (livePath.ts `withSender`), so an output can time
     // the command from the press to its screen.
@@ -1845,7 +1935,7 @@ async function sendControlVerbOnce(opts: {
     // fan-out's 650 ms slow mode, and a renderer would apply the two in the wrong order. A row
     // stamped by its own instant holds it back the same way.
     if ((isEvent || stampedByRow) && !rides) {
-      held.push(key);
+      heldBack.push(key);
       slowUntil.set(key, sentAt + SLOW_AFTER_EVENT_MS);
     }
     if (rides && !overtaken(item.graphic) && !waitRanOut) fast.push(stamped);
@@ -1860,9 +1950,44 @@ async function sendControlVerbOnce(opts: {
   for (const key of keys) newestSend.set(key, send);
   const resend = { deadline: now + RESEND_WINDOW_MS, stillNewest: () => keys.every((key) => newestSend.get(key) === send) };
   const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };
+  // ON THE NUMBERED ROAD a later press that REPLACES one of this press's graphics ends it, and a
+  // later press that only modifies one waits for it (#2655 R7). Ended here, before this press
+  // takes its own place in the lanes. A press that replaces some graphics and only modifies others
+  // ends nothing: it waits as a modifying press does.
+  const graphicOf = (key: string) => key.slice(opts.slug.length + 1);
+  const replacing = !!sender && keys.every((key) => replacesGraphic(opts.items, graphicOf(key)));
+  const replaced = new Set(replacing ? keys : []);
+  // `landedRow`: its own row was heard (R3); `laneEnd`: a later replacing press ended it while it
+  // still waited in its lane. `superseded`: no further attempt once that happened.
+  const landedRow = new AbortController();
+  const laneEnd = new AbortController();
+  let superseded = false;
+  const end = () => {
+    superseded = true;
+    laneEnd.abort(notSentError('a later press replaced it'));
+  };
+  if (sender && !opts.allOut) {
+    for (const key of replaced) for (const earlier of laneEnders.get(key) ?? []) earlier();
+    for (const key of keys) laneEnders.set(key, (laneEnders.get(key) ?? new Set()).add(end));
+  }
+  const laneStop = eitherSignal(stop, landedRow.signal, laneEnd.signal);
+  const slow = {};
+  // Its own row heard back lands it (R3): the press stops being sent at once.
+  const oids = held ? wire.map((item) => oidOf(item.msg)).filter((oid): oid is string => !!oid) : [];
+  for (const oid of oids) awaitingRow.set(oid, () => landedRow.abort(unansweredError()));
+  const slowTimer = held ? setTimeout(() => (stillSending.add(slow), stillSendingChanged()), Math.max(0, now + RESEND_WINDOW_MS - Date.now())) : null;
   try {
     if (session && sender) {
-      const settled = await sendSeqVerb(opts.slug, wire, session, sender, resend, !!opts.allOut);
+      const settled = await sendSeqVerb(opts.slug, wire, session, sender, { ...resend, stillNewest: () => !superseded }, !!opts.allOut, {
+        held,
+        replaces: (key) => replaced.has(key),
+        laneStop: opts.allOut ? landedRow.signal : laneStop.signal,
+        stop: opts.allOut ? new AbortController().signal : stop,
+        // Ended by a later replacing press: no further attempt, and a wait between two ends now.
+        // An attempt already on its way still gets its answer (up to 8 s); if the later press lands
+        // first, the record finds this one already paid (failedSends.ts `wouldOwe`).
+        settled: eitherSignal(landedRow.signal, laneEnd.signal).signal,
+      });
       sent.skipped = settled.skipped;
       if (settled.superseded) sent.superseded = Object.keys(sender.base);
       // Read at the answer: a press made while this one was on its way stands over it.
@@ -1873,7 +1998,8 @@ async function sendControlVerbOnce(opts: {
       // at its own deadline, so a request still held on this side is cancelled rather than left to
       // commit after a later press.
       if (waitRanOut) throw unansweredError();
-      await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), resend);
+      // All out is never stopped, on this road as on the numbered one (#2655 R7a).
+      await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), { ...resend, ...(opts.allOut ? {} : { stop }) });
     }
     noteSend(true);
   } catch (e) {
@@ -1891,9 +2017,10 @@ async function sendControlVerbOnce(opts: {
     // because "Take failed" is a lie to an operator looking at the graphic on their own monitor.
     // The items go with it as they were sent, minted ids and all, so the page can recognise the
     // row if this send commits after all.
-    const failed = e as Error & { aired?: boolean; sent?: ControlSendItem[] };
+    const failed = e as Error & { aired?: boolean; sent?: ControlSendItem[]; stopped?: boolean };
     failed.aired = fast.length > 0;
-    failed.sent = wire.map(({ graphic, msg }) => ({ graphic, msg }));
+    // A press ended before it left keeps its empty `sent`: none of it can land, so none is owed.
+    if (!(failed.stopped && Array.isArray(failed.sent))) failed.sent = wire.map(({ graphic, msg }) => ({ graphic, msg }));
     throw failed;
   } finally {
     // THE HOLD-BACK RUNS FROM WHEN THE ROW EXISTS, not from when the press left. The 1200 ms is
@@ -1904,8 +2031,17 @@ async function sendControlVerbOnce(opts: {
     // that is the late commit only a server-side revision check closes: on protocol 2 the server
     // refuses it as superseded by this page's later press (migration 0071).
     const landed = Date.now() + SLOW_AFTER_EVENT_MS;
-    for (const key of held) slowUntil.set(key, landed);
+    for (const key of heldBack) slowUntil.set(key, landed);
     for (const key of keys) if (newestSend.get(key) === send) newestSend.delete(key);
+    for (const key of keys) {
+      const enders = laneEnders.get(key);
+      enders?.delete(end);
+      if (enders?.size === 0) laneEnders.delete(key);
+    }
+    laneStop.done();
+    if (slowTimer) clearTimeout(slowTimer);
+    for (const oid of oids) awaitingRow.delete(oid);
+    if (stillSending.delete(slow)) stillSendingChanged();
   }
   return sent;
 }
@@ -1948,21 +2084,54 @@ function pressSender(slug: string, session: SeqSession, items: readonly ControlS
 /** One press's send, counted while it is on the wire, whichever road it takes and including the
  *  wait for the road: an automatic publish never runs a step beside it (sendsInFlight.ts, G3 R10). */
 export function sendControlVerb(opts: Parameters<typeof sendControlVerbOnce>[0]): ReturnType<typeof sendControlVerbOnce> {
-  return counted(() => sendControlVerbOnce(opts));
+  return countedFirst(() => withOwnStop(opts.stop, (stop) => sendControlVerbOnce({ ...opts, stop })));
 }
 
 /** Several batches of one press, counted the same way. */
 export function sendControlVerbs(opts: Parameters<typeof sendControlVerbsOnce>[0]): Promise<VerbSent> {
-  return counted(() => sendControlVerbsOnce(opts));
+  return countedFirst(() => withOwnStop(opts.stop, (stop) => sendControlVerbsOnce({ ...opts, stop })));
+}
+
+/** The page's stop of this generation, and the caller's own when it has one, as one signal that
+ *  stops listening once the press ends. */
+async function withOwnStop<R>(own: AbortSignal | undefined, send: (stop: AbortSignal) => Promise<R>): Promise<R> {
+  const both = own ? eitherSignal(own, stopControl.signal) : { signal: stopControl.signal, done: () => {} };
+  try {
+    return await send(both.signal);
+  } finally {
+    both.done();
+  }
+}
+
+/** Counted as a send in flight for its first RESEND_WINDOW_MS only (#2655 R9a): a press sent until
+ *  it lands, or one waiting behind it, must not hold automatic publishing and saving for as long
+ *  as a slow spell lasts. It stays "still sending" on the page meanwhile. */
+async function countedFirst<R>(send: () => Promise<R>): Promise<R> {
+  const answered = noteSendStarted();
+  const timer = setTimeout(answered, RESEND_WINDOW_MS);
+  try {
+    return await send();
+  } finally {
+    clearTimeout(timer);
+    answered();
+  }
 }
 
 async function sendControlVerbsOnce(
   opts: Omit<Parameters<typeof sendControlVerbOnce>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
 ): Promise<VerbSent> {
   const { batches, ...one } = opts;
+  // ALL OUT ENDS EVERY EARLIER PRESS of this page (#2655 R7a): its verb calls `stopSending` the
+  // moment it is pressed (graphicVerbs.ts), so a press made while it cuts the server's layers is a
+  // press made after it. A caller that sends an All out with no press of its own ends them here.
+  if (one.allOut && one.madeIn === undefined) stopSending();
   // Every batch is numbered here, so the wait for the road comes first, as for one batch. The first
   // batch's resend window still runs from the press; a later one's from when it leaves, as before.
   const pressedAt = Date.now();
+  if (!one.allOut && one.madeIn !== undefined && one.madeIn !== stopGeneration) {
+    throw Object.assign(notSentError(), { landed: 0, skipped: [] });
+  }
+  const stop = one.stop ?? stopControl.signal;
   if (!roadKnown(one.slug) || roadWaits.has(one.slug)) await roadDecided(one.slug, pressedAt + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
   const session = seqSessions.get(one.slug);
   const senders = batches.map((batch) => (session ? pressSender(one.slug, session, batch, !!one.allOut) : null));
@@ -1987,7 +2156,7 @@ async function sendControlVerbsOnce(
         sent.skipped.push(...new Set(batch.filter((item) => !items.includes(item)).map((item) => item.graphic)));
       }
       const each = items.length
-        ? await sendControlVerb({ ...one, items, sender: senders[index], ...(index === 0 ? { pressedAt } : {}) })
+        ? await sendControlVerbOnce({ ...one, stop, items, sender: senders[index], ...(index === 0 ? { pressedAt } : {}) })
         : { skipped: [], superseded: [], pressedAgain: [] };
       waveLanded = Date.now();
       sent.skipped.push(...each.skipped);
@@ -2046,8 +2215,10 @@ let lastPress = 0;
  */
 const seqQueue = createGraphicFifo(ATTEMPT_TIMEOUT_MS);
 
-/** One verb on protocol 2: queued behind the same graphic's send in flight (All out is not), sent
- *  and resent like any verb, and its answer settled - a stale refusal throws the plain sentence. */
+/** One verb on protocol 2: queued in its graphics' lanes (All out is not), sent and resent like
+ *  any verb, and its answer settled - a stale refusal throws the plain sentence. A HELD press
+ *  (#2655 R1) is sent until it lands; a refusal or an answered error after one of its attempts
+ *  went unanswered is read as R6a says. The lanes are keyed by production slug and graphic. */
 async function sendSeqVerb(
   slug: string,
   wire: WireItem[],
@@ -2055,18 +2226,47 @@ async function sendSeqVerb(
   sender: SenderBody,
   resend: { deadline: number; stillNewest: () => boolean },
   allOut: boolean,
+  lane: { held: boolean; replaces: (key: string) => boolean; laneStop: AbortSignal; stop: AbortSignal; settled: AbortSignal },
 ): Promise<{ skipped: string[]; superseded: boolean }> {
   const graphics = Object.keys(sender.base);
+  const keys = graphics.map((graphic) => `${slug}:${graphic}`);
+  const { held, stop } = lane;
   let settled: { outcome: 'landed' | 'superseded'; skipped: string[] } = { outcome: 'landed', skipped: [] };
-  const send = () =>
-    // A press that waited in the queue past its own resend window has no fair attempt left: it
-    // is unanswered, never a 0 ms attempt that may still reach the server (review ordering:F5).
-    resend.deadline - Date.now() < MIN_ATTEMPT_MS
-      ? Promise.reject(unansweredError())
-      : sendWithResend(async (signal) => {
-          settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics, sender.id);
-        }, resend);
-  await (allOut ? send() : seqQueue.run(graphics, send));
+  const send = ({ waitedBehindHeld }: { waitedBehindHeld: boolean }) => {
+    // A press that waited behind a held one gets its window from when it leaves (R7b); any other
+    // that waited past its own window has no fair attempt left: it is unanswered, never a 0 ms
+    // attempt that may still reach the server (review ordering:F5).
+    const deadline = waitedBehindHeld ? Math.max(resend.deadline, Date.now() + RESEND_WINDOW_MS) : resend.deadline;
+    if (!held && deadline - Date.now() < MIN_ATTEMPT_MS) return Promise.reject(unansweredError());
+    return sendWithResend(
+      async (signal, attempt) => {
+        // Earlier attempts went unanswered: a copy of them may have landed (R6a).
+        const uncertain = held && attempt > 0;
+        try {
+          settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal, held), graphics, sender.id, uncertain ? { press: sender.press } : undefined);
+        } catch (e) {
+          if (uncertain && !isUnanswered(e) && (e as { unread?: unknown }).unread !== true) throw maybeLandedError((e as Error).message);
+          throw e;
+        }
+      },
+      // Newest wins by ending the earlier press (`laneEnders`): a later press that only modifies the
+      // graphic never ends this one (R7).
+      { deadline, stillNewest: resend.stillNewest, held, stop, settled: lane.settled },
+    );
+  };
+  // Ended while it still waited in its lanes (Stop sending, All out, a replacing press, its own
+  // production closing): it never left, so it is not owed (#2655 R6).
+  let left = false;
+  const leave = (laneState: { waitedBehindHeld: boolean }) => {
+    left = true;
+    return send(laneState);
+  };
+  try {
+    await (allOut ? leave({ waitedBehindHeld: false }) : seqQueue.run(keys, leave, { held, replaces: lane.replaces, stop: lane.laneStop }));
+  } catch (e) {
+    if (!left) throw notSentError((e as Error).message);
+    throw e;
+  }
   return { skipped: settled.skipped, superseded: settled.outcome === 'superseded' };
 }
 
@@ -2076,13 +2276,19 @@ async function sendSeqVerb(
  * this page's 1.5 s attempt so the answer arrives) wrote nothing and the send is idempotent, so it
  * counts as unanswered and is sent again (review latency:F9 and latency:L2).
  */
-async function sendSeqBatch(slug: string, items: WireItem[], sender: SenderBody, signal: AbortSignal): Promise<SendAnswer | null> {
+async function sendSeqBatch(slug: string, items: WireItem[], sender: SenderBody, signal: AbortSignal, held = false): Promise<SendAnswer | null> {
   const sb = await getSupabase();
   if (!sb) throw unansweredError();
   const { data, error, status } = await sb
     .rpc('control_send_seq', { p_slug: slug, p_items: items, p_sender: sender })
     .abortSignal(signal);
   if (error) {
+    // Errors that wrote nothing and pass a moment later go again (#2655 R2): a gateway's 408 or
+    // 429 on any press, and for a press sent until it lands the burst cap and the retry codes too.
+    if (status === 408 || status === 429 || (held && HELD_RESEND_CODES.has(error.code ?? ''))) {
+      console.warn(`[control] control_send_seq: ${status} ${error.code ?? ''} ${error.message.slice(0, 160)}`);
+      throw unansweredError();
+    }
     if (error.code === '55P03') {
       console.warn(`[control] control_send_seq: ${status} 55P03 ${error.message.slice(0, 160)}`);
       throw unansweredError();
@@ -2091,6 +2297,10 @@ async function sendSeqBatch(slug: string, items: WireItem[], sender: SenderBody,
   }
   return readSendAnswer(data);
 }
+
+/** The answered errors a held press is sent again after (#2655 R2): the burst cap, a serialization or
+ *  deadlock retry, too many connections. Each wrote nothing, as #2630's `RESEND_CODES` says. */
+const HELD_RESEND_CODES = new Set(['23514', '40001', '40P01', '53300']);
 
 /** What `control_ping_seq` answered: the server's clock at the commit, or why there was no ping.
  *  `passing`: a refusal that may not hold a second later (the head lock, the burst cap, a timeout,
@@ -2278,7 +2488,7 @@ export async function followControlLog(opts: {
         if (bracket) opts.onReplay?.(true);
         try {
           rows.forEach((row) => {
-            heard.claim(row.msg);
+            hear(row.msg);
             opts.onRow(row);
           });
         } finally {
@@ -2314,7 +2524,7 @@ export async function followControlLog(opts: {
     from: opts.from,
     tail: opts.tail,
     onRow: (row) => {
-      heard.claim(row.msg);
+      hear(row.msg);
       opts.onRow(row);
     },
     onReplay: opts.onReplay,
@@ -2343,7 +2553,7 @@ export async function followControlLog(opts: {
     }
     report();
   }, onCommand && ((items) => {
-    for (const item of items) heard.claim(item.msg);
+    for (const item of items) hear(item.msg);
     if (!follower.walking) onCommand(items);
   }), opts.onCommandStatus);
   return () => {

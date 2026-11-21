@@ -239,6 +239,62 @@ async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown)
   return { sendsSeq: () => seq, sendsById: () => byId, numbered };
 }
 
+// #2655 R3, R6: a Take nobody answers is sent until it lands, says "still sending" with Stop
+// sending past the old 4 s window, and ends with its production: leaving the page sends nothing
+// more, so it can never air after the operator moved on.
+test('a Take nobody answers says "still sending", and leaving the production stops it (#2655)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const sends: number[] = [];
+  page.on('request', (r) => {
+    if (r.url().includes('/rpc/control_send_seq')) sends.push(Date.now());
+  });
+  await publishedPage(page, (rpc, fixture) =>
+    rpc === 'control_show_resolve'
+      ? { status: 200, body: { ...(fixture as object), epoch: '00000000-0000-4000-8000-00000000e9c4' } }
+      : rpc === 'control_send_seq'
+        ? { delay: 120_000 }
+        : null,
+  );
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  const air = page.getByTestId('program-air');
+  await expect(air).toHaveText(/still sending/, { timeout: 10_000 });
+  await expect(page.getByTestId('stop-sending')).toBeVisible();
+  await expect(page.getByTestId('production-note')).toHaveCount(0);
+  await expect.poll(() => sends.length, { message: 'sent again past the old window', timeout: 15_000 }).toBeGreaterThanOrEqual(4);
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const left = sends.length;
+  await page.waitForTimeout(10_000);
+  expect(sends.length, 'nothing is sent after the production closed').toBe(left);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+// #2655 R7a on the row-id road (a server with no numbered road): All out is never stopped, so a
+// second All out, Stop sending or the production closing cannot cut one already on its way.
+test('an All out on the row-id road is not cut by a stop while it is on its way (#2655)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { sendsById } = await publishedPage(page, (rpc) =>
+    rpc === 'control_show_resolve'
+      ? { status: 404, body: { code: 'PGRST202', message: 'Could not find the function', details: null, hint: null } }
+      : rpc === 'control_send_many'
+        ? { delay: 600 }
+        : null,
+  );
+  const showId = page.url().split('/production/')[1];
+  const result = await page.evaluate(async (showId) => {
+    const { sendControlVerbs, sendsInOrder, stopSending } = await __noacgImport('/src/control/hostedControl.ts');
+    const allOut = sendControlVerbs({ slug: 'status-slug', showId, batches: [[{ graphic: 'Guest Strap', msg: { t: 'stop' } }]], allOut: true });
+    await new Promise((r) => setTimeout(r, 150));
+    stopSending();
+    const outcome = await allOut.then(() => 'landed', (e: Error) => e.message);
+    return { outcome, numbered: sendsInOrder('status-slug') };
+  }, showId);
+  expect(result.numbered, 'this server has no numbered road').toBe(false);
+  expect(result.outcome, 'the All out was not cut').toBe('landed');
+  expect(sendsById()).toBeGreaterThan(0);
+});
+
 test('a refused resolve is asked again, so the page keeps its order: no mark, and a Take goes numbered (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   // The first TWO: a dev build mounts the page's wire twice, so two resolves leave at once, and an
@@ -279,9 +335,10 @@ test('a press made while the resolve is on its way waits for it and goes numbere
   expect(sendsById()).toBe(0);
 });
 
-// Driven through the page's own send module, so the numbers are the page's: the Out leaves 50 ms
+// Driven through the page's own send module, so the numbers are the page's: the Update leaves 50 ms
 // after the Take, both while the resolve is held. Fault-injected: with one wait per press and the
-// Out's waking first, the Out took the lower number and the Take then stood over it.
+// second press waking first, it took the lower number and the Take then stood over it. (An Update,
+// not an Out, since #2655 R7: an Out replaces the graphic and ends a Take it was pressed after.)
 test('two presses made while the resolve is on its way keep their order (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   const { numbered } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
@@ -290,19 +347,19 @@ test('two presses made while the resolve is on its way keep their order (#1697)'
   const showId = page.url().split('/production/')[1];
   await page.evaluate(async (showId) => {
     const { sendControlVerb } = await __noacgImport('/src/control/hostedControl.ts');
-    const press = (t: 'play' | 'stop') => sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] });
-    const take = press('play');
+    const take = sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
     await new Promise((r) => setTimeout(r, 50));
-    await Promise.all([take, press('stop')]);
+    await Promise.all([take, sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'update', data: {} } }] })]);
   }, showId);
   const take = numbered.find((n) => n.t === 'play');
-  const out = numbered.find((n) => n.t === 'stop');
-  expect(take && out, 'both went numbered').toBeTruthy();
-  expect(take!.press, 'the Take is numbered before the Out it was pressed before').toBeLessThan(out!.press);
+  const update = numbered.find((n) => n.t === 'update');
+  expect(take && update, 'both went numbered').toBeTruthy();
+  expect(take!.press, 'the Take is numbered before the Update it was pressed before').toBeLessThan(update!.press);
 });
 
 // All out, a verb of several batches, numbers them all at its press. Pressed the moment the resolve
-// lands, while an older Take still waits for it, it must still come after that Take.
+// lands, while an older Take still waits for it, it must still come after that Take. Since #2655
+// R7a it ends that Take first: the Take is never sent, so it can never air after the All out.
 test('All out pressed as the resolve lands is numbered after an older waiting Take (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   const { numbered } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
@@ -314,12 +371,14 @@ test('All out pressed as the resolve lands is numbered after an older waiting Ta
     const take = sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
     while (!sendsInOrder('status-slug')) await new Promise((r) => setTimeout(r, 2));
     const allOut = sendControlVerbs({ slug: 'status-slug', showId, batches: [[{ graphic: 'Guest Strap', msg: { t: 'stop' } }]], allOut: true });
-    await Promise.all([take, allOut]);
+    await Promise.all([take.catch(() => null), allOut]);
   }, showId);
   const take = numbered.find((n) => n.t === 'play');
   const out = numbered.find((n) => n.t === 'stop');
-  expect(take && out, 'both went numbered').toBeTruthy();
-  expect(take!.press, 'the Take is numbered before the All out pressed after it').toBeLessThan(out!.press);
+  expect(out, 'the All out went numbered').toBeTruthy();
+  // Ended before it left, it is never sent; if it had already left as the All out was pressed, it
+  // still carries the lower number, so the server refuses it after the panic.
+  if (take) expect(take.press, 'the Take is numbered before the All out pressed after it').toBeLessThan(out!.press);
 });
 
 test('a press on a production the resolve called missing asks again, and goes numbered once it exists (#1697)', async ({ page }) => {

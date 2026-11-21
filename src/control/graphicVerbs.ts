@@ -63,7 +63,7 @@ import { mintOid, oidOf } from './commandRoads.ts';
 import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
 import { withPeersOff } from './ografOutcome.ts';
 import { markerAuto } from './cueAuto.ts';
-import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUncertain } from './failedSends.ts';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isMaybeLanded, isUncertain } from './failedSends.ts';
 import { leftAlone, pressOuts, reachedOutput, withLiveCue } from './liveCue.ts';
 import { createMarkerSender, type MarkerSent } from './markerSender.ts';
 import { staleSentence } from './seqSend.ts';
@@ -87,6 +87,8 @@ interface Queued {
 interface GraphicTake {
   ok: boolean;
   note: string;
+  /** Failed because a later press of this page already replaced it: say nothing (#2655 R7). */
+  replaced?: true;
   /** Sent, and only its output can say whether it is on air (an imported OGraf package). */
   unconfirmed?: true;
 }
@@ -134,6 +136,11 @@ export interface VerbSender {
   noOutput: () => void;
   /** The note line: a sentence, or a fold over the one shown (a landed send settling a debt). */
   note: (next: string | ((shown: string | null) => string | null)) => void;
+  /** The stop generation the press was made in (hostedControl.ts `sendStopGeneration`), stamped
+   *  by the verbs when they take the page at the press. Absent, the press is made as it leaves. */
+  madeIn?: number;
+  /** Aborted when this page's playout session ends: every press it still sends stops (#2655 R3). */
+  stop?: AbortSignal;
 }
 
 /** What the module needs from the page while the page still owns it, as its latest render has it. */
@@ -268,6 +275,12 @@ export interface GraphicVerbIo {
   nameList: (names: string[]) => string;
   /** The wall clock (ms), for when the log last took a send. */
   now: () => number;
+  /** The current stop generation (hostedControl.ts `sendStopGeneration`, #2655 R7a). Absent, no
+   *  press is ever stopped before it leaves. */
+  stopGeneration?: () => number;
+  /** Ends every press this page is still sending or has not sent yet (hostedControl.ts
+   *  `stopSending`): All out calls it the moment it is pressed (#2655 R7a). */
+  stopSending?: () => void;
   /** The id a marker press of this sender is sent with (commandRoads.ts `mintOid`; a test names it
    *  after the press's number). */
   mintOid?: (n: number) => string;
@@ -329,10 +342,26 @@ const figuresOf = (msg: { t: string }): Record<string, string> | undefined => {
   return m.t === 'update' ? m.data : m.t === 'event' ? m.payload : undefined;
 };
 
+/** What a press a later press of this page already replaced came to (#2655 R7): for a list of what
+ *  each graphic came to and a press's mark, never the note line. */
+export const REPLACED_NOTE = 'A later press replaced it.';
+
 /** Refused at the session's end: nothing more is sent for a production that is closed (§4.1 R3). */
 const ENDED_NOTE = 'This production is closed, so nothing was sent.';
 
-export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, sender: () => VerbSender, readPage: () => GraphicPage): GraphicVerbs {
+export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, pageSender: () => VerbSender, readPage: () => GraphicPage): GraphicVerbs {
+  /** The page as a press sends with it, stamped with the stop generation of the press: a press
+   *  still waiting for the one before it when the operator stops sending, or presses All out,
+   *  never leaves (#2655 R7a). */
+  const sender = (): VerbSender => {
+    const s = pageSender();
+    // A press a later press of this page already replaced ends quietly: its note never reaches the
+    // note line, so it neither shows nor clears another press's notice (#2655 R7).
+    const note: VerbSender['note'] = (next) => {
+      if (next !== REPLACED_NOTE) s.note(next);
+    };
+    return { ...s, note, ...(io.stopGeneration ? { madeIn: io.stopGeneration() } : {}) };
+  };
   /** The page as a press reads it. Once the production closed, its writes move nothing: no cue,
    *  no tree and no Bridge clear for a closed production (§4.1 R3), as the session's folds and the
    *  sender already refuse. */
@@ -348,6 +377,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       clearThroughBridge: async (note) => (alive() ? p.clearThroughBridge(note) : note),
     };
   };
+  /** Counts this page's sends in the order they are made (`createSendDebts`). */
+  let sendOrder = 0;
   /** Each graphic's last live press, which the next one waits for. */
   const presses = new Map<string, Promise<void>>();
   /** Each graphic's own Takes, Updates and Outs of this page still out, all of which the next live
@@ -551,6 +582,12 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   // PROGRAM monitor always, so the two can never drift into two behaviours. ──
   /** `moved`: the figures a live event moves on its graphic, which its payload may not carry. */
   const sendWith = async (p: VerbSender, batches: ControlSendItem[][], label: string, allOut = false, moved?: Record<string, string>): Promise<Sent> => {
+    // This send's place among this page's presses: its debt and its landing are judged by it.
+    const order = (sendOrder += 1);
+    // The record of the production this press was made in: a press still ending after its
+    // production closed books nothing into the next one's (#2655).
+    const debts = p.debts();
+    const ownDebts = () => (session.alive() ? debts : null);
     const stamp = ++sendSeq;
     // Counted as the send leaves, so a send pressed later always counts after this one.
     const looked = new Set(batches.flat().filter((item) => item.msg.t === 'stop' || (item.msg.t === 'update' && item.msg.appearance !== undefined)).map((item) => item.graphic));
@@ -639,11 +676,16 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         fastEvents: p.fastEvent,
         serverInstant: p.serverInstant,
         allOut,
+        ...(p.madeIn !== undefined ? { madeIn: p.madeIn } : {}),
+        ...(p.stop ? { stop: p.stop } : {}),
       });
       markers.answer(pressed, (m) => reachedOutput(sent, m.graphic));
       settle((graphic) => reachedOutput(sent, graphic));
-      p.note(p.debts().landed(marked.flat()));
-      p.owed(p.debts().owed() > 0);
+      const record = ownDebts();
+      if (record) {
+        p.note(record.landed(marked.flat(), order));
+        p.owed(record.owed() > 0);
+      }
       p.loggedAt(io.now());
       // A graphic went up with nothing reporting that could air it: the status says "No output" in
       // red until something connects (playout-workflow-simplification AC-2). Never blocked.
@@ -654,27 +696,49 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       // that never happened: this monitor applied the commands before the round trip. A press
       // another screen had already overtaken was refused by the server (protocol 2, migration 0071).
       const stale = io.verbStale(e);
+      // A copy of a press sent until it lands may have landed (#2655 R6a): never "did not change".
       const note = stale
         ? staleSentence(e as Error)
-        : io.verbAired(e)
+        : isMaybeLanded(e)
+          ? `${label} may have reached air; not confirmed (${(e as Error).message}).`
+          : io.verbAired(e)
           ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
           : `${label} failed: ${(e as Error).message}`;
       // Owed: the batch that failed, as it was sent, and those after it. The ones before it landed.
+      // A press stopped before that batch left owes nothing more: none of it can land (#2655).
       const landed = io.verbsLanded(e);
       const failedItems = io.verbSentItems(e) ?? marked[landed] ?? [];
-      p.debts().failed([...failedItems, ...marked.slice(landed + 1).flat()], note);
+      const neverLeft = (e as { stopped?: unknown }).stopped === true && failedItems.length === 0;
+      // One that never left but moved this monitor is owed all the same, with no ids: no row can
+      // pay it, only a later press of its graphics (failedSends.ts `createSendDebts`).
+      const owedItems = neverLeft
+        ? io.verbAired(e)
+          ? marked.slice(landed).flat().map(({ graphic, msg }) => ({ graphic, msg: { t: msg.t } }))
+          : []
+        : [...failedItems, ...marked.slice(landed + 1).flat()];
+      const record = ownDebts();
+      // The batches before the failed one landed: a fact the record judges by this press's order.
+      if (record && landed > 0) p.note(record.landed(marked.slice(0, landed).flat(), order));
+      // A LATER PRESS ALREADY STANDS: an Out (or a Re-take) of this page landed while this press was
+      // still ending, so nothing is owed and nothing needs saying. "Send it again" would put back
+      // what the operator just took off (#2655 R7, newest wins).
+      const replacedSince = !stale && !!record && record.replacedSince(owedItems, order);
+      if (!replacedSince) record?.failed(owedItems, note, order);
       const uncertain = isUncertain(e);
       const skipped = io.verbsSkipped(e);
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
       markers.failed(pressed, landed, skipped, uncertain && !stale);
       settle((graphic, batch) => batch < landed && !skipped.includes(graphic));
-      p.owed(true);
+      // Owed only while a debt is: a press that never left, or one a later press already paid,
+      // leaves nothing a row could ever clear (#2655).
+      if (record) p.owed(record.owed() > 0);
       // Refused as stale on any road, this page learned the head: a live candidate there must not
       // then follow on its own over the other screen's change.
       if (stale) {
         const named = (e as { graphics?: unknown }).graphics;
         page().selectionStale(Array.isArray(named) ? (named as string[]) : [...new Set(marked.flat().map((item) => item.graphic))]);
       }
+      if (replacedSince) return { ok: false, note: REPLACED_NOTE, replaced: true };
       return { ok: false, note, ...(stale ? { stale: true as const } : uncertain ? { uncertain: true as const } : {}) };
     } finally {
       p.sending(-1);
@@ -778,7 +842,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const sent = await sending;
     if (!sent.ok) {
       for (const { c } of captured) c.undo(sent);
-      return { ok: false, note: sent.note };
+      return { ok: false, note: sent.note, ...(sent.replaced ? { replaced: true as const } : {}) };
     }
     // A capture lands only with its press on the output; a later press that overtook it stands.
     for (const { g, c } of captured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
@@ -886,7 +950,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  later press, refused as stale, unanswered (it may still commit), or failed. */
   const doneOf = (sent: Sent, graphic: string): PressDone =>
     !sent.ok
-      ? { outcome: sent.stale ? 'refused' : sent.uncertain ? 'unknown' : 'failed', note: sent.note }
+      ? { outcome: sent.stale || sent.replaced ? 'refused' : sent.uncertain ? 'unknown' : 'failed', note: sent.note }
       : reachedOutput(sent, graphic)
         ? { outcome: 'accepted' }
         : { outcome: 'refused', note: 'A later press replaced it.' };
@@ -1017,6 +1081,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  server's heads say is up, in one send. */
   const allOut: GraphicVerbs['allOut'] = async server => {
     if (!session.alive()) return;
+    // Nothing pressed before the panic is sent after it, and a press made while All out cuts the
+    // server's layers below is a press made after it (#2655 R7a): the line is drawn here, first.
+    io.stopSending?.();
     const s = sender();
     const p = page();
     // A folder's Take still being sent sends nothing more, and what of it lands after is cut too:
@@ -1270,7 +1337,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
           if (!appearance) return void (result.updated += 1);
           const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data: {}, appearance } }]], 'Send to on-air graphics');
           if (sent.ok && reachedOutput(sent, graphic)) result.updated += 1;
-          else result.failed.push({ graphic, note: sent.ok ? 'A later press replaced it.' : sent.note });
+          else result.failed.push({ graphic, note: sent.ok ? REPLACED_NOTE : sent.note });
         }),
       ),
     );

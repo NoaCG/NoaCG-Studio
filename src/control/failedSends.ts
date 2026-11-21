@@ -63,12 +63,51 @@ export const ATTEMPT_TIMEOUT_MS = 1500;
  *  its request might still reach the server and commit late. */
 export const MIN_ATTEMPT_MS = 250;
 
+/**
+ * A PRESS SENT UNTIL IT LANDS (#2655, docs/work-specs/live-publishing/evidence/fix-2655.md R1, R2).
+ *
+ * The window above gave up 4 s after the press. On hosted staging's slow spells (p95 39 s) that
+ * lost Takes: 8 of 163, 4 of 233, 19 of 51 with five people. A press the numbered road can take
+ * twice without airing twice (seqSend.ts `heldPress`, R4's proof) is instead sent again with no
+ * end, until an answer, its own row heard back, a later press that replaces its graphic, All out,
+ * or the operator's Stop sending. Its first HELD_SHORT_ATTEMPTS attempts are cut at
+ * ATTEMPT_TIMEOUT_MS as before; every later one at HELD_ATTEMPT_MS, the signed-in statement
+ * timeout, and they start RESEND_EVERY_MS apart, so a slow spell gets at most one new copy of it
+ * per 12 s: a copy the page abandons still waits in the server's queue (R8).
+ */
+export const HELD_SHORT_ATTEMPTS = 4;
+export const HELD_ATTEMPT_MS = 8000;
+export const RESEND_EVERY_MS = 4000;
+
 /** What the operator reads when the server did not answer, in place of the server's own words. */
 export const UNANSWERED = 'the server did not answer';
 
 /** An Error for a send the server did not answer, carrying the plain sentence. */
 export function unansweredError(): Error {
   return Object.assign(new Error(UNANSWERED), { unanswered: true });
+}
+
+/** The words a press ends with when the operator stopped sending it, or pressed All out (R6, R7a). */
+export const STOPPED = 'sending stopped';
+
+/** An Error for a press the operator stopped: unanswered as far as anyone knows, so it is owed and a
+ *  copy already on its way that lands is still recognised (`heard`). Never sent again. */
+export function stoppedError(): Error {
+  return Object.assign(new Error(STOPPED), { unanswered: true, stopped: true });
+}
+
+export function isStopped(e: unknown): boolean {
+  return (e as { stopped?: unknown } | null)?.stopped === true;
+}
+
+/** An Error for a held press whose outcome is unknown (R6a): a copy may have landed or may still
+ *  land, so it is owed like an unanswered send, but it is not sent again. */
+export function maybeLandedError(message: string): Error {
+  return Object.assign(new Error(message), { unread: true, maybeLanded: true });
+}
+
+export function isMaybeLanded(e: unknown): boolean {
+  return (e as { maybeLanded?: unknown } | null)?.maybeLanded === true;
 }
 
 export function isUnanswered(e: unknown): boolean {
@@ -147,14 +186,27 @@ export function rpcFailure(rpc: string, error: { message: string; code?: string 
  * still being retried when the operator presses Out on its graphic stops trying, because landing
  * after the Out would put the graphic back on air. Each attempt is abandoned at its own deadline
  * (ATTEMPT_TIMEOUT_MS, and never past the window), and `send` is handed the signal that cancels
- * its request then. The error thrown is the last attempt's.
+ * its request then, and the attempt's number (0 first: a later one follows an unanswered one).
+ * The error thrown is the last attempt's.
+ *
+ * A HELD press (`held`, #2655 R2) has no window: its deadline is ignored, and after the listed
+ * delays it is sent again every RESEND_EVERY_MS, its later attempts cut at HELD_ATTEMPT_MS.
+ * `stop` ends any press at once, an attempt in flight or a wait between two: its reason is the
+ * error thrown (`stoppedError`, or the last attempt's for a press a later one replaced).
  */
 export async function sendWithResend(
-  send: (signal: AbortSignal) => Promise<void>,
+  send: (signal: AbortSignal, attempt: number) => Promise<void>,
   opts: {
     /** Epoch ms after which no attempt starts or runs on: the press plus RESEND_WINDOW_MS. */
     deadline: number;
     stillNewest: () => boolean;
+    /** Sent until it lands (#2655): no deadline, the long schedule above. */
+    held?: boolean;
+    /** Aborted: no further attempt, and the one in flight is abandoned now. */
+    stop?: AbortSignal;
+    /** Aborted: no further attempt, and a wait between two ends now, but the attempt in flight
+     *  still gets its answer (its own row was heard: the answer says what it skipped). */
+    settled?: AbortSignal;
     now?: () => number;
     sleep?: (ms: number) => Promise<void>;
     /** Calls `fire` after `ms` unless the returned cancel is called first. */
@@ -167,35 +219,76 @@ export async function sendWithResend(
     return () => clearTimeout(id);
   });
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => timer(ms, resolve)));
+  const stop = opts.stop;
+  // A copy per press: one stop ends many presses, and each writes what it carried onto its error
+  // (hostedControl.ts), so a shared reason would hand one press's ids to another.
+  const stopped = (last: unknown) =>
+    stop?.reason instanceof Error ? Object.assign(new Error(stop.reason.message), stop.reason) : last ?? stoppedError();
+  let last: unknown = null;
   for (let attempt = 0; ; attempt += 1) {
+    if (stop?.aborted) throw stopped(last);
+    const ms = opts.held
+      ? attempt < HELD_SHORT_ATTEMPTS ? ATTEMPT_TIMEOUT_MS : HELD_ATTEMPT_MS
+      : Math.min(ATTEMPT_TIMEOUT_MS, opts.deadline - now());
     try {
-      await attemptWithin(send, Math.min(ATTEMPT_TIMEOUT_MS, opts.deadline - now()), timer);
+      await attemptWithin((signal) => send(signal, attempt), ms, timer, stop);
       return;
     } catch (e) {
-      const wait = RESEND_DELAYS_MS[attempt];
-      if (!isUnanswered(e) || wait === undefined || now() + wait + MIN_ATTEMPT_MS > opts.deadline) throw e;
-      await sleep(wait);
+      last = e;
+      if (stop?.aborted) throw stopped(e);
+      const wait = RESEND_DELAYS_MS[attempt] ?? (opts.held ? RESEND_EVERY_MS : undefined);
+      if (!isUnanswered(e) || wait === undefined) throw e;
+      if (!opts.held && now() + wait + MIN_ATTEMPT_MS > opts.deadline) throw e;
+      if (!opts.stillNewest() || opts.settled?.aborted) throw e;
+      await abortable(abortable(sleep(wait), stop), opts.settled);
+      if (stop?.aborted) throw stopped(e);
+      if (opts.settled?.aborted) throw e;
       if (!opts.stillNewest()) throw e;
     }
   }
 }
 
-/** One attempt, abandoned after `ms`: its request is cancelled and whatever it answers later is
- *  ignored, so a transport that never answers (or ignores the signal) still ends the attempt. */
+/** `wait`, or as soon as `stop` aborts, whichever is first. */
+function abortable(wait: Promise<void>, stop?: AbortSignal): Promise<void> {
+  if (!stop) return wait;
+  return new Promise<void>((resolve) => {
+    if (stop.aborted) return resolve();
+    const done = () => {
+      stop.removeEventListener('abort', done);
+      resolve();
+    };
+    stop.addEventListener('abort', done);
+    void wait.then(done);
+  });
+}
+
+/** One attempt, abandoned after `ms` or when `stop` aborts: its request is cancelled and whatever
+ *  it answers later is ignored, so a transport that never answers (or ignores the signal) still
+ *  ends the attempt. */
 function attemptWithin(
   send: (signal: AbortSignal) => Promise<void>,
   ms: number,
   timer: (ms: number, fire: () => void) => () => void,
+  stop?: AbortSignal,
 ): Promise<void> {
   const controller = new AbortController();
   let cancel = () => {};
+  let unlisten = () => {};
   const expired = new Promise<never>((_, reject) => {
-    cancel = timer(Math.max(0, ms), () => {
+    const end = () => {
       controller.abort();
       reject(unansweredError());
-    });
+    };
+    cancel = timer(Math.max(0, ms), end);
+    if (stop) {
+      stop.addEventListener('abort', end);
+      unlisten = () => stop.removeEventListener('abort', end);
+    }
   });
-  return Promise.race([send(controller.signal), expired]).finally(cancel);
+  return Promise.race([send(controller.signal), expired]).finally(() => {
+    cancel();
+    unlisten();
+  });
 }
 
 /**
@@ -217,17 +310,24 @@ function attemptWithin(
 interface SendDebts {
   /** A send carrying these items failed. Each item's `msg.oid`, when it has one, is how its row
    *  is recognised if it commits after all. */
-  failed(items: readonly { graphic: string; msg?: unknown }[], notice: string): void;
+  failed(items: readonly { graphic: string; msg?: unknown }[], notice: string, order?: number): void;
   /** A send carrying these items landed. Returns the notice line's next state: cleared if it
    *  still shows a failure this settled (on its own, or inside a folder's summary of its cues),
-   *  and untouched while anything is still owed or once the line has moved on. */
-  landed(items: readonly { graphic: string }[]): (shown: string | null) => string | null;
+   *  and untouched while anything is still owed or once the line has moved on.
+   *  A graphic whose failed send REPLACED it (a `play` or `stop`: a Take, an Out) is settled only
+   *  by a landed send that replaces it too: an Update landing after a lost Take leaves the Take
+   *  owed (#2655 R7). An item without its command counts as replacing. */
+  landed(items: readonly { graphic: string; msg?: unknown }[], order?: number): (shown: string | null) => string | null;
   /** These commands came back from the server (a row, or its broadcast). When one is a failed
    *  send's own, its graphic is settled: the notice line's next state as `landed` returns it, or
    *  null when nothing changed. */
   heard(items: readonly { graphic: string; msg?: unknown }[]): ((shown: string | null) => string | null) | null;
   /** How many graphics are still owed: a failed send of theirs that nothing has settled yet. */
   owed(): number;
+  /** Whether a later press of this page that REPLACES the graphic already landed on every graphic
+   *  this failure carries (or its own row came back): then it is paid, and ends quietly (#2655
+   *  R7). A later press that only modified a graphic does not silence it. */
+  replacedSince(items: readonly { graphic: string; msg?: unknown }[], order: number): boolean;
 }
 
 /** commandRoads.ts `oidOf`, restated because this file imports nothing. */
@@ -236,45 +336,108 @@ const oidIn = (msg: unknown): string | null => {
   return typeof oid === 'string' && oid.length > 0 ? oid : null;
 };
 
+/** Whether this command replaces its graphic's state rather than modifying it (#2655 R7): a Take's
+ *  `play` or an Out's `stop`. Restated from seqSend.ts `REPLACING`, because this file imports nothing. */
+const replacing = (msg: unknown): boolean => {
+  const t = (msg as { t?: unknown } | null | undefined)?.t;
+  return t === 'play' || t === 'stop';
+};
+
 export function createSendDebts(): SendDebts {
-  /** Per graphic owed, the ids its newest failed send carried (none, when it carried none). */
-  const owed = new Map<string, Set<string>>();
+  /**
+   * ONE RULE, FACTS IN ANY ORDER (#2655, the Repeated-family reassessment). Every fact about a
+   * send carries its press order: it failed (with these ids), it landed by its answer, its own row
+   * was heard. Per graphic, a failure of order o is owed unless its own row was heard, or a landing
+   * of a LATER press of this page is known that replaces the graphic (or, for a failure that only
+   * modified it, any later landing of it). A slow spell delivers these facts in any order (an Out
+   * lands while the Take before it is still ending; an older press fails after a newer one), so
+   * nothing here depends on which call came first.
+   */
+  type Debt = { order: number; replaced: boolean; oids: Set<string>; paid: boolean };
+  const debts = new Map<string, Debt[]>();
+  /** Per graphic, the latest order of a landing that replaced it, and of any landing of it. */
+  const replacedAt = new Map<string, number>();
+  const touchedAt = new Map<string, number>();
+  /** Ids heard back before their failure was booked (bounded, oldest first out). */
+  const heardIds = new Set<string>();
   let notices: string[] = [];
+  /** A call with no order is ordered by when it is made (tests, and any caller that has none). */
+  let calls = 0;
+  const orderOf = (order: number | undefined) => {
+    calls += 1;
+    return order ?? calls;
+  };
+  const owedOn = (graphic: string): boolean =>
+    (debts.get(graphic) ?? []).some(
+      (d) => !d.paid && !((replacedAt.get(graphic) ?? -Infinity) > d.order) && !(!d.replaced && (touchedAt.get(graphic) ?? -Infinity) > d.order),
+    );
+  const owedGraphics = () => [...debts.keys()].filter(owedOn);
+  /** A graphic owed nothing now can only be owed again by a new failure: landings and rows only pay. */
+  const prune = () => {
+    for (const graphic of [...debts.keys()]) if (!owedOn(graphic)) debts.delete(graphic);
+  };
+  const landing = (graphic: string, order: number, replaces: boolean) => {
+    touchedAt.set(graphic, Math.max(touchedAt.get(graphic) ?? -Infinity, order));
+    if (replaces) replacedAt.set(graphic, Math.max(replacedAt.get(graphic) ?? -Infinity, order));
+  };
   const unchanged = (shown: string | null) => shown;
   const settle = () => {
-    if (owed.size > 0 || notices.length === 0) return unchanged;
+    prune();
+    if (debts.size > 0 || notices.length === 0) return unchanged;
     const settled = notices;
     notices = [];
     return (shown: string | null) => (shown !== null && settled.some((s) => shown.includes(s)) ? null : shown);
   };
   return {
-    failed(items, notice) {
-      const newest = new Map<string, Set<string>>();
+    failed(items, notice, order) {
+      const at = orderOf(order);
+      const newest = new Map<string, Debt>();
       for (const item of items) {
-        const oids = newest.get(item.graphic) ?? new Set<string>();
+        const debt = newest.get(item.graphic) ?? { order: at, replaced: false, oids: new Set<string>(), paid: false };
         const oid = oidIn(item.msg);
-        if (oid) oids.add(oid);
-        newest.set(item.graphic, oids);
+        if (oid) debt.oids.add(oid);
+        if (replacing(item.msg)) debt.replaced = true;
+        newest.set(item.graphic, debt);
       }
-      for (const [graphic, oids] of newest) owed.set(graphic, oids);
+      for (const [graphic, debt] of newest) {
+        // Its own row may already have come back: then it landed, at its own order.
+        if ([...debt.oids].some((oid) => heardIds.has(oid))) {
+          debt.paid = true;
+          landing(graphic, debt.order, debt.replaced);
+        }
+        debts.set(graphic, [...(debts.get(graphic) ?? []), debt]);
+      }
       notices.push(notice);
+      prune();
     },
-    landed(items) {
-      for (const item of items) owed.delete(item.graphic);
+    landed(items, order) {
+      const at = orderOf(order);
+      const replaces = new Set(items.filter((item) => !('msg' in item) || replacing(item.msg)).map((item) => item.graphic));
+      for (const graphic of new Set(items.map((item) => item.graphic))) landing(graphic, at, replaces.has(graphic));
       return settle();
     },
     heard(items) {
-      let any = false;
+      const before = owedGraphics().length;
       for (const item of items) {
         const oid = oidIn(item.msg);
-        if (oid && owed.get(item.graphic)?.has(oid)) {
-          owed.delete(item.graphic);
-          any = true;
+        if (!oid) continue;
+        heardIds.add(oid);
+        if (heardIds.size > 2048) heardIds.delete(heardIds.values().next().value as string);
+        for (const debt of debts.get(item.graphic) ?? []) {
+          if (debt.paid || !debt.oids.has(oid)) continue;
+          debt.paid = true;
+          landing(item.graphic, debt.order, debt.replaced);
         }
       }
-      return any ? settle() : null;
+      return owedGraphics().length < before ? settle() : null;
     },
-    owed: () => owed.size,
+    owed: () => owedGraphics().length,
+    replacedSince(items, order) {
+      return items.length > 0 && [...new Set(items.map((item) => item.graphic))].every((graphic) => {
+        const mine = items.filter((item) => item.graphic === graphic);
+        return mine.some((item) => heardIds.has(oidIn(item.msg) ?? '')) || (replacedAt.get(graphic) ?? -Infinity) > order;
+      });
+    },
   };
 }
 

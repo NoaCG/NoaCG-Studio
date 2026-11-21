@@ -70,6 +70,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
   const debtCalls = [];
   let sending = 0;
   let owedCount = 0;
+  let replacedSince = false;
   const inFlight = [];
   const timers = [];
   const debts = {
@@ -77,8 +78,14 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
       debtCalls.push(['landed', items.length]);
       return (shown) => shown;
     },
-    failed: (items, note) => debtCalls.push(['failed', items.map((i) => `${i.graphic}:${i.msg.t}`), note]),
+    failed: (items, note) => {
+      debtCalls.push(['failed', items.map((i) => `${i.graphic}:${i.msg.t}`), note]);
+      // As the real record does: a failure carrying items is owed (failedSends.ts createSendDebts).
+      if (items.length > 0) owedCount = Math.max(owedCount, 1);
+    },
     owed: () => owedCount,
+    // Nothing in these walks lands a later press before an earlier one fails, unless a test says so.
+    replacedSince: () => replacedSince,
   };
   const sender = {
     published,
@@ -222,7 +229,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     return press(view, ...rest);
   };
   const verbs = { ...created, event: seeded(created.event), bump: seeded(created.bump), snap: seeded(created.snap) };
-  return { setOwed: (n) => (owedCount = n), timers, inFlight, state, session, verbs, log, sends, flushes, draft, saved, resolved, notes, debtCalls, sender, page, heads, liveCue: () => session.air.get().liveCue, moves: () => session.air.get().moves };
+  return { setOwed: (n) => (owedCount = n), setReplacedSince: (v) => (replacedSince = v), timers, inFlight, state, session, verbs, log, sends, flushes, draft, saved, resolved, notes, debtCalls, sender, page, heads, liveCue: () => session.air.get().liveCue, moves: () => session.air.get().moves };
 }
 
 // ── The sender ──────────────────────────────────────────────────────────────────────────────────
@@ -3885,4 +3892,41 @@ test('an event moving two fields bound to one path queues each field\'s own delt
   r.sends[0].answer.resolve({ ...noneLeft });
   assert.deepEqual(await pressing, { outcome: 'accepted' });
   assert.deepEqual(r.log.filter(([k]) => k === 'press'), [['press', 'match.home+1,match.home+3,match.away=0']]);
+});
+
+// #2655: a press stopped before it ever left owes nothing, so PROGRAM is not left "not confirmed"
+// by something no row can ever settle.
+test('a press stopped before it left owes nothing and leaves nothing unconfirmed', async () => {
+  const r = rig();
+  const take = r.verbs.send([[{ graphic: 'A', msg: { t: 'play' } }]], 'Take');
+  r.sends[0].answer.reject(Object.assign(new Error('sending stopped'), { stopped: true, items: [] }));
+  assert.deepEqual(await take, { ok: false, note: 'Take failed: sending stopped' });
+  assert.deepEqual(r.debtCalls.at(-1), ['failed', [], 'Take failed: sending stopped']);
+  assert.deepEqual(r.log.at(-1), ['owed', false]);
+});
+
+test('a press stopped before it left that already moved this monitor is owed, with no ids a row could match', async () => {
+  const r = rig();
+  const take = r.verbs.send([[{ graphic: 'A', msg: { t: 'play' } }]], 'Take');
+  r.sends[0].answer.reject(Object.assign(new Error('sending stopped'), { stopped: true, items: [], aired: true }));
+  assert.match((await take).note, /^Take is on this monitor only/);
+  assert.deepEqual(r.debtCalls.at(-1), ['failed', ['A:play'], (await take).note]);
+  assert.deepEqual(r.log.at(-1), ['owed', true]);
+});
+
+// #2655 R7: an Out of this page landed while the Take before it was still ending. The Take's
+// failure is already paid, so it ends quietly: no "Send it again" for what was just taken off.
+test('a press a later landed press already replaced ends with no notice and owes nothing', async () => {
+  const r = rig();
+  r.setReplacedSince(true);
+  const sent = r.verbs.send([[{ graphic: 'A', msg: { t: 'play' } }]], 'Take');
+  r.sends.at(-1).answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, aired: true }));
+  assert.deepEqual(await sent, { ok: false, note: 'A later press replaced it.', replaced: true });
+  assert.ok(!r.debtCalls.some((c) => c[0] === 'failed'), 'nothing booked');
+  // Through a verb that writes the note line: nothing is written.
+  const notes = r.notes.length;
+  const ran = r.verbs.run([[{ graphic: 'A', msg: { t: 'play' } }]], 'Take');
+  r.sends.at(-1).answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, aired: true }));
+  assert.equal(await ran, null);
+  assert.equal(r.notes.length, notes, 'the note line is left as it was');
 });

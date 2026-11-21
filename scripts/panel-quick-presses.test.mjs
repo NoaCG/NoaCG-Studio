@@ -220,7 +220,7 @@ function productionPage() {
     armSpecFor: () => null,
     applyHere: () => {},
     fastEvent: () => false,
-    debts: () => ({ landed: () => (shown) => shown, failed: () => {}, owed: () => 0 }),
+    debts: () => ({ landed: () => (shown) => shown, failed: () => {}, owed: () => 0, replacedSince: () => false }),
     outputUsable: () => true,
     sending: () => {},
     owed: () => {},

@@ -265,3 +265,109 @@ test('a session keeps each graphic\'s on flag with the revision it came with', (
   learnHead(s, 'E2', {});
   assert.equal(s.on.size, 0, 'a republished production is a new log');
 });
+
+// ── #2655 (docs/work-specs/live-publishing/evidence/fix-2655.md) ──────────────────────────────
+
+const seq = await import('../src/control/seqSend.ts');
+
+test('R1: which presses are sent until they land', () => {
+  const take = [
+    { graphic: 'S', msg: { t: 'update', data: {} } },
+    { graphic: 'S', msg: { t: 'play' } },
+    { graphic: 'S', msg: { t: 'cue', cue: 'c1' } },
+  ];
+  const out = [{ graphic: 'S', msg: { t: 'stop' } }, { graphic: 'S', msg: { t: 'cue', cue: null } }];
+  assert.equal(seq.heldPress(take, 'E1', false), true, 'a Take');
+  assert.equal(seq.heldPress(out, 'E1', false), true, 'an Out');
+  assert.equal(seq.heldPress([{ graphic: 'S', msg: { t: 'next' } }], 'E1', false), true, 'a Next');
+  assert.equal(seq.heldPress(out, 'E1', true), false, 'All out is never held');
+  assert.equal(seq.heldPress(take, null, false), false, 'no epoch yet: the 4 s window');
+  assert.equal(seq.heldPress([{ graphic: 'S', msg: { t: 'cue', cue: 'c1' } }], 'E1', false), false, 'a cue moves no revision');
+  assert.equal(seq.heldPress([...take, { graphic: 'T', msg: { t: 'cue', cue: null } }], 'E1', false), false, 'every graphic needs a revision command');
+  assert.equal(seq.heldPress([{ graphic: 'S', msg: { t: 'update', data: {}, src: 'api' } }], 'E1', false), false, 'a data row is not a revision');
+});
+
+test('R7: a Take and an Out replace their graphic; an Update, Next, event and Back or Reset only modify it', () => {
+  assert.equal(seq.replacesGraphic([{ graphic: 'S', msg: { t: 'update' } }, { graphic: 'S', msg: { t: 'play' } }], 'S'), true);
+  assert.equal(seq.replacesGraphic([{ graphic: 'S', msg: { t: 'stop' } }], 'S'), true);
+  for (const t of ['update', 'next', 'event', 'snap', 'cue']) assert.equal(seq.replacesGraphic([{ graphic: 'S', msg: { t } }], 'S'), false, t);
+  assert.equal(seq.replacesGraphic([{ graphic: 'T', msg: { t: 'stop' } }], 'S'), false, 'per graphic');
+});
+
+test('R6a: after an unanswered attempt, a refusal is read against the head it carries', () => {
+  const s = createSeqSession('E1', {});
+  const stale = (graphics) => readSendAnswer({ ok: false, refused: 'stale', epoch: 'E1', stale: ['A'], graphics });
+  // Every graphic shows this page's press or a later one of it: it landed.
+  assert.equal(settleAnswer(s, stale({ A: { rev: 4, by: 'me', press: 7 }, B: { rev: 2, by: 'me', press: 9 } }), ['A', 'B'], 'me', { press: 7 }).outcome, 'landed');
+  // Another screen's change on one of them: nobody can tell, so never "did not change".
+  assert.throws(
+    () => settleAnswer(s, stale({ A: { rev: 5, by: 'them', press: 1 }, B: { rev: 2, by: 'me', press: 7 } }), ['A', 'B'], 'me', { press: 7 }),
+    (e) => e.maybeLanded === true && e.unread === true && !isStale(e),
+  );
+  // Superseded the same way.
+  const superseded = readSendAnswer({ ok: false, refused: 'superseded', epoch: 'E1', graphics: { A: { rev: 3, by: 'me', press: 6 } } });
+  assert.throws(() => settleAnswer(s, superseded, ['A'], 'me', { press: 7 }), (e) => e.maybeLanded === true);
+  // With no unanswered attempt before it, a stale refusal reads exactly as today.
+  assert.throws(() => settleAnswer(s, stale({ A: { rev: 5, by: 'them' } }), ['A'], 'me'), (e) => isStale(e));
+});
+
+test('R7: a modifying press waits behind a held press for as long as it is out', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const fifo = createGraphicFifo(1500);
+  const started = [];
+  const take = deferred();
+  void fifo.run(['p:S'], () => (started.push('take'), take.promise), { held: true });
+  void fifo.run(['p:S'], () => (started.push('update'), Promise.resolve()));
+  await new Promise((r) => setImmediate(r));
+  t.mock.timers.tick(60_000);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, ['take'], 'a minute later the Update still waits for the Take');
+  take.resolve();
+  await new Promise((r) => setImmediate(r));
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, ['take', 'update']);
+});
+
+test('R7: a replacing press behind a held press leaves after 1.5 s; the press it replaces does not make it a slow one', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const fifo = createGraphicFifo(1500);
+  const started = [];
+  void fifo.run(['p:S'], () => (started.push('take'), new Promise(() => {})), { held: true });
+  let lane = null;
+  void fifo.run(['p:S'], (l) => ((lane = l), started.push('out'), Promise.resolve()), { held: true, replaces: () => true });
+  await new Promise((r) => setImmediate(r));
+  t.mock.timers.tick(1499);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, ['take']);
+  t.mock.timers.tick(1);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, ['take', 'out']);
+  // The caller ends the press it replaces (hostedControl.ts `laneEnders`), so nothing behind the
+  // Out has to wait for the Take's whole send.
+  assert.equal(lane.waitedBehindHeld, false);
+});
+
+test('R7b: a press that is not held, waiting behind a held one, is told so (its window then starts when it leaves)', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const fifo = createGraphicFifo(1500);
+  const take = deferred();
+  void fifo.run(['p:S'], () => take.promise, { held: true });
+  let lane = null;
+  const cue = fifo.run(['p:S'], (l) => ((lane = l), Promise.resolve()));
+  take.resolve();
+  await cue;
+  assert.equal(lane.waitedBehindHeld, true);
+});
+
+test('R6: Stop sending ends a press waiting in its lane, and the lane moves on', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const fifo = createGraphicFifo(1500);
+  const take = deferred();
+  const stop = new AbortController();
+  void fifo.run(['p:S'], () => take.promise, { held: true });
+  const update = fifo.run(['p:S'], () => Promise.resolve('sent'), { stop: stop.signal });
+  stop.abort(new Error('sending stopped'));
+  await assert.rejects(update, /sending stopped/);
+  take.resolve();
+  assert.equal(await fifo.run(['p:S'], () => Promise.resolve('next')), 'next');
+});
