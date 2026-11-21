@@ -181,6 +181,13 @@ async function build(owner: Page, editors: number, fill = 0): Promise<Omit<Scene
       publishLog.push({ attempt, ms: Date.now() - t0, ok: true, note: '' });
       break;
     } catch (e) {
+      // PHASE 9 RERUN: a slow publish can still land after the helper's 30 s; wait for it before pressing again.
+      const landed = await owner.locator('[data-testid="production-status"][data-started="true"]').waitFor({ timeout: 180_000 }).then(() => true, () => false);
+      if (landed) {
+        log(`publish attempt ${attempt} landed after ${Date.now() - t0} ms (past the helper's 30 s)`);
+        publishLog.push({ attempt, ms: Date.now() - t0, ok: true, note: 'landed after the 30 s helper wait' });
+        break;
+      }
       const note = (await owner.getByTestId('production-note').first().textContent({ timeout: 2_000 }).catch(() => '')) ?? '';
       log(`publish attempt ${attempt} after ${Date.now() - t0} ms: ${note}`);
       publishLog.push({ attempt, ms: Date.now() - t0, ok: false, note: note.slice(0, 200) });
