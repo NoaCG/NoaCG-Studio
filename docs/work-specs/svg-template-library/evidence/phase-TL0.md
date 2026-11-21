@@ -67,6 +67,9 @@ gate with `planned` rows allowed, and AC-8 for the D5 labels.
   e2e/downloads.spec.ts e2e/docs.spec.ts`): 76 passed in 2.2 min, 0 failed. Test titles show the new
   names ("Countdown template imports...", "Pop-up alert: its Illustrator export imports...").
 
+- `node scripts/check-catalog-emit.mjs`: PASS, 539 designs. The rendered catalog sweeps were not
+  run: only names and descriptions changed, which no design draws; CI's Factory gates job runs.
+
 ## Not checked here
 
 - `e2e/import-svg-behaviour.spec.ts` and the wider affected list (types.ts reaches most specs):
