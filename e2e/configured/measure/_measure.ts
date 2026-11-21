@@ -61,6 +61,7 @@ export const OPERATOR_STAMPS = () => {
         // Realtime sends broadcasts as binary frames; read them as text to find the press id.
         const text = typeof e.data === 'string' ? e.data : e.data instanceof ArrayBuffer ? new TextDecoder().decode(e.data) : '';
         if (text.includes('lp2deck:')) frames.push({ t, data: text.slice(0, 600) });
+        else if (text.includes('realtime:seq-') || text.includes('realtime:cmd-') || text.includes('realtime:log-')) frames.push({ t, data: text.slice(0, 120) });
       });
     }
   };
