@@ -185,7 +185,11 @@ test('W1: a Take sends before its own save, with the typed value from memory, an
   await page.getByTestId('verb-take').click();
   await expect.poll(() => sends.some((b) => b.includes('W1 typed first')), { message: 'the Take is sent with the typed value', timeout: 10_000 }).toBe(true);
   await expect.poll(() => airPlays(air), { message: 'air plays it while the save is held', timeout: 30_000 }).toBe('1');
-  expect(await page.evaluate(() => (window as unknown as { __held?: number }).__held ?? 0), 'a save was owed and is still held').toBeGreaterThan(0);
+  // The Take's own save starts only once its send is answered, which can come after air plays
+  // (#2400): polled, with every write still held, so it proves the same order.
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __held?: number }).__held ?? 0), { message: 'a save was owed and is still held', timeout: 10_000 })
+    .toBeGreaterThan(0);
   await page.evaluate(() => { (window as unknown as { __holdWrites?: boolean }).__holdWrites = false; });
   // The save lands after the send: the typed value is the cue's.
   await expect(page.getByTestId('cue-unsent')).toBeEmpty({ timeout: 15_000 });
