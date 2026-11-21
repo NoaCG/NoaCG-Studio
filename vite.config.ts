@@ -15,10 +15,11 @@ import { renderLatestHtml, renderUpdatesHtml } from './scripts/whats-new.mjs';
 import { renderNowHtml, renderRoadmapHtml } from './scripts/roadmap.mjs';
 import { renderSiteChrome } from './scripts/site-nav.mjs';
 import { AGENT_PROMPT_MARKER, renderAgentPrompt } from './scripts/agent-prompt.mjs';
+import { SVG_GALLERY_MARKER, renderSvgGallery } from './scripts/svg-files.mjs';
 import { appCleanUrl } from './scripts/app-clean-url.mjs';
 
 // NoaCG Studio — dev/build config.
-// Twelve pages: index.html is the static public landing at "/", docs.html is the public docs
+// Thirteen pages: index.html is the static public landing at "/", docs.html is the public docs
 // home at "/docs" (static, indexed, no React), app.html is the editor at
 // "/app", output.html is
 // the browser-output renderer at "/output" (capability URL, docs/CLOUD_PLAYOUT.md §3),
@@ -26,7 +27,8 @@ import { appCleanUrl } from './scripts/app-clean-url.mjs';
 // ograf.html is the public FREE OGRAF STARTERS page at "/ograf" (docs/OGRAF.md), and
 // bridge.html is the headless BRIDGE at "/bridge" the `noacg` CLI / MCP server drives
 // (noindex, docs/AGENT_CLI.md), and downloads.html is the public DOWNLOADS page at "/downloads"
-// (static, indexed): NoaCG Bridge, the Companion module and the NoaCG CLI, the tools you install. whats-new.html
+// (static, indexed): NoaCG Bridge, the Companion module and the NoaCG CLI, the tools you install, and svg-templates.html ("/svg-templates") previews every SVG
+// template and example (scripts/svg-files.mjs). whats-new.html
 // ("/whats-new") and roadmap.html ("/roadmap") are public pages whose lists are generated at
 // build from docs/whats-new/ and docs/GOALS.md (generatedPages below).
 // Vercel serves the clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev
@@ -50,6 +52,8 @@ const GENERATED: Record<string, () => string> = {
   '<!--roadmap:now-->': () => renderNowHtml(),
   // The coding-agent prompt, on Downloads and in the docs (scripts/agent-prompt.mjs).
   [AGENT_PROMPT_MARKER]: () => renderAgentPrompt(),
+  // Every SVG template and example with its preview (scripts/svg-files.mjs).
+  [SVG_GALLERY_MARKER]: () => renderSvgGallery(),
 };
 
 function measureBackendStamp(url: string): Plugin {
@@ -257,6 +261,7 @@ export default defineConfig(({ command, mode }) => {
           ograf: 'ograf.html',
           bridge: 'bridge.html',
           downloads: 'downloads.html',
+          svgTemplates: 'svg-templates.html',
           whatsNew: 'whats-new.html',
           roadmap: 'roadmap.html',
           ...(e2e ? { e2eRegistry: 'src/e2eRegistry.ts' } : {}),

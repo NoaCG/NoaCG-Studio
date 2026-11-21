@@ -45,7 +45,7 @@ node scripts/tutorial-shots.mjs first-graphic
 | `first-graphic/` | Import your own SVG and put it on air, end to end (`/docs#first-graphic`) | `e2e/import-svg-behaviour.spec.ts`, "imported scoreboard: a numeric layer is a ± stepper" |
 
 `svg-examples/` is not a video pack. It is the source of the SVG examples zip on
-`/downloads#svg-examples`: `scripts/illustrator/build-svg-examples.jsx` draws it in Illustrator
+`/svg-templates#examples`: `scripts/illustrator/build-svg-examples.jsx` draws it in Illustrator
 and `scripts/illustrator/pack-svg-examples.mjs` packs it. It lives here so that
 `npm run check:example-layers` holds its SVGs to the one layer-naming system, and
 `e2e/svg-examples.spec.ts` imports every one of them.

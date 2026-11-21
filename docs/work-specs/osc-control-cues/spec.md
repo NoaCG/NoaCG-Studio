@@ -294,7 +294,29 @@ Phase 6 (Companion), notes:
   module version already reads (an unknown source reads as none), so no panel calls it a graphic or
   a file and the module needs no release. `take_cue`, `trigger_cue` and the per-cue refusals were
   done in phase 3: a refused press puts its reason on the note line.
-- Still open, an owner decision: releasing NoaCG Bridge (moving `bridgeVersion` in
-  `cli/package.json`) publishes everything under the changelog's `## Unreleased`, which now also
-  holds the audio reader work. Until that release, an operator's Bridge cannot send OSC.
-- Phase 7 (owner hardware, AC-11) waits on that release.
+- Released: NoaCG Bridge 0.13.0 (2026-11-20) and 0.13.1 (2026-11-21) were built after phase 2
+  landed and carry `/osc` (the `osc` feature on `/health`); 0.13.0's notes describe it. No separate
+  OSC release was needed.
+- Phase 7 (owner hardware, AC-11) is the owner's ZerOS desk check with Bridge 0.13.1.
+- Operator help: the public docs have `#osc` (fields, folders, what Sent means, network rules), and
+  the OSC cue editor has an (i) with the same fields in brief and a link to it.
+
+Follow-up (owner request of 2026-11-21): a delay per cue in All together folders.
+
+- Each graphic and OSC cue in an All together folder can wait 0 to 10 seconds after the folder's
+  Take (`ShowCue.delayMs`, `setCueDelay`, `togetherDelayMs`), set in the folder's panel. Server
+  files have none. An Out during the wait stops the cues still waiting. Copy and paste keep it.
+
+Follow-up (owner request of 2026-11-21): an On Out message.
+
+- An OSC cue can carry a second message to the same destination (`OscControlV1.out`, additive
+  optional; a malformed one makes the cue read-only like any record this build cannot read). The
+  Take's check covers it, so a folder never goes up with lights it cannot bring back.
+- It is sent once, when the folder that sent the cue's Take goes out: Out, All out (its failures
+  join All out's note), or a One-by-one folder's press back to the top. Stepping on sends nothing,
+  a cue whose Take was refused owes nothing (an uncertain send still owes it), and an Out while the Take is on its way sends it as
+  soon as the Take lands. The session's end sends nothing. What is owed is kept for the tab
+  (`spx-gfx-osc-sent:<production>`, `io.oscSent`), so an Out after a reload still sends it.
+- A standalone OSC cue has no Out; an OSC cue taken on its own inside an All together folder owes
+  nothing.
+- The editor has On Out address and arguments under the Take message, and Send On Out test.

@@ -15,7 +15,7 @@ import { folderIdOf, joinRefusal, joins, landBlock, liveFolderIds, settleFolders
 import { isControlCue, isServerCue } from './controlCue.ts';
 
 /** One copied cue: what it is made of, and the copied folder it came in, when it came in one whole. */
-export type ClipCue = Pick<ShowCue, 'sourceId' | 'source' | 'label' | 'values' | 'note' | 'playback' | 'auto' | 'accentColor' | 'adjust' | 'typed' | 'typedArgs' | 'control'> & { folderKey?: string };
+export type ClipCue = Pick<ShowCue, 'sourceId' | 'source' | 'label' | 'values' | 'note' | 'playback' | 'auto' | 'accentColor' | 'adjust' | 'typed' | 'typedArgs' | 'control' | 'delayMs'> & { folderKey?: string };
 /** One folder every cue of which was copied: it pastes as a new folder with its mode and settings. */
 export type ClipFolder = Pick<ShowFolder, 'name' | 'mode' | 'end' | 'slot'> & { key: string };
 
@@ -68,6 +68,7 @@ export function copyClip(
         ...(c.typedArgs !== undefined ? { typedArgs: structuredClone(c.typedArgs) } : {}),
         // A control cue's message, byte for byte, a later version's record too (./controlCue.ts).
         ...(c.control !== undefined ? { control: structuredClone(c.control) } : {}),
+        ...(c.delayMs ? { delayMs: c.delayMs } : {}),
         ...(folder && whole.has(folder) ? { folderKey: folder } : {}),
       };
     }),
@@ -123,6 +124,7 @@ export function pasteCopies(
       ...(c.typed !== undefined ? { typed: structuredClone(c.typed) } : {}),
       ...(c.typedArgs !== undefined ? { typedArgs: structuredClone(c.typedArgs) } : {}),
       ...(c.control !== undefined ? { control: structuredClone(c.control) } : {}),
+      ...(c.delayMs ? { delayMs: c.delayMs } : {}),
       ...(folderId ? { folderId } : {}),
     });
   }

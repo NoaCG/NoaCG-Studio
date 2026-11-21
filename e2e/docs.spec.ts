@@ -196,6 +196,17 @@ for (const size of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) 
 
 // The cause, checked for every shot rather than at two anchors: with no picture allowed to
 // arrive, each frame already holds the box its width/height attributes promise.
+test('the OSC guide names what it needs, every field, and how it fires with a graphic', async ({ page }) => {
+  await page.goto('/docs#osc');
+  const guide = page.locator('#osc');
+  await expect(guide.getByRole('heading', { name: 'Send lighting cues with OSC' })).toBeVisible();
+  await expect(guide).toContainText('NoaCG Bridge 0.13.0 or later');
+  await expect(guide.locator('dt')).toHaveText(['Name', 'Destination', 'OSC address', 'Arguments', 'On Out']);
+  await expect(guide).toContainText('put both in an All together folder');
+  await expect(guide).toContainText('give the OSC cue a Delay');
+  await expect(guide).toContainText('--allow-public-osc');
+});
+
 test('every docs screenshot reserves its height before it loads', async ({ page }) => {
   await page.route('**/docs/*.png', () => {});
   for (const width of [1366, 390]) {
@@ -271,9 +282,9 @@ test('the graphics topic has one page per type, each with its file, layers and n
     const moments = !['end-credits', 'tickers'].includes(id);
     expect(await layers.allTextContents()).toEqual(id === 'end-credits' ? ['Text'] : moments ? ['Text', 'Moments', 'Board'] : ['Text', 'Board']);
   }
-  // One lower-third file in the complete examples gallery; no retired variant links return.
-  await expect(page.locator('a[href*="lower-third"]')).toHaveCount(1);
-  await expect(page.locator('#svg-example-files + p + ul a[href="/docs/examples/svg-examples/lower-third.svg"]')).toHaveCount(1);
+  // The SVG files live on their own page (/svg-templates); the docs list none of them.
+  await expect(page.locator('a[href*="lower-third"]')).toHaveCount(0);
+  await expect(page.locator('#svg-layers-package a[href="/svg-templates"]')).toHaveCount(1);
   // The Layer names page opens with the system: the three layers, the row rule, one full tree
   // and the table of every name, generated from words.json so it cannot drift from the matcher.
   const layerNames = page.locator('#svg-layers');
@@ -716,7 +727,7 @@ test('Getting started points a coding-agent owner at the CLI', async ({ page }) 
   await expect(ways).toHaveCount(3);
   await expect(ways.nth(0).locator('a[href="/app#/new"]')).toHaveCount(1);
   await expect(ways.nth(1).locator('a[href="#first-graphic"]')).toHaveCount(1);
-  await expect(ways.nth(1).locator('a[href="/downloads#svg-examples"]')).toHaveCount(1);
+  await expect(ways.nth(1).locator('a[href="/svg-templates"]')).toHaveCount(1);
   await expect(ways.nth(2).locator('a[href="#claude-code"]')).toHaveCount(1);
   const start = page.locator('#getting-started');
   await expect(start.locator('a[href="#browser-source"]')).toHaveCount(1);

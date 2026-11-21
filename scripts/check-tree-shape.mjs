@@ -83,7 +83,7 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   // suite runs, started by hand or by hosted-latency.yml's `spec` dispatch.
   'playwright.instrument.config.ts',
   'privacy.html', 'public', 're-design', 'render-worker', 'roadmap.html', 'scripts', 'src',
-  'supabase', 'terms.html', 'tsconfig.api.json', 'tsconfig.json', 'vercel.json', 'vite.config.ts', 'whats-new.html',
+  'supabase', 'svg-templates.html', 'terms.html', 'tsconfig.api.json', 'tsconfig.json', 'vercel.json', 'vite.config.ts', 'whats-new.html',
 ]);
 
 const PICTURE = /\.(png|jpe?g|webp|gif|avif|webm|mp4|mov)$/i;

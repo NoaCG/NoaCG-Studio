@@ -243,13 +243,16 @@ export interface GraphicPage {
   /** A server cue's verb, its outcome said on the note line; true when it went. */
   playoutVerb: (cue: ShowCue, verb: ServerVerb, label: string, options?: { cut?: boolean }) => Promise<boolean>;
   /** An OSC cue's one send through the paired Bridge (control/oscSend.ts), its outcome said on the
-   *  note line; true when it left. Never resent. */
-  controlSend: (cue: ShowCue, label: string) => Promise<boolean>;
+   *  note line; true when it left, 'uncertain' when it may have. Never resent. */
+  controlSend: (cue: ShowCue, label: string) => Promise<boolean | 'uncertain'>;
+  /** An OSC cue whose Take may have left: its folder owes its On Out all the same. */
+  oweOut?: (cue: ShowCue) => void;
   /** The folders' bookkeeping a Take of a cue does (control/folderPlayout.ts). */
   clearMisses: (ids: readonly string[]) => void;
   noteStep: (cue: ShowCue) => void;
   /** All out's other halves: stop every folder still being sent, clear what no cue names. */
-  stopFolders: () => void;
+  /** Stop every folder's Take and send what On Out messages they owe; answers the failures. */
+  stopFolders: () => Promise<string[]> | void;
   outUnnamed: () => Promise<void>;
   /** All out's fallback sentence through the Bridge (the publish flow's). */
   clearThroughBridge: (note: string) => Promise<string>;
@@ -858,7 +861,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
     // A control cue is never a graphic: it sends once through the Bridge and holds no air, and
     // nothing of it goes to the command log (docs/work-specs/osc-control-cues/spec.md D1, D7).
     if (isControlCue(cue)) {
-      if (await p.controlSend(cue, 'Take')) p.noteStep(cue);
+      const sent = await p.controlSend(cue, 'Take');
+      if (sent === true) p.noteStep(cue);
+      else if (sent === 'uncertain') p.oweOut?.(cue);
       return;
     }
     if (isServerCue(cue)) {
@@ -1083,7 +1088,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
     const p = page();
     // A folder's Take still being sent sends nothing more, and what of it lands after is cut too:
     // nothing airs after the panic control. Every One-by-one folder starts again from its first cue.
-    p.stopFolders();
+    const oscOuts = p.stopFolders();
     // The panic control cuts, as it always did, whatever fade out a clip is set to.
     const cutFailures: string[] = [];
     let lastCutNote = '';
@@ -1097,8 +1102,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       lastCutNote = cut.note;
       if (!cut.ok) cutFailures.push(cut.note);
     }
-    const report = (graphicFailure?: string) => {
-      const note = [...cutFailures, graphicFailure].filter(Boolean).join(' ') || lastCutNote;
+    // The On Out messages go alongside the clears; their failures are only waited for to be said.
+    const report = async (graphicFailure?: string) => {
+      const oscFailures = (await oscOuts) ?? [];
+      const note = [...cutFailures, ...oscFailures, graphicFailure].filter(Boolean).join(' ') || lastCutNote;
       if (note) (server?.report ?? s.note)(note);
     };
     await p.outUnnamed();
@@ -1119,7 +1126,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       const sent = await behind(cleared, sendWith(s, clearAllCueBatches(cleared), 'All out', true));
       settleOuts(sent);
       if (!sent.ok) {
-        report(await p.clearThroughBridge(sent.note));
+        await report(await p.clearThroughBridge(sent.note));
         return;
       }
       // A graphic this page pressed again while the All out was on its way stays as that later
@@ -1127,7 +1134,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
       const off = cleared.filter((g) => !leftAlone(sent).includes(g));
       // Clearing… until the heads say each is off; one still on is named, never assumed gone.
       const still = s.published ? await io.headsStillOn(s.published, off, ALL_OUT_CONFIRM_MS) : [];
-      report(still.length > 0 ? await p.clearThroughBridge(`All out did not clear ${io.nameList(still)}`) : undefined);
+      await report(still.length > 0 ? await p.clearThroughBridge(`All out did not clear ${io.nameList(still)}`) : undefined);
     } finally {
       p.clearing(false);
     }

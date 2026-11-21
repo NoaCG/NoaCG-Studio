@@ -16,6 +16,9 @@
     { "path": "/api/render/cleanup", "schedule": "30 3 * * *" },
     { "path": "/api/data/tick", "schedule": "* * * * *" }
   ],
+  "redirects": [
+    { "source": "/docs/examples/svg-examples/:file", "destination": "/downloads/svg/examples/:file", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/join/:name", "destination": "/join" },
     { "source": "/j/:name", "destination": "/join" },

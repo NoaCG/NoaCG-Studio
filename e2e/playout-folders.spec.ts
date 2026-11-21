@@ -2089,6 +2089,11 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   const editor = page.getByTestId('osc-cue-editor');
   await expect(editor).toBeVisible();
   await expect(editor.getByTestId('osc-bridge-status')).toHaveText('NoaCG Bridge ready');
+  // The (i) explains every field in place, and links the full guide.
+  await editor.getByTestId('osc-help').click();
+  await expect(page.getByTestId('osc-help-panel')).toContainText('OSC port');
+  await expect(page.getByTestId('osc-help-panel').getByRole('link', { name: 'Full guide' })).toHaveAttribute('href', '/docs#osc');
+  await page.keyboard.press('Escape');
   await expect(editor.getByTestId('osc-take-blocked')).toContainText('no destination');
 
   await editor.getByTestId('osc-destination').selectOption('+new');
@@ -2127,6 +2132,14 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await expect.poll(() => fake.osc.length).toBe(2);
   expect(new Set(fake.osc.map((o) => o.sendId)).size, 'each press is its own send').toBe(2);
 
+  // On Out: a second message, typed here and tested on its own button.
+  await expect(editor.getByTestId('osc-send-out-test'), 'no On Out test without an On Out address').toHaveCount(0);
+  await editor.getByTestId('osc-out-address').fill('/zeros/cue/release');
+  await editor.getByTestId('osc-out-address').press('Tab');
+  await editor.getByTestId('osc-send-out-test').click();
+  await expect.poll(() => fake.osc.length).toBe(3);
+  expect(fake.osc[2]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/release', args: [] });
+
   // Selecting, reloading and selecting again send nothing.
   await selectCue(page, 'Hairline');
   await settleDurableWrites(page);
@@ -2134,7 +2147,7 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await expect(cue(page, 'Lights: winner')).toContainText('/zeros/cue/go');
   await selectCue(page, 'Lights: winner');
   await page.waitForTimeout(300);
-  expect(fake.osc).toHaveLength(2);
+  expect(fake.osc).toHaveLength(3);
 });
 
 test('a winner graphic and a lighting cue go together on one folder Take, with no playout server', async ({ page }) => {
@@ -2147,7 +2160,7 @@ test('a winner graphic and a lighting cue go together on one folder Take, with n
     const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     m.saveOscDestination(id, { id: 'desk', name: 'Lighting desk', host: '192.168.1.40', port: 8830 });
     const { cueId } = m.addOscCue(id, 'desk');
-    m.setCueControl(id, cueId!, { v: 1, kind: 'osc', destinationId: 'desk', address: '/zeros/cue/go', args: [{ type: 's', value: '0' }, { type: 's', value: '5' }] });
+    m.setCueControl(id, cueId!, { v: 1, kind: 'osc', destinationId: 'desk', address: '/zeros/cue/go', args: [{ type: 's', value: '0' }, { type: 's', value: '5' }], out: { address: '/zeros/cue/release', args: [] } });
     m.updateShowCueChecked(id, cueId!, { label: 'Lights' });
     const winner = m.loadShows().find((s) => s.id === id)!.cues!.find((c) => c.label === 'Winner')!.id;
     const { folderId } = m.addFolderFromSelection(id, [winner, cueId!], 'Result');
@@ -2158,9 +2171,18 @@ test('a winner graphic and a lighting cue go together on one folder Take, with n
   await page.reload();
   await expect(folder(page, 'Result')).toBeVisible();
   await holdFolder(page, 'Result');
+  // The lights land a second after the graphic: the OSC member's delay, set in the folder panel.
+  const delays = page.getByTestId('folder-child-delay');
+  await expect(delays, 'a graphic and an OSC cue each get a delay box').toHaveCount(2);
+  await delays.nth(1).fill('1');
+  await delays.nth(1).press('Enter');
+  await expect.poll(async () => evaluateInPage(page, async (id) => (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.cues!.find((c) => c.label === 'Lights')!.delayMs, showId)).toBe(1000);
+  await parkFocusOffControls(page);
   await page.getByTestId('verb-take').click();
+  await expect(cue(page, 'Winner').locator('.pd-tag.up, .pd-tag.air')).toHaveCount(1);
+  expect(fake.osc, 'the lights wait their second').toHaveLength(0);
 
-  await expect.poll(() => fake.osc.length).toBe(1);
+  await expect.poll(() => fake.osc.length, { timeout: 5000 }).toBe(1);
   expect(fake.osc[0]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/go' });
   await expect(page.getByTestId('production-note')).toContainText('1 of 1 on air, 1 of 1 OSC sent');
   await expect(cue(page, 'Winner').locator('.pd-tag.up, .pd-tag.air')).toHaveCount(1);
@@ -2168,4 +2190,12 @@ test('a winner graphic and a lighting cue go together on one folder Take, with n
   await page.waitForTimeout(300);
   expect(fake.osc, 'one Take, one datagram').toHaveLength(1);
   expect(sent(fake), 'nothing went to a playout server').toEqual([]);
+
+  // Out takes the winner off and sends the lights' On Out message, once.
+  await page.getByTestId('verb-out').click();
+  await expect.poll(() => fake.osc.length).toBe(2);
+  expect(fake.osc[1]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/release' });
+  await expect(cue(page, 'Winner').locator('.pd-tag.up, .pd-tag.air')).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(fake.osc).toHaveLength(2);
 });

@@ -79,6 +79,7 @@
           <a href="#dashboard">Run the show</a>
           <div class="doc-nav-sub" id="nav-show">
             <a href="#companion">Stream Deck with Companion</a>
+            <a href="#osc">Lighting cues (OSC)</a>
             <a href="#teams">Working with other people</a>
             <a href="#audience">Audience join pages</a>
             <a href="#behaviour">Graphics with behaviour</a>
@@ -118,7 +119,7 @@
               <li><strong>Your own design.</strong> Name the layers in Illustrator, save an SVG,
                 import it and choose what it does.
                 <a href="#first-graphic">Import an SVG&nbsp;&rarr;</a> or
-                <a href="/downloads#svg-examples">get the SVG examples&nbsp;&rarr;</a></li>
+                <a href="/svg-templates">get an SVG template&nbsp;&rarr;</a></li>
               <li><strong>Your coding agent.</strong> Use Claude Code or Codex with the
                 <strong>NoaCG CLI</strong>. Describe the graphic you want, and it appears in your
                 NoaCG library. <a href="#claude-code">Set up your agent&nbsp;&rarr;</a></li>
@@ -263,41 +264,13 @@
 </div>
 <!-- layer-cheat-sheet:end -->
             <p>Layer names are shared across graphic types. Use the layers your graphic needs.</p>
-            <!-- The SVG examples: editable Illustrator and SVG sources drawn to this system, previews
-                 and a short README (docs/tutorials/svg-examples, packed by
-                 scripts/illustrator/pack-svg-examples.mjs). The same zip is on /downloads#svg-examples. -->
+            <!-- The SVG templates and examples live on their own page (/svg-templates,
+                 scripts/svg-files.mjs), which previews each file; the docs only point there. -->
             <p id="svg-layers-package">
-              To start from a working file, download the
-              <a href="/downloads/NoaCG-SVG-examples.zip" data-testid="docs-svg-examples">SVG examples</a>:
-              editable Illustrator and SVG sources covering every SVG import behaviour,
-              with previews and authoring guides for clocks, timers and editable credits.
+              To start from a working file, pick one on
+              <a href="/svg-templates" data-testid="docs-svg-templates">SVG templates</a>:
+              preview each graphic and download the SVG you need, or the whole set with Illustrator sources.
             </p>
-            <h4 id="svg-example-files">SVG example files</h4>
-            <p>Download an SVG to try it in NoaCG or edit it in Illustrator or Inkscape. The complete package also includes Illustrator sources and layer-name guides.</p>
-            <ul>
-              <li><a href="/docs/examples/svg-examples/title.svg" download>Title</a>,
-                <a href="/docs/examples/svg-examples/lower-third.svg" download>Lower third</a>,
-                <a href="/docs/examples/svg-examples/ticker.svg" download>Ticker</a></li>
-              <li><a href="/docs/examples/svg-examples/quiz.svg" download>Quiz</a>,
-                <a href="/docs/examples/svg-examples/scoreboard.svg" download>Score tracker</a>,
-                <a href="/docs/examples/svg-examples/countdown.svg" download>Countdown</a>,
-                <a href="/docs/examples/svg-examples/standings.svg" download>Standings</a></li>
-              <li><a href="/docs/examples/svg-examples/live-vote.svg" download>Live vote</a>,
-                <a href="/docs/examples/svg-examples/meter.svg" download>Meter</a>,
-                <a href="/docs/examples/svg-examples/alert.svg" download>Alert</a>,
-                <a href="/docs/examples/svg-examples/survey.svg" download>Survey board</a></li>
-              <li><a href="/docs/examples/svg-examples/stepped-list.svg" download>Stepped list</a>,
-                <a href="/docs/examples/svg-examples/lineup.svg" download>Lineup</a>,
-                <a href="/docs/examples/svg-examples/puzzle.svg" download>Puzzle board</a>,
-                <a href="/docs/examples/svg-examples/reveal.svg" download>Reveal</a></li>
-              <li><a href="/docs/examples/svg-examples/bingo.svg" download>Bingo caller</a>,
-                <a href="/docs/examples/svg-examples/end-credits.svg" download>Credits roll</a>,
-                <a href="/docs/examples/svg-examples/switch.svg" download>Switch</a>,
-                <a href="/docs/examples/svg-examples/choice.svg" download>Choice</a></li>
-              <li><a href="/docs/examples/svg-examples/digital-clock.svg" download>Digital clock and timer</a>,
-                <a href="/docs/examples/svg-examples/scorebug-clock.svg" download>Score and clock</a>,
-                <a href="/docs/examples/svg-examples/editable-credits.svg" download>Editable credits</a></li>
-            </ul>
             <h4 id="svg-layers-system">The three layers</h4>
             <ul>
               <li><code>Text</code> holds what the operator types. One text object per field,
@@ -1579,6 +1552,78 @@ CG 1-20 STOP</code></pre>
               and drag a preset onto a button. Start with <strong>Take</strong> in
               <strong>Show control</strong>.</li>
           </ol>
+        </section>
+
+        <!-- ═══════════════════════ OSC ═══════════════════════ -->
+        <section id="osc">
+          <h2>Send lighting cues with OSC</h2>
+          <p>An OSC cue sends one message to a lighting desk, show controller or any other device that
+            listens for OSC (Open Sound Control) over the network. It never goes on air and has no Out.
+            It works with every output: browser, OBS, vMix and CasparCG.</p>
+          <p>It needs NoaCG Bridge 0.13.0 or later running on the computer you operate from, and this
+            browser paired with it. When the pairing page asks for a CasparCG server, you can skip it and
+            press <strong>Open NoaCG</strong>.</p>
+          <ol>
+            <li>On the production page, press <strong>+ Add</strong> and choose <strong>OSC cue</strong>.</li>
+            <li>In <strong>Destination</strong>, choose <strong>New destination&hellip;</strong>. Enter a
+              name, the device's IP address and the port it listens on for OSC, then press
+              <strong>Save</strong>.</li>
+            <li>Enter the <strong>OSC address</strong> exactly as the device lists it, for example
+              <code>/zeros/cue/go</code>.</li>
+            <li>If the device lists the command with arguments, press <strong>+ Argument</strong> for each
+              value and choose its type.</li>
+            <li>Press <strong>Send test</strong>. When the device reacts, the cue is ready for
+              <strong>Take</strong>.</li>
+          </ol>
+
+          <h3 id="osc-fields">The fields</h3>
+          <dl>
+            <dt>Name</dt>
+            <dd>What the rundown row shows, for example <em>Lights: winner</em>.</dd>
+            <dt>Destination</dt>
+            <dd>The device that receives the message: a name you choose, its IP address on your
+              network, and its OSC port from the device's settings or manual. A destination is saved
+              with the production, so the whole team and every OSC cue can use it.</dd>
+            <dt>OSC address</dt>
+            <dd>The command. It starts with <code>/</code> and has no spaces. Copy it from the device's
+              OSC command list.</dd>
+            <dt>Arguments</dt>
+            <dd>Values sent after the address. <strong>Text</strong> sends text, <strong>Whole
+              number</strong> an integer, <strong>Decimal</strong> a number with a decimal point. Use the
+              type the device asks for: the text <code>"5"</code> and the number <code>5</code> are
+              different messages.</dd>
+            <dt>On Out</dt>
+            <dd>Optional. A second message to the same device, sent when the folder that sent this
+              cue goes out, for example to bring the lights back to normal. It has its own address
+              and arguments, and <strong>Send On Out test</strong> checks it.</dd>
+          </dl>
+          <p>Many devices accept a command both ways. A desk that lists
+            <code>/zeros/cue/go/0/5</code> "as a string" and <code>/zeros/cue/go "0" "5"</code> "as
+            arguments" accepts either an OSC address of <code>/zeros/cue/go/0/5</code> with no
+            arguments, or <code>/zeros/cue/go</code> with two Text arguments, <code>0</code> and
+            <code>5</code>.</p>
+
+          <h3 id="osc-show">In the show</h3>
+          <ul>
+            <li><strong>Take</strong> sends the message once. Taking it again sends it again. Selecting,
+              editing and reloading send nothing.</li>
+            <li>To fire a graphic and a lighting cue together, put both in an <strong>All
+              together</strong> folder. To land the lights with the graphic's animation, give the OSC cue a
+              <strong>Delay</strong> in the folder's panel, up to 10 seconds; a graphic can have one too.
+              In a <strong>One by one</strong> folder an OSC cue is one step,
+              and the graphic before it stays up. A <strong>Play through</strong> folder does not take
+              OSC cues.</li>
+            <li>An OSC cue with an <strong>On Out</strong> message sends it once when its folder goes
+              out: <strong>Out</strong>, <strong>All out</strong>, or the press that takes a
+              <strong>One by one</strong> folder back to its first cue. Stepping on to the next cue
+              sends nothing, and a cue whose Take was not sent sends no On Out.</li>
+            <li>Stream Deck keys from <a href="#companion">Companion</a> fire OSC cues like any cue.</li>
+            <li><em>Sent</em> means the message left this computer. OSC has no receipt, so a device that
+              is switched off still reads as sent. Use <strong>Send test</strong> to check.</li>
+            <li>The Bridge sends to this computer, your studio network and VPN addresses. It refuses
+              broadcast and multicast addresses, and public internet addresses unless the Bridge is
+              started with <code>--allow-public-osc</code>.</li>
+          </ul>
         </section>
 
         <!-- ═══════════════════════ TEAMS ═══════════════════════ -->

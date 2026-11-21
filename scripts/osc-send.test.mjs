@@ -9,7 +9,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './lib/tsResolve.mjs';
 
-const { oscBlocker, oscNote, oscRequest, oscRowSummary, sendIds } = await import('../src/control/oscSend.ts');
+const { hasOscOut, oscBlocker, oscNote, oscRequest, oscRowSummary, sendIds } = await import('../src/control/oscSend.ts');
+const { readControl } = await import('../src/model/controlCue.ts');
 const { decideVerb } = await import('../src/control/verbDispatch.ts');
 const { verbView } = await import('../src/control/verbView.ts');
 const { directBlocker, takeBlockerFor } = await import('../src/control/takeBlockers.ts');
@@ -48,6 +49,21 @@ test('the note says sent, not sent with the reason, or uncertain', () => {
   assert.equal(oscNote('Lights', 'Lighting desk', { state: 'sent', to: '192.168.1.40:8830', repeat: false }), '✓ Lights: OSC sent to Lighting desk');
   assert.equal(oscNote('Lights', 'Lighting desk', { state: 'refused', detail: 'Too many.' }), 'Lights was not sent: Too many.');
   assert.equal(oscNote('Lights', 'Lighting desk', { state: 'uncertain', detail: 'Send uncertain. Check the desk.' }), 'Lights: Send uncertain. Check the desk.');
+});
+
+test('On Out: the second message goes to the same device; a bad one blocks the Take; an empty one is none', () => {
+  const lights = osc('Lights', { control: control({ out: { address: ' /zeros/cue/release ', args: [{ type: 'i', value: '5' }] } }) });
+  const built = oscRequest(lights, [desk], 'p:1:Lights', 'out');
+  assert.deepEqual(built.request, { sendId: 'p:1:Lights', host: '192.168.1.40', port: 8830, address: '/zeros/cue/release', args: [{ type: 'i', value: '5' }] });
+  assert.equal(hasOscOut(lights), true);
+  assert.equal(hasOscOut(osc('L')), false);
+  assert.equal(hasOscOut(osc('L', { control: control({ out: { address: '  ', args: [] } }) })), false);
+  assert.match(oscRequest(osc('L'), [desk], 'x', 'out').reason, /no On Out message/);
+  assert.equal(oscBlocker(osc('L', { control: control({ out: { address: '/back', args: [{ type: 'i', value: 'x' }] } }) }), [desk], true), 'L, On Out: Argument 1 is not a whole number from -2147483648 to 2147483647.');
+  // A malformed On Out is a record this build cannot read: the cue is read-only, never half sent.
+  assert.equal(readControl(control({ out: { address: 5 } })), null);
+  assert.equal(oscNote('Lights', 'Lighting desk', { state: 'sent', to: 'x', repeat: false }, 'out'), '✓ Lights: On Out OSC sent to Lighting desk');
+  assert.equal(oscNote('Lights', 'Lighting desk', { state: 'refused', detail: 'Too many.' }, 'out'), 'Lights, On Out was not sent: Too many.');
 });
 
 test('a held Take key fires an OSC cue once; a graphic keeps its own rule', () => {
@@ -211,4 +227,87 @@ test('a badly typed message refuses before anything is sent, as the Bridge would
     assert.match(oscBlocker(osc('L', { control: control_ }), [desk], true), says);
   }
   assert.equal(oscBlocker(osc('L', { control: control({ args: [{ type: 'i', value: '-5' }, { type: 'f', value: '1.5e2' }] }) }), [desk], true), null);
+});
+
+// ── Delays in All together (each member's own wait after the Take) ─────────────────────────────
+
+const { togetherDelayMs, MAX_TOGETHER_DELAY_MS } = await import('../src/model/showFolders.ts');
+
+test('a member waits its own delay; OSC cues keep rundown order and wait only what is left', async () => {
+  const winner = { ...strap, delayMs: 300 };
+  const plan = togetherPlan([winner, osc('L1', { delayMs: 500 }), osc('L2', { delayMs: 800 })], rundown());
+  const log = [];
+  let clock = 0;
+  const waits = [];
+  const results = await runTogether(plan, {
+    server: async () => ({ ok: true, note: '' }),
+    graphic: async () => { log.push(`graphic@${clock}`); return { ok: true, note: '✓ Winner' }; },
+    control: async (c) => { log.push(`${c.cue.id}@${clock}`); return { ok: true, note: '✓' }; },
+    off: async () => {},
+    stopped: () => false,
+    // One clock for every member, moved by each wait.
+    wait: async (ms) => { waits.push(ms); clock += ms; },
+    now: () => clock,
+  });
+  // The graphic waits its 300; by then L1 has 200 of its 500 left, and L2 the 300 left of its 800.
+  assert.deepEqual([...waits].sort((a, b) => a - b), [200, 300, 300]);
+  assert.deepEqual(log.filter((l) => l.startsWith('L')).map((l) => l.split('@')[0]), ['L1', 'L2'], 'OSC cues keep rundown order');
+  assert.deepEqual(results.map((r) => r.cueId), ['A', 'L1', 'L2']);
+});
+
+test('Out during a delay skips the member still waiting and takes nothing back', async () => {
+  const plan = togetherPlan([strap, osc('L', { delayMs: 1000 })], rundown());
+  let stop = false;
+  const sent = [];
+  const results = await runTogether(plan, {
+    server: async () => ({ ok: true, note: '' }),
+    graphic: async () => ({ ok: true, note: '✓ Winner' }),
+    control: async (c) => { sent.push(c.cue.id); return { ok: true, note: '✓' }; },
+    off: async () => {},
+    stopped: () => stop,
+    wait: async () => { stop = true; },
+  });
+  assert.deepEqual(sent, []);
+  assert.equal(results.find((r) => r.cueId === 'L').sent, false);
+});
+
+test('time spent sending an earlier OSC cue counts toward the next one\'s delay', async () => {
+  const plan = togetherPlan([osc('L1'), osc('L2', { delayMs: 100 }), osc('L3', { delayMs: 500 })], rundown());
+  let clock = 0;
+  const waits = [];
+  await runTogether(plan, {
+    server: async () => ({ ok: true, note: '' }),
+    graphic: async () => ({ ok: true, note: '' }),
+    // L1's send takes 200 ms: L2 is already due, L3 has 300 left.
+    control: async (c) => { if (c.cue.id === 'L1') clock += 200; return { ok: true, note: '✓' }; },
+    off: async () => {},
+    stopped: () => false,
+    wait: async (ms) => { waits.push(ms); clock += ms; },
+    now: () => clock,
+  });
+  assert.deepEqual(waits, [300]);
+});
+
+test('Out ends a waiting delay at once, so the folder can be taken again', async () => {
+  const plan = togetherPlan([osc('L', { delayMs: 10_000 })], rundown());
+  let stop = false;
+  setTimeout(() => { stop = true; }, 30);
+  const began = Date.now();
+  const results = await runTogether(plan, {
+    server: async () => ({ ok: true, note: '' }),
+    graphic: async () => ({ ok: true, note: '' }),
+    control: async () => ({ ok: true, note: '✓' }),
+    off: async () => {},
+    stopped: () => stop,
+  });
+  assert.ok(Date.now() - began < 1000, 'the run ended with the Out, not after 10 s');
+  assert.equal(results[0].sent, false);
+});
+
+test('a delay is read inside 0 to 10 s, and a server cue never waits', () => {
+  assert.equal(togetherDelayMs({ delayMs: 250 }), 250);
+  assert.equal(togetherDelayMs({ delayMs: 99999 }), MAX_TOGETHER_DELAY_MS);
+  assert.equal(togetherDelayMs({ delayMs: -5 }), 0);
+  assert.equal(togetherDelayMs({ delayMs: 'x' }), 0);
+  assert.equal(togetherDelayMs({ source: 'playout', delayMs: 500 }), 0);
 });

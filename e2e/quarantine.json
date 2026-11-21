@@ -22,10 +22,10 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43583442187"
     },
-    "e2e/editor-out-step.spec.ts": {
-      "since": "2026-11-20",
+    "e2e/configured/teams.spec.ts": {
+      "since": "2026-11-21",
       "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44826377734"
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44896577757"
     },
     "e2e/import-svg-credits.spec.ts": {
       "since": "2026-11-20",
@@ -164,6 +164,10 @@
     "e2e/editor-keys.spec.ts": {
       "count": 3,
       "last": "2026-10-19"
+    },
+    "e2e/editor-out-step.spec.ts": {
+      "count": 1,
+      "last": "2026-11-21"
     },
     "e2e/editor-pen.spec.ts": {
       "count": 1,
