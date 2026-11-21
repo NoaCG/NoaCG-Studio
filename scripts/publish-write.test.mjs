@@ -1,4 +1,4 @@
-// guards: src/control/hostedControl.ts
+// guards: src/control/hostedControl.ts, src/model/shows.ts
 //
 // THE PRESS'S COMPARE-AND-SET READS THE SMALL COLUMN (#2616, docs/work-specs/live-publishing/
 // evidence/fix-2616.md, R1). A whole publish reads the stored stamp and lands only over it. Reading
@@ -113,4 +113,52 @@ test('a refusal or any other error is reported as it is and never retried by the
   const sb3 = client([{ data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } }]);
   await assert.rejects(readPublishedWhole(sb3, 'p'), /statement timeout/);
   assert.equal(sb3.requests.length, 1);
+});
+
+// THE SCRIPT GOES UP ONCE (#2667, docs/work-specs/live-publishing/evidence/fix-2667.md). A whole
+// publish is one statement, and PostgREST parses its whole body inside it, so the statement grows
+// with the bytes sent. The panel used to repeat every graphic's script beside the payload's own copy:
+// 4.6 of the 9.7 MB a 60-graphic production sent. The payload keeps the script; the panel carries
+// none, whatever the script's size.
+test('a publish carries each graphic script once, in the payload, and the panel carries none', async () => {
+  const entry = path.join(dir, `panel-${Math.random().toString(36).slice(2)}.ts`);
+  writeFileSync(entry, `export { createShowNamed, addGraphicToShow, loadShows } from ${JSON.stringify(path.join(root, 'src/model/shows.ts'))};\n` +
+    `export { buildOutputPayload, buildPanelSpec } from ${JSON.stringify(path.join(root, 'src/control/hostedControl.ts'))};\n`);
+  const bundle = await rolldown({ input: entry, platform: 'node', plugins: [rawSuffix], logLevel: 'silent' });
+  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
+  await bundle.close();
+  const file = `${entry}.mjs`;
+  writeFileSync(file, output[0].code);
+  const stored = new Map();
+  const previous = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (k) => stored.get(k) ?? null,
+    setItem: (k, v) => stored.set(k, String(v)),
+    removeItem: (k) => stored.delete(k),
+    key: (i) => [...stored.keys()][i] ?? null,
+    get length() { return stored.size; },
+  };
+  try {
+    const store = await import(pathToFileURL(file).href);
+    const show = store.createShowNamed('Large production');
+    const script = (n) => `/* script-of-${n} */ var NOACG_ANIM = {}; ${'x'.repeat(50_000)}`;
+    for (const n of ['One', 'Two', 'Three']) {
+      const added = store.addGraphicToShow(show.id, {
+        name: n, type: 'lower-third', html: '<p></p>', css: '', js: script(n), assets: [], fields: [],
+        resolution: { width: 1920, height: 1080 }, fps: 50,
+      }, {});
+      assert.equal(added.error, null);
+    }
+    const saved = store.loadShows().find((s) => s.id === show.id);
+    const panel = store.buildPanelSpec(saved, []);
+    const payload = await store.buildOutputPayload(saved, []);
+    const row = JSON.stringify({ panel, output: payload });
+    for (const n of ['One', 'Two', 'Three']) {
+      assert.equal(row.split(`script-of-${n}`).length - 1, 1, `${n}'s script is sent ${row.split(`script-of-${n}`).length - 1} times`);
+    }
+    assert.ok(panel.every((g) => !('js' in g)), 'the panel names no script');
+    assert.ok(JSON.stringify(panel).length < 5_000, `the panel is ${JSON.stringify(panel).length} bytes for three graphics`);
+  } finally {
+    globalThis.localStorage = previous;
+  }
 });

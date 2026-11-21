@@ -90,7 +90,14 @@ export interface PanelEntry {
 export interface PanelGraphicSpec {
   name: string;
   fields: SpxField[];
-  js: string;
+  /**
+   * The graphic's script, carried only by rows an older build published. It was there for the
+   * hosted control page's event buttons; that page is retired (docs/work-specs/retire-hosted-control)
+   * and nothing reads it now. A publish no longer writes it: it repeated every graphic's script
+   * beside the payload's own copy, nearly doubling the publish write (issue #2667: 9.7 MB of request
+   * for a 60-graphic production, most of it parsed inside the one statement the 8 s limit cuts).
+   */
+  js?: string;
   images: { value: string; label: string }[];
   /**
    * The graphic's saved entries, published READ-ONLY (docs/SAVED_CONTENT_MODEL.md §4): the
@@ -357,7 +364,8 @@ export interface ControlEventRow {
     | { t: 'ping'; id: string; at: number };
 }
 
-/** The stored operator spec for a show — one entry per graphic, no template payload. The
+/** The stored operator spec for a show — one entry per graphic, no template payload and no
+ *  script (the payload carries both). The
  *  entries come from the library via the shared resolver (model/library.ts), by `graphicId`
  *  with a unique-name fallback, so hosted publish and show export agree on the lookup.
  *
@@ -369,13 +377,12 @@ export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(
   const publishedEntries = new Map(published.map((g) => [g.name, g.entries] as const));
   return show.graphics.map((g) => {
     // The LIVE template (templateForSavedGraphic), not the snapshot embedded when the graphic
-    // was added — publishing a show that carried the stale fields/js would drive the hosted
-    // operator page against a design the graphic no longer has.
+    // was added — publishing a show that carried stale fields would describe a design the graphic
+    // no longer has. Its script is not repeated here: the payload carries it (issue #2667).
     const template = templateForSavedGraphic(g, library);
     return {
       name: g.name,
       fields: typedPublishedFields(template.fields, template.ograf),
-      js: template.js,
       images: template.assets
         .filter((a) => isImageAsset(a.path))
         .map((a) => ({ value: a.path, label: a.path })),
