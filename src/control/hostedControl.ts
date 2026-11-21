@@ -1994,7 +1994,8 @@ async function sendControlVerbOnce(opts: {
       // at its own deadline, so a request still held on this side is cancelled rather than left to
       // commit after a later press.
       if (waitRanOut) throw unansweredError();
-      await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), { ...resend, stop });
+      // All out is never stopped, on this road as on the numbered one (#2655 R7a).
+      await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), { ...resend, ...(opts.allOut ? {} : { stop }) });
     }
     noteSend(true);
   } catch (e) {

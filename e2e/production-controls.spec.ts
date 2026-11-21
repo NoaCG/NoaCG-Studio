@@ -270,6 +270,31 @@ test('a Take nobody answers says "still sending", and leaving the production sto
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
+// #2655 R7a on the row-id road (a server with no numbered road): All out is never stopped, so a
+// second All out, Stop sending or the production closing cannot cut one already on its way.
+test('an All out on the row-id road is not cut by a stop while it is on its way (#2655)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { sendsById } = await publishedPage(page, (rpc) =>
+    rpc === 'control_show_resolve'
+      ? { status: 404, body: { code: 'PGRST202', message: 'Could not find the function', details: null, hint: null } }
+      : rpc === 'control_send_many'
+        ? { delay: 600 }
+        : null,
+  );
+  const showId = page.url().split('/production/')[1];
+  const result = await page.evaluate(async (showId) => {
+    const { sendControlVerbs, sendsInOrder, stopSending } = await __noacgImport('/src/control/hostedControl.ts');
+    const allOut = sendControlVerbs({ slug: 'status-slug', showId, batches: [[{ graphic: 'Guest Strap', msg: { t: 'stop' } }]], allOut: true });
+    await new Promise((r) => setTimeout(r, 150));
+    stopSending();
+    const outcome = await allOut.then(() => 'landed', (e: Error) => e.message);
+    return { outcome, numbered: sendsInOrder('status-slug') };
+  }, showId);
+  expect(result.numbered, 'this server has no numbered road').toBe(false);
+  expect(result.outcome, 'the All out was not cut').toBe('landed');
+  expect(sendsById()).toBeGreaterThan(0);
+});
+
 test('a refused resolve is asked again, so the page keeps its order: no mark, and a Take goes numbered (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   // The first TWO: a dev build mounts the page's wire twice, so two resolves leave at once, and an
