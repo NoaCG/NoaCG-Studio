@@ -77,8 +77,9 @@ test('a saved graphic carries its entries into the show it is added to', async (
   expect(panel).toHaveLength(1);
   expect(panel[0].entries.map((e) => e.label)).toEqual(['Anna Andersson', 'Michael Smith']);
   expect(panel[0].entries[0].values.f1).toBe('Presenter');
-  // Never the template payload — the spec stays the operator's view of the graphic.
-  expect(Object.keys(panel[0])).toEqual(['name', 'fields', 'js', 'images', 'entries', 'dataRows']);
+  // Never the template payload, and not its script either (#2667): the payload carries both, and
+  // repeating the script here nearly doubled the publish write.
+  expect(Object.keys(panel[0])).toEqual(['name', 'fields', 'images', 'entries', 'dataRows']);
 });
 
 test('a production dataset publishes the rows its graphics can load', async ({ page }) => {
@@ -699,9 +700,9 @@ test('a production carries its control profile canonically, and deleting it leav
 test('the published panel spec arranges from the PUBLISHED bytes, by the one rule the production page uses', async ({ page }) => {
   // AC-5's hosted deployment, pinned as far as an OFFLINE spec honestly can.
   //
-  // WHAT THIS PROVES AND WHAT IT DOES NOT. The hosted page renders from two published things
-  // and nothing else: the `panel` spec (which carries each graphic's `js`, and therefore its
-  // declared controls) and the `profile` column. This asserts that those two, run through the
+  // WHAT THIS PROVES AND WHAT IT DOES NOT. The hosted page rendered from two published things
+  // and nothing else: the graphic's published `js` (in the panel spec then, in the payload since
+  // #2667), and therefore its declared controls, and the `profile` column. This asserts that those two, run through the
   // SHARED `arrangeControls`, give the three lists the page draws — which is the whole of what
   // ARRANGE does there, since the page has no other input. What it cannot reach is the page's
   // own DOM: mounting it needs a configured backend, so the buttons themselves are step 9 of the
@@ -713,7 +714,7 @@ test('the published panel spec arranges from the PUBLISHED bytes, by the one rul
   await bootstrapGraphic(page, { name: 'Club Scorebug' });
 
   const arranged = await page.evaluate(async () => {
-    const { buildPanelSpec } = await __noacgImport('/src/control/hostedControl.ts');
+    const { buildPanelSpec, buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
     const { arrangeControls, arrangeFor, eventButtons } = await __noacgImport('/src/control/controlModel.ts');
     const { withGraphicArrange, readPublishedProfile } = await __noacgImport('/src/model/profile.ts');
     const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
@@ -736,7 +737,9 @@ test('the published panel spec arranges from the PUBLISHED bytes, by the one rul
     // profile as jsonb and `controlShowBySlug` hands it back through `readPublishedProfile`, so
     // the bytes the page arranges from are the ones that survived that round trip.
     const published = readPublishedProfile(JSON.parse(JSON.stringify(profile)));
-    const buttons = eventButtons(panel[0].js);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload = await buildOutputPayload(show as any);
+    const buttons = eventButtons(payload.graphics.find((g) => g.key === panel[0].name)!.js);
     const read = arrangeControls(buttons, arrangeFor(published, panel[0].name));
     const generated = arrangeControls(buttons, arrangeFor(null, panel[0].name));
     // A profile a NEWER build wrote. `arrangeFor` applies the version gate itself, so every
@@ -802,15 +805,14 @@ test('a bound field in the published panel reads the tree, and a press moves the
 
   const measured = await page.evaluate(async ({ VOTES, TOTALS }) => {
     const shows = await __noacgImport('/src/model/shows.ts');
-    const { buildPanelSpec, buildOutputPayload, hostedCueValues } = await __noacgImport('/src/control/hostedControl.ts');
+    const { buildOutputPayload, hostedCueValues } = await __noacgImport('/src/control/hostedControl.ts');
     const { eventButtons, pressSend } = await __noacgImport('/src/control/controlModel.ts');
     const { resolveBindings } = await __noacgImport('/src/model/productionData.ts');
 
     const show = shows.loadShows().find((s) => s.graphics.some((g) => g.name === VOTES))!;
-    const panel = buildPanelSpec(show);
     const payload = await buildOutputPayload(show);
     const cueOf = (graphic: string) => payload.cues.find((c) => c.graphic === graphic)!;
-    const button = (event: string) => eventButtons(panel.find((g) => g.name === TOTALS)!.js).find((b) => b.event === event)!;
+    const button = (event: string) => eventButtons(payload.graphics.find((g) => g.key === TOTALS)!.js).find((b) => b.event === event)!;
 
     // ONE VALUE, TWO GRAPHICS. The totals board shows panelist 1's points as a number (`plus1`
     // declares `adjust: { f5: 1 }`); the votes board carries the same panelist's slot.

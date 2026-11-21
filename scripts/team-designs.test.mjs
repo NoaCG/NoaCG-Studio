@@ -35,7 +35,7 @@ function fakeServer() {
     designs,
     server: {
       async put(id, bodies) {
-        calls.put.push({ id, count: bodies.length, bytes: bodies.reduce((n, b) => n + JSON.stringify(b).length, 0) });
+        calls.put.push({ id, count: bodies.length, bytes: bodies.reduce((n, b) => n + JSON.stringify(b).length, 0), utf8: bodies.reduce((n, b) => n + Buffer.byteLength(JSON.stringify(b)), 0) });
         const held = designs.get(id) ?? new Map();
         designs.set(id, held);
         return bodies.map((b) => {
@@ -178,4 +178,26 @@ test('R10: only an installed server with the switch on, on a page with Web Crypt
   for (const installed of [null, false, true]) for (const on of [false, true]) for (const webCrypto of [false, true]) {
     assert.equal(D.savesSplit({ installed, on, webCrypto }), installed === true && on && webCrypto, JSON.stringify({ installed, on, webCrypto }));
   }
+});
+
+// #2667: each put is one statement under the 8 s limit. A first split of 60 lower thirds (about
+// 85 KB each) goes up in puts of at most 500 KB, never in the 1 MB batches that took up to 6.4 s on
+// hosted staging while another large write ran.
+test('a first split of 60 lower thirds puts at most 500 KB per call', async () => {
+  D.forgetDesigns();
+  const { server, calls } = fakeServer();
+  const page = { cues: [], graphics: Array.from({ length: 60 }, (_, i) => ({ id: `g${i}`, name: `G${i}`, template: design(`d${i}`, 85_000, 1) })) };
+  await D.splitRecord('p60', page, server);
+  assert.equal(calls.put.reduce((n, c) => n + c.count, 0), 60);
+  for (const c of calls.put) assert.ok(c.bytes <= 500_000, `a put carried ${c.bytes} bytes`);
+});
+
+// A put's size is its request's bytes: text in another script is up to three UTF-8 bytes a character.
+test('the put limit counts UTF-8 bytes, so designs written in another script stay under it', async () => {
+  D.forgetDesigns();
+  const { server, calls } = fakeServer();
+  const wide = (name) => ({ name, html: `<p>${'漢'.repeat(60_000)}</p>`, css: '', fields: [], assets: [] });
+  const page = { cues: [], graphics: Array.from({ length: 12 }, (_, i) => ({ id: `w${i}`, name: `W${i}`, template: wide(`w${i}`) })) };
+  await D.splitRecord('pw', page, server);
+  for (const c of calls.put) assert.ok(c.count === 1 || c.utf8 <= D.PUT_BYTES, `a put of ${c.count} designs carried ${c.utf8} UTF-8 bytes`);
 });
