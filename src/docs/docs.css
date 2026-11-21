@@ -362,3 +362,8 @@ td strong { color: var(--paper); }
   th, .callout, code, .doc-shot img, .layers, .layers figcaption { background: transparent; }
   th { color: #333333; }
 }
+
+/* A list of fields and what each is for (#osc-fields). */
+.doc-body dl { margin: 0 0 1.1em; max-width: var(--measure); }
+.doc-body dt { color: var(--paper); font-weight: 600; margin-top: 12px; }
+.doc-body dd { margin: 4px 0 0; }

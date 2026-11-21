@@ -196,6 +196,16 @@ for (const size of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) 
 
 // The cause, checked for every shot rather than at two anchors: with no picture allowed to
 // arrive, each frame already holds the box its width/height attributes promise.
+test('the OSC guide names what it needs, every field, and how it fires with a graphic', async ({ page }) => {
+  await page.goto('/docs#osc');
+  const guide = page.locator('#osc');
+  await expect(guide.getByRole('heading', { name: 'Send lighting cues with OSC' })).toBeVisible();
+  await expect(guide).toContainText('NoaCG Bridge 0.13.0 or later');
+  await expect(guide.locator('dt')).toHaveText(['Name', 'Destination', 'OSC address', 'Arguments']);
+  await expect(guide).toContainText('put both in an All together folder');
+  await expect(guide).toContainText('--allow-public-osc');
+});
+
 test('every docs screenshot reserves its height before it loads', async ({ page }) => {
   await page.route('**/docs/*.png', () => {});
   for (const width of [1366, 390]) {

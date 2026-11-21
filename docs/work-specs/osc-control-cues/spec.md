@@ -294,7 +294,9 @@ Phase 6 (Companion), notes:
   module version already reads (an unknown source reads as none), so no panel calls it a graphic or
   a file and the module needs no release. `take_cue`, `trigger_cue` and the per-cue refusals were
   done in phase 3: a refused press puts its reason on the note line.
-- Still open, an owner decision: releasing NoaCG Bridge (moving `bridgeVersion` in
-  `cli/package.json`) publishes everything under the changelog's `## Unreleased`, which now also
-  holds the audio reader work. Until that release, an operator's Bridge cannot send OSC.
-- Phase 7 (owner hardware, AC-11) waits on that release.
+- Released: NoaCG Bridge 0.13.0 (2026-11-20) and 0.13.1 (2026-11-21) were built after phase 2
+  landed and carry `/osc` (the `osc` feature on `/health`); 0.13.0's notes describe it. No separate
+  OSC release was needed.
+- Phase 7 (owner hardware, AC-11) is the owner's ZerOS desk check with Bridge 0.13.1.
+- Operator help: the public docs have `#osc` (fields, folders, what Sent means, network rules), and
+  the OSC cue editor has an (i) with the same fields in brief and a link to it.
