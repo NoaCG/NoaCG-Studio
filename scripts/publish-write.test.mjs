@@ -23,9 +23,9 @@ const dir = mkdtempSync(path.join(tmpdir(), 'publish-write-'));
 after(() => rmSync(dir, { recursive: true, force: true }));
 
 /** A fresh copy of the module, so the per-page fallback starts unset in each test. */
-async function load() {
+async function load(source = `export { readPublishedWhole, writeControlShow } from ${JSON.stringify(path.join(root, 'src/control/hostedControl.ts'))};`) {
   const entry = path.join(dir, `entry-${Math.random().toString(36).slice(2)}.ts`);
-  writeFileSync(entry, `export { readPublishedWhole, writeControlShow } from ${JSON.stringify(path.join(root, 'src/control/hostedControl.ts'))};`);
+  writeFileSync(entry, source);
   const bundle = await rolldown({ input: entry, platform: 'node', plugins: [rawSuffix], logLevel: 'silent' });
   const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
   await bundle.close();
@@ -121,14 +121,6 @@ test('a refusal or any other error is reported as it is and never retried by the
 // 4.6 of the 9.7 MB a 60-graphic production sent. The payload keeps the script; the panel carries
 // none, whatever the script's size.
 test('a publish carries each graphic script once, in the payload, and the panel carries none', async () => {
-  const entry = path.join(dir, `panel-${Math.random().toString(36).slice(2)}.ts`);
-  writeFileSync(entry, `export { createShowNamed, addGraphicToShow, loadShows } from ${JSON.stringify(path.join(root, 'src/model/shows.ts'))};\n` +
-    `export { buildOutputPayload, buildPanelSpec } from ${JSON.stringify(path.join(root, 'src/control/hostedControl.ts'))};\n`);
-  const bundle = await rolldown({ input: entry, platform: 'node', plugins: [rawSuffix], logLevel: 'silent' });
-  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
-  await bundle.close();
-  const file = `${entry}.mjs`;
-  writeFileSync(file, output[0].code);
   const stored = new Map();
   const previous = globalThis.localStorage;
   globalThis.localStorage = {
@@ -139,7 +131,8 @@ test('a publish carries each graphic script once, in the payload, and the panel 
     get length() { return stored.size; },
   };
   try {
-    const store = await import(pathToFileURL(file).href);
+    const store = await load(`export { createShowNamed, addGraphicToShow, loadShows } from ${JSON.stringify(path.join(root, 'src/model/shows.ts'))};\n` +
+      `export { buildOutputPayload, buildPanelSpec } from ${JSON.stringify(path.join(root, 'src/control/hostedControl.ts'))};\n`);
     const show = store.createShowNamed('Large production');
     const script = (n) => `/* script-of-${n} */ var NOACG_ANIM = {}; ${'x'.repeat(50_000)}`;
     for (const n of ['One', 'Two', 'Three']) {
