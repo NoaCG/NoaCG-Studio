@@ -198,7 +198,7 @@ it answers installed and on, the page keeps that until a later read answers off.
    (keys sorted, the same function as G4's unit digests) in the page's known names for that
    production. Names are learned from reads (the canonical JSON of each body read) and from puts.
 2. Designs with no known name go up through `team_designs_put` in batches of at most 1 MB of JSON
-   (one design per call when a design alone is larger); the answers fill the known names. A design
+   (500 KB of UTF-8 since #2667; one design per call when a design alone is larger); the answers fill the known names. A design
    unchanged since the last save or read is never sent again.
 3. The split record goes up: through `team_production_patch` when `partial_writes` is on and a base
    map for the split record exists (G4), else `team_production_store`. The unit map (G4) is always
@@ -293,7 +293,8 @@ Observable lines, each checked by a test named in section 8.
   authenticated write of a split production's publication; every Take, report, heartbeat, data
   write, output read and renderer path is unchanged.
 - **R15** The page puts at most 1 MB of JSON, or one design, per call, and reads at most 8 designs
-  per call (a page rule; the server limits only a body to 40 MB).
+  per call (a page rule; the server limits only a body to 40 MB). Since #2667 the page batches at
+  most 500 KB, counted in UTF-8 bytes; a single larger design still goes alone, as before.
 - **R16** In a stored split record every graphic carries a `designRef` and none a `template`, on
   every write route (the form trigger); so a design change on a split record keeps it split.
 
