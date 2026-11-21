@@ -484,7 +484,8 @@ test('a press of several batches never undoes a later press, and nothing pressed
 
   // ── C. The panic control (review 2 ordering:F2). H is on air. A press on H is held; a press
   //    {Take G, Update H} queues behind it; an All out of H, which never queues, lands first.
-  //    Both earlier presses then arrive and are refused whole: G never airs after the All out. ──
+  //    Since #2655 R7a the All out ends both earlier presses as it is pressed: the queued one
+  //    never leaves ("sending stopped"), and G never airs after the All out. ──
   await onAir(['H']);
   await holdFirst((b) => !b.p_sender?.all_out && b.p_items?.length === 1 && b.p_items[0].graphic === 'H');
   const c = await op.evaluate(async ({ slug }) => {
@@ -507,9 +508,7 @@ test('a press of several batches never undoes a later press, and nothing pressed
     return { p4: await p4, p5: await p5, allOut };
   }, { slug: hosted });
   await op.unrouteAll({ behavior: 'ignoreErrors' });
-  expect((c.p5 as { superseded?: string[] }).superseded, 'the press queued before the All out was refused whole').toEqual(
-    expect.arrayContaining(['G', 'H']),
-  );
+  expect((c.p5 as { error?: string }).error, 'the press queued before the All out never left').toBe('sending stopped');
 
   const heads = await page.evaluate(
     async ({ slug }) => {
