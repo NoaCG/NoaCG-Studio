@@ -199,3 +199,22 @@ Phase 1 (release 1, model safety), notes for the phases after it:
 - A test fixture in `scripts/folder-playout.test.mjs` wrote `source: 'graphic'`, a value no
   `ShowCue` can hold. Under `cueKind` an unknown source is a control cue, so the fixture now omits
   `source` as a real graphic cue does; the assertion is unchanged.
+
+Phase 2 (NoaCG Bridge sends OSC), notes for the phases after it:
+
+- `POST /osc` takes `{ sendId, host, port, address, args }` and answers `{ sent: { to, bytes } }`,
+  with `repeat: true` when the send id was seen in the last minute (`cli/src/playout/osc.ts`,
+  wire types `OscRequestWire` in both protocol files). It needs a token but no target and no
+  adapter, so a browser-only production can use it. The page must check the `osc` feature on
+  `/health` and name an old Bridge as too old.
+- Error codes the page will meet: `usage` (HTTP 400, a bad message: show the Bridge's sentence on
+  the cue), `refused` (destination rule or the rate bucket), `unreachable` (name not found, too
+  slow, or the socket failed). A page timeout after the request left is the page's own
+  "Send uncertain. Check the desk."; the page must never resend, and the send id makes a resend
+  harmless anyway.
+- Destinations ending in `.255` are refused as broadcast addresses even on networks wider than a
+  /24. Revisit only if an owner's device really lives on such an address.
+- The Bridge changelog entry stays under `## Unreleased` until phase 4 ships the rundown side;
+  moving `bridgeVersion` is the release.
+- Seven `cli/test/state.test.mjs` tests are cancelled on this cloud machine on unchanged `main`
+  too ("Promise resolution is still pending"); not related to OSC.

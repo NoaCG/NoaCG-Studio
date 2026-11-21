@@ -36,6 +36,13 @@ Bridge reads sound with a small audio reader inside the exe: an audio-only build
 program, under its LGPL licence. Its licence, its exact source and how it was built are attached
 to this release. To check a recording's loudness yourself, run the exe with `--measure <file>`.
 
+NoaCG Bridge can send OSC (Open Sound Control) messages to a lighting desk, show controller or any
+other device that listens for OSC over UDP, for the OSC cues coming to the NoaCG rundown. Each Take
+sends one message; a repeat of the same press is never sent twice, and nothing is ever re-sent by
+itself. It sends to this computer, your studio network and VPN addresses. Start the Bridge with
+`--allow-public-osc` only if a device you control is reached over the public internet; OSC has no
+password. Broadcast and multicast addresses are always refused.
+
 ## 0.12.0 - 2026-11-14
 
 You can now take clips, stills and audio from the NoaCG rundown into vMix. In **Settings >
