@@ -47,6 +47,7 @@ export default function ProductionShell({
   onPanel,
   panelDialog,
   onPlayoutSettings,
+  onNormalize,
   onLinks,
   onLook,
   views,
@@ -82,6 +83,8 @@ export default function ProductionShell({
   onPanel: () => void;
   panelDialog?: React.ReactNode;
   onPlayoutSettings: () => void;
+  /** Setup › Normalize audio (home/NormalizeAllDialog.tsx). */
+  onNormalize?: () => void;
   onLinks?: () => void;
   /** Setup › Look (home/ProductionLook.tsx). */
   onLook?: () => void;
@@ -281,6 +284,7 @@ export default function ProductionShell({
           panel={panel}
           onPanel={onPanel}
           onPlayoutSettings={onPlayoutSettings}
+          onNormalize={onNormalize}
           onLinks={onLinks}
           onLook={onLook}
           onExport={onExport}

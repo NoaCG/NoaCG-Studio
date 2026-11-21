@@ -106,6 +106,7 @@ import { folderStep, type FolderStep, type StepMember } from '../../control/fold
 import { webLockLead } from '../../control/webLockLead';
 import { serverFilesCheck, serverFilesKey, startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
 import { trimBreaks } from '../../control/trimEffects';
+import NormalizeAllDialog from './NormalizeAllDialog';
 import { serverCueOffRefusal as serverOff, serverCueAdapterMismatch, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord, finishVmixAllOut, runVmixAndRecord, type ServerVerbIo, type VmixAllOutCut } from '../../control/serverVerbs';
 import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
@@ -747,6 +748,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** The header's Playout settings dialog (components/PlayoutSettingsDialog.tsx). Closing it bumps
    *  `playoutSettingsRev`, which re-reads the settings for the connection poll below. */
   const [playoutSettingsOpen, setPlayoutSettingsOpen] = useState(false);
+  const [normalizeOpen, setNormalizeOpen] = useState(false);
   const [playoutSettingsRev, setPlayoutSettingsRev] = useState(0);
   const [vmixMediaRev, setVmixMediaRev] = useState(vmixMediaFolderRevision);
   /** Whether a Bridge is paired and a server named - what the header's Playout control shows
@@ -4621,6 +4623,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       onPanel={() => setPanelOpen(true)}
       panelDialog={panelOpen && <PanelDialog slug={hostedSlug} answer={panel} onClose={() => setPanelOpen(false)} />}
       onPlayoutSettings={() => setPlayoutSettingsOpen(true)}
+      onNormalize={casparOn ? () => setNormalizeOpen(true) : undefined}
       // A build that cannot publish has no links to show, unless the record already holds some.
       onLinks={backendConfigured || hostedSlug ? () => setLinksOpen(true) : undefined}
       onLook={() => setLookOpen(true)}
@@ -5231,6 +5234,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
             onTransport={onVerb}
             setShows={setShows}
             trimBreaks={(trim) => trimBreaks(takeContext, editingCue.id, trim)}
+            loudnessTarget={show.loudnessTarget}
           />
           )}</DraftView>
         )}
@@ -5326,6 +5330,16 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           copied={copied === 'output' || copied === 'join' || copied === 'presenter' ? copied : null}
           onCopy={copy}
           onClose={() => setLinksOpen(false)}
+        />
+      )}
+      {normalizeOpen && (
+        <NormalizeAllDialog
+          show={show}
+          settings={playoutSettings}
+          onAir={Object.keys(serverOnAir).length}
+          write={(mutation, label) => history.write(mutation, label)}
+          setShows={setShows}
+          onClose={() => setNormalizeOpen(false)}
         />
       )}
       {playoutSettingsOpen && (
