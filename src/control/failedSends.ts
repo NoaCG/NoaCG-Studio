@@ -220,7 +220,10 @@ export async function sendWithResend(
   });
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => timer(ms, resolve)));
   const stop = opts.stop;
-  const stopped = (last: unknown) => (stop?.reason instanceof Error ? stop.reason : last ?? stoppedError());
+  // A copy per press: one stop ends many presses, and each writes what it carried onto its error
+  // (hostedControl.ts), so a shared reason would hand one press's ids to another.
+  const stopped = (last: unknown) =>
+    stop?.reason instanceof Error ? Object.assign(new Error(stop.reason.message), stop.reason) : last ?? stoppedError();
   let last: unknown = null;
   for (let attempt = 0; ; attempt += 1) {
     if (stop?.aborted) throw stopped(last);

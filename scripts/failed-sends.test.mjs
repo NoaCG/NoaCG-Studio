@@ -438,3 +438,17 @@ test('R3: its own row heard ends a held press without cutting the attempt in fli
   await assert.rejects(waiting, (e) => isUnanswered(e));
   assert.equal(attempts, 1);
 });
+
+test('R6: one stop ending two presses gives each its own error, so neither carries the other\'s ids', async () => {
+  const stop = new AbortController();
+  const hang = () => new Promise(() => {});
+  const a = sendWithResend(hang, { deadline: 0, stillNewest: () => true, held: true, stop: stop.signal });
+  const b = sendWithResend(hang, { deadline: 0, stillNewest: () => true, held: true, stop: stop.signal });
+  await new Promise((r) => setImmediate(r));
+  stop.abort(failed.stoppedError());
+  const [ea, eb] = await Promise.all([a.catch((e) => e), b.catch((e) => e)]);
+  assert.notEqual(ea, eb);
+  assert.ok(failed.isStopped(ea) && failed.isStopped(eb) && isUnanswered(eb));
+  ea.sent = ['take A'];
+  assert.equal(eb.sent, undefined);
+});

@@ -260,9 +260,9 @@ export const hms = (at: number) => new Date(at).toLocaleTimeString([], { hour: '
 /** PROGRAM's status tag: its state, its words and its tooltip. Empty words show nothing. */
 export function programAir(f: AirFacts): { state: AirState; text: string; title: string; stoppable?: true } {
   if (!f.published) return { state: 'local', text: 'this page only', title: 'Not published: a Take plays on this monitor and nowhere else.' };
-  // First of all: a Take on a slow server, with the one control that ends it (#2655 R6). A bound
-  // press unsent at the same moment is shown once this ends.
-  // still being sent, never given up on in silence, never "sent" (#2655).
+  // First of all: a Take on a slow server, still being sent, never given up on in silence, never
+  // "sent", with the one control that ends it (#2655 R6). A bound press unsent at the same moment
+  // is shown once this ends.
   if (f.stillSending) {
     return {
       state: 'pending',
