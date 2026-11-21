@@ -11,6 +11,12 @@
 //
 // Mutation-tested: with the attempt deadline taken out, the held Take commits at 6 s and the
 // output's entrance count reads 1.
+//
+// SINCE #2655 a Take no server answers is not given up on after 4 s: it is sent until it lands,
+// "still sending" beside Stop sending (docs/work-specs/live-publishing/evidence/fix-2655.md R2,
+// R6). The first walk is that, ended by Stop sending; every attempt is still abandoned in the
+// browser, so the claims about air are unchanged. The second walk is unchanged: an Out replaces
+// the graphic, so it ends the held Take (R7, newest wins).
 // covers: src/control/failedSends.ts, src/control/markerSender.ts, src/components/home/ProductionPage.tsx
 
 import { publishProduction } from '../_publish';
@@ -94,18 +100,21 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   const notice = op.getByTestId('production-note').filter({ hasText: 'on this monitor only' });
   await op.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
 
-  // ── An abandoned attempt ends in the notice, like any send nobody answered. ────────────────
+  // ── An abandoned attempt is sent again until the operator stops it, then ends in the notice. ──
   //
-  // A Take held with no Out behind it: both attempts inside the window are abandoned, and within
-  // the window (not at a statement timeout, 3 s to 8 s per attempt before) the page says that the
-  // graphic on its monitor is on no other screen.
+  // A Take held with no Out behind it: every attempt is abandoned in the browser at its deadline.
+  // The page says it is still sending past the old window and reports no failure; Stop
+  // sending ends it, and then the page says that the graphic on its monitor is on no other screen.
   await followerLevel();
   const takenAt = Date.now();
   await op.getByTestId('verb-take').click();
   await expect(chip).toContainText('on air:');
+  await expect(op.getByTestId('program-air')).toContainText('still sending', { timeout: 10_000 });
+  expect(Date.now() - takenAt, '"still sending" shows before the held request would have been let go').toBeLessThan(HOLD_MS + 1000);
+  await expect(notice, 'a Take still being sent is not reported as failed').toHaveCount(0);
+  await op.getByTestId('stop-sending').click();
   await expect(notice).toHaveCount(1, { timeout: 10_000 });
-  // Due at about 3.4 s; the bound is the hold, since before this change the notice never came.
-  expect(Date.now() - takenAt, 'the notice comes before the held request would have been let go').toBeLessThan(HOLD_MS);
+  await expect(notice).toContainText('(sending stopped)');
   // The live marker the fast road moved at the press goes back with the failure (#1713): a second
   // operator reads it to know what is on air, and nothing is. So there is nothing to play out.
   await expect(chip).toContainText('nothing on air');

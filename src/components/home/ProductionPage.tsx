@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
 import { joinedScenes, obsScenesOf, sceneFolderIds, sceneGraphicNames, sceneLink, type ObsScene } from '../../model/obsScenes';
@@ -223,6 +223,10 @@ import {
   publishedLeaseDoor,
   firstPublishedSources,
   sendControlVerbs,
+  sendStopGeneration,
+  stillSendingCount,
+  stopSending,
+  subscribeStillSending,
   untilAnswered,
   libraryGraphicDigests,
   sendsInOrder,
@@ -506,6 +510,7 @@ const GRAPHIC_VERB_IO: GraphicVerbIo = {
   pressSend,
   nameList,
   now: wallClock,
+  stopGeneration: sendStopGeneration,
   sendsInOrder,
   setTimeout: (run, ms) => setTimeout(run, ms),
   clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
@@ -1816,6 +1821,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   );
   useEffect(() => dataSession.published(hostedSlug), [dataSession, hostedSlug]);
   const { liveData, dataKey, treeRead, unsent: pressesUnsent } = useStorePart(session.data);
+  /** A Take sent until it lands has been out past the old 4 s window (#2655 R6). */
+  const stillSending = useSyncExternalStore(subscribeStillSending, stillSendingCount) > 0;
   const { setLiveData, patchBoundValues, pressBound } = dataSession;
 
   /** Refuse a press on a shared value this page cannot count from yet, and say why. Bound presses
@@ -4815,7 +4822,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           onWaits={noteProgramWaits}
           onReady={programReady}
           onOverflow={notePreviewOverflow}
-          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, unsent: pressesUnsent, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting), ran: ranLast })}
+          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, unsent: pressesUnsent, stillSending, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting), ran: ranLast })}
+          onStopSending={stopSending}
           serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server') ? bridgeStatus.state : null}
           programChip={
             chipGraphic ? (

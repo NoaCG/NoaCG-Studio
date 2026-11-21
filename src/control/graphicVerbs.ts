@@ -63,7 +63,7 @@ import { mintOid, oidOf } from './commandRoads.ts';
 import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
 import { withPeersOff } from './ografOutcome.ts';
 import { markerAuto } from './cueAuto.ts';
-import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUncertain } from './failedSends.ts';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isMaybeLanded, isUncertain } from './failedSends.ts';
 import { leftAlone, pressOuts, reachedOutput, withLiveCue } from './liveCue.ts';
 import { createMarkerSender, type MarkerSent } from './markerSender.ts';
 import { staleSentence } from './seqSend.ts';
@@ -134,6 +134,9 @@ export interface VerbSender {
   noOutput: () => void;
   /** The note line: a sentence, or a fold over the one shown (a landed send settling a debt). */
   note: (next: string | ((shown: string | null) => string | null)) => void;
+  /** The stop generation the press was made in (hostedControl.ts `sendStopGeneration`), stamped
+   *  by the verbs when they take the page at the press. Absent, the press is made as it leaves. */
+  madeIn?: number;
 }
 
 /** What the module needs from the page while the page still owns it, as its latest render has it. */
@@ -265,6 +268,9 @@ export interface GraphicVerbIo {
   nameList: (names: string[]) => string;
   /** The wall clock (ms), for when the log last took a send. */
   now: () => number;
+  /** The current stop generation (hostedControl.ts `sendStopGeneration`, #2655 R7a). Absent, no
+   *  press is ever stopped before it leaves. */
+  stopGeneration?: () => number;
   /** The id a marker press of this sender is sent with (commandRoads.ts `mintOid`; a test names it
    *  after the press's number). */
   mintOid?: (n: number) => string;
@@ -329,7 +335,14 @@ const figuresOf = (msg: { t: string }): Record<string, string> | undefined => {
 /** Refused at the session's end: nothing more is sent for a production that is closed (§4.1 R3). */
 const ENDED_NOTE = 'This production is closed, so nothing was sent.';
 
-export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, sender: () => VerbSender, readPage: () => GraphicPage): GraphicVerbs {
+export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, pageSender: () => VerbSender, readPage: () => GraphicPage): GraphicVerbs {
+  /** The page as a press sends with it, stamped with the stop generation of the press: a press
+   *  still waiting for the one before it when the operator stops sending, or presses All out,
+   *  never leaves (#2655 R7a). */
+  const sender = (): VerbSender => {
+    const s = pageSender();
+    return io.stopGeneration ? { ...s, madeIn: io.stopGeneration() } : s;
+  };
   /** The page as a press reads it. Once the production closed, its writes move nothing: no cue,
    *  no tree and no Bridge clear for a closed production (§4.1 R3), as the session's folds and the
    *  sender already refuse. */
@@ -636,6 +649,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         fastEvents: p.fastEvent,
         serverInstant: p.serverInstant,
         allOut,
+        ...(p.madeIn !== undefined ? { madeIn: p.madeIn } : {}),
       });
       markers.answer(pressed, (m) => reachedOutput(sent, m.graphic));
       settle((graphic) => reachedOutput(sent, graphic));
@@ -651,9 +665,12 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       // that never happened: this monitor applied the commands before the round trip. A press
       // another screen had already overtaken was refused by the server (protocol 2, migration 0071).
       const stale = io.verbStale(e);
+      // A copy of a press sent until it lands may have landed (#2655 R6a): never "did not change".
       const note = stale
         ? staleSentence(e as Error)
-        : io.verbAired(e)
+        : isMaybeLanded(e)
+          ? `${label} may have reached air; not confirmed (${(e as Error).message}).`
+          : io.verbAired(e)
           ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
           : `${label} failed: ${(e as Error).message}`;
       // Owed: the batch that failed, as it was sent, and those after it. The ones before it landed.

@@ -84,6 +84,32 @@ export function senderBody(session: SeqSession, id: string, press: number, graph
   return { id, press, epoch: session.epoch, base, ...(allOut ? { all_out: true as const } : {}) };
 }
 
+/** The commands that count in a graphic's revision on the server (0071 `control_head_effect`). */
+const REVISION = new Set(['update', 'play', 'stop', 'next', 'event', 'snap']);
+/** The commands that REPLACE a graphic's state rather than modify it (#2655 R7). */
+const REPLACING = new Set(['play', 'stop']);
+
+type PressItem = { graphic: string; msg: { t: string } };
+
+/**
+ * WHETHER A PRESS IS SENT UNTIL IT LANDS (#2655 R1): on this road, not All out, with an epoch,
+ * and every graphic it touches carrying a revision command. Only then can no copy of it ever
+ * insert its rows twice (fix-2655.md, R4's proof): a later copy finds every graphic either as this
+ * press left it (a duplicate), or moved on past the base it carries (stale), or pressed again by
+ * this page (skipped). All out is never refused as stale, a cue moves no revision, and a press
+ * with no epoch is not refused across a republish, so none of those is held.
+ */
+export function heldPress(items: readonly PressItem[], epoch: string | null, allOut: boolean): boolean {
+  if (allOut || !epoch || items.length === 0) return false;
+  const revised = new Set(items.filter((item) => REVISION.has(item.msg.t) && !('src' in item.msg)).map((item) => item.graphic));
+  return items.every((item) => revised.has(item.graphic));
+}
+
+/** Whether this press replaces `graphic` (a `play` or a `stop` for it), rather than modifying it. */
+export function replacesGraphic(items: readonly PressItem[], graphic: string): boolean {
+  return items.some((item) => item.graphic === graphic && REPLACING.has(item.msg.t));
+}
+
 /** What `control_send_seq` answered. */
 export type SendAnswer =
   | { ok: true; duplicate: boolean; epoch: string | null; graphics: Record<string, HeadSummary>; skipped: string[] }
@@ -175,6 +201,9 @@ export function settleAnswer(
   answer: SendAnswer | null,
   graphics: readonly string[],
   sender: string,
+  /** #2655 R6a: an earlier attempt of this press went unanswered, so a copy may have landed. Its
+   *  number: a refusal is then read against the head it carries. */
+  uncertain?: { press: number },
 ): { outcome: 'landed' | 'superseded'; skipped: string[] } {
   // An answer this page cannot read came after the server may have applied the press: `unread`.
   if (!answer) throw Object.assign(new Error('the server answered in a way this page cannot read'), { unread: true });
@@ -185,6 +214,17 @@ export function settleAnswer(
   const own = (answer.ok && answer.duplicate) || (!answer.ok && answer.refused === 'superseded');
   learnHead(session, answer.epoch, own ? Object.fromEntries(Object.entries(answer.graphics).filter(([, h]) => h?.by === sender)) : answer.graphics);
   if (answer.ok) return { outcome: 'landed', skipped: answer.skipped };
+  if (uncertain) {
+    // A COPY MAY HAVE LANDED (R6a). When every graphic shows this page's press or a later one of
+    // it, this press landed, as a duplicate would say. Otherwise nobody can tell: never "air did
+    // not change", but unknown, owed until its row is heard.
+    const mine = graphics.every((g) => {
+      const head = answer.graphics[g];
+      return head?.by === sender && typeof head.press === 'number' && head.press >= uncertain.press;
+    });
+    if (mine) return { outcome: 'landed', skipped: [] };
+    throw Object.assign(new Error('another screen changed it while it was being sent'), { unread: true, maybeLanded: true });
+  }
   if (answer.refused === 'superseded') return { outcome: 'superseded', skipped: [] };
   throw staleError(answer.stale.length > 0 ? answer.stale : graphics, answer.epochChanged);
 }
@@ -219,39 +259,82 @@ export function createPressBook() {
 }
 
 /**
- * ONE SEND IN FLIGHT PER PAGE AND GRAPHIC.
+ * ONE SEND IN FLIGHT PER PAGE AND GRAPHIC, a lane per graphic (#2655 R7).
  *
  * The server's chain rule lets a page's later press through without the page having seen its
- * earlier one's answer, which is right for every verb that REPLACES the one before (play, stop,
- * snap, a whole-field update) and wrong for the one that accumulates: two Nexts arriving in the
- * wrong order would be one Next refused (review finding ordering:F6). So the next payload for a
- * graphic leaves when the previous one answers, or when its attempt has run `releaseAfterMs`
- * without an answer (the attempt's own deadline, failedSends.ts): a stalled send must not hold the
- * next press, and if the stalled one lands after all, the chain rule refuses it as superseded.
- * A payload touching several graphics waits for all of them. All out does not queue (it is the
- * panic control, and the server never lets it undo this page's later press).
+ * earlier one's answer, which is right for every verb that REPLACES the one before (play, stop)
+ * and wrong for one that accumulates: two Nexts arriving in the wrong order would be one Next
+ * refused (review finding ordering:F6). So the next payload for a graphic leaves when the previous
+ * one answers, or when its attempt has run `releaseAfterMs` without an answer (the attempt's own
+ * deadline, failedSends.ts): a stalled send must not hold the next press, and if the stalled one
+ * lands after all, the chain rule refuses it as superseded.
+ *
+ * Except behind a HELD press (one sent until it lands, `heldPress`): a press that only MODIFIES a
+ * graphic waits there until the held press has ended, however long, so a Take and the Update
+ * after it air in that order. A press that REPLACES the graphic (`replaces`) still waits at most
+ * `releaseAfterMs`: newest wins, and the caller ends the earlier press (hostedControl.ts). The
+ * wait is transitive: a press waiting behind a held one is waited for whole. A payload touching
+ * several graphics waits for all of them. `stop` ends a wait at once, rejecting with its reason.
+ * All out does not queue (it is the panic control, and the server never lets it undo this page's
+ * later press). The keys are the caller's: per production and graphic.
  */
 export function createGraphicFifo(releaseAfterMs: number) {
-  const tails = new Map<string, Promise<void>>();
+  interface Entry {
+    /** The send has ended, whichever way. */
+    done: Promise<void>;
+    /** `releaseAfterMs` after the send left the lane (or as it ended without leaving). */
+    released: Promise<void>;
+    /** Held, or itself waited behind a held press: a modifying press waits for it whole. */
+    slow: boolean;
+  }
+  const tails = new Map<string, Entry>();
+  const settle = (p: Promise<unknown>) => p.then(() => {}, () => {});
   return {
-    run<T>(graphics: readonly string[], send: () => Promise<T>): Promise<T> {
-      const before = graphics.map((g) => tails.get(g) ?? Promise.resolve());
-      let release!: () => void;
-      const released = new Promise<void>((resolve) => (release = resolve));
-      for (const g of graphics) tails.set(g, released);
-      void released.then(() => {
-        for (const g of graphics) if (tails.get(g) === released) tails.delete(g);
+    run<T>(
+      keys: readonly string[],
+      send: (lane: { waitedBehindHeld: boolean }) => Promise<T>,
+      opts: { held?: boolean; replaces?: (key: string) => boolean; stop?: AbortSignal } = {},
+    ): Promise<T> {
+      const before = keys.flatMap((k) => {
+        const entry = tails.get(k);
+        return entry ? [{ key: k, entry }] : [];
       });
-      return Promise.all(before).then(() => {
-        const timer = setTimeout(release, releaseAfterMs);
-        const sent = send();
-        const done = () => {
-          clearTimeout(timer);
-          release();
-        };
-        sent.then(done, done);
-        return sent;
+      // Behind a press it replaces it does not wait long: the caller ends that press.
+      const waitedBehindHeld = before.some(({ key, entry }) => entry.slow && !opts.replaces?.(key));
+      let start!: () => void;
+      const started = new Promise<void>((resolve) => (start = resolve));
+      let finish!: () => void;
+      const done = new Promise<void>((resolve) => (finish = resolve));
+      const released = started.then(() => new Promise<void>((resolve) => setTimeout(resolve, releaseAfterMs)));
+      const entry: Entry = { done, released, slow: !!opts.held || waitedBehindHeld };
+      for (const k of keys) tails.set(k, entry);
+      void done.then(() => {
+        for (const k of keys) if (tails.get(k) === entry) tails.delete(k);
       });
+      const gate = ({ key, entry: e }: { key: string; entry: Entry }) =>
+        e.slow && !opts.replaces?.(key) ? e.done : Promise.race([e.done, e.released]);
+      const waited = Promise.all(before.map(gate)).then(() => {});
+      const stop = opts.stop;
+      const ready = !stop
+        ? waited
+        : new Promise<void>((resolve, reject) => {
+            const abort = () => reject(stop.reason);
+            if (stop.aborted) return abort();
+            stop.addEventListener('abort', abort, { once: true });
+            void waited.then(() => {
+              stop.removeEventListener('abort', abort);
+              resolve();
+            });
+          });
+      const ran = ready.then(() => {
+        start();
+        return send({ waitedBehindHeld });
+      });
+      void settle(ran).then(() => {
+        start();
+        finish();
+      });
+      return ran;
     },
   };
 }

@@ -12,6 +12,16 @@
 //
 // Red before the fix, at the first walk's notice assertion (configured-suite run 38055424031), and
 // green with it (run 38055648571).
+//
+// SINCE #2655 a Take is not given up on after 4 s: it is sent until it lands, and PROGRAM says
+// "still sending" beside Stop sending (docs/work-specs/live-publishing/evidence/fix-2655.md R2, R6).
+// The second walk is that: no "on this monitor only" while it is being sent, and the late commit
+// ends it as landed. The third walk is the notice this file was written for, reached the way an
+// operator now reaches it: Stop sending, then the late commit takes the notice down.
+// Mutation-tested: with the press never held (hostedControl.ts `held` forced false), the second
+// walk fails at "still sending" and the notice appears at about 3.4 s.
+// covers: src/control/hostedControl.ts, src/control/seqSend.ts, src/control/playoutStatus.ts
+// covers: src/components/home/PlayoutMonitors.tsx
 // covers: src/control/failedSends.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
@@ -31,7 +41,7 @@ test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec')
 
 /** Past one attempt's deadline (ATTEMPT_TIMEOUT_MS, 1.5 s), so every attempt is abandoned. */
 const ANSWER_LATE_MS = 1700;
-/** Past the whole window (RESEND_WINDOW_MS, 4 s): the page has given up before the hold ends. */
+/** Past the old window (RESEND_WINDOW_MS, 4 s): before #2655 the page gave up before this. */
 const HOLD_MS = 5000;
 /** When a send pressed this long ago has settled, whichever way: the window and a margin. */
 const SETTLED_MS = 4500;
@@ -129,15 +139,24 @@ test('a Take that commits after its page gave up takes the "on this monitor only
   await op.getByTestId('verb-out').click();
   await expect(chip).toContainText('nothing on air');
 
-  // ── Its row came back after the page had said it failed: the notice comes down. ──────────────
+  // ── Past the old window it is still being sent, and says so; its late commit lands it. ───────
+  const status = op.getByTestId('program-air');
   const commitLate = await holdThenDrop(op);
   await followerLevel();
+  const heldAt = Date.now();
   await op.getByTestId('verb-take').click();
-  await expect(notice).toHaveCount(1, { timeout: 10_000 });
+  await expect(status).toContainText('still sending', { timeout: 10_000 });
+  await expect(op.getByTestId('stop-sending')).toBeVisible();
+  // Past the old window and the hold: never "failed", never "on this monitor only".
+  await op.waitForTimeout(Math.max(0, heldAt + HOLD_MS + 1000 - Date.now()));
+  await expect(notice, 'a Take still being sent is not reported as failed').toHaveCount(0);
+  await expect(status).toContainText('still sending');
   expect(await airPlays()).toBe(1);
   await commitLate();
   await expect.poll(airPlays, { timeout: 30_000 }).toBe(2);
-  await expect(notice, 'the late Take is on air, so the notice is withdrawn').toHaveCount(0, { timeout: 10_000 });
+  // Its own row heard back ends it as landed (R3): the tag moves on and no notice ever came.
+  await expect(status).not.toContainText('still sending', { timeout: 30_000 });
+  await expect(notice).toHaveCount(0);
   await op.unrouteAll({ behavior: 'ignoreErrors' });
   await op.getByTestId('verb-out').click();
   await expect(chip).toContainText('nothing on air');
@@ -148,7 +167,11 @@ test('a Take that commits after its page gave up takes the "on this monitor only
   await expect(pageChip).toContainText('nothing on air');
   const commitLateHere = await holdThenDrop(page);
   await page.getByTestId('verb-take').click();
+  // Stop sending (R6): the Take ends as the old give-up did, owed, with its plain notice.
+  await page.getByTestId('stop-sending').click({ timeout: 15_000 });
   await expect(note).toHaveCount(1, { timeout: 10_000 });
+  await expect(note).toContainText('(sending stopped)');
+  await expect(page.getByTestId('stop-sending')).toHaveCount(0);
   await commitLateHere();
   await expect.poll(airPlays, { timeout: 30_000 }).toBe(3);
   await expect(note, 'the late Take is on air, so the notice is withdrawn').toHaveCount(0, { timeout: 10_000 });

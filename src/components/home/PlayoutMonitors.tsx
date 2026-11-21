@@ -81,6 +81,7 @@ export default function PlayoutMonitors({
   graphicsAir = live,
   programChip = null,
   air = null,
+  onStopSending,
   serverLost = null,
   previewLook = null,
   guides = false,
@@ -140,7 +141,9 @@ export default function PlayoutMonitors({
   /** The timed cue's countdown that fires soonest, over PROGRAM (docs/RUNDOWN_AUTOMATION_PLAN.md §2.1). */
   programChip?: ReactNode;
   /** What is known of the last graphic command (control/playoutStatus.ts `programAir`, C6). */
-  air?: { state: AirState; text: string; title: string } | null;
+  air?: { state: AirState; text: string; title: string; stoppable?: true } | null;
+  /** Ends every press this page is still sending (#2655 R6): offered beside "still sending". */
+  onStopSending?: () => void;
   /** The hop that stopped answering while server cues are up (NoaCG Bridge, or CasparCG behind
    *  it): their names are the last known. */
   serverLost?: LostHop | null;
@@ -452,6 +455,11 @@ export default function PlayoutMonitors({
             {air && air.text && air.state !== 'local' && (
               <span className={`pd-air-state pd-air-${air.state}`} title={air.title} data-state={air.state} data-testid="program-air">
                 {air.text}
+                {air.stoppable && onStopSending && (
+                  <button type="button" className="pd-air-stop" onClick={onStopSending} data-testid="stop-sending">
+                    Stop sending
+                  </button>
+                )}
               </span>
             )}
             {stale && (

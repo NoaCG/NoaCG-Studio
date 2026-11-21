@@ -283,3 +283,114 @@ test('a bound press call is sent again only when nothing was recorded; a refusal
   assert.equal(kind('P0001', 400), 'refused', 'unknown control slug');
   assert.equal(kind('22023', 400), 'refused', 'not a press batch');
 });
+
+// ── #2655: a press sent until it lands (docs/work-specs/live-publishing/evidence/fix-2655.md) ──
+
+const failed = await import('../src/control/failedSends.ts');
+
+test('R2: a held press is never given up on by time: 0.4, 1 and 2 s, then every 4 s, until it lands', async () => {
+  const r = rig(...Array.from({ length: 12 }, () => unansweredError()));
+  await sendWithResend(r.send, { ...r.opts, held: true });
+  assert.equal(r.attempts(), 13, 'twelve unanswered attempts, then the one that landed');
+  assert.deepEqual(r.slept, [400, 1000, 2000, ...Array(9).fill(failed.RESEND_EVERY_MS)]);
+});
+
+test('R2: a held press cuts its first four attempts at 1.5 s and every later one at 8 s', async () => {
+  const cuts = [];
+  let attempts = 0;
+  const timer = (ms, fire) => {
+    cuts.push(ms);
+    // Every attempt hangs until its cut, except the eighth.
+    if (attempts < 8) queueMicrotask(fire);
+    return () => {};
+  };
+  await sendWithResend(
+    () => {
+      attempts += 1;
+      return attempts === 8 ? Promise.resolve() : new Promise(() => {});
+    },
+    { deadline: 0, stillNewest: () => true, held: true, sleep: async () => {}, timer },
+  );
+  assert.deepEqual(cuts.slice(0, 8), [1500, 1500, 1500, 1500, 8000, 8000, 8000, 8000]);
+});
+
+test('R2: a press that is not held keeps today\'s 4 s window', async () => {
+  const r = rig(...Array.from({ length: 12 }, () => unansweredError()));
+  await assert.rejects(sendWithResend(r.send, r.opts), (e) => isUnanswered(e));
+  assert.equal(r.attempts(), RESEND_DELAYS_MS.length + 1);
+});
+
+test('R2: a refusal still ends a held press at once', async () => {
+  const r = rig(unansweredError(), new Error('hosted control is switched off'));
+  await assert.rejects(sendWithResend(r.send, { ...r.opts, held: true }), /switched off/);
+  assert.equal(r.attempts(), 2);
+});
+
+test('R6: Stop sending ends a held press during an attempt and during a wait, and nothing more is sent', async () => {
+  // During an attempt: the request is cancelled at once.
+  const stop = new AbortController();
+  let signalSeen = null;
+  const during = sendWithResend(
+    (signal) => {
+      signalSeen = signal;
+      return new Promise(() => {});
+    },
+    { deadline: 0, stillNewest: () => true, held: true, stop: stop.signal },
+  );
+  await new Promise((r) => setImmediate(r));
+  stop.abort(failed.stoppedError());
+  await assert.rejects(during, (e) => failed.isStopped(e) && e.message === failed.STOPPED);
+  assert.equal(signalSeen.aborted, true, 'its request was cancelled');
+
+  // During a wait between attempts: no attempt after it.
+  const stop2 = new AbortController();
+  let attempts = 0;
+  const between = sendWithResend(
+    async () => {
+      attempts += 1;
+      throw unansweredError();
+    },
+    { deadline: 0, stillNewest: () => true, held: true, stop: stop2.signal, sleep: () => new Promise(() => {}) },
+  );
+  await new Promise((r) => setImmediate(r));
+  stop2.abort(failed.stoppedError());
+  await assert.rejects(between, (e) => failed.isStopped(e));
+  assert.equal(attempts, 1);
+});
+
+test('R6: a stopped press is owed (a copy may still land) and is not sent again', () => {
+  const e = failed.stoppedError();
+  assert.equal(isUnanswered(e), true);
+  assert.equal(failed.isUncertain(e), true);
+});
+
+test('R6a: an unknown outcome is owed but never sent again', async () => {
+  const e = failed.maybeLandedError('another screen changed it while it was being sent');
+  assert.equal(failed.isUncertain(e), true);
+  assert.equal(isUnanswered(e), false);
+  const r = rig(unansweredError(), e);
+  await assert.rejects(sendWithResend(r.send, { ...r.opts, held: true }), (x) => failed.isMaybeLanded(x));
+  assert.equal(r.attempts(), 2);
+});
+
+test('R7: a lost Take stays owed when an Update of its graphic lands; an Out of it settles it', () => {
+  const debts = createSendDebts();
+  const take = [
+    { graphic: 'score', msg: { t: 'update', data: {}, oid: 't1' } },
+    { graphic: 'score', msg: { t: 'play' } },
+    { graphic: 'bug', msg: { t: 'stop' } },
+  ];
+  debts.failed(take, 'Take is on this monitor only.');
+  const shown = 'Take is on this monitor only.';
+  assert.equal(debts.landed([{ graphic: 'score', msg: { t: 'update', data: {} } }])(shown), shown, 'an Update does not pay a Take');
+  assert.equal(debts.owed(), 2);
+  assert.equal(debts.landed([{ graphic: 'score', msg: { t: 'stop' } }])(shown), shown, 'the peer the Take took off is still owed');
+  assert.equal(debts.owed(), 1);
+  assert.equal(debts.landed([{ graphic: 'bug', msg: { t: 'play' } }])(shown), null);
+});
+
+test('R7: a failed Update is paid by a later landed Update of its graphic, as today', () => {
+  const debts = createSendDebts();
+  debts.failed([{ graphic: 'score', msg: { t: 'update', data: {} } }], 'Update failed.');
+  assert.equal(debts.landed([{ graphic: 'score', msg: { t: 'update', data: {} } }])('Update failed.'), null);
+});
