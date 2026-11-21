@@ -22,6 +22,7 @@ import {
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
 import { loadGraphics } from '../../model/library';
+import { freeName } from '../../model/poolIdentity';
 import {
   AUDIENCE_LIMITS,
   addInChunks,
@@ -167,7 +168,12 @@ async function addMessageCard(show: Show, cardName: string): Promise<{ shows: Sh
   const variant = variantsFor('audience').find((v) => v.name === cardName);
   if (!variant) return { shows: null, graphicId: null, cueId: null, error: `${cardName} is not in this build.` };
   const draft = mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) });
-  const template = buildDraftTemplate(variant, draft);
+  const built = buildDraftTemplate(variant, draft);
+  // A free name: the pickers offer the cards beside the production's own designs (D6), and a
+  // same-named graphic in the pool would otherwise be REPLACED by the card, artwork and all.
+  const stored = loadShows().find((x) => x.id === show.id) ?? show;
+  const name = freeName(stored.graphics.map((g) => g.name), built.name);
+  const template = name === built.name ? built : { ...built, name };
   const { shows, error } = addGraphicToShow(show.id, template, {});
   const failure = error ?? (await commitDurableWrites());
   if (failure) return { shows, graphicId: null, cueId: null, error: failure };
@@ -222,8 +228,10 @@ const wordCloudLabel = (question: string) => `Words: ${question.slice(0, 32)}`;
 async function addSavedDesign(show: Show, savedId: string): Promise<{ shows: Show[] | null; graphicId: string | null; cueId: string | null; error: string | null }> {
   const doc = loadGraphics().find((g) => g.id === savedId);
   if (!doc) return { shows: null, graphicId: null, cueId: null, error: 'That saved design is no longer in your library.' };
-  const plan = savedCopyPlan(show, doc);
+  // Planned on the production as stored, so a graphic another tab added meanwhile is never
+  // replaced by name.
   let shows: Show[] = loadShows();
+  const plan = savedCopyPlan(shows.find((x) => x.id === show.id) ?? show, doc);
   if ('name' in plan) {
     const added = addGraphicToShow(show.id, plan.name === doc.template.name ? doc.template : { ...doc.template, name: plan.name }, { graphicId: doc.id });
     shows = added.shows;
@@ -1773,11 +1781,15 @@ export default function ProductionAudienceWorkspace({
         return;
       }
       setChoosingJoin(false);
-      const name = loadShows().find((x) => x.id === show.id)?.graphics.find((g) => g.id === (plan && 'graphicId' in plan ? plan.graphicId : ''))?.name ?? 'the Join card';
+      const { cueId } = staged.outcome();
+      const written = plan && (plan.kind === 'update' || plan.kind === 'add') && cueId ? plan : null;
+      const name = written ? loadShows().find((x) => x.id === show.id)?.graphics.find((g) => g.id === written.graphicId)?.name ?? 'the Join card' : '';
       setNote(
         failure
           ? `The Join card cue was not saved: ${failure}`
-          : `✓ The Join card cue on “${name}” has the current link. Take it when you want it on air.`,
+          : written
+            ? `✓ The Join card cue on “${name}” has the current link. Take it when you want it on air.`
+            : 'No Join card cue was written: the production has no Join card now. Press Add Join card again.',
       );
     } finally {
       setQrBusy(false);

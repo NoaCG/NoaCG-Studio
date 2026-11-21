@@ -40,7 +40,7 @@ import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
 import { scrubHiddenWords } from './wordCues';
 import { planResultCue, readResultCues, type ResultPlan, type ResultTargetKey } from './resultCues';
-import { joinLinkField, planJoinCue, type JoinPlan } from './joinCues';
+import { JOIN_CUE_LABEL, joinLinkField, planJoinCue, type JoinPlan } from './joinCues';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
 import { loadGraphics, type GraphicDoc } from './library';
@@ -3016,7 +3016,7 @@ export function stageShowResult(
 export function stageShowJoin(
   showId: string,
   link: string,
-  opts: { chosen?: string | null; adopt?: string | null; label?: string } = {},
+  opts: { chosen?: string | null; adopt?: string | null } = {},
 ): { shows: Show[]; error: string | null; outcome: () => { plan: JoinPlan | null; cueId: string | null } } {
   let plan: JoinPlan | null = null;
   let cueId: string | null = null;
@@ -3029,9 +3029,12 @@ export function stageShowJoin(
     const graphic = show.graphics.find((g) => g.id === p.graphicId)!;
     const field = joinLinkField(graphic.template.fields ?? [])!;
     let cue = p.kind === 'update' ? show.cues?.find((c) => c.id === p.cueId) : undefined;
-    if (cue) cue.values = { ...cue.values, [field]: link };
-    else {
-      cue = { id: newId, sourceId: graphic.id, label: opts.label ?? 'Join card', values: { ...seedValues(graphic.template.fields), [field]: link } };
+    if (cue) {
+      cue.values = { ...cue.values, [field]: link };
+      // The cue it fills is the Join cue from now on, found by its label on the next press.
+      cue.label = JOIN_CUE_LABEL;
+    } else {
+      cue = { id: newId, sourceId: graphic.id, label: JOIN_CUE_LABEL, values: { ...seedValues(graphic.template.fields), [field]: link } };
       show.cues = appendCue(show.cues ?? [], cue);
     }
     cueId = cue.id;

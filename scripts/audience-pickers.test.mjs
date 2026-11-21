@@ -100,6 +100,23 @@ test('Join: none offers the picker, one is used, several ask once and the pick i
   assert.deepEqual(planJoinCue({ graphics: [card('j1')], cues: [{ id: 'a', sourceId: 'j1' }, { id: 'b', sourceId: 'j1' }] }, 'j1', 'b'), { kind: 'update', cueId: 'b', graphicId: 'j1' });
 });
 
+test('Join: the Join cue is the one this press made or one with no link yet; other cues keep their values', () => {
+  const card = graphic('j1', 'Card', JOIN);
+  const cue = (id, label, link) => ({ id, sourceId: 'j1', label, values: { f1: link } });
+  // An operator's own cue holding another link is never overwritten: the press adds the Join cue.
+  assert.deepEqual(planJoinCue({ graphics: [card], cues: [cue('mine', 'Sponsor link', 'https://example.org')] }), { kind: 'add', graphicId: 'j1' });
+  // The cue labelled Join card is found again, whatever its link (a renamed production link).
+  assert.deepEqual(planJoinCue({ graphics: [card], cues: [cue('mine', 'Sponsor link', 'x'), cue('join', 'Join card', 'old')] }), { kind: 'update', cueId: 'join', graphicId: 'j1' });
+  // A seeded cue with no link yet is filled.
+  assert.deepEqual(planJoinCue({ graphics: [card], cues: [cue('seed', 'Card', '')] }), { kind: 'update', cueId: 'seed', graphicId: 'j1' });
+});
+
+test('Join: an explicit pick that is no longer a Join card asks again rather than writing to another card', () => {
+  const show = { graphics: [graphic('j1', 'A', JOIN), graphic('j2', 'B', MESSAGE)], cues: [], joinTarget: 'j1' };
+  assert.deepEqual(planJoinCue(show, 'j2'), { kind: 'choose' });
+  assert.deepEqual(planJoinCue(show, 'gone'), { kind: 'choose' });
+});
+
 test('Join: a deleted remembered card falls back, a replaced card keeps its id and stays the target', () => {
   const card = (id) => graphic(id, id, JOIN);
   // Deleted: the remembered id is gone, so the only card left is used; with two left, it asks.

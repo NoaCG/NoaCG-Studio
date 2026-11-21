@@ -82,11 +82,7 @@ export function linkedCopy(show: Pick<Show, 'graphics'>, savedId: string): strin
   return show.graphics.find((g) => g.graphicId === savedId && !g.sceneCopyOf)?.id ?? null;
 }
 
-/**
- * Every design the picker offers, production first, then saved, then built-in. `groups` limits
- * the list (the Message picker leaves built-ins out while the production has a destination, as it
- * always has).
- */
+/** Every design the picker offers: production first, then saved, then built-in (D6). */
 export function pickerItems(
   show: Pick<Show, 'graphics' | 'bindings' | 'messageTarget'>,
   library: readonly SavedDesign[],

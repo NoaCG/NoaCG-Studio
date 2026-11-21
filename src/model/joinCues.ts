@@ -9,8 +9,12 @@
 //    while it is still a Join card, else the production's only Join card. With none, the caller
 //    offers the Join picker (saved designs and the built-in); with several, it asks once and the
 //    pick is remembered.
-//  - One Join cue per card: the card's first cue is updated, so a second press, a renamed link or
-//    a reload never adds a blank or second cue. A card with no cue gets one.
+//  - One Join cue per card: the cue this press made before (labelled Join card), else a cue with
+//    no link yet (a seeded cue), is updated, so a second press, a renamed link or a reload never
+//    adds a blank or second cue. Another cue the operator prepared on the card keeps its values;
+//    a card with no Join cue gets one.
+//  - An explicit pick that is no longer a Join card (another tab replaced it) is never redirected
+//    to another card: the operator is asked again.
 //
 // Decided on the production as stored when the write runs (model/shows.ts `stageShowJoin`), like a
 // result cue (./resultCues.ts). Pure: type imports only (scripts/audience-pickers.test.mjs).
@@ -21,6 +25,8 @@ type Field = { field: string; title?: string };
 
 /** The field a Join card's link goes in: the title the QR layer and the catalog card share. */
 export const JOIN_LINK_TITLE = 'Join link';
+/** The rundown label of the cue "Add Join card to rundown" writes. */
+export const JOIN_CUE_LABEL = 'Join card';
 
 /** The LAST field titled Join link (an imported design appends it after the artwork's fields), or
  *  null when the graphic is not a Join card. */
@@ -48,7 +54,7 @@ export function joinCards(show: Pick<Show, 'graphics'>): { graphicId: string; na
 /** The Join card a press would fill, without writing: chosen, remembered, or the only one. */
 export function joinCardOf(show: Pick<Show, 'graphics' | 'joinTarget'>, chosen: string | null = null): string | null | 'choose' {
   const cards = joinCards(show).map((c) => c.graphicId);
-  if (chosen && cards.includes(chosen)) return chosen;
+  if (chosen) return cards.includes(chosen) ? chosen : 'choose';
   if (show.joinTarget && cards.includes(show.joinTarget)) return show.joinTarget;
   if (cards.length === 1) return cards[0];
   return cards.length === 0 ? null : 'choose';
@@ -62,7 +68,9 @@ export function planJoinCue(show: Pick<Show, 'graphics' | 'cues' | 'joinTarget'>
   const card = joinCardOf(show, chosen);
   if (card === null) return { kind: 'none' };
   if (card === 'choose') return { kind: 'choose' };
+  const graphic = show.graphics.find((g) => g.id === card)!;
+  const field = joinLinkField(graphic.template.fields ?? [])!;
   const cues = (show.cues ?? []).filter((c) => c.sourceId === card);
-  const cue = cues.find((c) => c.id === adopt) ?? cues[0];
+  const cue = cues.find((c) => c.id === adopt) ?? cues.find((c) => c.label === JOIN_CUE_LABEL) ?? cues.find((c) => !(c.values?.[field] ?? '').trim());
   return cue ? { kind: 'update', cueId: cue.id, graphicId: card } : { kind: 'add', graphicId: card };
 }

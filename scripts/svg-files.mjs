@@ -54,7 +54,7 @@ export const SVG_PACKAGES = [
   {
     id: 'audience',
     title: 'Audience',
-    blurb: 'Join card, Live vote, Vote results and Message. Import one and Interaction offers it for its feature: the Join card for Add Join card, Vote results for Add results, Message for Prepare.',
+    blurb: 'Join card, Live vote, Vote results and Message, made for Interaction.',
     set: 'templates',
   },
 ];
@@ -104,18 +104,21 @@ export function checkSvgFiles(root = ROOT) {
   return problems;
 }
 
+/** Text for an attribute value: escapeHtml plus the double quote that would end it. */
+const attr = (text) => escapeHtml(text ?? '').replace(/"/g, '&quot;');
+
 /** A package's section: its entries with the default preview and each named state, alt text on all. */
 function renderPackage(pkg, root) {
   const set = SVG_SETS.find((s) => s.id === pkg.set);
   const entries = readInventory(set, root).filter((entry) => (entry.packages ?? []).includes(pkg.id));
   const tiles = entries.map((entry) => {
     const states = (entry.states ?? []).map((state) => `
-            <li><img src="${fileUrl(set, state.preview, 'png')}" alt="${escapeHtml(state.alt)}" width="960" height="540" loading="lazy" /><span>${escapeHtml(state.name)}</span></li>`);
+            <li><img src="${fileUrl(set, state.preview, 'png')}" alt="${attr(state.alt)}" width="960" height="540" loading="lazy" /><span>${escapeHtml(state.name)}</span></li>`);
     return `        <li class="svg-tile svg-tile--package" data-testid="svg-package-${pkg.id}-${entry.slug}">
-          <img src="${fileUrl(set, entry.slug, 'png')}" alt="${escapeHtml(entry.alt ?? '')}" width="960" height="540" loading="lazy" />
+          <img src="${fileUrl(set, entry.slug, 'png')}" alt="${attr(entry.alt)}" width="960" height="540" loading="lazy" />
           <span class="svg-name">${escapeHtml(entry.name)}</span>
-          <a class="svg-get" href="${fileUrl(set, entry.slug, 'svg')}" download aria-label="Download ${escapeHtml(entry.name)} SVG">SVG</a>${states.length ? `
-          <ul class="svg-states" aria-label="${escapeHtml(entry.name)} states">${states.join('')}
+          <a class="svg-get" href="${fileUrl(set, entry.slug, 'svg')}" download aria-label="Download ${attr(entry.name)} SVG">SVG</a>${states.length ? `
+          <ul class="svg-states" aria-label="${attr(entry.name)} states">${states.join('')}
           </ul>` : ''}
         </li>`;
   });
@@ -140,7 +143,7 @@ export function renderSvgGallery(root = ROOT) {
     const tiles = readInventory(set, root).map((entry) => {
       const name = escapeHtml(entry.name);
       return `        <li class="svg-tile" data-testid="svg-file-${set.id}-${entry.slug}">
-          <img src="${fileUrl(set, entry.slug, 'png')}" alt="${escapeHtml(entry.alt ?? '')}" width="960" height="540" loading="lazy" />
+          <img src="${fileUrl(set, entry.slug, 'png')}" alt="${attr(entry.alt)}" width="960" height="540" loading="lazy" />
           <span class="svg-name">${name}</span>
           <a class="svg-get" href="${fileUrl(set, entry.slug, 'svg')}" download>SVG</a>
         </li>`;
