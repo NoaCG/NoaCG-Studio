@@ -43,6 +43,15 @@ Run: `npm run test:e2e -- e2e/svg-templates.spec.ts -g "(Join card|Live vote|Vot
     Vote badge; Show result prints 66.7%; Call the winner marks row 1.
   - Message: the Vote results copy is not offered (a vote board); the saved Message design is; a
     keyboard pick stages one cue with the body and the name, and Take airs both.
+- Not met as worded, ruling needed: "results show row counts". On air the Vote results template
+  shows each row's share of the staged counts (66.7%) and the total count line
+  (`3 votes · voting closed`). The raw count per row is in the cue (`Yes | 2`, `No | 1`) but the
+  artwork has no per-row count readout. Adding one needs a new derived value in the
+  imported-design runtime, which belongs with TL2's compatibility check. The coordinator decides:
+  accept the cue data plus share and total, or schedule a per-row count readout for TL5 or TL6.
+- Retry without a duplicate: `scripts/audience-pickers.test.mjs` "a retry after a failed staging
+  write fills the copy's leftover seeded cue". A built-in's leftover cue on retry is pre-existing
+  (issue #2683).
 - Join card: the browser journey needs a published link (the configured suite). Its rules are
   pinned in Node (`scripts/audience-pickers.test.mjs`): none offers the picker, one is used,
   several ask once and the pick is remembered, one Join cue per card (labelled Join card, else one with no link) is updated with the link, a stale pick asks again, an operator cue holding a link is kept,
@@ -75,7 +84,7 @@ Run: `npm run test:e2e -- e2e/production-audience.spec.ts -g "saved Vote results
 
 ## Commands
 
-- `node --test scripts/audience-pickers.test.mjs`: 10 pass.
+- `node --test scripts/audience-pickers.test.mjs`: 11 pass.
 - `npm run gates -- run --changed origin/main`: see the PR for the final run.
 - `node scripts/template-coverage.mjs`: 101 rows, 38 covered (join-card, result-board,
   viewer-question, community-request, and the join-link, message and vote-results contracts).

@@ -133,3 +133,19 @@ export function seededCue(
   for (const k of keys) if ((values[k] ?? '') !== (seed[k] ?? '')) return null;
   return cue.id;
 }
+
+/**
+ * The untouched seeded cue of a production graphic that is a saved design's copy (null when it has
+ * none left), or undefined for any other graphic. Every road to a destination asks it - a pick,
+ * the remembered target, a question's own result graphic - so a retry after a failed write fills
+ * the cue the first try left, whichever road it takes (R2). `seed` is model/shows.ts
+ * `seedValues`, handed in so this stays Node-importable.
+ */
+export function copySeededCue(
+  show: Pick<Show, 'graphics' | 'cues' | 'resultCues'>,
+  graphicId: string | null | undefined,
+  seed: (fields: Show['graphics'][number]['template']['fields']) => Record<string, string>,
+): string | null | undefined {
+  const copy = graphicId ? show.graphics.find((g) => g.id === graphicId && g.graphicId) : undefined;
+  return copy ? seededCue(show, copy.id, seed(copy.template.fields)) : undefined;
+}

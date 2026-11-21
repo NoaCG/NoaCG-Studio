@@ -14,7 +14,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { pickerItems, fitsPicker, savedCopyPlan, seededCue, linkedCopy } = await import('../src/control/audiencePickers.ts');
+const { pickerItems, fitsPicker, savedCopyPlan, seededCue, linkedCopy, copySeededCue } = await import('../src/control/audiencePickers.ts');
+const { planResultCue } = await import('../src/model/resultCues.ts');
+const { pollFieldMap } = await import('../src/control/resultStaging.ts');
 const { planJoinCue, joinCardOf, joinLinkField } = await import('../src/model/joinCues.ts');
 const { messageDestinations, destinationRefusal, rememberedDestination, takesMessages } = await import('../src/control/messageStaging.ts');
 
@@ -138,4 +140,22 @@ test('Message: a quiz board is no destination, a Question-only card is, and a re
   assert.deepEqual(messageDestinations(remembered).map((d) => d.graphicId), ['quiz', 'ask']);
   assert.equal(rememberedDestination(remembered)?.graphicId, 'quiz');
   assert.equal(destinationRefusal(remembered, 'quiz'), null);
+});
+
+test('a retry after a failed staging write fills the copy\'s leftover seeded cue, by every road to the destination (R2)', () => {
+  // The first pick copied the saved Vote results in (its one seeded cue), then the stage failed.
+  const seed = (fields) => Object.fromEntries((fields ?? []).map((f) => [f.field, '']));
+  const copy = graphic('copy', 'Vote results', VOTE, { graphicId: 's1' });
+  const show = { graphics: [copy], cues: [{ id: 'seed', sourceId: 'copy', label: 'Vote results', values: seed(VOTE) }], resultCues: {}, resultTarget: 'copy' };
+  const takes = (fields) => pollFieldMap(fields) !== null;
+  // Picked again from the production group, or reached through the remembered target: both find the seed.
+  const adopt = copySeededCue(show, 'copy', seed);
+  assert.equal(adopt, 'seed');
+  assert.deepEqual(planResultCue(show, 'q1', takes, 'copy'), { kind: 'add', graphicId: 'copy', replaced: null });
+  assert.deepEqual(planResultCue(show, 'q1', takes, null), { kind: 'add', graphicId: 'copy', replaced: null });
+  // stageShowResult fills `adopt` on an add (model/shows.ts), so the production ends with one cue on the copy.
+  // A graphic that is not a saved design's copy is left to the old road; a touched seed is never taken.
+  assert.equal(copySeededCue({ ...show, graphics: [graphic('copy', 'House Vote', VOTE)] }, 'copy', seed), undefined);
+  assert.equal(copySeededCue({ ...show, cues: [{ id: 'seed', sourceId: 'copy', label: 'x', values: { ...seed(VOTE), f0: 'typed' } }] }, 'copy', seed), null);
+  assert.equal(copySeededCue({ ...show, resultCues: { q0: 'seed' } }, 'copy', seed), null, 'a result cue already in use');
 });

@@ -401,21 +401,28 @@ Actions. OW: the owner, with Illustrator on their own computer.
   - R1. A pick never replaces a pool graphic by name. A saved design reuses its linked copy
     (`graphicId`, not an OBS scene copy), else it and any built-in get a free name, computed on
     the production as stored.
-  - R2. One pick, one cue: the pick fills the seeded cue of the design it brought in; no blank
-    cue is left beside it, and a retry after a failed save fills that same seeded cue.
+  - R2. One pick, one cue: the pick fills the seeded cue of the design it brought in, and no blank
+    cue is left beside it. For a saved design's copy, a retry after a failed write fills that
+    same seeded cue on every road to the destination: picked, remembered, or the question's own
+    graphic (`copySeededCue`). A built-in copy has no link to tell its seed apart, so a retry
+    there behaves as on base (issue #2683).
   - R3. Join: the explicit pick, else the remembered `joinTarget` while it is a Join card, else
     the only Join card, else the operator is asked. An explicit pick that is no longer a Join card
-    asks again. One Join cue per card: the cue labelled Join card, else one with no link yet;
-    another cue holding a link is never overwritten. `joinTarget` is written only by an explicit
-    pick and is not published.
+    asks again. One Join cue per card: the cue labelled Join card, else one with no link yet
+    (which is then labelled Join card); another cue holding a link is never overwritten.
+    `joinTarget` is written by an explicit pick, or when the press adds the built-in Join card to
+    a production that has none. It is not published.
   - R4. Messages: a graphic with a Correct answer or Selected answer field is not offered; a
     remembered `messageTarget` on one keeps working.
   - R5. Nothing airs from a pick: every path writes cues only.
 - Trap: a text whose drawn centre is within 5% of its panel's centre is read as centred and grows
   both ways; the Join card states `text-anchor="start"` so its texts stay left of the QR.
-- Trap: the Vote results template has no per-row count readout; the vote recipe prints each row's
-  share and the total count line. A raw count per row would be a new derived value in the runtime
-  (TL5 or TL6 with the compatibility check).
+- Open for the coordinator: AC-4 says "results show row counts". The Vote results template shows
+  each row's share of the staged counts and the total count line on air. The raw count per row is
+  in the cue (`Yes | 2`) but has no readout on the artwork. A per-row count needs a new derived
+  value in the imported-design runtime (with TL2's compatibility check), so this phase did not
+  add one. Ruling needed: treat row counts as satisfied by the cue data plus share and total, or
+  add a per-row count readout in TL5 or TL6.
 
 ## Non-goals
 

@@ -71,7 +71,7 @@ import {
 } from '../../model/questions';
 import { countWordTallies, type WordCount, type WordTally } from '../../model/wordCloud';
 import { stageWords, wordDestinationOf } from '../../control/wordStaging';
-import { JOIN_CARDS, linkedCopy, pickerItems, savedCopyPlan, seededCue, type PickerGroup, type PickerItem, type PickerKind, type SavedDesign } from '../../control/audiencePickers';
+import { copySeededCue, JOIN_CARDS, linkedCopy, pickerItems, savedCopyPlan, seededCue, type PickerGroup, type PickerItem, type PickerKind, type SavedDesign } from '../../control/audiencePickers';
 import { joinCardOf } from '../../model/joinCues';
 import {
   chatIntakeFor,
@@ -232,22 +232,13 @@ async function bringIn(show: Show, on: PickOn) {
   if (on.board) return addCatalogDesign(show, on.board);
   if (!on.graphicId) return null;
   const shows = loadShows();
-  const cueId = copySeededCue(shows.find((x) => x.id === show.id) ?? show, on.graphicId);
+  const cueId = copySeededCue(shows.find((x) => x.id === show.id) ?? show, on.graphicId, seedValues);
   return cueId === undefined ? null : { shows, graphicId: on.graphicId, cueId, error: null };
-}
-
-/** The untouched seeded cue of a production graphic that is a saved design's copy (null when it
- *  has none left), or undefined for any other graphic. Every road to a destination asks it - a
- *  pick, the remembered target, a question's own result graphic - so a retry after a failed write
- *  fills the cue the first try left whichever road it takes (R2). */
-function copySeededCue(show: Show, graphicId: string | null | undefined): string | null | undefined {
-  const copy = graphicId ? show.graphics.find((g) => g.id === graphicId && g.graphicId) : undefined;
-  return copy ? seededCue(show, copy.id, seedValues(copy.template.fields)) : undefined;
 }
 
 /** The same, read on the production as stored. */
 const storedSeededCue = (show: Show, graphicId: string | null | undefined) =>
-  copySeededCue(loadShows().find((x) => x.id === show.id) ?? show, graphicId) ?? null;
+  copySeededCue(loadShows().find((x) => x.id === show.id) ?? show, graphicId, seedValues) ?? null;
 
 /** Each picker's words: the production group's heading, what it says when the production has no
  *  design, and the built-in group's heading. */
