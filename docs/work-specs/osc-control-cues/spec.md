@@ -277,10 +277,13 @@ Phase 5 (folders), notes for the phases after it:
 - One by one: a step onto an OSC cue sends it through the cue's own Take and takes nothing off
   (`StepMember.control`), so the graphic it goes with stays up. Decided here: a lights cue in a
   run of graphics is a side effect, not a replacement.
-- A One-by-one folder whose step stands on an OSC cue keeps that step for the tab in session storage
-  (`spx-gfx-osc-steps:<production>`, `io.oscSteps`), and it is put back after a reload, so the next
-  press goes on past the OSC cue instead of sending it again. Steps on graphics or clips are read
-  off the air as before.
+- A One-by-one folder that holds an OSC cue keeps its step for the tab in session storage, wherever
+  the step stands (`spx-gfx-osc-steps:<production>`, `io.oscSteps`), and it is put back after a
+  reload, so the next press goes on instead of sending an earlier OSC cue again. Folders without an
+  OSC cue read their step off the air as before.
+- `oscBlocker` now also checks the message as the Bridge's encoder will (`oscMessageProblem` in
+  `model/controlCue.ts`: address, values, 16 arguments, 1024 bytes), so an All together folder
+  never sends its graphics and then fails on a badly typed OSC cue.
 - Play through still refuses OSC cues ("is an OSC cue").
 - `e2e/playout-folders.spec.ts`: the AC-1 journey (a graphic and an OSC cue in an All together
   folder, browser output, one Take, one datagram, nothing to a playout server).

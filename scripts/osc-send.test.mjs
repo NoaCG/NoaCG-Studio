@@ -198,3 +198,17 @@ test('One by one: an OSC step sends and takes nothing off, so the graphic it goe
   // The step remembered on the OSC cue (kept for the tab across a reload) goes on past it, never back.
   assert.deepEqual(folderStep(members, 'L', new Set()), { kind: 'take', cueId: 'B', off: [] });
 });
+
+test('a badly typed message refuses before anything is sent, as the Bridge would', () => {
+  for (const [control_, says] of [
+    [control({ address: 'not-an-address' }), /starts with \//],
+    [control({ address: '/wild/*' }), /may not contain/],
+    [control({ args: [{ type: 'i', value: '1.5' }] }), /whole number/],
+    [control({ args: [{ type: 'f', value: 'abc' }] }), /decimal/],
+    [control({ args: [{ type: 's', value: 'a\0b' }] }), /NUL/],
+    [control({ args: [{ type: 's', value: 'x'.repeat(1100) }] }), /bytes/],
+  ]) {
+    assert.match(oscBlocker(osc('L', { control: control_ }), [desk], true), says);
+  }
+  assert.equal(oscBlocker(osc('L', { control: control({ args: [{ type: 'i', value: '-5' }, { type: 'f', value: '1.5e2' }] }) }), [desk], true), null);
+});

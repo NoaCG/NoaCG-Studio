@@ -8,7 +8,7 @@
 // send id, and the Bridge answers a repeat of that id without sending again.
 
 import type { OscDestination } from '../model/controlCue.ts';
-import { controlReadOnly, readControl } from '../model/controlCue.ts';
+import { controlReadOnly, oscMessageProblem, readControl } from '../model/controlCue.ts';
 import type { ShowCue } from '../model/shows';
 import type { OscRequestWire } from './playoutProtocol';
 
@@ -21,6 +21,8 @@ export function oscBlocker(cue: Pick<ShowCue, 'label' | 'source' | 'control'>, d
   const dest = (destinations ?? []).find((d) => d.id === control.destinationId);
   if (!dest) return control.destinationId ? `${cue.label} sends to a device this production no longer has. Choose a destination.` : `${cue.label} has no destination. Choose one.`;
   if (!control.address.trim()) return `${cue.label} has no OSC address.`;
+  const problem = oscMessageProblem(control);
+  if (problem) return `${cue.label}: ${problem}`;
   if (!paired) return 'Connect NoaCG Bridge in Playout settings to send OSC cues.';
   return null;
 }
