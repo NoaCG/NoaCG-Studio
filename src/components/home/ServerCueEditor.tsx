@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   loadShows,
   MAX_PLAYOUT_LAYER,
@@ -18,7 +18,6 @@ import {
 } from '../../model/shows';
 import {
   asFolderMember,
-  clockOf,
   dbText,
   effectiveEnd,
   FADE_SECONDS,
@@ -28,6 +27,7 @@ import {
   NEEDS,
   offerBlocked,
   parseClock,
+  trimClock,
   trimProblem,
   type ClipEnd,
   type PlaybackAbility,
@@ -40,6 +40,9 @@ import { THROUGH_END, type ThroughRole } from '../../control/serverPlayout';
 import { useModalGate } from '../spaceKey';
 import { useDeferredEdits } from './useDeferredEdits';
 import { isServerCue } from '../../model/controlCue.ts';
+import ClipTimeline, { MIN_PART_S } from './ClipTimeline';
+import NormalizeRow from './NormalizeRow';
+import type { TrimCandidate } from '../../control/trimEffects';
 
 /** A clip in a Play-through folder: the folder's name, the slot it plays on, and the clip's place. */
 export interface ThroughPlace {
@@ -82,6 +85,8 @@ export default function ServerCueEditor({
   onEdit,
   onTransport,
   setShows,
+  trimBreaks,
+  loudnessTarget,
 }: {
   showId: string;
   item: PlayoutItem;
@@ -110,6 +115,10 @@ export default function ServerCueEditor({
    *  hardware panel reaches them the same way this button does. */
   onTransport: (verb: 'pause' | 'resume') => void;
   setShows: (shows: Show[]) => void;
+  /** What keeping this trim would stop from being taken (control/trimEffects.ts), or null. */
+  trimBreaks?: (trim: TrimCandidate) => string | null;
+  /** The production's loudness target for Normalize, in LUFS; absent is the default. */
+  loudnessTarget?: number;
 }) {
   /** The channel it is set to play on, for the pick. */
   const channel = channelOf(playoutSettings, item);
@@ -243,6 +252,7 @@ export default function ServerCueEditor({
           playNext={playNext}
           through={through}
           set={(patch) => setShows(setCuePlayback(showId, cue.id, patch))}
+          normalize={!vmix && item.mediaKind !== 'still' ? { settings: playoutSettings, target: loudnessTarget } : null}
         />
         </AccountAuthoringGate>
       )}
@@ -313,6 +323,8 @@ export default function ServerCueEditor({
           item={item}
           cue={cue}
           ability={ability}
+          settings={vmix ? null : playoutSettings}
+          trimBreaks={trimBreaks}
           setTrim={(trim) => setShows(setCuePlayback(showId, cue.id, trim))}
           setKind={vmix ? undefined : (kind) => setShows(setPlayoutItemMediaKind(showId, item.id, kind))}
         />
@@ -354,6 +366,7 @@ function ClipSettings({
   playNext,
   through,
   set,
+  normalize,
 }: {
   item: PlayoutItem;
   cue: ShowCue;
@@ -362,6 +375,8 @@ function ClipSettings({
   playNext: PlayNext | null;
   through: ThroughPlace | null;
   set: (patch: { [K in keyof CuePlayback]?: CuePlayback[K] | null }) => void;
+  /** Where Normalize reads the file and the target it sets; null where it is not offered. */
+  normalize: { settings: PlayoutSettings; target?: number } | null;
 }) {
   // The last clip of a Play-through folder keeps its own ending, but Play next never leaves the
   // folder, so a stored Play next reads as Hold there; the record is not rewritten.
@@ -491,7 +506,7 @@ function ClipSettings({
           type="range"
           min={MIN_LEVEL_DB}
           max={MAX_LEVEL_DB}
-          step={1}
+          step={0.1}
           value={shownDb}
           disabled={!!levelOff && levelDb === 0}
           title={levelOff ?? undefined}
@@ -499,6 +514,15 @@ function ClipSettings({
           onChange={(e) => {
             const db = Number(e.target.value);
             // Without the capability the slider only goes back toward 0 dB, never further from it.
+            if (levelOff && Math.abs(db) > Math.abs(levelDb)) return;
+            setDragDb(db);
+          }}
+          onKeyDown={(e) => {
+            // The arrows move a whole dB, as they always did; a drag or Normalize sets tenths.
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+            e.preventDefault();
+            const up = e.key === 'ArrowRight' || e.key === 'ArrowUp';
+            const db = Math.max(MIN_LEVEL_DB, Math.min(MAX_LEVEL_DB, Math.round(shownDb) + (up ? 1 : -1)));
             if (levelOff && Math.abs(db) > Math.abs(levelDb)) return;
             setDragDb(db);
           }}
@@ -515,6 +539,7 @@ function ClipSettings({
         </button>
         {live && levelDb !== 0 && <span className="muted pd-clip-hint">applies at the next Take</span>}
       </div>
+      {normalize && !levelOff && <NormalizeRow settings={normalize.settings} item={item} cue={cue} target={normalize.target} set={set} />}
     </div>
   );
 }
@@ -535,46 +560,68 @@ function ClipAdvanced({
   item,
   cue,
   ability,
+  settings,
+  trimBreaks,
   setTrim,
   setKind,
 }: {
   item: PlayoutItem;
   cue: ShowCue;
   ability: PlaybackAbility | null;
+  /** The playout settings the timeline reads the file through; null where there is no timeline (vMix). */
+  settings: PlayoutSettings | null;
+  trimBreaks?: (trim: TrimCandidate) => string | null;
   setTrim: (trim: { trimIn: number | null; trimOut: number | null }) => void;
   setKind?: (kind: PlayoutMediaKind) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [timeline, setTimeline] = useState(false);
   const trimIn = cue.playback?.trimIn;
   const trimOut = cue.playback?.trimOut;
-  const [start, setStart] = useState(trimIn === undefined ? '' : clockOf(trimIn));
-  const [end, setEnd] = useState(trimOut === undefined ? '' : clockOf(trimOut));
+  const [start, setStart] = useState(trimIn === undefined ? '' : trimClock(trimIn));
+  const [end, setEnd] = useState(trimOut === undefined ? '' : trimClock(trimOut));
+  // Which box was typed in since it last showed the record: a box nobody edited is never read back,
+  // so its shown value (to the hundredth) can never round away what the timeline set.
+  const edited = useRef({ start: false, end: false });
   const [problem, setProblem] = useState<string | null>(null);
-  // The record moved under the boxes (another tab, an undo): show what it holds now.
+  const [warning, setWarning] = useState<string | null>(null);
+  // The record moved under the boxes (another tab, an undo, the timeline): show what it holds now.
   useEffect(() => {
-    setStart(trimIn === undefined ? '' : clockOf(trimIn));
-    setEnd(trimOut === undefined ? '' : clockOf(trimOut));
+    setStart(trimIn === undefined ? '' : trimClock(trimIn));
+    setEnd(trimOut === undefined ? '' : trimClock(trimOut));
+    edited.current = { start: false, end: false };
     setProblem(null);
   }, [trimIn, trimOut]);
   const whole = fileSeconds(item);
   const trimmed = trimIn !== undefined || trimOut !== undefined;
   const trimOff = trimmed ? null : offerBlocked(ability, NEEDS.trim);
-  const summary = `${trimmed ? `${clockOf(trimIn ?? 0)}–${trimOut !== undefined ? clockOf(trimOut) : 'end'}` : 'whole clip'}${item.mediaKind ? '' : ' · kind not known'}`;
-  /** Read both boxes, check them against each other and the file, and keep them only when they hold. */
+  const summary = `${trimmed ? `${trimClock(trimIn ?? 0)}–${trimOut !== undefined ? trimClock(trimOut) : 'end'}` : 'whole clip'}${item.mediaKind ? '' : ' · kind not known'}`;
+  /**
+   * THE ONE COMMIT PATH for the boxes, the timeline and Whole clip: check the part against itself and
+   * the file, keep it only when it holds, and say what it would stop from being taken.
+   */
+  const keep = (a: number | null, b: number | null) => {
+    const why = trimProblem({ trimIn: a ?? undefined, trimOut: b ?? undefined }, item) ?? (a !== null && b !== null && b - a < MIN_PART_S - 1e-9 ? `The part is at least ${MIN_PART_S} s.` : null);
+    setProblem(why);
+    if (why) return;
+    // A start at the very beginning, or an end at the very end, is no trim at all.
+    const nextIn = a === 0 ? null : a;
+    const nextOut = b !== null && whole !== undefined && Math.abs(b - whole) < 0.001 ? null : b;
+    setWarning(trimBreaks?.({ trimIn: nextIn ?? undefined, trimOut: nextOut ?? undefined }) ?? null);
+    if ((nextIn ?? undefined) === trimIn && (nextOut ?? undefined) === trimOut) return;
+    setTrim({ trimIn: nextIn, trimOut: nextOut });
+  };
+  /** Read the boxes typed in, keep the record's value for the other, and commit. */
   const commit = () => {
     const readBox = (text: string): number | null | 'bad' => (text.trim() === '' ? null : (parseClock(text) ?? 'bad'));
-    const a = readBox(start);
-    const b = readBox(end);
+    const a = edited.current.start ? readBox(start) : (trimIn ?? null);
+    const b = edited.current.end ? readBox(end) : (trimOut ?? null);
     if (a === 'bad' || b === 'bad') {
       setProblem('Write a time as 0:05, 1:05.5 or 65.5.');
       return;
     }
-    const why = trimProblem({ trimIn: a ?? undefined, trimOut: b ?? undefined }, item);
-    setProblem(why);
-    if (why) return;
-    if ((a ?? undefined) === trimIn && (b ?? undefined) === trimOut) return;
-    // A start at the very beginning is no trim at all.
-    setTrim({ trimIn: a === 0 ? null : a, trimOut: b !== null && whole !== undefined && Math.abs(b - whole) < 0.001 ? null : b });
+    if (!edited.current.start && !edited.current.end) return;
+    keep(a, b);
   };
   return (
     <div className="pd-advanced" data-testid="clip-advanced">
@@ -600,7 +647,10 @@ function ClipAdvanced({
                 value={start}
                 placeholder="0:00"
                 disabled={!!trimOff}
-                onChange={(e) => setStart(e.target.value)}
+                onChange={(e) => {
+                  edited.current.start = true;
+                  setStart(e.target.value);
+                }}
                 onBlur={commit}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') commit();
@@ -612,9 +662,12 @@ function ClipAdvanced({
               <span>End at</span>
               <input
                 value={end}
-                placeholder={whole !== undefined ? clockOf(whole) : 'the end'}
+                placeholder={whole !== undefined ? trimClock(whole) : 'the end'}
                 disabled={!!trimOff}
-                onChange={(e) => setEnd(e.target.value)}
+                onChange={(e) => {
+                  edited.current.end = true;
+                  setEnd(e.target.value);
+                }}
                 onBlur={commit}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') commit();
@@ -623,18 +676,33 @@ function ClipAdvanced({
               />
             </label>
             {trimmed && (
-              <button
-                type="button"
-                onClick={() => {
-                  setProblem(null);
-                  setTrim({ trimIn: null, trimOut: null });
-                }}
-                data-testid="clip-trim-clear"
-              >
+              <button type="button" onClick={() => keep(null, null)} data-testid="clip-trim-clear">
                 Whole clip
               </button>
             )}
+            {settings && item.mediaKind !== 'still' && (
+              <button type="button" aria-expanded={timeline} onClick={() => setTimeline((t) => !t)} data-testid="clip-timeline-toggle">
+                Timeline
+              </button>
+            )}
           </div>
+          {timeline && settings && item.mediaKind !== 'still' && (
+            <ClipTimeline
+              settings={settings}
+              name={item.name}
+              seconds={whole}
+              fps={item.fps}
+              trimIn={trimIn}
+              trimOut={trimOut}
+              disabled={trimOff}
+              onCommit={(a, b) => keep(a, b)}
+            />
+          )}
+          {warning && !problem && (
+            <p className="status-warn pd-clip-trim-note" data-testid="clip-trim-warning">
+              {warning}
+            </p>
+          )}
           {(problem || trimOff) && (
             <p className={problem ? 'status-bad pd-clip-trim-note' : 'muted pd-clip-trim-note'} data-testid="clip-trim-problem">
               {problem ?? trimOff}

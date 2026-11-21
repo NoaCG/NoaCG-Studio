@@ -126,7 +126,7 @@ Layers of documentation, top to bottom:
 
 | Doc | State |
 |---|---|
-| `AUDIO_TIMELINE_LOUDNESS_PLAN.md` | A waveform timeline to choose the part of a clip or audio file that plays, and Normalize to a LUFS target, both read by the Bridge's own audio-only ffmpeg from the server's shared media folder. Owner go 2026-11-20; phase 1 (the reader in the exe) built, phases 2 to 4 under way, the studio checks the owner's. |
+| `AUDIO_TIMELINE_LOUDNESS_PLAN.md` | A waveform timeline to choose the part of a clip or audio file that plays, and Normalize to a LUFS target, both read by the Bridge's own audio-only ffmpeg from the server's shared media folder. Owner go 2026-11-20; phases 1 to 4 built, the studio checks the owner's. |
 | `TEXT_BOX_BINDING.md` | Text and its box: every field lives in the shape drawn under it, the text owns its alignment, the box owns its growth. Owner walk 2026-09-02; all three measured defects fixed, the alignment grid built 2026-09-08. Growth per box is still design. |
 | `GROWTH_EXECUTION_PLAN.md` | The adoption push. Locked 2026-07-08; only open signup done. The §9 backlog is the work queue when growth resumes. |
 | `NIGHTLY_AUTOMATION_PLAN.md` | Era 7. Job A (CI/health gates) built; generation jobs B/C plan-only, waiting on the §10 decisions (they spend real money nightly). |

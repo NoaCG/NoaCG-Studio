@@ -53,6 +53,7 @@ import {
   listVmixMedia,
   actVmixMedia,
   bridgePaired,
+  sendOsc,
   channelOf,
   vmixPairing,
   vmixMediaFolderRevision,
@@ -104,6 +105,8 @@ import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, type FolderStep, type StepMember } from '../../control/folderStep';
 import { webLockLead } from '../../control/webLockLead';
 import { serverFilesCheck, serverFilesKey, startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
+import { trimBreaks } from '../../control/trimEffects';
+import NormalizeAllDialog from './NormalizeAllDialog';
 import { serverCueOffRefusal as serverOff, serverCueAdapterMismatch, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord, finishVmixAllOut, runVmixAndRecord, type ServerVerbIo, type VmixAllOutCut } from '../../control/serverVerbs';
 import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
@@ -303,6 +306,7 @@ import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
 import { isControlCue, isGraphicCue, isServerCue } from '../../model/controlCue.ts';
+import { oscBlocker, oscNote, oscRequest, sendIds } from '../../control/oscSend';
 
 /** The draft's browser moments (control/cueDraft.ts): the page hidden or closing, or the account
  *  pausing, saves at once; the account asking for a save flushes. */
@@ -744,6 +748,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** The header's Playout settings dialog (components/PlayoutSettingsDialog.tsx). Closing it bumps
    *  `playoutSettingsRev`, which re-reads the settings for the connection poll below. */
   const [playoutSettingsOpen, setPlayoutSettingsOpen] = useState(false);
+  const [normalizeOpen, setNormalizeOpen] = useState(false);
   const [playoutSettingsRev, setPlayoutSettingsRev] = useState(0);
   const [vmixMediaRev, setVmixMediaRev] = useState(vmixMediaFolderRevision);
   /** Whether a Bridge is paired and a server named - what the header's Playout control shows
@@ -810,6 +815,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
    *  session, because effects that never restart (the log follower) keep the one they first saw. */
   const session = useMemo(() => createPlayoutSession(id), [id]);
   const sessionEnd = useRef<{ session: PlayoutSession; timer: ReturnType<typeof setTimeout> } | null>(null);
+  /** One send id per deliberate OSC press, unique to this page load (control/oscSend.ts). */
+  const [nextSendId] = useState(() => sendIds(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now())));
   const mountedSession = useRef<PlayoutSession | null>(null);
   useLayoutEffect(() => {
     mountedSession.current = session;
@@ -3259,6 +3266,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     itemOf: playoutItemFor,
     graphicOf: graphicOfCue,
     slots: PLAYOUT_SLOTS,
+    controlBlocker: (cue) => oscBlocker(cue, show?.oscDestinations, bridgePaired(playoutSettings)),
     selectionBlocker: (cue) => {
       const take = candidateTake(cue);
       if (take.status === 'refused') return take.reason;
@@ -3473,6 +3481,19 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     return vmix ? runVmixAndRecord(serverPlayout, io, intent, currentVmix, show.id) : runAndRecord(serverPlayout, io, intent);
   };
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
+  /** ONE OSC CUE'S SEND (docs/work-specs/osc-control-cues/spec.md D1, D7, D9): the cue as saved
+   *  now, through the paired Bridge, once. A press is one send id; nothing here resends. */
+  const controlSend = async (cue: ShowCue, label: string): Promise<boolean> => {
+    const now = cuesRef.current.find((c) => c.id === cue.id) ?? cue;
+    const built = oscRequest(now, latestShow.current?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id));
+    if (!built.ok) {
+      setNote(`${label} was not sent: ${built.reason}`);
+      return false;
+    }
+    const outcome = await sendOsc(loadPlayoutSettings(), built.request);
+    setNote(oscNote(now.label, built.destination.name, outcome));
+    return outcome.state === 'sent';
+  };
   const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
     // The graphic verb accepts All out before it gives its native cues the panic cut.
     const outcome = await serverVerb(cue, verb, label, options, verb === 'out' && options.cut === true);
@@ -3728,6 +3749,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       if (canAuthorAccount()) setShows(updateShowCue(id, cueId, { values }));
     },
     playoutVerb,
+    controlSend,
     clearMisses,
     noteStep,
     stopFolders: () => folderPlayout.stopAll('all-out', sceneFolderIds(show)),
@@ -4078,6 +4100,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         window.dispatchEvent(new CustomEvent('noacg-direct-cue'));
         const { cue, label, refused } = decision;
         if (refused) setNote(refused);
+        else if (isControlCue(cue)) void controlSend(cue, label);
         else if (isServerCue(cue)) void serverVerb(cue, 'take', label, { direct: true }).then((r) => r && setNote(r.note));
         else void takeGraphicCue(cue, label, true).then((r) => r && setNote(r.note));
         return;
@@ -4194,10 +4217,13 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** Which cues' own Take would be refused, worked out once per render: a timing reading publishes
    *  between renders, and only the clock can have moved then. */
   let takeRefused: Set<string> | null = null;
+  /** Why one cue's own Take would be refused: an OSC cue by its own send check, as a direct press
+   *  judges it; any other cue as a step would take it. */
+  const ownTakeRefusal = (c: ShowCue): string | null => (isControlCue(c) ? directBlocker(c) : stepBlocker(c));
   panel.feed(
     () => {
       const live = new Set(cues.filter(cueOnAirNow).map((c) => c.id));
-      takeRefused ??= new Set(cues.filter((c) => !!stepBlocker(c)).map((c) => c.id));
+      takeRefused ??= new Set(cues.filter((c) => !!ownTakeRefusal(c)).map((c) => c.id));
       return panelSnapshot(view, {
         title: show.name,
         cursorRow,
@@ -4461,7 +4487,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         now={now}
         rows={scenePanel?.rows ?? null}
         scenes={obsSceneList}
-        cueState={(cue) => ({ onAir: cueOnAirNow(cue), refused: stepBlocker(cue) })}
+        cueState={(cue) => ({ onAir: cueOnAirNow(cue), refused: ownTakeRefusal(cue) })}
         // K4: the press a Companion cue key makes, run only in the state its button says (Take off
         // air, Out on air).
         onPress={(cueId, onAir) => {
@@ -4597,6 +4623,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       onPanel={() => setPanelOpen(true)}
       panelDialog={panelOpen && <PanelDialog slug={hostedSlug} answer={panel} onClose={() => setPanelOpen(false)} />}
       onPlayoutSettings={() => setPlayoutSettingsOpen(true)}
+      onNormalize={casparOn ? () => setNormalizeOpen(true) : undefined}
       // A build that cannot publish has no links to show, unless the record already holds some.
       onLinks={backendConfigured || hostedSlug ? () => setLinksOpen(true) : undefined}
       onLook={() => setLookOpen(true)}
@@ -5206,6 +5233,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
             onEdit={editDraft}
             onTransport={onVerb}
             setShows={setShows}
+            trimBreaks={(trim) => trimBreaks(takeContext, editingCue.id, trim)}
+            loudnessTarget={show.loudnessTarget}
           />
           )}</DraftView>
         )}
@@ -5301,6 +5330,16 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
           copied={copied === 'output' || copied === 'join' || copied === 'presenter' ? copied : null}
           onCopy={copy}
           onClose={() => setLinksOpen(false)}
+        />
+      )}
+      {normalizeOpen && (
+        <NormalizeAllDialog
+          show={show}
+          settings={playoutSettings}
+          onAir={Object.keys(serverOnAir).length}
+          write={(mutation, label) => history.write(mutation, label)}
+          setShows={setShows}
+          onClose={() => setNormalizeOpen(false)}
         />
       )}
       {playoutSettingsOpen && (

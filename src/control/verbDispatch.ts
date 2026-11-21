@@ -25,7 +25,7 @@ import type { FolderStep } from './folderStep';
 import { rowTestId } from '../model/rundownRows.ts';
 import { directCue } from '../model/cueShortcuts.ts';
 import { pauseTarget } from './serverState.ts';
-import { isServerCue } from '../model/controlCue.ts';
+import { isControlCue, isServerCue } from '../model/controlCue.ts';
 
 /** What the dispatcher reads besides the verb bar's view: the rundown as drawn, the held folder, and
  *  the checks a per-row key asks at the press. */
@@ -116,6 +116,12 @@ export function decideVerb(key: VerbKey, press: Press | undefined, view: Dispatc
     const cue = press?.repeat ? undefined : view.cues.find((c) => c.id === press?.cue);
     if (!cue) return NONE;
     if (view.onAirNow(cue)) return { do: 'take-off', cue };
+    // An OSC cue is one send, judged as a direct press is, and a refusal says why rather than
+    // dropping the press (docs/work-specs/osc-control-cues/spec.md AC-8).
+    if (isControlCue(cue)) {
+      const blocked = view.directBlocked(cue);
+      return blocked ? { do: 'note', text: `Take was not sent: ${blocked}` } : { do: 'take', cue };
+    }
     return view.stepBlocked(cue) ? NONE : { do: 'take', cue };
   }
   // A HELD FOLDER ROW: a held key fires once, since a folder's Take is several actions.
@@ -137,6 +143,8 @@ export function decideVerb(key: VerbKey, press: Press | undefined, view: Dispatc
   // is a check and never a tally. A cue taken off lands on PREVIEW in both modes.
   if (key === 'take') {
     if (!view.canTake || !selectedCue) return NONE;
+    // A held key fires an OSC cue once: it holds no air, so nothing else would stop the repeats.
+    if (press?.repeat && isControlCue(selectedCue)) return NONE;
     if (view.spaceNext === 'take-off') return { do: 'out-and-stage', cueId: selectedCue.id };
     if (view.spaceNext === 'preview') return { do: 'stage', cueId: selectedCue.id };
     return { do: 'take', cue: selectedCue };

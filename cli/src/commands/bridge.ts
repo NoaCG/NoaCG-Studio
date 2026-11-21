@@ -50,13 +50,16 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   const token = await resolveToken(flagString(args, 'token'), args.flags['new-token'] === true);
   const origins = allowedOrigins(flagList(args, 'origin'));
   const quiet = args.flags.quiet === true;
+  // OSC cues send to this computer, the studio network and VPNs. Public internet addresses only
+  // when the person at this computer starts the Bridge to allow them (osc-control-cues D6).
+  const allowPublicOsc = flagBool(args, 'allow-public-osc', false);
   // Enter asks for a new link only where somebody can press it: a window or a terminal, never a
   // Bridge started by another program with no keyboard behind it.
   const keyboard = Boolean(process.stdin.isTTY);
   const pairings = new PairingCodes();
   const first = pairings.mint();
   const server = createBridgeServer(
-    { token, origins, adapters: [casparcgAdapter, ografAdapter, vmix], version: bridgeVersion(), pairings, keyboard },
+    { token, origins, adapters: [casparcgAdapter, ografAdapter, vmix], version: bridgeVersion(), pairings, keyboard, allowPublicOsc },
     (line) => {
       if (!quiet) out.log(`[bridge] ${line}`);
     },

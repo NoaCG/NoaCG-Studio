@@ -19,7 +19,9 @@ export const FADE_SECONDS: Record<ClipFade, number> = { short: 0.5, long: 1 };
 
 /** The Level slider's range, in dB (plan §6.5). */
 export const MIN_LEVEL_DB = -60;
-export const MAX_LEVEL_DB = 6;
+export const MAX_LEVEL_DB = 20;
+/** The loudest level every Bridge with `playback` takes; above it a Bridge needs `gain-20`. */
+export const PLAIN_LEVEL_DB = 6;
 
 /** The server's list word (`MOVIE`, `STILL`, `AUDIO`) as the record keeps it, or nothing. */
 export function mediaKindOf(word: string | undefined): { mediaKind?: PlayoutMediaKind } {
@@ -45,7 +47,7 @@ function levelGain(db: number): number {
 
 /** `−12 dB`, `+3 dB`, `0 dB`: a level as the slider and every sentence about it read it. */
 export function dbText(db: number): string {
-  return `${db > 0 ? '+' : db < 0 ? '−' : ''}${Math.abs(db)} dB`;
+  return `${db > 0 ? '+' : db < 0 ? '−' : ''}${Math.round(Math.abs(db) * 10) / 10} dB`;
 }
 
 /** The file's whole length in seconds from the server's list, when it gave one. */
@@ -99,6 +101,17 @@ export function clockOf(seconds: number): string {
   const m = Math.floor(whole / 60);
   const s = String(whole % 60).padStart(2, '0');
   return `${m}:${s}${tenths % 10 ? `.${tenths % 10}` : ''}`;
+}
+
+/** `0:05.04`, `1:05.5`, `0:05` - a trim point to the hundredth, as the timeline and the typed boxes
+ *  show it, so a value set to the hundredth reads back exactly (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.6). */
+export function trimClock(seconds: number): string {
+  const hundredths = Math.round(seconds * 100);
+  const whole = Math.floor(hundredths / 100);
+  const m = Math.floor(whole / 60);
+  const s = String(whole % 60).padStart(2, '0');
+  const rest = hundredths % 100;
+  return `${m}:${s}${rest ? `.${String(rest).padStart(2, '0').replace(/0$/, '')}` : ''}`;
 }
 
 /** A time the operator typed (`1:05.5`, `65.5`, `0:03`) in seconds, or null when it is not one. */
@@ -159,6 +172,8 @@ export const NEEDS = {
   next: { feature: 'sequence', capability: 'sequence', what: 'plays the next clip', undo: 'set it to Hold' },
   fade: { feature: 'playback', capability: 'fade', what: 'fades', undo: 'set its fades to Cut' },
   level: { feature: 'playback', capability: 'level', what: 'plays at a level of its own', undo: 'reset its level' },
+  // Above +6 dB (docs/AUDIO_TIMELINE_LOUDNESS_PLAN.md §3.4): an older Bridge refuses the gain.
+  loud: { feature: 'gain-20', capability: 'level', what: 'plays more than 6 dB louder', undo: `bring its level to +${PLAIN_LEVEL_DB} dB or less` },
   trim: { feature: 'playback', capability: 'trim', what: 'is trimmed', undo: 'clear its start and end' },
   // A Play-through folder's own (plan §6.6): its clips one after another, and Loop the folder.
   through: { feature: 'sequence', capability: 'sequence', what: 'plays its clips one after another', undo: 'set How it plays to One by one' },
@@ -175,6 +190,7 @@ export function playbackNeeds(cue: Pick<ShowCue, 'playback' | 'imageFit'>, item:
   if (end === 'next') needs.push(NEEDS.next);
   if (p?.fadeIn || p?.fadeOut) needs.push(NEEDS.fade);
   if (p?.levelDb) needs.push({ ...NEEDS.level, what: `plays at ${dbText(p.levelDb)}` });
+  if (p?.levelDb && p.levelDb > PLAIN_LEVEL_DB) needs.push({ ...NEEDS.loud, what: `plays at ${dbText(p.levelDb)}` });
   if (p?.trimIn !== undefined || p?.trimOut !== undefined) needs.push(NEEDS.trim);
   return needs;
 }

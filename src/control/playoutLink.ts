@@ -53,6 +53,7 @@ import {
   type CasparSlot,
   type CasparTarget,
   type ListItem,
+  type OscRequestWire,
   type PlayoutAction,
   type RememberedServer,
   type ServerChannel,
@@ -455,6 +456,9 @@ interface BridgeReply {
   loadProblem?: string;
   mediaFolder?: string;
   cancelled?: true;
+  /** `/osc`: where the datagram went, and whether this answer repeats an earlier send. */
+  sent?: { to: string; bytes: number };
+  repeat?: true;
   check?: MediaFolderCheck;
   id?: string;
   state?: AudioJobReply['state'];
@@ -470,7 +474,7 @@ const bridgePayloadFields = {
   adapters: true, agent: true, cancelled: true, capabilities: true, channel: true, channels: true, code: true,
   command: true, expiresIn: true, features: true, generation: true, instance: true, items: true,
   lines: true, link: true, linked: true, loadProblem: true, mediaFolder: true, observedAt: true, overlays: true, players: true,
-  png: true, raw: true, renderers: true, servers: true, session: true, slots: true, status: true,
+  png: true, raw: true, renderers: true, repeat: true, sent: true, servers: true, session: true, slots: true, status: true,
   token: true, version: true, vmix: true, warning: true,
   check: true, id: true, state: true, progress: true, fileKey: true, measure: true, waveform: true, problem: true,
 } satisfies Record<BridgePayloadField, true>;
@@ -1095,6 +1099,51 @@ export function act(settings: PlayoutSettings, action: PlayoutAction, canSend: (
 export async function act(settings: PlayoutSettings, action: PlayoutAction, canSend?: () => boolean, verify?: VerifyBeforeAct): Promise<PlayoutResult | null> {
   if (!canSend) return (await through(settings, '/act', { action })).result;
   return (await through(settings, '/act', () => canSend() ? { action } : null, 'act', verify))?.result ?? null;
+}
+
+/** How long the page waits for `/osc`. The Bridge itself sends within 500 ms or refuses unsent;
+ *  past this the page cannot know, and says so rather than guess. */
+export const OSC_TIMEOUT_MS = 2000;
+
+/** What one OSC send came to (docs/work-specs/osc-control-cues/spec.md D7, D9). `sent` means the
+ *  datagram left the Bridge's computer, never that a device acted on it; `uncertain` that the page
+ *  stopped waiting after the request may have reached the Bridge. Nothing here ever resends. */
+export type OscSendResult =
+  | { state: 'sent'; to: string; repeat: boolean }
+  | { state: 'refused' | 'uncertain' | 'no-bridge'; detail: string };
+
+/**
+ * ONE OSC MESSAGE THROUGH THE PAIRED BRIDGE. Needs a paired browser and nothing else: no playout
+ * server, no CasparCG, no vMix, so a browser-only production can fire a lighting desk. The Bridge
+ * must say it understands `osc` on `/health`; an older one is named as too old, and nothing is sent.
+ */
+export async function sendOsc(settings: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>, request: OscRequestWire): Promise<OscSendResult> {
+  if (!bridgePaired(settings)) return { state: 'no-bridge', detail: 'Connect NoaCG Bridge in Playout settings to send OSC cues.' };
+  const answered = noteSendStarted();
+  try {
+    const known = currentBridges.get(settings.agentUrl);
+    const probed = known ? { unreachable: null, features: known } : await probeBridge(settings.agentUrl);
+    if (probed.unreachable) return { state: 'no-bridge', detail: probed.unreachable.detail };
+    if (!probed.features.includes('osc')) return { state: 'no-bridge', detail: 'This NoaCG Bridge is too old to send OSC cues. Download the current NoaCG Bridge.' };
+    const call = await callBridge(settings.agentUrl, '/osc', { ...request }, OSC_TIMEOUT_MS, settings.agentToken);
+    // Once the request has left, only an answer the Bridge actually gave can say "not sent": a lost
+    // connection, a timeout or an unreadable reply may follow a datagram that already went out.
+    const uncertain = { state: 'uncertain', detail: 'Send uncertain. Check the desk.' } as const;
+    if ('timedOut' in call || 'networkError' in call) {
+      // The next send asks /health again first, so a Bridge that went away is named then.
+      currentBridges.delete(settings.agentUrl);
+      return uncertain;
+    }
+    if (call.http === 401) return { state: 'no-bridge', detail: 'NoaCG Bridge is running but rejected this token. Pair this browser again.' };
+    const body = call.body;
+    if (call.bodyKind !== 'object') return uncertain;
+    if (body.ok === true && body.sent && typeof body.sent.to === 'string') return { state: 'sent', to: body.sent.to, repeat: body.repeat === true };
+    const detail = body.error?.detail;
+    if (body.ok === false && typeof detail === 'string' && detail) return { state: 'refused', detail };
+    return uncertain;
+  } finally {
+    answered();
+  }
 }
 
 /** Only an accepted All out can finish a native cut after the production closes. In that case

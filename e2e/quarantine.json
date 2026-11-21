@@ -7,30 +7,30 @@
       "count": 3,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43487230143"
     },
-    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
-      "since": "2026-11-19",
-      "count": 4,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44487794172"
-    },
     "e2e/configured/publish-guard.spec.ts": {
       "since": "2026-11-14",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43583442187"
-    },
-    "e2e/editor-images.spec.ts": {
-      "since": "2026-11-14",
-      "count": 3,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43631303258"
     },
     "e2e/editor-out-step.spec.ts": {
       "since": "2026-11-20",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44826377734"
     },
+    "e2e/import-svg-credits.spec.ts": {
+      "since": "2026-11-20",
+      "count": 3,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44836973599"
+    },
     "e2e/playout-cues.spec.ts": {
       "since": "2026-11-15",
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43657752399"
+    },
+    "e2e/playout-rundown-feedback.spec.ts": {
+      "since": "2026-11-20",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44832908349"
     }
   },
   "released": {
@@ -77,6 +77,10 @@
     "e2e/configured/late-send-abandoned.spec.ts": {
       "count": 16,
       "last": "2026-11-03"
+    },
+    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
+      "count": 4,
+      "last": "2026-11-20"
     },
     "e2e/configured/per-graphic-replacement.spec.ts": {
       "count": 1,
@@ -142,6 +146,10 @@
       "count": 2,
       "last": "2026-10-17"
     },
+    "e2e/editor-images.spec.ts": {
+      "count": 3,
+      "last": "2026-11-20"
+    },
     "e2e/editor-keys.spec.ts": {
       "count": 3,
       "last": "2026-10-19"
@@ -177,10 +185,6 @@
     "e2e/import-svg-corpus.spec.ts": {
       "count": 2,
       "last": "2026-11-13"
-    },
-    "e2e/import-svg-credits.spec.ts": {
-      "count": 2,
-      "last": "2026-11-19"
     },
     "e2e/import-svg.spec.ts": {
       "count": 5,

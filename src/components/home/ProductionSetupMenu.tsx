@@ -28,6 +28,7 @@ export function ProductionSetupMenu({
   onLinks,
   onLook,
   onPlayoutSettings,
+  onNormalize,
   onExport,
 }: {
   showId: string;
@@ -42,6 +43,9 @@ export function ProductionSetupMenu({
   /** The production look (home/ProductionLook.tsx), a panel beside the rundown. */
   onLook?: () => void;
   onPlayoutSettings: () => void;
+  /** Normalize every clip and audio cue to the production's loudness target
+   *  (home/NormalizeAllDialog.tsx). Absent while CasparCG is off for the production. */
+  onNormalize?: () => void;
   onExport: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -120,6 +124,11 @@ export function ProductionSetupMenu({
         >
           <IconSliders /> Playout settings…
         </button>
+        {onNormalize && (
+          <button role="menuitem" onClick={pick(onNormalize)} data-testid="setup-normalize">
+            <IconSliders /> Normalize audio…
+          </button>
+        )}
         <button
           role="menuitem"
           onClick={pick(onExport)}
