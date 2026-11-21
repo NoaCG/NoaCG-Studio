@@ -55,6 +55,10 @@ export const RESEND_WINDOW_MS = 4000;
  * over there (PostgREST's own queue for a database connection included). A double commit still
  * airs once (the minted id, commandRoads.ts); a late commit is closed only by a server-side
  * check, the per-graphic revision compare of Phase 6 Step 2.
+ *
+ * A press sent until it lands (below) is not cut here but at HELD_ATTEMPT_MS (#2671): its late
+ * commit is closed on the server, by its own revision base and a later press of this page that
+ * replaces its graphic (fix-2655.md R4, R7), not by this cut.
  */
 export const ATTEMPT_TIMEOUT_MS = 1500;
 
@@ -70,14 +74,22 @@ export const MIN_ATTEMPT_MS = 250;
  * lost Takes: 8 of 163, 4 of 233, 19 of 51 with five people. A press the numbered road can take
  * twice without airing twice (seqSend.ts `heldPress`, R4's proof) is instead sent again with no
  * end, until an answer, its own row heard back, a later press that replaces its graphic, All out,
- * or the operator's Stop sending. Its first HELD_SHORT_ATTEMPTS attempts are cut at
- * ATTEMPT_TIMEOUT_MS as before; every later one at HELD_ATTEMPT_MS, the signed-in statement
- * timeout, and they start RESEND_EVERY_MS apart, so a slow spell gets at most one new copy of it
- * per 12 s: a copy the page abandons still waits in the server's queue (R8).
+ * or the operator's Stop sending.
+ *
+ * ONE COPY AT A TIME (#2671, R2a). Every attempt of it is cut at HELD_ATTEMPT_MS, the signed-in
+ * statement timeout, not at ATTEMPT_TIMEOUT_MS: a copy the page abandons still waits in the
+ * server's queue, so cutting at 1.5 s while a commit stalled the production's command head sent
+ * four copies in 8 s to queue on that one row, and a Take waited behind them (measured,
+ * phase-9-latency-diagnosis.md section 3). The next copy follows only once the one before has
+ * ended. After a busy head (55P03, `headBusyError`: the copy waited its 1 s at the head and was
+ * rolled back) it goes BUSY_RESEND_MS later while the press is under BUSY_FAST_MS old, so the Take
+ * reaches the head again as soon as the stall clears; after anything else, and later on, it waits
+ * RESEND_DELAYS_MS by attempt number, then RESEND_EVERY_MS.
  */
-export const HELD_SHORT_ATTEMPTS = 4;
 export const HELD_ATTEMPT_MS = 8000;
 export const RESEND_EVERY_MS = 4000;
+export const BUSY_RESEND_MS = 400;
+export const BUSY_FAST_MS = 10_000;
 
 /** What the operator reads when the server did not answer, in place of the server's own words. */
 export const UNANSWERED = 'the server did not answer';
@@ -108,6 +120,16 @@ export function maybeLandedError(message: string): Error {
 
 export function isMaybeLanded(e: unknown): boolean {
   return (e as { maybeLanded?: unknown } | null)?.maybeLanded === true;
+}
+
+/** An Error for a send the command head refused while held by another commit (55P03): unanswered,
+ *  and the copy is gone from the server (R2a). */
+export function headBusyError(): Error {
+  return Object.assign(unansweredError(), { headBusy: true });
+}
+
+export function isHeadBusy(e: unknown): boolean {
+  return (e as { headBusy?: unknown } | null)?.headBusy === true;
 }
 
 export function isUnanswered(e: unknown): boolean {
@@ -189,8 +211,9 @@ export function rpcFailure(rpc: string, error: { message: string; code?: string 
  * its request then, and the attempt's number (0 first: a later one follows an unanswered one).
  * The error thrown is the last attempt's.
  *
- * A HELD press (`held`, #2655 R2) has no window: its deadline is ignored, and after the listed
- * delays it is sent again every RESEND_EVERY_MS, its later attempts cut at HELD_ATTEMPT_MS.
+ * A HELD press (`held`, #2655 R2) has no window: its deadline is ignored, every attempt is cut at
+ * HELD_ATTEMPT_MS, and after the listed delays it is sent again every RESEND_EVERY_MS, or
+ * BUSY_RESEND_MS after a busy head in its first BUSY_FAST_MS (#2671 R2a).
  * `stop` ends any press at once, an attempt in flight or a wait between two: its reason is the
  * error thrown (`stoppedError`, or the last attempt's for a press a later one replaced).
  */
@@ -202,6 +225,9 @@ export async function sendWithResend(
     stillNewest: () => boolean;
     /** Sent until it lands (#2655): no deadline, the long schedule above. */
     held?: boolean;
+    /** Epoch ms of the press, when it was made before this call (a press that waited in its lane):
+     *  a busy head is followed fast only while the PRESS is under BUSY_FAST_MS old (R2a). */
+    pressedAt?: number;
     /** Aborted: no further attempt, and the one in flight is abandoned now. */
     stop?: AbortSignal;
     /** Aborted: no further attempt, and a wait between two ends now, but the attempt in flight
@@ -225,18 +251,19 @@ export async function sendWithResend(
   const stopped = (last: unknown) =>
     stop?.reason instanceof Error ? Object.assign(new Error(stop.reason.message), stop.reason) : last ?? stoppedError();
   let last: unknown = null;
+  const pressedAt = opts.pressedAt ?? now();
   for (let attempt = 0; ; attempt += 1) {
     if (stop?.aborted) throw stopped(last);
-    const ms = opts.held
-      ? attempt < HELD_SHORT_ATTEMPTS ? ATTEMPT_TIMEOUT_MS : HELD_ATTEMPT_MS
-      : Math.min(ATTEMPT_TIMEOUT_MS, opts.deadline - now());
+    const ms = opts.held ? HELD_ATTEMPT_MS : Math.min(ATTEMPT_TIMEOUT_MS, opts.deadline - now());
     try {
       await attemptWithin((signal) => send(signal, attempt), ms, timer, stop);
       return;
     } catch (e) {
       last = e;
       if (stop?.aborted) throw stopped(e);
-      const wait = RESEND_DELAYS_MS[attempt] ?? (opts.held ? RESEND_EVERY_MS : undefined);
+      const wait = opts.held && isHeadBusy(e) && now() - pressedAt < BUSY_FAST_MS
+        ? BUSY_RESEND_MS
+        : RESEND_DELAYS_MS[attempt] ?? (opts.held ? RESEND_EVERY_MS : undefined);
       if (!isUnanswered(e) || wait === undefined) throw e;
       if (!opts.held && now() + wait + MIN_ATTEMPT_MS > opts.deadline) throw e;
       if (!opts.stillNewest() || opts.settled?.aborted) throw e;

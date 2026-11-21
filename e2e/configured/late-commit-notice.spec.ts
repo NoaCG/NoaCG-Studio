@@ -1,7 +1,8 @@
 // A TAKE THAT LANDS AFTER ITS PAGE GAVE UP ON IT IS NOT REPORTED AS FAILED (#917).
 //
 // Both attempts of a send can be abandoned at their 1.5 s deadline while the server commits one
-// anyway (failedSends.ts ATTEMPT_TIMEOUT_MS, WHAT THIS CANNOT DO). Seen on hosted staging: the
+// anyway (failedSends.ts ATTEMPT_TIMEOUT_MS, WHAT THIS CANNOT DO; a held press is cut at 8 s since
+// #2671, and its copies can still commit after it is ended). Seen on hosted staging: the
 // Take was on air and the page said "on this monitor only" for as long as anyone looked, because
 // its follower dropped the returning row as its own and nothing withdrew the notice.
 //
@@ -39,7 +40,8 @@ test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
-/** Past one attempt's deadline (ATTEMPT_TIMEOUT_MS, 1.5 s), so every attempt is abandoned. */
+/** Past one attempt's deadline (ATTEMPT_TIMEOUT_MS, 1.5 s) for a press that is not held; a held
+ *  press reads it (HELD_ATTEMPT_MS, 8 s, #2671). Either way the Take is on air. */
 const ANSWER_LATE_MS = 1700;
 /** Past the old window (RESEND_WINDOW_MS, 4 s): before #2655 the page gave up before this. */
 const HOLD_MS = 5000;
@@ -60,8 +62,9 @@ async function answerLate(op: Page): Promise<void> {
   });
 }
 
-/** Every attempt held until the page has given up on it, then dropped. What the first attempt
- *  carried is kept, so the test can commit it from outside the page: the late commit. */
+/** Every attempt held, then dropped at HOLD_MS with a network failure (before a held attempt's 8 s
+ *  cut, #2671, so the page sends it again 0.4 s later). What the first attempt carried is kept, so
+ *  the test can commit it from outside the page: the late commit. */
 async function holdThenDrop(op: Page): Promise<() => Promise<void>> {
   const kept: { url: string; headers: Record<string, string>; body: string }[] = [];
   await op.route(SEND, async (route) => {
@@ -131,7 +134,8 @@ test('a Take that commits after its page gave up takes the "on this monitor only
   const takenAt = Date.now();
   await op.getByTestId('verb-take').click();
   await expect.poll(airPlays, { timeout: 30_000 }).toBe(1);
-  // Every attempt abandoned unanswered by now: the send is over.
+  // The send is over by now: its answer at 1.7 s is read (a held attempt is cut only at 8 s, #2671),
+  // or, for a press that is not held, every attempt was abandoned unanswered.
   await op.waitForTimeout(Math.max(0, takenAt + SETTLED_MS - Date.now()));
   await expect(chip).toContainText('on air:');
   await expect(notice, 'a Take on air is not "on this monitor only"').toHaveCount(0);

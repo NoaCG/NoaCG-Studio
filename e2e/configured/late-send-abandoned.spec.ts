@@ -9,14 +9,19 @@
 // own follower dropping the returning row by its minted id are all absent offline. The unit half
 // (scripts/failed-sends.test.mjs) pins the timing rules with a transport that never answers.
 //
-// Mutation-tested: with the attempt deadline taken out, the held Take commits at 6 s and the
-// output's entrance count reads 1.
+// Mutation-tested (before #2671): with the attempt deadline taken out, the held Take commits at 6 s
+// and the output's entrance count reads 1.
+// Mutation-tested (#2671): with a replacing press cancelling the held Take's attempt in flight
+// (`stop` in place of `settled`), walk 2 fails at "the late Take copy was answered".
 //
 // SINCE #2655 a Take no server answers is not given up on after 4 s: it is sent until it lands,
 // "still sending" beside Stop sending (docs/work-specs/live-publishing/evidence/fix-2655.md R2,
-// R6). The first walk is that, ended by Stop sending; every attempt is still abandoned in the
-// browser, so the claims about air are unchanged. The second walk is unchanged: an Out replaces
-// the graphic, so it ends the held Take (R7, newest wins).
+// R6). The first walk is that, ended by Stop sending, which cancels the attempt in the browser.
+// SINCE #2671 a held attempt is cut at 8 s, not 1.5 s (R2a), so the first walk holds the request
+// past that cut. The second walk: an Out replaces the graphic, so it ends the held Take (R7, newest
+// wins); the Take's attempt in flight runs to its answer, reaches the server after the Out landed
+// and is skipped there. Its claims about air are unchanged; the proof is now the server's skip, read
+// from the answer, where it used to be the 1.5 s cut abandoning the request in the browser.
 // covers: src/control/failedSends.ts, src/control/markerSender.ts, src/components/home/ProductionPage.tsx
 
 import { publishProduction } from '../_publish';
@@ -34,6 +39,9 @@ test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec')
  *  the numbers of the research run this reproduces. */
 const HOLD_MS = 6000;
 const OUT_AFTER_MS = 1500;
+/** Walk 1's hold: past a held attempt's 8 s cut (failedSends.ts HELD_ATTEMPT_MS, #2671), so only
+ *  Stop sending ends the Take, never the hold or the cut. */
+const HOLD_PAST_CUT_MS = 12_000;
 
 test('a held Take is abandoned inside the window and never reaches air, even behind a later Out',async ({ page, context }) => {
   test.setTimeout(300_000);
@@ -83,10 +91,11 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // on the id road, `control_send_seq` on the numbered log (migration 0071), whichever the page
   // negotiated with this server.
   const held: Promise<void>[] = [];
+  let holdMs = HOLD_PAST_CUT_MS;
   await op.route('**/rest/v1/rpc/control_send_*', async (route) => {
     const body = route.request().postDataJSON() as { p_items?: { msg?: { t?: string } }[] } | null;
     if (!body?.p_items?.some((item) => item.msg?.t === 'play')) return route.continue();
-    const release = new Promise<void>((resolve) => setTimeout(resolve, HOLD_MS)).then(() =>
+    const release = new Promise<void>((resolve) => setTimeout(resolve, holdMs)).then(() =>
       route.continue().catch(() => {}),
     );
     held.push(release);
@@ -95,6 +104,14 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   const abandoned: string[] = [];
   op.on('requestfailed', (r) => {
     if (/\/rpc\/control_send_(many|seq)\b/.test(r.url())) abandoned.push(r.failure()?.errorText ?? '');
+  });
+  // What the server answered each Take copy that reached it.
+  const takeAnswers: unknown[] = [];
+  op.on('response', async (r) => {
+    if (!/\/rpc\/control_send_(many|seq)\b/.test(r.url())) return;
+    const body = r.request().postDataJSON() as { p_items?: { msg?: { t?: string } }[] } | null;
+    if (!body?.p_items?.some((item) => item.msg?.t === 'play')) return;
+    takeAnswers.push(await r.json().catch(() => null));
   });
 
   const notice = op.getByTestId('production-note').filter({ hasText: 'on this monitor only' });
@@ -122,11 +139,14 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   await Promise.all(held);
   await op.waitForTimeout(3000);
   expect(await airPlays(), 'an abandoned Take must never reach air').toBe('0');
+  expect(abandoned.length, 'Stop sending cancelled the held Take in the browser').toBeGreaterThan(0);
+  expect(takeAnswers, 'no copy of the stopped Take reached the server').toEqual([]);
   await expect(chip).toContainText('nothing on air');
 
   // ── The late Take of §5.6. ──────────────────────────────────────────────────────────────────
   held.length = 0;
   abandoned.length = 0;
+  holdMs = HOLD_MS;
   await followerLevel();
   await op.getByTestId('verb-take').click();
   await expect(chip).toContainText('on air:');
@@ -144,11 +164,18 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   const rowsAfterOut = await lastAppliedRow(air);
   await op.waitForTimeout(3000);
 
-  // THE CLAIM. The held Take was abandoned in the browser, so nothing late reached the log or air:
-  // no entrance was ever played on the output, and no row arrived after the Out's.
+  // THE CLAIM. The Out ended the held Take (R7): no new copy, and the one in flight ran to its
+  // answer. It reached the server after the Out had landed, which skipped it (0125 step 6), so
+  // nothing late reached the log or air: no entrance was ever played on the output, and no row
+  // arrived after the Out's.
   expect(await airPlays(), 'the late Take must never reach air').toBe('0');
   expect(await lastAppliedRow(air)).toBe(rowsAfterOut);
-  expect(abandoned.length, 'the held Take attempts were cancelled in the browser').toBeGreaterThan(0);
+  await expect.poll(() => takeAnswers.length, { message: 'the late Take copy was answered' }).toBeGreaterThan(0);
+  for (const answer of takeAnswers) {
+    const a = answer as { ok?: boolean; skipped?: unknown[] } | null;
+    expect(a?.ok, `the late Take copy was skipped, not refused: ${JSON.stringify(answer)}`).toBe(true);
+    expect(a?.skipped?.length ?? 0, `the server skipped the late Take copy: ${JSON.stringify(answer)}`).toBeGreaterThan(0);
+  }
 
   // And the operator page agrees with air. Whether the abandoned Take's notice is still up is not
   // asserted: the Out's landing takes it down when the Take gave up first and cannot when the Out

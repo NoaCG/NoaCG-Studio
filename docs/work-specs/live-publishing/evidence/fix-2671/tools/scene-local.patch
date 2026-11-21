@@ -1,0 +1,77 @@
+diff --git a/e2e/configured/_five.ts b/e2e/configured/_five.ts
+index bbae325cd..a75526030 100644
+--- a/e2e/configured/_five.ts
++++ b/e2e/configured/_five.ts
+@@ -1,3 +1,4 @@
++import { spawnSync } from 'node:child_process';
+ import { expect, type Browser, type BrowserContext, type Frame, type Page } from '@playwright/test';
+ import { createClient } from '@supabase/supabase-js';
+ import { configuredTarget, isLocalStackUrl } from '../../scripts/configured-target.mjs';
+@@ -236,13 +237,12 @@ export async function openProduction(page: Page, showId: string): Promise<void>
+ 
+ /** The service-role switch writes (`system_settings`), local stack only. */
+ export async function setSwitch(key: 'auto_publish' | 'partial_writes' | 'team_designs' | 'production_copies', on: boolean): Promise<void> {
+-  if (!writable()) throw new Error('switches are written only on a local stack or the declared staging project');
+-  const res = await fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
+-    method: 'POST',
+-    headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
+-    body: JSON.stringify({ key, value: { on } }),
+-  });
+-  if (!res.ok) throw new Error(`switch ${key}: ${res.status} ${await res.text()}`);
++  // Scratch measurement only: written as postgres in the local database container, never with the service key.
++  const db = process.env.DIAG_DB ?? '';
++  if (!db || !/127\.0\.0\.1|localhost/.test(SUPABASE_URL)) throw new Error('local stack only');
++  const sql = `insert into system_settings(key, value) values ('${key}', '{"on": ${on}}'::jsonb) on conflict (key) do update set value = excluded.value`;
++  const r = spawnSync('docker', ['exec', db, 'psql', '-U', 'postgres', '-qAtc', sql], { encoding: 'utf8' });
++  if (r.status !== 0) throw new Error(`switch ${key}: ${r.stderr}`);
+ }
+ 
+ /**
+@@ -257,10 +257,9 @@ export async function setUp(browser: Browser, owner: Page, pages: number, opts:
+   const editors = roles.filter((r) => r === 'editor').length;
+   const built = await build(owner, editors, opts.fill ?? 0);
+   log('built and published', built.showId);
+-  const emails = roles.map((_, i) => (i === 0 ? E2E_EMAIL : memberEmail(i)));
+-  const minted = emails.slice(1);
+-  const sb = admin();
+-  await Promise.all(minted.map((e) => mintAccount(sb, e, E2E_PASSWORD)));
++  const others = (process.env.DIAG_OTHERS ?? '').split(',').filter(Boolean);
++  const emails = roles.map((_, i) => (i === 0 ? E2E_EMAIL : others[i - 1]));
++  const minted: string[] = [];
+   const people: Person[] = [{ role: 'taker', email: E2E_EMAIL, context: owner.context(), page: owner }];
+   const contexts: BrowserContext[] = [];
+   try {
+@@ -299,14 +298,8 @@ export async function setUp(browser: Browser, owner: Page, pages: number, opts:
+     return { slug: s.outputSlug ?? '', key: key ?? '' };
+   }, built.showId);
+   expect(slug, 'publishing mints an output slug').toBeTruthy();
+-  expect(key, 'publishing mints a data key').toBeTruthy();
+-  await owner.evaluate(
+-    async ({ key, start }) => {
+-      const { patchProductionData } = await __noacgImport('/src/control/productionDataApi.ts');
+-      await patchProductionData(key, { match: { home: { score: start } } });
+-    },
+-    { key, start: SCORE_START },
+-  );
++  
++  // Scratch: the score start goes through the data API (service key on the server): skipped.
+   const outputContext = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+   contexts.push(outputContext);
+   await instrument(outputContext);
+diff --git a/e2e/instruments/_p9.ts b/e2e/instruments/_p9.ts
+index baf874503..8776cab66 100644
+--- a/e2e/instruments/_p9.ts
++++ b/e2e/instruments/_p9.ts
+@@ -35,9 +35,9 @@ const service = (path: string, init: { method?: string; body?: unknown; prefer?:
+ 
+ /** The switch rows as the staging project holds them. */
+ export async function readSwitches(): Promise<Record<string, unknown>> {
+-  const r = await service('system_settings?select=key,value&key=in.(auto_publish,partial_writes,production_copies,team_designs)');
+-  const rows = (await r.json()) as { key: string; value: unknown }[];
+-  return Object.fromEntries(rows.map((x) => [x.key, x.value]));
++  const { spawnSync } = await import('node:child_process');
++  const r = spawnSync('docker', ['exec', process.env.DIAG_DB ?? '', 'psql', '-U', 'postgres', '-qAtc', "select coalesce(json_object_agg(key, value), '{}') from system_settings where key in ('auto_publish','partial_writes','production_copies','team_designs')"], { encoding: 'utf8' });
++  return JSON.parse(r.stdout.trim() || '{}');
+ }
+ 
+ /** What the two state functions answer, asked as the signed-in owner (the role the app asks as). */
