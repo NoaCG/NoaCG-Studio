@@ -34,24 +34,17 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2695 through the merge queue",
-   "eta": "2026-11-22T13:20:00Z"
+   "what": "TL2 checker verdict",
+   "eta": "2026-11-22T14:00:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL2",
-  "step": "build: queued",
-  "session": "session_017SdbwQzdQoNSjiFKVDJN66",
-  "nonce": "tl2-b-8299",
-  "branch": "claude/plan-svg-template-library-tl2-build",
-  "source": "60a92df384015ac6abf4273e3bbe56a081cca0a0",
-  "asOf": "2026-11-22T12:27Z",
-  "progress": "PR #2695 open at b2fc2281, CI running",
-  "pr": 2695,
-  "head": "40379bc54496b18b8f8cf24efd8ceaba09e39d36",
-  "receipt": "RECEIPT tl2-b-8299 12:25Z: CI 45020797794 green except Reviewed; Risky, Rules-first /so before code; final /so A on 40379bc; Codex clean",
-  "stamp": "cloud-queue-merge 45022205226 success",
-  "repairOwnerComment": 7079108373
+  "step": "check",
+  "session": "session_017SdbwPZL7EABJdm446EbkB",
+  "nonce": "tl2-c-ab7a",
+  "merge": "5d6b79b304552dc09a7c4ed0e16e7d0dfd26ba90",
+  "asOf": "2026-11-22T12:38:43Z"
  },
  "owner": [
   {
@@ -129,5 +122,10 @@
   "evidencePr": 2692,
   "fixPr": 2693,
   "flake": "editor-projects.spec.ts:310 fail-then-pass, quarantine PR #2694 opened by the checker; #2694 merged"
+ },
+ "tl2": {
+  "pr": 2695,
+  "merge": "5d6b79b304552dc09a7c4ed0e16e7d0dfd26ba90",
+  "builder": "session_017SdbwQzdQoNSjiFKVDJN66"
  }
 }
