@@ -720,32 +720,37 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
     const snapshot = async (timestamp: number) => {
       await el.goToTime({ timestamp });
       const doc = graphicBody(el).querySelector('iframe')!.contentDocument!;
+      const gsap = (doc.defaultView as unknown as { gsap: { getProperty(node: Element, p: string): number } }).gsap;
       const read = (n: string) => {
         const node = doc.querySelector(`[data-noacg-role~="${n}"]`)!;
-        const cs = getComputedStyle(node);
-        return { lit: node.classList.contains('imported-design-on'), opacity: Number(cs.opacity).toFixed(3), transform: cs.transform };
+        return { lit: node.classList.contains('imported-design-on'), opacity: Number(gsap.getProperty(node, 'opacity')).toFixed(3), scale: Number(gsap.getProperty(node, 'scale')).toFixed(3) };
       };
       return { timestamp, warning: read('warning'), expired: read('expired') };
     };
-    const order = [700, 1450, 3150, 3300, 4500];
+    // In order, every fifth of a second through the entrance, the count and past zero.
     const sequential = [];
-    for (const at of order) sequential.push(await snapshot(at));
+    for (let at = 200; at <= 7000; at += 200) sequential.push(await snapshot(at));
+    const zero = sequential.find((f) => f.expired.lit)?.timestamp ?? -1;
+    // Then out of order, each seek on a fresh frame: the warning, zero, after zero, again.
+    const picks = [zero + 1400, 600, zero, 1400, zero + 200, 600, zero];
     const shuffled = [];
-    for (const at of [3300, 700, 4500, 1450, 3150, 700]) shuffled.push(await snapshot(at));
+    for (const at of picks) if (at > 0 && at <= 7000) shuffled.push(await snapshot(at));
     await el.dispose();
-    return { sequential, shuffled };
+    return { sequential, shuffled, zero };
   }, short);
-  // Every seek lands on the frame the in-order walk saw.
-  for (const frame of frames.shuffled) expect(frame, `seek to ${frame.timestamp}`).toEqual(frames.sequential.find((f) => f.timestamp === frame.timestamp));
   const at = (ms: number) => frames.sequential.find((f) => f.timestamp === ms)!;
-  // The pulse is under way at 0.7 s and at another point of its beat at 1.45 s.
-  expect(at(700).warning.lit).toBe(true);
-  expect(Number(at(700).warning.opacity)).toBeLessThan(1);
-  expect(at(700).warning.opacity).not.toBe(at(1450).warning.opacity);
-  // Zero at 3 s: the flash is still growing in at 3.15 s, and at rest by 4.5 s.
-  expect(at(3150).expired.lit).toBe(true);
-  expect(at(3150).warning.lit).toBe(false);
-  expect(at(3150).expired.transform).not.toBe(at(4500).expired.transform);
-  expect(at(4500).expired).toMatchObject({ lit: true, opacity: '1.000' });
-  expect(at(4500).expired.transform).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+  expect(frames.zero, 'zero is reached in the walk').toBeGreaterThan(0);
+  // Every seek lands on the frame the in-order walk saw.
+  for (const frame of frames.shuffled) expect(frame, `seek to ${frame.timestamp}`).toEqual(at(frame.timestamp));
+  expect(frames.shuffled.length).toBe(7);
+  // Before zero the warning is lit and pulsing: its opacity leaves 1 and moves from frame to frame.
+  const warned = frames.sequential.filter((f) => f.timestamp < frames.zero && f.warning.lit);
+  expect(warned.length, 'the warning shows before zero').toBeGreaterThan(5);
+  expect(warned.some((f) => Number(f.warning.opacity) < 0.9), 'the pulse dims the warning').toBe(true);
+  expect(new Set(warned.map((f) => f.warning.opacity)).size, 'and keeps moving').toBeGreaterThan(3);
+  // At zero the warning goes and Time up flashes in: larger than drawn on its first frame, at
+  // rest (opacity 1, scale 1) a second later, and never again after.
+  expect(at(frames.zero).warning.lit).toBe(false);
+  expect(Number(at(frames.zero).expired.scale), 'the flash on its first frame').toBeGreaterThan(1);
+  for (const f of frames.sequential.filter((x) => x.timestamp >= frames.zero + 1000)) expect(f.expired, `rest at ${f.timestamp}`).toEqual({ lit: true, opacity: '1.000', scale: '1.000' });
 });
