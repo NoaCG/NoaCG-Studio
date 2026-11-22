@@ -630,7 +630,7 @@ Actions. OW: the owner, with Illustrator on their own computer.
 
 TL5 lands as several PRs; each adds its group here.
 
-Group 1: Vote results count, Alert level, Public notice.
+Group 1: Vote results count, Alert level, Public notice, Poll result (one PR, #2701).
 
 - Previous verified `main`: `b06197d34fbd9c33e062690a908088128b9e3972`. Revert: `git revert -m 1 <the TL5 group 1 merge commit>`.
 - Evidence: `evidence/phase-TL5.md`.
@@ -657,6 +657,10 @@ Group 1: Vote results count, Alert level, Public notice.
   - E4. `derive:share.count` and the `row-pick` spec key `start` are in `READS_ADDED`; a table
     asking for either under a runtime that does not list it is refused at export, upgradable by
     importing again.
+  - E5. A vote imported with Poll result ticked (`options.figures`, the poll binding's additive
+    `options`) is the same table and words as the vote, with its `Live figures` field defaulting
+    to live: typed figures show from the take, and the operator can still switch them to wait.
+    Without the box the vote is byte for byte what it was.
 
 ## Test maintenance
 

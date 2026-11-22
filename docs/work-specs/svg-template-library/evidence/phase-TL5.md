@@ -9,11 +9,11 @@ Base: `main` at `b06197d34fbd9c33e062690a908088128b9e3972`. Acceptance for this 
 
 TL5 lands as several PRs, each grouping related extensions. This file grows with each.
 
-## Group 1: Vote results count, Alert level, Public notice
+## Group 1: Vote results count, Alert level, Public notice, Poll result
 
 Row class: not Ordinary (a runtime derivation, a recipe's machine and the import's binding), not
 Risky (no ownership, target, retry, recovery or writer rule; two additive optional persisted keys,
-no key renamed). Rules E1 to E4 (phase notes) were written after coding, so the final `/so`
+no key renamed). Rules E1 to E5 (phase notes) were written after coding, so the final `/so`
 challenges them.
 
 ### What was built
@@ -29,9 +29,14 @@ challenges them.
   state, and every option is a button reachable from every other. All hidden is the empty start
   every choice had. The mapping step lists a visible option beside the hidden ones; the layer
   check allows one visible option per choice.
+- **Poll result (poll rows, AC-5).** The poll type consumes typed Question and Options rows, which
+  the vote recipe already reads (`Label | figure`); what differs is timing. A Poll result box in
+  the import's vote section (`options.figures`) makes `Live figures` default to live, so the typed
+  figures show from the take with no press. Author choice, recorded in the library README.
 - **Templates** (studio style, in `library.json`, coverage and packages): Vote results with counts
-  (audience), Alert level and Public notice (titles), each with a default preview and named
-  states with alt text. Library: 68 templates; coverage 68 of 101 rows.
+  and Poll result (audience), Alert level and Public notice (titles), each with a default preview
+  and, where the template has them, named states with alt text. Library: 69 templates; coverage 69
+  of 101 rows.
 
 Design decision: the count readout is a new template, **Vote results with counts**, not an edit
 of Vote results. TL3's rule A1 pins every old download address to the bytes it served
@@ -49,6 +54,15 @@ template imports, keeps every named text, runs its controls and stays clean on a
 | Vote results with counts | automatic (vote recipe, `Count n` bound) | as Live vote; after Show result each row prints its own count (3 and 1) with its share; no Count operator field is made; a row the next round leaves out reads 0 |
 | Alert level | automatic (`choice:Level/...`, Advisory drawn visible) | starts on Advisory, never empty; the Level field offers exactly the four levels; every level is a button, greyed only while shown; each shows only its look; an empty or unknown level sent as data shows Advisory |
 | Public notice | automatic (`choice:Level/...`, Standard drawn visible) | starts on Standard; Urgent shows only the urgent band; Standard returns |
+| Poll result | vote recipe detected; Poll result ticked by the author (README) | the typed Question and rows fill the board, figures and bars shown at once with no press; new rows replace them |
+
+### AC-5, Poll result
+
+Its own case, beside TL4's Live vote case and TL1's Vote results case: the Poll result step of
+the vote batch ("vote: ..., Poll result: each template imports ...") types the question and three
+rows; the percentages are lit at once (62%), the bars stand about 62 to 11, and a second set of
+rows replaces the figures (75%, and 0% on a row no longer listed), all with no press. The import
+step asserts the box starts unticked (a live vote is the default) and ticks it.
 
 Live bug (all options hidden) runs in the same batch with the generalised step and still starts
 empty with a `-` value. One visual family: the previews are made by one renderer (960 by 540,
@@ -76,8 +90,9 @@ target": each package is built from the imported graphic and loaded as its host 
 | OGraf | real time: load, playAction, updateAction | same | same as SPX |
 | LiveOS | real time (live-only package) | same | same as SPX |
 
-The count shows under Live figures there, since a host that sends only data reaches no Show
-result. OGraf non-real time: both are repaints of data the graphic already has, with no motion;
+Poll result in the same case: in every target the typed rows show 75% and 25% at once, from the
+`Live figures` default the package was built with. The count shows under Live figures there,
+since a host that sends only data reaches no Show result. OGraf non-real time: both are repaints of data the graphic already has, with no motion;
 seek parity for imported designs other than the countdown stays issue #2699.
 
 ### AC-9
