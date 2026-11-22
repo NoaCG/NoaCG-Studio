@@ -34,18 +34,23 @@
  },
  "waitingOn": [
   {
-   "what": "TL4 builder receipt and its PR (large phase)",
-   "eta": "2026-11-23T03:00:00Z"
+   "what": "PR #2698 through the merge queue",
+   "eta": "2026-11-22T17:40:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL4",
-  "step": "build",
+  "step": "build: queued",
   "session": "session_017SdbwMYeduE5e6iXLcwf2D",
   "nonce": "tl4-b-92ca",
   "branch": "claude/plan-svg-template-library-tl4-build",
   "source": "66ab49d3db8058f0eb972414623e155ecabb71c0",
-  "asOf": "2026-11-22T15:16:52Z"
+  "asOf": "2026-11-22T16:48Z",
+  "pr": 2698,
+  "head": "c2eceded58d2da413a4398d94e4598b8aba1bc3b",
+  "receipt": "RECEIPT tl4-b-92ca 16:46Z: CI 45044106306 green except Reviewed; class other, no Risky path; final /so A + delta A; Codex clean; #2699 filed",
+  "stamp": "cloud-queue-merge 45045772624 success",
+  "repairOwnerComment": 7082340729
  },
  "owner": [
   {
@@ -79,7 +84,8 @@
  "followups": [
   "#2679 (P3 docs screenshot)",
   "#2681 (P3 gate hardening)",
-  "#2683 (P3 pre-existing built-in retry seed)"
+  "#2683 (P3 pre-existing built-in retry seed)",
+  "#2699 (from TL4 final /so)"
  ],
  "notes": [
   "Check briefs: pass the phase brief notes to the checker as NOTES (the check template omits them); TL0 needed its planned-rows scope note.",
@@ -111,6 +117,11 @@
    "what": "TL3 test consolidation moved to TL4",
    "answer": "deferWithinPlan (standing permission)",
    "where": "#2678 comment 7080700485"
+  },
+  {
+   "what": "TL4: Poll result case to TL5, end credits crawl to TL6",
+   "answer": "deferWithinPlan (standing permission)",
+   "where": "#2678 comment 7082339903"
   }
  ],
  "carry": {
