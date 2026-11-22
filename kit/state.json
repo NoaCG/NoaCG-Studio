@@ -34,12 +34,8 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2692 (TL1o evidence) in the merge queue",
-   "eta": "2026-11-22T10:30:00Z"
-  },
-  {
-   "what": "fix #2691 builder receipt",
-   "eta": "2026-11-22T13:00:00Z"
+   "what": "PR #2693 (fix #2691) through the merge queue",
+   "eta": "2026-11-22T11:15:00Z"
   }
  ],
  "inFlight": {
@@ -63,7 +59,11 @@
    "nonce": "fix-2691-f-8da9",
    "branch": "claude/plan-svg-template-library-fix-2691",
    "source": "516ab7f0cfa64ef3d193f96e454cb4d07a0b8654",
-   "alsoReruns": "TL1o round trip; appends Re-run section to evidence/phase-TL1o.md"
+   "alsoReruns": "TL1o round trip; appends Re-run section to evidence/phase-TL1o.md",
+   "pr": 2693,
+   "head": "9fbf1e591202ee88e7c3135358d3ed9a93d1d6ef",
+   "state": "queued 10:24:23Z; Ordinary; Codex clean; TL1o re-run clean (j-0004)",
+   "tl8Check": "Percent figures end at the track right end after Show result and Call the winner; left-drawn labels start where drawn"
   }
  ],
  "triggers": {
