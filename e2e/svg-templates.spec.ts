@@ -486,12 +486,11 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       expect(offered, 'the operator picks among the options, and an empty value only where the choice starts empty').toEqual(choice.start ? choice.options : ['-', ...choice.options]);
       // Every option is a button of its own, greyed only while it is the one showing; the start
       // stays live (data alone can show another option while the machine rests on the start).
-      for (const o of choice.options) {
-        await expect(press(o)).toBeEnabled({ enabled: o === choice.start || choice.start === null });
-      }
+      for (const o of choice.options) await expect(press(o)).toBeEnabled();
       for (const [i, o] of choice.options.filter((label) => label !== choice.start).entries()) {
         await press(o).click();
         await only(o);
+        await expect(press(o), `${o} is greyed while it shows`).toBeDisabled();
         if (i === 0) await checkAir(page, air, `${t.slug}-2-${o.toLowerCase()}`);
       }
       // A value that names no option (a cue saved before the choice had a start, a host sending
