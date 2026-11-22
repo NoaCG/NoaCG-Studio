@@ -34,24 +34,22 @@
  },
  "waitingOn": [
   {
-   "what": "Owner TL1o round trip report",
-   "where": "#2678 comment 7075919898",
-   "eta": "owner"
+   "what": "TL1o agent receipt and its evidence PR",
+   "eta": "2026-11-22T12:00:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL1o",
-  "step": "owner",
-  "handover": "https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7075919898",
-  "asOf": "2026-11-22T07:27Z"
+  "step": "build (agent at owner request)",
+  "session": "session_017SdbwQNvZxeWHBhQbe3W8Q",
+  "nonce": "tl1o-a-5d21",
+  "branch": "claude/plan-svg-template-library-tl1o-build",
+  "source": "516ab7f0cfa64ef3d193f96e454cb4d07a0b8654",
+  "asOf": "2026-11-22T09:08:34Z"
  },
  "owner": [
   {
-   "what": "TL1o pilot round trip in Illustrator",
-   "where": "#2678 comment 7075919898"
-  },
-  {
-   "what": "TL8 owner confirmation",
+   "what": "TL8 owner confirmation, now including the real Illustrator round trip of the four pilot templates (moved from TL1o)",
    "where": "hand-over on #2678 when TL7 passes"
   }
  ],
@@ -86,6 +84,11 @@
    "what": "TL1 AC-4 row counts",
    "answer": "\"A\" (owner, 2026-11-22): share plus total on air, raw counts in the cue, meet AC-4 for TL1; per-option count readout added to the Vote results template in TL5",
    "where": "#2678 comment 7071540752 and the ruling comment after it"
+  },
+  {
+   "what": "TL1o by an agent",
+   "answer": "\"please use another agent to test this for me and then continue the run\" (owner, 2026-11-22)",
+   "deferred": "real Illustrator round trip moved to TL8 (deferWithinPlan)"
   }
  ],
  "carry": {
