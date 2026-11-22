@@ -660,7 +660,15 @@ Group 1: Vote results count, Alert level, Public notice, Poll result (one PR, #2
   - E5. A vote imported with Poll result ticked (`options.figures`, the poll binding's additive
     `options`) is the same table and words as the vote, with its `Live figures` field defaulting
     to live: typed figures show from the take, and the operator can still switch them to wait.
-    Without the box the vote is byte for byte what it was.
+    Without the box the vote is byte for byte what it was. Staged from Interaction as Vote
+    results, it follows the production's Live figures switch like every results board (the
+    staging writes that field); the box sets only the default a typed board starts with.
+- Decisions recorded from review: a choice's start applies to what is painted; data that sends
+  an empty or unknown option shows the start while the machine stays where the last press put
+  it, as every data-only choice update already does. The Poll result box is offered only where a
+  figure or count is drawn. The proposal (AI/CLI) path carries no Poll result intent yet: an
+  agent's import is a live vote until the author ticks the box. A row a new round leaves out keeps
+  its old label (issue #2702, on main before TL5).
 
 ## Test maintenance
 

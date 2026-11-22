@@ -652,7 +652,10 @@ const sha = (o) => hash(JSON.stringify(o));
  *  hashes to its previous pin. */
 // Re-taken for svg-template-library TL2: the behaviour runtime now emits its NOACG_BEHAVIOUR_READS
 // line (importedDesign/behaviourReads.ts); nothing else in these builds moved. The role-above and
-// faced pins below were re-taken for the same line.
+// faced pins below were re-taken for the same line. Re-taken for TL4 (look motion) and for TL5:
+// only the behaviour runtime moved (the share kind's `count`, the row-pick kind's `start`, and
+// their READS words); with main's behaviourRuntime.ts and behaviourReads.ts swapped back in, every
+// build hashes to its previous pin.
 const PINS = {
   editable: '7776044f4965caaa',
   artwork: 'ca01db9d19020071',
