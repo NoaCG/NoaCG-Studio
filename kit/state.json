@@ -45,7 +45,7 @@
   "nonce": "tl5-b-a0a1",
   "branch": "claude/plan-svg-template-library-tl5-build-3",
   "source": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "asOf": "2026-11-22T21:07Z",
+  "asOf": "2026-11-22T21:17Z",
   "note": "may land as several PRs; coordinator stamps each",
   "prs": [
    {
@@ -83,7 +83,8 @@
     "head": "fb435bc70e401c4dd36b6d8404d77d886cc885f9",
     "covers": "17 templates incl. scorebug, match board/status/event, esports, transition, verdict, matchup, podium, chat highlight, timing tower, map round, head to head, player card, bracket, fixtures, agenda",
     "stamp": "cloud-queue-merge 45069985510",
-    "repairOwnerComment": 7085773010
+    "repairOwnerComment": 7085773010,
+    "merged": "3728a1c9431457e96f50cfed9638815f92219d5b"
    }
   ],
   "progress": "#2708 queued; third builder on group 6 (standings, milestone tiers, quiz-show 2/3/4)",
