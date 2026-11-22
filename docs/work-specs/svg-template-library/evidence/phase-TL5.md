@@ -154,7 +154,9 @@ seek parity for imported designs other than the countdown stays issue #2699.
 - Automated PR review on 12f8f7a: one finding, fixed. After a level was sent as data only, the
   machine stayed on the starting option, so its button was greyed and the operator could not
   return to it directly. The starting option is now reachable from itself too; a browser step
-  sends another level as data and brings the start back with its button.
+  sends another level as data and brings the start back with its button, and each other option
+  is greyed while it shows. Choice batch, both export cases and the switches-and-choice case:
+  4 passed (j-0013); `behaviour-reads` 15 passed.
 
 ### Final review
 
