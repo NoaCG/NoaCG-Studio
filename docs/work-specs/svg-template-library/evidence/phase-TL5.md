@@ -163,5 +163,9 @@ seek parity for imported designs other than the countdown stays issue #2699.
   no option (a cue saved before the start, after a reimport); the `row-pick` kind now reads a
   `start` (new READS word) and such a value shows the start, with a Node case and a browser step;
   nit 3, the offered-layer list is renamed for what it holds. Finding 2 is issue #2700.
+- Final `/so` on 12f8f7a (fresh read-only cloud session, after Poll result was added): grade A,
+  AGREE WITH CORRECTIONS, nothing blocking. Taken: E3 now says an old choice whose artwork
+  always had one option visible also gains the start on reimport (an empty cue then shows it);
+  the `proposeExtras` comment says every prefixed group, visible ones included.
 - CI on 83af9bf: `Factory gates` failed only on pins recorded one runtime edit before that head
   (the review's count fix); the pins are re-recorded on the final runtime.

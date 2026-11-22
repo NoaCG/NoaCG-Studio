@@ -237,8 +237,8 @@ export function extraPrefixOf(label: string): ExtraPrefix | null {
   return null;
 }
 
-/** The switches and choices the layer names declare outright - every hidden group whose name
- *  carries a prefix. Never required: the mapping step offers the same two answers on every
+/** The switches and choices the layer names declare outright - every group whose name carries
+ *  a prefix, hidden or not (a choice's one visible option is where it starts). Never required: the mapping step offers the same two answers on every
  *  hidden layer that no recipe claimed. */
 export function proposeExtras(svg: SvgImportResult): { candidateId: string; prefix: ExtraPrefix }[] {
   return svg.groups.flatMap((g) => {

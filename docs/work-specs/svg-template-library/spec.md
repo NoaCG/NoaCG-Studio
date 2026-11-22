@@ -656,7 +656,9 @@ Group 1: Vote results count, Alert level, Public notice, Poll result (one PR, #2
     while it shows.
   - E3. A saved poll binding without `count` and a saved choice without `initial` build the bytes
     they built before; a saved graphic keeps its own runtime and table (TL2 C7). Reimport of a
-    choice whose artwork now has one option visible gains the start; field ids are unchanged.
+    choice whose artwork has exactly one option visible, whether drawn before or after this
+    change, gains the start: field ids are unchanged, and a cue saved empty, which showed nothing,
+    now shows that visible option.
   - E4. `derive:share.count` and the `row-pick` spec key `start` are in `READS_ADDED`; a table
     asking for either under a runtime that does not list it is refused at export, upgradable by
     importing again.
