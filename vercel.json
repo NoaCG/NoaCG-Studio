@@ -17,7 +17,19 @@
     { "path": "/api/data/tick", "schedule": "* * * * *" }
   ],
   "redirects": [
-    { "source": "/docs/examples/svg-examples/:file", "destination": "/downloads/svg/examples/:file", "permanent": true }
+    { "source": "/docs/examples/svg-examples/:file", "destination": "/downloads/svg/examples/:file", "permanent": true },
+    { "source": "/downloads/svg/examples/lower-third.svg", "destination": "/downloads/svg/lower-third-navy.svg", "permanent": true },
+    { "source": "/downloads/svg/examples/lower-third.png", "destination": "/downloads/svg/lower-third-navy.png", "permanent": true },
+    { "source": "/downloads/svg/examples/quiz.svg", "destination": "/downloads/svg/quiz-navy.svg", "permanent": true },
+    { "source": "/downloads/svg/examples/quiz.png", "destination": "/downloads/svg/quiz-navy.png", "permanent": true },
+    { "source": "/downloads/svg/examples/end-credits.svg", "destination": "/downloads/svg/end-credits-navy.svg", "permanent": true },
+    { "source": "/downloads/svg/examples/end-credits.png", "destination": "/downloads/svg/end-credits-navy.png", "permanent": true },
+    { "source": "/downloads/svg/examples/live-vote.svg", "destination": "/downloads/svg/live-vote-navy.svg", "permanent": true },
+    { "source": "/downloads/svg/examples/live-vote.png", "destination": "/downloads/svg/live-vote-navy.png", "permanent": true },
+    { "source": "/downloads/svg/examples/:file", "destination": "/downloads/svg/:file", "permanent": true },
+    { "source": "/downloads/svg/templates/:file", "destination": "/downloads/svg/:file", "permanent": true },
+    { "source": "/downloads/NoaCG-SVG-examples.zip", "destination": "/downloads/NoaCG-Template-Library.zip", "permanent": true },
+    { "source": "/downloads/NoaCG-SVG-templates.zip", "destination": "/downloads/NoaCG-Template-Library.zip", "permanent": true }
   ],
   "rewrites": [
     { "source": "/join/:name", "destination": "/join" },

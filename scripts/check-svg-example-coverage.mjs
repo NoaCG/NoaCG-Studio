@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // gate: build
-// guards: docs/tutorials/svg-examples/**, src/templates/behaviours/**
-// The downloaded examples cover the actual recipe registry, and each advertised example has
-// its editable source, original SVG and preview (scripts/svg-files.test.mjs holds the public
-// copies to the sources). Existing Illustrator exports keep their source checks; source:"svg"
-// means the SVG itself is the editable source.
+// guards: docs/tutorials/template-library/**, src/templates/behaviours/**
+// The Template Library's navy templates (style `navy` in library.json, the one-per-behaviour set
+// that was the SVG examples before TL3) cover the actual recipe registry, and each has its
+// editable source, original SVG and preview. Their Illustrator exports keep their source checks;
+// source:"svg" means the SVG itself is the editable source. The inventory covers every SVG in the
+// folder, whatever its style.
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -57,14 +58,15 @@ export function registeredRecipes(root = ROOT) {
 }
 
 export function checkCoverage(root = ROOT, inventory) {
-  const folder = path.join(root, 'docs/tutorials/svg-examples');
-  const examples = inventory ?? JSON.parse(text(path.join(folder, 'examples.json')));
+  const folder = path.join(root, 'docs/tutorials/template-library');
+  const library = inventory ?? JSON.parse(text(path.join(folder, 'library.json')));
+  const examples = library.filter((entry) => entry.style === 'navy');
   const ids = registeredRecipes(root);
-  assert.equal(new Set(examples.map((entry) => entry.slug)).size, examples.length, 'example filenames are unique');
+  assert.equal(new Set(library.map((entry) => entry.slug)).size, library.length, 'template filenames are unique');
   const supplied = examples.filter((entry) => entry.recipe).map((entry) => entry.recipe);
   for (const id of ids) assert.ok(supplied.includes(id), `SVG import behavior ${id} needs an example`);
   for (const id of supplied) assert.ok(ids.includes(id), `example refers to unsupported behavior ${id}`);
-  assert.deepEqual(readdirSync(path.join(folder, 'SVG')).filter((file) => file.endsWith('.svg')).sort(), examples.map((entry) => `${entry.slug}.svg`).sort(), 'the inventory covers every SVG in the download');
+  assert.deepEqual(readdirSync(path.join(folder, 'SVG')).filter((file) => file.endsWith('.svg')).sort(), library.map((entry) => `${entry.slug}.svg`).sort(), 'the inventory covers every SVG in the download');
   for (const entry of examples) {
     const original = text(path.join(folder, 'SVG', `${entry.slug}.svg`));
     checkSource(original, entry, folder, root);
@@ -78,7 +80,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     const result = checkCoverage();
     measured(result.examples, 'SVG example source sets');
     measured(result.behaviors, 'supported SVG import behaviors');
-    console.log(`check-svg-example-coverage: ${result.examples} editable examples cover all ${result.behaviors} SVG import behaviors`);
+    console.log(`check-svg-example-coverage: ${result.examples} navy templates cover all ${result.behaviors} SVG import behaviors`);
   } catch (error) {
     console.error(`check-svg-example-coverage: ${error.message}`);
     process.exitCode = 1;

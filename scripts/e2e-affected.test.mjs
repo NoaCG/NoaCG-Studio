@@ -328,6 +328,15 @@ test('the SVG practice library plans the specs that load it, while the rest of d
   assert.equal(planFor(['docs/svg-samples/README.md']).mode, 'none');
   assert.equal(planFor(['docs/VERIFICATION.md']).mode, 'none');
   assert.equal(planFor(['docs/acceptance/owner-queue/example.txt']).mode, 'none');
+  // The Template Library: its files plan the specs that import them and the downloads spec that
+  // checks the zips the build makes; its README ships in every zip; the coverage matrix feeds the
+  // library page's built-in alternatives.
+  for (const file of ['docs/tutorials/template-library/SVG/quiz-navy.svg', 'docs/tutorials/template-library/README.md', 'docs/tutorials/template-library/library.json']) {
+    const plan = planFor([file], { readers: null });
+    for (const spec of ['downloads.spec.ts', 'svg-examples.spec.ts', 'svg-templates.spec.ts']) assert.ok(plan.specs.includes(spec), `${file} plans ${spec}`);
+  }
+  assert.ok(planFor(['docs/template-library/coverage.json'], { readers: null }).specs.includes('downloads.spec.ts'));
+  assert.equal(planFor(['docs/template-library/names.json']).mode, 'none');
 });
 
 // The What's new notes are markdown under docs/, so both halves of IGNORE swallowed them and the

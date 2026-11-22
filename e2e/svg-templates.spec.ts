@@ -1,5 +1,6 @@
-// THE SVG TEMPLATES (docs/tutorials/svg-templates/, offered at /svg-templates): the
-// ready-made Clean Studio set students open in Illustrator, restyle and import. Each file is
+// THE CLEAN STUDIO TEMPLATES of the Template Library (docs/tutorials/template-library/, style
+// `studio` in library.json, offered at /svg-templates): the ready-made set students open in
+// Illustrator, restyle and import. Each file is
 // imported through the real door exactly as the README says, put in a production and run: every
 // named text arrives as a field and reaches the output, and each behaviour's controls change it.
 //
@@ -8,7 +9,7 @@
 // reads the program output and names every visible text that overlaps another text, is cut by a
 // shape it is not inside, or is cut off by the frame edge; a roll is checked at ten points.
 // `NOACG_SHOTS=<dir>` also writes each checked frame, for a person to review the whole set at once.
-// covers: docs/tutorials/svg-templates/**
+// covers: docs/tutorials/template-library/**
 // covers: src/templates/importedDesign/creditsRoll.ts
 
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
@@ -18,9 +19,10 @@ import { dropSvg, intoProduction } from './_svg-import';
 import { settleDurableWrites } from './_durable';
 import { qrReader } from './_qr';
 
-interface Template { slug: string; name: string; recipe: string | null; preview: string; contract?: string }
-const templates = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-templates/templates.json', import.meta.url), 'utf8')) as Template[];
-const file = (slug: string) => fileURLToPath(new URL(`../docs/tutorials/svg-templates/SVG/${slug}.svg`, import.meta.url));
+interface Template { slug: string; name: string; style: string; recipe: string | null; preview: string; contract?: string }
+const templates = (JSON.parse(readFileSync(new URL('../docs/tutorials/template-library/library.json', import.meta.url), 'utf8')) as Template[])
+  .filter((t) => t.style === 'studio');
+const file = (slug: string) => fileURLToPath(new URL(`../docs/tutorials/template-library/SVG/${slug}.svg`, import.meta.url));
 
 /** The texts a template names in its Text layer, in drawing order - each one is a field. */
 function namedTexts(slug: string): string[] {

@@ -4,7 +4,7 @@
 //
 // A SCORE KEEPS ITS DRAWN SIZE WHEN ITS DIGIT COUNT GROWS, WHILE ITS PLATE HOLDS IT.
 //
-// The downloadable scoreboard (docs/tutorials/svg-examples/SVG/scoreboard.svg) painted "10" at
+// The downloadable scoreboard (docs/tutorials/template-library/SVG/scoreboard.svg) painted "10" at
 // 59% of the drawn size and "100" at 37%, in a plate that held both. Two causes, one line each
 // below, both drawn the way exporters draw a score - one "0", centred in its own plate:
 //

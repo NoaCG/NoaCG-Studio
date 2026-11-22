@@ -249,7 +249,7 @@ test('the credits examples are the fixed-artwork case the docs say they are', as
   assert.deepEqual(taught, ['Credits'], 'the one credits field the system teaches is the one the importer reads');
   const all = (el) => [el, ...el.children.flatMap(all)];
   const baselines = (el) => new Set(all(el).map((n) => n.attrs.y).filter((y) => y !== undefined)).size;
-  for (const file of ['public/docs/examples/end-credits.svg', 'docs/tutorials/svg-examples/SVG/end-credits.svg']) {
+  for (const file of ['public/docs/examples/end-credits.svg', 'docs/tutorials/template-library/SVG/end-credits-navy.svg']) {
     const named = all(parseSvg(readFileSync(path.join(ROOT, file), 'utf8'))).filter((t) => t.tag === 'text' && layerName(t) === 'Credits');
     assert.equal(named.length, 1, `${file} has one Credits text`);
     assert.ok(baselines(named[0]) > 1, `${file}: its Credits text draws several lines, so it scrolls as fixed artwork`);

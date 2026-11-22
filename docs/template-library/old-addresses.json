@@ -1,0 +1,990 @@
+{
+ "_": "Every download address the site served before the Template Library merged its sets (main at 304adc72902f468d3d6b711b2e342f17ff9565d4), with the sha256 of what it served and where that content lives now. A zip address lists its files: each one with a `now` path is in the library zip with the same bytes; README, PDF and the old inventories were replaced by the library's own. Written once by TL3; never regenerate. Checked by scripts/svg-files.test.mjs.",
+ "base": "304adc72902f468d3d6b711b2e342f17ff9565d4",
+ "addresses": {
+  "/downloads/NoaCG-SVG-examples.zip": {
+   "now": "/downloads/NoaCG-Template-Library.zip"
+  },
+  "/downloads/NoaCG-SVG-templates.zip": {
+   "now": "/downloads/NoaCG-Template-Library.zip"
+  },
+  "/downloads/svg/examples/alert.png": {
+   "sha256": "2dc862db13504b353a71a274e1bf825ba53f96f0547429c091029271e207b6db",
+   "now": "/downloads/svg/alert.png"
+  },
+  "/docs/examples/svg-examples/alert.png": {
+   "sha256": "2dc862db13504b353a71a274e1bf825ba53f96f0547429c091029271e207b6db",
+   "now": "/downloads/svg/alert.png"
+  },
+  "/downloads/svg/examples/alert.svg": {
+   "sha256": "d4f06c0e749dafa0a2491db7da6a0bfef3cb5fbdcb851cea5bc26cd3c2fab272",
+   "now": "/downloads/svg/alert.svg"
+  },
+  "/docs/examples/svg-examples/alert.svg": {
+   "sha256": "d4f06c0e749dafa0a2491db7da6a0bfef3cb5fbdcb851cea5bc26cd3c2fab272",
+   "now": "/downloads/svg/alert.svg"
+  },
+  "/downloads/svg/examples/bingo.png": {
+   "sha256": "14f9df24ea13cd0eb7b197e598ea127af03602f84232298437c113408aed5deb",
+   "now": "/downloads/svg/bingo.png"
+  },
+  "/docs/examples/svg-examples/bingo.png": {
+   "sha256": "14f9df24ea13cd0eb7b197e598ea127af03602f84232298437c113408aed5deb",
+   "now": "/downloads/svg/bingo.png"
+  },
+  "/downloads/svg/examples/bingo.svg": {
+   "sha256": "1c91a8b779924d178e44169f177d3a80c37307c60303ddf4121c728fdc2172bc",
+   "now": "/downloads/svg/bingo.svg"
+  },
+  "/docs/examples/svg-examples/bingo.svg": {
+   "sha256": "1c91a8b779924d178e44169f177d3a80c37307c60303ddf4121c728fdc2172bc",
+   "now": "/downloads/svg/bingo.svg"
+  },
+  "/downloads/svg/examples/choice.png": {
+   "sha256": "cb3377b8055923d240445913a08c2c04d68a459f0eb22059a565940826e6e386",
+   "now": "/downloads/svg/choice.png"
+  },
+  "/docs/examples/svg-examples/choice.png": {
+   "sha256": "cb3377b8055923d240445913a08c2c04d68a459f0eb22059a565940826e6e386",
+   "now": "/downloads/svg/choice.png"
+  },
+  "/downloads/svg/examples/choice.svg": {
+   "sha256": "9fff83d1fec15166c6e2efb929b33fbb99231f0ad03cefcf3487f704f594c2cf",
+   "now": "/downloads/svg/choice.svg"
+  },
+  "/docs/examples/svg-examples/choice.svg": {
+   "sha256": "9fff83d1fec15166c6e2efb929b33fbb99231f0ad03cefcf3487f704f594c2cf",
+   "now": "/downloads/svg/choice.svg"
+  },
+  "/downloads/svg/examples/countdown.png": {
+   "sha256": "9b66830f03ab6e4bee7e6316691f3db9d3971d4923a799fc9b23baa9c291063d",
+   "now": "/downloads/svg/countdown.png"
+  },
+  "/docs/examples/svg-examples/countdown.png": {
+   "sha256": "9b66830f03ab6e4bee7e6316691f3db9d3971d4923a799fc9b23baa9c291063d",
+   "now": "/downloads/svg/countdown.png"
+  },
+  "/downloads/svg/examples/countdown.svg": {
+   "sha256": "94ae012903be840073d7c7429c4e7a40ceab2cc1b561ce8caf8e9697aa31c801",
+   "now": "/downloads/svg/countdown.svg"
+  },
+  "/docs/examples/svg-examples/countdown.svg": {
+   "sha256": "94ae012903be840073d7c7429c4e7a40ceab2cc1b561ce8caf8e9697aa31c801",
+   "now": "/downloads/svg/countdown.svg"
+  },
+  "/downloads/svg/examples/digital-clock.png": {
+   "sha256": "c6be2d92afedbe0ced2902fb122dd703eb4e01eedc181a95f614c989a95404b9",
+   "now": "/downloads/svg/digital-clock.png"
+  },
+  "/docs/examples/svg-examples/digital-clock.png": {
+   "sha256": "c6be2d92afedbe0ced2902fb122dd703eb4e01eedc181a95f614c989a95404b9",
+   "now": "/downloads/svg/digital-clock.png"
+  },
+  "/downloads/svg/examples/digital-clock.svg": {
+   "sha256": "27c4467f52bf92d887e768d393d21f54ba0cee59ac46604a20d5e9662c5745df",
+   "now": "/downloads/svg/digital-clock.svg"
+  },
+  "/docs/examples/svg-examples/digital-clock.svg": {
+   "sha256": "27c4467f52bf92d887e768d393d21f54ba0cee59ac46604a20d5e9662c5745df",
+   "now": "/downloads/svg/digital-clock.svg"
+  },
+  "/downloads/svg/examples/editable-credits.png": {
+   "sha256": "cb7ea874408480a1dcbc218fbf52753c732b4cfe4d8f316b627762ef771a35d1",
+   "now": "/downloads/svg/editable-credits.png"
+  },
+  "/docs/examples/svg-examples/editable-credits.png": {
+   "sha256": "cb7ea874408480a1dcbc218fbf52753c732b4cfe4d8f316b627762ef771a35d1",
+   "now": "/downloads/svg/editable-credits.png"
+  },
+  "/downloads/svg/examples/editable-credits.svg": {
+   "sha256": "e2ad5744db3df35ca0364dfc57d5719373ace576e993cf4fea738d80059f4737",
+   "now": "/downloads/svg/editable-credits.svg"
+  },
+  "/docs/examples/svg-examples/editable-credits.svg": {
+   "sha256": "e2ad5744db3df35ca0364dfc57d5719373ace576e993cf4fea738d80059f4737",
+   "now": "/downloads/svg/editable-credits.svg"
+  },
+  "/downloads/svg/examples/end-credits.png": {
+   "sha256": "ef50ccb3f764ede9c1438383a768769b9fa34deae6192494381ecc06a8db0b8e",
+   "now": "/downloads/svg/end-credits-navy.png"
+  },
+  "/docs/examples/svg-examples/end-credits.png": {
+   "sha256": "ef50ccb3f764ede9c1438383a768769b9fa34deae6192494381ecc06a8db0b8e",
+   "now": "/downloads/svg/end-credits-navy.png"
+  },
+  "/downloads/svg/examples/end-credits.svg": {
+   "sha256": "ce43dd74f5bf32b4116b78c85c5604617e2ebd7c8b825a703fcc483dac2b8da0",
+   "now": "/downloads/svg/end-credits-navy.svg"
+  },
+  "/docs/examples/svg-examples/end-credits.svg": {
+   "sha256": "ce43dd74f5bf32b4116b78c85c5604617e2ebd7c8b825a703fcc483dac2b8da0",
+   "now": "/downloads/svg/end-credits-navy.svg"
+  },
+  "/downloads/svg/examples/lineup.png": {
+   "sha256": "39bdbaad4be33fb0db9ad7d53d74be8e77afee3be8dd5e4400f873ecca08495b",
+   "now": "/downloads/svg/lineup.png"
+  },
+  "/docs/examples/svg-examples/lineup.png": {
+   "sha256": "39bdbaad4be33fb0db9ad7d53d74be8e77afee3be8dd5e4400f873ecca08495b",
+   "now": "/downloads/svg/lineup.png"
+  },
+  "/downloads/svg/examples/lineup.svg": {
+   "sha256": "683c16bb7507d3206f0a2529c5f928294c86f960670a2a01545c4908ae8a0196",
+   "now": "/downloads/svg/lineup.svg"
+  },
+  "/docs/examples/svg-examples/lineup.svg": {
+   "sha256": "683c16bb7507d3206f0a2529c5f928294c86f960670a2a01545c4908ae8a0196",
+   "now": "/downloads/svg/lineup.svg"
+  },
+  "/downloads/svg/examples/live-vote.png": {
+   "sha256": "39cc354372888028716430767150f47692b5208b6df40c40891f2915a58d4398",
+   "now": "/downloads/svg/live-vote-navy.png"
+  },
+  "/docs/examples/svg-examples/live-vote.png": {
+   "sha256": "39cc354372888028716430767150f47692b5208b6df40c40891f2915a58d4398",
+   "now": "/downloads/svg/live-vote-navy.png"
+  },
+  "/downloads/svg/examples/live-vote.svg": {
+   "sha256": "f71317652df97a8dddadfaf5faaa3d665f1d868468cd4210328f98fc0fc2ea3a",
+   "now": "/downloads/svg/live-vote-navy.svg"
+  },
+  "/docs/examples/svg-examples/live-vote.svg": {
+   "sha256": "f71317652df97a8dddadfaf5faaa3d665f1d868468cd4210328f98fc0fc2ea3a",
+   "now": "/downloads/svg/live-vote-navy.svg"
+  },
+  "/downloads/svg/examples/lower-third.png": {
+   "sha256": "0789567f8251f03bce11702b3e913f1a3f1641222d2d0766c8bbd88d5d55449f",
+   "now": "/downloads/svg/lower-third-navy.png"
+  },
+  "/docs/examples/svg-examples/lower-third.png": {
+   "sha256": "0789567f8251f03bce11702b3e913f1a3f1641222d2d0766c8bbd88d5d55449f",
+   "now": "/downloads/svg/lower-third-navy.png"
+  },
+  "/downloads/svg/examples/lower-third.svg": {
+   "sha256": "bca617232eef8c30fb8b9984a8ea00747fdfe58e21536ceaab26252a39501da2",
+   "now": "/downloads/svg/lower-third-navy.svg"
+  },
+  "/docs/examples/svg-examples/lower-third.svg": {
+   "sha256": "bca617232eef8c30fb8b9984a8ea00747fdfe58e21536ceaab26252a39501da2",
+   "now": "/downloads/svg/lower-third-navy.svg"
+  },
+  "/downloads/svg/examples/meter.png": {
+   "sha256": "63b15e3d1b5c23e7902fa32bf88bf0d9dcf230d50bc17cfbf5fbe551d4c8959b",
+   "now": "/downloads/svg/meter.png"
+  },
+  "/docs/examples/svg-examples/meter.png": {
+   "sha256": "63b15e3d1b5c23e7902fa32bf88bf0d9dcf230d50bc17cfbf5fbe551d4c8959b",
+   "now": "/downloads/svg/meter.png"
+  },
+  "/downloads/svg/examples/meter.svg": {
+   "sha256": "613f0d16321d6087cbe94c7c8492f7855133d26fc7b45995d12655de93258c23",
+   "now": "/downloads/svg/meter.svg"
+  },
+  "/docs/examples/svg-examples/meter.svg": {
+   "sha256": "613f0d16321d6087cbe94c7c8492f7855133d26fc7b45995d12655de93258c23",
+   "now": "/downloads/svg/meter.svg"
+  },
+  "/downloads/svg/examples/puzzle.png": {
+   "sha256": "f1c2ee5ae86143aa3d7a7d4290e94c3c35e497ca2b6d3a05049fcd3ef9ab1844",
+   "now": "/downloads/svg/puzzle.png"
+  },
+  "/docs/examples/svg-examples/puzzle.png": {
+   "sha256": "f1c2ee5ae86143aa3d7a7d4290e94c3c35e497ca2b6d3a05049fcd3ef9ab1844",
+   "now": "/downloads/svg/puzzle.png"
+  },
+  "/downloads/svg/examples/puzzle.svg": {
+   "sha256": "b60104e73bf483f85bbe587cd8f756e3c95b478a600d1a445757aeaead37176a",
+   "now": "/downloads/svg/puzzle.svg"
+  },
+  "/docs/examples/svg-examples/puzzle.svg": {
+   "sha256": "b60104e73bf483f85bbe587cd8f756e3c95b478a600d1a445757aeaead37176a",
+   "now": "/downloads/svg/puzzle.svg"
+  },
+  "/downloads/svg/examples/quiz.png": {
+   "sha256": "e7225d7b5feb8ebcefb2eeaa71de0ab7057d2703697a6441f0848957535d2370",
+   "now": "/downloads/svg/quiz-navy.png"
+  },
+  "/docs/examples/svg-examples/quiz.png": {
+   "sha256": "e7225d7b5feb8ebcefb2eeaa71de0ab7057d2703697a6441f0848957535d2370",
+   "now": "/downloads/svg/quiz-navy.png"
+  },
+  "/downloads/svg/examples/quiz.svg": {
+   "sha256": "a5abb0639c8934dfaa8d381a1cb87fe142183790a68f4d82d9643293717e979f",
+   "now": "/downloads/svg/quiz-navy.svg"
+  },
+  "/docs/examples/svg-examples/quiz.svg": {
+   "sha256": "a5abb0639c8934dfaa8d381a1cb87fe142183790a68f4d82d9643293717e979f",
+   "now": "/downloads/svg/quiz-navy.svg"
+  },
+  "/downloads/svg/examples/reveal.png": {
+   "sha256": "9025174aa67322ca1b31d6aa37161d5f25741a2973c5a1229fca40210af3dd95",
+   "now": "/downloads/svg/reveal.png"
+  },
+  "/docs/examples/svg-examples/reveal.png": {
+   "sha256": "9025174aa67322ca1b31d6aa37161d5f25741a2973c5a1229fca40210af3dd95",
+   "now": "/downloads/svg/reveal.png"
+  },
+  "/downloads/svg/examples/reveal.svg": {
+   "sha256": "d6e057106130fc914e8ddc9346757d37e6be755c0c8d31cf062587d2a88420b3",
+   "now": "/downloads/svg/reveal.svg"
+  },
+  "/docs/examples/svg-examples/reveal.svg": {
+   "sha256": "d6e057106130fc914e8ddc9346757d37e6be755c0c8d31cf062587d2a88420b3",
+   "now": "/downloads/svg/reveal.svg"
+  },
+  "/downloads/svg/examples/scoreboard.png": {
+   "sha256": "a529bb948728e3e8cb3a0b0e475752c0da7a4ea3fb7d27935a182202f1460ae6",
+   "now": "/downloads/svg/scoreboard.png"
+  },
+  "/docs/examples/svg-examples/scoreboard.png": {
+   "sha256": "a529bb948728e3e8cb3a0b0e475752c0da7a4ea3fb7d27935a182202f1460ae6",
+   "now": "/downloads/svg/scoreboard.png"
+  },
+  "/downloads/svg/examples/scoreboard.svg": {
+   "sha256": "e7bd2e5ed6c2d29e8a90c6560fcac425beec5f081876507cd9b6f8a8d494d6f1",
+   "now": "/downloads/svg/scoreboard.svg"
+  },
+  "/docs/examples/svg-examples/scoreboard.svg": {
+   "sha256": "e7bd2e5ed6c2d29e8a90c6560fcac425beec5f081876507cd9b6f8a8d494d6f1",
+   "now": "/downloads/svg/scoreboard.svg"
+  },
+  "/downloads/svg/examples/scorebug-clock.png": {
+   "sha256": "16e065d4df493ac2179ac13283736a62d121ae17afbc31477fc36cea4d499c20",
+   "now": "/downloads/svg/scorebug-clock.png"
+  },
+  "/docs/examples/svg-examples/scorebug-clock.png": {
+   "sha256": "16e065d4df493ac2179ac13283736a62d121ae17afbc31477fc36cea4d499c20",
+   "now": "/downloads/svg/scorebug-clock.png"
+  },
+  "/downloads/svg/examples/scorebug-clock.svg": {
+   "sha256": "5db5717fcf46408f7f919f5a7410cf4c4318e7fbcc3efc0d31a0b989a7990444",
+   "now": "/downloads/svg/scorebug-clock.svg"
+  },
+  "/docs/examples/svg-examples/scorebug-clock.svg": {
+   "sha256": "5db5717fcf46408f7f919f5a7410cf4c4318e7fbcc3efc0d31a0b989a7990444",
+   "now": "/downloads/svg/scorebug-clock.svg"
+  },
+  "/downloads/svg/examples/standings.png": {
+   "sha256": "49961a0b7a32d6afffa9b84dfebe3b6dab8677f07df4663582378ab66c1e6631",
+   "now": "/downloads/svg/standings.png"
+  },
+  "/docs/examples/svg-examples/standings.png": {
+   "sha256": "49961a0b7a32d6afffa9b84dfebe3b6dab8677f07df4663582378ab66c1e6631",
+   "now": "/downloads/svg/standings.png"
+  },
+  "/downloads/svg/examples/standings.svg": {
+   "sha256": "b7bb0f18bebcf2573571e905b177b867b151a5716f780e0663ef4ec0a7e133bc",
+   "now": "/downloads/svg/standings.svg"
+  },
+  "/docs/examples/svg-examples/standings.svg": {
+   "sha256": "b7bb0f18bebcf2573571e905b177b867b151a5716f780e0663ef4ec0a7e133bc",
+   "now": "/downloads/svg/standings.svg"
+  },
+  "/downloads/svg/examples/stepped-list.png": {
+   "sha256": "4e81f93ebd99f91b42c514453717f3ad17090a5fdbb62b672a09be17f58b7349",
+   "now": "/downloads/svg/stepped-list.png"
+  },
+  "/docs/examples/svg-examples/stepped-list.png": {
+   "sha256": "4e81f93ebd99f91b42c514453717f3ad17090a5fdbb62b672a09be17f58b7349",
+   "now": "/downloads/svg/stepped-list.png"
+  },
+  "/downloads/svg/examples/stepped-list.svg": {
+   "sha256": "91778fbcc2f563106011e7a0e5c87be3bbbe2c58c154b5a1444f171a9c6b5022",
+   "now": "/downloads/svg/stepped-list.svg"
+  },
+  "/docs/examples/svg-examples/stepped-list.svg": {
+   "sha256": "91778fbcc2f563106011e7a0e5c87be3bbbe2c58c154b5a1444f171a9c6b5022",
+   "now": "/downloads/svg/stepped-list.svg"
+  },
+  "/downloads/svg/examples/survey.png": {
+   "sha256": "494d27b61c6152d5814170a239b4f02cf134abff3cecab9dbf0b6fdb9c0eab81",
+   "now": "/downloads/svg/survey.png"
+  },
+  "/docs/examples/svg-examples/survey.png": {
+   "sha256": "494d27b61c6152d5814170a239b4f02cf134abff3cecab9dbf0b6fdb9c0eab81",
+   "now": "/downloads/svg/survey.png"
+  },
+  "/downloads/svg/examples/survey.svg": {
+   "sha256": "b89054acdb8aabf0f9a09b286fd8228142fcbd6bd90f562b8a18ccc09e51b919",
+   "now": "/downloads/svg/survey.svg"
+  },
+  "/docs/examples/svg-examples/survey.svg": {
+   "sha256": "b89054acdb8aabf0f9a09b286fd8228142fcbd6bd90f562b8a18ccc09e51b919",
+   "now": "/downloads/svg/survey.svg"
+  },
+  "/downloads/svg/examples/switch.png": {
+   "sha256": "1749b127098757f1f0d3532db61092f9914ed1c24f849cb536680932149482c6",
+   "now": "/downloads/svg/switch.png"
+  },
+  "/docs/examples/svg-examples/switch.png": {
+   "sha256": "1749b127098757f1f0d3532db61092f9914ed1c24f849cb536680932149482c6",
+   "now": "/downloads/svg/switch.png"
+  },
+  "/downloads/svg/examples/switch.svg": {
+   "sha256": "eaf73e53ced171ad993353052867e5cb0d629f01759484782269a8c96d009055",
+   "now": "/downloads/svg/switch.svg"
+  },
+  "/docs/examples/svg-examples/switch.svg": {
+   "sha256": "eaf73e53ced171ad993353052867e5cb0d629f01759484782269a8c96d009055",
+   "now": "/downloads/svg/switch.svg"
+  },
+  "/downloads/svg/examples/ticker.png": {
+   "sha256": "bc047fce19e2c20a9e9bc318d5edf149628e5d8d58301620610782fb33cbf063",
+   "now": "/downloads/svg/ticker.png"
+  },
+  "/docs/examples/svg-examples/ticker.png": {
+   "sha256": "bc047fce19e2c20a9e9bc318d5edf149628e5d8d58301620610782fb33cbf063",
+   "now": "/downloads/svg/ticker.png"
+  },
+  "/downloads/svg/examples/ticker.svg": {
+   "sha256": "5de7346c84909b3857b70eafa6e5509fa92dd8bd405099de6435b6e0733606f4",
+   "now": "/downloads/svg/ticker.svg"
+  },
+  "/docs/examples/svg-examples/ticker.svg": {
+   "sha256": "5de7346c84909b3857b70eafa6e5509fa92dd8bd405099de6435b6e0733606f4",
+   "now": "/downloads/svg/ticker.svg"
+  },
+  "/downloads/svg/examples/title.png": {
+   "sha256": "83ba424fe5ddeaa8741f249253018f002ed3280a2d1d48e41b9e9b7e312585f4",
+   "now": "/downloads/svg/title.png"
+  },
+  "/docs/examples/svg-examples/title.png": {
+   "sha256": "83ba424fe5ddeaa8741f249253018f002ed3280a2d1d48e41b9e9b7e312585f4",
+   "now": "/downloads/svg/title.png"
+  },
+  "/downloads/svg/examples/title.svg": {
+   "sha256": "9116b63cdee96951f6d97bf160933e5299c0d023e11c0bc88521250666c618ba",
+   "now": "/downloads/svg/title.svg"
+  },
+  "/docs/examples/svg-examples/title.svg": {
+   "sha256": "9116b63cdee96951f6d97bf160933e5299c0d023e11c0bc88521250666c618ba",
+   "now": "/downloads/svg/title.svg"
+  },
+  "/downloads/svg/templates/be-back-soon.png": {
+   "sha256": "7ba3518fb82322e52878c160857fa0f6b53cdf0a83483a60c5054bcb029d5e6a",
+   "now": "/downloads/svg/be-back-soon.png"
+  },
+  "/downloads/svg/templates/be-back-soon.svg": {
+   "sha256": "13cf10aed425ccf5bae9a62789b5a0f5d7187c71eda4c97b0c669550457be366",
+   "now": "/downloads/svg/be-back-soon.svg"
+  },
+  "/downloads/svg/templates/end-credits-columns.png": {
+   "sha256": "a7da70742f666911afe2ba715eb3bab70ad3370d7f60f2d4d789684881131425",
+   "now": "/downloads/svg/end-credits-columns.png"
+  },
+  "/downloads/svg/templates/end-credits-columns.svg": {
+   "sha256": "9b725636529677f982d36ce0b4ce96e2d87837f58f824e9b9348acf1ab7ed98c",
+   "now": "/downloads/svg/end-credits-columns.svg"
+  },
+  "/downloads/svg/templates/end-credits.png": {
+   "sha256": "bb19f21a445071a7ec6809161007d8bf184e415a8cd5faa738336bd177f7badc",
+   "now": "/downloads/svg/end-credits.png"
+  },
+  "/downloads/svg/templates/end-credits.svg": {
+   "sha256": "e65840101fe8cb664ce298161f060d65c70654d00b59acffcbea40a09eb98a76",
+   "now": "/downloads/svg/end-credits.svg"
+  },
+  "/downloads/svg/templates/game-rules.png": {
+   "sha256": "7beac625adbf1b7a4399884a098929795d7e10ec1338efaca6d5f3ce3e1d3075",
+   "now": "/downloads/svg/game-rules.png"
+  },
+  "/downloads/svg/templates/game-rules.svg": {
+   "sha256": "e2ce7bee69b622fdb4add32ccc70baf0f07ce4afca27a19297efac63c220fe28",
+   "now": "/downloads/svg/game-rules.svg"
+  },
+  "/downloads/svg/templates/game-timer.png": {
+   "sha256": "a9979168374f6749171215c1afc7dea2fe875a18cf9cc296f2c548f24c662eeb",
+   "now": "/downloads/svg/game-timer.png"
+  },
+  "/downloads/svg/templates/game-timer.svg": {
+   "sha256": "79810924bffe89c82c1b54cd3af59a7273cb3a693d81df9aba4f82eeb7fc9e76",
+   "now": "/downloads/svg/game-timer.svg"
+  },
+  "/downloads/svg/templates/join-card.png": {
+   "sha256": "5f12cda12c64e09d49d942dabb868a2a9dc261cf312e0d0f0195a1f15968c2eb",
+   "now": "/downloads/svg/join-card.png"
+  },
+  "/downloads/svg/templates/join-card.svg": {
+   "sha256": "c6a272bd53e40ffecd67622abdd0c9af7dc714048e76ef11e33b21e9ec58c056",
+   "now": "/downloads/svg/join-card.svg"
+  },
+  "/downloads/svg/templates/live-vote-2-result.png": {
+   "sha256": "4e4c006b156bfd4779edbbf08389298a4dced3e1332b593b9f98237b6bdb592f",
+   "now": "/downloads/svg/live-vote-2-result.png"
+  },
+  "/downloads/svg/templates/live-vote-3-winner.png": {
+   "sha256": "5df83186639eff5eb2fef981e7bdfc6517af5e529c602bd93c98a84577ba93bd",
+   "now": "/downloads/svg/live-vote-3-winner.png"
+  },
+  "/downloads/svg/templates/live-vote.png": {
+   "sha256": "0417eab6ffe58097e2244dc31e96bac0d00fb02db511c7934750e0c36a505d49",
+   "now": "/downloads/svg/live-vote.png"
+  },
+  "/downloads/svg/templates/live-vote.svg": {
+   "sha256": "1e05f23744f4e11407a3af57f6084dedee780103bdd32d3ed2ed536e67231779",
+   "now": "/downloads/svg/live-vote.svg"
+  },
+  "/downloads/svg/templates/lower-third.png": {
+   "sha256": "1c1ff97ec1d5f23b72d4feb077239e1df5b2d007881529efeb1084671a63a632",
+   "now": "/downloads/svg/lower-third.png"
+  },
+  "/downloads/svg/templates/lower-third.svg": {
+   "sha256": "dc745ba6f5c6c1d24c616e844cae90909c69acb6788f48a1951089cd26f3f3fa",
+   "now": "/downloads/svg/lower-third.svg"
+  },
+  "/downloads/svg/templates/message.png": {
+   "sha256": "02f2aeae98ca54ccaac30eb02c5f43285a291da54309140743ca0623a1e3e310",
+   "now": "/downloads/svg/message.png"
+  },
+  "/downloads/svg/templates/message.svg": {
+   "sha256": "9f44719bde58b9b5904d847f6f42858690da915611a5ec4a4fc44ee372d20a54",
+   "now": "/downloads/svg/message.svg"
+  },
+  "/downloads/svg/templates/quiz.png": {
+   "sha256": "4794b6409bcb925d34e88fe0a81ba66909e89fa4aa58095cff43abf3d3287b20",
+   "now": "/downloads/svg/quiz.png"
+  },
+  "/downloads/svg/templates/quiz.svg": {
+   "sha256": "3e49953e94d8fba53babe11f39a3a45ceee606751565d5a03bd472936ea1295a",
+   "now": "/downloads/svg/quiz.svg"
+  },
+  "/downloads/svg/templates/scoreboard-2-players.png": {
+   "sha256": "0b147edc9f2d47868dbf78070000e5d1cd426f2a2fb15a440e4d0fcc3b74700d",
+   "now": "/downloads/svg/scoreboard-2-players.png"
+  },
+  "/downloads/svg/templates/scoreboard-2-players.svg": {
+   "sha256": "0842b87f7cc70d700d2895a2d91ea4d14b36f45c4446f0a0d24a78bae133d292",
+   "now": "/downloads/svg/scoreboard-2-players.svg"
+  },
+  "/downloads/svg/templates/scoreboard-4-players.png": {
+   "sha256": "0f02b13dd4016f70e88e2e43b03d9513a6c2d30f538be23414809321d063af6c",
+   "now": "/downloads/svg/scoreboard-4-players.png"
+  },
+  "/downloads/svg/templates/scoreboard-4-players.svg": {
+   "sha256": "02c962250efb82825211a613a3a3060cd4349410a8368f7341afeae6350765bf",
+   "now": "/downloads/svg/scoreboard-4-players.svg"
+  },
+  "/downloads/svg/templates/show-countdown.png": {
+   "sha256": "0fd79113976367315500282e918869996b8655cd2d024e8ad9c34e7189a227ab",
+   "now": "/downloads/svg/show-countdown.png"
+  },
+  "/downloads/svg/templates/show-countdown.svg": {
+   "sha256": "03738a2507f4128cafb21aaa16f134f076a6bf14577cff17dbe3afa3674661eb",
+   "now": "/downloads/svg/show-countdown.svg"
+  },
+  "/downloads/svg/templates/vote-results-2-closed.png": {
+   "sha256": "62313cf02d1c093314a81933b10c393641e8b12e113281285a4df11b246cb813",
+   "now": "/downloads/svg/vote-results-2-closed.png"
+  },
+  "/downloads/svg/templates/vote-results-3-winner.png": {
+   "sha256": "ca6acfc0c545a009dd64996c94291239f1c13e26e51201416405bb93f5fb9a9a",
+   "now": "/downloads/svg/vote-results-3-winner.png"
+  },
+  "/downloads/svg/templates/vote-results.png": {
+   "sha256": "1993a0797faecd607cac718d4b3c1adfdb07e252de1c90c9627d32dde9b8ab5b",
+   "now": "/downloads/svg/vote-results.png"
+  },
+  "/downloads/svg/templates/vote-results.svg": {
+   "sha256": "f30517e40e97b891c59e812f2e85279903f417cee7b24dd2d39237555dfd54d6",
+   "now": "/downloads/svg/vote-results.svg"
+  },
+  "/downloads/svg/templates/winner.png": {
+   "sha256": "b271f5605704b81b7bb1277df888de60f59a524b62e14b4edc8891711221e4d7",
+   "now": "/downloads/svg/winner.png"
+  },
+  "/downloads/svg/templates/winner.svg": {
+   "sha256": "deb5b1da05c4ac8a5604f6fef2570e02848a1f5d7d7a1dc4de219d60e07e89ed",
+   "now": "/downloads/svg/winner.svg"
+  }
+ },
+ "zips": {
+  "/downloads/NoaCG-SVG-examples.zip": {
+   "README.pdf": {
+    "sha256": "2895fdd79ac29937413d1439e47d9c86ade0c81e362ddb6343b96c93b0ea93be",
+    "now": null
+   },
+   "README.md": {
+    "sha256": "0f4cf6640320cfd055b59d59f6d429fb428c57475844b696b2aaad980296f628",
+    "now": null
+   },
+   "examples.json": {
+    "sha256": "9b79ffc3828c147ce764122a33fa5eb45dbb3a7d49d90e0ef17d1690b89c0cf6",
+    "now": null
+   },
+   "Illustrator/alert.ai": {
+    "sha256": "d58270fa6434a24cfc58e86ca36272386b40799d7e2ecb22f70e88c890c8ea90",
+    "now": "Illustrator/alert.ai"
+   },
+   "Illustrator/bingo.ai": {
+    "sha256": "92b8fec1928b3c28a77c4b30b406afc7d8a01da446bbb5fcbf47bd185d2f4903",
+    "now": "Illustrator/bingo.ai"
+   },
+   "Illustrator/choice.ai": {
+    "sha256": "e7f4396cfb9a1e0ae8aa46a0823742eda3818146875550c0e48ecf65a9186a25",
+    "now": "Illustrator/choice.ai"
+   },
+   "Illustrator/countdown.ai": {
+    "sha256": "37884e76ad4a92e2af90b075f3596ddc5ca295c0a368d58877e81bc1ec5c1383",
+    "now": "Illustrator/countdown.ai"
+   },
+   "Illustrator/end-credits.ai": {
+    "sha256": "e4980ca8ad43e651c89c3a8969a525e317e61a9b97c87f568f67e201461e72c7",
+    "now": "Illustrator/end-credits-navy.ai"
+   },
+   "Illustrator/lineup.ai": {
+    "sha256": "4c40945d52222778b662c2434d0b501369c3f7dd17c69c8dda4a5742c7d67b84",
+    "now": "Illustrator/lineup.ai"
+   },
+   "Illustrator/live-vote.ai": {
+    "sha256": "4b5e3633c4bce6ddc1a60e6905d498535f775b3e52b8711c741bb97f4a660a96",
+    "now": "Illustrator/live-vote-navy.ai"
+   },
+   "Illustrator/lower-third.ai": {
+    "sha256": "5253f84891d86e019b32b58c2f9e07c0457e8fce72e20b6ed90aa863172fd62e",
+    "now": "Illustrator/lower-third-navy.ai"
+   },
+   "Illustrator/meter.ai": {
+    "sha256": "3179f4ba1cb43cba0c8fe2942a83c4f7694691e63e3a13702376f924b9e88d76",
+    "now": "Illustrator/meter.ai"
+   },
+   "Illustrator/puzzle.ai": {
+    "sha256": "1d3f33f6aeef3fa016d327ffa0e8bb78ec2220d16d8707cc5884113e1f97850e",
+    "now": "Illustrator/puzzle.ai"
+   },
+   "Illustrator/quiz.ai": {
+    "sha256": "41682c3b2cabadbe1bff53bf6f989e9df1547382dc9c94cc07c061eb9dfc6f14",
+    "now": "Illustrator/quiz-navy.ai"
+   },
+   "Illustrator/reveal.ai": {
+    "sha256": "28fd7586b5bc32f5b85d496cf1511de330f7446b58c33baf0674b7dbc1ac7727",
+    "now": "Illustrator/reveal.ai"
+   },
+   "Illustrator/scoreboard.ai": {
+    "sha256": "d411b866c170b867ff34f630d005d4cc5eec74eb70dc4939bffc014fc208d4c1",
+    "now": "Illustrator/scoreboard.ai"
+   },
+   "Illustrator/standings.ai": {
+    "sha256": "d38f6dc89d481dcc36af383cee8575f617480e6bd00ab48f2005465d67708547",
+    "now": "Illustrator/standings.ai"
+   },
+   "Illustrator/stepped-list.ai": {
+    "sha256": "a89a9a2727d44f5c9ae950cccfbc825570fc7bfd2df0f674feb4905e48274d96",
+    "now": "Illustrator/stepped-list.ai"
+   },
+   "Illustrator/survey.ai": {
+    "sha256": "447a14b5e7ce3c4e58b0d8c5e962012930e8308abd2241cca8da7e8ae77f86d5",
+    "now": "Illustrator/survey.ai"
+   },
+   "Illustrator/switch.ai": {
+    "sha256": "18e9c044e293dbbd8edde114661972a4567fd9174a3d54ea6c0aa18896a3dc74",
+    "now": "Illustrator/switch.ai"
+   },
+   "Illustrator/ticker.ai": {
+    "sha256": "18fe4d9d1e71dcb8d7ea373e13cd2dc7aefa6ff11ad4a5e101b0f9428e02dbdc",
+    "now": "Illustrator/ticker.ai"
+   },
+   "Illustrator/title.ai": {
+    "sha256": "75e3b95d8ce2b28410fc9d93717b59c89e64cc4d5a3435daab12e6c4b452cde8",
+    "now": "Illustrator/title.ai"
+   },
+   "SVG/alert.svg": {
+    "sha256": "d4f06c0e749dafa0a2491db7da6a0bfef3cb5fbdcb851cea5bc26cd3c2fab272",
+    "now": "SVG/alert.svg"
+   },
+   "SVG/bingo.svg": {
+    "sha256": "1c91a8b779924d178e44169f177d3a80c37307c60303ddf4121c728fdc2172bc",
+    "now": "SVG/bingo.svg"
+   },
+   "SVG/choice.svg": {
+    "sha256": "9fff83d1fec15166c6e2efb929b33fbb99231f0ad03cefcf3487f704f594c2cf",
+    "now": "SVG/choice.svg"
+   },
+   "SVG/countdown.svg": {
+    "sha256": "94ae012903be840073d7c7429c4e7a40ceab2cc1b561ce8caf8e9697aa31c801",
+    "now": "SVG/countdown.svg"
+   },
+   "SVG/digital-clock.svg": {
+    "sha256": "27c4467f52bf92d887e768d393d21f54ba0cee59ac46604a20d5e9662c5745df",
+    "now": "SVG/digital-clock.svg"
+   },
+   "SVG/editable-credits.svg": {
+    "sha256": "e2ad5744db3df35ca0364dfc57d5719373ace576e993cf4fea738d80059f4737",
+    "now": "SVG/editable-credits.svg"
+   },
+   "SVG/end-credits.svg": {
+    "sha256": "ce43dd74f5bf32b4116b78c85c5604617e2ebd7c8b825a703fcc483dac2b8da0",
+    "now": "SVG/end-credits-navy.svg"
+   },
+   "SVG/lineup.svg": {
+    "sha256": "683c16bb7507d3206f0a2529c5f928294c86f960670a2a01545c4908ae8a0196",
+    "now": "SVG/lineup.svg"
+   },
+   "SVG/live-vote.svg": {
+    "sha256": "f71317652df97a8dddadfaf5faaa3d665f1d868468cd4210328f98fc0fc2ea3a",
+    "now": "SVG/live-vote-navy.svg"
+   },
+   "SVG/lower-third.svg": {
+    "sha256": "bca617232eef8c30fb8b9984a8ea00747fdfe58e21536ceaab26252a39501da2",
+    "now": "SVG/lower-third-navy.svg"
+   },
+   "SVG/meter.svg": {
+    "sha256": "613f0d16321d6087cbe94c7c8492f7855133d26fc7b45995d12655de93258c23",
+    "now": "SVG/meter.svg"
+   },
+   "SVG/puzzle.svg": {
+    "sha256": "b60104e73bf483f85bbe587cd8f756e3c95b478a600d1a445757aeaead37176a",
+    "now": "SVG/puzzle.svg"
+   },
+   "SVG/quiz.svg": {
+    "sha256": "a5abb0639c8934dfaa8d381a1cb87fe142183790a68f4d82d9643293717e979f",
+    "now": "SVG/quiz-navy.svg"
+   },
+   "SVG/reveal.svg": {
+    "sha256": "d6e057106130fc914e8ddc9346757d37e6be755c0c8d31cf062587d2a88420b3",
+    "now": "SVG/reveal.svg"
+   },
+   "SVG/scoreboard.svg": {
+    "sha256": "e7bd2e5ed6c2d29e8a90c6560fcac425beec5f081876507cd9b6f8a8d494d6f1",
+    "now": "SVG/scoreboard.svg"
+   },
+   "SVG/scorebug-clock.svg": {
+    "sha256": "5db5717fcf46408f7f919f5a7410cf4c4318e7fbcc3efc0d31a0b989a7990444",
+    "now": "SVG/scorebug-clock.svg"
+   },
+   "SVG/standings.svg": {
+    "sha256": "b7bb0f18bebcf2573571e905b177b867b151a5716f780e0663ef4ec0a7e133bc",
+    "now": "SVG/standings.svg"
+   },
+   "SVG/stepped-list.svg": {
+    "sha256": "91778fbcc2f563106011e7a0e5c87be3bbbe2c58c154b5a1444f171a9c6b5022",
+    "now": "SVG/stepped-list.svg"
+   },
+   "SVG/survey.svg": {
+    "sha256": "b89054acdb8aabf0f9a09b286fd8228142fcbd6bd90f562b8a18ccc09e51b919",
+    "now": "SVG/survey.svg"
+   },
+   "SVG/switch.svg": {
+    "sha256": "eaf73e53ced171ad993353052867e5cb0d629f01759484782269a8c96d009055",
+    "now": "SVG/switch.svg"
+   },
+   "SVG/ticker.svg": {
+    "sha256": "5de7346c84909b3857b70eafa6e5509fa92dd8bd405099de6435b6e0733606f4",
+    "now": "SVG/ticker.svg"
+   },
+   "SVG/title.svg": {
+    "sha256": "9116b63cdee96951f6d97bf160933e5299c0d023e11c0bc88521250666c618ba",
+    "now": "SVG/title.svg"
+   },
+   "Previews/alert.png": {
+    "sha256": "2dc862db13504b353a71a274e1bf825ba53f96f0547429c091029271e207b6db",
+    "now": "Previews/alert.png"
+   },
+   "Previews/bingo.png": {
+    "sha256": "14f9df24ea13cd0eb7b197e598ea127af03602f84232298437c113408aed5deb",
+    "now": "Previews/bingo.png"
+   },
+   "Previews/choice.png": {
+    "sha256": "cb3377b8055923d240445913a08c2c04d68a459f0eb22059a565940826e6e386",
+    "now": "Previews/choice.png"
+   },
+   "Previews/countdown-1-running.png": {
+    "sha256": "9b66830f03ab6e4bee7e6316691f3db9d3971d4923a799fc9b23baa9c291063d",
+    "now": "Previews/countdown-1-running.png"
+   },
+   "Previews/countdown-2-warning.png": {
+    "sha256": "f5ebba8d6104377acfd75dba506cbe6e08901c1b086b96dd8122c50bbf99844f",
+    "now": "Previews/countdown-2-warning.png"
+   },
+   "Previews/countdown-3-paused.png": {
+    "sha256": "5e18a011f0a76757748d1a624aadf5f3d115eec7b8de7ad47eab8ae7512f84ac",
+    "now": "Previews/countdown-3-paused.png"
+   },
+   "Previews/countdown-4-time-up.png": {
+    "sha256": "7b9df88d05aefd472f5f46a663e77238fcc8267c8f8bf88195afc381d1aadef5",
+    "now": "Previews/countdown-4-time-up.png"
+   },
+   "Previews/digital-clock.png": {
+    "sha256": "c6be2d92afedbe0ced2902fb122dd703eb4e01eedc181a95f614c989a95404b9",
+    "now": "Previews/digital-clock.png"
+   },
+   "Previews/editable-credits.png": {
+    "sha256": "cb7ea874408480a1dcbc218fbf52753c732b4cfe4d8f316b627762ef771a35d1",
+    "now": "Previews/editable-credits.png"
+   },
+   "Previews/end-credits.png": {
+    "sha256": "ef50ccb3f764ede9c1438383a768769b9fa34deae6192494381ecc06a8db0b8e",
+    "now": "Previews/end-credits-navy.png"
+   },
+   "Previews/lineup.png": {
+    "sha256": "39bdbaad4be33fb0db9ad7d53d74be8e77afee3be8dd5e4400f873ecca08495b",
+    "now": "Previews/lineup.png"
+   },
+   "Previews/live-vote.png": {
+    "sha256": "39cc354372888028716430767150f47692b5208b6df40c40891f2915a58d4398",
+    "now": "Previews/live-vote-navy.png"
+   },
+   "Previews/lower-third.png": {
+    "sha256": "0789567f8251f03bce11702b3e913f1a3f1641222d2d0766c8bbd88d5d55449f",
+    "now": "Previews/lower-third-navy.png"
+   },
+   "Previews/meter.png": {
+    "sha256": "63b15e3d1b5c23e7902fa32bf88bf0d9dcf230d50bc17cfbf5fbe551d4c8959b",
+    "now": "Previews/meter.png"
+   },
+   "Previews/puzzle.png": {
+    "sha256": "f1c2ee5ae86143aa3d7a7d4290e94c3c35e497ca2b6d3a05049fcd3ef9ab1844",
+    "now": "Previews/puzzle.png"
+   },
+   "Previews/quiz-1-question.png": {
+    "sha256": "e7225d7b5feb8ebcefb2eeaa71de0ab7057d2703697a6441f0848957535d2370",
+    "now": "Previews/quiz-navy-1-question.png"
+   },
+   "Previews/quiz-2-selected.png": {
+    "sha256": "34320de05f17da1eff82b9f0d9e5eeda05ccce0ab0c86afd0acdea8d2b6bffd3",
+    "now": "Previews/quiz-navy-2-selected.png"
+   },
+   "Previews/quiz-3-locked-in.png": {
+    "sha256": "ac9070703ce363c2fe71f6db211b6548e868559da8621d428d11572111e9ab97",
+    "now": "Previews/quiz-navy-3-locked-in.png"
+   },
+   "Previews/quiz-4-reveal.png": {
+    "sha256": "2a4e537ee740caf097b775bbf210b2324e0aceaa6a1a77ea54e51b041f998bcd",
+    "now": "Previews/quiz-navy-4-reveal.png"
+   },
+   "Previews/reveal.png": {
+    "sha256": "9025174aa67322ca1b31d6aa37161d5f25741a2973c5a1229fca40210af3dd95",
+    "now": "Previews/reveal.png"
+   },
+   "Previews/scoreboard-1-scores.png": {
+    "sha256": "a529bb948728e3e8cb3a0b0e475752c0da7a4ea3fb7d27935a182202f1460ae6",
+    "now": "Previews/scoreboard-1-scores.png"
+   },
+   "Previews/scoreboard-2-point-for-1.png": {
+    "sha256": "2ad6f4d505f0a334c8f8912cada6cd36b1e60fb22da95c6e43e4deb53ead6e51",
+    "now": "Previews/scoreboard-2-point-for-1.png"
+   },
+   "Previews/scoreboard-3-point-for-2.png": {
+    "sha256": "28e126abe72897b1010420f1beb1a6d8556b418de9af6830f935bdf735941f09",
+    "now": "Previews/scoreboard-3-point-for-2.png"
+   },
+   "Previews/scorebug-clock.png": {
+    "sha256": "16e065d4df493ac2179ac13283736a62d121ae17afbc31477fc36cea4d499c20",
+    "now": "Previews/scorebug-clock.png"
+   },
+   "Previews/standings.png": {
+    "sha256": "49961a0b7a32d6afffa9b84dfebe3b6dab8677f07df4663582378ab66c1e6631",
+    "now": "Previews/standings.png"
+   },
+   "Previews/stepped-list.png": {
+    "sha256": "4e81f93ebd99f91b42c514453717f3ad17090a5fdbb62b672a09be17f58b7349",
+    "now": "Previews/stepped-list.png"
+   },
+   "Previews/survey.png": {
+    "sha256": "494d27b61c6152d5814170a239b4f02cf134abff3cecab9dbf0b6fdb9c0eab81",
+    "now": "Previews/survey.png"
+   },
+   "Previews/switch.png": {
+    "sha256": "1749b127098757f1f0d3532db61092f9914ed1c24f849cb536680932149482c6",
+    "now": "Previews/switch.png"
+   },
+   "Previews/ticker.png": {
+    "sha256": "bc047fce19e2c20a9e9bc318d5edf149628e5d8d58301620610782fb33cbf063",
+    "now": "Previews/ticker.png"
+   },
+   "Previews/title.png": {
+    "sha256": "83ba424fe5ddeaa8741f249253018f002ed3280a2d1d48e41b9e9b7e312585f4",
+    "now": "Previews/title.png"
+   },
+   "CLOCKS.md": {
+    "sha256": "676cc8e36d10358dbb375a3bc3c0845ba143779901d429c66a59468044d730e2",
+    "now": "CLOCKS.md"
+   },
+   "EDITABLE-CREDITS.md": {
+    "sha256": "8e0852cb1a0ba7c662f39d739b57affd8016c2f788412e190cb8ba12f345f734",
+    "now": "EDITABLE-CREDITS.md"
+   }
+  },
+  "/downloads/NoaCG-SVG-templates.zip": {
+   "README.pdf": {
+    "sha256": "bc6afb221c805f6fc08d62b75c60b7b7059412da6c9aacf5240b8b832e27481e",
+    "now": null
+   },
+   "README.md": {
+    "sha256": "4791695cef61718fb0a090b9bea21d7c96bc66d90ed25c9440c4a13d58fb99a9",
+    "now": null
+   },
+   "templates.json": {
+    "sha256": "39626f7afc98603cd22af894f71b0d97fbff0e2c27d6fdfcf48ba081c225bd6b",
+    "now": null
+   },
+   "SVG/be-back-soon.svg": {
+    "sha256": "13cf10aed425ccf5bae9a62789b5a0f5d7187c71eda4c97b0c669550457be366",
+    "now": "SVG/be-back-soon.svg"
+   },
+   "SVG/end-credits-columns.svg": {
+    "sha256": "9b725636529677f982d36ce0b4ce96e2d87837f58f824e9b9348acf1ab7ed98c",
+    "now": "SVG/end-credits-columns.svg"
+   },
+   "SVG/end-credits.svg": {
+    "sha256": "e65840101fe8cb664ce298161f060d65c70654d00b59acffcbea40a09eb98a76",
+    "now": "SVG/end-credits.svg"
+   },
+   "SVG/game-rules.svg": {
+    "sha256": "e2ce7bee69b622fdb4add32ccc70baf0f07ce4afca27a19297efac63c220fe28",
+    "now": "SVG/game-rules.svg"
+   },
+   "SVG/game-timer.svg": {
+    "sha256": "79810924bffe89c82c1b54cd3af59a7273cb3a693d81df9aba4f82eeb7fc9e76",
+    "now": "SVG/game-timer.svg"
+   },
+   "SVG/join-card.svg": {
+    "sha256": "c6a272bd53e40ffecd67622abdd0c9af7dc714048e76ef11e33b21e9ec58c056",
+    "now": "SVG/join-card.svg"
+   },
+   "SVG/live-vote.svg": {
+    "sha256": "1e05f23744f4e11407a3af57f6084dedee780103bdd32d3ed2ed536e67231779",
+    "now": "SVG/live-vote.svg"
+   },
+   "SVG/lower-third.svg": {
+    "sha256": "dc745ba6f5c6c1d24c616e844cae90909c69acb6788f48a1951089cd26f3f3fa",
+    "now": "SVG/lower-third.svg"
+   },
+   "SVG/message.svg": {
+    "sha256": "9f44719bde58b9b5904d847f6f42858690da915611a5ec4a4fc44ee372d20a54",
+    "now": "SVG/message.svg"
+   },
+   "SVG/quiz.svg": {
+    "sha256": "3e49953e94d8fba53babe11f39a3a45ceee606751565d5a03bd472936ea1295a",
+    "now": "SVG/quiz.svg"
+   },
+   "SVG/scoreboard-2-players.svg": {
+    "sha256": "0842b87f7cc70d700d2895a2d91ea4d14b36f45c4446f0a0d24a78bae133d292",
+    "now": "SVG/scoreboard-2-players.svg"
+   },
+   "SVG/scoreboard-4-players.svg": {
+    "sha256": "02c962250efb82825211a613a3a3060cd4349410a8368f7341afeae6350765bf",
+    "now": "SVG/scoreboard-4-players.svg"
+   },
+   "SVG/show-countdown.svg": {
+    "sha256": "03738a2507f4128cafb21aaa16f134f076a6bf14577cff17dbe3afa3674661eb",
+    "now": "SVG/show-countdown.svg"
+   },
+   "SVG/vote-results.svg": {
+    "sha256": "f30517e40e97b891c59e812f2e85279903f417cee7b24dd2d39237555dfd54d6",
+    "now": "SVG/vote-results.svg"
+   },
+   "SVG/winner.svg": {
+    "sha256": "deb5b1da05c4ac8a5604f6fef2570e02848a1f5d7d7a1dc4de219d60e07e89ed",
+    "now": "SVG/winner.svg"
+   },
+   "Previews/be-back-soon.png": {
+    "sha256": "7ba3518fb82322e52878c160857fa0f6b53cdf0a83483a60c5054bcb029d5e6a",
+    "now": "Previews/be-back-soon.png"
+   },
+   "Previews/end-credits-columns.png": {
+    "sha256": "a7da70742f666911afe2ba715eb3bab70ad3370d7f60f2d4d789684881131425",
+    "now": "Previews/end-credits-columns.png"
+   },
+   "Previews/end-credits.png": {
+    "sha256": "bb19f21a445071a7ec6809161007d8bf184e415a8cd5faa738336bd177f7badc",
+    "now": "Previews/end-credits.png"
+   },
+   "Previews/game-rules.png": {
+    "sha256": "7beac625adbf1b7a4399884a098929795d7e10ec1338efaca6d5f3ce3e1d3075",
+    "now": "Previews/game-rules.png"
+   },
+   "Previews/game-timer-1-running.png": {
+    "sha256": "a9979168374f6749171215c1afc7dea2fe875a18cf9cc296f2c548f24c662eeb",
+    "now": "Previews/game-timer-1-running.png"
+   },
+   "Previews/game-timer-2-warning.png": {
+    "sha256": "b0f56eb3faa2eb0a350c6c100b209ce28c6d81357cd6fc63b6fdffa48929f3b0",
+    "now": "Previews/game-timer-2-warning.png"
+   },
+   "Previews/game-timer-3-paused.png": {
+    "sha256": "dbc5123fba1c60556ab2c4cff21b04a224a9bd946190e33909f997cfe20052ba",
+    "now": "Previews/game-timer-3-paused.png"
+   },
+   "Previews/game-timer-4-time-up.png": {
+    "sha256": "aaa325d773b39c1162a0ad500ab35a4192805d8e81105a79ecabcbb26ef48b17",
+    "now": "Previews/game-timer-4-time-up.png"
+   },
+   "Previews/join-card.png": {
+    "sha256": "5f12cda12c64e09d49d942dabb868a2a9dc261cf312e0d0f0195a1f15968c2eb",
+    "now": "Previews/join-card.png"
+   },
+   "Previews/live-vote-1-voting.png": {
+    "sha256": "0417eab6ffe58097e2244dc31e96bac0d00fb02db511c7934750e0c36a505d49",
+    "now": "Previews/live-vote-1-voting.png"
+   },
+   "Previews/live-vote-2-result.png": {
+    "sha256": "4e4c006b156bfd4779edbbf08389298a4dced3e1332b593b9f98237b6bdb592f",
+    "now": "Previews/live-vote-2-result.png"
+   },
+   "Previews/live-vote-3-winner.png": {
+    "sha256": "5df83186639eff5eb2fef981e7bdfc6517af5e529c602bd93c98a84577ba93bd",
+    "now": "Previews/live-vote-3-winner.png"
+   },
+   "Previews/lower-third.png": {
+    "sha256": "1c1ff97ec1d5f23b72d4feb077239e1df5b2d007881529efeb1084671a63a632",
+    "now": "Previews/lower-third.png"
+   },
+   "Previews/message.png": {
+    "sha256": "02f2aeae98ca54ccaac30eb02c5f43285a291da54309140743ca0623a1e3e310",
+    "now": "Previews/message.png"
+   },
+   "Previews/quiz-1-question.png": {
+    "sha256": "4794b6409bcb925d34e88fe0a81ba66909e89fa4aa58095cff43abf3d3287b20",
+    "now": "Previews/quiz-1-question.png"
+   },
+   "Previews/quiz-2-selected.png": {
+    "sha256": "f945b5b45f7fe1126701edbaafd9a479509ca406bc3c0089a20d212ce48ea268",
+    "now": "Previews/quiz-2-selected.png"
+   },
+   "Previews/quiz-3-locked-in.png": {
+    "sha256": "7bfa05b5216e0eef8b264bab9c4fa2f94545826f6e49aad770889c0f878f4722",
+    "now": "Previews/quiz-3-locked-in.png"
+   },
+   "Previews/quiz-4-reveal.png": {
+    "sha256": "0f4c8551fe0a1df4fe6b5de1f54585342abdf9a6f4c81375fc0b2c2dc5e47d84",
+    "now": "Previews/quiz-4-reveal.png"
+   },
+   "Previews/scoreboard-2-players-1-scores.png": {
+    "sha256": "0b147edc9f2d47868dbf78070000e5d1cd426f2a2fb15a440e4d0fcc3b74700d",
+    "now": "Previews/scoreboard-2-players-1-scores.png"
+   },
+   "Previews/scoreboard-2-players-2-point-for-1.png": {
+    "sha256": "56755ebd2aea9b00f8c92bdb71cdd6627192b0d0c17568b0e40d7c81d744668e",
+    "now": "Previews/scoreboard-2-players-2-point-for-1.png"
+   },
+   "Previews/scoreboard-4-players-1-scores.png": {
+    "sha256": "0f02b13dd4016f70e88e2e43b03d9513a6c2d30f538be23414809321d063af6c",
+    "now": "Previews/scoreboard-4-players-1-scores.png"
+   },
+   "Previews/scoreboard-4-players-2-point-for-3.png": {
+    "sha256": "8c2930942d02cd03485d6abc0e0374fb48b37436ec3f4decf40f8b2dd92b462d",
+    "now": "Previews/scoreboard-4-players-2-point-for-3.png"
+   },
+   "Previews/show-countdown.png": {
+    "sha256": "0fd79113976367315500282e918869996b8655cd2d024e8ad9c34e7189a227ab",
+    "now": "Previews/show-countdown.png"
+   },
+   "Previews/vote-results-1-open.png": {
+    "sha256": "1993a0797faecd607cac718d4b3c1adfdb07e252de1c90c9627d32dde9b8ab5b",
+    "now": "Previews/vote-results-1-open.png"
+   },
+   "Previews/vote-results-2-closed.png": {
+    "sha256": "62313cf02d1c093314a81933b10c393641e8b12e113281285a4df11b246cb813",
+    "now": "Previews/vote-results-2-closed.png"
+   },
+   "Previews/vote-results-3-winner.png": {
+    "sha256": "ca6acfc0c545a009dd64996c94291239f1c13e26e51201416405bb93f5fb9a9a",
+    "now": "Previews/vote-results-3-winner.png"
+   },
+   "Previews/winner.png": {
+    "sha256": "b271f5605704b81b7bb1277df888de60f59a524b62e14b4edc8891711221e4d7",
+    "now": "Previews/winner.png"
+   }
+  }
+ }
+}

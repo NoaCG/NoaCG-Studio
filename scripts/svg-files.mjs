@@ -1,173 +1,211 @@
-// THE SVG FILES PAGE (/svg-templates): every SVG template and example as a preview with its own
-// download, so a person takes the one graphic they need instead of a whole zip.
+// THE TEMPLATE LIBRARY PAGE (/svg-templates) AND ITS DOWNLOADS: every SVG template, grouped into
+// packages by use, each with its previews, its own SVG and the package's zip, plus one zip of the
+// whole library (svg-template-library spec, TL3; D2, D3, D4).
 //
-// Owner, 2026-11-21: the two SVG packages were two look-alike cards on /downloads and a long list
-// of links in the docs. Now /downloads has one card with both zips, and this page previews each
-// file. Two sets, each from its own inventory: the TEMPLATES (docs/tutorials/svg-templates, one
-// clean style to restyle) and the EXAMPLES (docs/tutorials/svg-examples, one per import behaviour).
+// ONE SOURCE. docs/tutorials/template-library/ holds every template: SVG/ (the editable sources),
+// Previews/ (a default picture and one per named state), Illustrator/ (legacy .ai sources, D2),
+// the README (and its PDF, printed by scripts/print-library-readme.mjs), two guides and
+// library.json, the one inventory. An entry may sit in several packages. Until TL3 the files were
+// two sets with two inventories (svg-templates and svg-examples); the four slugs both used were
+// given canonical ids (the navy ones gained `-navy`), and docs/template-library/old-addresses.json
+// records every address the two sets were served at and where its content lives now.
 //
-// ONE SOURCE. svg-templates.html holds the marker below and the generated-pages plugin in
-// vite.config.ts replaces it with renderSvgGallery(), so the page lists exactly the inventories.
-// The files it links are copies under public/downloads/svg/<set>/: <slug>.svg is the source SVG
-// and <slug>.png its first preview. syncSvgFiles() writes them (pack-svg-examples.mjs runs it) and
-// checkSvgFiles() refuses a copy that has drifted (scripts/svg-files.test.mjs).
+// NOTHING HERE IS COMMITTED AS OUTPUT. The page body replaces the marker below (the
+// generated-pages plugin in vite.config.ts), and every download is made from the sources by
+// libraryDownloads(): the dev server answers them from memory and the build writes them into the
+// output (the template-library-downloads plugin). The old addresses are redirects in vercel.json.
 
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import JSZip from 'jszip';
 import { escapeHtml } from './behaviour-docs.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export const SVG_GALLERY_MARKER = '<!--svg-files:gallery-->';
+export const LIBRARY_DIR = 'docs/tutorials/template-library';
+const INVENTORY = 'library.json';
+const COVERAGE = 'docs/template-library/coverage.json';
 
-/** The two sets, in page order. `zip` is what pack-svg-examples.mjs writes for that set. */
-export const SVG_SETS = [
-  {
-    id: 'templates',
-    title: 'Templates',
-    blurb: 'Ready-made graphics in one clean style. Change the words, colours and shapes, then import.',
-    source: 'docs/tutorials/svg-templates',
-    inventory: 'templates.json',
-    zip: '/downloads/NoaCG-SVG-templates.zip',
-    zipNote: 'SVG, PNG and PDF',
-  },
-  {
-    id: 'examples',
-    title: 'Examples',
-    blurb: 'One graphic for every SVG import behaviour, with its layers named the way NoaCG reads them.',
-    source: 'docs/tutorials/svg-examples',
-    inventory: 'examples.json',
-    zip: '/downloads/NoaCG-SVG-examples.zip',
-    zipNote: 'Illustrator (.ai), SVG, PNG and PDF',
-  },
-];
+/** The whole library's zip, and the folder its files sit in. */
+export const LIBRARY_ZIP = 'NoaCG-Template-Library';
+export const LIBRARY_ZIP_URL = `/downloads/${LIBRARY_ZIP}.zip`;
 
-/**
- * PACKAGES BY USE (svg-template-library D3, prototyped in TL1 on the audience pilot): a package
- * lists the inventory entries that name it in `packages`, so one entry can sit in several. Each
- * tile shows the default preview and every named state the operator sees, each with its alt text.
- * TL3 merges the inventories and builds the package zips; until then a package's files are the
- * per-file downloads here and the whole templates zip.
- */
+/** The packages, by use, in page order. An entry names the packages it sits in. */
 export const SVG_PACKAGES = [
-  {
-    id: 'audience',
-    title: 'Audience',
-    blurb: 'Join card, Live vote, Vote results and Message, made for Interaction.',
-    set: 'templates',
-  },
+  { id: 'audience', title: 'Audience', blurb: 'Join card, votes and messages, made for Interaction.' },
+  { id: 'games', title: 'Games and scores', blurb: 'Quizzes, scoreboards, countdowns and game boards.' },
+  { id: 'titles', title: 'Titles and information', blurb: 'Titles, lower thirds, tickers, lists and status cards.' },
+  { id: 'clocks', title: 'Clocks and holding screens', blurb: 'Clocks, show clocks and break cards.' },
+  { id: 'credits', title: 'End credits', blurb: 'Scrolling and editable end credits.' },
 ];
 
-const publicDir = (set, root) => path.join(root, 'public', 'downloads', 'svg', set.id);
-export const fileUrl = (set, slug, ext) => `/downloads/svg/${set.id}/${slug}.${ext}`;
+export const packageZip = (pkg) => `${LIBRARY_ZIP}-${pkg.id}`;
+export const packageZipUrl = (pkg) => `/downloads/${packageZip(pkg)}.zip`;
+/** Where one file of the library is served: an SVG by its id, a preview by its picture name. */
+export const fileUrl = (name, ext) => `/downloads/svg/${name}.${ext}`;
 
-export function readInventory(set, root = ROOT) {
-  return JSON.parse(readFileSync(path.join(root, set.source, set.inventory), 'utf8'));
+const read = (root, file) => readFileSync(path.join(root, file), 'utf8');
+/** A repository path, with forward slashes on every platform. */
+const repoPath = (...parts) => path.posix.join(...parts);
+
+export function readLibrary(root = ROOT) {
+  return JSON.parse(read(root, path.join(LIBRARY_DIR, INVENTORY)));
 }
 
-/** What public/downloads/svg/<set>/ must hold: file name -> the source file it copies. */
-function expectedFiles(set, root) {
+/** The pictures an entry owns: its default preview, then one per named state. */
+export const previewsOf = (entry) => [entry.preview, ...(entry.states ?? []).map((state) => state.preview)];
+
+const illustratorOf = (root, entry) => {
+  const file = repoPath(LIBRARY_DIR, 'Illustrator', `${entry.slug}.ai`);
+  return existsSync(path.join(root, file)) ? file : null;
+};
+
+/** Each served file: its address -> the source file it is a copy of. `<id>.png` is the default
+ *  preview again, so a tile's picture is found by the template's id. */
+export function downloadFiles(root = ROOT) {
   const files = new Map();
-  for (const entry of readInventory(set, root)) {
-    files.set(`${entry.slug}.svg`, path.join(root, set.source, 'SVG', `${entry.slug}.svg`));
-    files.set(`${entry.slug}.png`, path.join(root, set.source, 'Previews', `${entry.preview}.png`));
-    for (const state of entry.states ?? []) files.set(`${state.preview}.png`, path.join(root, set.source, 'Previews', `${state.preview}.png`));
+  const put = (url, file) => {
+    if (files.has(url) && files.get(url) !== file) throw new Error(`${url} would serve both ${files.get(url)} and ${file}`);
+    files.set(url, file);
+  };
+  for (const entry of readLibrary(root)) {
+    put(fileUrl(entry.slug, 'svg'), repoPath(LIBRARY_DIR, 'SVG', `${entry.slug}.svg`));
+    put(fileUrl(entry.slug, 'png'), repoPath(LIBRARY_DIR, 'Previews', `${entry.preview}.png`));
+    for (const picture of previewsOf(entry)) put(fileUrl(picture, 'png'), repoPath(LIBRARY_DIR, 'Previews', `${picture}.png`));
   }
   return files;
 }
 
-/** Copy every set's SVGs and previews into public/, removing anything the inventory dropped. */
-export function syncSvgFiles(root = ROOT) {
-  for (const set of SVG_SETS) {
-    const dir = publicDir(set, root);
-    const files = expectedFiles(set, root);
-    mkdirSync(dir, { recursive: true });
-    for (const name of readdirSync(dir)) if (!files.has(name)) rmSync(path.join(dir, name));
-    for (const [name, from] of files) writeFileSync(path.join(dir, name), readFileSync(from));
-  }
+// A fixed date, so a zip's bytes change only when a file in it does.
+const ENTRY = { date: new Date('2026-09-25T00:00:00Z') };
+
+/** A file as it goes into a zip. TEXT GOES IN WITH LF, whatever the checkout wrote (a Windows
+ *  checkout with core.autocrlf writes CRLF; the repository stores LF). */
+function zipBytes(root, file) {
+  const abs = path.join(root, file);
+  return /\.(md|svg|json)$/i.test(file) ? Buffer.from(readFileSync(abs, 'utf8').replace(/\r\n/g, '\n')) : readFileSync(abs);
 }
 
-/** The problems with the public copies, empty when they match the sources exactly. */
-export function checkSvgFiles(root = ROOT) {
-  const problems = [];
-  for (const set of SVG_SETS) {
-    const dir = publicDir(set, root);
-    const files = expectedFiles(set, root);
-    const present = new Set(readdirSync(dir));
-    for (const name of present) if (!files.has(name)) problems.push(`${set.id}/${name} is not in ${set.inventory}`);
-    for (const [name, from] of files) {
-      if (!present.has(name)) problems.push(`${set.id}/${name} is missing`);
-      else if (!readFileSync(path.join(dir, name)).equals(readFileSync(from))) problems.push(`${set.id}/${name} differs from ${path.relative(root, from)}`);
+/** What a zip holds, folder-relative path -> bytes, in order: the README and its PDF, the
+ *  inventory of exactly what is inside, the guides its entries use, then every entry's SVG,
+ *  pictures and legacy Illustrator source. */
+function zipContents(entries, root = ROOT) {
+  const out = new Map();
+  const add = (name, file) => out.set(name, zipBytes(root, file));
+  add('README.pdf', repoPath(LIBRARY_DIR, 'README.pdf'));
+  add('README.md', repoPath(LIBRARY_DIR, 'README.md'));
+  out.set(INVENTORY, Buffer.from(`[\n${entries.map((entry) => `  ${JSON.stringify(entry)}`).join(',\n')}\n]\n`));
+  for (const guide of [...new Set(entries.map((entry) => entry.guide).filter(Boolean))].sort()) add(guide, repoPath(LIBRARY_DIR, guide));
+  const sorted = [...entries].sort((a, b) => a.slug.localeCompare(b.slug));
+  for (const entry of sorted) {
+    const ai = illustratorOf(root, entry);
+    if (ai) add(`Illustrator/${entry.slug}.ai`, ai);
+  }
+  for (const entry of sorted) add(`SVG/${entry.slug}.svg`, repoPath(LIBRARY_DIR, 'SVG', `${entry.slug}.svg`));
+  for (const entry of sorted) for (const picture of previewsOf(entry)) add(`Previews/${picture}.png`, repoPath(LIBRARY_DIR, 'Previews', `${picture}.png`));
+  return out;
+}
+
+async function zip(folder, contents) {
+  const archive = new JSZip();
+  // Pictures, the PDF and .ai sources are compressed already: stored, they cost no CPU to pack.
+  for (const [name, bytes] of contents) archive.file(`${folder}/${name}`, bytes, /\.(png|pdf|ai)$/i.test(name) ? { ...ENTRY, compression: 'STORE' } : ENTRY);
+  return archive.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
+}
+
+/** The templates a package holds. */
+const inPackage = (entries, pkg) => entries.filter((entry) => entry.packages.includes(pkg.id));
+
+/** The zips, the whole library then one per package: [address, folder, entries]. */
+const zipPlan = (entries) => [
+  [LIBRARY_ZIP_URL, LIBRARY_ZIP, entries],
+  ...SVG_PACKAGES.map((pkg) => [packageZipUrl(pkg), packageZip(pkg), inPackage(entries, pkg)]),
+];
+
+/** Every download the site serves for the library: address -> bytes. */
+export async function libraryDownloads(root = ROOT) {
+  const out = new Map();
+  for (const [url, file] of downloadFiles(root)) out.set(url, readFileSync(path.join(root, file)));
+  for (const [url, folder, entries] of zipPlan(readLibrary(root))) out.set(url, await zip(folder, zipContents(entries, root)));
+  return out;
+}
+
+/** The catalog designs of the type or kind each template customizes (D4), read from the coverage
+ *  matrix, where scripts/template-coverage.mjs writes them from the catalog and checks them. */
+export function builtInAlternatives(root = ROOT) {
+  const matrix = JSON.parse(read(root, COVERAGE));
+  const byTemplate = new Map();
+  for (const row of matrix.rows) {
+    if (!row.builtIns?.length) continue;
+    for (const file of row.templates ?? []) {
+      const slug = path.basename(file, '.svg');
+      const names = byTemplate.get(slug) ?? [];
+      for (const name of row.builtIns) if (!names.includes(name)) names.push(name);
+      byTemplate.set(slug, names);
     }
   }
-  return problems;
+  return byTemplate;
 }
+
+/** How many built-in design names a tile shows. */
+const BUILT_INS_SHOWN = 4;
 
 /** Text for an attribute value: escapeHtml plus the double quote that would end it. */
 const attr = (text) => escapeHtml(text ?? '').replace(/"/g, '&quot;');
 
-/** A package's section: its entries with the default preview and each named state, alt text on all. */
-function renderPackage(pkg, root) {
-  const set = SVG_SETS.find((s) => s.id === pkg.set);
-  const entries = readInventory(set, root).filter((entry) => (entry.packages ?? []).includes(pkg.id));
-  const tiles = entries.map((entry) => {
-    const states = (entry.states ?? []).map((state) => `
-            <li><img src="${fileUrl(set, state.preview, 'png')}" alt="${attr(state.alt)}" width="960" height="540" loading="lazy" /><span>${escapeHtml(state.name)}</span></li>`);
-    return `        <li class="svg-tile svg-tile--package" data-testid="svg-package-${pkg.id}-${entry.slug}">
-          <img src="${fileUrl(set, entry.slug, 'png')}" alt="${attr(entry.alt)}" width="960" height="540" loading="lazy" />
+function renderTile(pkg, entry, builtIns) {
+  const states = (entry.states ?? []).map((state) => `
+            <li><img src="${fileUrl(state.preview, 'png')}" alt="${attr(state.alt)}" width="960" height="540" loading="lazy" /><span>${escapeHtml(state.name)}</span></li>`);
+  // A few names, never a count (scripts/check-copy.mjs design-count: the catalog is not counted).
+  const named = builtIns?.slice(0, BUILT_INS_SHOWN) ?? [];
+  const alternatives = named.length ? `
+          <p class="svg-builtins">Built-in alternatives: ${escapeHtml(named.join(', '))}${builtIns.length > named.length ? ' and more' : ''}</p>` : '';
+  return `        <li class="svg-tile" data-testid="svg-package-${pkg.id}-${entry.slug}">
+          <img src="${fileUrl(entry.slug, 'png')}" alt="${attr(entry.alt)}" width="960" height="540" loading="lazy" />
           <span class="svg-name">${escapeHtml(entry.name)}</span>
-          <a class="svg-get" href="${fileUrl(set, entry.slug, 'svg')}" download aria-label="Download ${attr(entry.name)} SVG">SVG</a>${states.length ? `
+          <a class="svg-get" href="${fileUrl(entry.slug, 'svg')}" download aria-label="Download ${attr(entry.name)} SVG">SVG</a>${states.length ? `
           <ul class="svg-states" aria-label="${attr(entry.name)} states">${states.join('')}
-          </ul>` : ''}
+          </ul>` : ''}${alternatives}
         </li>`;
-  });
-  return `    <section class="svg-set svg-package" id="${pkg.id}" data-testid="svg-package-${pkg.id}">
+}
+
+/** The page body: the whole library's zip, then each package with its zip and its templates. The
+ *  two empty anchors keep the old set addresses (#templates, #examples) landing on the library. */
+export function renderSvgGallery(root = ROOT) {
+  const entries = readLibrary(root);
+  const builtIns = builtInAlternatives(root);
+  const packages = SVG_PACKAGES.map((pkg) => {
+    const tiles = inPackage(entries, pkg).map((entry) => renderTile(pkg, entry, builtIns.get(entry.slug)));
+    return `    <section class="svg-set" id="${pkg.id}" data-testid="svg-package-${pkg.id}">
       <div class="svg-set-head">
         <div>
           <h2>${escapeHtml(pkg.title)}</h2>
           <p>${escapeHtml(pkg.blurb)}</p>
         </div>
+        <a class="svg-get svg-zip" href="${packageZipUrl(pkg)}" download data-testid="svg-package-${pkg.id}-zip">${escapeHtml(pkg.title)} (.zip)</a>
       </div>
       <ul class="svg-grid">
 ${tiles.join('\n')}
       </ul>
     </section>`;
+  });
+  return [`    <div class="svg-library-head" id="library">
+      <span id="templates" aria-hidden="true"></span><span id="examples" aria-hidden="true"></span>
+      <a class="btn btn-amber" href="${LIBRARY_ZIP_URL}" download data-testid="svg-library-zip">All templates (.zip)</a>
+      <nav class="svg-package-nav" aria-label="Packages">${SVG_PACKAGES.map((pkg) => `<a href="#${pkg.id}">${escapeHtml(pkg.title)}</a>`).join('')}</nav>
+    </div>`, ...packages].join('\n\n');
 }
 
-/** The page body: the packages, then per set a heading with its zip and a grid of previews with
- *  an SVG download each. */
-export function renderSvgGallery(root = ROOT) {
-  const packages = SVG_PACKAGES.map((pkg) => renderPackage(pkg, root));
-  return [...packages, ...SVG_SETS.map((set) => {
-    const tiles = readInventory(set, root).map((entry) => {
-      const name = escapeHtml(entry.name);
-      return `        <li class="svg-tile" data-testid="svg-file-${set.id}-${entry.slug}">
-          <img src="${fileUrl(set, entry.slug, 'png')}" alt="${attr(entry.alt)}" width="960" height="540" loading="lazy" />
-          <span class="svg-name">${name}</span>
-          <a class="svg-get" href="${fileUrl(set, entry.slug, 'svg')}" download>SVG</a>
-        </li>`;
-    });
-    return `    <section class="svg-set" id="${set.id}" data-testid="svg-set-${set.id}">
-      <div class="svg-set-head">
-        <div>
-          <h2>${set.title}</h2>
-          <p>${escapeHtml(set.blurb)}</p>
-        </div>
-        <a class="btn btn-amber" href="${set.zip}" download data-testid="svg-set-${set.id}-zip">All ${set.title.toLowerCase()} (.zip)</a>
-      </div>
-      <ul class="svg-grid">
-${tiles.join('\n')}
-      </ul>
-    </section>`;
-  })].join('\n\n');
-}
+const TYPES = { svg: 'image/svg+xml', png: 'image/png', zip: 'application/zip' };
+export const contentType = (url) => TYPES[url.slice(url.lastIndexOf('.') + 1)] ?? 'application/octet-stream';
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (process.argv.includes('--write')) syncSvgFiles();
-  const problems = checkSvgFiles();
-  if (problems.length) {
-    console.error(`svg-files: the public copies are stale - run node scripts/svg-files.mjs --write\n  ${problems.join('\n  ')}`);
-    process.exitCode = 1;
-  } else console.log('svg-files: public/downloads/svg matches both inventories');
+/** One download by its address, made on request (the dev server), or null when the library has
+ *  no such file. A zip is built alone, so a request never builds the others. */
+export async function libraryDownload(url, root = ROOT) {
+  const file = downloadFiles(root).get(url);
+  if (file) return readFileSync(path.join(root, file));
+  const planned = zipPlan(readLibrary(root)).find(([address]) => address === url);
+  return planned ? zip(planned[1], zipContents(planned[2], root)) : null;
 }

@@ -1,16 +1,16 @@
 // The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge, the Companion module
 // and the NoaCG CLI.
 // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
-// and its footer, so both of those specs ride along. public/downloads/ holds the two SVG zips the
-// page links, and the one-at-a-time copies the SVG templates page (/svg-templates) links.
-// covers: {downloads.html,src/downloads/**,public/downloads/**}
-// covers: svg-templates.html, scripts/svg-files.mjs
+// and its footer, so both of those specs ride along. The build makes the Template Library's zips
+// and one-at-a-time files from its folder (scripts/svg-files.mjs, vite.config.ts), and the page
+// and the Template Library page (/svg-templates) link them.
+// covers: {downloads.html,src/downloads/**}
+// covers: svg-templates.html, scripts/svg-files.mjs, vite.config.ts
 //
-// THE SVG EXAMPLES (docs/tutorials/svg-examples/) are a fixture set: e2e/svg-examples.spec.ts
-// imports their SVG/ files, so the ignore in scripts/e2e-affected.mjs carves the folder out, and
-// downloads.spec.ts rides along because it checks the committed zip still holds these files.
-// covers: docs/tutorials/svg-examples/**
-// covers: docs/tutorials/svg-templates/**
+// THE TEMPLATE LIBRARY (docs/tutorials/template-library/) is a fixture set: e2e/svg-examples.spec.ts
+// imports its SVG/ files, so the ignore in scripts/e2e-affected.mjs carves the folder out, and
+// downloads.spec.ts rides along because it checks the zips still hold these files.
+// covers: docs/tutorials/template-library/**, docs/template-library/coverage.json
 //
 // THE LANDING PAGE (index.html + src/landing/) carries the ways into this page - its nav, the
 // per-section download links, the footer - and the tests below assert them. Without this line a
@@ -22,16 +22,17 @@
 // covers: scripts/agent-prompt.mjs, cli/package.json
 
 import { test, expect, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from 'node:fs';
 import JSZip from 'jszip';
-import { SVG_EXAMPLES_URL, SVG_EXAMPLES_ZIP_URL, SVG_TEMPLATES_CARD_URL, SVG_TEMPLATES_URL, SVG_TEMPLATES_ZIP_URL } from '../src/downloads/links';
+import { SVG_TEMPLATES_CARD_URL, SVG_TEMPLATES_URL, TEMPLATE_LIBRARY_ZIP_URL } from '../src/downloads/links';
+import { LIBRARY_DIR, LIBRARY_ZIP, LIBRARY_ZIP_URL, SVG_PACKAGES, packageZip, packageZipUrl, previewsOf, readLibrary } from '../scripts/svg-files.mjs';
 import { AGENT_PROMPT } from '../scripts/agent-prompt.mjs';
 
-/** The inventory is also checked against the live behavior registry and real source assets. */
-const EXAMPLE_INVENTORY = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-examples/examples.json', import.meta.url), 'utf8')) as { slug: string; preview: string; source?: 'illustrator' | 'svg' }[];
-const EXAMPLES = EXAMPLE_INVENTORY.map((entry) => entry.slug);
-const TEMPLATE_INVENTORY = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-templates/templates.json', import.meta.url), 'utf8')) as { slug: string; preview: string }[];
+/** The one inventory, also checked against the live behavior registry and real source assets. */
+interface LibraryEntry { slug: string; preview: string; packages: string[]; states?: { preview: string }[]; guide?: string }
+const INVENTORY = readLibrary() as LibraryEntry[];
+const previews = (entry: LibraryEntry) => previewsOf(entry) as string[];
+const inRepo = (file: string) => readFileSync(new URL(`../${LIBRARY_DIR}/${file}`, import.meta.url));
 
 // THE DOWNLOADS PAGE (/downloads, downloads.html + src/downloads/). NoaCG ships three things you
 // install - NoaCG Bridge, the Companion module and the NoaCG CLI - and a visitor has to be able to
@@ -287,7 +288,7 @@ test('the Bridge card says which browsers work, and what to do about one that ke
   await expect(page.getByTestId('download-bridge')).toContainText('LoopbackNetworkAccessAllowedForUrls');
 });
 
-test('one SVG templates card holds both zips, and each zip matches the repo', async ({ page, request }) => {
+test('one SVG templates card holds the library zip, and the zip matches the repo', async ({ page, request }) => {
   await fakeChannels(page, 'down');
   await page.goto(SVG_TEMPLATES_CARD_URL);
   const card = page.getByTestId('download-svg-templates');
@@ -295,9 +296,12 @@ test('one SVG templates card holds both zips, and each zip matches the repo', as
   // Files to edit, not a fourth tool: the heading still counts three tools, and there is one card.
   await expect(page.locator('h1')).toHaveText('Three tools you can install');
   await expect(page.locator('[data-testid^="download-svg"]')).toHaveCount(1);
-  await expect(card.getByTestId('svg-templates-download')).toHaveAttribute('href', SVG_TEMPLATES_ZIP_URL);
-  await expect(card.getByTestId('svg-examples-download')).toHaveAttribute('href', SVG_EXAMPLES_ZIP_URL);
+  // One zip, no Examples set (svg-template-library AC-1).
+  expect(TEMPLATE_LIBRARY_ZIP_URL).toBe(LIBRARY_ZIP_URL);
+  await expect(card.locator('a[download]')).toHaveCount(1);
+  await expect(card.getByTestId('svg-templates-download')).toHaveAttribute('href', TEMPLATE_LIBRARY_ZIP_URL);
   await expect(card.getByTestId('svg-templates-page')).toHaveAttribute('href', SVG_TEMPLATES_URL);
+  await expect(card).not.toContainText(/example/i);
   // A card like the others: in the tool grid, as tall as its content, under the Bridge on a wide
   // window and last on a phone.
   // Both boxes in one read: the Bridge card grows as its version line resolves.
@@ -307,64 +311,65 @@ test('one SVG templates card holds both zips, and each zip matches the repo', as
   await page.setViewportSize({ width: 390, height: 800 });
   const tops = await page.locator('.dl-card').evaluateAll((cards) => cards.map((c) => [c.id, c.getBoundingClientRect().top] as const).sort((x, y) => x[1] - y[1]).map(([id]) => id));
   expect(tops.at(-1)).toBe('svg-templates');
+  // The old examples card's address still lands on this card.
+  await page.goto('/downloads#svg-examples');
+  await expect(page.locator('#svg-templates #svg-examples')).toHaveCount(1);
 
-  // Both zips are committed, so they can go stale: every text file and picture in them is the repo's own.
-  const zip = await request.get(SVG_EXAMPLES_ZIP_URL);
+  // The build makes the zip from the folder: every file in it is the repo's own.
+  const zip = await request.get(TEMPLATE_LIBRARY_ZIP_URL);
   expect(zip.status()).toBe(200);
   const bytes = await zip.body();
   // A zip starts with "PK": the server did not answer with the downloads page instead.
   expect(bytes.subarray(0, 2).toString('latin1')).toBe('PK');
   expect(bytes.length).toBeGreaterThan(100_000);
   const zipped = await JSZip.loadAsync(bytes);
-  for (const file of ['README.md', 'CLOCKS.md', 'EDITABLE-CREDITS.md', 'examples.json', ...EXAMPLES.map((name) => `SVG/${name}.svg`)]) {
-    const inZip = await zipped.file(`NoaCG-SVG-examples/${file}`)?.async('string');
-    const inRepo = readFileSync(fileURLToPath(new URL(`../docs/tutorials/svg-examples/${file}`, import.meta.url)), 'utf8');
-    expect(inZip?.replace(/\r\n/g, '\n'), `${file} in the zip - repack with scripts/illustrator/pack-svg-examples.mjs`).toBe(inRepo.replace(/\r\n/g, '\n'));
+  for (const file of ['README.md', 'CLOCKS.md', 'EDITABLE-CREDITS.md', ...INVENTORY.map((entry) => `SVG/${entry.slug}.svg`)]) {
+    const inZip = await zipped.file(`${LIBRARY_ZIP}/${file}`)?.async('string');
+    expect(inZip?.replace(/\r\n/g, '\n'), `${file} in the zip`).toBe(inRepo(file).toString('utf8').replace(/\r\n/g, '\n'));
   }
-  for (const file of ['README.pdf', ...EXAMPLE_INVENTORY.flatMap((entry) => [...(entry.source === 'svg' ? [] : [`Illustrator/${entry.slug}.ai`]), `Previews/${entry.preview}.png`])]) {
-    const native = zipped.file(`NoaCG-SVG-examples/${file}`);
+  expect(JSON.parse((await zipped.file(`${LIBRARY_ZIP}/library.json`)!.async('string')))).toEqual(INVENTORY);
+  const natives = ['README.pdf', ...INVENTORY.flatMap((entry) => previews(entry).map((name) => `Previews/${name}.png`))];
+  for (const entry of INVENTORY) if (existsSync(new URL(`../${LIBRARY_DIR}/Illustrator/${entry.slug}.ai`, import.meta.url))) natives.push(`Illustrator/${entry.slug}.ai`);
+  // The navy Illustrator sources stay downloadable as legacy (D2).
+  expect(natives.filter((file) => file.startsWith('Illustrator/')).length).toBeGreaterThan(15);
+  for (const file of natives) {
+    const native = zipped.file(`${LIBRARY_ZIP}/${file}`);
     expect(native, `${file} in the zip`).not.toBeNull();
-    expect(await native!.async('nodebuffer'), `${file} is the verified source artifact`).toEqual(readFileSync(new URL(`../docs/tutorials/svg-examples/${file}`, import.meta.url)));
-  }
-
-  const templatesZip = await request.get(SVG_TEMPLATES_ZIP_URL);
-  expect(templatesZip.status()).toBe(200);
-  const templateBytes = await templatesZip.body();
-  expect(templateBytes.subarray(0, 2).toString('latin1')).toBe('PK');
-  const templates = await JSZip.loadAsync(templateBytes);
-  const root = 'docs/tutorials/svg-templates';
-  for (const file of ['README.md', 'templates.json', ...TEMPLATE_INVENTORY.map((t) => `SVG/${t.slug}.svg`)]) {
-    const inZip = await templates.file(`NoaCG-SVG-templates/${file}`)?.async('string');
-    const inRepo = readFileSync(new URL(`../${root}/${file}`, import.meta.url), 'utf8');
-    expect(inZip?.replace(/\r\n/g, '\n'), `${file} in the zip - repack with pack-svg-examples.mjs --set templates`).toBe(inRepo.replace(/\r\n/g, '\n'));
-  }
-  for (const file of ['README.pdf', ...TEMPLATE_INVENTORY.map((t) => `Previews/${t.preview}.png`)]) {
-    const native = templates.file(`NoaCG-SVG-templates/${file}`);
-    expect(native, `${file} in the zip`).not.toBeNull();
-    expect(await native!.async('nodebuffer'), `${file} is the repo's own`).toEqual(readFileSync(new URL(`../${root}/${file}`, import.meta.url)));
+    expect(await native!.async('nodebuffer'), `${file} is the repo's own`).toEqual(inRepo(file));
   }
 });
 
-test('the SVG templates page previews every file and serves each SVG on its own', async ({ page, request }) => {
+test('the Template Library page shows every template by package and serves each file and package zip', async ({ page, request }) => {
   await page.goto(SVG_TEMPLATES_URL);
   await expect(page.locator('h1')).toBeVisible();
-  for (const [set, inventory, zipUrl] of [['templates', TEMPLATE_INVENTORY, SVG_TEMPLATES_ZIP_URL], ['examples', EXAMPLE_INVENTORY, SVG_EXAMPLES_ZIP_URL]] as const) {
-    const section = page.getByTestId(`svg-set-${set}`);
-    await expect(section.getByTestId(`svg-set-${set}-zip`)).toHaveAttribute('href', zipUrl);
-    await expect(section.locator('.svg-tile')).toHaveCount(inventory.length);
-    for (const entry of inventory) {
-      const tile = section.getByTestId(`svg-file-${set}-${entry.slug}`);
+  // No user-facing Examples set: one library, grouped by use (AC-1).
+  await expect(page.locator('main')).not.toContainText(/example/i);
+  await expect(page.getByTestId('svg-library-zip')).toHaveAttribute('href', LIBRARY_ZIP_URL);
+  const shown = new Set<string>();
+  for (const pkg of SVG_PACKAGES) {
+    const section = page.getByTestId(`svg-package-${pkg.id}`);
+    const entries = INVENTORY.filter((entry) => entry.packages.includes(pkg.id));
+    await expect(section.locator('.svg-tile')).toHaveCount(entries.length);
+    await expect(section.getByTestId(`svg-package-${pkg.id}-zip`)).toHaveAttribute('href', packageZipUrl(pkg));
+    const zip = await JSZip.loadAsync(await (await request.get(packageZipUrl(pkg))).body());
+    const inZip = Object.keys(zip.files).filter((name) => name.includes('/SVG/') && !zip.files[name].dir).sort();
+    expect(inZip, `${pkg.id} zip holds its templates`).toEqual(entries.map((entry) => `${packageZip(pkg)}/SVG/${entry.slug}.svg`).sort());
+    for (const entry of entries) {
+      shown.add(entry.slug);
+      const tile = section.getByTestId(`svg-package-${pkg.id}-${entry.slug}`);
       const svg = await tile.locator('a[download]').getAttribute('href');
       const response = await request.get(svg!);
-      expect(response.status(), `${set}/${entry.slug} SVG`).toBe(200);
-      expect((await response.text()).replace(/\r\n/g, '\n'), `${set}/${entry.slug} is the source SVG`).toBe(readFileSync(new URL(`../docs/tutorials/svg-${set}/SVG/${entry.slug}.svg`, import.meta.url), 'utf8').replace(/\r\n/g, '\n'));
+      expect(response.status(), `${entry.slug} SVG`).toBe(200);
+      expect((await response.text()).replace(/\r\n/g, '\n'), `${entry.slug} is the source SVG`).toBe(inRepo(`SVG/${entry.slug}.svg`).toString('utf8').replace(/\r\n/g, '\n'));
+      await expect(tile.locator('img')).toHaveCount(previews(entry).length);
     }
   }
+  expect([...shown].sort(), 'every template sits in a package').toEqual(INVENTORY.map((entry) => entry.slug).sort());
   // Every preview has loaded: a missing PNG would leave a tile with a broken picture.
   await page.locator('.svg-tile img').evaluateAll((imgs) => Promise.all(imgs.map((img) => { (img as HTMLImageElement).loading = 'eager'; return (img as HTMLImageElement).decode(); })));
   expect(await page.locator('.svg-tile img').evaluateAll((imgs) => imgs.filter((img) => !(img as HTMLImageElement).naturalWidth).length)).toBe(0);
-  // The Import step's "Example files" link lands on the examples set.
-  expect(SVG_EXAMPLES_URL).toBe(`${SVG_TEMPLATES_URL}#examples`);
+  // The old set anchors still land on the library.
+  for (const anchor of ['examples', 'templates']) await expect(page.locator(`#${anchor}`)).toHaveCount(1);
   // The docs point here instead of listing the files.
   await page.goto('/docs#svg-layers');
   await expect(page.getByTestId('docs-svg-templates')).toHaveAttribute('href', SVG_TEMPLATES_URL);

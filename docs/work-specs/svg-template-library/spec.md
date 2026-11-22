@@ -292,7 +292,8 @@ Actions. OW: the owner, with Illustrator on their own computer.
   above.
 - **TL4. Templates on existing routes** (CA; depends on TL3; AC-3, AC-5, AC-6, AC-7 for the
   countdown motion). Every type whose route exists, including the corner game timer with its
-  motion and the picture-slot templates.
+  motion and the picture-slot templates. Carried from TL3: the batched browser sweep from "Tests
+  and budget", its before and after minutes and its dated test-maintenance entry.
 - **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension, AC-10 for Alert level). Each
   extension lands with its template, controls, compatibility tests and export proof. Carried
   from TL1 (owner ruling 2026-11-22): a per-option count readout on the Vote results template.
@@ -524,6 +525,68 @@ Actions. OW: the owner, with Illustrator on their own computer.
   - Note for TL6: C1 treats the VALUES of existing keys as free text, yet the runtime compares
     some of them (rank `order === 'asc'`, the row-mark argument `wrong`). A new value of an
     existing key would play as the old one and pass the gate; widen C1 for that key first.
+
+### TL3 (one library)
+
+- Previous verified `main`: `304adc72902f468d3d6b711b2e342f17ff9565d4`. Revert: `git revert -m 1 <the TL3 merge commit>`.
+- Evidence: `evidence/phase-TL3.md`.
+- One folder, `docs/tutorials/template-library/` (SVG/, Previews/, Illustrator/, README.md and
+  its PDF, CLOCKS.md, EDITABLE-CREDITS.md), one inventory, `library.json`. Each entry: `slug` (the
+  canonical id and file name), `name`, `style` (`studio` Manrope, `navy` Oswald, the old examples),
+  `recipe`, `contract`, `source`, `packages`, `preview`, `alt`, `states`, `guide`, `formerly`.
+  Every picture in Previews/ belongs to one entry (its `preview` or a state); the gate
+  (`scripts/svg-files.test.mjs`) fails on an unlisted SVG, picture or `.ai`. The four slugs both
+  sets used gained `-navy` on the navy side (lower-third, quiz, end-credits, live-vote; files,
+  previews and `.ai`); every other id is the old slug. No SVG changed: 115 files are pure renames.
+- Packages (`SVG_PACKAGES` in `scripts/svg-files.mjs`): audience, games, titles, clocks, credits;
+  an entry may sit in several. TL4 to TL6 put each new template in its packages and in a coverage
+  row; a new picture needs a `states` entry with a name and alt text.
+- Downloads are made at build, never committed (D3): the `template-library-downloads` plugin in
+  `vite.config.ts` serves them on the dev server and writes them into the build: each SVG and
+  picture at `/downloads/svg/<name>`, the library zip `/downloads/NoaCG-Template-Library.zip`
+  and one `NoaCG-Template-Library-<package>.zip` each (README, PDF, its own `library.json`,
+  guides, SVG, previews, `.ai`). Because the build reads it, `docs/tutorials/template-library/`
+  and `docs/template-library/coverage.json` are deploy-affecting (`DEPLOYED_DOCS` in
+  `scripts/deploy-affecting-paths.mjs`). Editing the README needs
+  `node scripts/print-library-readme.mjs` (Chromium); nothing else is repacked by hand.
+- Old addresses: `docs/template-library/old-addresses.json` records all 124 file and zip
+  addresses served at the base with their sha256; `vercel.json` redirects each (the old examples
+  and templates folders to `/downloads/svg/`, the four renamed ones by name, both old zips to the
+  library zip). The test follows the redirects and checks bytes, and that every SVG, picture,
+  `.ai` and guide of the old zips is in the library zip unchanged. `#templates`, `#examples` on
+  the library page and `#svg-examples` on /downloads still land.
+- Built-in alternatives (D4): `template-coverage.mjs --write` now writes `builtIns` (catalog
+  design names) on each type and untyped row; the page shows up to four names per template and
+  never a count (`check-copy` design-count). A stale list fails the coverage gate.
+- Coverage proofs that loop over the library name the style they run (`proof.style`); the
+  validator refuses a template of the other style on that row.
+- Decisions: the gallery is the five packages plus the whole-library zip; the navy set is not a
+  separate section and its tiles say nothing about examples. The Import step's link now reads
+  "SVG templates" and points at `/svg-templates` (AC-11: the steps are unchanged). Old zip
+  addresses redirect to the full library rather than keep two extra copies (about 9 MB less
+  deploy). Every picture has alt text and every template a unique name (the navy countdown is
+  "Countdown, navy"); the gate refuses an empty alt or a repeated name.
+- Not done here, carried to TL4 (its phase line says so): consolidating the per-template browser
+  tests into one batched sweep. AC-1 and AC-11 do not need it, and TL4 adds most templates, so the
+  sweep is best built once there. It retires tests, so it lands with the dated test-maintenance
+  entry the spec asks for (a planned consolidation, not an entry written to pass a gate) and its
+  minutes before and after. TL3's test counts are unchanged (the e2e protection check passes with
+  no entry).
+- Traps: the browser specs read `library.json` filtered by `style`; a spec that needs a template
+  of a style must filter for it. `e2e/fixtures/illustrator-exports/` keeps the old names (map by
+  `formerly`). `scripts/illustrator/build-svg-examples.jsx` still writes the old names; it is
+  kept as the record of how the navy set was drawn, the SVG is the maintained source (Q1).
+- Rules (state rules this phase sets; written after coding, so the final `/so` challenges them):
+  - A1. Every address the two sets were served at on the base delivers usable content: each SVG
+    and PNG the same bytes (directly or through one or two redirects), each old zip a zip that
+    holds every SVG, picture, `.ai` and guide the old one held, with the same bytes. Inside the
+    library zip the four navy files that collided carry their `-navy` names (`formerly` in
+    `library.json` maps them).
+  - A2. Nothing under `public/downloads/` is committed; every download is made from the library
+    folder by the build, and the dev server answers the same bytes.
+  - A3. A change to the library folder or the coverage matrix triggers a production build.
+  - A4. Recipe ids, type ids, role words, field titles and persisted keys are unchanged; no
+    template's SVG content changes.
 
 ## Non-goals
 

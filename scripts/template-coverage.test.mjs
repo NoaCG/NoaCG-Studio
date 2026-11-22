@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { formatMatrix, generateMatrix, loadMatrix, loadRegistries, lostSince, MATRIX_FILE, staleRows, summary, validateMatrix } from './template-coverage.mjs';
+import { builtInsFor, formatMatrix, generateMatrix, loadMatrix, loadRegistries, lostSince, MATRIX_FILE, staleRows, summary, validateMatrix } from './template-coverage.mjs';
 import { measured } from './measured.mjs';
 
 /** A small repository: one template, its inventory, a proof spec, a source file. */
@@ -66,6 +66,40 @@ test('a covered row that loses its evidence fails, whichever part goes', () => {
     put('e2e/quarantine.json', JSON.stringify({ specs: { 'e2e/a.spec.ts': {} } }));
     fails(coveredRow(), /is quarantined/);
   } finally { done(); }
+});
+
+test('one inventory with two styles: a proof loop runs one style, and a template of the other fails it', () => {
+  const { root, put, done } = fixture();
+  try {
+    put('lib/items.json', JSON.stringify([{ slug: 'a', recipe: 'quiz', style: 'navy' }]));
+    const styled = (style) => ({ ...coveredRow(), proof: { ...coveredRow().proof, style } });
+    // The proof spec reads the shared inventory but loops over studio only: a navy row fails.
+    put('e2e/a.spec.ts', "const items = read('lib/items.json').filter((t) => t.style === 'studio');\ntest(`${t.name} imports and plays`, () => {});\n");
+    assert.ok(validateMatrix({ rows: [styled('navy')] }, { root }).some((p) => /does not select the navy templates/.test(p)));
+    put('e2e/a.spec.ts', "const items = read('lib/items.json').filter((t) => t.style === 'navy');\ntest(`${t.name} imports and plays`, () => {});\n");
+    assert.deepEqual(validateMatrix({ rows: [styled('navy')] }, { root }), []);
+    assert.ok(validateMatrix({ rows: [styled('studio')] }, { root }).some((p) => /runs the studio templates, and a is navy/.test(p)));
+    assert.ok(validateMatrix({ rows: [coveredRow()] }, { root }).some((p) => /runs the \(unnamed\) templates/.test(p)), 'a styled inventory needs the proof to name its style');
+  } finally { done(); }
+});
+
+test('built-in alternatives are the catalog designs of the row\'s type and the untyped designs mapped to it', () => {
+  const designs = [
+    { id: 'lt01', name: 'Typed', typeId: 'lower-third', category: 'lower-third' },
+    { id: 'x1', name: 'Other type', typeId: 'ticker', category: 'lower-third' },
+    { id: 'u1', name: 'By category', typeId: null, category: 'lower-third' },
+    { id: 'u2', name: 'By variant', typeId: null, category: 'infographic' },
+    { id: 'u3', name: 'Moved away', typeId: null, category: 'lower-third' },
+    { id: 'cr01', name: 'Roll', typeId: null, category: 'end-credits' },
+  ];
+  const looks = { categories: { 'lower-third': 'lower-third' }, variants: { u2: { row: 'lower-third', capability: 'x' }, u3: { row: 'ticker', capability: 'x' } } };
+  assert.deepEqual(builtInsFor({ id: 'lower-third', kind: 'type' }, designs, looks), ['Typed', 'By category', 'By variant']);
+  assert.deepEqual(builtInsFor({ id: 'end-credits-scroll', kind: 'untyped', variants: ['cr01'] }, designs, looks), ['Roll']);
+  assert.deepEqual(builtInsFor({ id: 'quiz', kind: 'recipe' }, designs, looks), []);
+  // Regeneration writes them from the catalog, replacing what the committed row said.
+  const registry = { rows: [{ id: 'lower-third', kind: 'type', source: ['s.ts'] }], designs };
+  const committed = { looks, rows: [{ id: 'lower-third', kind: 'type', source: ['s.ts'], builtIns: ['Stale'], status: 'planned' }] };
+  assert.deepEqual(generateMatrix(registry, committed).rows[0].builtIns, ['Typed', 'By category', 'By variant']);
 });
 
 test('a planned row names its mechanism, proof and phase; complete mode refuses it', () => {

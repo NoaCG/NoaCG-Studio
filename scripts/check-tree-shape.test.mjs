@@ -20,7 +20,7 @@ test('the pictures users or a script read stay allowed', () => {
   for (const file of [
     'docs/images/browse.png',
     'docs/images/playout.png',
-    'docs/tutorials/svg-examples/Previews/title.png',
+    'docs/tutorials/template-library/Previews/title.png',
     'benchmarks/creative/v1/references/scoreboard.png',
   ]) assert.ok(!refused(file), file);
 });
@@ -30,6 +30,6 @@ test('pictures elsewhere and text under docs/ are not this check\'s business', (
     'e2e/playout-baseline.spec.ts-snapshots/stage.png',
     'public/docs/obs.png',
     'docs/research/editor-review/notes.md',
-    'docs/tutorials/svg-examples/lower-third.svg',
+    'docs/tutorials/template-library/lower-third.svg',
   ]) assert.ok(!refused(file), file);
 });

@@ -82,8 +82,12 @@ export function registryIds(root, { types, recipes, catalog }) {
   const recipeFiles = recipeSources(root);
   if (recipeFiles.length !== recipes.length) throw new Error('registry.ts list and BEHAVIOUR_RECIPES disagree');
   const untypedLooks = [];
+  const designs = [];
   for (const [category, variants] of Object.entries(catalog)) {
-    for (const variant of variants) if (!variant.typeId) untypedLooks.push({ id: variant.id, category });
+    for (const variant of variants) {
+      if (!variant.typeId) untypedLooks.push({ id: variant.id, category });
+      designs.push({ id: variant.id, name: variant.name, typeId: variant.typeId ?? null, category });
+    }
   }
   return {
     rows: [
@@ -93,7 +97,27 @@ export function registryIds(root, { types, recipes, catalog }) {
       ...CONTRACTS.map((contract) => ({ ...contract, kind: 'contract' })),
     ],
     untypedLooks,
+    designs,
   };
+}
+
+/**
+ * BUILT-IN ALTERNATIVES (D4): the names of the catalog designs a row's templates stand beside, so
+ * the Template Library can show which looks NoaCG already has. A type row has the designs of that
+ * type; any row has the untyped designs mapped to it (its `variants`, `looks.variants`, or its
+ * category in `looks.categories`). Empty for recipes and contracts.
+ */
+export function builtInsFor(row, designs, looks = {}) {
+  if (row.kind !== 'type' && row.kind !== 'untyped') return [];
+  const names = [];
+  for (const design of designs) {
+    const mine = design.typeId
+      ? design.typeId === row.id
+      : (row.variants ?? []).includes(design.id) || looks.variants?.[design.id]?.row === row.id
+        || (!looks.variants?.[design.id] && looks.categories?.[design.category] === row.id);
+    if (mine && !names.includes(design.name)) names.push(design.name);
+  }
+  return names;
 }
 
 /** The matrix the registries call for: their rows in order, each keeping what the committed
@@ -102,8 +126,11 @@ export function generateMatrix(registry, committed) {
   const old = new Map((committed?.rows ?? []).map((row) => [rowKey(row), row]));
   const rows = registry.rows.map(({ id, kind, source }) => {
     const prior = old.get(`${kind}:${id}`);
-    if (prior) return { ...prior, id, kind, source };
-    return { id, kind, source, mechanism: 'unassigned', status: 'planned', phase: null, templates: [], proof: { observes: '' } };
+    const row = prior ? { ...prior, id, kind, source } : { id, kind, source, mechanism: 'unassigned', status: 'planned', phase: null, templates: [], proof: { observes: '' } };
+    // The catalog decides these, so a regeneration rewrites them and a stale list fails the check.
+    delete row.builtIns;
+    const builtIns = registry.designs ? builtInsFor(row, registry.designs, committed?.looks) : prior?.builtIns ?? [];
+    return builtIns.length ? { ...row, builtIns } : row;
   });
   // The ratchet: a row once covered stays on the floor while it is registered, so turning it back
   // to planned is refused rather than passing as an ordinary edit.
@@ -199,6 +226,11 @@ export function validateMatrix(matrix, { root = ROOT, untypedLooks = [], complet
         // branches on it: a template whose recipe changed is no longer driven by the same case.
         const expected = row.recipeBySlug && Object.hasOwn(row.recipeBySlug, slug) ? row.recipeBySlug[slug] : row.recipe;
         if (!entry) problems.push(`${at}: ${inventory} does not list ${slug}`);
+        // One inventory holds both template styles, and each proof loop runs one of them.
+        else if (entry.style !== undefined && entry.style !== row.proof.style) problems.push(`${at}: ${test} runs the ${row.proof.style ?? '(unnamed)'} templates, and ${slug} is ${entry.style}`);
+        // ...and the test must be the loop over that style, which the shared inventory path alone
+        // no longer tells apart.
+        else if (entry.style !== undefined && !testText.includes(`style === '${entry.style}'`)) problems.push(`${at}: ${test} does not select the ${entry.style} templates (style === '${entry.style}')`);
         else if (expected === undefined) problems.push(`${at}: name the recipe ${slug} is proved with (null for none)`);
         else if ((entry.recipe ?? null) !== expected) problems.push(`${at}: ${inventory} lists ${slug} with recipe ${entry.recipe}, not ${expected}`);
         // A loop that runs only the entries with a recipe never reaches one without.

@@ -264,7 +264,8 @@ not symmetric: a needless build costs about $0.045, a wrongly skipped one leaves
 serving an older commit with every gate green. `scripts/deploy-affecting-paths.test.mjs` pins
 that property, and pins that every script named by the `build:vercel` line is on the allow
 list - add a check there without naming it here and changing that check stops triggering the
-build that runs it.
+build that runs it. `docs/` is denied with named exceptions (`DEPLOYED_DOCS`): the Template Library's folder,
+which the build turns into the SVG downloads and zips, and the coverage matrix its page reads.
 
 **The drift alarm reads the same list.** `deploy-verify.yml`'s drift check asks
 `--last-affecting` for the newest deploy-affecting commit at or before matured `main`, and

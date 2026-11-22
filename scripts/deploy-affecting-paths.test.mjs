@@ -171,6 +171,16 @@ test('a directory that merely starts with a denied name still builds', () => {
   assert.equal(affectsDeployment('e2e-helpers/file.ts'), true);
 });
 
+test('what the build makes the Template Library downloads from builds, though it sits under docs/', () => {
+  // vite.config.ts turns docs/tutorials/template-library/ into the site's SVG downloads and zips
+  // (scripts/svg-files.mjs), README.md included; the library page reads the coverage matrix.
+  for (const file of ['docs/tutorials/template-library/SVG/quiz-navy.svg', 'docs/tutorials/template-library/README.md', 'docs/tutorials/template-library/library.json', 'docs/template-library/coverage.json']) {
+    assert.equal(affectsDeployment(file), true, file);
+  }
+  assert.equal(affectsDeployment('docs/template-library/names.json'), false);
+  assert.equal(affectsDeployment('docs/tutorials/first-graphic/script.md'), false);
+});
+
 test('paths are normalised before matching', () => {
   assert.equal(affectsDeployment('docs\\DEPLOYMENT.md'), false, 'backslashes (Windows) must match');
   assert.equal(affectsDeployment('./docs/DEPLOYMENT.md'), false, 'a leading ./ must match');

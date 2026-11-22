@@ -5,8 +5,8 @@
   NoaCG itself runs in the browser and needs nothing installed. Optional tools sit beside it, and
   a new visitor could not find them: NoaCG Bridge was linked only from Settings -> Playout, the
   CLI only from one landing section, and the Companion module nowhere. This page names each, says
-  what it is FOR, and gets it onto a machine. Beside the tools sits one SVG templates card: two zips
-  of layered graphics to edit and import, and a link to /svg-templates, which previews each file.
+  what it is FOR, and gets it onto a machine. Beside the tools sits one SVG templates card:
+  the Template Library's zip of layered graphics to edit and import, and a link to /svg-templates, which previews each file.
 
   EACH CARD ANSWERS THREE THINGS, in this order: what it is, who needs it, and the one step to
   use it. The words are the landing page's (index.html): a template, your own SVGs, your AI
@@ -45,7 +45,7 @@
   <title>Downloads - NoaCG Studio</title>
   <meta
     name="description"
-    content="Three optional tools for NoaCG Studio. NoaCG Bridge connects NoaCG Playout to CasparCG. The Companion module runs a production from a Stream Deck. The NoaCG CLI lets your AI coding agent, such as Claude Code or Codex, make NoaCG graphics. Also here: example SVG graphics to learn the layer names from."
+    content="Three optional tools for NoaCG Studio. NoaCG Bridge connects NoaCG Playout to CasparCG. The Companion module runs a production from a Stream Deck. The NoaCG CLI lets your AI coding agent, such as Claude Code or Codex, make NoaCG graphics. Also here: the Template Library, SVG templates to edit and import."
   />
   <meta name="theme-color" content="#0a0c10" />
   <link rel="canonical" href="https://noacg.studio/downloads" />
@@ -187,11 +187,10 @@
         <p class="dl-more"><a href="/docs#casparcg-connect">The CasparCG guide in the docs</a></p>
       </section>
 
-      <!-- THE SVG TEMPLATES. Not a tool to install: two zips of layered graphics to edit and
-           import, the styled templates (docs/tutorials/svg-templates) and one example per import
-           behaviour (docs/tutorials/svg-examples), both packed by
-           scripts/illustrator/pack-svg-examples.mjs. One card, under the Bridge where the left
-           column has room; /svg-templates previews every file for one-at-a-time downloads.
+      <!-- THE SVG TEMPLATES. Not a tool to install: the Template Library's zip, every template in
+           one folder (docs/tutorials/template-library), made by the build (scripts/svg-files.mjs).
+           One card, under the Bridge where the left column has room; /svg-templates previews every
+           file by package, with a zip per package and one-at-a-time downloads.
            `id="svg-templates"` is an address: SVG_TEMPLATES_CARD_URL in src/downloads/links.ts.
            `id="svg-examples"` keeps the old examples card's links landing here. -->
       <section class="dl-card" id="svg-templates" data-testid="download-svg-templates">
@@ -199,17 +198,15 @@
         <p class="kicker">For your own SVGs</p>
         <h2>SVG templates</h2>
         <p class="dl-what">
-          Graphics to edit in Illustrator or Inkscape and import into NoaCG: ready-made templates in
-          one clean style, and an example for every SVG import behaviour.
+          The Template Library: graphics to edit in Illustrator or Inkscape and import into NoaCG,
+          each made for a feature and working with it once imported.
         </p>
-        <p class="dl-actions dl-pair">
-          <a class="btn btn-amber" href="/downloads/NoaCG-SVG-templates.zip" download
-            data-testid="svg-templates-download">Templates (.zip)</a>
-          <a class="btn btn-amber" href="/downloads/NoaCG-SVG-examples.zip" download
-            data-testid="svg-examples-download">Examples (.zip)</a>
+        <p class="dl-actions">
+          <a class="btn btn-amber" href="/downloads/NoaCG-Template-Library.zip" download
+            data-testid="svg-templates-download">All templates (.zip)</a>
         </p>
-        <p class="dl-meta">SVG, PNG and PDF &middot; the examples add Illustrator (.ai)</p>
-        <p class="dl-more"><a href="/svg-templates" data-testid="svg-templates-page">Preview and download one at a time</a> &middot;
+        <p class="dl-meta">SVG, PNG and PDF, with older Illustrator (.ai) sources</p>
+        <p class="dl-more"><a href="/svg-templates" data-testid="svg-templates-page">Browse the Template Library</a> &middot;
           <a href="/docs#svg-layers">How to name the layers</a></p>
       </section>
       </div>

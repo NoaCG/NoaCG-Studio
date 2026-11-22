@@ -15,7 +15,7 @@ import { renderLatestHtml, renderUpdatesHtml } from './scripts/whats-new.mjs';
 import { renderNowHtml, renderRoadmapHtml } from './scripts/roadmap.mjs';
 import { renderSiteChrome } from './scripts/site-nav.mjs';
 import { AGENT_PROMPT_MARKER, renderAgentPrompt } from './scripts/agent-prompt.mjs';
-import { SVG_GALLERY_MARKER, renderSvgGallery } from './scripts/svg-files.mjs';
+import { SVG_GALLERY_MARKER, contentType, libraryDownload, libraryDownloads, renderSvgGallery } from './scripts/svg-files.mjs';
 import { appCleanUrl } from './scripts/app-clean-url.mjs';
 
 // NoaCG Studio — dev/build config.
@@ -27,8 +27,8 @@ import { appCleanUrl } from './scripts/app-clean-url.mjs';
 // ograf.html is the public FREE OGRAF STARTERS page at "/ograf" (docs/OGRAF.md), and
 // bridge.html is the headless BRIDGE at "/bridge" the `noacg` CLI / MCP server drives
 // (noindex, docs/AGENT_CLI.md), and downloads.html is the public DOWNLOADS page at "/downloads"
-// (static, indexed): NoaCG Bridge, the Companion module and the NoaCG CLI, the tools you install, and svg-templates.html ("/svg-templates") previews every SVG
-// template and example (scripts/svg-files.mjs). whats-new.html
+// (static, indexed): NoaCG Bridge, the Companion module and the NoaCG CLI, the tools you install, and svg-templates.html ("/svg-templates") is the
+// Template Library: every SVG template by package (scripts/svg-files.mjs). whats-new.html
 // ("/whats-new") and roadmap.html ("/roadmap") are public pages whose lists are generated at
 // build from docs/whats-new/ and docs/GOALS.md (generatedPages below).
 // Vercel serves the clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev
@@ -52,7 +52,7 @@ const GENERATED: Record<string, () => string> = {
   '<!--roadmap:now-->': () => renderNowHtml(),
   // The coding-agent prompt, on Downloads and in the docs (scripts/agent-prompt.mjs).
   [AGENT_PROMPT_MARKER]: () => renderAgentPrompt(),
-  // Every SVG template and example with its preview (scripts/svg-files.mjs).
+  // The Template Library: every SVG template by package, with its previews (scripts/svg-files.mjs).
   [SVG_GALLERY_MARKER]: () => renderSvgGallery(),
 };
 
@@ -62,6 +62,33 @@ function measureBackendStamp(url: string): Plugin {
     apply: 'build',
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: MEASURE_BACKEND_FILE, source: JSON.stringify({ VITE_SUPABASE_URL: url }) });
+    },
+  };
+}
+
+/**
+ * THE TEMPLATE LIBRARY'S DOWNLOADS (scripts/svg-files.mjs): each SVG and preview, the whole
+ * library's zip and one zip per package, made from docs/tutorials/template-library/ rather than
+ * committed. The dev server answers a request from the sources; the build writes every file into
+ * the output under downloads/. The addresses of the two sets before TL3 are redirects in vercel.json.
+ */
+function templateLibraryDownloads(): Plugin {
+  return {
+    name: 'template-library-downloads',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url ?? '').split('?')[0];
+        if (!url.startsWith('/downloads/')) return next();
+        libraryDownload(url).then((bytes) => {
+          if (!bytes) return next();
+          res.setHeader('Content-Type', contentType(url));
+          res.end(bytes);
+        }, next);
+      });
+    },
+    async generateBundle() {
+      if (this.environment && this.environment.name !== 'client') return;
+      for (const [url, source] of await libraryDownloads()) this.emitFile({ type: 'asset', fileName: url.slice(1), source });
     },
   };
 }
@@ -176,6 +203,7 @@ export default defineConfig(({ command, mode }) => {
       react(),
       appCleanUrl(),
       generatedPages(),
+      templateLibraryDownloads(),
       renderApiPlugin(),
       aiApiPlugin(),
       eventsApiPlugin(),

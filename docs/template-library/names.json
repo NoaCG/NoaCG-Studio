@@ -23,6 +23,7 @@
     "docs.html",
     "downloads.html",
     "svg-templates.html",
+    "scripts/svg-files.mjs",
     "docs/SVG_AUTHORING.md",
     "docs/END_CREDITS.md",
     "docs/tutorials",
