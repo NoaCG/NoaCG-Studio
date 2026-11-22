@@ -36,10 +36,6 @@
   {
    "what": "TL2 builder receipt and its PR",
    "eta": "2026-11-22T15:00:00Z"
-  },
-  {
-   "what": "Quarantine PR #2694 (flake from TL1o checks) landing",
-   "eta": "2026-11-22T12:00:00Z"
   }
  ],
  "inFlight": {
@@ -49,7 +45,8 @@
   "nonce": "tl2-b-8299",
   "branch": "claude/plan-svg-template-library-tl2-build",
   "source": "60a92df384015ac6abf4273e3bbe56a081cca0a0",
-  "asOf": "2026-11-22T10:59:23Z"
+  "asOf": "2026-11-22T11:31Z",
+  "progress": "progressing: commits, CI running"
  },
  "owner": [
   {
@@ -126,6 +123,6 @@
   "merge": "60a92df384015ac6abf4273e3bbe56a081cca0a0",
   "evidencePr": 2692,
   "fixPr": 2693,
-  "flake": "editor-projects.spec.ts:310 fail-then-pass, quarantine PR #2694 opened by the checker"
+  "flake": "editor-projects.spec.ts:310 fail-then-pass, quarantine PR #2694 opened by the checker; #2694 merged"
  }
 }
