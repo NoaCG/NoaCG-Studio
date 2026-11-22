@@ -391,8 +391,9 @@ test('a poll result is the vote with its figures live from the take; a vote with
   assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], binding({ figures: true })).js()), { status: 'ok' });
   // The figures are the vote's own words: nothing new is asked of the runtime.
   const tableOf = (js) => JSON.parse(js.slice(js.indexOf('{', js.indexOf('var NOACG_BEHAVIOUR = ')), js.indexOf('\n};\n', js.indexOf('var NOACG_BEHAVIOUR = ')) + 2));
-  const { options: _o, ...poll } = tableOf(compileBinding([], binding({ figures: true })).js());
-  const { options: _p, ...vote } = tableOf(compileBinding([], binding()).js());
-  assert.deepEqual(poll, vote);
+  const poll = tableOf(compileBinding([], binding({ figures: true })).js());
+  assert.deepEqual(poll.options, { figures: true });
+  delete poll.options;
+  assert.deepEqual(poll, tableOf(compileBinding([], binding()).js()));
   assert.equal('options' in tableOf(compileBinding([], binding()).js()), false);
 });
