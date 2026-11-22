@@ -730,7 +730,8 @@ function noacgMotionReduced() {
 function noacgMove(el, move, appeared) {
   if (typeof gsap === 'undefined') return;
   var now = el.noacgMove || null;
-  if (now && now.name === move && (move === 'pulse' || !appeared)) return;
+  // A pulse someone else killed (a renderer's measuring pass kills every tween) starts again.
+  if (now && now.name === move && (move === 'pulse' ? now.tween.isActive() : !appeared)) return;
   if (now) {
     now.tween.kill();
     gsap.set(el, { clearProps: 'opacity,transform' });
