@@ -266,12 +266,16 @@ async function walkChoice(page: Page, air: FrameLocator, t: Template, name: stri
     await expect(press(o), `${o} is greyed while it shows`).toBeDisabled();
     if (i === 0) await checkAir(page, air, `${t.slug}-2-${o.toLowerCase()}`);
   }
-  // CLEAR (TL5): a choice that starts empty goes back to empty, greyed while nothing shows.
+  // CLEAR (TL5): a choice that starts empty goes back to empty; Clear stays live, since data alone
+  // can show an option while the machine rests on none.
   if (!choice.start) {
-    await expect(press('Clear')).toBeEnabled();
     await press('Clear').click();
     await only(null);
-    await expect(press('Clear'), 'Clear is greyed while nothing shows').toBeDisabled();
+    await air.locator('svg').first().evaluate((_, v) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [v.id]: v.value })), { id: state, value: choice.options[0].toLowerCase() });
+    await only(choice.options[0]);
+    await expect(press('Clear'), 'Clear takes away an option data showed').toBeEnabled();
+    await press('Clear').click();
+    await only(null);
     if (segmented) await expect(field.getByRole('button', { name: '-', exact: true })).toHaveAttribute('aria-pressed', 'true');
     else await expect(field).toHaveValue('');
   }
@@ -632,7 +636,7 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
         await expect(page.getByTestId('cue-action-hold'), 'Hold is greyed while held').toBeDisabled();
         await page.waitForTimeout(9_500);
         await expect(design, 'held past the eight-second hold').not.toHaveCSS('opacity', '0');
-        await page.getByRole('button', { name: /Take it off$/ }).click();
+        await page.getByTestId('cue-action-dismiss').click();
         await expect(design).toHaveCSS('opacity', '0', { timeout: 5_000 });
         await page.getByTestId('verb-out').click();
         await page.getByTestId('verb-take').click();

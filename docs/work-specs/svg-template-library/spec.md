@@ -720,13 +720,15 @@ Head to head, Player card, Map round, Bracket, Fixtures, Agenda.
   - **Hold on air**, an option of the Pop-up alert (the chat highlight's Hold and Take it off).
 - Rules (state rules this group sets; written after coding, so the final `/so` challenges them):
   - C1. A choice that starts empty has a Clear button. Clear sets its field to the empty value
-    and moves the machine to `none` from any option; it is greyed while nothing shows. A choice
-    with a start has no Clear. An option named Clear keeps its own button and no second Clear
-    is made.
+    and moves the machine to `none` from any option and from `none` itself, so it is never greyed:
+    data alone can show an option while the machine rests on `none` (as E2 found for a start). A
+    choice with a start has no Clear. An option named Clear keeps its own button and no second
+    Clear is made.
   - C2. A Pop-up alert imported with Hold on air (`options.hold`, default off) gains a pose-only
     `held` state: Hold on air from the on-air state cancels the self-clear timer and nothing
-    re-arms it; Take it off (the `next` event) clears it from there, as Next does. Without the
-    box the machine and controls are what they were.
+    re-arms it; Take it off (`dismiss`, the built-in chat highlight's event) clears it held or
+    not, and Next clears it held or not. Without the box the machine and controls are what they
+    were.
   - C3. A saved graphic keeps its own machine, table and runtime (TL2 C7): a choice or alert
     saved before this change has no Clear and no Hold until it is imported again. Reimport adds
     the Clear button to a choice that starts empty (the Live bug's included); field ids and cue

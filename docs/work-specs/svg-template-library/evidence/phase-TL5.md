@@ -305,16 +305,16 @@ challenges them.
 ### AC-3
 
 Batches of `e2e/svg-templates.spec.ts` by route; the walk of a choice now also presses Clear on a
-choice that starts empty (greyed after, the field back to its empty value), so the Live bug is
-held to C1 too.
+choice that starts empty (the field back to its empty value), then shows an option by data alone
+and clears it with Clear, so the Live bug is held to C1 too.
 
 | Template | Recognition | Controls asserted |
 | --- | --- | --- |
-| Verdict card, Matchup | automatic (`choice:`) | starts empty; each option shows alone and is greyed while it shows; Clear empties it |
+| Verdict card, Matchup | automatic (`choice:`) | starts empty; each option shows alone and is greyed while it shows; Clear empties it, also after an option shown by data alone |
 | Timing tower | automatic (`choice:Focus/P1..P5`) | as above for the focus; Session, cars and gaps are fields that stay in place |
 | Map round | automatic (`choice:Phase`, Veto drawn visible) | starts on Veto, never empty; Picked and Live; an empty or unknown value shows Veto |
 | Podium score | automatic (score, the Spotlight choice offered by name) | +1 with its flash per podium, -1, sizes to 100, New game; Spotlight Left, Middle, Right; Clear |
-| Chat highlight | Pop-up alert and Hold on air ticked by the author (README) | Hold on air greys itself and keeps it up past the eight seconds; Take it off clears it; taken again, Next clears it and the self-clear still works; without the box no Hold button (Transition, Match event) |
+| Chat highlight | Pop-up alert and Hold on air ticked by the author (README) | Hold on air greys itself and keeps it up past the eight seconds; Take it off (`dismiss`) clears it; taken again, Next clears it and the self-clear still works; without the box no Hold button (Transition, Match event) |
 | Head to head, Bracket, Fixtures, Agenda | automatic (plain) | every named text is a field; the first retyped long fits |
 | Player card | automatic (plain, `f:Photo`) | as plain; a sent picture replaces the placeholder and an empty value restores it |
 

@@ -19,8 +19,9 @@
 //
 // CLEAR (TL5, a verdict cleared, a winner pick or a spotlight taken back): a choice that starts
 // empty can go back to empty. Clear sets the field to the empty value, and the machine returns to
-// `none` from any option, so the button is greyed while nothing shows. A choice with a start has
-// no empty state, so no Clear.
+// `none` from any option AND from `none` itself: data alone (a cue's Update, a host's data) can
+// show an option while the machine rests on `none`, so Clear must stay live to take it away. A
+// choice with a start has no empty state, so no Clear.
 
 import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { withRepaint } from './recipe';
@@ -74,7 +75,7 @@ export const choiceRecipe: BehaviourRecipe = {
               id: 'none',
               name: `${ctx.name}: none`,
               timeline: null,
-              edges: hasClear(ctx) ? ctx.rows.map((key) => ({ from: key.toLowerCase(), to: 'none', trigger: 'operator' as const, event: ctx.nsId(CLEAR) })) : [],
+              edges: hasClear(ctx) ? ['none', ...ctx.rows.map((key) => key.toLowerCase())].map((from) => ({ from, to: 'none', trigger: 'operator' as const, event: ctx.nsId(CLEAR) })) : [],
             }]),
             ...ctx.rows.map((key) => ({
               id: key.toLowerCase(),

@@ -417,7 +417,9 @@ test('a choice that starts empty has Clear, back to nothing from any option; a c
   assert.ok(clear, 'Clear is a button');
   assert.deepEqual(Object.values(clear.set), [''], 'Clear sets the empty value');
   const none = empty.machine.parallel[0].states.find((s) => s.id === 'none');
-  assert.deepEqual(none.edges.map((e) => [e.from, e.event]), [['correct', clear.event], ['wrong', clear.event]], 'from every option, never from none');
+  // From every option, and from none too: data alone can show an option while the machine rests
+  // on none, so Clear stays live to take it away.
+  assert.deepEqual(none.edges.map((e) => [e.from, e.event]), [['none', clear.event], ['correct', clear.event], ['wrong', clear.event]]);
   assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], binding(['CORRECT', 'WRONG'])).js()), { status: 'ok' });
   // A choice with a start is never empty, so it has no Clear.
   const started = typeOf(binding(['CORRECT', 'WRONG'], { initial: 'CORRECT' }));
@@ -436,11 +438,11 @@ test('a Pop-up alert with Hold on air has Hold and Take it off; without it the m
   assert.equal(plain.machine.main.branches, undefined);
   assert.deepEqual(typeOf(binding({ hold: false })).machine, plain.machine, 'an unticked box is the alert as it was');
   const held = typeOf(binding({ hold: true }));
-  assert.deepEqual(held.controls.map((c) => [c.label, c.event]), [['Hold on air', 'hold'], ['Take it off', 'next']]);
-  assert.deepEqual(held.machine.main.edges, plain.machine.main.edges, 'the self-clear stays');
+  assert.deepEqual(held.controls.map((c) => [c.label, c.event]), [['Hold on air', 'hold'], ['Take it off', 'dismiss']]);
+  assert.deepEqual(held.machine.main.edges, [...plain.machine.main.edges, { from: { waypoint: 0 }, to: { waypoint: -1 }, trigger: 'operator', event: 'dismiss' }], 'the self-clear stays, and Take it off works unheld');
   const [branch] = held.machine.main.branches;
   assert.equal(branch.id, 'held');
   assert.equal(branch.timeline, null, 'holding plays nothing');
-  assert.deepEqual(branch.edges.map((e) => [e.from, e.to, e.trigger, e.event]), [[{ waypoint: 0 }, 'held', 'operator', 'hold'], ['held', { waypoint: -1 }, 'operator', 'next']]);
+  assert.deepEqual(branch.edges.map((e) => [e.from, e.to, e.trigger, e.event]), [[{ waypoint: 0 }, 'held', 'operator', 'hold'], ['held', { waypoint: -1 }, 'operator', 'dismiss'], ['held', { waypoint: -1 }, 'operator', 'next']]);
   assert.equal(branch.edges.some((e) => e.trigger === 'timer'), false, 'nothing arms the timer again');
 });
