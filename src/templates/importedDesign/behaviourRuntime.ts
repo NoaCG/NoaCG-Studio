@@ -1005,7 +1005,7 @@ ${withAwards ? `  // The entries this repaint answered are spent: the next state
         else {
           // A readout with nothing to say is left as drawn - an empty round must not blank a
           // board the designer filled in.
-          if (value !== null && value !== undefined && value !== '') targets[g].textContent = String(value);
+          if (value !== null && value !== undefined && value !== '') noacgReadoutWrite(targets[g], String(value));
           noacgReadoutInk(targets[g], plates[keys[k] === null ? '' : String(keys[k])] || []);
         }
       }
@@ -1013,6 +1013,85 @@ ${withAwards ? `  // The entries this repaint answered are spent: the next state
   }
   // Places last: the readouts above are already written, and a row moves as a whole.
   noacgPlaceAll(rules, reason);
+}
+
+// ── A readout keeps the alignment it was drawn with (#2691) ──────────────────────────
+// Illustrator writes no text-anchor: a figure set right against its track arrives as point text
+// at its measured left edge, so a written value longer than the sample grew rightwards past the
+// track. A readout is not a fitted field, so svgAlignOf never sees it; the same reading is made
+// here, once, off the DRAWN sample in the box the fit would choose (svgFitPanel, svgLocalBox,
+// SVG_ALIGN_TOL), and a line drawn centred or against the right is anchored where it was drawn.
+// Nothing moves: the anchor is the drawn centre or the drawn right edge, never the box's own.
+// A line the file anchors already, or one drawn against the left, is written exactly as before.
+
+// noacgDrawnAnchor(el): { h, x } for a readout drawn centred or right in its box, null for one
+// that fills rightwards or whose file states its anchor, undefined while it cannot be measured
+// (a look not yet showing). Asked with the drawn sample and the drawn attributes in place.
+function noacgDrawnAnchor(el) {
+  if (typeof svgFitPanel !== 'function' || typeof svgLocalBox !== 'function') return null;
+  // A STATED anchor, start included, is the file's answer, as svgAlignOf believes it.
+  if (/^(start|middle|end)$/.test(el.getAttribute('text-anchor') || '')) return null;
+  var computed = getComputedStyle(el).textAnchor;
+  if (computed === 'middle' || computed === 'end') return null;
+  var own;
+  try { own = el.getBBox(); } catch (e) { return undefined; }
+  if (!(own.width > 0) || !(own.height > 0)) return undefined;
+  var panel = svgFitPanel(el);
+  var box = panel ? svgLocalBox(panel, el) : null;
+  if (!box) return null;
+  var tol = typeof SVG_ALIGN_TOL === 'number' ? SVG_ALIGN_TOL : 0.05;
+  var cx = own.x + own.width / 2;
+  if (Math.abs(cx - box.cx) <= (box.right - box.left) * tol) return { h: 'middle', x: cx };
+  return cx > box.cx ? { h: 'end', x: own.x + own.width } : null;
+}
+
+// noacgReadoutWrite(el, text): write a readout's value, anchored as it was drawn. The drawn
+// sample and attributes are kept, so a readout first written while hidden, or while its face was
+// still loading, is measured again off the drawing rather than off whatever it says now.
+function noacgReadoutWrite(el, text) {
+  if (!/^text$/i.test(el.tagName || '')) { el.textContent = text; return; }
+  var i;
+  if (el.noacgDrawn === undefined) {
+    el.noacgDrawn = { nodes: [], anchor: el.getAttribute('text-anchor'), x: el.getAttribute('x') };
+    for (i = 0; i < el.childNodes.length; i++) el.noacgDrawn.nodes.push(el.childNodes[i].cloneNode(true));
+  }
+  if (el.noacgAnchor === undefined) {
+    var d = el.noacgDrawn;
+    while (el.firstChild) el.removeChild(el.firstChild);
+    for (i = 0; i < d.nodes.length; i++) el.appendChild(d.nodes[i].cloneNode(true));
+    if (d.anchor === null) el.removeAttribute('text-anchor'); else el.setAttribute('text-anchor', d.anchor);
+    if (d.x === null) el.removeAttribute('x'); else el.setAttribute('x', d.x);
+    var a0 = noacgDrawnAnchor(el);
+    // MEASURED IN A FACE THAT HAS NOT LANDED is used for this write and not kept: the fallback
+    // face has other widths, so the anchor is taken again off the drawing once fonts settle.
+    if (a0 !== undefined && document.fonts && document.fonts.status === 'loading') noacgReadoutLater(el);
+    else el.noacgAnchor = a0;
+    el.noacgAnchorNow = a0;
+  }
+  var a = el.noacgAnchor !== undefined ? el.noacgAnchor : el.noacgAnchorNow;
+  if (a) {
+    if (el.getAttribute('text-anchor') !== a.h) el.setAttribute('text-anchor', a.h);
+    var x = a.x.toFixed(2);
+    if (el.getAttribute('x') !== x) el.setAttribute('x', x);
+  }
+  el.textContent = text;
+}
+
+// noacgReadoutLater(el): once the fonts settle, write the readout's current value again, so it is
+// anchored off the drawing in the face it will be seen in.
+var noacgReadoutsWaiting = null;
+function noacgReadoutLater(el) {
+  if (!noacgReadoutsWaiting) {
+    noacgReadoutsWaiting = [];
+    document.fonts.ready.then(function () {
+      var waiting = noacgReadoutsWaiting;
+      noacgReadoutsWaiting = null;
+      for (var i = 0; i < waiting.length; i++) {
+        if (waiting[i].noacgAnchor === undefined) noacgReadoutWrite(waiting[i], waiting[i].textContent);
+      }
+    });
+  }
+  if (noacgReadoutsWaiting.indexOf(el) === -1) noacgReadoutsWaiting.push(el);
 }
 
 // ── A readout stays legible on a look lit under it ──────────────────────────────────
