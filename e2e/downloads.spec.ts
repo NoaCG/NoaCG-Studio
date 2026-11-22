@@ -25,15 +25,14 @@ import { test, expect, type Page } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import { SVG_TEMPLATES_CARD_URL, SVG_TEMPLATES_URL, TEMPLATE_LIBRARY_ZIP_URL } from '../src/downloads/links';
-import { LIBRARY_ZIP_URL, SVG_PACKAGES, packageZip, packageZipUrl } from '../scripts/svg-files.mjs';
+import { LIBRARY_DIR, LIBRARY_ZIP, LIBRARY_ZIP_URL, SVG_PACKAGES, packageZip, packageZipUrl, previewsOf, readLibrary } from '../scripts/svg-files.mjs';
 import { AGENT_PROMPT } from '../scripts/agent-prompt.mjs';
 
 /** The one inventory, also checked against the live behavior registry and real source assets. */
 interface LibraryEntry { slug: string; preview: string; packages: string[]; states?: { preview: string }[]; guide?: string }
-const LIBRARY = 'docs/tutorials/template-library';
-const INVENTORY = JSON.parse(readFileSync(new URL(`../${LIBRARY}/library.json`, import.meta.url), 'utf8')) as LibraryEntry[];
-const previews = (entry: LibraryEntry) => [entry.preview, ...(entry.states ?? []).map((state) => state.preview)];
-const inRepo = (file: string) => readFileSync(new URL(`../${LIBRARY}/${file}`, import.meta.url));
+const INVENTORY = readLibrary() as LibraryEntry[];
+const previews = (entry: LibraryEntry) => previewsOf(entry) as string[];
+const inRepo = (file: string) => readFileSync(new URL(`../${LIBRARY_DIR}/${file}`, import.meta.url));
 
 // THE DOWNLOADS PAGE (/downloads, downloads.html + src/downloads/). NoaCG ships three things you
 // install - NoaCG Bridge, the Companion module and the NoaCG CLI - and a visitor has to be able to
@@ -325,16 +324,16 @@ test('one SVG templates card holds the library zip, and the zip matches the repo
   expect(bytes.length).toBeGreaterThan(100_000);
   const zipped = await JSZip.loadAsync(bytes);
   for (const file of ['README.md', 'CLOCKS.md', 'EDITABLE-CREDITS.md', ...INVENTORY.map((entry) => `SVG/${entry.slug}.svg`)]) {
-    const inZip = await zipped.file(`NoaCG-Template-Library/${file}`)?.async('string');
+    const inZip = await zipped.file(`${LIBRARY_ZIP}/${file}`)?.async('string');
     expect(inZip?.replace(/\r\n/g, '\n'), `${file} in the zip`).toBe(inRepo(file).toString('utf8').replace(/\r\n/g, '\n'));
   }
-  expect(JSON.parse((await zipped.file('NoaCG-Template-Library/library.json')!.async('string')))).toEqual(INVENTORY);
+  expect(JSON.parse((await zipped.file(`${LIBRARY_ZIP}/library.json`)!.async('string')))).toEqual(INVENTORY);
   const natives = ['README.pdf', ...INVENTORY.flatMap((entry) => previews(entry).map((name) => `Previews/${name}.png`))];
-  for (const entry of INVENTORY) if (existsSync(new URL(`../${LIBRARY}/Illustrator/${entry.slug}.ai`, import.meta.url))) natives.push(`Illustrator/${entry.slug}.ai`);
+  for (const entry of INVENTORY) if (existsSync(new URL(`../${LIBRARY_DIR}/Illustrator/${entry.slug}.ai`, import.meta.url))) natives.push(`Illustrator/${entry.slug}.ai`);
   // The navy Illustrator sources stay downloadable as legacy (D2).
   expect(natives.filter((file) => file.startsWith('Illustrator/')).length).toBeGreaterThan(15);
   for (const file of natives) {
-    const native = zipped.file(`NoaCG-Template-Library/${file}`);
+    const native = zipped.file(`${LIBRARY_ZIP}/${file}`);
     expect(native, `${file} in the zip`).not.toBeNull();
     expect(await native!.async('nodebuffer'), `${file} is the repo's own`).toEqual(inRepo(file));
   }

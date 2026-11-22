@@ -19,8 +19,6 @@ import { LIBRARY_DIR } from './svg-files.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGE = path.join(ROOT, LIBRARY_DIR);
-/** The README's authored page count, one per `---`-separated part; overflow is refused. */
-const PAGES = readFileSync(path.join(PACKAGE, 'README.md'), 'utf8').replace(/\r\n/g, '\n').split('\n').filter((line) => line === '---').length + 1;
 
 // ── README.md -> HTML ────────────────────────────────────────────────────────────────────────
 
@@ -40,7 +38,7 @@ function markdownToHtml(md) {
     if (table) out.push('</table>');
     table = false;
   };
-  for (const line of md.replace(/\r\n/g, '\n').split('\n')) {
+  for (const line of md.split('\n')) {
     if (code !== null) {
       if (line.startsWith('```')) {
         out.push(`<pre>${escapeHtml(code.join('\n'))}</pre>`);
@@ -111,7 +109,10 @@ const page = (body) => `<!DOCTYPE html>
 </style></head><body>${body}</body></html>`;
 
 async function writePdf() {
-  const html = page(markdownToHtml(readFileSync(path.join(PACKAGE, 'README.md'), 'utf8')));
+  const md = readFileSync(path.join(PACKAGE, 'README.md'), 'utf8').replace(/\r\n/g, '\n');
+  // The authored page count, one per `---`-separated part; overflow is refused.
+  const PAGES = md.split('\n').filter((line) => line === '---').length + 1;
+  const html = page(markdownToHtml(md));
   const browser = await chromium.launch();
   try {
     const tab = await browser.newPage();

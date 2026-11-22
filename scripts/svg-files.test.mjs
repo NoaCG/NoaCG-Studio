@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 import JSZip from 'jszip';
+import { getTransformedRoutes } from '@vercel/routing-utils';
 
 import {
   LIBRARY_DIR, LIBRARY_ZIP, LIBRARY_ZIP_URL, SVG_GALLERY_MARKER, SVG_PACKAGES, builtInAlternatives, downloadFiles, fileUrl,
@@ -109,17 +110,22 @@ test('the library zip holds every file, and each package zip exactly its templat
   for (const word of ['Manrope', 'Oswald', 'Open Font License']) assert.ok(readme.includes(word), word);
 });
 
-/** Where vercel.json sends an address: its first matching redirect, hop by hop (as a browser
- *  follows them), until no redirect matches. Sources here use whole segments and `:name`. */
+/** The redirect routes Vercel compiles from vercel.json, in order (as scripts/vercel-frame-headers.test.mjs
+ *  compiles the header routes), so the old addresses are checked against Vercel's own matching. */
+const { routes, error } = getTransformedRoutes({
+  cleanUrls: vercel.cleanUrls, trailingSlash: vercel.trailingSlash, redirects: vercel.redirects, rewrites: vercel.rewrites, headers: vercel.headers,
+});
+assert.equal(error, null);
+const redirects = routes.filter((route) => route.status && route.headers?.Location);
+
+/** Where an address ends up: the first matching redirect, hop by hop as a browser follows them. */
 function resolve(url) {
-  const hops = [];
   let at = url;
   for (let i = 0; i < 5; i += 1) {
-    const rule = vercel.redirects.find((r) => new RegExp(`^${r.source.replace(/[.]/g, '\\.').replace(/:(\w+)/g, '(?<$1>[^/]+)')}$`).test(at));
-    if (!rule) return { at, hops };
-    const match = at.match(new RegExp(`^${rule.source.replace(/[.]/g, '\\.').replace(/:(\w+)/g, '(?<$1>[^/]+)')}$`));
-    at = rule.destination.replace(/:(\w+)/g, (_, name) => match.groups[name]);
-    hops.push(at);
+    const route = redirects.find((r) => new RegExp(r.src).test(at));
+    if (!route) return { at };
+    const match = at.match(new RegExp(route.src));
+    at = route.headers.Location.replace(/\$(\d+)/g, (_, n) => match[Number(n)] ?? '');
   }
   throw new Error(`${url}: a redirect loop`);
 }

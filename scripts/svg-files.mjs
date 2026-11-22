@@ -25,7 +25,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export const SVG_GALLERY_MARKER = '<!--svg-files:gallery-->';
 export const LIBRARY_DIR = 'docs/tutorials/template-library';
-export const INVENTORY = 'library.json';
+const INVENTORY = 'library.json';
 const COVERAGE = 'docs/template-library/coverage.json';
 
 /** The whole library's zip, and the folder its files sit in. */
@@ -83,7 +83,7 @@ const ENTRY = { date: new Date('2026-09-25T00:00:00Z') };
 
 /** A file as it goes into a zip. TEXT GOES IN WITH LF, whatever the checkout wrote (a Windows
  *  checkout with core.autocrlf writes CRLF; the repository stores LF). */
-export function zipBytes(root, file) {
+function zipBytes(root, file) {
   const abs = path.join(root, file);
   return /\.(md|svg|json)$/i.test(file) ? Buffer.from(readFileSync(abs, 'utf8').replace(/\r\n/g, '\n')) : readFileSync(abs);
 }
@@ -91,7 +91,7 @@ export function zipBytes(root, file) {
 /** What a zip holds, folder-relative path -> bytes, in order: the README and its PDF, the
  *  inventory of exactly what is inside, the guides its entries use, then every entry's SVG,
  *  pictures and legacy Illustrator source. */
-export function zipContents(entries, root = ROOT) {
+function zipContents(entries, root = ROOT) {
   const out = new Map();
   const add = (name, file) => out.set(name, zipBytes(root, file));
   add('README.pdf', repoPath(LIBRARY_DIR, 'README.pdf'));
@@ -115,21 +115,20 @@ async function zip(folder, contents) {
   return archive.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
 }
 
-/** The zips: the whole library, then one per package. Address -> bytes. */
-export async function libraryZips(root = ROOT) {
-  const entries = readLibrary(root);
-  const zips = new Map([[LIBRARY_ZIP_URL, await zip(LIBRARY_ZIP, zipContents(entries, root))]]);
-  for (const pkg of SVG_PACKAGES) {
-    zips.set(packageZipUrl(pkg), await zip(packageZip(pkg), zipContents(entries.filter((entry) => entry.packages.includes(pkg.id)), root)));
-  }
-  return zips;
-}
+/** The templates a package holds. */
+const inPackage = (entries, pkg) => entries.filter((entry) => entry.packages.includes(pkg.id));
+
+/** The zips, the whole library then one per package: [address, folder, entries]. */
+const zipPlan = (entries) => [
+  [LIBRARY_ZIP_URL, LIBRARY_ZIP, entries],
+  ...SVG_PACKAGES.map((pkg) => [packageZipUrl(pkg), packageZip(pkg), inPackage(entries, pkg)]),
+];
 
 /** Every download the site serves for the library: address -> bytes. */
 export async function libraryDownloads(root = ROOT) {
   const out = new Map();
   for (const [url, file] of downloadFiles(root)) out.set(url, readFileSync(path.join(root, file)));
-  for (const [url, bytes] of await libraryZips(root)) out.set(url, bytes);
+  for (const [url, folder, entries] of zipPlan(readLibrary(root))) out.set(url, await zip(folder, zipContents(entries, root)));
   return out;
 }
 
@@ -139,7 +138,7 @@ export function builtInAlternatives(root = ROOT) {
   const matrix = JSON.parse(read(root, COVERAGE));
   const byTemplate = new Map();
   for (const row of matrix.rows) {
-    if (!row.builtIns?.length || (row.kind !== 'type' && row.kind !== 'untyped')) continue;
+    if (!row.builtIns?.length) continue;
     for (const file of row.templates ?? []) {
       const slug = path.basename(file, '.svg');
       const names = byTemplate.get(slug) ?? [];
@@ -178,7 +177,7 @@ export function renderSvgGallery(root = ROOT) {
   const entries = readLibrary(root);
   const builtIns = builtInAlternatives(root);
   const packages = SVG_PACKAGES.map((pkg) => {
-    const tiles = entries.filter((entry) => entry.packages.includes(pkg.id)).map((entry) => renderTile(pkg, entry, builtIns.get(entry.slug)));
+    const tiles = inPackage(entries, pkg).map((entry) => renderTile(pkg, entry, builtIns.get(entry.slug)));
     return `    <section class="svg-set" id="${pkg.id}" data-testid="svg-package-${pkg.id}">
       <div class="svg-set-head">
         <div>
@@ -207,8 +206,6 @@ export const contentType = (url) => TYPES[url.slice(url.lastIndexOf('.') + 1)] ?
 export async function libraryDownload(url, root = ROOT) {
   const file = downloadFiles(root).get(url);
   if (file) return readFileSync(path.join(root, file));
-  if (url === LIBRARY_ZIP_URL) return zip(LIBRARY_ZIP, zipContents(readLibrary(root), root));
-  const pkg = SVG_PACKAGES.find((p) => packageZipUrl(p) === url);
-  if (pkg) return zip(packageZip(pkg), zipContents(readLibrary(root).filter((entry) => entry.packages.includes(pkg.id)), root));
-  return null;
+  const planned = zipPlan(readLibrary(root)).find(([address]) => address === url);
+  return planned ? zip(planned[1], zipContents(planned[2], root)) : null;
 }
