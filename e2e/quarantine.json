@@ -17,11 +17,6 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43583442187"
     },
-    "e2e/configured/teams.spec.ts": {
-      "since": "2026-11-21",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44896577757"
-    },
     "e2e/editor-projects.spec.ts": {
       "since": "2026-11-22",
       "count": 3,
@@ -31,11 +26,6 @@
       "since": "2026-11-20",
       "count": 3,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44836973599"
-    },
-    "e2e/output-debate-clock.spec.ts": {
-      "since": "2026-11-21",
-      "count": 4,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44841891365"
     },
     "e2e/playout-cues.spec.ts": {
       "since": "2026-11-22",
@@ -133,6 +123,10 @@
       "count": 1,
       "last": "2026-10-22"
     },
+    "e2e/configured/teams.spec.ts": {
+      "count": 1,
+      "last": "2026-11-22"
+    },
     "e2e/cross-tab.spec.ts": {
       "count": 1,
       "last": "2026-10-03"
@@ -212,6 +206,10 @@
     "e2e/layout.spec.ts": {
       "count": 1,
       "last": "2026-10-03"
+    },
+    "e2e/output-debate-clock.spec.ts": {
+      "count": 4,
+      "last": "2026-11-22"
     },
     "e2e/pack-import.spec.ts": {
       "count": 1,
