@@ -438,16 +438,18 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
           else await expect(option(o), `${o} is hidden`).not.toHaveClass(/imported-design-on/);
         }
       };
+      // An option's button reads its name after the control's mark ("⚡ Replay").
+      const press = (label: string) => page.getByRole('button', { name: new RegExp(`^\\W*${label}$`) });
       await only(choice.start);
       const state = await fieldFor(air, choice.name);
       const offered = await page.getByTestId(`cue-field-${state}`).locator('option').allTextContents();
       expect(offered, 'the operator picks among the options, and an empty value only where the choice starts empty').toEqual(choice.start ? choice.options : ['-', ...choice.options]);
       // Every option is a button of its own, greyed only while it is the one showing.
       for (const o of choice.options) {
-        await expect(page.getByRole('button', { name: o, exact: true })).toBeEnabled({ enabled: o !== choice.start });
+        await expect(press(o)).toBeEnabled({ enabled: o !== choice.start });
       }
       for (const [i, o] of choice.options.filter((label) => label !== choice.start).entries()) {
-        await page.getByRole('button', { name: o, exact: true }).click();
+        await press(o).click();
         await only(o);
         if (i === 0) await checkAir(page, air, `${t.slug}-2-${o.toLowerCase()}`);
       }
@@ -455,7 +457,7 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       // carries the level's word, and nothing on it moves.
       if (t.slug === 'alert-level') {
         for (const o of choice.options) {
-          await page.getByRole('button', { name: o, exact: true }).click();
+          await press(o).click();
           await expect(option(o).locator('text')).toHaveText(o.toUpperCase());
           await expect(option(o).locator('text')).toBeVisible();
           const still = await option(o).evaluate((el) => {

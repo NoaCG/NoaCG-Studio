@@ -3,7 +3,7 @@
   <title>Public notice</title>
   <desc>NoaCG Clean Studio template. A notice card with Notice label, Headline and Details, and a Level choice with two drawn looks: Standard, drawn visible so the card starts there, and Urgent, a red band with the word Urgent.</desc>
   <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
-    <rect id="Panel" x="1180" y="300" width="620" height="420" rx="20" fill="#FFFFFF"/>
+    <rect id="Panel" x="1180" y="300" width="620" height="360" rx="20" fill="#FFFFFF"/>
   </g>
   <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
     <g id="choice:Level_x2F_Standard" inkscape:label="choice:Level/Standard">
