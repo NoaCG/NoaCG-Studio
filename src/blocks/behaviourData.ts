@@ -48,6 +48,10 @@ export interface BehaviourCondition {
   facts?: string[];
 }
 
+/** The values of a look rule's `enter`. */
+export const LOOK_ENTERS = ['pop', 'pulse', 'flash'] as const;
+export type LookEnter = (typeof LOOK_ENTERS)[number];
+
 /** Show a drawn look while its condition holds. Several rules may name the SAME look; it shows
  *  when any of them holds (that is how "the figures show with the result, or live when the
  *  production asked" is two rules rather than an OR the grammar does not have). */
@@ -60,9 +64,14 @@ export interface LookRule {
    *  row, never a comparison; `rows` and `row` are not used together. ADDITIVE OPTIONAL. */
   row?: string;
   when?: BehaviourCondition;
-  /** A small platform pop when the look is (re)painted on by a state entry - a flash, a
-   *  winner mark. Never on a data repaint: a bar that overshoots reads as the wrong figure. */
-  enter?: 'pop';
+  /** How the look arrives. `pop`: a small platform pop when the look is (re)painted on by a state
+   *  entry - a flash, a winner mark; never on a data repaint, where a bar that overshoots reads as
+   *  the wrong figure. `pulse`: a slow, steady pulse for as long as this rule holds, on any repaint
+   *  (a clock tick lights a countdown's last stretch with neither a state nor a write). `flash`:
+   *  one bounded flash when the look appears, then it rests. Both are GSAP, so an OGraf seek
+   *  lands on the same frame, and reduced motion shows the look without either. ADDITIVE:
+   *  `pulse` and `flash` are words a runtime must read (behaviourReads.ts). */
+  enter?: LookEnter;
   /** The platform treatment painted when the look's layer is absent for that row - the moment
    *  ladder's rung 1 (docs/SVG_STATES_FROM_ARTWORK.md): `row-highlight`, `row-mark:correct`,
    *  `row-mark:wrong`, `badge:<word>`. Absent = nothing shows when undrawn. */
@@ -219,7 +228,7 @@ function isRule(v: unknown): v is PaintRule {
     if (!ROLE_RE.test(v.look)) return false;
     if (v.row !== undefined && (typeof v.row !== 'string' || v.rows !== undefined)) return false;
     if (v.when !== undefined && !isCondition(v.when)) return false;
-    if (v.enter !== undefined && v.enter !== 'pop') return false;
+    if (v.enter !== undefined && !(LOOK_ENTERS as readonly unknown[]).includes(v.enter)) return false;
     if (v.default !== undefined && typeof v.default !== 'string') return false;
     if (v.anchor !== undefined && typeof v.anchor !== 'string') return false;
     return true;

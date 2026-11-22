@@ -82,7 +82,9 @@ export const READS_BEFORE_TL2: BehaviourReads = Object.freeze({
  * EVERY WORD ADDED SINCE TL2, in order, each with the commit that taught the runtime to read it.
  * Additive only: a word is never removed while the table format is version 1. Empty at TL2.
  */
-export const READS_ADDED: Array<{ since: string; what: string; reads: Partial<Omit<BehaviourReads, 'v' | 'kinds'>> & { kinds?: Record<string, Partial<KindReads>> } }> = [];
+export const READS_ADDED: Array<{ since: string; what: string; reads: Partial<Omit<BehaviourReads, 'v' | 'kinds'>> & { kinds?: Record<string, Partial<KindReads>> } }> = [
+  { since: 'TL4', what: "a look's own motion: the countdown's last stretch pulses, zero flashes once", reads: { enter: ['pulse', 'flash'] } },
+];
 
 const union = <T>(a: T[], b: T[] = []): T[] => [...a, ...b.filter((w) => !a.includes(w))];
 

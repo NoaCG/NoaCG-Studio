@@ -96,8 +96,12 @@ export const countdownRecipe: BehaviourRecipe = {
   ],
   paint: () => [
     { gauge: 'bar', from: 'clock:fraction' },
+    // The last stretch PULSES while the clock runs and holds still while it is paused; zero
+    // FLASHES once and rests (spec "Countdown motion"). Two warning rules, because a look shows
+    // when any rule holds and moves only by the one that holds now.
     { look: 'warning', when: { facts: ['clock:warning'] } },
-    { look: 'expired', when: { facts: ['clock:expired'] } },
+    { look: 'warning', when: { facts: ['clock:warning'], state: ['clock/running'] }, enter: 'pulse' },
+    { look: 'expired', when: { facts: ['clock:expired'] }, enter: 'flash' },
     { look: 'paused', when: { state: ['clock/paused'] } },
   ],
   artworkKinds: (ctx: RecipeContext) => {
