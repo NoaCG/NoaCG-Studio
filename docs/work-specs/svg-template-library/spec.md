@@ -648,12 +648,15 @@ Group 1: Vote results count, Alert level, Public notice.
     live). A board with no count emits the table and words it emitted before.
   - E2. A choice with exactly one option drawn visible starts on it: its field's default is that
     option, it offers no empty value and has no "none" state, and every option is reachable from
-    every other. With none or several drawn visible it starts empty, as before.
+    every other. With none or several drawn visible it starts empty, as before. (Found by the final
+    `/so`:) on such a choice a value that names no option (an empty cue saved before the start
+    existed, a host sending an empty level) shows the starting option, so it never airs empty.
   - E3. A saved poll binding without `count` and a saved choice without `initial` build the bytes
     they built before; a saved graphic keeps its own runtime and table (TL2 C7). Reimport of a
     choice whose artwork now has one option visible gains the start; field ids are unchanged.
-  - E4. `derive:share.count` is in `READS_ADDED`; a table asking for it under a runtime that does
-    not list it is refused at export, upgradable by importing again.
+  - E4. `derive:share.count` and the `row-pick` spec key `start` are in `READS_ADDED`; a table
+    asking for either under a runtime that does not list it is refused at export, upgradable by
+    importing again.
 
 ## Test maintenance
 

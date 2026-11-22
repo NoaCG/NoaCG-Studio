@@ -50,7 +50,7 @@ export const choiceRecipe: BehaviourRecipe = {
       ],
       // A row pick over the choice's own rows: "picked" holds on the option the value names, so
       // ONE rule paints every option and a second choice on the graphic cannot cross-light it.
-      spec: { kind: 'row-pick', rows: ctx.ns(ROLE) },
+      spec: { kind: 'row-pick', rows: ctx.ns(ROLE), ...(initialOf(ctx) ? { start: initialOf(ctx) as string } : {}) },
     },
   ],
   machine: (ctx) => {

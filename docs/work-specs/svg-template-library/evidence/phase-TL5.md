@@ -47,7 +47,7 @@ template imports, keeps every named text, runs its controls and stays clean on a
 | Template | Recognition | Controls asserted |
 | --- | --- | --- |
 | Vote results with counts | automatic (vote recipe, `Count n` bound) | as Live vote; after Show result each row prints its own count (3 and 1) with its share; no Count operator field is made; a row the next round leaves out reads 0 |
-| Alert level | automatic (`choice:Level/...`, Advisory drawn visible) | starts on Advisory, never empty; the Level field offers exactly the four levels; every level is a button, greyed only while shown; each shows only its look |
+| Alert level | automatic (`choice:Level/...`, Advisory drawn visible) | starts on Advisory, never empty; the Level field offers exactly the four levels; every level is a button, greyed only while shown; each shows only its look; an empty or unknown level sent as data shows Advisory |
 | Public notice | automatic (`choice:Level/...`, Standard drawn visible) | starts on Standard; Urgent shows only the urgent band; Standard returns |
 
 Live bug (all options hidden) runs in the same batch with the generalised step and still starts
@@ -120,3 +120,13 @@ seek parity for imported designs other than the countdown stays issue #2699.
   box in the step's order. Not changed: a live word in the visible starting option becomes a
   field (issue #2700, the templates name it `static:`); the count prints the parsed figure, as
   the share reads it. Simplify inline: the fill's row mapping written out step by step.
+
+### Final review
+
+- Final `/so` on 83af9bf (fresh read-only cloud session): grade A, AGREE WITH CORRECTIONS, nothing
+  blocking. Taken: finding 1, a choice with a start went blank when its field held a value naming
+  no option (a cue saved before the start, after a reimport); the `row-pick` kind now reads a
+  `start` (new READS word) and such a value shows the start, with a Node case and a browser step;
+  nit 3, the offered-layer list is renamed for what it holds. Finding 2 is issue #2700.
+- CI on 83af9bf: `Factory gates` failed only on pins recorded one runtime edit before that head
+  (the review's count fix); the pins are re-recorded on the final runtime.

@@ -493,6 +493,14 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
         await only(o);
         if (i === 0) await checkAir(page, air, `${t.slug}-2-${o.toLowerCase()}`);
       }
+      // A value that names no option (a cue saved before the choice had a start, a host sending
+      // an empty level) shows the start: a choice that starts on an option is never empty.
+      if (choice.start) {
+        await air.locator('svg').first().evaluate((_, id) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [id]: '' })), state);
+        await only(choice.start);
+        await air.locator('svg').first().evaluate((_, id) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [id]: 'nothing-drawn' })), state);
+        await only(choice.start);
+      }
       // ALERT LEVEL (AC-10): every level reads without colour and without flashing - its look
       // carries the level's word, and nothing on it moves.
       if (t.slug === 'alert-level') {

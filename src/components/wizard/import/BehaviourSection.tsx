@@ -724,9 +724,10 @@ export default function BehaviourSection({
     };
     collect(behaviour);
   }
-  // A layer NAMED as a choice's option is offered even when drawn visible: that is the option the
+  // The layers offered as switches and choices: every hidden one nothing claimed, and a layer
+  // NAMED as a choice's option even when drawn visible, since that is the option the
   // choice starts on (svg-template-library TL5).
-  const hiddenUnclaimed = (draft.designSvg?.groups ?? []).filter((g) => (g.hidden || extraPrefixOf(g.label)?.kind === 'choice') && !claimed.has(g.id));
+  const extraCandidates = (draft.designSvg?.groups ?? []).filter((g) => (g.hidden || extraPrefixOf(g.label)?.kind === 'choice') && !claimed.has(g.id));
   /** A type with drawn MOMENTS to bind (a look shown and hidden, never a bar drawn full, which
    *  is visible by design), in a file with no hidden layer to bind them to. */
   const noHiddenLayers =
@@ -747,8 +748,8 @@ export default function BehaviourSection({
     onDraft({ svgExtras: [...rest, next] });
   };
   const extraCounts = (() => {
-    const switches = draft.svgExtras.filter((e) => e.use === 'switch' && hiddenUnclaimed.some((g) => g.id === e.candidateId)).length;
-    const choiceNames = new Set(draft.svgExtras.filter((e) => e.use === 'choice' && hiddenUnclaimed.some((g) => g.id === e.candidateId)).map((e) => e.group ?? ''));
+    const switches = draft.svgExtras.filter((e) => e.use === 'switch' && extraCandidates.some((g) => g.id === e.candidateId)).length;
+    const choiceNames = new Set(draft.svgExtras.filter((e) => e.use === 'choice' && extraCandidates.some((g) => g.id === e.candidateId)).map((e) => e.group ?? ''));
     const parts = [
       switches > 0 ? `${switches} ${switches === 1 ? 'switch' : 'switches'}` : '',
       choiceNames.size > 0 ? `${choiceNames.size} ${choiceNames.size === 1 ? 'choice' : 'choices'}` : '',
@@ -1590,7 +1591,7 @@ export default function BehaviourSection({
         </div>
       )}
 
-      {hiddenUnclaimed.length > 0 && (
+      {extraCandidates.length > 0 && (
         <div className="panel-section" data-testid="map-svg-extras">
           <SectionHead title="Switches and choices" summary={extraCounts} testid="map-svg-why-extras">
             <p>
@@ -1600,7 +1601,7 @@ export default function BehaviourSection({
               in your design app and it arrives set; otherwise pick here.
             </p>
           </SectionHead>
-          {hiddenUnclaimed.map((g) => {
+          {extraCandidates.map((g) => {
             const extra = extraOf(g.id);
             return (
               <div className="map-svg-row" key={g.id} data-testid={`map-svg-extra-${g.id}`}>
