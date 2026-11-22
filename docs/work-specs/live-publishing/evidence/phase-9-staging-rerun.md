@@ -199,3 +199,336 @@ Two rounds of 60 s with both typing key by key, each against 60 s of the taker a
   60-graphic publish on staging. Only this rerun's instrument was changed.
 
 UTC time of the last run's end: 2026-11-21 10:34.
+
+## Second rerun, after the Take fix (#2662), 2026-11-21 afternoon
+
+Source: `main` at 5634c2f, which adds #2662 (the fix for #2655; #2657 above was closed as its
+duplicate). Same instruments: `phase-9-staging-rerun/instruments.patch` applied unchanged to
+5634c2f on the scratch branch `scratch/p9-rerun-3p-2` (not for `main`), the same route through
+`hosted-latency.yml`, the same accounts, the same judgement. Data: `phase-9-staging-rerun-2/`, the
+JSON files each run wrote, named by run.
+
+**Verdict for AC-6 at 3 people: failed on timing only.** No Take was lost in any run and every
+text held, but the pooled p95 difference over 14 pairs is +189 ms (bootstrap 95 %: -474 to +869),
+above 50 ms. A new publish defect showed up in step 7: #2667.
+
+### Runs
+
+| Run | What | Result |
+|---|---|---|
+| [44919806869](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44919806869) | 1a: 3 people, switches on, 10 min | 0 of 366 Takes lost |
+| [44921040603](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44921040603) | 1a: 7 pairs, switches on | +820.4 ms |
+| [44922393066](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44922393066) | 1b: 3 people, switches on, 10 min | 0 of 249 Takes lost |
+| [44923696718](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44923696718) | 1b: 7 pairs, switches on | -6.4 ms |
+| [44925104806](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44925104806) | 2: 3 people, switches as production, 10 min | 0 of 248 Takes lost |
+| [44926364732](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44926364732) | 4: step 7, 60 graphics, `team_designs` on | publish timed out twice, landed on the third press at 434 s |
+
+### Switches
+
+Every run read them before, during and after (`*-switches-*.json`). Before each run: all four off.
+During: as in the first rerun ("on" for runs 1; `production_copies` only for run 2;
+`team_designs` and `production_copies` for step 7). After each run: all four off, read back with
+the service role. Staging stands as this rerun found it: `auto_publish`, `partial_writes`,
+`production_copies` and `team_designs` off.
+
+### Run 1: the pass mark
+
+| | 1a (44919806869) | 1b (44922393066) |
+|---|---|---|
+| Takes, never ran | 366, **0** | 249, **0** |
+| Press to ran | median 224 ms, p95 528 ms, max 5,167 ms | median 213 ms, p95 1,448 ms, max 7,782 ms |
+| Editor A last text (149 typed) | on the record, published, on all 3 pages | on the record, published, on all 3 pages |
+| Editor B last text (95 typed) | on the record, published, on all 3 pages | on the record, published, on all 3 pages |
+| Settled after the run | 10.5 s | 25.4 s |
+| "(conflicted copy)" | none | none |
+| Reload, 20 s offline | done | done |
+
+**Pairs**, 14 pooled (`pairs-pooled.json`):
+
+| | Takes timed | median | p95 | never ran |
+|---|---|---|---|---|
+| taker alone | 409 | 172 ms | 592 ms | 0 |
+| 3 people working | 305 | 196 ms | 781 ms | 0 |
+| **difference** | | | **+189.1 ms** (bootstrap 95 %: -474.0 to +869.4) | |
+
+Per dispatch: +820.4 ms (bootstrap -1,081 to +1,381) and -6.4 ms (-406 to +672). Both started
+with everyone working in round 0 (even run numbers); the order alternated round by round. The
+slow tail is in both modes: in 1a, round 2 alone had a p95 of 1,281 ms and round 6 alone one Take
+at 5,400 ms; with everyone working, rounds 1, 2, 3 and 6 each had one Take of 1.9 to 3.2 s. In 1b,
+rounds 0 and 1 alone had p95s of 853 and 928 ms, and rounds 2 and 4 with everyone had 1,458 and
+1,123 ms. Staging from the taker's page during the pairs: median 147 ms, p95 623 ms (1a); median
+142 ms, p95 393 ms (1b).
+
+### AC-6 verdict, item by item
+
+| Item | Result |
+|---|---|
+| No Take lost (each Take airs) | **ok.** 0 of 366 and 0 of 249, and 0 lost in 28 pair rounds. |
+| No editor's last text lost, no different cue overwritten | **ok.** Both runs: each editor's last text on the record and all 3 pages, on its own cue; no conflicted copy. |
+| Goals and messages all counted | **not in the scene** (taker and two editors only). |
+| Press to ran within 50 ms p95 of a single page | **failed.** +189.1 ms pooled over 14 pairs; the bootstrap range (-474.0 to +869.4) is wide, and the alone rounds show the same kind of tail, so staging's own swings are a large part of it. |
+
+### Staging response times during runs 1 and 2
+
+All requests to staging from every page (`*-soak.json`, `staging`):
+
+| | 1a | 1b | 2 |
+|---|---|---|---|
+| whole run, median / p95 / max | 198 / 542 / 9,120 ms | 144 / 1,193 / 14,556 ms | 155 / 1,612 / 8,243 ms |
+| requests, cancelled by the page | 3,246, 18 | 3,046, 38 | 3,465, 49 |
+| slowest minute (p95) | minute 9: 2,240 ms | minute 9: 11,725 ms | minute 0: 3,175 ms |
+
+The per-minute medians stayed between 133 and 358 ms in all three runs, except 671 ms in 1b's
+last minute. Before the fix the same scene lost 8 Takes while staging's per-minute medians were
+0.6 to 2.6 s; this time staging slowed less, so the runs show the fix kept every Take through
+p95 spikes of 1 to 12 s, not through a slowdown as long as the one in the first rerun.
+
+### Run 2: 3 people, switches as production has them (information)
+
+Run 44925104806: 248 Takes, **0 never ran**; press to ran median 229 ms, p95 2,283 ms, max
+4,387 ms. Both editors' last texts on the record and all 3 pages, not published (as expected with
+`auto_publish` off), settled 4.3 s after the run. No conflicted copy.
+
+### Run 4: step 7, 60 graphics, `team_designs` on (information)
+
+Run 44926364732 (`4-step7-*.json`):
+
+- **Publish:** press 1 answered "Publish failed: canceling statement due to statement timeout"
+  213 s after it; press 2 the same at 406 s; press 3 landed, 434 s after the first press. This
+  morning (44894000539) the same publish landed on the first press in 64 s. Filed as #2667 (P2,
+  area: control).
+- Then two rounds of 60 s with both typing key by key against the taker alone: 11 Takes with both
+  typing and 19 alone, **none lost**. Press to ran with both typing 243 to 5,419 ms (one Take each
+  round above 2 s); alone 147 to 361 ms.
+- Each typist reached 6 or 7 texts a minute; each last text reached the record and all 3 pages
+  15 to 19 s after the round, on its own cue, no conflicted copy.
+- Staging during the typing: median 154 ms, p95 1,218 ms, max 18.1 s; 4 of 742 requests
+  cancelled.
+
+### Defects
+
+- #2667 (P2, area: control): the 60-graphic publish can still fail with a statement timeout.
+- The timing failure is not filed as a separate defect: no Take was lost, and the alone rounds
+  carry the same tail. The coordinator decides whether the 50 ms rule is met by another method or
+  needs a fix.
+
+UTC time of the last run's end: 2026-11-21 17:00.
+
+### Addendum: 14 more pairs (2026-11-21, 17:07 to 17:36 UTC)
+
+Asked by the coordinator to narrow the timing range: two more dispatches of 7 pairs, switches on,
+same method, same scratch branch and source (5634c2f). The 50 ms rule is unchanged.
+
+| Run | Pairs | Difference | Bootstrap 95 % | Staging, taker's page: median / p95 / max |
+|---|---|---|---|---|
+| [44928271068](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44928271068) | 7 | +712.6 ms | +3.9 to +1,173.2 | 196 / 461 / 3,442 ms |
+| [44929702637](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44929702637) | 7 | +818.5 ms | +170.3 to +1,231.2 | 160 / 510 / 6,805 ms |
+
+Pooled (`pairs-pooled-new14.json`, `pairs-pooled-28.json`):
+
+| | Pairs | 3 people p95 | alone p95 | Difference | Bootstrap 95 % |
+|---|---|---|---|---|---|
+| the new 14 | 14 | 1,135 ms (301 Takes) | 382 ms (419 Takes) | **+753.2 ms** | +162.6 to +1,014.5 |
+| all 28 | 28 | 987 ms (606 Takes) | 457 ms (828 Takes) | **+529.8 ms** | +8.0 to +818.6 |
+
+- **Timing: failed.** Over the new 14 the whole bootstrap range is above 50 ms; over all 28 the
+  point estimate is +530 ms and the range starts at +8 ms.
+- The tail is in the 3-person rounds: 8 of the 14 new 3-person rounds have a p95 above 900 ms
+  (928 to 3,233 ms), against 1 of the 14 alone rounds (1,046 ms). The staging p95 seen from the
+  taker's page in those 8 rounds was 388 to 1,621 ms, and under 1 s in 5 of them (388 to 960 ms),
+  so those slow Takes are not explained by slow staging answers alone.
+- **One Take did not run within 10 s** (44929702637, round 5 with everyone working; Out was not
+  left disabled and no note showed). Staging's slowest answer to the taker in that round was
+  6,805 ms. Every other Take across the 28 pairs ran.
+- Switches: all four off before each dispatch, on during, off after, read back
+  (`1c-pairs-switches-*.json`, `1d-pairs-switches-*.json`).
+
+UTC time of the addendum's last run end: 2026-11-21 17:36.
+
+### Addendum: pairs with the switches off and as production (2026-11-21, 17:38 to 18:24 UTC)
+
+Asked by the coordinator: the same pairs method, one dispatch of 7 pairs with all four switches
+off, one with the switches as production has them (`production_copies` on, the other three off).
+Same scratch branch and source (5634c2f); the 50 ms rule unchanged. Files: `off-pairs-*.json`,
+`prod-pairs-*.json`. Each dispatch started with the taker alone in round 0.
+
+| | All four off | As production |
+|---|---|---|
+| Run | [44931119423](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44931119423) | [44932505778](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44932505778) |
+| Takes with 3 people: timed, never ran | 181, 0 | 68, **8** |
+| Takes alone: timed, never ran | 217, 0 | 101, **8** |
+| 3 people p95 | 537 ms | 5,641 ms |
+| alone p95 | 744 ms | 4,780 ms |
+| **Difference** | **-206.6 ms** | **+860.5 ms** |
+| Bootstrap 95 % | -760.3 to +582.5 | -1,753.1 to +3,777.3 |
+| Staging, taker's page: median / p95 / max | 213 / 861 / 4,331 ms | 354 / 10,316 / 35,756 ms |
+| Staging requests cancelled by the page | 22 of 1,320 | 289 of 758 |
+
+Staging per round, from the taker's page (median / p95 / max, ms):
+
+| Round | Off, 3 people | Off, alone | Production, 3 people | Production, alone |
+|---|---|---|---|---|
+| 0 | 211 / 557 / 776 | 224 / 907 / 1,410 | 1,057 / 10,316 / 10,316 | 226 / 1,149 / 9,755 |
+| 1 | 240 / 1,266 / 2,133 | 292 / 1,696 / 2,152 | 1,457 / 11,125 / 11,125 | 1,183 / 35,735 / 35,756 |
+| 2 | 214 / 645 / 943 | 205 / 731 / 1,336 | 267 / 9,029 / 15,719 | 3,882 / 22,055 / 27,384 |
+| 3 | 225 / 750 / 2,204 | 216 / 805 / 929 | 329 / 1,441 / 2,313 | 225 / 824 / 24,589 |
+| 4 | 209 / 1,582 / 4,331 | 195 / 317 / 364 | 249 / 2,743 / 2,918 | 202 / 399 / 430 |
+| 5 | 217 / 995 / 1,921 | 204 / 888 / 1,116 | 774 / 4,096 / 9,362 | 1,019 / 15,447 / 26,163 |
+| 6 | 213 / 1,517 / 1,689 | 200 / 351 / 590 | 1,142 / 11,227 / 11,227 | 2,891 / 23,997 / 33,800 |
+
+- **All four off:** no Take lost; the difference is negative and the range spans -760 to +583, so
+  this dispatch cannot say whether 3 people stay within 50 ms. Staging swung in both modes (round
+  1 alone had a p95 of 2,566 ms for press to ran).
+- **As production:** staging was very slow for most of the run, in the alone rounds as much as in
+  the 3-person rounds (alone, round 1: slowest answer 35.8 s). Takes were lost in both modes, 8 and
+  8, so in that window even a single page lost Takes. The difference (+860.5 ms) has a range of
+  -1,753 to +3,777 and says nothing about 3 people against one.
+- No other `hosted-latency` run overlapped either dispatch: the workflow's concurrency group
+  queued this one behind another session's run 44932145979, which ended at 18:07:33, two seconds
+  before this one's jobs started. What else reached staging in that window cannot be seen from
+  here.
+- Switches: all four off before each dispatch and after, read back. Staging stands at all four off.
+
+UTC time of the addendum's last run end: 2026-11-21 18:24.
+
+### Addendum: the 60-graphic first publish after #2669 (2026-11-21, ending 19:23 UTC)
+
+Asked by the coordinator: step 7's first publish only, from `main` at 96119a26 (after #2669), once
+with `team_designs` on and once off, `production_copies` on, `auto_publish` and `partial_writes`
+off. Scratch branch `scratch/p9-rerun-3p-5` (not for `main`): the same instruments plus a recorder
+of every write the owner's page sends during set-up, with its body size and time
+(`pub-*-setup-writes.json`), and staging's spread from the owner's page during set-up
+(`pub-*-setup-staging.json`). Times "at" below are seconds from the start of the test.
+
+| | `team_designs` on | `team_designs` off |
+|---|---|---|
+| Run | [44939237101](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44939237101) | [44940227752](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44940227752) |
+| Lands on the first press | **no**: "Publish failed: Your latest change is still saving. Publish again in a moment." | **yes** |
+| Press to landed | second press landed 20 s after it was pressed (236 s after the first press; the instrument waits up to 180 s before pressing again) | 44.8 s |
+| `control_shows` publish write | 5,118,751 bytes, 2.67 s, at 311.6 s | 5,119,525 bytes, 8.77 s, at 110.1 s |
+| Record save before the publish | 12 `team_designs_put` calls of 420 to 482 KB (at 90.3 to 109.3 s, 18.4 s in all), then `team_production_store` 26 KB in 0.78 s | `team_production_save_v2` 5,131,567 bytes in 12.7 s (at 86.4 s) |
+| Staging from the owner's page during set-up: median / p95 / max | 420 / 10,517 / 17,115 ms (376 requests, 0 failed) | 691 / 11,833 / 14,592 ms (313 requests, 3 failed) |
+| Switches before / after | all four off / all four off | all four off / all four off |
+
+- **`team_designs` on:** the first press came while the page was still storing the designs (the
+  `team_designs_put` calls ran from 90 to 110 s), and Publish refused with "still saving", the
+  page's answer while a change is not yet stored; the second press, once the store had finished,
+  landed in 20 s with a 2.7 s publish write. The publish write itself is still the whole output,
+  5.1 MB, with the switch on.
+- **`team_designs` off:** landed on the first press in 44.8 s. The page first saved the whole
+  5.1 MB record (12.7 s), then wrote the 5.1 MB publish (8.8 s).
+- **After the publish, with `team_designs` off, the run stopped:** a teammate's page opening the
+  production still read "Not published" (`data-started="false"`) after 60 s. In that minute
+  staging's p95 from the owner's page was 11 to 13 s, `control_show_resolve` took 11.5 s and 8.6 s,
+  and one 5.1 MB `team_production_save_v2` was cancelled by the page (`net::ERR_ABORTED`). The
+  trace is in the run's `hosted-results-1` artifact. Not filed: from here it cannot be told apart
+  from staging's slowness at that moment.
+- The earlier timeout (#2667) did not recur in either run: no publish answered with a statement
+  timeout.
+- Switches read back all four off after each run; staging stands at all four off.
+
+UTC time of the addendum's last run end: 2026-11-21 19:23.
+
+## Final 3-person measurement after #2676 (2026-11-21 night)
+
+Source: `main` at e8fda70b (after #2676, one copy of a held press at a time, 8 s cut). Same
+instruments on the scratch branch `scratch/p9-rerun-3p-6` (not for `main`), same route, accounts and
+judgement. Data: `phase-9-staging-rerun-3/`, named by run. (A) is the pass mark with all four
+switches on; (B) is as production (`production_copies` on, the other three off).
+
+### (A) Pass mark, switches on
+
+| Run | What | Result |
+|---|---|---|
+| [44954644391](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44954644391) | soak, 10 min | 0 of 319 Takes lost; press to ran median 175 ms, p95 396 ms, max 2,481 ms |
+| [44956037888](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44956037888) | 7 pairs | +218.5 ms (bootstrap -150.3 to +2,141.0) |
+| [44957378800](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44957378800) | 7 pairs | +49.4 ms (bootstrap -33.7 to +460.7) |
+
+- **Takes:** none lost in the soak or in any of the 28 pair rounds.
+- **Editors' texts:** both last texts (A #149, B #95) on the record, published and on all 3 pages,
+  10.4 s after the soak; no conflicted copy. One reload and one 20 s offline done.
+- **Pooled, 14 pairs** (`A-pairs-pooled.json`): 3 people p95 570 ms (298 Takes), alone p95 366 ms
+  (408 Takes), **difference +204.2 ms, bootstrap 95 % -50.0 to +618.4.** Above 50 ms on its point
+  estimate; the range does not exclude 50 ms.
+- **Staging during the soak:** median 134 ms, p95 371 ms, max 3,328 ms; 1 of 3,212 requests
+  cancelled. Every minute's median 128 to 138 ms except minute 6 (193 ms, p95 1,237 ms).
+
+Staging per round from the taker's page (median / p95 / max, ms) and the press-to-ran p95, with
+rounds where the alone side itself was slow marked **slow alone**:
+
+| Round | 3 people: staging | 3 people: press p95 | alone: staging | alone: press p95 |
+|---|---|---|---|---|
+| 1a-0 | 140 / 205 / 217 | 271 | 139 / 252 / 309 | 288 |
+| 1a-1 | 141 / 253 / 541 | 243 | 176 / 891 / 2,493 | 894 **slow alone** |
+| 1a-2 | 138 / 270 / 350 | 282 | 133 / 321 / 412 | 267 |
+| 1a-3 | 144 / 502 / 561 | 589 | 137 / 156 / 302 | 219 |
+| 1a-4 | 155 / 888 / 3,297 | 3,294 | 137 / 262 / 376 | 291 |
+| 1a-5 | 149 / 388 / 1,856 | 1,850 | 135 / 298 / 422 | 206 |
+| 1a-6 | 151 / 4,143 / 6,084 | 5,191 | 142 / 253 / 309 | 270 |
+| 1b-0 | 202 / 630 / 1,304 | 657 | 194 / 242 / 294 | 275 |
+| 1b-1 | 196 / 275 / 354 | 372 | 188 / 315 / 414 | 366 |
+| 1b-2 | 193 / 240 / 283 | 296 | 190 / 224 / 551 | 406 |
+| 1b-3 | 209 / 1,042 / 2,122 | 976 | 218 / 747 / 1,694 | 799 **slow alone** |
+| 1b-4 | 192 / 270 / 332 | 325 | 189 / 228 / 432 | 275 |
+| 1b-5 | 197 / 253 / 270 | 310 | 193 / 384 / 741 | 278 |
+| 1b-6 | 196 / 538 / 4,387 | 370 (one Take at 4,395) | 185 / 226 / 251 | 277 |
+
+In the 3-person rounds the slowest Takes line up with a single slow staging answer of about the
+same length: 1a-4 (3.3 s answer, 3.3 s Take), 1a-5 (1.9 s, 1.85 s), 1a-6 (6.1 s, 5.2 s) and 1b-6
+(4.4 s, 4.4 s). So much of the gap is single slow staging answers that landed in 3-person rounds;
+whether 3 people make those answers more likely cannot be told from 14 pairs.
+
+### (B) As production
+
+| Run | What | Result |
+|---|---|---|
+| [44958681473](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44958681473) | soak, 10 min | staging collapsed from minute 3; 19 of 98 Takes lost; test timed out in tear-down |
+| [44960982750](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44960982750) | 7 pairs | did not start: staging `admin/users` answered 504 (23:17 UTC) |
+| [44961160487](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44961160487) | switch check | did not start: staging REST answered 503 "Could not query the database for the schema cache" (23:20 UTC) |
+| [44962971609](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44962971609) | switch check | did not start: `admin/users` 504 (23:42 UTC) |
+
+The (B) soak, as found: staging per minute (median / p95 / max) 206 / 1,273 / 2,313 ms,
+212 / 1,713 / 5,758, 1,080 / 7,933 / 18,206, then 54.0 / 55.8 / 55.8 **s**, 57.7 / 63.0 / 63.0 s,
+13.4 / 71.0 / 73.5 s, 7.1 / 42.1 / 42.2 s, 72.3 / 75.0 / 75.0 s; 317 of 1,468 requests cancelled.
+Takes: 98, **19 never ran**, press to ran p95 3,167 ms. Editors: neither last text reached the
+server in 120 s; each stayed pending on its own page ("The cloud did not answer.", "Failed to
+fetch"). The reloaded editor's page showed the cue's original text in its box while its record held
+"Five edit A by 0 #60"; it had stopped typing at #60 when the page did not come back as started.
+This run measures a staging outage, not 3 people.
+
+Later attempts at (B):
+
+| Run | UTC | What | Result |
+|---|---|---|---|
+| [44968012920](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44968012920) | 00:45 | switch check | did not start: REST 503 (PGRST002) |
+| [44973011499](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44973011499) | 01:48 | switch check | did not start: `admin/users` 504 |
+| [44977875943](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44977875943) | 02:51 | switch check | staging back; found `production_copies` **on** (left by the timed-out soak), the rest off; restored all off, read back |
+| [44978017813](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44978017813) | 02:53 | (B) soak | set-up failed: creating the team answered "canceling statement due to statement timeout"; switches read back all off |
+| [44978815496](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44978815496) | 03:05 | (B) 7 pairs | set-up failed: the owner's sign-in did not show within 20 s; switches read back all off |
+| [44983927028](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44983927028) | 04:11 | (B) soak | ran; staging stopped answering within about two minutes; 25 of 53 Takes never ran; test timed out in tear-down |
+| [44985910418](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44985910418) | 04:39 | switch check | did not start: `admin/users` 504 |
+
+The second (B) soak, as found (`B3-soak-soak.json`): staging from all pages median 704 ms, p95
+4,009 ms, max 9,391 ms over the answers that came back, with 499 of 895 requests failing (478
+cancelled by the page); per minute 533 / 3,969 / 6,668 ms, then 1,579 / 7,824 / 9,391 ms, then no
+answer recorded. Takes: 53, **25 never ran**; Out stayed disabled after 16 of them, the first with
+"Take is on this monitor only... Send it again." Editors: neither last text reached the server in
+120 s; the reloaded editor's page did not come back as started and stopped at its 60th text,
+exactly as in the first (B) soak.
+
+**Both (B) soaks on this build coincided with staging falling over**, while (A) on the same build an
+hour earlier, and the same (B) scene on 5634c2f in the afternoon (run 2 above), kept staging
+reachable. The trace of 44983927028 shows each editor page sending about 85 to 90
+`GET /rest/v1/documents` and 18 `team_production_save_v2` a minute in the two minutes before staging
+stopped answering, and 350 of the taker's 405 Take sends never answered. Filed as a suspected defect:
+#2684 (P1, area: control). Staging is a free project and may have failed on its own; its database
+metrics are not visible from here. No further (B) runs were made, so as not to take staging down
+again.
+
+**(B) pairs: not measured.** **(B) soak: measured only as two staging failures.**
+
+**Switches:** the second (B) soak set `production_copies` on and timed out before restoring, and the
+switch check after it could not reach staging (04:39). Staging may again have `production_copies`
+on and the other three off; restoring it needs one `p9r-switches.ts` run once staging answers.
+
+UTC time of the last run's end: 2026-11-22 04:39.
