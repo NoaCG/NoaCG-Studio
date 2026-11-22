@@ -691,7 +691,7 @@ Group 2: Winner card and Award reveal.
 
 Group 3: Q&A card and Nominee reveal.
 
-- Previous verified `main`: the merge of group 2 (#2705). Revert: `git revert -m 1 <the TL5 group 3 merge commit>`.
+- Previous verified `main`: `9c438c2b906a83bc68aec5d2376cddf117d83967` (group 2, #2705, merged). Revert: `git revert -m 1 <the TL5 group 3 merge commit>`.
 - Mechanism: existing recipes again. The Q&A card is the reveal (its Reveal is the built-in's
   Show answer); the nominee reveal is the reveal with a `show:Suspense` switch for the moment
   before. No state rule is set or changed.
