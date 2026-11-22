@@ -23,6 +23,7 @@ const downloads = async () => (built ??= await libraryDownloads());
 
 test('one inventory: unique ids, every SVG and picture in the folder listed, every entry in a package', () => {
   assert.equal(new Set(library.map((entry) => entry.slug)).size, library.length, 'ids are unique');
+  assert.equal(new Set(library.map((entry) => entry.name)).size, library.length, 'names are unique, so two tiles never read the same');
   const folder = new URL(`${LIBRARY_DIR}/`, ROOT);
   assert.deepEqual(readdirSync(new URL('SVG/', folder)).sort(), library.map((entry) => `${entry.slug}.svg`).sort());
   assert.deepEqual(readdirSync(new URL('Previews/', folder)).sort(), library.flatMap((entry) => previewsOf(entry).map((name) => `${name}.png`)).sort(), 'each picture belongs to one template');
@@ -57,9 +58,11 @@ test('each package shows each of its templates with its pictures and SVG, and it
     for (const entry of entries) {
       assert.equal(section.split(`href="${fileUrl(entry.slug, 'svg')}" download`).length, 2, `${entry.slug} SVG once in ${pkg.id}`);
       assert.ok(section.includes(`src="${fileUrl(entry.slug, 'png')}"`), `${entry.slug} preview`);
-      if (entry.alt) assert.ok(section.includes(`alt="${entry.alt}"`), `${entry.slug} default preview with alt`);
+      assert.ok(entry.alt?.length > 20, `${entry.slug} describes its default preview`);
+      assert.ok(section.includes(`alt="${entry.alt}"`), `${entry.slug} default preview with alt`);
       for (const state of entry.states ?? []) assert.ok(section.includes(`src="${fileUrl(state.preview, 'png')}" alt="`), `${entry.slug}/${state.preview} shown`);
     }
+    assert.doesNotMatch(section, /alt=""/, `${pkg.id}: no preview without alt text`);
   }
 });
 

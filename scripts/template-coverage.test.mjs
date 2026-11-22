@@ -73,6 +73,10 @@ test('one inventory with two styles: a proof loop runs one style, and a template
   try {
     put('lib/items.json', JSON.stringify([{ slug: 'a', recipe: 'quiz', style: 'navy' }]));
     const styled = (style) => ({ ...coveredRow(), proof: { ...coveredRow().proof, style } });
+    // The proof spec reads the shared inventory but loops over studio only: a navy row fails.
+    put('e2e/a.spec.ts', "const items = read('lib/items.json').filter((t) => t.style === 'studio');\ntest(`${t.name} imports and plays`, () => {});\n");
+    assert.ok(validateMatrix({ rows: [styled('navy')] }, { root }).some((p) => /does not select the navy templates/.test(p)));
+    put('e2e/a.spec.ts', "const items = read('lib/items.json').filter((t) => t.style === 'navy');\ntest(`${t.name} imports and plays`, () => {});\n");
     assert.deepEqual(validateMatrix({ rows: [styled('navy')] }, { root }), []);
     assert.ok(validateMatrix({ rows: [styled('studio')] }, { root }).some((p) => /runs the studio templates, and a is navy/.test(p)));
     assert.ok(validateMatrix({ rows: [coveredRow()] }, { root }).some((p) => /runs the \(unnamed\) templates/.test(p)), 'a styled inventory needs the proof to name its style');

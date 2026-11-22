@@ -228,6 +228,9 @@ export function validateMatrix(matrix, { root = ROOT, untypedLooks = [], complet
         if (!entry) problems.push(`${at}: ${inventory} does not list ${slug}`);
         // One inventory holds both template styles, and each proof loop runs one of them.
         else if (entry.style !== undefined && entry.style !== row.proof.style) problems.push(`${at}: ${test} runs the ${row.proof.style ?? '(unnamed)'} templates, and ${slug} is ${entry.style}`);
+        // ...and the test must be the loop over that style, which the shared inventory path alone
+        // no longer tells apart.
+        else if (entry.style !== undefined && !testText.includes(`style === '${entry.style}'`)) problems.push(`${at}: ${test} does not select the ${entry.style} templates (style === '${entry.style}')`);
         else if (expected === undefined) problems.push(`${at}: name the recipe ${slug} is proved with (null for none)`);
         else if ((entry.recipe ?? null) !== expected) problems.push(`${at}: ${inventory} lists ${slug} with recipe ${entry.recipe}, not ${expected}`);
         // A loop that runs only the entries with a recipe never reaches one without.

@@ -47,6 +47,8 @@ export const packageZipUrl = (pkg) => `/downloads/${packageZip(pkg)}.zip`;
 export const fileUrl = (name, ext) => `/downloads/svg/${name}.${ext}`;
 
 const read = (root, file) => readFileSync(path.join(root, file), 'utf8');
+/** A repository path, with forward slashes on every platform. */
+const repoPath = (...parts) => path.posix.join(...parts);
 
 export function readLibrary(root = ROOT) {
   return JSON.parse(read(root, path.join(LIBRARY_DIR, INVENTORY)));
@@ -56,7 +58,7 @@ export function readLibrary(root = ROOT) {
 export const previewsOf = (entry) => [entry.preview, ...(entry.states ?? []).map((state) => state.preview)];
 
 const illustratorOf = (root, entry) => {
-  const file = path.join(LIBRARY_DIR, 'Illustrator', `${entry.slug}.ai`);
+  const file = repoPath(LIBRARY_DIR, 'Illustrator', `${entry.slug}.ai`);
   return existsSync(path.join(root, file)) ? file : null;
 };
 
@@ -69,9 +71,9 @@ export function downloadFiles(root = ROOT) {
     files.set(url, file);
   };
   for (const entry of readLibrary(root)) {
-    put(fileUrl(entry.slug, 'svg'), path.join(LIBRARY_DIR, 'SVG', `${entry.slug}.svg`));
-    put(fileUrl(entry.slug, 'png'), path.join(LIBRARY_DIR, 'Previews', `${entry.preview}.png`));
-    for (const picture of previewsOf(entry)) put(fileUrl(picture, 'png'), path.join(LIBRARY_DIR, 'Previews', `${picture}.png`));
+    put(fileUrl(entry.slug, 'svg'), repoPath(LIBRARY_DIR, 'SVG', `${entry.slug}.svg`));
+    put(fileUrl(entry.slug, 'png'), repoPath(LIBRARY_DIR, 'Previews', `${entry.preview}.png`));
+    for (const picture of previewsOf(entry)) put(fileUrl(picture, 'png'), repoPath(LIBRARY_DIR, 'Previews', `${picture}.png`));
   }
   return files;
 }
@@ -92,17 +94,17 @@ export function zipBytes(root, file) {
 export function zipContents(entries, root = ROOT) {
   const out = new Map();
   const add = (name, file) => out.set(name, zipBytes(root, file));
-  add('README.pdf', path.join(LIBRARY_DIR, 'README.pdf'));
-  add('README.md', path.join(LIBRARY_DIR, 'README.md'));
+  add('README.pdf', repoPath(LIBRARY_DIR, 'README.pdf'));
+  add('README.md', repoPath(LIBRARY_DIR, 'README.md'));
   out.set(INVENTORY, Buffer.from(`[\n${entries.map((entry) => `  ${JSON.stringify(entry)}`).join(',\n')}\n]\n`));
-  for (const guide of [...new Set(entries.map((entry) => entry.guide).filter(Boolean))].sort()) add(guide, path.join(LIBRARY_DIR, guide));
+  for (const guide of [...new Set(entries.map((entry) => entry.guide).filter(Boolean))].sort()) add(guide, repoPath(LIBRARY_DIR, guide));
   const sorted = [...entries].sort((a, b) => a.slug.localeCompare(b.slug));
   for (const entry of sorted) {
     const ai = illustratorOf(root, entry);
     if (ai) add(`Illustrator/${entry.slug}.ai`, ai);
   }
-  for (const entry of sorted) add(`SVG/${entry.slug}.svg`, path.join(LIBRARY_DIR, 'SVG', `${entry.slug}.svg`));
-  for (const entry of sorted) for (const picture of previewsOf(entry)) add(`Previews/${picture}.png`, path.join(LIBRARY_DIR, 'Previews', `${picture}.png`));
+  for (const entry of sorted) add(`SVG/${entry.slug}.svg`, repoPath(LIBRARY_DIR, 'SVG', `${entry.slug}.svg`));
+  for (const entry of sorted) for (const picture of previewsOf(entry)) add(`Previews/${picture}.png`, repoPath(LIBRARY_DIR, 'Previews', `${picture}.png`));
   return out;
 }
 

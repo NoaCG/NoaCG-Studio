@@ -10,6 +10,8 @@ Ready-made broadcast graphics to make your own. Change words, colours and shapes
 - **library.json**: the list of templates, what each one does in NoaCG and the packages it belongs to.
 - **CLOCKS.md** and **EDITABLE-CREDITS.md**: how to draw a clock and editable end credits.
 
+A package zip holds only its own templates and the guides they use; this README covers the whole library.
+
 ## Fonts
 
 Two free fonts, both under the SIL Open Font License: **Manrope** for most templates and **Oswald** for the navy ones. Install them from fonts.google.com before you open a file. Pink text in Illustrator means a font is missing; install it or pick a font you have.
