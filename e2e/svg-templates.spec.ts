@@ -741,11 +741,14 @@ function serveOgrafFiles(page: Page, origin: string, files: Record<string, strin
 // template still walked whole and checked on air exactly as before, so a batch shares one
 // browser page instead of one test per template. A batch holds what fits the 120 s ceiling.
 const BATCH = 5;
+// A score walk presses +1 up to 100, so three scoreboards fill a batch.
+const BATCH_OF: Record<string, number> = { score: 3 };
 const routeOf = (t: Template) => t.recipe ?? (t.contract ? `contract:${t.contract}` : pictureSlots(t.slug).length ? 'pictures' : 'plain');
 const batches: { label: string; items: Template[] }[] = [];
 for (const route of [...new Set(templates.map(routeOf))]) {
   const items = templates.filter((t) => routeOf(t) === route);
-  for (let i = 0; i < items.length; i += BATCH) batches.push({ label: route, items: items.slice(i, i + BATCH) });
+  const size = BATCH_OF[route] ?? BATCH;
+  for (let i = 0; i < items.length; i += size) batches.push({ label: route, items: items.slice(i, i + size) });
 }
 
 for (const { label, items } of batches) {
