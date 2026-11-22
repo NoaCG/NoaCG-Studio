@@ -761,7 +761,8 @@ Group 6: Standings with focus (its own PR, after #2708).
 
 Group 7: Milestone track (tiers on the goal meter) and Quiz show (two to four answers in use).
 
-- Previous verified `main`: recorded when the PR is opened. Revert: `git revert -m 1 <the TL5 group 7 merge commit>`.
+- Previous verified `main`: `45127dc15db7170c1fb78200635c5ab791a0453e` (group 6, #2709, merged). Revert: `git revert -m 1 <the TL5 group 7 merge commit>`.
+- Evidence: `evidence/phase-TL5.md`, group 7.
 - Row class: Risky (each extension adds a per-row layer to a saved binding and new runtime
   words). The Rules below were written and pushed before any code, for a Rules-first `/so`.
 - Rules (written before coding, then corrected by the Rules-first `/so` on 99f7a86, AGREE WITH
@@ -828,6 +829,12 @@ Group 7: Milestone track (tiers on the goal meter) and Quiz show (two to four an
   that has written a label cannot bring the drawn text back, so it would be false after one
   edit). Quiz rows are in use while their Answer has text, rather than the built-in's Answers
   shown dropdown: no field is added, and a gap (A and C in use) is allowed.
+- Traps: the layer check maps a name to the FIRST role in `words.json` with that head, so the
+  quiz's row is taught as `Answer row A` (a bare `Row` would shadow the standings' visible
+  `Row n` plates); the importer still reads `Row A`. A write rule never restores drawn text once
+  it has written, which is why the box starts with the drawn tiers instead of an "empty shows as
+  drawn" fact. The library previews are drawn in the system face, not Manrope: a new preview
+  matches only from the same renderer.
 - Q1 to Q4 stand as written. A Row look never pops (nit from the Rules-first `/so`). The pin
   for S1's bytes is the corpus emit record (`scripts/svg-corpus-passes.json`) plus the Node
   case that a meter with no tiers compiles to its old table.

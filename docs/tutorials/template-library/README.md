@@ -178,6 +178,20 @@ Moments items except the timer bar and a choice's starting option are hidden gro
 
 ---
 
+## Tiers and answers in use
+
+| Template | What it does in NoaCG |
+|---|---|
+| **Milestone track** | Milestones holds one tier per line: its name, a bar sign, then its figure. It starts with the tiers as drawn. Current lights each tier it reaches and runs the line between them; a tier with no line is hidden. Percent shows Current against Target, so set Target to your final goal. |
+| **Quiz show** | The Quiz controls. A row shows only while its answer has text: leave Answer D empty for a three-answer question, or C and D for two. A pick or a verdict never lights an empty row. |
+
+| Template | Text | Moments | Board |
+|---|---|---|---|
+| **Milestone track** | `Title`, `Percent`, `Tier 1`, `Threshold 1` to 4 | `Segment 1` to 4 (visible bars), `Reached 1` to 4 | `Panel`, `Rail`, `Milestone 1` to 4 (visible nodes), `static:Of the goal` |
+| **Quiz show** | `Question`, `Answer A` to `Answer D` | `Selected A`, `Correct A`, `Wrong A` to D, `Locked in` | `Question box`, `Answer row A` to D (visible: `Letter box A`, `Answer box A`, `static:Letter A`) |
+
+---
+
 ## The navy templates
 
 - **Title**: change Title and Subtitle. Take, then Out.
