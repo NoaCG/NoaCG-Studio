@@ -402,20 +402,3 @@ test('a poll result is the vote with its figures live from the take; a vote with
   assert.equal('options' in tableOf(compileBinding([], binding()).js()), false);
 });
 
-// ── TL5: a reveal's celebration ────────────────────────────────────────────────────────────
-
-test('a reveal with a drawn celebration gains Celebrate and Settle on a group of its own; without one it is the reveal it was', () => {
-  const binding = (layers) => ({ recipe: 'reveal', fields: {}, layers: { secret: 'c1', cover: 'c2', ...layers } });
-  const typeOf = (b) => compileBinding([], b).type('Winner card');
-  const plain = typeOf(binding());
-  assert.deepEqual(plain.controls.map((c) => c.event), ['reveal']);
-  assert.equal((plain.machine.parallel ?? []).length, 0);
-  const party = typeOf(binding({ celebration: 'c3' }));
-  assert.deepEqual(party.controls.map((c) => c.label), ['Reveal', 'Celebrate', 'Settle']);
-  const group = party.machine.parallel.find((g) => g.id === 'celebration');
-  assert.equal(group.initial, 'calm');
-  assert.deepEqual(group.states.map((s) => [s.id, s.edges.map((e) => `${e.from}>${e.event}`)]), [['calm', ['on>settle']], ['on', ['calm>celebrate']]]);
-  // The walk is untouched, and the celebration asks the runtime for no new word.
-  assert.deepEqual(party.machine.main, plain.machine.main);
-  assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], binding({ celebration: 'c3' })).js()), { status: 'ok' });
-});

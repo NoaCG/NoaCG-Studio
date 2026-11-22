@@ -65,7 +65,7 @@ Names in these templates are made up.
 | **Key facts, Recap card** | Type one entry per line in Entries. Next shows them one at a time, from the last number down, and each stays up. |
 | **Live bug** | A corner tag with Live, Replay and Delayed looks. The status buttons show one of them. |
 | **Alert level** | A severity band that starts at Advisory. Each level is a button and shows its word and a four-step meter, so it reads without colour. |
-| **Winner card, Award reveal** | Type the winner in The reveal and take it: it stays sealed under the cover. Reveal shows it; Celebrate shows the drawn celebration and Settle puts it away. |
+| **Winner card, Award reveal** | Type the winner in The reveal and take it: it stays sealed under the cover. Reveal shows it; Show Celebration raises the drawn celebration and Hide Celebration puts it away. |
 | **Public notice** | A notice card that starts at Standard. Urgent adds a red band with the word Urgent; Standard takes it away. |
 | **Answer board, three answers; two answers** | The Quiz controls with three or two answers. |
 | **End credits, pages** | At import, set Plays as to Cards. A blank line in the list starts a new page; Next card shows it. |
@@ -111,7 +111,7 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **Live bug** | `Title` | `choice:Status/Live`, `choice:Status/Replay`, `choice:Status/Delayed` | `Panel` |
 | **Alert level** | `Headline`, `Detail`, `Source` | `choice:Level/Advisory` (visible: the level it starts on), `choice:Level/Watch`, `choice:Level/Warning`, `choice:Level/Emergency` | `Panel` |
 | **Public notice** | `Notice label`, `Headline`, `Details` | `choice:Level/Standard` (visible), `choice:Level/Urgent` | `Panel` |
-| **Winner card, Award reveal** | `Title` or `Category`, and `Price` (the reveal's name for any revealed text) | `Cover`, `Celebration` | `Panel` or `Price box` |
+| **Winner card, Award reveal** | `Title` or `Category`, and `Price` (the reveal's name for any revealed text) | `Cover`, `show:Celebration` | `Panel` or `Price box` |
 | **Answer boards** | `Question`, `Answer A` to `Answer C` | as the Quiz | as the Quiz |
 | **End credits, pages and still board** | `Heading`, `Credits`, `Credits 2`… | none | `Panel`, `Page frame` or `Heading box` |
 | **QR card, Versus, Framed picture** | `f:QR image`, `f:Home logo`, `f:Away logo`, `f:Picture`, and their texts | none | a plate under each picture |

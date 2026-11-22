@@ -854,7 +854,7 @@
   "reveal": {
     "name": "The reveal",
     "verbs": "typed text, sealed until one press",
-    "buttons": "Reveal, plus The reveal box for the text; Celebrate and Settle where a Celebration is drawn",
+    "buttons": "Reveal, plus The reveal box for the text",
     "roles": [
       {
         "id": "secret",
@@ -880,22 +880,6 @@
         "teach": "Cover",
         "also": ["Envelope", "Sealed", "Kansi"],
         "what": "shown until the reveal - the sealed plate over the text"
-      },
-      {
-        "id": "celebration",
-        "label": "Celebration",
-        "kind": "layer",
-        "paint": [
-          "look"
-        ],
-        "pool": "drawn",
-        "words": "celebrat|confetti|applause|fireworks|juhla|konfetti|firande|jubel",
-        "teach": "Celebration",
-        "also": [
-          "Confetti",
-          "Applause"
-        ],
-        "what": "optional: shown from Celebrate until Settle, after the reveal"
       }
     ]
   },

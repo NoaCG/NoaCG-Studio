@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
   <title>Award reveal</title>
-  <desc>NoaCG Clean Studio template. An award reveal in the lower third: the Category over a sealed gold Cover; Reveal shows the winner, drawn as Price and typed in The reveal box, Celebrate shows the drawn Celebration stars and Settle puts them away.</desc>
+  <desc>NoaCG Clean Studio template. An award reveal in the lower third: the Category over a sealed gold Cover; Reveal shows the winner, drawn as Price and typed in The reveal box; a show:Celebration switch shows the drawn stars and hides them again.</desc>
   <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
     <rect id="Price_box" inkscape:label="Price box" x="160" y="760" width="1000" height="200" rx="20" fill="#FFFFFF"/>
     <rect id="Category_box" inkscape:label="Category box" x="160" y="700" width="520" height="52" rx="14" fill="#0F1729"/>
@@ -11,7 +11,7 @@
       <rect x="200" y="790" width="920" height="140" rx="16" fill="#C9A227"/>
       <path d="M200 806 L660 872 L1120 806" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
     </g>
-    <g id="Celebration" inkscape:label="Celebration" style="display:none">
+    <g id="show:Celebration" inkscape:label="show:Celebration" style="display:none">
       <path d="M1220 760 l12 26 28 4 -20 20 5 28 -25 -14 -25 14 5 -28 -20 -20 28 -4 z" fill="#C9A227"/>
       <path d="M1320 830 l9 20 22 3 -16 15 4 22 -19 -11 -20 11 4 -22 -16 -15 22 -3 z" fill="#2E5BFF"/>
       <path d="M1240 880 l8 17 19 3 -14 13 3 19 -16 -9 -17 9 3 -19 -14 -13 19 -3 z" fill="#1DB56C"/>

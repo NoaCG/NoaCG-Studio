@@ -172,43 +172,42 @@ seek parity for imported designs other than the countdown stays issue #2699.
 - CI on 83af9bf: `Factory gates` failed only on pins recorded one runtime edit before that head
   (the review's count fix); the pins are re-recorded on the final runtime.
 
-## Group 2: the reveal's celebration (Winner card, Award reveal)
+## Group 2: Winner card and Award reveal
 
-Base: `main` at `45fd2420091e422f1f07ace248579817a05bb3d9`. Row class: not Ordinary (a recipe's
-machine), not Risky (no Risky path, no persisted key changed or added beyond the binding's layer
-map). Rules R1 and R2 (phase notes) were written after coding.
+Base: `main` at `45fd2420091e422f1f07ace248579817a05bb3d9`. Row class: Ordinary by the traps
+table (templates, inventories, tests and docs only; no state rule, no Risky path), but the run
+keeps one final `/so`, so it gets one.
 
 ### What was built
 
-- The reveal recipe gains an optional drawn `Celebration` (words.json). Where it is bound, a
-  parallel group `celebration` (calm, on) adds Celebrate and Settle; the look shows while the
-  group is on. Nothing is added to the runtime.
 - Templates (studio, games package): Winner card (a centred card, confetti) and Award reveal (a
   lower third with a category tag, stars), each sealed, revealed and celebrating, with alt text.
+  The reveal recipe as it is, and the celebration a `show:Celebration` switch beside it.
   Coverage: `winner-card` and `award-reveal` covered (71 of 101 rows).
+- Dropped after review: a celebration role and group on the reveal recipe (it could show over a
+  sealed card, was machine state a controller could not see or set, and would have captured
+  visible confetti in old artwork on reimport).
 
 ### AC-3
 
-The `reveal` batch of `e2e/svg-templates.spec.ts` imports each template (reveal recipe detected),
-types the winner in The reveal, and checks: sealed under the cover, Settle greyed; Reveal shows
-the winner and hides the cover; Celebrate shows the celebration and greys itself; Settle puts it
-away and the winner stays. The frame is checked clean when revealed and when celebrating.
+The `reveal` batch of `e2e/svg-templates.spec.ts` imports each template (reveal detected, the
+switch offered by its `show:` name), types the winner, and checks: sealed under the cover; Reveal
+shows the winner and hides the cover; Hide Celebration greyed until Show Celebration raises it,
+Show greyed while it is up, Hide puts it away and the winner stays. The frame is checked clean
+revealed and celebrating.
 
 ### AC-7
 
-In the every-target case ("... and Winner card: ... the celebration play in every export target"):
+In the every-target case ("... Alert level and Winner card: ... the reveal play in every export
+target"), the revealed text reads the typed winner in every target:
 
 | Target | Mode | Result |
 | --- | --- | --- |
-| SPX, CasparCG, H2R | update, play; Continue (`next`) reveals; Celebrate and Settle by invoking the graphic's own `noacgDispatch` (CasparCG INVOKE) | sealed, revealed, celebrating, settled |
-| HTML overlay | autoplay with baked data, no control channel | sealed |
-| OGraf, LiveOS | real time: load, playAction, custom actions `reveal`, `celebrate`, `settle` | sealed, revealed, celebrating, settled |
-
-SPX has no button field for a machine event; its operator reaches the reveal by Continue, and the
-celebration only where the host can call a template function (recorded as the supported mode).
+| SPX, CasparCG, H2R | update, play; Continue (`next`) reveals; the celebration by data (its field on, then off) | sealed, revealed, celebrating, away |
+| HTML overlay | autoplay with baked data | sealed |
+| OGraf, LiveOS | real time: load, playAction, custom action `reveal`, then updateAction with the field on | sealed, revealed, celebrating |
 
 ### AC-9
 
-`scripts/behaviour-reads.test.mjs`: a reveal without a celebration has its one control and no
-parallel group; with one, the walk is the same and the table asks the runtime for nothing new.
-No corpus or build pin moved.
+No recipe, runtime, proposal word or persisted key changed, so graphics made before keep
+building and playing exactly as they did; no pin moved.

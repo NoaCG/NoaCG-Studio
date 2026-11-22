@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
   <title>Winner card</title>
-  <desc>NoaCG Clean Studio template. A reveal: the Title over a sealed Cover; Reveal shows the name, drawn as Price and typed in The reveal box, Celebrate shows the drawn Celebration and Settle puts it away.</desc>
+  <desc>NoaCG Clean Studio template. A reveal: the Title over a sealed Cover; Reveal shows the name, drawn as Price and typed in The reveal box; a show:Celebration switch shows the drawn confetti and hides it again.</desc>
   <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
     <rect id="Panel" x="560" y="320" width="800" height="440" rx="20" fill="#FFFFFF"/>
     <rect id="Accent" x="560" y="320" width="800" height="10" rx="5" fill="#2E5BFF"/>
@@ -11,7 +11,7 @@
       <rect x="640" y="500" width="640" height="160" rx="16" fill="#2E5BFF"/>
       <path d="M640 516 L960 600 L1280 516" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
     </g>
-    <g id="Celebration" inkscape:label="Celebration" style="display:none">
+    <g id="show:Celebration" inkscape:label="show:Celebration" style="display:none">
       <rect x="600" y="250" width="22" height="22" rx="4" fill="#2E5BFF" transform="rotate(20 611 261)"/>
       <circle cx="700" cy="230" r="11" fill="#1DB56C"/>
       <rect x="820" y="262" width="18" height="30" rx="4" fill="#F5A524" transform="rotate(-25 829 277)"/>

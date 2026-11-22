@@ -603,11 +603,10 @@ text hidden and the cover up until the Reveal press (or Next).
 |---|---|---|
 | the reveal | `Price` | draw it as it looks revealed - written from The reveal box, hidden until the press |
 | cover | `Cover` | shown until the reveal - the sealed plate over the text |
-| celebration | `Celebration` | optional: shown from Celebrate until Settle, after the reveal |
 
-`Secret`, `Reveal`, `Hinta` work as well as `Price`; `Envelope`, `Sealed`, `Kansi` work as well as `Cover`; `Confetti`, `Applause` work as well as `Celebration`.
+`Secret`, `Reveal`, `Hinta` work as well as `Price`; `Envelope`, `Sealed`, `Kansi` work as well as `Cover`.
 
-The operator gets Reveal, plus The reveal box for the text; Celebrate and Settle where a Celebration is drawn.
+The operator gets Reveal, plus The reveal box for the text.
 <!-- behaviour:reveal:end -->
 
 ### The bingo caller - every number lights as it is called

@@ -675,22 +675,19 @@ Group 1: Vote results count, Alert level, Public notice, Poll result (one PR, #2
   agent's import is a live vote until the author ticks the box. A row a new round leaves out keeps
   its old label (issue #2702, on main before TL5).
 
-Group 2: the reveal's celebration (Winner card, Award reveal).
+Group 2: Winner card and Award reveal.
 
 - Previous verified `main`: `45fd2420091e422f1f07ace248579817a05bb3d9` (group 1 merged). Revert: `git revert -m 1 <the TL5 group 2 merge commit>`.
-- The reveal recipe gains an optional `celebration` look (`Celebration`, words.json). Where it is
-  drawn, a parallel group `celebration` (calm, on) adds Celebrate and Settle; the walk, its
-  Continue and the runtime are untouched, so no READS word is added and no pin moves.
+- Mechanism: existing recipes, no extension. The reveal gives Sealed, Reveal and the typed
+  winner; the celebration is a `show:Celebration` switch beside it (Show and Hide Celebration),
+  a field a data-only host can set. A first cut added a celebration role and group to the reveal
+  recipe; review found it showed over a sealed card, was machine state no controller could see
+  or set, and would capture visible confetti in old artwork on reimport, so it was dropped.
 - The layer check holds studio templates to a role's taught name: the revealed text is `Price`
   in every reveal template, whatever it holds (README says so), and the cover is `Cover`.
-- Labels: the presses read Reveal, Celebrate and Settle on both templates; the built-ins' own
-  words (Reveal result, Open envelope, Applause) are not carried (a recipe's press has one label).
-- Rules (state rules this group sets; written after coding, so the final `/so` challenges them):
-  - R1. A reveal with a drawn Celebration has a second group of its own: it starts calm;
-    Celebrate (from calm) shows the celebration, Settle (from on) puts it away, each button
-    greyed where its arrow does not start. The walk (Sealed, Revealed) and Continue are unchanged.
-  - R2. A reveal without a Celebration compiles to the machine, controls and table it compiled
-    to before; a saved reveal keeps its own runtime and table.
+- Labels: Reveal, Show Celebration, Hide Celebration; the built-ins' own words (Reveal result,
+  Open envelope, Applause, Settle) are not carried, since no recipe changed.
+- No state rule is set or changed: no recipe, runtime, persisted key or proposal changed.
 
 ## Test maintenance
 
