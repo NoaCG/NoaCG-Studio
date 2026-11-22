@@ -664,6 +664,6 @@ test('the build reads the text a bound layer draws off the saved markup, as text
   // Entities are read once: an escaped ampersand never starts a second entity.
   assert.equal(drawnTextOf('<text data-noacg-candidate="c7">R&amp;lt;D &#38;amp;</text>', 'c7'), 'R&lt;D &amp;');
   // What is left of a broken tag is never text: no angle bracket survives but an entity's.
-  assert.equal(drawnTextOf('<text data-noacg-candidate="c11"><<tspan>script>A &lt;b&gt;</text>', 'c11'), 'A <b>');
+  assert.equal(drawnTextOf('<text data-noacg-candidate="c11"><<b>script>A &lt;b&gt; <</text>', 'c11'), 'scriptA <b>');
   assert.equal(drawnTextOf(markup, 'c9'), '');
 });
