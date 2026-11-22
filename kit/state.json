@@ -45,7 +45,10 @@
   "nonce": "tl3-b-ea9f",
   "branch": "claude/plan-svg-template-library-tl3-build",
   "source": "304adc72902f468d3d6b711b2e342f17ff9565d4",
-  "asOf": "2026-11-22T13:04:28Z"
+  "asOf": "2026-11-22T14:07Z",
+  "pr": 2697,
+  "head": "2a123489",
+  "progress": "CI 45029100479 green except Reviewed; worker idle waiting for CI; nudged 14:07Z"
  },
  "owner": [
   {
@@ -85,7 +88,8 @@
   "Check briefs: pass the phase brief notes to the checker as NOTES (the check template omits them); TL0 needed its planned-rows scope note.",
   "Actor names: use the template casing (lowercase phase id) in build/check records; TL0 pass recorded under the launch record name checker-TL0-tl0-c-3e96 with receiptActor noted.",
   "2026-11-21T23:24Z: worker rate limit status allowed_warning on the seven_day window; a usage stop pauses workers and check-ins (interaction run precedent).",
-  "TL1o completes when the fix for #2691 lands with a clean re-run; then record TL1o landed (the fix merge) and launch an independent TL1o check. Join card picker step not reachable offline; covered by configured audience-live and Node tests."
+  "TL1o completes when the fix for #2691 lands with a clean re-run; then record TL1o landed (the fix merge) and launch an independent TL1o check. Join card picker step not reachable offline; covered by configured audience-live and Node tests.",
+  "Builders tend to go idle while CI runs and miss its end; nudge them on the first check-in after CI finishes."
  ],
  "tl0": {
   "pr": 2680,
