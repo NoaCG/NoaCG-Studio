@@ -34,8 +34,8 @@
  },
  "waitingOn": [
   {
-   "what": "TL5 replacement builder group notes",
-   "eta": "2026-11-23T08:00:00Z"
+   "what": "PR #2710 (last TL5) through the merge queue",
+   "eta": "2026-11-23T00:10:00Z"
   }
  ],
  "inFlight": {
@@ -45,7 +45,7 @@
   "nonce": "tl5-b-5d9c",
   "branch": "claude/plan-svg-template-library-tl5-build-4",
   "source": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "asOf": "2026-11-22T21:46Z",
+  "asOf": "2026-11-22T23:15Z",
   "note": "may land as several PRs; coordinator stamps each",
   "prs": [
    {
@@ -95,9 +95,18 @@
     "stamp": "cloud-queue-merge 45072715539",
     "repairOwnerComment": 7086139865,
     "merged": "45127dc15db7170c1fb78200635c5ab791a0453e"
+   },
+   {
+    "pr": 2710,
+    "group": 7,
+    "head": "ec710a38a6f85b5981d73aeb369b32e09afa4495",
+    "covers": "milestone track tiers, quiz show 2/3/4",
+    "class": "Risky (Rules-first /so before code)",
+    "stamp": "cloud-queue-merge 45082125928",
+    "repairOwnerComment": 7087427951
    }
   ],
-  "progress": "Rules-first /so B, corrections applied; product decisions 3a/3b answered; building",
+  "progress": "#2710 queued: the last TL5 PR; on merge record TL5 landed and launch the check",
   "replaced": "session_017SdbwPqEaRwPmejCNaAGBi (tl5-b-a0a1) after #2709"
  },
  "owner": [
