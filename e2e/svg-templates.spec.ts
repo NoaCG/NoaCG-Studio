@@ -232,7 +232,8 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
   if (t.recipe !== 'credits') {
     const driven = (n: string) => n === 'Clock' || /^Score \d/.test(n)
       || (t.recipe === 'vote' && (/^(Option|Percent|Count) \d/.test(n) || n === 'Total votes'))
-      || (t.recipe === 'list' && /^Item \d/.test(n));
+      || (t.recipe === 'list' && /^Item \d/.test(n))
+      || (t.recipe === 'reveal' && n === 'Price');
     for (const name of namedTexts(t.slug).filter((n) => !driven(n))) await fieldFor(air, name);
     await checkAir(page, air, `${t.slug}-1-take`);
   }
@@ -524,6 +525,30 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
           expect(still, `${o}: no motion and no flashing`).toBe(true);
         }
       }
+      break;
+    }
+    case 'reveal': {
+      // REVEAL WITH A CELEBRATION (TL5: Winner card, Award reveal): taken sealed under the cover;
+      // Reveal shows the typed winner; Celebrate shows the drawn celebration, Settle puts it away.
+      const reveal = await fieldFor(air, 'The reveal');
+      await page.getByTestId(`cue-field-${reveal}`).fill('Jordan Okafor');
+      await page.getByTestId('verb-update').click();
+      await expect(role(air, 'cover')).toHaveClass(/imported-design-on/);
+      await expect(role(air, 'secret')).not.toHaveClass(/imported-design-on/);
+      await expect(role(air, 'celebration')).not.toHaveClass(/imported-design-on/);
+      await expect(page.getByTestId('cue-action-settle')).toBeDisabled();
+      await page.getByTestId('cue-action-reveal').click();
+      await expect(role(air, 'secret')).toHaveText('Jordan Okafor');
+      await expect(role(air, 'secret')).toHaveClass(/imported-design-on/);
+      await expect(role(air, 'cover')).not.toHaveClass(/imported-design-on/);
+      await checkAir(page, air, `${t.slug}-2-revealed`);
+      await page.getByTestId('cue-action-celebrate').click();
+      await expect(role(air, 'celebration')).toHaveClass(/imported-design-on/);
+      await expect(page.getByTestId('cue-action-celebrate')).toBeDisabled();
+      await checkAir(page, air, `${t.slug}-3-celebrating`);
+      await page.getByTestId('cue-action-settle').click();
+      await expect(role(air, 'celebration')).not.toHaveClass(/imported-design-on/);
+      await expect(role(air, 'secret')).toHaveClass(/imported-design-on/);
       break;
     }
     case 'credits': {
@@ -873,7 +898,7 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
 // choice that starts on the option drawn visible and is never empty. Each package is loaded as its
 // host loads it and driven as its host drives it (update and play; the overlay plays its baked
 // data; OGraf and LiveOS load, playAction and updateAction).
-test('Vote results with counts, Poll result and Alert level: the count, the typed figures and the starting level play in every export target', async ({ page, context }) => {
+test('Vote results with counts, Poll result, Alert level and Winner card: the count, the typed figures, the starting level and the celebration play in every export target', async ({ page, context }) => {
   test.setTimeout(120_000);
   type Look = { lit: boolean; text: string } | null;
   const targets = ['spx', 'casparcg', 'h2r', 'html-overlay', 'ograf', 'liveos'];
@@ -965,6 +990,64 @@ test('Vote results with counts, Poll result and Alert level: the count, the type
   for (const id of targets) {
     const seen = await play(id, pollPackages[id], pollData, null, ['percent/1', 'percent/2']);
     expect(seen.first, `${id}: the typed figures show at once`).toEqual({ 'percent/1': { lit: true, text: '75%' }, 'percent/2': { lit: true, text: '25%' } });
+  }
+
+  // Winner card: the reveal and the celebration are the graphic's own events. A page host fires
+  // them as its buttons do (SPX's are DataFields calling noacgDispatch; CasparCG and H2R invoke
+  // the same function); OGraf and LiveOS as custom actions. The overlay plays sealed.
+  const winner = await prepare('winner-card', ['The reveal']);
+  const winnerData = { [winner.ids['The reveal']]: 'Jordan Okafor' };
+  const winnerPackages = await exportPackages(page, winner.production, winnerData);
+  const spxDefinition = Object.entries(winnerPackages.spx).find(([n]) => n.endsWith('.html') && !/control|panel|index|controller/i.test(n.split('/').pop()!))![1];
+  for (const event of ['reveal', 'celebrate', 'settle']) expect(spxDefinition, `SPX offers ${event} as a button`).toContain(`noacgDispatch('${event}'`);
+  const celebration = ['cover', 'secret', 'celebration'];
+  const litOf = (looks: Record<string, Look> | null) => looks && celebration.filter((n) => looks[n]?.lit);
+  for (const id of ['spx', 'casparcg', 'h2r']) {
+    const view = await context.newPage();
+    await view.setContent(inlined(winnerPackages[id]), { waitUntil: 'load' });
+    const read = () => view.evaluate((names) => names.filter((n) => document.querySelector(`[data-noacg-role~="${n}"]`)?.classList.contains('imported-design-on')), celebration);
+    await view.evaluate((d) => {
+      const w = window as unknown as { update(raw: string): void; play(): void };
+      w.update(JSON.stringify(d));
+      w.play();
+    }, winnerData);
+    await expect.poll(read, { message: `${id}: sealed` }).toEqual(['cover']);
+    await view.evaluate(() => (window as unknown as { noacgDispatch(e: string): void }).noacgDispatch('reveal'));
+    await expect.poll(read, { message: `${id}: revealed` }).toEqual(['secret']);
+    await view.evaluate(() => (window as unknown as { noacgDispatch(e: string): void }).noacgDispatch('celebrate'));
+    await expect.poll(read, { message: `${id}: celebrating` }).toEqual(['secret', 'celebration']);
+    await view.evaluate(() => (window as unknown as { noacgDispatch(e: string): void }).noacgDispatch('settle'));
+    await expect.poll(read, { message: `${id}: settled` }).toEqual(['secret']);
+    await view.close();
+  }
+  {
+    const seen = await play('html-overlay', winnerPackages['html-overlay'], winnerData, null, celebration);
+    expect(litOf(seen.first), 'html-overlay: plays sealed').toEqual(['cover']);
+  }
+  for (const id of ['ograf', 'liveos']) {
+    const origin = `http://${id}-winner.local/`;
+    await serveOgrafFiles(page, origin, winnerPackages[id]);
+    await installGraphicBody(page);
+    const steps = await page.evaluate(async ({ origin, id, data, names }) => {
+      const mod = await import(`${origin}graphic.mjs`);
+      customElements.define(`${id}-winner-under-test`, mod.default);
+      const el = document.createElement(`${id}-winner-under-test`) as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown>; customAction(p: unknown): Promise<unknown>; dispose(): Promise<unknown> };
+      document.body.appendChild(el);
+      await el.load({ data, renderType: 'realtime', renderCharacteristics: {} });
+      await el.playAction({});
+      const lit = async () => {
+        await new Promise((r) => setTimeout(r, 600));
+        return names.filter((n) => graphicBody(el).querySelector(`[data-noacg-role~="${n}"]`)?.classList.contains('imported-design-on'));
+      };
+      const out = [await lit()];
+      for (const action of ['reveal', 'celebrate', 'settle']) {
+        await el.customAction({ id: action, payload: {} });
+        out.push(await lit());
+      }
+      await el.dispose();
+      return out;
+    }, { origin, id, data: winnerData, names: celebration });
+    expect(steps, `${id}: sealed, revealed, celebrating, settled`).toEqual([['cover'], ['secret'], ['secret', 'celebration'], ['secret']]);
   }
 
   // Alert level: it starts on Advisory with nothing sent, and a level sent as data shows alone.
