@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { dropSvg, intoProduction } from './_svg-import';
 import { settleDurableWrites } from './_durable';
 import { qrReader } from './_qr';
+import { installGraphicBody } from './_graphicBody';
 
 interface Template { slug: string; name: string; style: string; recipe: string | null; preview: string; contract?: string }
 const templates = (JSON.parse(readFileSync(new URL('../docs/tutorials/template-library/library.json', import.meta.url), 'utf8')) as Template[])
@@ -226,7 +227,12 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       const field = await fieldFor(air, first);
       await page.getByTestId(`cue-field-${field}`).fill('Technical difficulties');
       await page.getByTestId('verb-update').click();
-      await expect(air.locator(`#${field}`)).toHaveText('Technical difficulties');
+      // Read as the lines on air: a value that wraps into the room drawn for it is one tspan a line.
+      const shown = () => air.locator(`#${field}`).evaluate((el) => {
+        const lines = [...el.querySelectorAll('tspan')].map((line) => (line.textContent ?? '').trim()).filter(Boolean);
+        return lines.length ? lines.join(' ') : (el.textContent ?? '').trim();
+      });
+      await expect.poll(shown).toBe('Technical difficulties');
       await checkAir(page, air, `${t.slug}-2-retyped`);
       // PICTURE SLOTS (D8 and the picture rows): each `f:` picture is an operator field bound to
       // its <image>; a picture sent to it replaces the drawn placeholder on air, and an empty
@@ -297,6 +303,9 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await expect(role(air, 'option/1')).toHaveText('Coast');
       await expect(role(air, 'badge')).toHaveClass(/imported-design-on/);
       await expect(role(air, 'percent/1')).not.toHaveClass(/imported-design-on/);
+      // The counts move the bars the designer drew: three votes to one.
+      const barWidth = (n: number) => role(air, `bar/${n}`).evaluate((el) => el.getBoundingClientRect().width);
+      await expect.poll(async () => (await barWidth(1)) / Math.max(1, await barWidth(2)), { message: 'Coast leads Forest three to one' }).toBeCloseTo(3, 0);
       await checkAir(page, air, `${t.slug}-2-voting`);
       await page.getByTestId('cue-action-close').click();
       await expect(role(air, 'badge')).not.toHaveClass(/imported-design-on/);
@@ -368,7 +377,8 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       // Reset puts the length back and holds it there, with the bar full again.
       await page.getByTestId('cue-action-reset').click();
       await expect(air.locator('.imported-design-clock')).toHaveText('1:00');
-      await expect.poll(width).toBeCloseTo(before, 0);
+      const full = await air.locator('[id="Track"]').evaluate((el) => el.getBoundingClientRect().width);
+      await expect.poll(width, { message: 'the bar is full again' }).toBeCloseTo(full, 0);
       break;
     }
     case 'clock': {
@@ -581,4 +591,146 @@ test('Countdown: the last ten seconds pulse, zero flashes once, and Pause, Reset
   expect(await motion('warning')).toMatchObject({ move: null, opacity: 1 });
   await expect(role(air, 'expired')).toHaveClass(/imported-design-on/, { timeout: 15_000 });
   expect(await motion('expired')).toMatchObject({ move: null, opacity: 1, scale: 1 });
+});
+
+// THE MOTION IN EVERY EXPORT TARGET (AC-7, spec "Exports"): the pulse and the flash are the
+// graphic's own runtime, so each package is loaded the way its host loads it and driven the way
+// its host drives it, and the same looks move. OGraf is also sought out of order in non-real
+// time, where a seek must land on the same frame whatever came before it (AC-6).
+test('Countdown: the pulse and the flash play in every export target, and OGraf seeks land on the same frame in any order', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const t = templates.find((entry) => entry.slug === 'game-timer')!;
+  await importTemplate(page, t);
+  // Three seconds: inside the warning from the first tick, at zero three seconds later.
+  const short = { f1: '0.05' };
+  const packages = await page.evaluate(async ({ production, short }) => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
+    const template = shows.loadShows().find((s: { name: string }) => s.name === production)!.graphics[0].template;
+    const out: Record<string, Record<string, string>> = {};
+    for (const target of EXPORT_TARGETS) {
+      const zip = await target.build(template, { sampleData: short, graphicUsage: 'both' });
+      const files: Record<string, string> = {};
+      for (const name of Object.keys(zip.files)) if (!zip.files[name].dir && /\.(html|js|mjs|css|json)$/.test(name)) files[name] = await zip.file(name)!.async('string');
+      out[target.id] = files;
+    }
+    return out;
+  }, { production: `${t.name} template`, short });
+  expect(Object.keys(packages).sort()).toEqual(['casparcg', 'h2r', 'html-overlay', 'liveos', 'ograf', 'spx']);
+
+  /** One package's graphic page with its own css and js inlined, as its folder would serve it. */
+  const inlined = (files: Record<string, string>) => {
+    const html = Object.keys(files).find((n) => n.endsWith('.html') && !/control|panel|index|controller/i.test(n.split('/').pop()!))!;
+    const dir = html.slice(0, html.lastIndexOf('/') + 1);
+    const at = (ref: string) => files[dir + ref.replace(/^\.\//, '')];
+    return files[html]
+      .replace(/<link[^>]*href=["']([^"']+\.css)["'][^>]*>/gi, (tag, ref) => (at(ref) !== undefined ? `<style>${at(ref)}</style>` : tag))
+      .replace(/<script([^>]*)src=["']([^"']+\.js)["']([^>]*)><\/script>/gi, (tag, a, ref) => (at(ref) !== undefined ? `<script${a}>${at(ref).replace(/<\/script>/gi, '<\\/script>')}</script>` : tag));
+  };
+
+  // The page-based targets: CasparCG and H2R update then play, SPX likewise, the overlay plays itself.
+  for (const id of ['spx', 'casparcg', 'h2r', 'html-overlay']) {
+    const view = await context.newPage();
+    await view.setContent(inlined(packages[id]), { waitUntil: 'load' });
+    if (id !== 'html-overlay') {
+      await view.evaluate((data) => {
+        const w = window as unknown as { update(raw: string): void; play(): void };
+        w.update(JSON.stringify(data));
+        w.play();
+      }, short);
+    }
+    const look = (name: string) => view.evaluate((n) => {
+      const el = document.querySelector(`[data-noacg-role~="${n}"]`) as (Element & { noacgMove?: { name: string; tween: { isActive(): boolean } } | null }) | null;
+      return el ? { lit: el.classList.contains('imported-design-on'), move: el.noacgMove ? el.noacgMove.name : null } : null;
+    }, name);
+    await expect.poll(() => look('warning'), { message: `${id}: the last stretch pulses`, timeout: 5_000 }).toEqual({ lit: true, move: 'pulse' });
+    await expect.poll(() => look('expired'), { message: `${id}: zero flashes`, timeout: 8_000 }).toEqual({ lit: true, move: 'flash' });
+    expect(await look('warning'), `${id}: the pulse stops at zero`).toEqual({ lit: false, move: null });
+    await view.close();
+  }
+
+  // OGraf and LiveOS (the same Graphic): a renderer's real-time lifecycle.
+  for (const id of ['ograf', 'liveos']) {
+    const files = packages[id];
+    const root = Object.keys(files).find((n) => n.endsWith('graphic.mjs'))!.replace(/graphic\.mjs$/, '');
+    const origin = `http://${id}-motion.local/`;
+    await page.route(`${origin}**`, (route) => {
+      const body = files[root + new URL(route.request().url()).pathname.replace(/^\//, '')];
+      return body == null ? route.fulfill({ status: 404, body: 'not found' }) : route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body });
+    });
+    await installGraphicBody(page);
+    const seen = await page.evaluate(async ({ origin, id, short }) => {
+      const mod = await import(`${origin}graphic.mjs`);
+      customElements.define(`${id}-motion-under-test`, mod.default);
+      const el = document.createElement(`${id}-motion-under-test`) as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown>; dispose(): Promise<unknown> };
+      document.body.appendChild(el);
+      await el.load({ data: short, renderType: 'realtime', renderCharacteristics: {} });
+      await el.playAction({});
+      const look = (n: string) => {
+        const node = graphicBody(el).querySelector(`[data-noacg-role~="${n}"]`) as (Element & { noacgMove?: { name: string } | null }) | null;
+        return node ? { lit: node.classList.contains('imported-design-on'), move: node.noacgMove ? node.noacgMove.name : null } : null;
+      };
+      const until = async (n: string, move: string, ms: number) => {
+        for (let waited = 0; waited < ms; waited += 100) {
+          if (look(n)?.move === move) return look(n);
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        return look(n);
+      };
+      const warning = await until('warning', 'pulse', 5_000);
+      const expired = await until('expired', 'flash', 8_000);
+      const after = look('warning');
+      await el.dispose();
+      return { warning, expired, after };
+    }, { origin, id, short });
+    expect(seen, `${id}: real time`).toEqual({ warning: { lit: true, move: 'pulse' }, expired: { lit: true, move: 'flash' }, after: { lit: false, move: null } });
+  }
+
+  // OGraf non-real time: a schedule, then seeks in order and shuffled; each frame is the same.
+  const files = packages.ograf;
+  const root = Object.keys(files).find((n) => n.endsWith('graphic.mjs'))!.replace(/graphic\.mjs$/, '');
+  const manifest = JSON.parse(files[Object.keys(files).find((n) => n.endsWith('.ograf.json'))!]);
+  expect(manifest.supportsNonRealTime, 'the countdown is offered for non-real time').toBe(true);
+  await page.route('http://ograf-seek.local/**', (route) => {
+    const body = files[root + new URL(route.request().url()).pathname.replace(/^\//, '')];
+    return body == null ? route.fulfill({ status: 404, body: 'not found' }) : route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body });
+  });
+  const frames = await page.evaluate(async (short) => {
+    const mod = await import('http://ograf-seek.local/graphic.mjs');
+    customElements.define('ograf-seek-under-test', mod.default);
+    const el = document.createElement('ograf-seek-under-test') as HTMLElement & { load(p: unknown): Promise<unknown>; setActionsSchedule(p: unknown): Promise<unknown>; goToTime(p: unknown): Promise<unknown>; dispose(): Promise<unknown> };
+    document.body.appendChild(el);
+    await el.load({ data: short, renderType: 'non-realtime', renderCharacteristics: {} });
+    await el.setActionsSchedule({ schedule: [{ timestamp: 0, action: { type: 'playAction', params: {} } }] });
+    const snapshot = async (timestamp: number) => {
+      await el.goToTime({ timestamp });
+      const doc = graphicBody(el).querySelector('iframe')!.contentDocument!;
+      const read = (n: string) => {
+        const node = doc.querySelector(`[data-noacg-role~="${n}"]`)!;
+        const cs = getComputedStyle(node);
+        return { lit: node.classList.contains('imported-design-on'), opacity: Number(cs.opacity).toFixed(3), transform: cs.transform };
+      };
+      return { timestamp, warning: read('warning'), expired: read('expired') };
+    };
+    const order = [700, 1450, 3150, 3300, 4500];
+    const sequential = [];
+    for (const at of order) sequential.push(await snapshot(at));
+    const shuffled = [];
+    for (const at of [3300, 700, 4500, 1450, 3150, 700]) shuffled.push(await snapshot(at));
+    await el.dispose();
+    return { sequential, shuffled };
+  }, short);
+  // Every seek lands on the frame the in-order walk saw.
+  for (const frame of frames.shuffled) expect(frame, `seek to ${frame.timestamp}`).toEqual(frames.sequential.find((f) => f.timestamp === frame.timestamp));
+  const at = (ms: number) => frames.sequential.find((f) => f.timestamp === ms)!;
+  // The pulse is under way at 0.7 s and at another point of its beat at 1.45 s.
+  expect(at(700).warning.lit).toBe(true);
+  expect(Number(at(700).warning.opacity)).toBeLessThan(1);
+  expect(at(700).warning.opacity).not.toBe(at(1450).warning.opacity);
+  // Zero at 3 s: the flash is still growing in at 3.15 s, and at rest by 4.5 s.
+  expect(at(3150).expired.lit).toBe(true);
+  expect(at(3150).warning.lit).toBe(false);
+  expect(at(3150).expired.transform).not.toBe(at(4500).expired.transform);
+  expect(at(4500).expired).toMatchObject({ lit: true, opacity: '1.000' });
+  expect(at(4500).expired.transform).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
 });
