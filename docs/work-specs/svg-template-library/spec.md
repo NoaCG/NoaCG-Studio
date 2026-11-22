@@ -698,6 +698,19 @@ Group 3: Q&A card and Nominee reveal.
 - The browser step for a reveal now walks every `show:` switch a template draws, so a later
   reveal template with its own moment needs no new test code.
 
+Group 4: Scorebug, Match status, Match board, Esports score, Transition, Match event.
+
+- Previous verified `main`: set at queue time. Revert: `git revert -m 1 <the TL5 group 4 merge commit>`.
+- Mechanism: existing recipes. The score recipe gives +1, -1, the flash and Full time; a
+  `choice:` beside it gives the scorebug's period (interval and resume as buttons) and the match
+  status; a count-up clock beside it is the match clock; the period breakdown, format and map are
+  plain fields. Transition and Match event are the Pop-up alert (author choice): cover or play,
+  hold eight seconds, clear, or Next sooner. No state rule is set or changed.
+- Trap: a choice option named `Final` would also match the score's `Full time` words; the Match
+  status option is `Ended` (its drawn word is FINAL). Option names are one word, since the role
+  `option/<name>` is matched as a word on air.
+- The browser walk runs each drawn `choice:` beside a full recipe and a match `Clock` beside one.
+
 ## Test maintenance
 
 - 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22

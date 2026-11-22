@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Transition</title>
+  <desc>NoaCG Clean Studio template. A full-screen cover with a Label in the middle, for a replay or a change of segment. Choose Pop-up alert at import: it covers, holds for eight seconds and clears itself; Next clears it sooner.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="0" y="0" width="1920" height="1080" fill="#2E5BFF"/>
+    <rect id="Label_box" inkscape:label="Label box" x="560" y="470" width="800" height="140" rx="20" fill="#FFFFFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Label" x="960" y="568" text-anchor="middle" font-size="72" font-weight="800" fill="#0F1729" letter-spacing="8">REPLAY</text>
+  </g>
+</svg>

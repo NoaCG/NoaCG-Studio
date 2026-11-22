@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Esports score</title>
+  <desc>NoaCG Clean Studio template. A series score at the top: Team 1 and Team 2 with Score 1 and Score 2 as maps won, the Format between them and the current Map under them; hidden Flash 1 and Flash 2 mark a map won and Full time ends the series.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Team_box_1" inkscape:label="Team box 1" x="520" y="40" width="280" height="72" rx="14" fill="#FFFFFF"/>
+    <rect id="Score_box_1" inkscape:label="Score box 1" x="808" y="40" width="100" height="72" rx="14" fill="#2E5BFF"/>
+    <rect id="Format_box" inkscape:label="Format box" x="916" y="40" width="88" height="72" rx="14" fill="#0F1729"/>
+    <rect id="Score_box_2" inkscape:label="Score box 2" x="1012" y="40" width="100" height="72" rx="14" fill="#2E5BFF"/>
+    <rect id="Team_box_2" inkscape:label="Team box 2" x="1120" y="40" width="280" height="72" rx="14" fill="#FFFFFF"/>
+    <rect id="Map_box" inkscape:label="Map box" x="720" y="120" width="480" height="44" rx="12" fill="#FFFFFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Flash_1" inkscape:label="Flash 1" style="display:none">
+      <rect x="520" y="120" width="190" height="44" rx="12" fill="#2E5BFF"/>
+      <text x="615" y="149" text-anchor="middle" font-size="18" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">MAP WON</text>
+    </g>
+    <g id="Flash_2" inkscape:label="Flash 2" style="display:none">
+      <rect x="1210" y="120" width="190" height="44" rx="12" fill="#2E5BFF"/>
+      <text x="1305" y="149" text-anchor="middle" font-size="18" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">MAP WON</text>
+    </g>
+    <g id="Full_time" inkscape:label="Full time" style="display:none">
+      <rect x="840" y="172" width="240" height="40" rx="10" fill="#0F1729"/>
+      <text x="960" y="199" text-anchor="middle" font-size="18" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">SERIES OVER</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Team_1" inkscape:label="Team 1" x="660" y="87" text-anchor="middle" font-size="30" font-weight="800" fill="#0F1729" letter-spacing="1">NOVA</text>
+    <text id="Score_1" inkscape:label="Score 1" x="858" y="95" text-anchor="middle" font-size="48" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+    <text id="Format" x="960" y="85" text-anchor="middle" font-size="22" font-weight="800" fill="#FFFFFF" letter-spacing="1">BO3</text>
+    <text id="Score_2" inkscape:label="Score 2" x="1062" y="95" text-anchor="middle" font-size="48" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+    <text id="Team_2" inkscape:label="Team 2" x="1260" y="87" text-anchor="middle" font-size="30" font-weight="800" fill="#0F1729" letter-spacing="1">ORBIT</text>
+    <text id="Map" x="960" y="150" text-anchor="middle" font-size="22" font-weight="700" fill="#0F1729">Map 2, Harbour</text>
+  </g>
+</svg>

@@ -23,7 +23,7 @@ Two free fonts, both under the SIL Open Font License: **Manrope** for most templ
 - Change words, fonts, colours and shapes freely. Keep the names in the Layers panel, such as `Team 1` and `Flash 1`: NoaCG uses them to know what each part does.
 - Keep text as live text. Do not outline it or turn it into a picture.
 - Save with File > Save a Copy > SVG. Tick **Use Artboards** and keep **Font: SVG**. In Inkscape, save as SVG and keep object labels and live text.
-- In NoaCG, choose New graphic > Import graphic and drop the SVG. Check **What it does**: most templates select their behaviour from layer names. For **Pop-up alert**, choose it yourself.
+- In NoaCG, choose New graphic > Import graphic and drop the SVG. Check **What it does**: most templates select their behaviour from layer names. For **Pop-up alert**, **Transition** and **Match event**, choose Pop-up alert yourself.
 - Put the graphic in a production. Edit its fields, then Take. Out clears it.
 
 Names in these templates are made up.
@@ -118,6 +118,26 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **Two-up frames** | `Person 1`, `Person 2` | none | `Window 1`, `Window 2` (outlines with no fill), `Person box 1` |
 
 Moments items except the timer bar and a choice's starting option are hidden groups: show one with its eye icon, edit it, hide it again before saving. Fixed words on the Board start with `static:`.
+
+---
+
+## Sports and moments
+
+| Template | What it does in NoaCG |
+|---|---|
+| **Scorebug** | A corner score with a clock. At import, set Clock to Counts up. +1 and -1 change each score, and +1 shows that team's Goal tab. Full time calls the game. First, Interval and Second move the tab under the clock. |
+| **Match status** | A score card that starts at Live. Break and Ended change its tab. |
+| **Match board** | Totals with +1 and -1, and a figure per quarter to type. Full time calls the game. |
+| **Esports score** | Maps won with +1 and -1; Format and Map are fields. Full time shows Series over. |
+| **Transition, Match event** | At import, choose Pop-up alert. It clears itself after eight seconds; Next clears it sooner. |
+
+| Template | Text | Moments | Board |
+|---|---|---|---|
+| **Scorebug** | `Team 1`, `Score 1`, `Clock` | `Flash 1`, `Full time`, `choice:Period/First` (visible), `choice:Period/Interval`, `choice:Period/Second` | `Team box 1`, `Score box 1`, `Clock box` |
+| **Match status** | `Team 1`, `Score 1`, `Detail` | `choice:Status/Live` (visible), `choice:Status/Break`, `choice:Status/Ended` | `Panel`, `Score box 1` |
+| **Match board** | `Title`, `Team 1`, `Q1 home` to `Q4 away`, `Score 1` | `Flash 1`, `Full time` | `Panel`, `Team box 1`, `Score box 1`, `static:Q1` |
+| **Esports score** | `Team 1`, `Score 1`, `Format`, `Map` | `Flash 1`, `Full time` | `Team box 1`, `Score box 1`, `Format box`, `Map box` |
+| **Transition, Match event** | `Label`; `Event`, `Player`, `Detail` | none | `Panel`, `Label box`, `Event box` |
 
 ---
 

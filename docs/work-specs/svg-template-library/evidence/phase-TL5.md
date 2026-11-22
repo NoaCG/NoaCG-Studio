@@ -228,3 +228,59 @@ Row class: Ordinary (templates, inventories, tests and docs; no state rule, no R
 - AC-9: no recipe, runtime, proposal word or persisted key changed.
 - Labels: the press reads Reveal, not the built-in Q&A card's Show answer (a recipe's press has
   one label; changing it would move every saved reveal's control).
+
+## Group 4: Scorebug, Match status, Match board, Esports score, Transition, Match event
+
+Row class: Ordinary (templates, inventories, tests and docs; no recipe, runtime, proposal word or
+persisted key changed; no Risky path): `/check` and the automated PR review, no `/so`.
+
+### What was built
+
+- Templates (studio): Scorebug, Match status, Match board, Esports score (games) on the score
+  recipe; Transition (titles) and Match event (games) on the Pop-up alert, chosen by the author.
+  Each has a default preview and, where it has them, named states with alt text. Library 81
+  templates; coverage 79 of 101 rows.
+- Mechanisms, all existing: the score recipe's +1, -1, flash and Full time; a `choice:` beside
+  the score for the period (Scorebug: First, Interval, Second) or the status (Match status: Live,
+  Break, Ended), each drawn with its starting option visible; a count-up match clock beside the
+  score (the clock instance, `CLOCKS.md`); plain fields for the period breakdown, format and map;
+  the Pop-up alert's hold, self-clear and Next for the cover and the event card.
+
+### AC-3
+
+The `score` and `alert` batches of `e2e/svg-templates.spec.ts` import each template. Recognition:
+score automatic, the choice offered by name (one box per option), the clock's direction and the
+Pop-up alert by author choice (README). Controls asserted:
+
+| Template | Controls asserted |
+| --- | --- |
+| Scorebug | +1 per team with its Goal flash, -1, the score from one digit to three in its plate, New game, Full time; Period starts on First, Interval and Second show alone, each greyed while it shows, an empty or unknown value shows First; the clock counts up from Start, holds on Pause, Reset returns to 0:00 |
+| Match status | as the score; Status starts on Live, Break and Ended; Detail retyped reaches the output |
+| Match board | as the score; Full time; each of the eight quarter figures and the Title retyped reaches the output |
+| Esports score | as the score; Full time shows Series over; Format and Map retyped reach the output |
+| Transition, Match event | Take shows it; Next clears it; taken again, it clears itself after the hold |
+
+The browser walk now runs each drawn `choice:` beside any full recipe and a `Clock` beside one,
+so a later template with either needs no new test code. One visual family: the same renderer
+made the new previews (it reproduces an existing preview pixel for pixel), and
+`scripts/check-example-layers.mjs` passes on every file.
+
+### AC-7
+
+In the every-target case ("... Winner card and Scorebug: ... a choice beside the score play in
+every export target"): the Scorebug's package starts on First and Interval sent as data shows
+alone.
+
+| Target | Mode | Result |
+| --- | --- | --- |
+| SPX, CasparCG, H2R | update, play | First; Interval by data |
+| HTML overlay | autoplay with baked data | First |
+| OGraf, LiveOS | real time: load, playAction, updateAction | First; Interval by data |
+
+The score recipe, the clock and the Pop-up alert export as before this plan (navy Scoreboard,
+Score and clock and Pop-up alert templates); nothing in them changed.
+
+### AC-9
+
+No recipe, runtime, proposal word or persisted key changed, so graphics made before keep building
+and playing exactly as they did; no pin moved.
