@@ -34,8 +34,8 @@
  },
  "waitingOn": [
   {
-   "what": "TL5 builder notes per PR and final receipt",
-   "eta": "2026-11-23T12:00:00Z"
+   "what": "PR #2701 (TL5 group 1) through the queue; then TL5 groups 2+",
+   "eta": "2026-11-23T10:00:00Z"
   }
  ],
  "inFlight": {
@@ -45,8 +45,19 @@
   "nonce": "tl5-b-eeed",
   "branch": "claude/plan-svg-template-library-tl5-build",
   "source": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "asOf": "2026-11-22T17:23:38Z",
-  "note": "may land as several PRs; coordinator stamps each"
+  "asOf": "2026-11-22T18:42Z",
+  "note": "may land as several PRs; coordinator stamps each",
+  "prs": [
+   {
+    "pr": 2701,
+    "group": 1,
+    "head": "0f15ad89334c54af3524a18fde4a9b258382b564",
+    "covers": "vote results with counts, alert-level, notice-card, poll result (AC-5)",
+    "stamp": "cloud-queue-merge 45056469250",
+    "repairOwnerComment": 7083790791
+   }
+  ],
+  "progress": "group 1 queued; next groups on the same branch after it lands; coverage 69/101"
  },
  "owner": [
   {
@@ -81,7 +92,10 @@
   "#2679 (P3 docs screenshot)",
   "#2681 (P3 gate hardening)",
   "#2683 (P3 pre-existing built-in retry seed)",
-  "#2699 (from TL4 final /so)"
+  "#2699 (from TL4 final /so)",
+  "#2700",
+  "#2702 (pre-existing)",
+  "#2703 (pre-existing)"
  ],
  "notes": [
   "Check briefs: pass the phase brief notes to the checker as NOTES (the check template omits them); TL0 needed its planned-rows scope note.",
