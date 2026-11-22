@@ -34,23 +34,17 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2698 through the merge queue",
-   "eta": "2026-11-22T17:40:00Z"
+   "what": "TL4 checker verdict",
+   "eta": "2026-11-22T18:00:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL4",
-  "step": "build: queued",
-  "session": "session_017SdbwMYeduE5e6iXLcwf2D",
-  "nonce": "tl4-b-92ca",
-  "branch": "claude/plan-svg-template-library-tl4-build",
-  "source": "66ab49d3db8058f0eb972414623e155ecabb71c0",
-  "asOf": "2026-11-22T16:48Z",
-  "pr": 2698,
-  "head": "c2eceded58d2da413a4398d94e4598b8aba1bc3b",
-  "receipt": "RECEIPT tl4-b-92ca 16:46Z: CI 45044106306 green except Reviewed; class other, no Risky path; final /so A + delta A; Codex clean; #2699 filed",
-  "stamp": "cloud-queue-merge 45045772624 success",
-  "repairOwnerComment": 7082340729
+  "step": "check",
+  "session": "session_017SdbwPdYs47QYDnKcHKERf",
+  "nonce": "tl4-c-6d82",
+  "merge": "b06197d34fbd9c33e062690a908088128b9e3972",
+  "asOf": "2026-11-22T16:59:36Z"
  },
  "owner": [
   {
@@ -157,5 +151,10 @@
   "archived": true,
   "nit": "old Whats new note says SVG examples"
  },
- "retro": "Midpoint retro written in the wave file 2026-11-22T15:16Z"
+ "retro": "Midpoint retro written in the wave file 2026-11-22T15:16Z",
+ "tl4": {
+  "pr": 2698,
+  "merge": "b06197d34fbd9c33e062690a908088128b9e3972",
+  "builder": "session_017SdbwMYeduE5e6iXLcwf2D"
+ }
 }
