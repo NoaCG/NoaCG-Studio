@@ -725,14 +725,24 @@ function noacgPop(el) {
 // strobe). A FLASH plays once, when the look appears, at the graphic's speed, and leaves the look
 // at rest. GSAP rather than CSS, so a renderer that drives time (an OGraf seek) lands on the same
 // frame; a reader who asked for reduced motion gets the look with neither.
-function noacgMotionReduced() {
-  try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+// The preference is read through the graphic's own stylesheet, never the page's window: one
+// media rule, added to this document's head on first need (under OGraf, the graphic's own shadow
+// root), marks a look, and the look's computed style answers.
+var noacgMotionSheet = null;
+function noacgMotionReduced(el) {
+  if (!noacgMotionSheet) {
+    noacgMotionSheet = document.createElement('style');
+    noacgMotionSheet.textContent = '@media (prefers-reduced-motion: reduce) { .${LOOK_CLASS} { --noacg-motion: reduce; } }';
+    (document.head || document.documentElement).appendChild(noacgMotionSheet);
+  }
+  try { return getComputedStyle(el).getPropertyValue('--noacg-motion').trim() === 'reduce'; } catch (e) { return false; }
 }
 function noacgMove(el, move, appeared) {
   if (typeof gsap === 'undefined') return;
   var now = el.noacgMove || null;
+  if (!now && !move) return;
   // Reduced motion is read on every repaint, so turning it on stops a pulse already running.
-  var reduced = noacgMotionReduced();
+  var reduced = noacgMotionReduced(el);
   // A pulse someone else killed (a renderer's measuring pass kills every tween) starts again;
   // one still on the timeline runs on, paused host or not.
   if (now && !reduced && now.name === move && (move === 'pulse' ? gsap.getTweensOf(el).indexOf(now.tween) !== -1 : !appeared)) return;
