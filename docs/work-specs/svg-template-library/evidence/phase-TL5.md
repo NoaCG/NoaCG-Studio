@@ -151,6 +151,11 @@ seek parity for imported designs other than the countdown stays issue #2699.
   the proposal path has no Poll result intent yet. Pre-existing: an unlisted row keeps its old
   label (#2702).
 
+- Automated PR review on 12f8f7a: one finding, fixed. After a level was sent as data only, the
+  machine stayed on the starting option, so its button was greyed and the operator could not
+  return to it directly. The starting option is now reachable from itself too; a browser step
+  sends another level as data and brings the start back with its button.
+
 ### Final review
 
 - Final `/so` on 83af9bf (fresh read-only cloud session): grade A, AGREE WITH CORRECTIONS, nothing

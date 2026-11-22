@@ -651,6 +651,9 @@ Group 1: Vote results count, Alert level, Public notice, Poll result (one PR, #2
     every other. With none or several drawn visible it starts empty, as before. (Found by the final
     `/so`:) on such a choice a value that names no option (an empty cue saved before the start
     existed, a host sending an empty level) shows the starting option, so it never airs empty.
+    (Found by the automated PR review:) the starting option's button stays live, since data alone
+    can show another option while the machine rests on the start; every other option is greyed
+    while it shows.
   - E3. A saved poll binding without `count` and a saved choice without `initial` build the bytes
     they built before; a saved graphic keeps its own runtime and table (TL2 C7). Reimport of a
     choice whose artwork now has one option visible gains the start; field ids are unchanged.
