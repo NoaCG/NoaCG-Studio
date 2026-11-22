@@ -540,6 +540,7 @@ export function auditSvg(src, { system, words }) {
   const drawnRoles = roles.filter((r) => r.pool === 'drawn' && r.head);
   const textRows = new Set(texts.map(({ name }) => rowOf(name)).filter(Boolean));
   const choices = new Map();
+  const shownChoices = new Map();
   const extras = new Set();
   for (const child of moments) {
     const name = layerName(child);
@@ -556,7 +557,11 @@ export function auditSvg(src, { system, words }) {
         const problem = shapeProblem(part);
         if (problem) fail('english', problem);
       }
-      if (child.tag !== 'g' || !isHidden(child, hiddenClasses)) fail('moments', `"${name}" must be a hidden group - a moment starts switched off`);
+      // One option of a choice may be drawn VISIBLE: the option it starts on (an alert level's
+      // resting level, svg-template-library TL5). A switch and every other option start off.
+      const startsOn = choice && child.tag === 'g' && !isHidden(child, hiddenClasses);
+      if (startsOn) shownChoices.set(choice[1], (shownChoices.get(choice[1]) ?? 0) + 1);
+      else if (child.tag !== 'g' || !isHidden(child, hiddenClasses)) fail('moments', `"${name}" must be a hidden group - a moment starts switched off`);
       if (extras.has(name)) fail('moments', `the moment "${name}" is duplicated`);
       extras.add(name);
       if (choice) choices.set(choice[1], (choices.get(choice[1]) ?? 0) + 1);
@@ -578,6 +583,7 @@ export function auditSvg(src, { system, words }) {
   }
   for (const [name, count] of choices) {
     if (count < 2 || count > 12) fail('moments', `choice "${name}" has ${count} options - draw two to twelve`);
+    if ((shownChoices.get(name) ?? 0) > 1) fail('moments', `choice "${name}" has ${shownChoices.get(name)} options drawn visible - leave only the one it starts on visible, or none`);
   }
 
   // board

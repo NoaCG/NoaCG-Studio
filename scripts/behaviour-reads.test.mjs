@@ -172,12 +172,14 @@ for (const withClock of [false, true]) {
 
 test('the drift check catches a derivation READS declares and the code does not compare (a planted word)', () => {
   const js = behaviourRuntimeJs(false, false);
-  const planted = js.replace(/("share":\{"spec":\["kind","rows"\],"facts":\["listed","leader"\],"derive":\["label","share","percent")/, '$1,"count"');
+  // `count` was this test's planted word until TL5 taught the runtime to read it; `median` is
+  // one no code compares.
+  const planted = js.replace(/("share":\{"spec":\["kind","rows"\],"facts":\["listed","leader"\],"derive":\["label","share","percent","count")/, '$1,"median"');
   assert.notEqual(planted, js, 'the share declaration was found');
   const declared = R.readsOfRuntime(planted);
   assert.notDeepEqual(codeReads(planted), sortedReads(declared.reads));
   // ...and the same word, taught to the code, passes.
-  const taught = planted.replace("if (name === 'percent') return noacgPercentText(share * 100);", "if (name === 'percent') return noacgPercentText(share * 100);\n    if (name === 'count') return row ? String(row.count) : '';");
+  const taught = planted.replace("if (name === 'percent') return noacgPercentText(share * 100);", "if (name === 'percent') return noacgPercentText(share * 100);\n    if (name === 'median') return share;");
   assert.notEqual(taught, planted);
   const code = codeReads(taught);
   delete code.kinds.clock;
@@ -278,10 +280,13 @@ test('a hand edit asking the frozen vote runtime for a per-option count is refus
     .paint.find((r) => typeof r.write === 'string' && /:percent$/.test(r.from));
   assert.ok(percent, 'the frozen vote writes a percent');
   const asksCount = write(`${head(percent.from)}:count`);
-  assert.deepEqual(R.behaviourReadsVerdict(asksCount.js), { status: 'unread', missing: ['derive:share.count'], upgradable: false });
+  // Still refused under the frozen runtime; since TL5 this build reads it, so importing again is
+  // the way out (upgradable), and the error says so.
+  assert.deepEqual(R.behaviourReadsVerdict(asksCount.js), { status: 'unread', missing: ['derive:share.count'], upgradable: true });
   const errors = errorsOf(asksCount);
   assert.equal(errors.length, 1);
   assert.match(errors[0], /derive:share\.count/);
+  assert.match(errors[0], /import/i);
   assert.deepEqual(errorsOf(write(percent.from)), []);
   // A new kind is refused; a key NO runtime reads (a rule's `effect` before TL4, a spec key) is
   // ignored by every runtime, so it is only warned about and the graphic still exports.

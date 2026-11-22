@@ -161,6 +161,10 @@ test('switches and choices require complete explicit names and hidden groups', (
   caught(audit(src.replace('choice:Status/Replay', 'choice:Status/Live')), 'moments', /duplicated/);
   caught(audit(src.replace('show:Sponsor', 'show:')), 'moments', /not a moment NoaCG knows/);
   caught(audit(src.replace('choice:Status/Live', 'choice:Status/')), 'moments', /not a moment NoaCG knows/);
+  // A choice may be drawn with the ONE option it starts on visible (TL5); two visible say nothing.
+  const startsLive = src.replace('data-name="choice:Status/Live" display="none"', 'data-name="choice:Status/Live"');
+  assert.deepEqual(audit(startsLive), []);
+  caught(audit(startsLive.replace('data-name="choice:Status/Replay" display="none"', 'data-name="choice:Status/Replay"')), 'moments', /2 options drawn visible/);
 });
 
 test('what the system allows is not refused: taught moments, behaviour plates, shadows, frames', () => {
