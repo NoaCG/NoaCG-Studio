@@ -587,7 +587,7 @@
   "alert": {
     "name": "The pop-up alert",
     "verbs": "it plays, holds, and takes itself off",
-    "buttons": "nothing extra: it clears itself after eight seconds, and Next clears it sooner",
+    "buttons": "nothing extra: it clears itself after eight seconds, and Next clears it sooner; tick Hold on air at import for a Hold on air button that keeps it up until Take it off",
     "roles": []
   },
   "survey": {
