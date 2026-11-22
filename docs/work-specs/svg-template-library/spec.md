@@ -292,7 +292,8 @@ Actions. OW: the owner, with Illustrator on their own computer.
   above.
 - **TL4. Templates on existing routes** (CA; depends on TL3; AC-3, AC-5, AC-6, AC-7 for the
   countdown motion). Every type whose route exists, including the corner game timer with its
-  motion and the picture-slot templates.
+  motion and the picture-slot templates. Carried from TL3: the batched browser sweep from "Tests
+  and budget", its before and after minutes and its dated test-maintenance entry.
 - **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension, AC-10 for Alert level). Each
   extension lands with its template, controls, compatibility tests and export proof. Carried
   from TL1 (owner ruling 2026-11-22): a per-option count readout on the Vote results template.
@@ -565,11 +566,12 @@ Actions. OW: the owner, with Illustrator on their own computer.
   addresses redirect to the full library rather than keep two extra copies (about 9 MB less
   deploy). Every picture has alt text and every template a unique name (the navy countdown is
   "Countdown, navy"); the gate refuses an empty alt or a repeated name.
-- Not done here, on purpose: consolidating the per-template browser tests into one batched sweep.
-  It removes tests, which needs a dated test-maintenance entry, and the run's rules forbid
-  writing one to pass a gate; AC-1 and AC-11 do not need it. Test counts are unchanged (the e2e
-  protection check passes with no entry). TL4 adds its templates to a batched sweep rather than
-  one browser test each, and may retire the per-template loops there with an owner entry.
+- Not done here, carried to TL4 (its phase line says so): consolidating the per-template browser
+  tests into one batched sweep. AC-1 and AC-11 do not need it, and TL4 adds most templates, so the
+  sweep is best built once there. It retires tests, so it lands with the dated test-maintenance
+  entry the spec asks for (a planned consolidation, not an entry written to pass a gate) and its
+  minutes before and after. TL3's test counts are unchanged (the e2e protection check passes with
+  no entry).
 - Traps: the browser specs read `library.json` filtered by `style`; a spec that needs a template
   of a style must filter for it. `e2e/fixtures/illustrator-exports/` keeps the old names (map by
   `formerly`). `scripts/illustrator/build-svg-examples.jsx` still writes the old names; it is
@@ -577,7 +579,9 @@ Actions. OW: the owner, with Illustrator on their own computer.
 - Rules (state rules this phase sets; written after coding, so the final `/so` challenges them):
   - A1. Every address the two sets were served at on the base delivers usable content: each SVG
     and PNG the same bytes (directly or through one or two redirects), each old zip a zip that
-    holds every SVG, picture, `.ai` and guide the old one held, with the same bytes.
+    holds every SVG, picture, `.ai` and guide the old one held, with the same bytes. Inside the
+    library zip the four navy files that collided carry their `-navy` names (`formerly` in
+    `library.json` maps them).
   - A2. Nothing under `public/downloads/` is committed; every download is made from the library
     folder by the build, and the dev server answers the same bytes.
   - A3. A change to the library folder or the coverage matrix triggers a production build.

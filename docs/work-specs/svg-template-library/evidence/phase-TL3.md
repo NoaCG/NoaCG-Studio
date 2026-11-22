@@ -48,9 +48,12 @@ its target `/svg-templates#examples` became `/svg-templates` (`ImportDesignStep.
   (`downloads.spec.ts` replaced its two SVG tests by two; `svg-templates.spec.ts` and
   `svg-examples.spec.ts` loop over the same templates, now filtered by `style` from one inventory).
 - Minutes before, from `scripts/e2e-durations.json` (main, p80, recorded 2026-11-16): downloads
-  0.125, svg-templates 0.997, svg-examples 1.301. After: measured by CI on this PR (the durations table refreshes from main); the local run below took 4.0 minutes on two workers for the seven specs.
-- The batched sweep that replaces one browser test per template is not built here (phase notes:
-  it removes tests, so it needs a maintenance entry; TL4 adds its templates to a batched sweep).
+  0.125, svg-templates 0.997, svg-examples 1.301. After, CI run 45029100479 on 2a12348 (one
+  runner per shard): svg-templates 1.1 and svg-examples 1.2 (Playwright's per-file report);
+  downloads stayed under the slow-file report's threshold. The specs run the same tests as before,
+  so the change is within run-to-run noise.
+- The batched sweep that replaces one browser test per template is carried to TL4, with its
+  dated maintenance entry and minutes (phase notes; TL4's phase line).
 
 ## Bytes (D3)
 
@@ -61,6 +64,15 @@ its target `/svg-templates#examples` became `/svg-templates` (`ImportDesignStep.
 
 The package zips are what grows the deploy (they repeat files of the library zip); the old zip
 addresses redirect instead of keeping two more copies.
+
+## Final review
+
+- Final `/so` on e6d5ef8 (fresh read-only cloud session): grade A, AGREE WITH CORRECTIONS. Its two
+  corrections are applied: TL4's phase line carries the batched sweep, and the after minutes are
+  recorded above. Its note on A1 (old zip file names) is added to the rule. Not done: a check that
+  README.pdf matches README.md (the gap existed before; reported as a small gap, not a defect).
+- Codex review on e6d5ef8: no findings. CodeQL flagged a comment-stripping regex in
+  `scripts/svg-files.test.mjs`; fixed in 2a12348.
 
 ## Verification run
 
