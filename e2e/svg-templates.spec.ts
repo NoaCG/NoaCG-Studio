@@ -647,6 +647,15 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
       .replace(/<script([^>]*)src=["']([^"']+\.js)["']([^>]*)><\/script>/gi, (tag, a, ref) => (at(ref) !== undefined ? `<script${a}>${at(ref).replace(/<\/script>/gi, '<\\/script>')}</script>` : tag));
   };
 
+  /** Serve one OGraf package's files from a fake origin, as a renderer fetches them. */
+  const serveOgraf = (origin: string, files: Record<string, string>) => {
+    const root = Object.keys(files).find((n) => n.endsWith('graphic.mjs'))!.replace(/graphic\.mjs$/, '');
+    return page.route(`${origin}**`, (route) => {
+      const body = files[root + new URL(route.request().url()).pathname.replace(/^\//, '')];
+      return body == null ? route.fulfill({ status: 404, body: 'not found' }) : route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body });
+    });
+  };
+
   // The page-based targets: CasparCG and H2R update then play, SPX likewise, the overlay plays itself.
   for (const id of ['spx', 'casparcg', 'h2r', 'html-overlay']) {
     const view = await context.newPage();
@@ -670,13 +679,8 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
 
   // OGraf and LiveOS (the same Graphic): a renderer's real-time lifecycle.
   for (const id of ['ograf', 'liveos']) {
-    const files = packages[id];
-    const root = Object.keys(files).find((n) => n.endsWith('graphic.mjs'))!.replace(/graphic\.mjs$/, '');
     const origin = `http://${id}-motion.local/`;
-    await page.route(`${origin}**`, (route) => {
-      const body = files[root + new URL(route.request().url()).pathname.replace(/^\//, '')];
-      return body == null ? route.fulfill({ status: 404, body: 'not found' }) : route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body });
-    });
+    await serveOgraf(origin, packages[id]);
     await installGraphicBody(page);
     const seen = await page.evaluate(async ({ origin, id, short }) => {
       const mod = await import(`${origin}graphic.mjs`);
@@ -707,13 +711,9 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
 
   // OGraf non-real time: a schedule, then seeks in order and shuffled; each frame is the same.
   const files = packages.ograf;
-  const root = Object.keys(files).find((n) => n.endsWith('graphic.mjs'))!.replace(/graphic\.mjs$/, '');
   const manifest = JSON.parse(files[Object.keys(files).find((n) => n.endsWith('.ograf.json'))!]);
   expect(manifest.supportsNonRealTime, 'the countdown is offered for non-real time').toBe(true);
-  await page.route('http://ograf-seek.local/**', (route) => {
-    const body = files[root + new URL(route.request().url()).pathname.replace(/^\//, '')];
-    return body == null ? route.fulfill({ status: 404, body: 'not found' }) : route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body });
-  });
+  await serveOgraf('http://ograf-seek.local/', files);
   const frames = await page.evaluate(async (short) => {
     const mod = await import('http://ograf-seek.local/graphic.mjs');
     customElements.define('ograf-seek-under-test', mod.default);
