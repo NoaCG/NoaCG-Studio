@@ -1562,12 +1562,15 @@ export function proposeSvgBehaviour(svg: SvgImportResult): SvgBehaviourDraft | n
       kind: 'quiz',
       question: one(best.fields, 'question'),
       answers: keys.map((key) => per(best.fields, 'answer', key)),
-      rows: keys.map((key) => ({
-        selected: per(best.layers, 'answer.selected', key),
-        correct: per(best.layers, 'answer.correct', key),
-        wrong: per(best.layers, 'answer.wrong', key),
-        ...(per(best.layers, 'answer.row', key) ? { row: per(best.layers, 'answer.row', key) } : {}),
-      })),
+      rows: keys.map((key) => {
+        const row = per(best.layers, 'answer.row', key);
+        return {
+          selected: per(best.layers, 'answer.selected', key),
+          correct: per(best.layers, 'answer.correct', key),
+          wrong: per(best.layers, 'answer.wrong', key),
+          ...(row ? { row } : {}),
+        };
+      }),
       locked: one(best.layers, 'locked'),
     };
   }

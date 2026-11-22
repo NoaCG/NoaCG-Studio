@@ -477,7 +477,7 @@ function tierModel(lines, current, rowCount) {
   const now = current.replace(/[^\d.-]/g, '') === '' ? null : Number(current.replace(/[^\d.-]/g, ''));
   return Array.from({ length: rowCount }, (_, i) => {
     const row = parsed[i];
-    if (!row) return { listed: false, reached: false, span: 0, label: '', amount: '' };
+    if (!row) return { listed: false, reached: false, span: 0, label: '', amount: '', hasLabel: false, hasAmount: false };
     const reached = row.figure !== null && now !== null && now >= row.figure;
     let span = 0;
     if (row.figure !== null && now !== null) {
@@ -485,7 +485,7 @@ function tierModel(lines, current, rowCount) {
       const from = earlier ? earlier.figure : 0;
       span = row.figure > from ? Math.min(1, Math.max(0, (now - from) / (row.figure - from))) : now >= row.figure ? 1 : 0;
     }
-    return { listed: true, reached, span, label: row.label, amount: row.amount };
+    return { listed: true, reached, span, label: row.label, amount: row.amount, hasLabel: row.label !== '', hasAmount: row.amount !== '' };
   });
 }
 
@@ -522,6 +522,8 @@ test('tiers: the runtime reads the Milestones box against Current exactly as the
     ['', '50'],
     ['\n  \nA | 10\n\nB | 20\n', '15'],
     ['A | 10\nB | 20', ''],
+    // A line with no label, or nothing after its bar sign: listed, its readout has nothing to show.
+    ['| 10\nB |\nC | 30', '12'],
   ];
   for (const [lines, current] of cases) {
     rt.values[fields.milestones] = lines;
@@ -534,24 +536,33 @@ test('tiers: the runtime reads the Milestones box against Current exactly as the
       assert.ok(Math.abs(rt.derive('milestones:span', key) - want[i].span) < 1e-9, `${at}: span ${rt.derive('milestones:span', key)} for ${want[i].span}`);
       assert.equal(rt.derive('milestones:label', key), want[i].label, `${at}: label`);
       assert.equal(rt.derive('milestones:amount', key), want[i].amount, `${at}: amount as typed`);
+      assert.equal(rt.fact('milestones:has-label', key), want[i].hasLabel, `${at}: has a label`);
+      assert.equal(rt.fact('milestones:has-amount', key), want[i].hasAmount, `${at}: has a figure`);
     });
   }
   measured(cases.length, 'milestone cases against the reference model');
 });
 
+/** Saved markup drawing these texts in the meter binding's tier layers (`t1`, `h1` and so on). */
+const tierMarkup = (tiers, figures = {}) => `<svg>${[...Object.entries(tiers).map(([k, v]) => `<text data-noacg-candidate="t${k}">${v}</text>`), ...Object.entries(figures).map(([k, v]) => `<text data-noacg-candidate="h${k}">${v}</text>`)].join('')}</svg>`;
+
 test('tiers: the box starts as the tiers are drawn, made after Current and Target; a meter without tiers is the meter it was', () => {
-  const drawn = { tier: { 1: 'Warm-up', 2: 'Halfway', 3: 'Stretch', 4: 'Dream' }, 'tier.figure': { 1: '5,000', 2: '15,000', 4: '50,000' } };
-  const type = compileBinding([], meterBinding({ drawn })).type('Milestone track');
+  const markup = tierMarkup({ 1: 'Warm-up', 2: 'Halfway', 3: 'Stretch', 4: 'Dream' }, { 1: '5,000', 2: '15,000', 4: '50,000' });
+  const type = compileBinding([], meterBinding({ markup })).type('Milestone track');
   assert.deepEqual(type.fields.map((f) => [f.key, f.value]), [
     ['current', '0'], ['target', '100'],
     ['milestones', 'Warm-up | 5,000\nHalfway | 15,000\nStretch\nDream | 50,000'],
   ], 'a tier drawn without its figure is its label alone, never reached');
-  assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], meterBinding({ drawn })).js()), { status: 'ok' });
+  // One line per row, whatever is drawn: an empty tier is named for its row; a label holding a bar
+  // sign and no figure keeps it.
+  const odd = compileBinding([], meterBinding({ markup: tierMarkup({ 1: 'Rock | Roll', 2: '', 3: 'C', 4: 'D' }, { 3: '30' }) })).type('Milestone track');
+  assert.equal(odd.fields.find((f) => f.key === 'milestones').value, 'Rock | Roll |\nTier 2\nC | 30\nD');
+  assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], meterBinding({ markup })).js()), { status: 'ok' });
   // S1: no tiers - with no rows at all, or none chosen - is the meter's own table, fields and html.
   const plain = (rows) => compileBinding([], { recipe: 'meter', ...(rows ? { rows } : {}), fields: {}, layers: { bar: 'c0', percent: 'c1' } });
   for (const rows of [undefined, []]) {
     const c = plain(rows);
-    const table = JSON.parse(c.js().slice(c.js().indexOf('{', c.js().indexOf('var NOACG_BEHAVIOUR = ')), c.js().indexOf('\n};\n', c.js().indexOf('var NOACG_BEHAVIOUR = ')) + 2));
+    const { table } = runtimeOf({ recipe: 'meter', ...(rows ? { rows } : {}), fields: {}, layers: { bar: 'c0', percent: 'c1' } });
     assert.deepEqual(table, {
       version: 1, recipe: 'meter',
       paint: [{ gauge: 'bar', from: 'current:fraction' }, { write: 'percent', from: 'current:percent' }],
@@ -561,7 +572,7 @@ test('tiers: the box starts as the tiers are drawn, made after Current and Targe
     assert.doesNotMatch(c.html(0), /milestones|Milestones/);
   }
   // A drawn label with markup characters reaches the box as text, never as markup.
-  const html = compileBinding([], meterBinding({ drawn: { tier: { 1: 'R&D <b>', 2: 'B', 3: 'C', 4: 'D' } } })).html(0);
+  const html = compileBinding([], meterBinding({ markup: tierMarkup({ 1: 'R&amp;D &lt;b&gt;', 2: 'B', 3: 'C', 4: 'D' }) })).html(0);
   assert.match(html, /R&amp;D &lt;b&gt;/);
 });
 
@@ -581,14 +592,26 @@ test('quiz rows in use: a Row shows while its answer has text, and no pick or ve
   // One Row drawn makes the whole board count rows in use.
   const rows = runtimeOf(quiz({ C: 'p3' }), artworkFields);
   assert.deepEqual(R.behaviourReadsVerdict(rows.js), { status: 'ok' });
-  const looks = Object.fromEntries(rows.table.paint.filter((r) => r.look).map((r) => [r.look, r]));
-  for (const look of ['answer.selected', 'answer.correct', 'answer.wrong']) assert.ok(looks[look].when.facts.includes('answer:filled'), `${look} only on a row in use`);
-  assert.deepEqual(looks['answer.row'], { look: 'answer.row', rows: 'answer', when: { facts: ['answer:filled'] } }, 'a Row never pops');
-  assert.deepEqual(looks.locked.when, { state: ['main/locked', 'main/sealed'] });
+  // The verdict looks are the quiz's own; the dropdowns' kind keeps every fact off a row not in use.
+  assert.deepEqual(rows.table.paint.filter((r) => r.look && r.look !== 'answer.row'), plain.table.paint.filter((r) => r.look));
+  assert.deepEqual(rows.table.paint.find((r) => r.look === 'answer.row'), { look: 'answer.row', rows: 'answer', when: { facts: ['answer:filled'] } }, 'a Row never pops');
+  assert.deepEqual(Object.values(rows.table.kinds).filter((k) => k.kind === 'row-pick'), [{ kind: 'row-pick', rows: 'answer', inUse: 'answer' }, { kind: 'row-pick', rows: 'answer', inUse: 'answer' }]);
   // In use while the answer holds text other than spaces (Q1, Q3).
   const { fields } = rows.table;
   Object.assign(rows.values, { [fields.answer.A]: 'Neptune', [fields.answer.B]: '   ', [fields.answer.C]: 'Saturn' });
   assert.deepEqual(['A', 'B', 'C'].map((k) => rows.fact('answer:filled', k)), [true, false, true]);
+  // A pick or a key naming a row not in use names nothing (Q2): no Wrong lights from it.
+  rows.values[fields.correctAnswer] = 'B';
+  assert.deepEqual(['A', 'B', 'C'].map((k) => [rows.fact('correctAnswer:picked', k), rows.fact('correctAnswer:unpicked', k)]), [[false, false], [false, false], [false, false]]);
+  // A key on a row in use: Correct there, Wrong only on the other rows in use, nothing on B.
+  rows.values[fields.correctAnswer] = 'C';
+  assert.deepEqual(['A', 'B', 'C'].map((k) => [rows.fact('correctAnswer:picked', k), rows.fact('correctAnswer:unpicked', k)]), [[false, true], [false, false], [true, false]]);
+  rows.values[fields.selectedAnswer] = 'B';
+  assert.deepEqual(['A', 'B', 'C'].map((k) => rows.fact('selectedAnswer:picked', k)), [false, false, false], 'a pick of a row not in use lights nothing');
+  // Without Rows the dropdowns read exactly as before: a key on an empty answer is still the key.
+  assert.deepEqual(Object.values(plain.table.kinds).filter((k) => k.kind === 'row-pick'), [{ kind: 'row-pick', rows: 'answer' }, { kind: 'row-pick', rows: 'answer' }]);
+  Object.assign(plain.values, { [plain.table.fields.answer.B]: '', [plain.table.fields.correctAnswer]: 'B' });
+  assert.equal(plain.fact('correctAnswer:picked', 'B'), true);
   // The quiz's controls, machine and fields are unchanged by the Row (Q2, Q3).
   const typeOf = (b) => compileBinding(artworkFields, b).type('Quiz show');
   assert.deepEqual(typeOf(quiz({ C: 'p3' })).controls, typeOf(quiz()).controls);
@@ -614,6 +637,16 @@ test('S2: the frozen runtime refuses the new words, and importing again is the f
   assert.equal(verdict.status, 'unread');
   assert.equal(verdict.upgradable, true);
   assert.deepEqual([...verdict.missing].sort(), ['derive:list.amount', 'derive:list.span', 'fact:list.reached', 'kind:list.of'].sort());
+  const asksInUse = handEdit(VOTE, (t) => {
+    t.kinds.f91 = { kind: 'row-pick', rows: 'option', inUse: textRole };
+    t.fields.key = 'f91';
+    t.paint.push({ look: 'badge', rows: 'option', when: { facts: ['key:picked', 'tiers:has-label'] } });
+    t.kinds.f90 = { kind: 'list', rows: 'option' };
+    t.fields.tiers = 'f90';
+  });
+  const more = R.behaviourReadsVerdict(asksInUse.js);
+  assert.equal(more.upgradable, true);
+  assert.deepEqual([...more.missing].sort(), ['fact:list.has-label', 'kind:row-pick.inUse']);
 });
 
 test('the build reads the text a bound layer draws off the saved markup, as textContent joins it', async () => {
@@ -622,5 +655,10 @@ test('the build reads the text a bound layer draws off the saved markup, as text
   assert.equal(drawnTextOf(markup, 'c1'), 'Warm-up');
   assert.equal(drawnTextOf(markup, 'c2'), 'R&D €5');
   assert.equal(drawnTextOf(markup, 'c3'), '');
+  // Drawn on two lines, the words stay apart; split on one line, they join.
+  const lines = '<text data-noacg-candidate="c4"><tspan x="0" y="0">Stretch</tspan><tspan x="0" y="30">goal</tspan></text><text data-noacg-candidate="c5"><tspan x="0" y="0">Big</tspan><tspan x="0" dy="1.2em">win</tspan></text><text data-noacg-candidate="c6"><tspan x="0" y="0">Kick</tspan><tspan x="41" y="0">off</tspan></text>';
+  assert.deepEqual(['c4', 'c5', 'c6'].map((id) => drawnTextOf(lines, id)), ['Stretch goal', 'Big win', 'Kickoff']);
+  // Entities are read once: an escaped ampersand never starts a second entity.
+  assert.equal(drawnTextOf('<text data-noacg-candidate="c7">R&amp;lt;D &#38;amp;</text>', 'c7'), 'R&lt;D &amp;');
   assert.equal(drawnTextOf(markup, 'c9'), '');
 });

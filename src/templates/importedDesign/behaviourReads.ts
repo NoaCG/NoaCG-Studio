@@ -87,7 +87,8 @@ export const READS_ADDED: Array<{ since: string; what: string; reads: Partial<Om
   { since: 'TL5', what: "a vote row's own count, printed beside its share (Vote results)", reads: { kinds: { share: { derive: ['count'] } } } },
   { since: 'TL5', what: "a choice's starting option: a value naming no row picks it, so the choice is never empty", reads: { kinds: { 'row-pick': { spec: ['start'] } } } },
   { since: 'TL5', what: "a quiz row in use: its answer has text, so one board plays two, three or four answers", reads: { kinds: { text: { facts: ['filled'] } } } },
-  { since: 'TL5', what: "a milestone track: a list read against a figure, its tiers reached, the segment between two, the figure as typed", reads: { kinds: { list: { spec: ['of'], facts: ['reached'], derive: ['span', 'amount'] } } } },
+  { since: 'TL5', what: "a milestone track: a list read against a figure, its tiers reached, the segment between two, the figure as typed", reads: { kinds: { list: { spec: ['of'], facts: ['reached', 'has-label', 'has-amount'], derive: ['span', 'amount'] } } } },
+  { since: 'TL5', what: "a quiz drawing its answer rows: a pick or a key naming a row not in use names nothing", reads: { kinds: { 'row-pick': { spec: ['inUse'] } } } },
 ];
 
 const union = <T>(a: T[], b: T[] = []): T[] => [...a, ...b.filter((w) => !a.includes(w))];

@@ -19,18 +19,20 @@
 import type { BehaviourRecipe, RecipeContext, RecipeField } from './recipe';
 import { rolesOf, rowsOf } from './recipe';
 
-const TIER = 'tier';
+/** Does the meter draw tiers? Without, it is exactly the meter it was. */
+const hasTiers = (ctx: RecipeContext): boolean => ctx.rows.length > 0;
 
-/** The drawn tiers as the box's lines: `Label | figure` per drawn tier, in row order. A tier
- *  drawn without a Threshold is its label alone, which the runtime reads as never reached. */
+/** The drawn tiers as the box's lines: `Label | figure` per tier, one line per row so line n
+ *  stays row n. A tier drawn without a Threshold has no figure, so it is never reached; its line
+ *  still ends in a bar sign where the label holds one, or the label would be split at it. A tier
+ *  drawn with no text at all is named for its row (`Tier 2`), never dropped. */
 function drawnMilestones(ctx: RecipeContext): string {
   return ctx.rows
     .map((key) => {
-      const label = ctx.drawn('tier', key).trim();
+      const label = ctx.drawn('tier', key).trim() || ctx.label('tier', key);
       const figure = ctx.drawn('tier.figure', key).trim();
-      return figure ? `${label} | ${figure}` : label;
+      return figure ? `${label} | ${figure}` : label.includes('|') ? `${label} |` : label;
     })
-    .filter((line) => line !== '')
     .join('\n');
 }
 
@@ -46,8 +48,8 @@ export const meterRecipe: BehaviourRecipe = {
     { key: 'current', label: 'Current', kind: 'number', value: '0' },
     { key: 'target', label: 'Target', kind: 'number', value: '100' },
     // Made after Current and Target, so their ids never move when tiers are drawn.
-    ...(ctx.rows.length > 0
-      ? [{ key: 'milestones', label: 'Milestones', kind: 'lines' as const, value: drawnMilestones(ctx), spec: { kind: 'list' as const, rows: TIER, of: 'current' } }]
+    ...(hasTiers(ctx)
+      ? [{ key: 'milestones', label: 'Milestones', kind: 'lines' as const, value: drawnMilestones(ctx), spec: { kind: 'list' as const, rows: 'tier', of: 'current' } }]
       : []),
   ],
   path: () => ({ entrance: 'On air' }),
@@ -56,15 +58,17 @@ export const meterRecipe: BehaviourRecipe = {
   paint: (ctx) => [
     { gauge: 'bar', from: 'current:fraction' },
     { write: 'percent', from: 'current:percent' },
-    ...(ctx.rows.length > 0
+    ...(hasTiers(ctx)
       ? [
-          { write: TIER, rows: TIER, from: 'milestones:label' },
-          { write: 'tier.figure', rows: TIER, from: 'milestones:amount' },
-          { look: TIER, rows: TIER, when: { facts: ['milestones:listed'] } },
-          { look: 'tier.figure', rows: TIER, when: { facts: ['milestones:listed'] } },
-          { look: 'tier.row', rows: TIER, when: { facts: ['milestones:listed'] } },
-          { look: 'tier.reached', rows: TIER, when: { facts: ['milestones:reached'] } },
-          { gauge: 'tier.bar', rows: TIER, from: 'milestones:span' },
+          { write: 'tier', rows: 'tier', from: 'milestones:label' },
+          { write: 'tier.figure', rows: 'tier', from: 'milestones:amount' },
+          // A readout shows only while its line has something to write, so it never keeps an
+          // old label or figure (a readout with nothing to say is left as it was).
+          { look: 'tier', rows: 'tier', when: { facts: ['milestones:has-label'] } },
+          { look: 'tier.figure', rows: 'tier', when: { facts: ['milestones:has-amount'] } },
+          { look: 'tier.row', rows: 'tier', when: { facts: ['milestones:listed'] } },
+          { look: 'tier.reached', rows: 'tier', when: { facts: ['milestones:reached'] } },
+          { gauge: 'tier.bar', rows: 'tier', from: 'milestones:span' },
         ]
       : []),
   ],

@@ -105,9 +105,9 @@ export interface BehaviourBinding {
   layers: Record<string, string | Record<string, string>>;
   /** Credits only: the styled binding, where the design builds it (`RecipeContext.credits`). */
   credits?: DesignSvgCredits;
-  /** The text the artwork DRAWS in each bound text layer, by role (per row, key -> text), read
-   *  off the saved markup at build (`RecipeContext.drawn`). Never saved: the markup is. */
-  drawn?: Record<string, string | Record<string, string>>;
+  /** The saved markup, so a recipe can read the text a bound layer draws (`RecipeContext.drawn`),
+   *  only when it asks. Never saved on the binding: the design already holds the markup. */
+  markup?: string;
 }
 
 /**
@@ -132,7 +132,7 @@ export function bindingsOf(svg: DesignSvg): BehaviourBinding[] {
   else if (behaviour?.kind === 'timer') out.push(countdownBinding(svg, behaviour));
   else if (behaviour?.kind === 'score') out.push(scoreBinding(behaviour));
   else if (behaviour?.kind === 'recipe') {
-    const binding = withDrawn(recipeBinding(behaviour), svg.markup);
+    const binding = { ...recipeBinding(behaviour), markup: svg.markup };
     // A styled credits binding that builds (not one gone stale, which builds the editable roll).
     out.push(behaviour.credits && styledCredits(svg) ? { ...binding, credits: behaviour.credits } : binding);
   }
@@ -144,44 +144,40 @@ export function bindingsOf(svg: DesignSvg): BehaviourBinding[] {
 }
 
 /** The text drawn in one candidate of the saved markup: its element's text with the tags taken
- *  out (as textContent joins them), entities read and white space joined. DOM-free, so the build reads the same in a browser,
- *  in the CLI and in Node. Empty when the candidate is not there. */
+ *  out, a space between drawn lines, entities read and white space joined. DOM-free, so the build
+ *  reads the same in a browser, in the CLI and in Node. Empty when the candidate is not there. */
 export function drawnTextOf(markup: string, candidateId: string): string {
   const mark = `${SVG_CANDIDATE_ATTR}="${candidateId}"`;
   const found = markup.indexOf(mark);
   if (found === -1) return '';
-  const open = markup.lastIndexOf('<', found);
-  const tag = /^<([A-Za-z][\w:-]*)/.exec(markup.slice(open))?.[1];
+  const opening = /<([A-Za-z][\w:-]*)/y;
+  opening.lastIndex = markup.lastIndexOf('<', found);
+  const tag = opening.exec(markup)?.[1];
   const start = markup.indexOf('>', found);
   if (!tag || start === -1 || markup[start - 1] === '/') return '';
   const end = markup.indexOf(`</${tag}>`, start);
   if (end === -1) return '';
-  return markup
-    .slice(start + 1, end)
-    // As textContent reads it: a tspan run split by the exporter is one word again.
+  // A tspan that starts a new LINE (its own y, or a dy) is a word apart; a run the exporter split
+  // on one line (kerning, a weight change) joins as textContent joins it.
+  let lineY: string | null = null;
+  let first = true;
+  const lines = markup.slice(start + 1, end).replace(/<tspan\b([^>]*)>/g, (_, attrs: string) => {
+    const y = /\sy="([^"]*)"/.exec(attrs)?.[1] ?? null;
+    const dy = parseFloat(/\sdy="([^"]*)"/.exec(attrs)?.[1] ?? '0') || 0;
+    const newLine = !first && ((y !== null && lineY !== null && y !== lineY) || dy !== 0);
+    if (y !== null) lineY = y;
+    first = false;
+    return newLine ? ' ' : '';
+  });
+  const entities: Record<string, string> = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' };
+  return lines
     .replace(/<[^>]*>/g, '')
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(parseInt(dec, 10)))
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&')
+    // One pass, so a decoded `&` never starts a second entity.
+    .replace(/&(#x[0-9a-f]+|#\d+|lt|gt|quot|apos|amp);/gi, (whole, name: string) =>
+      name[0] === '#' ? String.fromCodePoint(name[1] === 'x' || name[1] === 'X' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10)) : entities[name.toLowerCase()] ?? whole,
+    )
     .replace(/\s+/g, ' ')
     .trim();
-}
-
-/** A recipe binding with the text its bound TEXT layers draw, for a recipe that reads it. */
-function withDrawn(binding: BehaviourBinding, markup: string): BehaviourBinding {
-  const recipe = recipeById(binding.recipe);
-  const textRoles = (recipe?.roles ?? []).filter((r) => r.kind === 'layer' && r.pool === 'text').map((r) => r.id);
-  const drawn: NonNullable<BehaviourBinding['drawn']> = {};
-  for (const role of textRoles) {
-    const bound = binding.layers[role];
-    if (typeof bound === 'string') drawn[role] = drawnTextOf(markup, bound);
-    else if (bound) drawn[role] = Object.fromEntries(Object.entries(bound).map(([key, id]) => [key, drawnTextOf(markup, id)]));
-  }
-  return Object.keys(drawn).length > 0 ? { ...binding, drawn } : binding;
 }
 
 /** Per-row layer bindings from a list of rows, skipping the rows the designer left undrawn. */
@@ -444,7 +440,10 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
       return key ? `${declared} ${key}` : declared;
     },
     bound: (role, key) => at(binding.layers, role, key) !== undefined || at(binding.fields, role, key) !== undefined,
-    drawn: (role, key) => at(binding.drawn ?? {}, role, key) ?? '',
+    drawn: (role, key) => {
+      const candidateId = at(binding.layers, role, key);
+      return candidateId && binding.markup ? drawnTextOf(binding.markup, candidateId) : '';
+    },
   };
   owned = recipe.fields(ctx);
   const ownedIds = owned.map((_, i) => `f${from + i}`);

@@ -516,9 +516,9 @@ export default function BehaviourSection({
   const generic = behaviour?.kind === 'recipe' ? behaviour : null;
   const genericRecipe = generic ? recipeById(generic.recipe) : null;
   const genericRoles = (genericRecipe?.roles ?? []).filter((role) => generic?.recipe !== 'credits' || role.id !== 'box');
-  // A recipe whose rows are optional (the meter's tiers, none by default) is proposed with no
-  // rows at all; its row count is still offered, starting at none.
-  const genericRows = generic?.rows ?? (genericRecipe?.rows?.min === 0 ? [] : null);
+  // A draft with no rows saved leaves them out (the meter's tiers, none by default); a recipe that
+  // declares a row set still offers its row count.
+  const genericRows = generic?.rows ?? (genericRecipe?.rows ? [] : null);
   const patchGeneric = (patch: Partial<SvgRecipeDraft>) => {
     if (generic) onDraft({ svgBehaviour: { ...generic, ...patch } });
   };
@@ -1438,7 +1438,7 @@ export default function BehaviourSection({
                     >
                       {Array.from({ length: genericRecipe.rows.max - genericRecipe.rows.min + 1 }, (_, i) => genericRecipe.rows!.min + i).map((n) => (
                         <option key={n} value={n}>
-                          {n === 0 ? 'None' : `${n} rows`}
+                          {n === 0 ? 'None' : n === 1 ? '1 row' : `${n} rows`}
                         </option>
                       ))}
                     </select>

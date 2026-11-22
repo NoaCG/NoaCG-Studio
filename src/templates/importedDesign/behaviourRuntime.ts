@@ -172,13 +172,21 @@ noacgKinds.select = {
 // and "after" are the ORDER facts: this row comes before the picked one in row order (a guest
 // who has already been on), or after it (one still to come). A start row (a choice that starts
 // on an option, svg-template-library TL5) is what a value naming no row means: such a choice is
-// never empty, even under a cue saved before it had a start.
+// never empty, even under a cue saved before it had a start. Where spec.inUse names a per-row role
+// (a quiz drawing its answer rows, svg-template-library TL5), a row is IN USE while its field of
+// that role holds text: a value naming a row not in use names nothing, and no fact holds on a row
+// not in use, so neither a pick nor a verdict ever lights one.
+function noacgRowInUse(spec, key) {
+  if (!spec.inUse) return true;
+  var field = noacgFieldFor(spec.inUse, key);
+  return !!field && noacgFieldText(field).trim() !== '';
+}
 noacgKinds['row-pick'] = {
   fact: function (id, spec, name, rowKey) {
     var value = noacgFieldText(id).trim().toUpperCase();
     var keys = noacgRowsOf(spec.rows);
     if (spec.start && keys.indexOf(value) === -1) value = String(spec.start).toUpperCase();
-    var named = value !== '' && keys.indexOf(value) !== -1;
+    var named = value !== '' && keys.indexOf(value) !== -1 && noacgRowInUse(spec, value) && noacgRowInUse(spec, rowKey);
     if (name === 'picked') return named && value === rowKey;
     if (name === 'unpicked') return named && value !== rowKey;
     if (name === 'before') return named && keys.indexOf(rowKey) < keys.indexOf(value);
@@ -259,11 +267,15 @@ noacgKinds.list = {
   fact: function (id, spec, name, rowKey) {
     var at = noacgRowsOf(spec.rows).indexOf(rowKey);
     if (name === 'listed') return at !== -1 && at < noacgListRows(id).length;
+    var row = at === -1 ? null : noacgListRows(id)[at];
     if (name === 'reached') {
-      var row = at === -1 ? null : noacgListRows(id)[at];
       var value = noacgListAgainst(spec);
       return !!row && row.known && !isNaN(value) && value >= row.figure;
     }
+    // A row whose line has a label, or text after the bar sign: a readout of either shows only
+    // then, since a readout with nothing to write would keep what it showed before.
+    if (name === 'has-label') return !!row && row.label !== '';
+    if (name === 'has-amount') return !!row && row.amount !== '';
     return false;
   },
   derive: function (id, spec, name, rowKey) {

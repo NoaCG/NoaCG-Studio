@@ -30,6 +30,9 @@ const templates = (JSON.parse(readFileSync(new URL('../docs/tutorials/template-l
   .filter((t) => t.style === 'studio');
 const file = (slug: string) => fileURLToPath(new URL(`../docs/tutorials/template-library/SVG/${slug}.svg`, import.meta.url));
 
+/** The drawn width of a layer by its label (`Segment 3`): a gauge's full length. */
+const drawnWidth = (slug: string, label: string) => Number(new RegExp(`inkscape:label="${label}"[^>]*width="([\\d.]+)"`).exec(readFileSync(file(slug), 'utf8'))?.[1]);
+
 /** The texts a template names in its Text layer, in drawing order - each one is a field. */
 function namedTexts(slug: string): string[] {
   const svg = readFileSync(file(slug), 'utf8');
@@ -542,7 +545,7 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       // Current past two tiers: they light, the line runs a part of the way to the third, and the
       // percent is of Target.
       const full: Record<string, number> = {};
-      for (const k of tiers) full[k] = Number(new RegExp(`inkscape:label="Segment ${k}"[^>]*width="([\\d.]+)"`).exec(svgText)?.[1]);
+      for (const k of tiers) full[k] = drawnWidth(t.slug, `Segment ${k}`);
       const share = (k: string) => role(air, `tier.bar/${k}`).evaluate((el, w) => (el as SVGGraphicsElement).getBBox().width / w, full[k]);
       await page.getByTestId(`cue-field-${await fieldFor(air, 'Current')}`).fill('18400');
       await page.getByTestId(`cue-field-${await fieldFor(air, 'Target')}`).fill('50000');
@@ -1380,16 +1383,12 @@ async function packageHost(page: Page, context: BrowserContext, id: string, file
 
 test('Verdict card and Chat highlight: Clear and Hold on air play in every export target', async ({ page, context }) => {
   test.setTimeout(120_000);
-  const targets = EXPORT_IDS;
-  const prepare = (slug: string, titles: string[]) => prepareExport(page, slug, titles);
-  const host = (id: string, files: Record<string, string>, data: Record<string, string>) => packageHost(page, context, id, files, data);
-
   // Verdict card: a verdict sent as data shows alone, and the empty value (Clear's) takes it away.
-  const verdict = await prepare('verdict-card', ['Verdict']);
+  const verdict = await prepareExport(page, 'verdict-card', ['Verdict']);
   const looks = ['TRUE', 'FALSE', 'MISLEADING'].map((key) => `choice.verdict.option/${key}`);
   const verdictPackages = await exportPackages(page, verdict.production, { [verdict.ids.Verdict]: 'false' });
-  for (const id of targets) {
-    const h = await host(id, verdictPackages[id], { [verdict.ids.Verdict]: 'false' });
+  for (const id of EXPORT_IDS) {
+    const h = await packageHost(page, context, id, verdictPackages[id], { [verdict.ids.Verdict]: 'false' });
     await expect.poll(() => h.lit(looks), { message: `${id}: False shows alone` }).toEqual([looks[1]]);
     if (id !== 'html-overlay') {
       await h.update({ [verdict.ids.Verdict]: '' });
@@ -1401,10 +1400,10 @@ test('Verdict card and Chat highlight: Clear and Hold on air play in every expor
   // Chat highlight: unheld it clears itself after the eight seconds in every host (SPX, OGraf and
   // the overlay, one of each kind of package); held (CasparCG, H2R, LiveOS) it stays up past them,
   // and Take it off (`dismiss`) then clears it.
-  const chat = await prepare('chat-highlight', []);
+  const chat = await prepareExport(page, 'chat-highlight', []);
   const chatPackages = await exportPackages(page, chat.production, {});
   const held = new Set(['casparcg', 'h2r', 'liveos']);
-  const hosts = await Promise.all(targets.map(async (id) => [id, await host(id, chatPackages[id], {})] as const));
+  const hosts = await Promise.all(EXPORT_IDS.map(async (id) => [id, await packageHost(page, context, id, chatPackages[id], {})] as const));
   for (const [id, h] of hosts) await expect.poll(() => h.shown(), { message: `${id}: on air` }).toBe(true);
   await page.waitForTimeout(1_000);              // the entrance settles: Hold leaves the on-air state
   for (const [id, h] of hosts) if (held.has(id)) await h.event('hold');
@@ -1433,7 +1432,7 @@ test('Milestone track and Quiz show: tiers and rows in use play in every export 
     await expect.poll(() => h.lit(reached), { message: `${id}: the first two tiers reached` }).toEqual(reached.slice(0, 2));
     expect(await h.lit(['tier/3', 'tier/4', 'tier.row/4']), `${id}: three tiers listed`).toEqual(['tier/3']);
     expect((await h.read('tier.figure/3'))?.text, `${id}: the figure as typed`).toBe('$20');
-    const full = Number(/inkscape:label="Segment 3"[^>]*width="([\d.]+)"/.exec(readFileSync(file('milestone-track'), 'utf8'))![1]);
+    const full = drawnWidth('milestone-track', 'Segment 3');
     await expect.poll(async () => ((await h.read('tier.bar/3'))?.width ?? 0) / full, { message: `${id}: halfway from 10 to 20` }).toBeCloseTo(0.5, 2);
     if (id !== 'html-overlay') {
       await h.update({ ...tiers, [track.ids.Current]: '30' });
