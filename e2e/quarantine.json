@@ -2,11 +2,6 @@
   "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
   "version": 1,
   "specs": {
-    "e2e/configured/command-sequence.spec.ts": {
-      "since": "2026-11-13",
-      "count": 3,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43487230143"
-    },
     "e2e/configured/operator-outage-not-unpublished.spec.ts": {
       "since": "2026-11-21",
       "count": 5,
@@ -21,11 +16,6 @@
       "since": "2026-11-22",
       "count": 3,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/45013341603"
-    },
-    "e2e/import-svg-credits.spec.ts": {
-      "since": "2026-11-20",
-      "count": 3,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44836973599"
     },
     "e2e/playout-cues.spec.ts": {
       "since": "2026-11-22",
@@ -58,6 +48,10 @@
     "e2e/configured/audience-live.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
+    },
+    "e2e/configured/command-sequence.spec.ts": {
+      "count": 3,
+      "last": "2026-11-22"
     },
     "e2e/configured/community-pack-review.spec.ts": {
       "count": 1,
@@ -194,6 +188,10 @@
     "e2e/import-svg-corpus.spec.ts": {
       "count": 2,
       "last": "2026-11-13"
+    },
+    "e2e/import-svg-credits.spec.ts": {
+      "count": 3,
+      "last": "2026-11-22"
     },
     "e2e/import-svg.spec.ts": {
       "count": 5,
