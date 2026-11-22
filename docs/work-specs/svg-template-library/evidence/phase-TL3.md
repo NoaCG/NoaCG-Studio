@@ -29,17 +29,17 @@ A4 in the phase notes) were written after coding, so the final `/so` challenges 
 
 | Part | Proof | Result |
 | --- | --- | --- |
-| One Template Library page | `scripts/svg-files.test.mjs` "each package shows each of its templates..." and `e2e/downloads.spec.ts` "the Template Library page shows every template by package and serves each file and package zip": every template is in a package, each tile's SVG is the source file, each package zip holds exactly its templates, every preview loads | RESULT_PAGE |
-| One downloads card | `e2e/downloads.spec.ts` "one SVG templates card holds the library zip, and the zip matches the repo": one `download-svg*` card, one download link, the library zip's every text file, picture, PDF and `.ai` byte-equal to the repo | RESULT_CARD |
-| No user-facing Examples set | the page and its generated body contain no "example" (Node and browser), the card contains no "example" | RESULT_EXAMPLES |
+| One Template Library page | `scripts/svg-files.test.mjs` "each package shows each of its templates..." and `e2e/downloads.spec.ts` "the Template Library page shows every template by package and serves each file and package zip": every template is in a package, each tile's SVG is the source file, each package zip holds exactly its templates, every preview loads | pass |
+| One downloads card | `e2e/downloads.spec.ts` "one SVG templates card holds the library zip, and the zip matches the repo": one `download-svg*` card, one download link, the library zip's every text file, picture, PDF and `.ai` byte-equal to the repo | pass |
+| No user-facing Examples set | the page and its generated body contain no "example" (Node and browser), the card contains no "example" | pass |
 | Every old URL and file still delivers | `scripts/svg-files.test.mjs` "every old address still delivers": all 124 addresses resolved through `vercel.json`'s redirects to a file the build serves, each SVG and PNG with the sha256 it had on the base; both old zips resolve to the library zip, which holds every SVG, picture, `.ai` and guide they held (121 files) byte for byte; only the old READMEs, PDFs and inventories were replaced | pass (8/8 in the file) |
-| Every old anchor still delivers | `#templates` and `#examples` exist on the library page; `#svg-examples` on `/downloads` sits inside the card (both specs) | RESULT_ANCHORS |
+| Every old anchor still delivers | `#templates` and `#examples` exist on the library page; `#svg-examples` on `/downloads` sits inside the card (both specs) | pass |
 
 ## AC-11
 
 The Import step is untouched except one link: its text "Example files" became "SVG templates" and
 its target `/svg-templates#examples` became `/svg-templates` (`ImportDesignStep.tsx`; asserted in
-`e2e/import-svg.spec.ts`). No recipe, step, field or option changed. RESULT_IMPORT
+`e2e/import-svg.spec.ts`). No recipe, step, field or option changed. Result: pass (`e2e/import-svg.spec.ts` in the browser run below).
 
 ## Tests and budget
 
@@ -48,7 +48,7 @@ its target `/svg-templates#examples` became `/svg-templates` (`ImportDesignStep.
   (`downloads.spec.ts` replaced its two SVG tests by two; `svg-templates.spec.ts` and
   `svg-examples.spec.ts` loop over the same templates, now filtered by `style` from one inventory).
 - Minutes before, from `scripts/e2e-durations.json` (main, p80, recorded 2026-11-16): downloads
-  0.125, svg-templates 0.997, svg-examples 1.301. After: AFTER_MINUTES.
+  0.125, svg-templates 0.997, svg-examples 1.301. After: measured by CI on this PR (the durations table refreshes from main); the local run below took 4.0 minutes on two workers for the seven specs.
 - The batched sweep that replaces one browser test per template is not built here (phase notes:
   it removes tests, so it needs a maintenance entry; TL4 adds its templates to a batched sweep).
 
@@ -64,10 +64,22 @@ addresses redirect instead of keeping two more copies.
 
 ## Verification run
 
+- Review (`/check`): seven findings, all fixed (alt text on every preview with the empty-alt
+  guard back, unique tile names, a proof loop must select its style, forward-slash paths, the
+  Illustrator script writes to a staging folder, a package README note, the downloads page
+  description). Simplify: one zip plan for build and dev server, already-compressed files stored,
+  the old-address test compiles `vercel.json` with `@vercel/routing-utils` as Vercel does.
+  Skipped: moving `builtIns` out of the coverage matrix (it would end the matrix being
+  deploy-affecting, at the cost of a second generated file) and a shared selector for the two
+  style loops; both reported, not needed for AC-1.
+- `node scripts/gates.mjs run`: every gate passed except `test:ai-gateway`, where 13 tests in
+  `api/_lib/executorSandbox.test.js` were cancelled ("Promise resolution is still pending but the
+  event loop has already resolved"); this change touches nothing under `api/`, so it is reported
+  here and left to CI, which is authoritative.
 - Node: `svg-files` 8/8, `template-coverage` 11/11, `concept-names` 5/5, `e2e-affected` 126/126,
   `deploy-affecting-paths` 16/16, `check-svg-example-coverage` 4/4, `illustrator-exports` 2/2,
   `check-example-layers` 20/20, `check-tree-shape` 3/3, `svg-figure-fit` 4/4; `check-copy`,
   `check-vercel-config`, `check-e2e-protection --changed origin/main`, `tsc`, `eslint` on the
   changed files: pass.
 - `vite build --mode e2e`: writes the six zips and 103 files under `downloads/`.
-- Browser (job queue, this cloud worker, on the e2e build): BROWSER_RESULT.
+- Browser (job queue, this cloud worker, on the e2e build): `downloads`, `svg-templates`, `svg-examples`, `import-svg`, `import-svg-centred-title`, `score-tracker-moments`, `docs`: 152 passed (job j-0001, 4.0 min); after the review fixes, `downloads`, `svg-templates`, `svg-examples`, `import-svg`, `docs`: J2.

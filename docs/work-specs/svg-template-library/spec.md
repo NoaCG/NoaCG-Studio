@@ -563,8 +563,8 @@ Actions. OW: the owner, with Illustrator on their own computer.
   separate section and its tiles say nothing about examples. The Import step's link now reads
   "SVG templates" and points at `/svg-templates` (AC-11: the steps are unchanged). Old zip
   addresses redirect to the full library rather than keep two extra copies (about 9 MB less
-  deploy). Alt text: the default previews without one stay `alt=""` beside the visible name;
-  every state picture has alt text. Writing alt for every default preview is AC-3's (TL4).
+  deploy). Every picture has alt text and every template a unique name (the navy countdown is
+  "Countdown, navy"); the gate refuses an empty alt or a repeated name.
 - Not done here, on purpose: consolidating the per-template browser tests into one batched sweep.
   It removes tests, which needs a dated test-maintenance entry, and the run's rules forbid
   writing one to pass a gate; AC-1 and AC-11 do not need it. Test counts are unchanged (the e2e
