@@ -34,22 +34,24 @@
  },
  "waitingOn": [
   {
-   "what": "TL1 builder: ruling in notes, delta re-review, CI on new head, updated receipt",
-   "eta": "2026-11-22T10:30:00Z"
+   "what": "PR #2682 through the merge queue",
+   "eta": "2026-11-22T07:45:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL1",
-  "step": "build",
+  "step": "build: queued",
   "session": "session_017SdbwMKvf4PuJ1By6SnUme",
   "nonce": "tl1-b-080e",
   "branch": "claude/plan-svg-template-library-tl1-build",
   "source": "fba398c20eba8d875a256472dd30cda3761c93c3",
-  "asOf": "2026-11-22T00:25Z",
-  "progress": "owner ruled A; builder recording it and running the delta re-review",
+  "asOf": "2026-11-22T06:54Z",
+  "progress": "in merge queue",
   "pr": 2682,
-  "head": "8c6fa28fcde9f4ec17a52de1aa96371a9d43dd71",
-  "receipt": "RECEIPT tl1-b-080e 00:20Z: CI 44964367575 green except Reviewed; Codex clean; Risky row, Rules written after coding, no Rules-first /so; final /so B on cb8df204 (delta confirmed R2 fix), only blocker AC-4 row-count ruling; #2683 pre-existing filed"
+  "head": "f3b6de54f8bf213d16d8a07eb918968e6b7195de",
+  "receipt": "RECEIPT tl1-b-080e (updated) 06:52Z: CI 44993974906 green except Reviewed; Codex clean; Risky, Rules after coding; final /so A on f3b6de54",
+  "stamp": "cloud-queue-merge 44995654795 success; added_to_merge_queue 06:52:52Z",
+  "repairOwnerComment": 7075576368
  },
  "owner": [
   {
