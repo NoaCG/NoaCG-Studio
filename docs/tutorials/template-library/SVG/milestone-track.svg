@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Milestone track</title>
+  <desc>NoaCG Clean Studio template. Title, Percent, and Tier 1 to Tier 4 with their Threshold, written from the Milestones box; each Milestone node hides when the box has no line for it; Segment 1 to Segment 4 run the line from node to node, and the hidden Reached moments light each tier Current has passed.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" inkscape:label="Panel" x="210" y="740" width="1500" height="250" rx="14" fill="#FFFFFF"/>
+    <text id="static:Of_the_goal" inkscape:label="static:Of the goal" x="1670" y="800" text-anchor="end" font-family="Manrope, sans-serif" font-size="20" font-weight="700" fill="#5B6478" letter-spacing="2">OF THE FINAL GOAL</text>
+    <rect id="Rail" inkscape:label="Rail" x="250" y="852" width="1420" height="12" rx="6" fill="#DCE1EA"/>
+    <g id="Milestone_1" inkscape:label="Milestone 1">
+      <circle cx="427.5" cy="858" r="16" fill="#DCE1EA"/>
+    </g>
+    <g id="Milestone_2" inkscape:label="Milestone 2">
+      <circle cx="782.5" cy="858" r="16" fill="#DCE1EA"/>
+    </g>
+    <g id="Milestone_3" inkscape:label="Milestone 3">
+      <circle cx="1137.5" cy="858" r="16" fill="#DCE1EA"/>
+    </g>
+    <g id="Milestone_4" inkscape:label="Milestone 4">
+      <circle cx="1492.5" cy="858" r="16" fill="#DCE1EA"/>
+    </g>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <rect id="Segment_1" inkscape:label="Segment 1" x="250" y="852" width="177.5" height="12" fill="#2E5BFF"/>
+    <rect id="Segment_2" inkscape:label="Segment 2" x="427.5" y="852" width="355" height="12" fill="#2E5BFF"/>
+    <rect id="Segment_3" inkscape:label="Segment 3" x="782.5" y="852" width="355" height="12" fill="#2E5BFF"/>
+    <rect id="Segment_4" inkscape:label="Segment 4" x="1137.5" y="852" width="355" height="12" fill="#2E5BFF"/>
+    <g id="Reached_1" inkscape:label="Reached 1" style="display:none">
+      <circle cx="427.5" cy="858" r="22" fill="#2E5BFF"/>
+      <path d="M 418.5 858 L 424.5 865 L 437.5 851" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="Reached_2" inkscape:label="Reached 2" style="display:none">
+      <circle cx="782.5" cy="858" r="22" fill="#2E5BFF"/>
+      <path d="M 773.5 858 L 779.5 865 L 792.5 851" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="Reached_3" inkscape:label="Reached 3" style="display:none">
+      <circle cx="1137.5" cy="858" r="22" fill="#2E5BFF"/>
+      <path d="M 1128.5 858 L 1134.5 865 L 1147.5 851" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="Reached_4" inkscape:label="Reached 4" style="display:none">
+      <circle cx="1492.5" cy="858" r="22" fill="#2E5BFF"/>
+      <path d="M 1483.5 858 L 1489.5 865 L 1502.5 851" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" inkscape:label="Title" x="250" y="800" font-size="26" font-weight="800" fill="#2E5BFF" letter-spacing="3">STRETCH GOALS</text>
+    <text id="Percent" inkscape:label="Percent" x="1412" y="802" text-anchor="end" font-size="34" font-weight="800" fill="#0F1729">37%</text>
+    <text id="Tier_1" inkscape:label="Tier 1" x="427.5" y="924" text-anchor="middle" font-size="28" font-weight="800" fill="#0F1729">Warm-up</text>
+    <text id="Threshold_1" inkscape:label="Threshold 1" x="427.5" y="960" text-anchor="middle" font-size="24" font-weight="600" fill="#5B6478">5,000</text>
+    <text id="Tier_2" inkscape:label="Tier 2" x="782.5" y="924" text-anchor="middle" font-size="28" font-weight="800" fill="#0F1729">Halfway</text>
+    <text id="Threshold_2" inkscape:label="Threshold 2" x="782.5" y="960" text-anchor="middle" font-size="24" font-weight="600" fill="#5B6478">15,000</text>
+    <text id="Tier_3" inkscape:label="Tier 3" x="1137.5" y="924" text-anchor="middle" font-size="28" font-weight="800" fill="#0F1729">Stretch</text>
+    <text id="Threshold_3" inkscape:label="Threshold 3" x="1137.5" y="960" text-anchor="middle" font-size="24" font-weight="600" fill="#5B6478">30,000</text>
+    <text id="Tier_4" inkscape:label="Tier 4" x="1492.5" y="924" text-anchor="middle" font-size="28" font-weight="800" fill="#0F1729">Dream</text>
+    <text id="Threshold_4" inkscape:label="Threshold 4" x="1492.5" y="960" text-anchor="middle" font-size="24" font-weight="600" fill="#5B6478">50,000</text>
+  </g>
+</svg>
