@@ -9,6 +9,10 @@
 // with nothing to bind is still a recipe, because the alternative is a graphic the operator has
 // to remember to take off.
 //
+// HOLD ON AIR (TL5, the chat highlight's Hold and Take it off): an option. Ticked, Hold moves the
+// graphic into a pose-only `held` state, which cancels the armed timer, and Next (or Take it off)
+// takes it off from there. Unticked, the machine is the one it always was.
+//
 // THE HOLD IS AUTHORED, NOT A FIELD. A timer arrow's length is fixed when its state is entered
 // (docs/STATE_MACHINE_SCHEMA.md); a "timer arrow whose duration comes from a field" is the one
 // mechanism the survey named as still missing, so the hold is the recipe's own eight seconds
@@ -26,16 +30,40 @@ export const alertRecipe: BehaviourRecipe = {
   category: 'alert',
   defaultZone: 'top-center',
   roles: [],
+  options: [
+    { key: 'hold', label: 'Hold on air', hint: 'Adds Hold, which keeps it up until Take it off.', default: false },
+  ],
   fields: () => [],
   path: () => ({ entrance: 'Showing' }),
-  machine: () => ({
+  machine: (ctx) => ({
     main: {
       // The self-clear: from the entrance straight to the exit, whatever the step count resolves to.
       edges: [{ from: { waypoint: 0 }, to: { waypoint: -1 }, trigger: 'timer', after: HOLD }],
       // …and the manual version, so an operator can cut it early.
       exitOnNext: true,
+      ...(ctx.options.hold === true
+        ? {
+            branches: [
+              {
+                id: 'held',
+                name: 'Held on air',
+                timeline: null,
+                edges: [
+                  { from: { waypoint: 0 }, to: 'held', trigger: 'operator' as const, event: 'hold' },
+                  { from: 'held', to: { waypoint: -1 }, trigger: 'operator' as const, event: 'next' },
+                ],
+              },
+            ],
+          }
+        : {}),
     },
   }),
-  controls: () => [],
+  controls: (ctx) =>
+    ctx.options.hold === true
+      ? [
+          { event: 'hold', label: 'Hold on air', section: 'Alert', order: 1 },
+          { event: 'next', label: 'Take it off', section: 'Alert', order: 2 },
+        ]
+      : [],
   paint: () => [],
 };

@@ -23,7 +23,7 @@ Two free fonts, both under the SIL Open Font License: **Manrope** for most templ
 - Change words, fonts, colours and shapes freely. Keep the names in the Layers panel, such as `Team 1` and `Flash 1`: NoaCG uses them to know what each part does.
 - Keep text as live text. Do not outline it or turn it into a picture.
 - Save with File > Save a Copy > SVG. Tick **Use Artboards** and keep **Font: SVG**. In Inkscape, save as SVG and keep object labels and live text.
-- In NoaCG, choose New graphic > Import graphic and drop the SVG. Check **What it does**: most templates select their behaviour from layer names. For **Pop-up alert**, **Transition** and **Match event**, choose Pop-up alert yourself.
+- In NoaCG, choose New graphic > Import graphic and drop the SVG. Check **What it does**: most templates select their behaviour from layer names. For **Pop-up alert**, **Transition**, **Match event** and **Chat highlight**, choose Pop-up alert yourself.
 - Put the graphic in a production. Edit its fields, then Take. Out clears it.
 
 Names in these templates are made up.
@@ -63,7 +63,7 @@ Names in these templates are made up.
 | **Now and next, Sign-off, Call to action, Social handle, Location chip** | Programme and channel cards. Every text is a field. |
 | **Product card, Offer card, Listing card** | Shopping and property cards. Replace the drawn picture in Illustrator. |
 | **Key facts, Recap card** | Type one entry per line in Entries. Next shows them one at a time, from the last number down, and each stays up. |
-| **Live bug** | A corner tag with Live, Replay and Delayed looks. The status buttons show one of them. |
+| **Live bug** | A corner tag with Live, Replay and Delayed looks. The status buttons show one of them; Clear hides it. |
 | **Alert level** | A severity band that starts at Advisory. Each level is a button and shows its word and a four-step meter, so it reads without colour. |
 | **Winner card, Award reveal, Q&A card, Nominee reveal** | The reveal text airs covered until Reveal. Show and Hide work a drawn moment. |
 | **Public notice** | A notice card that starts at Standard. Urgent adds a red band with the word Urgent; Standard takes it away. |
@@ -138,6 +138,31 @@ Moments items except the timer bar and a choice's starting option are hidden gro
 | **Match board** | `Title`, `Team 1`, `Q1 home` to `Q4 away`, `Score 1` | `Flash 1`, `Full time` | `Panel`, `Team box 1`, `Score box 1`, `static:Q1` |
 | **Esports score** | `Team 1`, `Score 1`, `Format`, `Map` | `Flash 1`, `Full time` | `Team box 1`, `Score box 1`, `Format box`, `Map box` |
 | **Transition, Match event** | `Label`; `Event`, `Player`, `Detail` | none | `Panel`, `Label box`, `Event box` |
+
+---
+
+## Picks, focus and boards
+
+| Template | What it does in NoaCG |
+|---|---|
+| **Verdict card, Matchup** | Starts with no verdict or winner. Each option is a button; Clear takes it away again. |
+| **Podium score** | +1 and -1 for each contestant. Left, Middle and Right put the amber spotlight on one podium; Clear takes it off. |
+| **Timing tower** | Places stay where they are drawn: type the cars and gaps. P1 to P5 frame one place; Clear takes the frame off. |
+| **Map round** | Starts at Veto; Picked and Live change its tab. The map, bans and pick are fields. |
+| **Chat highlight** | At import, choose Pop-up alert and tick Hold on air. It clears itself after eight seconds; Hold on air keeps it up and Take it off clears it. |
+| **Head to head, Player card, Bracket, Fixtures, Agenda** | Every text is a field. Put a photo in `Photo`. In the bracket, type a team into the next round to move it on. |
+
+| Template | Text | Moments | Board |
+|---|---|---|---|
+| **Verdict card** | `Claim`, `Source` | `choice:Verdict/True`, `/False`, `/Misleading` | `Panel`, `static:Fact check` |
+| **Matchup** | `Event`, `Home team`, `Away team` | `choice:Winner/Home`, `choice:Winner/Away` | `Panel`, `Home team box` |
+| **Podium score** | `Team 1`, `Score 1`, and so on | `Flash 1`, `choice:Spotlight/Left`, `/Middle`, `/Right` | `Team box 1`, `Score box 1` |
+| **Timing tower** | `Session`, `Car 1`, `Gap 1` to 5 | `choice:Focus/P1` to `P5` | `Session box`, `Car box 1`, `static:P1` |
+| **Map round** | `Series`, `Map`, `Ban 1`, `Ban 2`, `Pick` | `choice:Phase/Veto` (visible), `/Picked`, `/Live` | `Panel`, `Ban box 1`, `Pick box` |
+| **Chat highlight** | `Viewer`, `Comment` | none | `Panel`, `Accent` |
+| **Head to head** | `Left name`, `Stat 1`, `Left 1`, `Right 1` to 3 | none | `Panel`, `Stat box 1` |
+| **Player card** | `f:Photo`, `Player`, `Team`, `Number`, `Stat 1`, `Stat 2` | none | `Panel`, `Photo frame`, `Number box` |
+| **Bracket, Fixtures, Agenda** | `Stage`, `Semi 1`, `Final 1`, `Champion`; `Title`, `Time 1`, `Home 1`, `Away 1`; `Title`, `Time 1`, `Session 1` | none | `Panel` and a box per row |
 
 ---
 

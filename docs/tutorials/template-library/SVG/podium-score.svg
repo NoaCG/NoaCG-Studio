@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Podium score</title>
+  <desc>NoaCG Clean Studio template. Three contestants on podiums along the bottom: Team 1 to Team 3 with Score 1 to Score 3 and a +1 Flash each, and a Spotlight choice with an amber ring around each podium, Left, Middle and Right, all hidden until one is picked; Clear takes it away.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Team_box_1" inkscape:label="Team box 1" x="360" y="700" width="320" height="150" rx="18" fill="#FFFFFF"/>
+    <rect id="Score_box_1" inkscape:label="Score box 1" x="450" y="860" width="140" height="90" rx="14" fill="#2E5BFF"/>
+    <rect id="Team_box_2" inkscape:label="Team box 2" x="800" y="700" width="320" height="150" rx="18" fill="#FFFFFF"/>
+    <rect id="Score_box_2" inkscape:label="Score box 2" x="890" y="860" width="140" height="90" rx="14" fill="#2E5BFF"/>
+    <rect id="Team_box_3" inkscape:label="Team box 3" x="1240" y="700" width="320" height="150" rx="18" fill="#FFFFFF"/>
+    <rect id="Score_box_3" inkscape:label="Score box 3" x="1330" y="860" width="140" height="90" rx="14" fill="#2E5BFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Flash_1" inkscape:label="Flash 1" style="display:none">
+      <rect x="360" y="660" width="320" height="32" rx="10" fill="#2E5BFF"/>
+      <text inkscape:label="static:Point 1" x="520" y="683" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">+1</text>
+    </g>
+    <g id="Flash_2" inkscape:label="Flash 2" style="display:none">
+      <rect x="800" y="660" width="320" height="32" rx="10" fill="#2E5BFF"/>
+      <text inkscape:label="static:Point 2" x="960" y="683" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">+1</text>
+    </g>
+    <g id="Flash_3" inkscape:label="Flash 3" style="display:none">
+      <rect x="1240" y="660" width="320" height="32" rx="10" fill="#2E5BFF"/>
+      <text inkscape:label="static:Point 3" x="1400" y="683" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">+1</text>
+    </g>
+    <g id="choice_x3A_Spotlight_x2F_Left" inkscape:label="choice:Spotlight/Left" style="display:none">
+      <rect x="348" y="688" width="344" height="174" rx="26" fill="none" stroke="#E0A11A" stroke-width="10"/>
+    </g>
+    <g id="choice_x3A_Spotlight_x2F_Middle" inkscape:label="choice:Spotlight/Middle" style="display:none">
+      <rect x="788" y="688" width="344" height="174" rx="26" fill="none" stroke="#E0A11A" stroke-width="10"/>
+    </g>
+    <g id="choice_x3A_Spotlight_x2F_Right" inkscape:label="choice:Spotlight/Right" style="display:none">
+      <rect x="1228" y="688" width="344" height="174" rx="26" fill="none" stroke="#E0A11A" stroke-width="10"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Team_1" inkscape:label="Team 1" x="520" y="790" text-anchor="middle" font-size="44" font-weight="800" fill="#0F1729">Ana</text>
+    <text id="Score_1" inkscape:label="Score 1" x="520" y="925" text-anchor="middle" font-size="56" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+    <text id="Team_2" inkscape:label="Team 2" x="960" y="790" text-anchor="middle" font-size="44" font-weight="800" fill="#0F1729">Ben</text>
+    <text id="Score_2" inkscape:label="Score 2" x="960" y="925" text-anchor="middle" font-size="56" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+    <text id="Team_3" inkscape:label="Team 3" x="1400" y="790" text-anchor="middle" font-size="44" font-weight="800" fill="#0F1729">Cleo</text>
+    <text id="Score_3" inkscape:label="Score 3" x="1400" y="925" text-anchor="middle" font-size="56" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+  </g>
+</svg>

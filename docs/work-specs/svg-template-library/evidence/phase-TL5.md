@@ -231,8 +231,8 @@ Row class: Ordinary (templates, inventories, tests and docs; no state rule, no R
 
 ## Group 4: Scorebug, Match status, Match board, Esports score, Transition, Match event
 
-Row class: Ordinary (templates, inventories, tests and docs; no recipe, runtime, proposal word or
-persisted key changed; no Risky path): `/check` and the automated PR review, no `/so`.
+Group 4 on its own is Ordinary (templates, inventories, tests and docs). It lands in one PR with
+group 5, whose recipe changes make the PR not Ordinary: the PR has a final `/so`.
 
 ### What was built
 
@@ -284,3 +284,55 @@ Score and clock and Pop-up alert templates); nothing in them changed.
 
 No recipe, runtime, proposal word or persisted key changed, so graphics made before keep building
 and playing exactly as they did; no pin moved.
+
+## Group 5: Verdict card, Matchup, Podium score, Chat highlight, Timing tower, Map round, Head to head, Player card, Bracket, Fixtures, Agenda
+
+Same PR as group 4. Row class: not Ordinary (two recipes' machines and controls change), not
+Risky (no ownership, target, retry, recovery or writer rule; no persisted key, field, kind or
+rule word added). Rules C1 to C3 (phase notes) were written after coding, so the final `/so`
+challenges them.
+
+### What was built
+
+- Recipe extensions: **Clear** on a choice that starts empty (C1) and **Hold on air**, an
+  option of the Pop-up alert (C2). Neither adds a word to `READS_ADDED`: both are machine arrows
+  and buttons over fields and states the runtime already reads.
+- Templates (studio): Verdict card (titles), Matchup, Podium score, Timing tower, Map round, Head
+  to head, Player card, Bracket, Fixtures (games), Chat highlight (audience), Agenda (titles), each
+  with a default preview and its named states with alt text. Library 92 templates; coverage 90 of
+  101 rows.
+
+### AC-3
+
+Batches of `e2e/svg-templates.spec.ts` by route; the walk of a choice now also presses Clear on a
+choice that starts empty (greyed after, the field back to its empty value), so the Live bug is
+held to C1 too.
+
+| Template | Recognition | Controls asserted |
+| --- | --- | --- |
+| Verdict card, Matchup | automatic (`choice:`) | starts empty; each option shows alone and is greyed while it shows; Clear empties it |
+| Timing tower | automatic (`choice:Focus/P1..P5`) | as above for the focus; Session, cars and gaps are fields that stay in place |
+| Map round | automatic (`choice:Phase`, Veto drawn visible) | starts on Veto, never empty; Picked and Live; an empty or unknown value shows Veto |
+| Podium score | automatic (score, the Spotlight choice offered by name) | +1 with its flash per podium, -1, sizes to 100, New game; Spotlight Left, Middle, Right; Clear |
+| Chat highlight | Pop-up alert and Hold on air ticked by the author (README) | Hold on air greys itself and keeps it up past the eight seconds; Take it off clears it; taken again, Next clears it and the self-clear still works; without the box no Hold button (Transition, Match event) |
+| Head to head, Bracket, Fixtures, Agenda | automatic (plain) | every named text is a field; the first retyped long fits |
+| Player card | automatic (plain, `f:Photo`) | as plain; a sent picture replaces the placeholder and an empty value restores it |
+
+### AC-7
+
+"Verdict card and Chat highlight: Clear and Hold on air play in every export target":
+
+| Target | Mode | Verdict (Clear) | Chat highlight (Hold on air) |
+| --- | --- | --- | --- |
+| SPX, CasparCG, H2R | update, play; operator events through NoaCG's control channel (`noacgDispatch`, what the Control panel sends) | False shows alone; the empty value clears it | held past the eight seconds |
+| HTML overlay | autoplay with baked data | False shows alone | no control channel: it clears itself |
+| OGraf, LiveOS | real time: load, playAction, updateAction, custom action `hold` | as SPX | held past the eight seconds |
+
+### AC-9
+
+- A saved graphic keeps its machine, table and runtime (TL2 C7), so a choice or alert saved
+  before has no Clear or Hold until reimported (C3). No field, kind, fact, rule key or persisted
+  key is added, so field ids and cue values are unchanged on reimport, and no pin moved.
+- `scripts/behaviour-reads.test.mjs`: Clear's edges and button on an empty choice, none on a
+  started one, an option named Clear keeps its own button; the alert without Hold is the machine
+  it was, with Hold a pose-only `held` state and no timer out of it; both tables read `ok`.

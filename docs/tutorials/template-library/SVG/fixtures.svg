@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Fixtures</title>
+  <desc>NoaCG Clean Studio template. A fixture list in the middle: a Title and four rows, each a Time, a Home team and an Away team.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="460" y="200" width="1000" height="620" rx="20" fill="#FFFFFF"/>
+    <rect id="Home_box_1" inkscape:label="Home box 1" x="500" y="310" width="920" height="96" rx="14" fill="#EEF1F6"/>
+    <rect id="Home_box_2" inkscape:label="Home box 2" x="500" y="430" width="920" height="96" rx="14" fill="#EEF1F6"/>
+    <rect id="Home_box_3" inkscape:label="Home box 3" x="500" y="550" width="920" height="96" rx="14" fill="#EEF1F6"/>
+    <rect id="Home_box_4" inkscape:label="Home box 4" x="500" y="670" width="920" height="96" rx="14" fill="#EEF1F6"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" x="500" y="268" text-anchor="start" font-size="30" font-weight="800" fill="#2E5BFF" letter-spacing="2">SATURDAY</text>
+    <text id="Time_1" inkscape:label="Time 1" x="540" y="370" text-anchor="start" font-size="30" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">15:00</text>
+    <text id="Home_1" inkscape:label="Home 1" x="920" y="370" text-anchor="end" font-size="34" font-weight="800" fill="#0F1729">Harbour</text>
+    <text id="Away_1" inkscape:label="Away 1" x="1000" y="370" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">Valley</text>
+    <text id="Time_2" inkscape:label="Time 2" x="540" y="490" text-anchor="start" font-size="30" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">15:00</text>
+    <text id="Home_2" inkscape:label="Home 2" x="920" y="490" text-anchor="end" font-size="34" font-weight="800" fill="#0F1729">Ridge</text>
+    <text id="Away_2" inkscape:label="Away 2" x="1000" y="490" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">Nova</text>
+    <text id="Time_3" inkscape:label="Time 3" x="540" y="610" text-anchor="start" font-size="30" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">17:30</text>
+    <text id="Home_3" inkscape:label="Home 3" x="920" y="610" text-anchor="end" font-size="34" font-weight="800" fill="#0F1729">North</text>
+    <text id="Away_3" inkscape:label="Away 3" x="1000" y="610" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">South</text>
+    <text id="Time_4" inkscape:label="Time 4" x="540" y="730" text-anchor="start" font-size="30" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">20:00</text>
+    <text id="Home_4" inkscape:label="Home 4" x="920" y="730" text-anchor="end" font-size="34" font-weight="800" fill="#0F1729">East</text>
+    <text id="Away_4" inkscape:label="Away 4" x="1000" y="730" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">West</text>
+  </g>
+</svg>

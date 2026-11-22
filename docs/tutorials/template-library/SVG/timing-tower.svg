@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Timing tower</title>
+  <desc>NoaCG Clean Studio template. A timing tower on the left: the Session over five places, each with Car and Gap texts that stay in their places, and a Focus choice with a blue frame for each place, P1 to P5, all hidden until one is picked; Clear takes it away.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Session_box" inkscape:label="Session box" x="64" y="200" width="420" height="90" rx="16" fill="#0F1729"/>
+    <rect id="Car_box_1" inkscape:label="Car box 1" x="64" y="300" width="420" height="56" rx="10" fill="#FFFFFF"/>
+    <text inkscape:label="static:P1" x="100" y="338" text-anchor="middle" font-size="26" font-weight="800" fill="#5B6478" font-family="Manrope, sans-serif">1</text>
+    <rect id="Car_box_2" inkscape:label="Car box 2" x="64" y="364" width="420" height="56" rx="10" fill="#FFFFFF"/>
+    <text inkscape:label="static:P2" x="100" y="402" text-anchor="middle" font-size="26" font-weight="800" fill="#5B6478" font-family="Manrope, sans-serif">2</text>
+    <rect id="Car_box_3" inkscape:label="Car box 3" x="64" y="428" width="420" height="56" rx="10" fill="#FFFFFF"/>
+    <text inkscape:label="static:P3" x="100" y="466" text-anchor="middle" font-size="26" font-weight="800" fill="#5B6478" font-family="Manrope, sans-serif">3</text>
+    <rect id="Car_box_4" inkscape:label="Car box 4" x="64" y="492" width="420" height="56" rx="10" fill="#FFFFFF"/>
+    <text inkscape:label="static:P4" x="100" y="530" text-anchor="middle" font-size="26" font-weight="800" fill="#5B6478" font-family="Manrope, sans-serif">4</text>
+    <rect id="Car_box_5" inkscape:label="Car box 5" x="64" y="556" width="420" height="56" rx="10" fill="#FFFFFF"/>
+    <text inkscape:label="static:P5" x="100" y="594" text-anchor="middle" font-size="26" font-weight="800" fill="#5B6478" font-family="Manrope, sans-serif">5</text>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="choice_x3A_Focus_x2F_P1" inkscape:label="choice:Focus/P1" style="display:none">
+      <rect x="58" y="294" width="432" height="68" rx="14" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="choice_x3A_Focus_x2F_P2" inkscape:label="choice:Focus/P2" style="display:none">
+      <rect x="58" y="358" width="432" height="68" rx="14" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="choice_x3A_Focus_x2F_P3" inkscape:label="choice:Focus/P3" style="display:none">
+      <rect x="58" y="422" width="432" height="68" rx="14" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="choice_x3A_Focus_x2F_P4" inkscape:label="choice:Focus/P4" style="display:none">
+      <rect x="58" y="486" width="432" height="68" rx="14" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="choice_x3A_Focus_x2F_P5" inkscape:label="choice:Focus/P5" style="display:none">
+      <rect x="58" y="550" width="432" height="68" rx="14" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Session" x="96" y="258" text-anchor="start" font-size="30" font-weight="800" fill="#FFFFFF" letter-spacing="2">LAP 12 / 50</text>
+    <text id="Car_1" inkscape:label="Car 1" x="136" y="338" text-anchor="start" font-size="28" font-weight="800" fill="#0F1729">Lindqvist</text>
+    <text id="Gap_1" inkscape:label="Gap 1" x="460" y="338" text-anchor="end" font-size="24" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">LEADER</text>
+    <text id="Car_2" inkscape:label="Car 2" x="136" y="402" text-anchor="start" font-size="28" font-weight="800" fill="#0F1729">Okafor</text>
+    <text id="Gap_2" inkscape:label="Gap 2" x="460" y="402" text-anchor="end" font-size="24" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">+1.204</text>
+    <text id="Car_3" inkscape:label="Car 3" x="136" y="466" text-anchor="start" font-size="28" font-weight="800" fill="#0F1729">Rivera</text>
+    <text id="Gap_3" inkscape:label="Gap 3" x="460" y="466" text-anchor="end" font-size="24" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">+3.881</text>
+    <text id="Car_4" inkscape:label="Car 4" x="136" y="530" text-anchor="start" font-size="28" font-weight="800" fill="#0F1729">Moss</text>
+    <text id="Gap_4" inkscape:label="Gap 4" x="460" y="530" text-anchor="end" font-size="24" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">+5.020</text>
+    <text id="Car_5" inkscape:label="Car 5" x="136" y="594" text-anchor="start" font-size="28" font-weight="800" fill="#0F1729">Berg</text>
+    <text id="Gap_5" inkscape:label="Gap 5" x="460" y="594" text-anchor="end" font-size="24" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">+9.417</text>
+  </g>
+</svg>

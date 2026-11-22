@@ -402,3 +402,45 @@ test('a poll result is the vote with its figures live from the take; a vote with
   assert.equal('options' in tableOf(compileBinding([], binding()).js()), false);
 });
 
+
+// ── TL5: Clear on a choice that starts empty; Hold on the Pop-up alert ─────────────────────
+
+test('a choice that starts empty has Clear, back to nothing from any option; a choice with a start has none', () => {
+  const binding = (rows, options) => ({
+    recipe: 'choice', name: 'Verdict', ...(options ? { options } : {}),
+    rows, rowLabels: Object.fromEntries(rows.map((r) => [r, r[0] + r.slice(1).toLowerCase()])),
+    fields: {}, layers: { option: Object.fromEntries(rows.map((r, i) => [r, `g${i}`])) },
+  });
+  const typeOf = (b) => compileBinding([], b).type('Verdict card');
+  const empty = typeOf(binding(['CORRECT', 'WRONG']));
+  const clear = empty.controls.find((c) => c.label === 'Clear');
+  assert.ok(clear, 'Clear is a button');
+  assert.deepEqual(Object.values(clear.set), [''], 'Clear sets the empty value');
+  const none = empty.machine.parallel[0].states.find((s) => s.id === 'none');
+  assert.deepEqual(none.edges.map((e) => [e.from, e.event]), [['correct', clear.event], ['wrong', clear.event]], 'from every option, never from none');
+  assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], binding(['CORRECT', 'WRONG'])).js()), { status: 'ok' });
+  // A choice with a start is never empty, so it has no Clear.
+  const started = typeOf(binding(['CORRECT', 'WRONG'], { initial: 'CORRECT' }));
+  assert.equal(started.controls.some((c) => c.label === 'Clear'), false);
+  // An option named Clear keeps its own button, and no second one is made.
+  const named = typeOf(binding(['CLEAR', 'CLOUDY']));
+  assert.deepEqual(named.controls.map((c) => c.label), ['Clear', 'Cloudy']);
+  assert.deepEqual(named.machine.parallel[0].states.find((s) => s.id === 'none').edges, []);
+});
+
+test('a Pop-up alert with Hold on air has Hold and Take it off; without it the machine is the one it was', () => {
+  const binding = (options) => ({ recipe: 'alert', ...(options ? { options } : {}), rows: [], fields: {}, layers: {} });
+  const typeOf = (b) => compileBinding([], b).type('Chat highlight');
+  const plain = typeOf(binding());
+  assert.deepEqual(plain.controls, []);
+  assert.equal(plain.machine.main.branches, undefined);
+  assert.deepEqual(typeOf(binding({ hold: false })).machine, plain.machine, 'an unticked box is the alert as it was');
+  const held = typeOf(binding({ hold: true }));
+  assert.deepEqual(held.controls.map((c) => [c.label, c.event]), [['Hold on air', 'hold'], ['Take it off', 'next']]);
+  assert.deepEqual(held.machine.main.edges, plain.machine.main.edges, 'the self-clear stays');
+  const [branch] = held.machine.main.branches;
+  assert.equal(branch.id, 'held');
+  assert.equal(branch.timeline, null, 'holding plays nothing');
+  assert.deepEqual(branch.edges.map((e) => [e.from, e.to, e.trigger, e.event]), [[{ waypoint: 0 }, 'held', 'operator', 'hold'], ['held', { waypoint: -1 }, 'operator', 'next']]);
+  assert.equal(branch.edges.some((e) => e.trigger === 'timer'), false, 'nothing arms the timer again');
+});

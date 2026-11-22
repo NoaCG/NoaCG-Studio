@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Map round</title>
+  <desc>NoaCG Clean Studio template. A map card at the top right: the Map, the Series, the bans and pick in Ban 1, Ban 2 and Pick, and a Phase choice with three drawn tabs, Veto, drawn visible so the card starts there, Picked and Live.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="1260" y="80" width="580" height="330" rx="20" fill="#FFFFFF"/>
+    <rect id="Ban_box_1" inkscape:label="Ban box 1" x="1290" y="250" width="250" height="56" rx="10" fill="#EEF1F6"/>
+    <rect id="Ban_box_2" inkscape:label="Ban box 2" x="1560" y="250" width="250" height="56" rx="10" fill="#EEF1F6"/>
+    <rect id="Pick_box" inkscape:label="Pick box" x="1290" y="320" width="520" height="60" rx="10" fill="#EEF1F6"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="choice_x3A_Phase_x2F_Veto" inkscape:label="choice:Phase/Veto">
+      <rect x="1290" y="106" width="140" height="40" rx="10" fill="#5B6478"/>
+      <text inkscape:label="static:Veto" x="1360" y="134" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" letter-spacing="2" font-family="Manrope, sans-serif">VETO</text>
+    </g>
+    <g id="choice_x3A_Phase_x2F_Picked" inkscape:label="choice:Phase/Picked" style="display:none">
+      <rect x="1290" y="106" width="140" height="40" rx="10" fill="#2E5BFF"/>
+      <text inkscape:label="static:Picked" x="1360" y="134" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" letter-spacing="2" font-family="Manrope, sans-serif">PICKED</text>
+    </g>
+    <g id="choice_x3A_Phase_x2F_Live" inkscape:label="choice:Phase/Live" style="display:none">
+      <rect x="1290" y="106" width="140" height="40" rx="10" fill="#E5484D"/>
+      <text inkscape:label="static:Live" x="1360" y="134" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" letter-spacing="2" font-family="Manrope, sans-serif">LIVE</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Series" x="1810" y="134" text-anchor="end" font-size="20" font-weight="800" fill="#5B6478" letter-spacing="2">MAP 2 OF 3</text>
+    <text id="Map" x="1290" y="214" text-anchor="start" font-size="52" font-weight="800" fill="#0F1729">Harbour</text>
+    <text id="Ban_1" inkscape:label="Ban 1" x="1306" y="287" text-anchor="start" font-size="22" font-weight="700" fill="#0F1729">Ban: Valley</text>
+    <text id="Ban_2" inkscape:label="Ban 2" x="1576" y="287" text-anchor="start" font-size="22" font-weight="700" fill="#0F1729">Ban: Ridge</text>
+    <text id="Pick" x="1306" y="360" text-anchor="start" font-size="24" font-weight="800" fill="#0F1729">Pick: Harbour, Nova</text>
+  </g>
+</svg>

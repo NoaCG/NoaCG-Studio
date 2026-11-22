@@ -16,12 +16,21 @@
 // drew exactly one option visible, the binding names it `initial`, and the choice starts there and
 // is never empty - no "none" state, no empty value, every option a button. Without it the choice
 // starts empty, as every choice made before did.
+//
+// CLEAR (TL5, a verdict cleared, a winner pick or a spotlight taken back): a choice that starts
+// empty can go back to empty. Clear sets the field to the empty value, and the machine returns to
+// `none` from any option, so the button is greyed while nothing shows. A choice with a start has
+// no empty state, so no Clear.
 
 import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { withRepaint } from './recipe';
 
 const ROLE = 'option';
 const FIELD = 'state';
+
+/** The event of Clear, beside the option events (an option of that name keeps its own button). */
+const CLEAR = 'clear';
+const hasClear = (ctx: RecipeContext): boolean => !initialOf(ctx) && !ctx.rows.some((key) => key.toLowerCase() === CLEAR);
 
 /** The row the choice starts on, or null for the empty start. */
 function initialOf(ctx: RecipeContext): string | null {
@@ -61,7 +70,12 @@ export const choiceRecipe: BehaviourRecipe = {
           id: ctx.nsId('group'),
           initial: start ? start.toLowerCase() : 'none',
           states: [
-            ...(start ? [] : [{ id: 'none', name: `${ctx.name}: none`, timeline: null, edges: [] }]),
+            ...(start ? [] : [{
+              id: 'none',
+              name: `${ctx.name}: none`,
+              timeline: null,
+              edges: hasClear(ctx) ? ctx.rows.map((key) => ({ from: key.toLowerCase(), to: 'none', trigger: 'operator' as const, event: ctx.nsId(CLEAR) })) : [],
+            }]),
             ...ctx.rows.map((key) => ({
               id: key.toLowerCase(),
               name: `${ctx.name}: ${ctx.label(ROLE, key)}`,
@@ -85,13 +99,15 @@ export const choiceRecipe: BehaviourRecipe = {
       ],
     });
   },
-  controls: (ctx) =>
-    ctx.rows.map((key, i) => ({
+  controls: (ctx) => [
+    ...ctx.rows.map((key, i) => ({
       event: ctx.nsId(key.toLowerCase()),
       label: ctx.label(ROLE, key),
       section: ctx.name,
       order: i + 1,
       set: { [ctx.ns(FIELD)]: key.toLowerCase() },
     })),
+    ...(hasClear(ctx) ? [{ event: ctx.nsId(CLEAR), label: 'Clear', section: ctx.name, order: ctx.rows.length + 1, set: { [ctx.ns(FIELD)]: '' } }] : []),
+  ],
   paint: (ctx) => [{ look: ctx.ns(ROLE), rows: ctx.ns(ROLE), when: { facts: [`${ctx.ns(FIELD)}:picked`] } }],
 };
