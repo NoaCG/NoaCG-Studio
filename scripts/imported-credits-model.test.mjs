@@ -4,6 +4,7 @@
 // guards: src/templates/behaviours/credits.ts
 // guards: src/templates/importedDesign/svg.ts
 // guards: src/templates/importedDesign/svgBind.ts
+// guards: src/templates/importedDesign/behaviourRuntime.ts, src/templates/importedDesign/behaviourReads.ts
 //
 // IMPORTED CREDITS IN THE ARTWORK'S OWN STYLING: the model (jev-svg-import row 16, AC-13).
 //
