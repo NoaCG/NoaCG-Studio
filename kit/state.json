@@ -34,24 +34,17 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2697 through the merge queue",
-   "eta": "2026-11-22T15:30:00Z"
+   "what": "TL3 checker verdict",
+   "eta": "2026-11-22T16:00:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL3",
-  "step": "build: queued",
-  "session": "session_017SdbwMkDuHZrj8Rw6DLBjG",
-  "nonce": "tl3-b-ea9f",
-  "branch": "claude/plan-svg-template-library-tl3-build",
-  "source": "304adc72902f468d3d6b711b2e342f17ff9565d4",
-  "asOf": "2026-11-22T14:40Z",
-  "pr": 2697,
-  "head": "cb7ab37f72eff17e38eeec50c3e2b0d15a3e6483",
-  "progress": "CI 45029100479 green except Reviewed; worker idle waiting for CI; nudged 14:07Z",
-  "receipt": "RECEIPT tl3-b-ea9f 14:38Z: CI 45031194719 green except Reviewed; Codex clean; builder class other, coordinator class Risky (e2e-affected, deploy-affecting-paths); Rules after coding; final /so A + delta A",
-  "stamp": "cloud-queue-merge 45033960368 success",
-  "repairOwnerComment": 7080700219
+  "step": "check",
+  "session": "session_017SdbwMkwZ3rdvsge8qr35L",
+  "nonce": "tl3-c-f1be",
+  "merge": "66ab49d3db8058f0eb972414623e155ecabb71c0",
+  "asOf": "2026-11-22T14:53:37Z"
  },
  "owner": [
   {
@@ -143,5 +136,10 @@
   "builder": "session_017SdbwQzdQoNSjiFKVDJN66",
   "pass": "2026-11-22T13:03Z",
   "archived": true
+ },
+ "tl3": {
+  "pr": 2697,
+  "merge": "66ab49d3db8058f0eb972414623e155ecabb71c0",
+  "builder": "session_017SdbwMkDuHZrj8Rw6DLBjG"
  }
 }
