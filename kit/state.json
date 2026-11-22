@@ -34,18 +34,18 @@
  },
  "waitingOn": [
   {
-   "what": "TL5 group 2 ready-for-stamp note",
-   "eta": "2026-11-22T21:00:00Z"
+   "what": "TL5 replacement builder group notes",
+   "eta": "2026-11-23T08:00:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL5",
   "step": "build",
-  "session": "session_017SdbwQQ2ZBGZi3bdgF6TwN",
-  "nonce": "tl5-b-eeed",
-  "branch": "claude/plan-svg-template-library-tl5-build",
+  "session": "session_017SdbwNdVcLALG4PvW5HubJ",
+  "nonce": "tl5-b-5193",
+  "branch": "claude/plan-svg-template-library-tl5-build-2",
   "source": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "asOf": "2026-11-22T19:33Z",
+  "asOf": "2026-11-22T19:46:36Z",
   "note": "may land as several PRs; coordinator stamps each",
   "prs": [
    {
@@ -66,9 +66,19 @@
     "stamp": "cloud-queue-merge 45060319466",
     "repairOwnerComment": 7084333125,
     "merged": "9c438c2b906a83bc68aec5d2376cddf117d83967"
+   },
+   {
+    "pr": 2706,
+    "group": 3,
+    "head": "4c3e034998a23c7b0156a88993bee75581315bf0",
+    "covers": "Q&A card, nominee reveal",
+    "class": "Ordinary",
+    "stamp": "cloud-queue-merge 45062526522",
+    "repairOwnerComment": 7084655095
    }
   ],
-  "progress": "group 2 merged 19:33Z; group 3 next"
+  "progress": "#2706 queued; replacement builder on the remaining extensions; coverage 73/101",
+  "replaced": "session_017SdbwQQ2ZBGZi3bdgF6TwN (tl5-b-eeed) after groups 1-3"
  },
  "owner": [
   {
