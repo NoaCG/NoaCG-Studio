@@ -626,6 +626,55 @@ Actions. OW: the owner, with Illustrator on their own computer.
   - M4. Motion is GSAP driven, so an OGraf non-real-time seek lands on the same frame whatever
     order the seeks come in.
 
+### TL5 (recipe extensions)
+
+TL5 lands as several PRs; each adds its group here.
+
+Group 1: Vote results count, Alert level, Public notice, Poll result (one PR, #2701).
+
+- Previous verified `main`: `b06197d34fbd9c33e062690a908088128b9e3972`. Revert: `git revert -m 1 <the TL5 group 1 merge commit>`.
+- Evidence: `evidence/phase-TL5.md`.
+- The count readout is a new template, Vote results with counts: TL3's A1 pins the bytes of
+  every old address, `vote-results.svg` and its pictures included, so a library file that an old
+  address serves never changes. A later phase that wants to improve such a file adds a sibling.
+- A `choice:` set with exactly one option drawn visible starts on it (`DesignSvgExtra.initial`,
+  the choice's `options.initial` in the table). The layer check allows that one visible option.
+- Trap: a live text inside the visible starting option becomes a text field named after its
+  group, and the import then built no choice at all (no buttons, no option stamped). Name such a
+  word `static:` (the Alert level does); issue #2700 tracks making the import say so.
+- Rules (state rules this group sets; written after coding, so the final `/so` challenges them):
+  - E1. A vote board that draws `Count n` prints that row's own count from the Options lines, and
+    shows it exactly when that row's share shows (Show result, Call the winner, or Live figures
+    live). A board with no count emits the table and words it emitted before.
+  - E2. A choice with exactly one option drawn visible starts on it: its field's default is that
+    option, it offers no empty value and has no "none" state, and every option is reachable from
+    every other. With none or several drawn visible it starts empty, as before. (Found by the final
+    `/so`:) on such a choice a value that names no option (an empty cue saved before the start
+    existed, a host sending an empty level) shows the starting option, so it never airs empty.
+    (Found by the automated PR review:) the starting option's button stays live, since data alone
+    can show another option while the machine rests on the start; every other option is greyed
+    while it shows.
+  - E3. A saved poll binding without `count` and a saved choice without `initial` build the bytes
+    they built before; a saved graphic keeps its own runtime and table (TL2 C7). Reimport of a
+    choice whose artwork has exactly one option visible, whether drawn before or after this
+    change, gains the start: field ids are unchanged, and a cue saved empty, which showed nothing,
+    now shows that visible option.
+  - E4. `derive:share.count` and the `row-pick` spec key `start` are in `READS_ADDED`; a table
+    asking for either under a runtime that does not list it is refused at export, upgradable by
+    importing again.
+  - E5. A vote imported with Poll result ticked (`options.figures`, the poll binding's additive
+    `options`) is the same table and words as the vote, with its `Live figures` field defaulting
+    to live: typed figures show from the take, and the operator can still switch them to wait.
+    Without the box the vote is byte for byte what it was. Staged from Interaction as Vote
+    results, it follows the production's Live figures switch like every results board (the
+    staging writes that field); the box sets only the default a typed board starts with.
+- Decisions recorded from review: a choice's start applies to what is painted; data that sends
+  an empty or unknown option shows the start while the machine stays where the last press put
+  it, as every data-only choice update already does. The Poll result box is offered only where a
+  figure or count is drawn. The proposal (AI/CLI) path carries no Poll result intent yet: an
+  agent's import is a live vote until the author ticks the box. A row a new round leaves out keeps
+  its old label (issue #2702, on main before TL5).
+
 ## Test maintenance
 
 - 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22

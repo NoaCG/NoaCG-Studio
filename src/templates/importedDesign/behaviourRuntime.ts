@@ -165,11 +165,14 @@ noacgKinds.select = {
 // "unpicked" on every OTHER row the value could have named - never on any row when nothing
 // is picked, so an empty key reveals no verdict rather than marking every row wrong. "before"
 // and "after" are the ORDER facts: this row comes before the picked one in row order (a guest
-// who has already been on), or after it (one still to come).
+// who has already been on), or after it (one still to come). A start row (a choice that starts
+// on an option, svg-template-library TL5) is what a value naming no row means: such a choice is
+// never empty, even under a cue saved before it had a start.
 noacgKinds['row-pick'] = {
   fact: function (id, spec, name, rowKey) {
     var value = noacgFieldText(id).trim().toUpperCase();
     var keys = noacgRowsOf(spec.rows);
+    if (spec.start && keys.indexOf(value) === -1) value = String(spec.start).toUpperCase();
     var named = value !== '' && keys.indexOf(value) !== -1;
     if (name === 'picked') return named && value === rowKey;
     if (name === 'unpicked') return named && value !== rowKey;
@@ -451,6 +454,9 @@ noacgKinds.share = {
     if (name === 'label') return row ? row.label : '';
     if (name === 'share') return share;
     if (name === 'percent') return noacgPercentText(share * 100);
+    // The row's own count, as a figure (svg-template-library TL5, the owner's ruling A on #2678).
+    // A drawn row the round does not list reads 0, as its share does, never the last round's.
+    if (name === 'count') return row ? String(row.count) : '0';
     return null;
   },
   report: function (id, spec) {

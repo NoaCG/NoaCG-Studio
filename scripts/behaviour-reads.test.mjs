@@ -172,12 +172,14 @@ for (const withClock of [false, true]) {
 
 test('the drift check catches a derivation READS declares and the code does not compare (a planted word)', () => {
   const js = behaviourRuntimeJs(false, false);
-  const planted = js.replace(/("share":\{"spec":\["kind","rows"\],"facts":\["listed","leader"\],"derive":\["label","share","percent")/, '$1,"count"');
+  // `count` was this test's planted word until TL5 taught the runtime to read it; `median` is
+  // one no code compares.
+  const planted = js.replace(/("share":\{"spec":\["kind","rows"\],"facts":\["listed","leader"\],"derive":\["label","share","percent","count")/, '$1,"median"');
   assert.notEqual(planted, js, 'the share declaration was found');
   const declared = R.readsOfRuntime(planted);
   assert.notDeepEqual(codeReads(planted), sortedReads(declared.reads));
   // ...and the same word, taught to the code, passes.
-  const taught = planted.replace("if (name === 'percent') return noacgPercentText(share * 100);", "if (name === 'percent') return noacgPercentText(share * 100);\n    if (name === 'count') return row ? String(row.count) : '';");
+  const taught = planted.replace("if (name === 'percent') return noacgPercentText(share * 100);", "if (name === 'percent') return noacgPercentText(share * 100);\n    if (name === 'median') return share;");
   assert.notEqual(taught, planted);
   const code = codeReads(taught);
   delete code.kinds.clock;
@@ -278,10 +280,13 @@ test('a hand edit asking the frozen vote runtime for a per-option count is refus
     .paint.find((r) => typeof r.write === 'string' && /:percent$/.test(r.from));
   assert.ok(percent, 'the frozen vote writes a percent');
   const asksCount = write(`${head(percent.from)}:count`);
-  assert.deepEqual(R.behaviourReadsVerdict(asksCount.js), { status: 'unread', missing: ['derive:share.count'], upgradable: false });
+  // Still refused under the frozen runtime; since TL5 this build reads it, so importing again is
+  // the way out (upgradable), and the error says so.
+  assert.deepEqual(R.behaviourReadsVerdict(asksCount.js), { status: 'unread', missing: ['derive:share.count'], upgradable: true });
   const errors = errorsOf(asksCount);
   assert.equal(errors.length, 1);
   assert.match(errors[0], /derive:share\.count/);
+  assert.match(errors[0], /import/i);
   assert.deepEqual(errorsOf(write(percent.from)), []);
   // A new kind is refused; a key NO runtime reads (a rule's `effect` before TL4, a spec key) is
   // ignored by every runtime, so it is only warned about and the graphic still exports.
@@ -337,4 +342,62 @@ test('versions: an additive key still parses; a table version the runtime does n
   assert.deepEqual(R.behaviourReadsVerdict(fresh), { status: 'ok' });
   const asTemplate = { ...VOTE, js: VOTE.js.replace(/var NOACG_BEHAVIOUR = /, 'var NOACG_BEHAVIOUR_READS = {"v":9};\nvar NOACG_BEHAVIOUR = ') };
   assert.match(warningsOf(asTemplate).join('\n'), /could not be checked/);
+});
+
+// ── TL5: a choice's starting option ────────────────────────────────────────────────────────
+
+test('a choice that starts on an option is never empty, and compiles to a table its runtime reads; without one it is the empty choice it always was', () => {
+  const binding = (options) => ({
+    recipe: 'choice', name: 'Level', ...(options ? { options } : {}),
+    rows: ['ADVISORY', 'WATCH', 'WARNING'], rowLabels: { ADVISORY: 'Advisory', WATCH: 'Watch', WARNING: 'Warning' },
+    fields: {}, layers: { option: { ADVISORY: 'g1', WATCH: 'g2', WARNING: 'g3' } },
+  });
+  const typeOf = (b) => compileBinding([], b).type('Alert level');
+  const started = typeOf(binding({ initial: 'ADVISORY' }));
+  const field = started.fields.find((f) => f.label === 'Level');
+  assert.equal(field.value, 'advisory');
+  assert.deepEqual(field.options.map((o) => o.value), ['advisory', 'watch', 'warning'], 'no empty value');
+  const group = started.machine.parallel[0];
+  assert.equal(group.initial, 'advisory');
+  assert.deepEqual(group.states.map((s) => s.id), ['advisory', 'watch', 'warning'], 'no "none" state');
+  // Every option is reachable from every other; the start from itself too, so after data alone
+  // showed another option (the machine stays on the start) its button still brings it back.
+  for (const state of group.states) {
+    const from = group.states.map((s) => s.id).filter((id) => id !== state.id || id === 'advisory').sort();
+    assert.deepEqual(state.edges.map((e) => e.from).sort(), from);
+  }
+  assert.deepEqual(started.controls.map((c) => c.label), ['Advisory', 'Watch', 'Warning']);
+  assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], binding({ initial: 'ADVISORY' })).js()), { status: 'ok' });
+  // An initial that names no row is ignored: the empty start.
+  const empty = typeOf(binding());
+  assert.deepEqual(typeOf(binding({ initial: 'NOPE' })).machine, empty.machine);
+  assert.equal(empty.machine.parallel[0].initial, 'none');
+  assert.deepEqual(empty.fields.find((f) => f.label === 'Level').options.map((o) => o.value), ['', 'advisory', 'watch', 'warning']);
+  const tableOf = (js) => JSON.parse(js.slice(js.indexOf('{', js.indexOf('var NOACG_BEHAVIOUR = ')), js.indexOf('\n};\n', js.indexOf('var NOACG_BEHAVIOUR = ')) + 2));
+  assert.equal('options' in tableOf(compileBinding([], binding()).js()), false, 'a choice without a start emits no options key');
+  const startedTable = tableOf(compileBinding([], binding({ initial: 'ADVISORY' })).js());
+  assert.deepEqual(startedTable.options, { 'choice.level.initial': 'ADVISORY' });
+  // The field's kind names the start, so a value naming no row (a cue saved before) picks it.
+  assert.equal(Object.values(startedTable.kinds).find((k) => k.kind === 'row-pick').start, 'ADVISORY');
+  assert.equal('start' in Object.values(tableOf(compileBinding([], binding()).js()).kinds).find((k) => k.kind === 'row-pick'), false);
+});
+
+// ── TL5: a poll result ─────────────────────────────────────────────────────────────────────
+
+test('a poll result is the vote with its figures live from the take; a vote without the box is unchanged', () => {
+  const binding = (options) => ({
+    recipe: 'vote', ...(options ? { options } : {}), rows: ['1', '2'], fields: {},
+    layers: { option: { 1: 'c1', 2: 'c2' }, bar: { 1: 'c3', 2: 'c4' }, percent: { 1: 'c5', 2: 'c6' } },
+  });
+  const liveOf = (b) => compileBinding([], b).type('Poll result').fields.find((f) => f.label === 'Live figures').value;
+  assert.equal(liveOf(binding({ figures: true })), 'live');
+  assert.equal(liveOf(binding()), '');
+  assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], binding({ figures: true })).js()), { status: 'ok' });
+  // The figures are the vote's own words: nothing new is asked of the runtime.
+  const tableOf = (js) => JSON.parse(js.slice(js.indexOf('{', js.indexOf('var NOACG_BEHAVIOUR = ')), js.indexOf('\n};\n', js.indexOf('var NOACG_BEHAVIOUR = ')) + 2));
+  const poll = tableOf(compileBinding([], binding({ figures: true })).js());
+  assert.deepEqual(poll.options, { figures: true });
+  delete poll.options;
+  assert.deepEqual(poll, tableOf(compileBinding([], binding()).js()));
+  assert.equal('options' in tableOf(compileBinding([], binding()).js()), false);
 });

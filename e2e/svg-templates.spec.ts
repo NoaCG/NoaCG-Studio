@@ -157,6 +157,17 @@ function pictureSlots(slug: string): string[] {
   return [...svg.matchAll(/<image[^>]*inkscape:label="f:([^"]+)"/g)].map((m) => m[1]);
 }
 
+/** The choice a template draws (`choice:Level/Advisory`, ...): its name, its options in drawing
+ *  order, and the one option drawn visible, where the choice starts (null: it starts empty). */
+function choiceOf(slug: string): { name: string; options: string[]; start: string | null } {
+  // Each option group's whole tag: hidden by a `display` attribute or a style, wherever it sits.
+  const groups = [...readFileSync(file(slug), 'utf8').matchAll(/<g\b[^>]*>/g)]
+    .map(([tag]) => ({ tag, label: /inkscape:label="choice:([^/"]+)\/([^"]+)"/.exec(tag) }))
+    .filter((g): g is { tag: string; label: RegExpExecArray } => !!g.label);
+  const shown = groups.filter((g) => !/\bdisplay\s*[:=]\s*"?\s*none/.test(g.tag));
+  return { name: groups[0].label[1], options: groups.map((g) => g.label[2]), start: shown.length === 1 ? shown[0].label[2] : null };
+}
+
 /** The answer rows a quiz template draws (`Answer A`, `Answer B`, ...). */
 const answerRows = (slug: string) => namedTexts(slug).filter((n) => /^Answer [A-Z]$/.test(n)).map((n) => n.slice(-1));
 /** The rows a stepped list draws (`Item 1`, ...). */
@@ -176,10 +187,17 @@ async function importTemplate(page: Page, t: Template) {
   } else if (t.recipe === 'choice') {
     // A choice is an instanced part beside no full recipe: its options are offered by name.
     await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
-    await expect(page.getByTestId('map-svg-extras').locator('input[value="Status"]')).toHaveCount(3);
+    const choice = choiceOf(t.slug);
+    await expect(page.getByTestId('map-svg-extras').locator(`input[value="${choice.name}"]`)).toHaveCount(choice.options.length);
   } else {
     await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(t.recipe ? kind[t.recipe] ?? t.recipe : 'none');
     await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+  }
+  // A POLL RESULT is the vote recipe with its typed figures shown from the take: the author's
+  // choice at import (library README), recorded here as the box the author ticks.
+  if (t.slug === 'poll-result') {
+    await expect(page.getByTestId('map-svg-poll-figures')).not.toBeChecked();
+    await page.getByTestId('map-svg-poll-figures').check();
   }
   if (t.recipe === 'clock') {
     await expect(page.getByTestId('map-svg-clock-mode')).toHaveValue('none');
@@ -213,7 +231,7 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
   // items from the one Entries field).
   if (t.recipe !== 'credits') {
     const driven = (n: string) => n === 'Clock' || /^Score \d/.test(n)
-      || (t.recipe === 'vote' && (/^(Option|Percent) \d/.test(n) || n === 'Total votes'))
+      || (t.recipe === 'vote' && (/^(Option|Percent|Count) \d/.test(n) || n === 'Total votes'))
       || (t.recipe === 'list' && /^Item \d/.test(n));
     for (const name of namedTexts(t.slug).filter((n) => !driven(n))) await fieldFor(air, name);
     await checkAir(page, air, `${t.slug}-1-take`);
@@ -296,8 +314,28 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       break;
     }
     case 'vote': {
-      // Voting open: the badge shows, the bars follow the counts, the figures wait for the result.
       const options = await fieldFor(air, 'Options');
+      // POLL RESULT (AC-5, its own case beside Live vote and Vote results): the operator types the
+      // question and the rows, and the board shows them at once, figures included, with no press.
+      if (t.slug === 'poll-result') {
+        await page.getByTestId(`cue-field-${await fieldFor(air, 'Question')}`).fill('Which day suits the final?');
+        await page.getByTestId(`cue-field-${options}`).fill('Saturday | 62\nSunday | 27\nFriday | 11');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'question')).toHaveText('Which day suits the final?');
+        await expect(role(air, 'option/2')).toHaveText('Sunday');
+        await expect(role(air, 'percent/1')).toHaveText('62%');
+        for (const n of [1, 2, 3]) await expect(role(air, `percent/${n}`)).toHaveClass(/imported-design-on/);
+        const barOf = (n: number) => role(air, `bar/${n}`).evaluate((el) => el.getBoundingClientRect().width);
+        await expect.poll(async () => (await barOf(1)) / Math.max(1, await barOf(3)), { message: 'Saturday is drawn about 62 to 11 against Friday' }).toBeCloseTo(62 / 11, 0);
+        await checkAir(page, air, `${t.slug}-2-typed`);
+        // A new set of rows replaces the figures on air, still with no press.
+        await page.getByTestId(`cue-field-${options}`).fill('Saturday | 1\nSunday | 3');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'percent/2')).toHaveText('75%');
+        await expect(role(air, 'percent/3')).toHaveText('0%');
+        break;
+      }
+      // Voting open: the badge shows, the bars follow the counts, the figures wait for the result.
       await page.getByTestId(`cue-field-${options}`).fill('Coast | 3\nForest | 1\nCity | 0\nMountains | 0');
       await page.getByTestId('verb-update').click();
       await expect(role(air, 'option/1')).toHaveText('Coast');
@@ -312,6 +350,23 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await page.getByTestId('cue-action-result').click();
       await expect(role(air, 'percent/1')).toHaveText('75%');
       await expect(role(air, 'percent/1')).toHaveClass(/imported-design-on/);
+      // A board that draws each option's count (TL5) prints it with the share, timed the same.
+      if (namedTexts(t.slug).includes('Count 1')) {
+        await expect(role(air, 'count/1')).toHaveText('3');
+        await expect(role(air, 'count/2')).toHaveText('1');
+        await expect(role(air, 'count/1')).toHaveClass(/imported-design-on/);
+        // The count is written by the vote, never typed: no operator field is made of it.
+        const titles = await air.locator('svg').first().evaluate(() => (window as unknown as { SPXGCTemplateDefinition: { DataFields: { title: string }[] } }).SPXGCTemplateDefinition.DataFields.map((f) => f.title));
+        expect(titles.filter((title) => /^Count \d/.test(title)), 'no Count field').toEqual([]);
+        // A row the next round does not list reads 0, never the last round's count.
+        await page.getByTestId(`cue-field-${options}`).fill('Coast | 2');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'count/1')).toHaveText('2');
+        await expect(role(air, 'count/2')).toHaveText('0');
+        await page.getByTestId(`cue-field-${options}`).fill('Coast | 3\nForest | 1\nCity | 0\nMountains | 0');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'count/2')).toHaveText('1');
+      }
       await checkAir(page, air, `${t.slug}-3-result`);
       await page.getByTestId('cue-action-call').click();
       await expect(role(air, 'winner/1')).toHaveClass(/imported-design-on/);
@@ -412,16 +467,63 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       break;
     }
     case 'choice': {
-      // Choosing a status shows only that look.
-      const option = (label: string) => air.locator(`[data-noacg-role~="choice.status.option/${label}" i]`);
-      await page.getByRole('button', { name: /Replay/ }).click();
-      await expect(option('Replay')).toHaveClass(/imported-design-on/);
-      await expect(option('Live')).not.toHaveClass(/imported-design-on/);
-      await expect(option('Delayed')).not.toHaveClass(/imported-design-on/);
-      await checkAir(page, air, `${t.slug}-2-replay`);
-      await page.getByRole('button', { name: /Delayed/ }).click();
-      await expect(option('Delayed')).toHaveClass(/imported-design-on/);
-      await expect(option('Replay')).not.toHaveClass(/imported-design-on/);
+      // Choosing an option shows only that look. A choice drawn with one option visible starts
+      // on it and is never empty (TL5: Alert level, Public notice); one drawn all hidden starts
+      // with nothing shown (Live bug).
+      const choice = choiceOf(t.slug);
+      const option = (label: string) => air.locator(`[data-noacg-role~="choice.${choice.name.toLowerCase()}.option/${label}" i]`);
+      const only = async (label: string | null) => {
+        for (const o of choice.options) {
+          if (o === label) await expect(option(o), `${o} shows`).toHaveClass(/imported-design-on/);
+          else await expect(option(o), `${o} is hidden`).not.toHaveClass(/imported-design-on/);
+        }
+      };
+      // An option's button reads its name after the control's mark ("⚡ Replay").
+      const press = (label: string) => page.getByRole('button', { name: new RegExp(`^\\W*${label}$`) });
+      await only(choice.start);
+      const state = await fieldFor(air, choice.name);
+      const offered = await page.getByTestId(`cue-field-${state}`).locator('option').allTextContents();
+      expect(offered, 'the operator picks among the options, and an empty value only where the choice starts empty').toEqual(choice.start ? choice.options : ['-', ...choice.options]);
+      // Every option is a button of its own, greyed only while it is the one showing; the start
+      // stays live (data alone can show another option while the machine rests on the start).
+      for (const o of choice.options) await expect(press(o)).toBeEnabled();
+      for (const [i, o] of choice.options.filter((label) => label !== choice.start).entries()) {
+        await press(o).click();
+        await only(o);
+        await expect(press(o), `${o} is greyed while it shows`).toBeDisabled();
+        if (i === 0) await checkAir(page, air, `${t.slug}-2-${o.toLowerCase()}`);
+      }
+      // A value that names no option (a cue saved before the choice had a start, a host sending
+      // an empty level) shows the start: a choice that starts on an option is never empty.
+      if (choice.start) {
+        await air.locator('svg').first().evaluate((_, id) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [id]: '' })), state);
+        await only(choice.start);
+        await air.locator('svg').first().evaluate((_, id) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [id]: 'nothing-drawn' })), state);
+        await only(choice.start);
+        // A level sent as data while the machine rests on the start: the start's button brings it back.
+        await page.getByTestId('verb-out').click();
+        await page.getByTestId('verb-take').click();
+        const other = choice.options.find((o) => o !== choice.start)!;
+        await air.locator('svg').first().evaluate((_, v) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [v.id]: v.value })), { id: state, value: other.toLowerCase() });
+        await only(other);
+        await expect(press(choice.start)).toBeEnabled();
+        await press(choice.start).click();
+        await only(choice.start);
+      }
+      // ALERT LEVEL (AC-10): every level reads without colour and without flashing - its look
+      // carries the level's word, and nothing on it moves.
+      if (t.slug === 'alert-level') {
+        for (const o of choice.options) {
+          await press(o).click();
+          await expect(option(o).locator('text')).toHaveText(o.toUpperCase());
+          await expect(option(o).locator('text')).toBeVisible();
+          const still = await option(o).evaluate((el) => {
+            const nodes = [el, ...el.querySelectorAll('*')] as (Element & { noacgMove?: unknown })[];
+            return nodes.every((n) => !n.noacgMove && getComputedStyle(n).animationName === 'none');
+          });
+          expect(still, `${o}: no motion and no flashing`).toBe(true);
+        }
+      }
       break;
     }
     case 'credits': {
@@ -491,6 +593,42 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
   await page.getByTestId('verb-out').click();
   page.off('pageerror', onError);
   expect(errors, `${t.name}: no page errors`).toEqual([]);
+}
+
+/** Every export target's package of a production's first graphic, as text files by path. */
+async function exportPackages(page: Page, production: string, sampleData: Record<string, string>): Promise<Record<string, Record<string, string>>> {
+  return page.evaluate(async ({ production, sampleData }) => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
+    const template = shows.loadShows().find((s: { name: string }) => s.name === production)!.graphics[0].template;
+    const out: Record<string, Record<string, string>> = {};
+    for (const target of EXPORT_TARGETS) {
+      const zip = await target.build(template, { sampleData, graphicUsage: 'both' });
+      const files: Record<string, string> = {};
+      for (const name of Object.keys(zip.files)) if (!zip.files[name].dir && /\.(html|js|mjs|css|json)$/.test(name)) files[name] = await zip.file(name)!.async('string');
+      out[target.id] = files;
+    }
+    return out;
+  }, { production, sampleData });
+}
+
+/** One package's graphic page with its own css and js inlined, as its folder would serve it. */
+function inlined(files: Record<string, string>): string {
+  const html = Object.keys(files).find((n) => n.endsWith('.html') && !/control|panel|index|controller/i.test(n.split('/').pop()!))!;
+  const dir = html.slice(0, html.lastIndexOf('/') + 1);
+  const at = (ref: string) => files[dir + ref.replace(/^\.\//, '')];
+  return files[html]
+    .replace(/<link[^>]*href=["']([^"']+\.css)["'][^>]*>/gi, (tag, ref) => (at(ref) !== undefined ? `<style>${at(ref)}</style>` : tag))
+    .replace(/<script([^>]*)src=["']([^"']+\.js)["']([^>]*)><\/script>/gi, (tag, a, ref) => (at(ref) !== undefined ? `<script${a}>${at(ref).replace(/<\/script>/gi, '<\\/script>')}</script>` : tag));
+}
+
+/** Serve one OGraf package's files from a fake origin, as a renderer fetches them. */
+function serveOgrafFiles(page: Page, origin: string, files: Record<string, string>) {
+  const root = Object.keys(files).find((n) => n.endsWith('graphic.mjs'))!.replace(/graphic\.mjs$/, '');
+  return page.route(`${origin}**`, (route) => {
+    const body = files[root + new URL(route.request().url()).pathname.replace(/^\//, '')];
+    return body == null ? route.fulfill({ status: 404, body: 'not found' }) : route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body });
+  });
 }
 
 // ONE BATCHED SWEEP (spec "Tests and budget"): the templates run in batches by route, each
@@ -604,19 +742,7 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
   await importTemplate(page, t);
   // Three seconds: inside the warning from the first tick, at zero three seconds later.
   const short = { f1: '0.05' };
-  const packages = await page.evaluate(async ({ production, short }) => {
-    const shows = await __noacgImport('/src/model/shows.ts');
-    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
-    const template = shows.loadShows().find((s: { name: string }) => s.name === production)!.graphics[0].template;
-    const out: Record<string, Record<string, string>> = {};
-    for (const target of EXPORT_TARGETS) {
-      const zip = await target.build(template, { sampleData: short, graphicUsage: 'both' });
-      const files: Record<string, string> = {};
-      for (const name of Object.keys(zip.files)) if (!zip.files[name].dir && /\.(html|js|mjs|css|json)$/.test(name)) files[name] = await zip.file(name)!.async('string');
-      out[target.id] = files;
-    }
-    return out;
-  }, { production: `${t.name} template`, short });
+  const packages = await exportPackages(page, `${t.name} template`, short);
   expect(Object.keys(packages).sort()).toEqual(['casparcg', 'h2r', 'html-overlay', 'liveos', 'ograf', 'spx']);
   // The non-real-time gate reads an SVG's namespace names as names, and still refuses a real
   // address beside them.
@@ -638,24 +764,7 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
   expect(gate.inkscape, 'any namespace an editor declares is a name').toEqual([]);
   expect(gate.credits).toContain('An imported credits roll starts once its fonts have loaded, which a seek cannot replay; export it for live use.');
 
-  /** One package's graphic page with its own css and js inlined, as its folder would serve it. */
-  const inlined = (files: Record<string, string>) => {
-    const html = Object.keys(files).find((n) => n.endsWith('.html') && !/control|panel|index|controller/i.test(n.split('/').pop()!))!;
-    const dir = html.slice(0, html.lastIndexOf('/') + 1);
-    const at = (ref: string) => files[dir + ref.replace(/^\.\//, '')];
-    return files[html]
-      .replace(/<link[^>]*href=["']([^"']+\.css)["'][^>]*>/gi, (tag, ref) => (at(ref) !== undefined ? `<style>${at(ref)}</style>` : tag))
-      .replace(/<script([^>]*)src=["']([^"']+\.js)["']([^>]*)><\/script>/gi, (tag, a, ref) => (at(ref) !== undefined ? `<script${a}>${at(ref).replace(/<\/script>/gi, '<\\/script>')}</script>` : tag));
-  };
-
-  /** Serve one OGraf package's files from a fake origin, as a renderer fetches them. */
-  const serveOgraf = (origin: string, files: Record<string, string>) => {
-    const root = Object.keys(files).find((n) => n.endsWith('graphic.mjs'))!.replace(/graphic\.mjs$/, '');
-    return page.route(`${origin}**`, (route) => {
-      const body = files[root + new URL(route.request().url()).pathname.replace(/^\//, '')];
-      return body == null ? route.fulfill({ status: 404, body: 'not found' }) : route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body });
-    });
-  };
+  const serveOgraf = (origin: string, files: Record<string, string>) => serveOgrafFiles(page, origin, files);
 
   // The page-based targets: CasparCG and H2R update then play, SPX likewise, the overlay plays itself.
   for (const id of ['spx', 'casparcg', 'h2r', 'html-overlay']) {
@@ -758,4 +867,114 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
   expect(at(frames.zero).warning.lit).toBe(false);
   expect(Number(at(frames.zero).expired.scale), 'the flash on its first frame').toBeGreaterThan(1);
   for (const f of frames.sequential.filter((x) => x.timestamp >= frames.zero + 1000)) expect(f.expired, `rest at ${f.timestamp}`).toEqual({ lit: true, opacity: '1.000', scale: '1.000' });
+});
+
+// TL5'S MECHANISMS IN EVERY EXPORT TARGET (AC-7, spec "Exports"): a vote row's own count, and a
+// choice that starts on the option drawn visible and is never empty. Each package is loaded as its
+// host loads it and driven as its host drives it (update and play; the overlay plays its baked
+// data; OGraf and LiveOS load, playAction and updateAction).
+test('Vote results with counts, Poll result and Alert level: the count, the typed figures and the starting level play in every export target', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  type Look = { lit: boolean; text: string } | null;
+  const targets = ['spx', 'casparcg', 'h2r', 'html-overlay', 'ograf', 'liveos'];
+
+  /** Import a template, take it, and read the field ids its titles compiled to. */
+  const prepare = async (slug: string, titles: string[]) => {
+    const t = templates.find((entry) => entry.slug === slug)!;
+    await importTemplate(page, t);
+    await page.getByTestId('verb-take').click();
+    const air = page.frameLocator('[data-testid="program-stage"] iframe');
+    const ids: Record<string, string> = {};
+    for (const title of titles) ids[title] = await fieldFor(air, title);
+    await page.getByTestId('verb-out').click();
+    return { production: `${t.name} template`, ids };
+  };
+
+  /** Load one package, send it `data` (the overlay plays the data it was built with), and read
+   *  each role's look and text; then, where the host can, send `next` and read again. */
+  const play = async (id: string, files: Record<string, string>, data: Record<string, string>, next: Record<string, string> | null, roles: string[]) => {
+    const read = (body: ParentNode, names: string[]) => Object.fromEntries(names.map((n) => {
+      const node = body.querySelector(`[data-noacg-role~="${n}"]`);
+      return [n, node ? { lit: node.classList.contains('imported-design-on'), text: (node.textContent ?? '').trim() } : null];
+    }));
+    if (id === 'ograf' || id === 'liveos') {
+      const origin = `http://${id}-${Math.random().toString(36).slice(2, 8)}.local/`;
+      await serveOgrafFiles(page, origin, files);
+      await installGraphicBody(page);
+      return page.evaluate(async ({ origin, data, next, roles, readSrc }) => {
+        const readIn = new Function(`return (${readSrc})`)() as (body: ParentNode, names: string[]) => Record<string, Look>;
+        const mod = await import(`${origin}graphic.mjs`);
+        const tag = `tl5-${origin.replace(/\W/g, '')}`;
+        customElements.define(tag, mod.default);
+        const el = document.createElement(tag) as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown>; updateAction(p: unknown): Promise<unknown>; dispose(): Promise<unknown> };
+        document.body.appendChild(el);
+        await el.load({ data, renderType: 'realtime', renderCharacteristics: {} });
+        await el.playAction({});
+        await new Promise((r) => setTimeout(r, 600));
+        const first = readIn(graphicBody(el), roles);
+        let second = null;
+        if (next) {
+          await el.updateAction({ data: { ...data, ...next } });
+          await new Promise((r) => setTimeout(r, 600));
+          second = readIn(graphicBody(el), roles);
+        }
+        await el.dispose();
+        return { first, second };
+      }, { origin, data, next, roles, readSrc: read.toString() });
+    }
+    const view = await context.newPage();
+    await view.setContent(inlined(files), { waitUntil: 'load' });
+    if (id !== 'html-overlay') {
+      await view.evaluate((d) => {
+        const w = window as unknown as { update(raw: string): void; play(): void };
+        w.update(JSON.stringify(d));
+        w.play();
+      }, data);
+    }
+    await view.waitForTimeout(600);
+    const first = await view.evaluate(({ roles, readSrc }) => (new Function(`return (${readSrc})`)() as (b: ParentNode, n: string[]) => Record<string, Look>)(document, roles), { roles, readSrc: read.toString() });
+    let second = null;
+    if (next && id !== 'html-overlay') {
+      await view.evaluate((d) => (window as unknown as { update(raw: string): void }).update(JSON.stringify(d)), { ...data, ...next });
+      await view.waitForTimeout(600);
+      second = await view.evaluate(({ roles, readSrc }) => (new Function(`return (${readSrc})`)() as (b: ParentNode, n: string[]) => Record<string, Look>)(document, roles), { roles, readSrc: read.toString() });
+    }
+    await view.close();
+    return { first, second };
+  };
+
+  // Vote results: each row prints its own count, shown with the shares (Live figures here, since
+  // a host that only sends data reaches no Show result).
+  const vote = await prepare('vote-results-counts', ['Options', 'Live figures']);
+  const voteData = { [vote.ids.Options]: 'Coast | 3\nForest | 1', [vote.ids['Live figures']]: 'live' };
+  const votePackages = await exportPackages(page, vote.production, voteData);
+  expect(Object.keys(votePackages).sort()).toEqual([...targets].sort());
+  for (const id of targets) {
+    const seen = await play(id, votePackages[id], voteData, null, ['count/1', 'count/2', 'percent/1']);
+    expect(seen.first, `${id}: each row's count with its share`).toEqual({
+      'count/1': { lit: true, text: '3' },
+      'count/2': { lit: true, text: '1' },
+      'percent/1': { lit: true, text: '75%' },
+    });
+  }
+
+  // Poll result: typed rows show their figures from the start, with Live figures left as built.
+  const poll = await prepare('poll-result', ['Options']);
+  const pollData = { [poll.ids.Options]: 'Saturday | 3\nSunday | 1' };
+  const pollPackages = await exportPackages(page, poll.production, pollData);
+  for (const id of targets) {
+    const seen = await play(id, pollPackages[id], pollData, null, ['percent/1', 'percent/2']);
+    expect(seen.first, `${id}: the typed figures show at once`).toEqual({ 'percent/1': { lit: true, text: '75%' }, 'percent/2': { lit: true, text: '25%' } });
+  }
+
+  // Alert level: it starts on Advisory with nothing sent, and a level sent as data shows alone.
+  const alert = await prepare('alert-level', ['Level']);
+  const levels = ['advisory', 'watch', 'warning', 'emergency'].map((key) => `choice.level.option/${key.toUpperCase()}`);
+  const alertPackages = await exportPackages(page, alert.production, {});
+  const lit = (looks: Record<string, Look> | null) => looks && Object.entries(looks).filter(([, l]) => l?.lit).map(([n]) => n);
+  for (const id of targets) {
+    const seen = await play(id, alertPackages[id], {}, { [alert.ids.Level]: 'emergency' }, levels);
+    expect(lit(seen.first), `${id}: the band starts on Advisory`).toEqual([levels[0]]);
+    if (id !== 'html-overlay') expect(lit(seen.second), `${id}: Emergency sent as data shows alone`).toEqual([levels[3]]);
+  }
 });

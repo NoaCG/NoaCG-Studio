@@ -32,6 +32,7 @@ import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/be
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_PICKER_MODES } from '../../../templates/behaviours/clock';
 import { quizHasNoLock } from '../../../templates/behaviours/quiz';
+import { extraPrefixOf } from '../../../templates/behaviours/naming';
 import { formatClockTarget, localTimeZone, parseClockTarget, proposeClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
 import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
@@ -723,7 +724,10 @@ export default function BehaviourSection({
     };
     collect(behaviour);
   }
-  const hiddenUnclaimed = (draft.designSvg?.groups ?? []).filter((g) => g.hidden && !claimed.has(g.id));
+  // The layers offered as switches and choices: every hidden one nothing claimed, and a layer
+  // NAMED as a choice's option even when drawn visible, since that is the option the
+  // choice starts on (svg-template-library TL5).
+  const extraCandidates = (draft.designSvg?.groups ?? []).filter((g) => (g.hidden || extraPrefixOf(g.label)?.kind === 'choice') && !claimed.has(g.id));
   /** A type with drawn MOMENTS to bind (a look shown and hidden, never a bar drawn full, which
    *  is visible by design), in a file with no hidden layer to bind them to. */
   const noHiddenLayers =
@@ -744,8 +748,8 @@ export default function BehaviourSection({
     onDraft({ svgExtras: [...rest, next] });
   };
   const extraCounts = (() => {
-    const switches = draft.svgExtras.filter((e) => e.use === 'switch' && hiddenUnclaimed.some((g) => g.id === e.candidateId)).length;
-    const choiceNames = new Set(draft.svgExtras.filter((e) => e.use === 'choice' && hiddenUnclaimed.some((g) => g.id === e.candidateId)).map((e) => e.group ?? ''));
+    const switches = draft.svgExtras.filter((e) => e.use === 'switch' && extraCandidates.some((g) => g.id === e.candidateId)).length;
+    const choiceNames = new Set(draft.svgExtras.filter((e) => e.use === 'choice' && extraCandidates.some((g) => g.id === e.candidateId)).map((e) => e.group ?? ''));
     const parts = [
       switches > 0 ? `${switches} ${switches === 1 ? 'switch' : 'switches'}` : '',
       choiceNames.size > 0 ? `${choiceNames.size} ${choiceNames.size === 1 ? 'choice' : 'choices'}` : '',
@@ -1064,10 +1068,28 @@ export default function BehaviourSection({
                     ))}
                   </select>
                 </label>
+                {/* A POLL RESULT (svg-template-library TL5): the figures are typed, not voted, so
+                    they show from the take instead of waiting for Show result. Offered only where a
+                    figure or a count is drawn, the only layers the box changes. */}
+                {(poll.figures === true || poll.rows.some((r) => r.value || r.count)) && (
+                  <label className="save-field" title="The figures show from the take, as typed results do, instead of waiting for Show result.">
+                    <input
+                      type="checkbox"
+                      checked={poll.figures === true}
+                      onChange={(e) => {
+                        const { figures: _figures, ...rest } = poll;
+                        void _figures;
+                        onDraft({ svgBehaviour: e.target.checked ? { ...rest, figures: true } : rest });
+                      }}
+                      data-testid="map-svg-poll-figures"
+                    />
+                    <span>Poll result</span>
+                  </label>
+                )}
               </div>
               <p className="hint">
                 Per option: the layer holding its wording, the bar whose length is its share, the
-                figure beside it, and a winner mark if you drew one. The bar is measured at the
+                figure beside it, its count, and a winner mark if you drew one. The bar is measured at the
                 length you drew it, and that length is 100%.
               </p>
               {/* The row layout is the quiz's, reused rather than restated: a marker, one wide
@@ -1132,6 +1154,23 @@ export default function BehaviourSection({
                         ))}
                       </select>
                       {hintFor('percent', rowKeyAt[at], row.value, `map-svg-poll-value-${at}`)}
+                    </label>
+                    <label className="save-field">
+                      <span>Count</span>
+                      <select
+                        value={row.count ?? ''}
+                        onChange={(e) => patchPollRow(at, { count: e.target.value })}
+                        onFocus={() => setHoverId(row.count || null)}
+                        data-testid={`map-svg-poll-count-${at}`}
+                      >
+                        <option value="">{NOT_DRAWN}</option>
+                        {textLayers.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                      {hintFor('count', rowKeyAt[at], row.count ?? '', `map-svg-poll-count-${at}`)}
                     </label>
                     <label className="save-field">
                       <span>Winner</span>
@@ -1559,7 +1598,7 @@ export default function BehaviourSection({
         </div>
       )}
 
-      {hiddenUnclaimed.length > 0 && (
+      {extraCandidates.length > 0 && (
         <div className="panel-section" data-testid="map-svg-extras">
           <SectionHead title="Switches and choices" summary={extraCounts} testid="map-svg-why-extras">
             <p>
@@ -1569,7 +1608,7 @@ export default function BehaviourSection({
               in your design app and it arrives set; otherwise pick here.
             </p>
           </SectionHead>
-          {hiddenUnclaimed.map((g) => {
+          {extraCandidates.map((g) => {
             const extra = extraOf(g.id);
             return (
               <div className="map-svg-row" key={g.id} data-testid={`map-svg-extra-${g.id}`}>

@@ -346,6 +346,8 @@ export interface SvgPollDraft {
   total: string;
   /** Group candidate id of the VOTE NOW badge — a drawn state, shown while voting is open. */
   badge: string;
+  /** A POLL RESULT (TL5): the figures show from the take. Absent or false: a live vote. */
+  figures?: boolean;
 }
 
 /** One option row of a poll board, as the step holds it. Every member may be empty: a board with
@@ -359,6 +361,9 @@ export interface SvgPollRowDraft {
   value: string;
   /** Group candidate id of the winner mark for this row. */
   winner: string;
+  /** Text candidate id of the row's own vote count, beside its share (TL5). Absent on a draft
+   *  saved before it existed, which reads as not drawn. */
+  count?: string;
 }
 
 /** An empty option row — one place, so the step's "add a row" and the proposal agree. */
@@ -541,7 +546,7 @@ export function pollDrivenLayers(behaviour: SvgBehaviourDraft | null): Set<strin
   }
   if (behaviour?.kind !== 'poll') return new Set();
   return new Set(
-    [behaviour.question, behaviour.total, ...behaviour.rows.flatMap((r) => [r.label, r.value])].filter(Boolean),
+    [behaviour.question, behaviour.total, ...behaviour.rows.flatMap((r) => [r.label, r.value, r.count ?? ''])].filter(Boolean),
   );
 }
 
@@ -1052,7 +1057,7 @@ function pollBindingGaps(poll: SvgPollDraft): string[] {
     poll.question,
     poll.total,
     poll.badge,
-    ...poll.rows.flatMap((r) => [r.label, r.bar, r.value, r.winner]),
+    ...poll.rows.flatMap((r) => [r.label, r.bar, r.value, r.winner, r.count]),
   ].filter(Boolean);
   if (new Set(picked).size !== picked.length) gaps.push('one layer is picked for two things');
   return gaps;
@@ -1211,7 +1216,15 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
     list.push({ label: e.name.trim(), layer: e.candidateId });
     groups.set(e.group.trim(), list);
   }
-  for (const [name, options] of groups) if (options.length >= 2) out.push({ kind: 'choice', name: unique(name), options });
+  // The option drawn VISIBLE is where the choice starts (an alert level's resting level), so it is
+  // never empty on air. Only when exactly one is: all hidden is the empty start every choice had,
+  // and two or more shown is artwork left open for editing, which says nothing.
+  const shown = (id: string) => draft.designSvg?.groups.find((g) => g.id === id)?.hidden === false;
+  for (const [name, options] of groups) {
+    if (options.length < 2) continue;
+    const visible = options.filter((o) => shown(o.layer));
+    out.push({ kind: 'choice', name: unique(name), options, ...(visible.length === 1 ? { initial: visible[0].layer } : {}) });
+  }
   if (clock) out.push(clock);
   return out.length > 0 ? out : undefined;
 }
@@ -1405,9 +1418,13 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
         bar: r.bar || undefined,
         value: r.value || undefined,
         winner: r.winner || undefined,
+        // Additive: a row with no count drawn writes no key, so a board without one builds the
+        // bytes it built before the count existed.
+        ...(r.count ? { count: r.count } : {}),
       })),
       total: behaviour.total || undefined,
       badge: behaviour.badge || undefined,
+      ...(behaviour.figures ? { options: { figures: true } } : {}),
     };
   }
   if (behaviour.kind === 'timer') {
@@ -1599,6 +1616,8 @@ export function proposeSvgBehaviour(svg: SvgImportResult): SvgBehaviourDraft | n
       bar: per(best.layers, 'bar', key),
       value: per(best.layers, 'percent', key),
       winner: per(best.layers, 'winner', key),
+      // Only where a count is drawn, so a board without one proposes exactly what it did.
+      ...(per(best.layers, 'count', key) ? { count: per(best.layers, 'count', key) } : {}),
     })),
     total: one(best.layers, 'total'),
     badge: one(best.layers, 'badge'),

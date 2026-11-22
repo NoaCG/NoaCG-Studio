@@ -2204,7 +2204,7 @@ test('the unmatched count leaves out the plate the board is drawn on', async ({ 
   //
   // The board below is the shape the backlog describes: a student drew a plate, a rule under the
   // title, a track per row and a bar over each track, and named none of them for a vote role - so
-  // they pick the behaviour by hand and open on eleven empty boxes. Fourteen of its fifteen
+  // they pick the behaviour by hand and open on every box empty. Fourteen of its fifteen
   // unclaimed layers are things they could name; the fifteenth is the board itself.
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
   <rect id="Backplate" data-name="Backplate" x="0" y="0" width="1920" height="1080" fill="#0b0f14"/>
@@ -2231,12 +2231,14 @@ test('the unmatched count leaves out the plate the board is drawn on', async ({ 
   // written for, and the case that seeds every box empty.
   await page.getByTestId('map-svg-behaviour-kind').selectOption('poll');
 
-  // Eleven empty boxes and FOURTEEN layers - the plate is not one of them, because "name it as
+  // Thirteen empty boxes (eleven, plus a Count for each of the two options since
+  // svg-template-library TL5) and
+  // FOURTEEN layers - the plate is not one of them, because "name it as
   // the line under each box says" is not something anybody can do to the board's own backdrop.
   // The header rule and the three tracks stay counted: a track behind a bar really could be the
   // bar, and over the repo's artwork corpus nothing separates the two by size.
   const notice = page.getByTestId('map-svg-unmatched');
-  await expect(notice).toContainText('11 boxes');
+  await expect(notice).toContainText('13 boxes');
   await expect(notice).toContainText('14 layers');
 });
 

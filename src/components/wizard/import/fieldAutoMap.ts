@@ -564,12 +564,15 @@ function mapBoxes(
     return {
       ...b,
       question: f('question', undefined, b.question, undefined),
-      rows: b.rows.map((r, i) => ({
-        label: f('option', keys[i], r.label, i),
-        bar: f('bar', keys[i], r.bar, i),
-        value: f('percent', keys[i], r.value, i),
-        winner: f('winner', keys[i], r.winner, i),
-      })),
+      rows: b.rows.map((r, i) => {
+        const label = f('option', keys[i], r.label, i);
+        const bar = f('bar', keys[i], r.bar, i);
+        const value = f('percent', keys[i], r.value, i);
+        // A row's count is optional: a draft without one stays without one unless the fill finds it.
+        const count = f('count', keys[i], r.count ?? '', i);
+        const winner = f('winner', keys[i], r.winner, i);
+        return { label, bar, value, ...(count || r.count !== undefined ? { count } : {}), winner };
+      }),
       total: f('total', undefined, b.total, undefined),
       badge: f('badge', undefined, b.badge, undefined),
     };

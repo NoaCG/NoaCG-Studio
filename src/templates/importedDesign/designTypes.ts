@@ -252,6 +252,9 @@ export interface DesignSvgPollBehaviour {
   /** The drawn VOTE NOW badge — shown while voting is open, hidden the moment it closes.
    *  This one IS the quiz's drawn-state model (plan §4, L2) reused unchanged. */
   badge?: string;
+  /** `figures`: a POLL RESULT (svg-template-library TL5), whose typed figures show from the take.
+   *  Absent on every vote made before, which waits for Show result as it always did. */
+  options?: { figures?: boolean };
 }
 
 /** One option row of a poll board. */
@@ -271,6 +274,9 @@ export interface DesignSvgPollRow {
   /** The drawn winner mark for this row — shown only once a winner is called, and never on a
    *  tie. A drawn state, exactly like the quiz's. */
   winner?: string;
+  /** The drawn count beside the bar ("12"): the row's own votes, shown with the result like the
+   *  figure (svg-template-library TL5). Absent on every board made before it. */
+  count?: string;
 }
 
 /**
@@ -364,6 +370,11 @@ export type DesignSvgExtra =
       name: string;
       /** Two or more options, each a hidden layer with the word the operator presses. */
       options: { label: string; layer: string }[];
+      /** The option that shows from the take, by its layer: the one option the designer drew
+       *  VISIBLE (an alert level's resting level, svg-template-library TL5). With it the choice is
+       *  never empty: no "none" state and no empty value. Absent on every choice made before,
+       *  which starts empty as it always did. */
+      initial?: string;
     }
   | DesignSvgClock;
 

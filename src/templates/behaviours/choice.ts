@@ -11,12 +11,23 @@
 // starts empty, which is the honest state of a bug nobody has set yet.
 //
 // The look binds to the reported field, as the switch's does, for the same wire reason.
+//
+// A STARTING OPTION (svg-template-library TL5, an alert level's resting level): where the designer
+// drew exactly one option visible, the binding names it `initial`, and the choice starts there and
+// is never empty - no "none" state, no empty value, every option a button. Without it the choice
+// starts empty, as every choice made before did.
 
 import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { withRepaint } from './recipe';
 
 const ROLE = 'option';
 const FIELD = 'state';
+
+/** The row the choice starts on, or null for the empty start. */
+function initialOf(ctx: RecipeContext): string | null {
+  const key = ctx.options.initial;
+  return typeof key === 'string' && ctx.rows.includes(key) ? key : null;
+}
 
 export const choiceRecipe: BehaviourRecipe = {
   id: 'choice',
@@ -32,28 +43,37 @@ export const choiceRecipe: BehaviourRecipe = {
       key: ctx.ns(FIELD),
       label: ctx.name,
       kind: 'select',
-      value: '',
-      options: [{ label: '-', value: '' }, ...ctx.rows.map((key) => ({ label: ctx.label(ROLE, key), value: key.toLowerCase() }))],
+      value: initialOf(ctx)?.toLowerCase() ?? '',
+      options: [
+        ...(initialOf(ctx) ? [] : [{ label: '-', value: '' }]),
+        ...ctx.rows.map((key) => ({ label: ctx.label(ROLE, key), value: key.toLowerCase() })),
+      ],
       // A row pick over the choice's own rows: "picked" holds on the option the value names, so
       // ONE rule paints every option and a second choice on the graphic cannot cross-light it.
-      spec: { kind: 'row-pick', rows: ctx.ns(ROLE) },
+      spec: { kind: 'row-pick', rows: ctx.ns(ROLE), ...(initialOf(ctx) ? { start: initialOf(ctx) as string } : {}) },
     },
   ],
-  machine: (ctx) =>
-    withRepaint({
+  machine: (ctx) => {
+    const start = initialOf(ctx);
+    return withRepaint({
       parallel: [
         {
           id: ctx.nsId('group'),
-          initial: 'none',
+          initial: start ? start.toLowerCase() : 'none',
           states: [
-            { id: 'none', name: `${ctx.name}: none`, timeline: null, edges: [] },
+            ...(start ? [] : [{ id: 'none', name: `${ctx.name}: none`, timeline: null, edges: [] }]),
             ...ctx.rows.map((key) => ({
               id: key.toLowerCase(),
               name: `${ctx.name}: ${ctx.label(ROLE, key)}`,
               timeline: null,
               // Reachable from every OTHER option and from none - never from itself, which is
-              // what greys the button for the option already showing.
-              edges: ['none', ...ctx.rows.filter((k) => k !== key).map((k) => k.toLowerCase())].map((from) => ({
+              // what greys the button for the option already showing. The STARTING option is the
+              // exception: data alone can show another option while the machine stays on the start
+              // (data never moves the machine), so its button must stay live to bring it back.
+              edges: [
+                ...(start ? [] : ['none']),
+                ...ctx.rows.filter((k) => k !== key || k === start).map((k) => k.toLowerCase()),
+              ].map((from) => ({
                 from,
                 to: key.toLowerCase(),
                 trigger: 'operator' as const,
@@ -63,7 +83,8 @@ export const choiceRecipe: BehaviourRecipe = {
           ],
         },
       ],
-    }),
+    });
+  },
   controls: (ctx) =>
     ctx.rows.map((key, i) => ({
       event: ctx.nsId(key.toLowerCase()),

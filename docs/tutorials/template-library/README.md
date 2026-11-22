@@ -47,6 +47,8 @@ Names in these templates are made up.
 | **Join card** | The `QR` group is where NoaCG draws the code for your production's join link. In Interaction, Add Join card puts the current link in its cue. |
 | **Live vote** | The room votes on their phones. The bars follow the votes; Close voting, Show result and Call the winner run the round. |
 | **Vote results** | The same controls on a side panel. In Interaction, Add results stages a round's counts and whether voting is open or closed. |
+| **Vote results with counts** | Vote results with each option's own vote count under its bar, shown with the percentages. |
+| **Poll result** | Typed results, not a live vote. At import, tick Poll result. Type the question, and in Options one line per option: its name, a bar sign, its figure (`Streaming \| 62`). The bars and percentages show at once. |
 | **Message** | In Interaction, Prepare puts a viewer's message and name on it (in `From`): pasted, live chat or Twitch. |
 
 ---
@@ -62,6 +64,8 @@ Names in these templates are made up.
 | **Product card, Offer card, Listing card** | Shopping and property cards. Replace the drawn picture in Illustrator. |
 | **Key facts, Recap card** | Type one entry per line in Entries. Next shows them one at a time, from the last number down, and each stays up. |
 | **Live bug** | A corner tag with Live, Replay and Delayed looks. The status buttons show one of them. |
+| **Alert level** | A severity band that starts at Advisory. Each level is a button and shows its word and a four-step meter, so it reads without colour. |
+| **Public notice** | A notice card that starts at Standard. Urgent adds a red band with the word Urgent; Standard takes it away. |
 | **Answer board, three answers; two answers** | The Quiz controls with three or two answers. |
 | **End credits, pages** | At import, set Plays as to Cards. A blank line in the list starts a new page; Next card shows it. |
 | **End credits, still board** | At import, set Plays as to Hold still. The list stands still, roles on the left. |
@@ -89,6 +93,8 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **End credits** | `Heading`, `Credits`, `Credits 2`… | none | `Panel`, `Accent` |
 | **Join card** | `Label`, `Call to action` | none | `Panel`, `QR plate`, `QR` |
 | **Live vote, Vote results** | `Question`, `Option 1`, `Percent 1`, `Total votes` | `Bar 1` (visible), `Winner 1`, `Vote badge` | `Panel`, `Track 1` |
+| **Vote results with counts** | as Vote results, plus `Count 1` per option | as Vote results | as Vote results |
+| **Poll result** | `Question`, `Option 1`, `Percent 1` | `Bar 1` (visible) | `Panel`, `Track 1` |
 | **Message** | `From`, `Message` | none | `From box`, `Message box` |
 
 ---
@@ -102,12 +108,14 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **Cards** | one text per field, such as `Topic`, `Headline`, `Statement`, `Now`, `Next`, `Action`, `Product`, `Cost` | none | a `... box` under each text |
 | **Key facts, Recap card** | `Title`, `Item 1` to `Item 4` | `Mark 1` to `Mark 4` | `Item box 1`, `static:Fact 1` |
 | **Live bug** | `Title` | `choice:Status/Live`, `choice:Status/Replay`, `choice:Status/Delayed` | `Panel` |
+| **Alert level** | `Headline`, `Detail`, `Source` | `choice:Level/Advisory` (visible: the level it starts on), `choice:Level/Watch`, `choice:Level/Warning`, `choice:Level/Emergency` | `Panel` |
+| **Public notice** | `Notice label`, `Headline`, `Details` | `choice:Level/Standard` (visible), `choice:Level/Urgent` | `Panel` |
 | **Answer boards** | `Question`, `Answer A` to `Answer C` | as the Quiz | as the Quiz |
 | **End credits, pages and still board** | `Heading`, `Credits`, `Credits 2`… | none | `Panel`, `Page frame` or `Heading box` |
 | **QR card, Versus, Framed picture** | `f:QR image`, `f:Home logo`, `f:Away logo`, `f:Picture`, and their texts | none | a plate under each picture |
 | **Two-up frames** | `Person 1`, `Person 2` | none | `Window 1`, `Window 2` (outlines with no fill), `Person box 1` |
 
-Moments items except the timer bar are hidden groups: show one with its eye icon, edit it, hide it again before saving. Fixed words on the Board start with `static:`.
+Moments items except the timer bar and a choice's starting option are hidden groups: show one with its eye icon, edit it, hide it again before saving. Fixed words on the Board start with `static:`.
 
 ---
 
