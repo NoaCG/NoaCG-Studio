@@ -211,5 +211,11 @@
   "pass": "2026-11-22T17:22Z",
   "archived": true,
   "nit": "SPX Continue/Stop not exercised for motion"
+ },
+ "block": {
+  "id": "da52e570-08a9-4537-8c1d-02dd22504744",
+  "epoch": 2,
+  "deadline": "2026-11-23T21:26:02.228Z",
+  "renewed": "2026-11-22T21:26Z under standing blockRenewal"
  }
 }
