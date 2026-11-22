@@ -45,3 +45,4 @@ Project: {"version":1,"id":"plan-svg-template-library-2026-11-21","ownership":"l
 - Two Risky rows (TL1, TL3) skipped the Rules-first /so; builders misjudge CI scripts and saved-target state. Briefs now name the Risky paths and require the Rules first.
 - Builders go idle while CI runs and miss its end; a nudge on the first check-in after CI finishes cost about 30 minutes each time. Check briefs omit phase notes, so the coordinator adds them as NOTES.
 - One owner stop (AC-4 row counts) before the standing deferWithinPlan permission; since then, two deferrals were recorded without stopping.
+- 2026-11-22T15:16:26.450Z phase 6 build {"actor":"builder-tl4-tl4-b-92ca","nonce":"tl4-b-92ca","evidence":"create_session from 66ab49d3db8058f0eb972414623e155ecabb71c0, brief saved in kit briefs/tl4-build-tl4-b-92ca.txt"}
