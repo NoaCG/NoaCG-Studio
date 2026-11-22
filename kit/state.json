@@ -28,8 +28,8 @@
   },
   "qualification": {
     "coordinator": [
-      "2026-11-22T19:46:58.375Z",
-      "2026-11-22T19:47:20.316Z"
+      "2026-11-22T20:24:52.256Z",
+      "2026-11-22T20:25:06.845Z"
     ],
     "worker": [
       "2026-11-08T12:11:21.615Z",
@@ -42,7 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "The owner selected Codex Cloud for portable V6 work, with Windows real-vMix acceptance retained. Saved candidate 29b3fdbfba8ea12a9c426861c12df4947159a1a1 is now pushed to the same draft #2575 branch. A native cloud qualification request is awaiting acknowledgement, nonce vmix-v6-cloud-20261122-qual-7b61, saved environment edb063df-0ea1-459b-aa80-9147d4138f07~asenvcfg_9b269e66c4208191a2cc6dc009c81bce. Native task ID is unknown. Reconcile this request through native inventory before any retry. The first create call rejected explicit model/effort validation before submission; the second call omitted overrides and is still pending. V6 implementation has not been dispatched to a replacement worker. #2591 and its Windows checks passed and its shared allocation cleared."
+    "what": "V6 cloud continuation is waiting for browser sign-in. The hung app qualification call was terminated locally; its remote outcome is unknown, and it granted read-only qualification only. The supported native CLI then returned no cloud environments are available for this workspace before creating a worker. The in-app browser is now at the official Codex Log in or sign up screen. The owner was asked to sign in to the existing ChatGPT account. Resume portable V6 on the same draft PR #2575 from pushed 29b3fdbfba8ea12a9c426861c12df4947159a1a1 once that route is qualified. Preserve the configured model and effort, original attempts and releases. Windows real-vMix acceptance remains required. #2591 and its Windows checks passed and its file allocation cleared."
   },
   "inFlight": [],
   "owner": [],
@@ -52,7 +52,7 @@
     "model": "gpt-6.2-astra",
     "effort": "high",
     "settings": "Creation omitted model and effort overrides after explicit validation refusal. Verify actual worker settings on receipt.",
-    "state": "cli-qualification-prepared",
+    "state": "browser-sign-in-required",
     "source": "29b3fdbfba8ea12a9c426861c12df4947159a1a1",
     "environmentConfigId": "edb063df-0ea1-459b-aa80-9147d4138f07~asenvcfg_9b269e66c4208191a2cc6dc009c81bce",
     "prompt": "briefs/v6-cloud-qualification-7b61.txt",
@@ -67,6 +67,19 @@
       "authority": "Read-only qualification only. No product edit, commit, push, merge or V6 acceptance was ever authorized."
     },
     "cliNonce": "vmix-v6-cloud-20261122-cliqual-b78f",
-    "recoveryDecision": "Owner explicitly requested resolving the stuck launch. Retire the hung read-only qualification call and qualify the supported native CLI route. Preserve one V6 implementation branch and all phase attempts. Late original qualification has no product write authority."
+    "recoveryDecision": "Owner explicitly requested resolving the stuck launch. Retire the hung read-only qualification call and qualify the supported native CLI route. Preserve one V6 implementation branch and all phase attempts. Late original qualification has no product write authority.",
+    "cliResult": {
+      "stage": "before worker creation",
+      "exitCode": 1,
+      "nonce": "vmix-v6-cloud-20261122-cliqual-b78f",
+      "message": "no cloud environments are available for this workspace"
+    },
+    "browser": {
+      "url": "https://chatgpt.com/codex/",
+      "browserId": "2",
+      "currentAction": "Owner signs in using their existing account",
+      "state": "Log in or sign up",
+      "tabId": "1"
+    }
   }
 }
