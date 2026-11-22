@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Sponsor bug</title>
+  <desc>NoaCG Clean Studio template. A sponsor logo over a Caption, parked in the top left corner. Replace the drawn Logo with the sponsor's artwork.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="96" y="96" width="400" height="212" rx="16" fill="#FFFFFF"/>
+    <g id="Logo">
+      <rect x="128" y="124" width="336" height="100" rx="10" fill="#E3E7EF"/>
+      <circle cx="196" cy="174" r="30" fill="#2E5BFF"/>
+      <rect x="244" y="156" width="180" height="16" rx="8" fill="#0F1729"/>
+      <rect x="244" y="182" width="120" height="12" rx="6" fill="#5B6478"/>
+    </g>
+    <rect id="Caption_box" inkscape:label="Caption box" x="128" y="236" width="336" height="48" rx="10" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Caption" x="148" y="268" text-anchor="start" font-size="22" font-weight="700" fill="#FFFFFF">Supported by Northwind</text>
+  </g>
+</svg>

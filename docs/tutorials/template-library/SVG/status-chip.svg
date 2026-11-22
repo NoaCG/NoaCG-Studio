@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Location chip</title>
+  <desc>NoaCG Clean Studio template. A compact lower-left chip: the Location on a white plate and a Status such as On location on a blue plate beside it.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Location_box" inkscape:label="Location box" x="120" y="904" width="340" height="76" rx="14" fill="#FFFFFF"/>
+    <rect id="Status_box" inkscape:label="Status box" x="468" y="904" width="300" height="76" rx="14" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Location" x="150" text-anchor="start" y="955" font-size="36" font-weight="800" fill="#0F1729">Oslo</text>
+    <text id="Status" x="494" text-anchor="start" y="952" font-size="24" font-weight="800" fill="#FFFFFF" letter-spacing="2">ON LOCATION</text>
+  </g>
+</svg>

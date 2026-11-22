@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Social handle</title>
+  <desc>NoaCG Clean Studio template. A follow-me mark in the bottom right corner: Platform on a blue tag over the Handle.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Platform_box" inkscape:label="Platform box" x="1424" y="852" width="220" height="44" rx="12" fill="#2E5BFF"/>
+    <rect id="Handle_box" inkscape:label="Handle box" x="1424" y="904" width="400" height="80" rx="14" fill="#FFFFFF"/>
+    <g id="Icon">
+      <circle cx="1468" cy="944" r="22" fill="#2E5BFF"/>
+      <circle cx="1468" cy="944" r="9" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Platform" x="1446" y="882" text-anchor="start" font-size="20" font-weight="800" fill="#FFFFFF" letter-spacing="2">INSTAGRAM</text>
+    <text id="Handle" x="1506" y="956" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">@noacg</text>
+  </g>
+</svg>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Now and next</title>
+  <desc>NoaCG Clean Studio template. What is on now and what comes after it, in the lower left: Now label, Now, Now detail, Next label and Next, each on its own plate.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Now_label_box" inkscape:label="Now label box" x="120" y="696" width="240" height="44" rx="12" fill="#2E5BFF"/>
+    <rect id="Now_box" inkscape:label="Now box" x="120" y="748" width="820" height="84" rx="14" fill="#FFFFFF"/>
+    <rect id="Now_detail_box" inkscape:label="Now detail box" x="120" y="840" width="820" height="52" rx="12" fill="#E3E7EF"/>
+    <rect id="Next_label_box" inkscape:label="Next label box" x="120" y="908" width="200" height="60" rx="12" fill="#0F1729"/>
+    <rect id="Next_box" inkscape:label="Next box" x="328" y="908" width="612" height="60" rx="12" fill="#FFFFFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Now_label" inkscape:label="Now label" x="142" y="726" text-anchor="start" font-size="20" font-weight="800" fill="#FFFFFF" letter-spacing="2">NOW PLAYING</text>
+    <text id="Now" x="152" y="805" text-anchor="start" font-size="44" font-weight="800" fill="#0F1729">Ordinary Light</text>
+    <text id="Now_detail" inkscape:label="Now detail" x="152" y="875" text-anchor="start" font-size="24" font-weight="600" fill="#5B6478">The Hollow Coast, from the album Northbound</text>
+    <text id="Next_label" inkscape:label="Next label" x="142" y="946" text-anchor="start" font-size="20" font-weight="800" fill="#FFFFFF" letter-spacing="2">COMING UP</text>
+    <text id="Next" x="352" y="948" text-anchor="start" font-size="28" font-weight="700" fill="#0F1729">Interval, back at 21:15</text>
+  </g>
+</svg>

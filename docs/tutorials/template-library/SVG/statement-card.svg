@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Statement</title>
+  <desc>NoaCG Clean Studio template. A long passage in the middle of the screen: Label, Statement, an optional Second language and its Attribution, each on its own plate.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Label_box" inkscape:label="Label box" x="360" y="302" width="240" height="48" rx="12" fill="#2E5BFF"/>
+    <rect id="Statement_box" inkscape:label="Statement box" x="360" y="358" width="1200" height="220" rx="20" fill="#FFFFFF"/>
+    <rect id="Second_language_box" inkscape:label="Second language box" x="360" y="586" width="1200" height="130" rx="20" fill="#E3E7EF"/>
+    <rect id="Attribution_box" inkscape:label="Attribution box" x="360" y="724" width="560" height="56" rx="12" fill="#0F1729"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Label" x="384" y="335" text-anchor="start" font-size="22" font-weight="800" fill="#FFFFFF" letter-spacing="2">STATEMENT</text>
+    <text id="Statement" x="408" y="438" text-anchor="start" font-size="44" font-weight="700" fill="#0F1729">We will publish the full report next week.</text>
+    <text id="Second_language" inkscape:label="Second language" x="408" y="652" text-anchor="start" font-size="32" font-weight="600" fill="#5B6478">Julkaisemme koko raportin ensi viikolla.</text>
+    <text id="Attribution" x="384" y="761" text-anchor="start" font-size="24" font-weight="700" fill="#FFFFFF">Maria Lind, city council</text>
+  </g>
+</svg>

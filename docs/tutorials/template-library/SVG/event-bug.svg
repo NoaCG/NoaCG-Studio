@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Event ident</title>
+  <desc>NoaCG Clean Studio template. A top-right corner mark: the event logo beside the Event name and a Detail line for the day, session or venue. Replace the logo shape with the event's artwork.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <g id="Logo">
+      <rect x="1300" y="96" width="104" height="104" rx="14" fill="#0F1729"/>
+      <circle cx="1352" cy="148" r="30" fill="none" stroke="#2E5BFF" stroke-width="10"/>
+      <circle cx="1352" cy="148" r="10" fill="#FFFFFF"/>
+    </g>
+    <rect id="Event_box" inkscape:label="Event box" x="1412" y="96" width="412" height="60" rx="12" fill="#FFFFFF"/>
+    <rect id="Detail_box" inkscape:label="Detail box" x="1412" y="160" width="412" height="40" rx="10" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Event" x="1432" text-anchor="start" y="137" font-size="28" font-weight="800" fill="#0F1729">Summer Summit 2026</text>
+    <text id="Detail" x="1432" text-anchor="start" y="187" font-size="19" font-weight="700" fill="#FFFFFF" letter-spacing="1">DAY 2 · MAIN HALL</text>
+  </g>
+</svg>

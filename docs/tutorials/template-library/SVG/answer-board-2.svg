@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Answer board, two answers</title>
+  <desc>NoaCG Clean Studio template. Question above Answer A and Answer B side by side; hidden Selected, Correct and Wrong moments per answer, and Locked in.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Question_box" inkscape:label="Question box" x="260" y="616" width="1400" height="112" rx="14" fill="#FFFFFF"/>
+    <rect id="Letter_box_A" inkscape:label="Letter box A" x="260" y="744" width="110" height="132" rx="14" fill="#2E5BFF"/>
+    <rect id="Answer_box_A" inkscape:label="Answer box A" x="382" y="744" width="568" height="132" rx="14" fill="#FFFFFF"/>
+    <text id="static:Letter_A" inkscape:label="static:Letter A" x="315" y="829" text-anchor="middle" font-size="56" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">A</text>
+    <rect id="Letter_box_B" inkscape:label="Letter box B" x="970" y="744" width="110" height="132" rx="14" fill="#2E5BFF"/>
+    <rect id="Answer_box_B" inkscape:label="Answer box B" x="1092" y="744" width="568" height="132" rx="14" fill="#FFFFFF"/>
+    <text id="static:Letter_B" inkscape:label="static:Letter B" x="1025" y="829" text-anchor="middle" font-size="56" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">B</text>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Selected_A" inkscape:label="Selected A" style="display:none">
+      <rect x="385" y="747" width="562" height="126" rx="11" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Correct_A" inkscape:label="Correct A" style="display:none">
+      <rect x="382" y="744" width="568" height="132" rx="14" fill="#1DB56C"/>
+    </g>
+    <g id="Wrong_A" inkscape:label="Wrong A" style="display:none">
+      <rect x="382" y="744" width="568" height="132" rx="14" fill="#DCE1EA"/>
+    </g>
+    <g id="Selected_B" inkscape:label="Selected B" style="display:none">
+      <rect x="1095" y="747" width="562" height="126" rx="11" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Correct_B" inkscape:label="Correct B" style="display:none">
+      <rect x="1092" y="744" width="568" height="132" rx="14" fill="#1DB56C"/>
+    </g>
+    <g id="Wrong_B" inkscape:label="Wrong B" style="display:none">
+      <rect x="1092" y="744" width="568" height="132" rx="14" fill="#DCE1EA"/>
+    </g>
+    <g id="Locked_in" inkscape:label="Locked in" style="display:none">
+      <rect x="1440" y="562" width="220" height="42" rx="10" fill="#2E5BFF"/>
+      <text x="1550" y="590" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">LOCKED IN</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Question" x="960" y="687" text-anchor="middle" font-size="44" font-weight="800" fill="#0F1729">Which ocean is the largest?</text>
+    <text id="Answer_A" inkscape:label="Answer A" x="414" y="824" text-anchor="start" font-size="40" font-weight="700" fill="#0F1729">Atlantic</text>
+    <text id="Answer_B" inkscape:label="Answer B" x="1124" y="824" text-anchor="start" font-size="40" font-weight="700" fill="#0F1729">Pacific</text>
+  </g>
+</svg>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Key facts</title>
+  <desc>NoaCG Clean Studio template. A fact sheet: a Title and Item 1 to Item 4, revealed one at a time with Next, each with a hidden Mark that shows on the fact that just arrived.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="160" y="140" width="1100" height="800" rx="24" fill="#FFFFFF"/>
+    <rect id="Accent" x="160" y="140" width="1100" height="12" rx="6" fill="#2E5BFF"/>
+    <text id="static:Kicker" x="220" y="212" text-anchor="start" font-size="22" font-weight="800" fill="#2E5BFF" font-family="Manrope, sans-serif" letter-spacing="3">KEY FACTS</text>
+    <rect id="Fact_box_1" inkscape:label="Fact box 1" x="220" y="318" width="110" height="124" rx="14" fill="#2E5BFF"/>
+    <text id="static:Fact_1" inkscape:label="static:Fact 1" x="275" y="398" text-anchor="middle" font-size="52" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">1</text>
+    <rect id="Item_box_1" inkscape:label="Item box 1" x="342" y="318" width="858" height="124" rx="14" fill="#E3E7EF"/>
+    <rect id="Fact_box_2" inkscape:label="Fact box 2" x="220" y="466" width="110" height="124" rx="14" fill="#2E5BFF"/>
+    <text id="static:Fact_2" inkscape:label="static:Fact 2" x="275" y="546" text-anchor="middle" font-size="52" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">2</text>
+    <rect id="Item_box_2" inkscape:label="Item box 2" x="342" y="466" width="858" height="124" rx="14" fill="#E3E7EF"/>
+    <rect id="Fact_box_3" inkscape:label="Fact box 3" x="220" y="614" width="110" height="124" rx="14" fill="#2E5BFF"/>
+    <text id="static:Fact_3" inkscape:label="static:Fact 3" x="275" y="694" text-anchor="middle" font-size="52" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">3</text>
+    <rect id="Item_box_3" inkscape:label="Item box 3" x="342" y="614" width="858" height="124" rx="14" fill="#E3E7EF"/>
+    <rect id="Fact_box_4" inkscape:label="Fact box 4" x="220" y="762" width="110" height="124" rx="14" fill="#2E5BFF"/>
+    <text id="static:Fact_4" inkscape:label="static:Fact 4" x="275" y="842" text-anchor="middle" font-size="52" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">4</text>
+    <rect id="Item_box_4" inkscape:label="Item box 4" x="342" y="762" width="858" height="124" rx="14" fill="#E3E7EF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Mark_1" inkscape:label="Mark 1" style="display:none">
+      <rect x="345" y="321" width="852" height="118" rx="11" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Mark_2" inkscape:label="Mark 2" style="display:none">
+      <rect x="345" y="469" width="852" height="118" rx="11" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Mark_3" inkscape:label="Mark 3" style="display:none">
+      <rect x="345" y="617" width="852" height="118" rx="11" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Mark_4" inkscape:label="Mark 4" style="display:none">
+      <rect x="345" y="765" width="852" height="118" rx="11" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" x="220" y="270" text-anchor="start" font-size="52" font-weight="800" fill="#0F1729">The bridge in numbers</text>
+    <text id="Item_1" inkscape:label="Item 1" x="374" y="393" text-anchor="start" font-size="36" font-weight="700" fill="#0F1729">Opened in 1937</text>
+    <text id="Item_2" inkscape:label="Item 2" x="374" y="541" text-anchor="start" font-size="36" font-weight="700" fill="#0F1729">2.7 km from end to end</text>
+    <text id="Item_3" inkscape:label="Item 3" x="374" y="689" text-anchor="start" font-size="36" font-weight="700" fill="#0F1729">Carries 112,000 cars a day</text>
+    <text id="Item_4" inkscape:label="Item 4" x="374" y="837" text-anchor="start" font-size="36" font-weight="700" fill="#0F1729">Repainted a little every year</text>
+  </g>
+</svg>

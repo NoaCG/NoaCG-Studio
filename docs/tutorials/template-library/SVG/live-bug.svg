@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Live bug</title>
+  <desc>NoaCG Clean Studio template. A corner status bug: the show Title on a white plate, and a Status choice with three drawn looks, Live, Replay and Delayed, one shown at a time.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="1440" y="72" width="384" height="68" rx="14" fill="#FFFFFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="choice:Status_x2F_Live" inkscape:label="choice:Status/Live" style="display:none">
+      <rect x="1236" y="72" width="192" height="68" rx="14" fill="#E5484D"/>
+      <circle cx="1288" cy="106" r="9" fill="#FFFFFF"/>
+      <text x="1308" y="116" text-anchor="start" font-size="26" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">LIVE</text>
+    </g>
+    <g id="choice:Status_x2F_Replay" inkscape:label="choice:Status/Replay" style="display:none">
+      <rect x="1236" y="72" width="192" height="68" rx="14" fill="#2E5BFF"/>
+      <text x="1332" y="116" text-anchor="middle" font-size="26" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">REPLAY</text>
+    </g>
+    <g id="choice:Status_x2F_Delayed" inkscape:label="choice:Status/Delayed" style="display:none">
+      <rect x="1236" y="72" width="192" height="68" rx="14" fill="#5B6478"/>
+      <text x="1332" y="116" text-anchor="middle" font-size="26" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">DELAYED</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" x="1468" y="117" text-anchor="start" font-size="30" font-weight="800" fill="#0F1729">Evening News</text>
+  </g>
+</svg>

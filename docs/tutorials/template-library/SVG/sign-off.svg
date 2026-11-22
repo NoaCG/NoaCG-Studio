@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Sign-off</title>
+  <desc>NoaCG Clean Studio template. A full-screen end card: a Closing line, a Farewell and the Next broadcast, under a drawn Logo to replace with your own.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" width="1920" height="1080" fill="#0F1729"/>
+    <g id="Logo">
+      <rect x="900" y="276" width="120" height="120" rx="24" fill="#2E5BFF"/>
+      <circle cx="960" cy="336" r="30" fill="none" stroke="#FFFFFF" stroke-width="10"/>
+    </g>
+    <rect id="Next_broadcast_box" inkscape:label="Next broadcast box" x="620" y="676" width="680" height="76" rx="38" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Closing_line" inkscape:label="Closing line" x="960" y="478" text-anchor="middle" font-size="28" font-weight="800" fill="#A9B3C7" letter-spacing="4">UNTIL NEXT TIME</text>
+    <text id="Farewell" x="960" y="604" text-anchor="middle" font-size="104" font-weight="800" fill="#FFFFFF">Thanks for watching</text>
+    <text id="Next_broadcast" inkscape:label="Next broadcast" x="960" y="725" text-anchor="middle" font-size="32" font-weight="700" fill="#FFFFFF">Back Thursday at 19:00</text>
+  </g>
+</svg>

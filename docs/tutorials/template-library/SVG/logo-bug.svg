@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Logo mark</title>
+  <desc>NoaCG Clean Studio template. A quiet brand mark in the top right corner: a drawn Logo to replace with your own, and a Wordmark beside it.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="1464" y="96" width="360" height="96" rx="16" fill="#FFFFFF"/>
+    <g id="Logo">
+      <rect x="1484" y="116" width="56" height="56" rx="12" fill="#2E5BFF"/>
+      <circle cx="1512" cy="144" r="13" fill="none" stroke="#FFFFFF" stroke-width="6"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Wordmark" x="1560" y="157" text-anchor="start" font-size="36" font-weight="800" fill="#0F1729">NOACG</text>
+  </g>
+</svg>

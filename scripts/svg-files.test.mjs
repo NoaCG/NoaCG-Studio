@@ -32,7 +32,9 @@ test('one inventory: unique ids, every SVG and picture in the folder listed, eve
   for (const entry of library) {
     assert.ok(entry.packages.length > 0 && entry.packages.every((id) => packages.has(id)), `${entry.slug} sits in known packages`);
     assert.ok(['studio', 'navy'].includes(entry.style), `${entry.slug} names its style`);
-    assert.ok(entry.formerly?.length, `${entry.slug} says which old set it came from`);
+    // A template from the two old sets says which; one added since (TL4 on) has no old address.
+    if (entry.formerly !== undefined) assert.ok(entry.formerly.length, `${entry.slug} says which old set it came from`);
+    else assert.ok(!Object.values(old.addresses).some((to) => to.now === fileUrl(entry.slug, 'svg')), `${entry.slug} was served before, so it says which old set it came from`);
     for (const state of entry.states ?? []) assert.ok(state.name && state.alt?.length > 20, `${entry.slug}/${state.preview} is named and described`);
   }
   for (const file of readdirSync(new URL('Illustrator/', folder))) assert.ok(library.some((entry) => `${entry.slug}.ai` === file), `${file} belongs to a template`);
