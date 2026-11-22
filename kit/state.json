@@ -52,13 +52,21 @@
     "model": "gpt-6.2-astra",
     "effort": "high",
     "settings": "Creation omitted model and effort overrides after explicit validation refusal. Verify actual worker settings on receipt.",
-    "state": "submission-pending",
+    "state": "cli-qualification-prepared",
     "source": "29b3fdbfba8ea12a9c426861c12df4947159a1a1",
     "environmentConfigId": "edb063df-0ea1-459b-aa80-9147d4138f07~asenvcfg_9b269e66c4208191a2cc6dc009c81bce",
     "prompt": "briefs/v6-cloud-qualification-7b61.txt",
     "nonce": "vmix-v6-cloud-20261122-qual-7b61",
     "pendingFunctionCell": "14",
     "lastReconciledAt": "2026-11-22T19:59:23Z",
-    "lastInventory": "Native local history and CLI cloud inventory show no matching task. Second create call still pending. Reconcile original nonce and function cell before any repeat."
+    "lastInventory": "Native local history and CLI cloud inventory show no matching task. Second create call still pending. Reconcile original nonce and function cell before any repeat.",
+    "originalRequest": {
+      "reconciliation": "Native history and CLI inventories showed no task. Local function cell 14 terminated on 2026-11-22. A late response remains historical qualification evidence only.",
+      "state": "local-call-terminated-remote-unknown",
+      "nonce": "vmix-v6-cloud-20261122-qual-7b61",
+      "authority": "Read-only qualification only. No product edit, commit, push, merge or V6 acceptance was ever authorized."
+    },
+    "cliNonce": "vmix-v6-cloud-20261122-cliqual-b78f",
+    "recoveryDecision": "Owner explicitly requested resolving the stuck launch. Retire the hung read-only qualification call and qualify the supported native CLI route. Preserve one V6 implementation branch and all phase attempts. Late original qualification has no product write authority."
   }
 }
