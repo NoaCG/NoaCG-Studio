@@ -1,0 +1,8 @@
+join-card.svg per-file download (/downloads/svg/templates/join-card.svg) = source
+live-vote.svg per-file download (/downloads/svg/templates/live-vote.svg) = source
+vote-results.svg per-file download (/downloads/svg/templates/vote-results.svg) = source
+message.svg per-file download (/downloads/svg/templates/message.svg) = source
+NoaCG-SVG-templates/SVG/join-card.svg in /downloads/NoaCG-SVG-templates.zip = source
+NoaCG-SVG-templates/SVG/live-vote.svg in /downloads/NoaCG-SVG-templates.zip = source
+NoaCG-SVG-templates/SVG/vote-results.svg in /downloads/NoaCG-SVG-templates.zip = source
+NoaCG-SVG-templates/SVG/message.svg in /downloads/NoaCG-SVG-templates.zip = source

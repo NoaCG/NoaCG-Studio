@@ -425,6 +425,13 @@ Actions. OW: the owner, with Illustrator on their own computer.
 - Carry-over to TL5: add a per-option count readout to the Vote results template, after the TL2
   compatibility check (a new derived value in the imported-design runtime).
 
+### TL1o (pilot round trip)
+
+- TL1o was run by an agent at the owner's request (2026-11-22); the real Illustrator round trip moves to TL8.
+- Evidence: `evidence/phase-TL1o.md`. One finding, issue #2691: Illustrator writes no
+  `text-anchor`, so a vote's right-aligned `Percent n` grows right on air and the Winner mark
+  cuts it. TL3 and TL5 should know it before more right-aligned figures ship.
+
 ## Non-goals
 
 - Redesigning the import workflow or its dropdown.

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #17142a;
+      }
+
+      .st1 {
+        fill: #ff5a36;
+      }
+
+      .st2 {
+        fill: #2e2a48;
+      }
+
+      .st3 {
+        display: none;
+      }
+
+      .st4 {
+        fill: none;
+        stroke: #ffd23f;
+        stroke-miterlimit: 10;
+        stroke-width: 6px;
+      }
+
+      .st5, .st6, .st7 {
+        fill: #fff;
+      }
+
+      .st5, .st6, .st8 {
+        font-family: Sora-ExtraBold, Sora;
+        font-weight: 800;
+      }
+
+      .st5 {
+        font-size: 20px;
+        letter-spacing: 0.1em;
+      }
+
+      .st6 {
+        font-size: 46px;
+      }
+
+      .st7 {
+        font-family: Sora-Bold, Sora;
+        font-weight: 700;
+      }
+
+      .st7, .st8 {
+        font-size: 34px;
+      }
+
+      .st8 {
+        fill: #ffb199;
+      }
+
+      .st9 {
+        fill: #b8b2d6;
+        font-family: Sora-SemiBold, Sora;
+        font-size: 26px;
+        font-weight: 600;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Panel" class="st0" x="160" y="140" width="1100" height="820"/>
+    <rect id="Accent" class="st1" x="160" y="140" width="10" height="820"/>
+    <rect id="Track_x5F_1" data-name="Track_1" class="st2" x="220" y="440" width="980" height="14" rx="7" ry="7"/>
+    <rect id="Track_x5F_2" data-name="Track_2" class="st2" x="220" y="558" width="980" height="14" rx="7" ry="7"/>
+    <rect id="Track_x5F_3" data-name="Track_3" class="st2" x="220" y="676" width="980" height="14" rx="7" ry="7"/>
+    <rect id="Track_x5F_4" data-name="Track_4" class="st2" x="220" y="794" width="980" height="14" rx="7" ry="7"/>
+  </g>
+  <g id="Moments">
+    <rect id="Bar_x5F_1" data-name="Bar_1" class="st1" x="220" y="440" width="980" height="14" rx="7" ry="7"/>
+    <g id="Winner_x5F_1" data-name="Winner_1" class="st3">
+      <rect class="st4" x="196" y="372" width="1028" height="100" rx="4" ry="4"/>
+    </g>
+    <rect id="Bar_x5F_2" data-name="Bar_2" class="st1" x="220" y="558" width="980" height="14" rx="7" ry="7"/>
+    <g id="Winner_x5F_2" data-name="Winner_2" class="st3">
+      <rect class="st4" x="196" y="490" width="1028" height="100" rx="4" ry="4"/>
+    </g>
+    <rect id="Bar_x5F_3" data-name="Bar_3" class="st1" x="220" y="676" width="980" height="14" rx="7" ry="7"/>
+    <g id="Winner_x5F_3" data-name="Winner_3" class="st3">
+      <rect class="st4" x="196" y="608" width="1028" height="100" rx="4" ry="4"/>
+    </g>
+    <rect id="Bar_x5F_4" data-name="Bar_4" class="st1" x="220" y="794" width="980" height="14" rx="7" ry="7"/>
+    <g id="Winner_x5F_4" data-name="Winner_4" class="st3">
+      <rect class="st4" x="196" y="726" width="1028" height="100" rx="4" ry="4"/>
+    </g>
+    <g id="Vote_x5F_badge" data-name="Vote_badge" class="st3">
+      <rect class="st1" x="1010" y="180" width="210" height="46" rx="4" ry="4"/>
+      <text class="st5" transform="translate(1048.86 211)"><tspan x="0" y="0">VOTE NOW</tspan></text>
+    </g>
+  </g>
+  <g id="Text">
+    <text id="Question" class="st6" transform="translate(220 290)"><tspan x="0" y="0">Which city hosts the final?</tspan></text>
+    <text id="Option_x5F_1" data-name="Option_1" class="st7" transform="translate(220 420)"><tspan x="0" y="0">Lisbon</tspan></text>
+    <text id="Percent_x5F_1" data-name="Percent_1" class="st8" transform="translate(1143.13 420)"><tspan x="0" y="0">0%</tspan></text>
+    <text id="Option_x5F_2" data-name="Option_2" class="st7" transform="translate(220 538)"><tspan x="0" y="0">Oslo</tspan></text>
+    <text id="Percent_x5F_2" data-name="Percent_2" class="st8" transform="translate(1143.13 538)"><tspan x="0" y="0">0%</tspan></text>
+    <text id="Option_x5F_3" data-name="Option_3" class="st7" transform="translate(220 656)"><tspan x="0" y="0">Turin</tspan></text>
+    <text id="Percent_x5F_3" data-name="Percent_3" class="st8" transform="translate(1143.13 656)"><tspan x="0" y="0">0%</tspan></text>
+    <text id="Option_x5F_4" data-name="Option_4" class="st7" transform="translate(220 774)"><tspan x="0" y="0">Leeds</tspan></text>
+    <text id="Percent_x5F_4" data-name="Percent_4" class="st8" transform="translate(1143.13 774)"><tspan x="0" y="0">0%</tspan></text>
+    <text id="Total_x5F_votes" data-name="Total_votes" class="st9" transform="translate(220 910)"><tspan x="0" y="0">0 votes</tspan></text>
+  </g>
+</svg>
