@@ -1,0 +1,75 @@
+// Issue #2684 diagnosis, local stack only. The phase 9 three-person soak (taker, two editors) with
+// the switches as production, counting every backend request by page, endpoint and minute, with
+// the database's CPU time and WAL before and after. Not for main.
+import { spawnSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { test } from '@playwright/test';
+import { run, setSwitch, setUp, tearDown, type Scene } from './_five';
+
+const API = process.env.VITE_SUPABASE_URL ?? '';
+const DB = process.env.DIAG_DB ?? '';
+const MS = Number(process.env.DIAG_MS ?? 300_000);
+if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(API)) throw new Error(`refusing: backend ${API} is not 127.0.0.1`);
+
+function db(sql: string): string {
+  const r = spawnSync('docker', ['exec', DB, 'psql', '-U', 'postgres', '-qAtc', sql], { encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(r.stderr);
+  return r.stdout.trim();
+}
+function cpuUsec(): number {
+  // cgroup v1 on this machine: the container's CPU time in nanoseconds, as microseconds.
+  const r = spawnSync('docker', ['exec', DB, 'cat', '/sys/fs/cgroup/cpuacct/cpuacct.usage'], { encoding: 'utf8' });
+  return Number(r.stdout.trim()) / 1000;
+}
+const wal = () => db('select pg_current_wal_lsn()');
+const walBytes = (a: string, b: string) => Number(db(`select pg_wal_lsn_diff('${b}', '${a}')`));
+
+test('diag-storm', async ({ page, browser }) => {
+  test.setTimeout(MS + 10 * 60_000);
+  const allOn = process.env.DIAG_SWITCHES === 'on';
+  for (const [k, on] of [['production_copies', true], ['team_designs', allOn], ['auto_publish', allOn], ['partial_writes', allOn]] as const) await setSwitch(k, on);
+  const switches = db("select json_object_agg(key, value) from system_settings where key in ('production_copies','team_designs','auto_publish','partial_writes')");
+  let scene: Scene | null = null;
+  try {
+    scene = await setUp(browser, page, 3, { roles: ['taker', 'editor', 'editor'] });
+    const host = new URL(API).host;
+    const t0 = Date.now();
+    const counts: Record<string, Record<string, number[]>> = {};
+    const fails: Record<string, number> = {};
+    for (const [i, p] of scene.people.entries()) {
+      const who = `${i}-${p.role}`;
+      counts[who] = {};
+      p.page.context().on('request', (req) => {
+        if (!req.url().includes(host) || req.url().startsWith('ws')) return;
+        const u = new URL(req.url());
+        const ep = `${req.method()} ${u.pathname}`;
+        const m = Math.floor((Date.now() - t0) / 60_000);
+        const row = (counts[who][ep] ??= []);
+        row[m] = (row[m] ?? 0) + 1;
+      });
+      p.page.context().on('requestfailed', (req) => { if (req.url().includes(host)) fails[who] = (fails[who] ?? 0) + 1; });
+    }
+    const w0 = wal();
+    const c0 = cpuUsec();
+    const report = await run(scene, { ms: MS, reloadAt: 0.4, offlineAt: 0.6, offlineMs: 20_000 });
+    const elapsed = Date.now() - t0;
+    const w1 = wal();
+    const c1 = cpuUsec();
+    const minutes = elapsed / 60_000;
+    const perMin: Record<string, Record<string, number>> = {};
+    for (const [who, eps] of Object.entries(counts)) {
+      perMin[who] = {};
+      for (const [ep, row] of Object.entries(eps)) perMin[who][ep] = Math.round((row.reduce((a, b) => a + (b ?? 0), 0) / minutes) * 10) / 10;
+    }
+    const out = {
+      build: process.env.DIAG_BUILD, proxy: process.env.DIAG_PROXY ?? 'none', switches: JSON.parse(switches), ms: elapsed,
+      takes: report.takes.length, lost: report.takes.filter((t) => t.ranAt === null).length, edits: report.edits.map((e) => e.typed.length), errors: report.errors.length, errorTexts: report.errors.slice(0, 12),
+      dbCpuSecPerMin: Math.round(((c1 - c0) / 1e6 / minutes) * 100) / 100, walKBPerMin: Math.round(walBytes(w0, w1) / 1024 / minutes),
+      failedRequests: fails, perMin, byMinute: counts,
+    };
+    writeFileSync(process.env.DIAG_OUT ?? 'diag-storm.json', JSON.stringify(out, null, 1));
+  } finally {
+    await tearDown(scene, page).catch(() => undefined);
+    for (const k of ['production_copies', 'team_designs', 'auto_publish', 'partial_writes'] as const) await setSwitch(k, false).catch(() => undefined);
+  }
+});
