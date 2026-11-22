@@ -556,6 +556,10 @@ export interface OgrafOfflineCompatibility {
   warnings: string[];
 }
 
+/** The XML namespace names markup and runtime code spell out (SVG, XLink, XHTML, XML, and the
+ *  editors' own: Inkscape, Sodipodi, Adobe), as attribute values or string literals. */
+const XML_NAMESPACE_NAMES = /https?:\/\/(?:www\.w3\.org\/(?:2000\/svg|1999\/xlink|1999\/xhtml|XML\/1998\/namespace)|www\.inkscape\.org\/namespaces\/inkscape|sodipodi\.sourceforge\.net\/DTD\/sodipodi-0\.dtd|ns\.adobe\.com\/[A-Za-z0-9/._-]*)(?=["'\s>)])/g;
+
 /** Conservative target-specific gate. Non-real-time is advertised only for templates whose
  * authored NoaCG timeline can be replayed against the shared virtual clock. */
 export function validateOgrafOfflineCompatibility(template: SpxTemplate): OgrafOfflineCompatibility {
@@ -564,7 +568,9 @@ export function validateOgrafOfflineCompatibility(template: SpxTemplate): OgrafO
   if (!parseAnimData(template.js)) {
     errors.push('Post-production export requires a readable NOACG_ANIM timeline.');
   }
-  const source = `${template.html}\n${template.css}\n${template.js}`;
+  // An XML namespace name is an identifier, never fetched: every SVG declares one, so an imported
+  // design would otherwise read as a network dependency and could never be sought.
+  const source = `${template.html}\n${template.css}\n${template.js}`.replace(XML_NAMESPACE_NAMES, '');
   if (/https?:\/\//i.test(source.replace(OGRAF_SCHEMA_URL, '')) || /(?:src|href)\s*=\s*["']\/\//i.test(source)) {
     errors.push('External network dependencies are not available during deterministic rendering.');
   }

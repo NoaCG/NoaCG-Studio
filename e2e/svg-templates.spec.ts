@@ -617,6 +617,21 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
     return out;
   }, { production: `${t.name} template`, short });
   expect(Object.keys(packages).sort()).toEqual(['casparcg', 'h2r', 'html-overlay', 'liveos', 'ograf', 'spx']);
+  // The non-real-time gate reads an SVG's namespace names as names, and still refuses a real
+  // address beside them.
+  const gate = await page.evaluate(async (production) => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { validateOgrafOfflineCompatibility } = await __noacgImport('/src/export/targets/ograf.ts');
+    const template = shows.loadShows().find((s: { name: string }) => s.name === production)!.graphics[0].template;
+    return {
+      own: validateOgrafOfflineCompatibility(template).errors,
+      fetched: validateOgrafOfflineCompatibility({ ...template, html: template.html.replace('</svg>', '<image href="https://example.com/a.png"/></svg>') }).errors,
+      lookalike: validateOgrafOfflineCompatibility({ ...template, js: `${template.js}\nvar u = 'http://www.w3.org/2000/svg.example.com/x';` }).errors,
+    };
+  }, `${t.name} template`);
+  expect(gate.own, 'the imported countdown may be sought').toEqual([]);
+  expect(gate.fetched).toContain('External network dependencies are not available during deterministic rendering.');
+  expect(gate.lookalike).toContain('External network dependencies are not available during deterministic rendering.');
 
   /** One package's graphic page with its own css and js inlined, as its folder would serve it. */
   const inlined = (files: Record<string, string>) => {
