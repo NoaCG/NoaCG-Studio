@@ -365,8 +365,15 @@ test('the Template Library page shows every template by package and serves each 
     }
   }
   expect([...shown].sort(), 'every template sits in a package').toEqual(INVENTORY.map((entry) => entry.slug).sort());
-  // Every preview has loaded: a missing PNG would leave a tile with a broken picture.
-  await page.locator('.svg-tile img').evaluateAll((imgs) => Promise.all(imgs.map((img) => { (img as HTMLImageElement).loading = 'eager'; return (img as HTMLImageElement).decode(); })));
+  // Every preview has loaded: a missing PNG would leave a tile with a broken picture. Each one is
+  // decoded in turn: decoding every full-size preview at once (151 by TL5) made Chromium reject one
+  // on a CI runner ("The source image cannot be decoded") though every file decodes on its own.
+  await page.locator('.svg-tile img').evaluateAll(async (imgs) => {
+    for (const img of imgs as HTMLImageElement[]) {
+      img.loading = 'eager';
+      await img.decode();
+    }
+  });
   expect(await page.locator('.svg-tile img').evaluateAll((imgs) => imgs.filter((img) => !(img as HTMLImageElement).naturalWidth).length)).toBe(0);
   // The old set anchors still land on the library.
   for (const anchor of ['examples', 'templates']) await expect(page.locator(`#${anchor}`)).toHaveCount(1);
