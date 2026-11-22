@@ -420,8 +420,10 @@ returned AGREE WITH CORRECTIONS (B), and the corrected Rules and the coordinator
   compiles to its old table, fields and html (Node case).
 - **Quiz rows in use.** An optional `Answer row A` layer per answer (the importer also reads
   `Row A`). Where any is drawn, a row shows while its Answer has text (`text` fact `filled`), and
-  Selected, Correct and Wrong light only on rows in use. No field, event, state or button.
-- READS: one entry each, `text.filled` and `list` `of`, `reached`, `span`, `amount`.
+  the two dropdowns' kind holds no fact on a row not in use (`row-pick` `inUse`), so Selected,
+  Correct and Wrong light only on rows in use. No field, event, state or button.
+- READS: `text.filled`; `list` `of`, `reached`, `has-label`, `has-amount`, `span`, `amount`;
+  `row-pick` `inUse`.
 - The import step offers the meter's tier count from none, and a Row picker per quiz answer.
 - Templates (studio): Milestone track (titles) and Quiz show (games), each with a default preview
   and two named states with alt text. Library 93 templates; coverage 92 of 101 rows.

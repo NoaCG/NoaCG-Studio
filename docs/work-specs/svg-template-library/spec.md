@@ -829,6 +829,18 @@ Group 7: Milestone track (tiers on the goal meter) and Quiz show (two to four an
   that has written a label cannot bring the drawn text back, so it would be false after one
   edit). Quiz rows are in use while their Answer has text, rather than the built-in's Answers
   shown dropdown: no field is added, and a gap (A and C in use) is allowed.
+- Rules found after coding (from the `/check` review; they make M2, M3 and Q2 true as written):
+  - M3a. On a listed row, `Tier n` shows only while its line has a label and `Threshold n` only
+    while it has text after the bar sign (`list` facts `has-label`, `has-amount`): a readout with
+    nothing to write keeps what it showed before, so it hides instead.
+  - M2a. The starting box keeps one line per drawn tier, so line n stays row n: a tier drawn with
+    no text is named for its row (`Tier 2`), and a label holding a bar sign with no figure drawn
+    ends in a bar sign so it is not split. Drawn on two lines, a label's words stay apart.
+  - Q2a. "In use" lives in the dropdowns' kind (`row-pick` spec key `inUse`): on a board with
+    rows, no fact holds on a row not in use, and a pick or key naming one names nothing. So a key
+    on an emptied row marks no row Wrong, and the three verdict rules are exactly the quiz's own.
+  - S2 grows by these words: `list` facts `has-label`, `has-amount`; `row-pick` spec key `inUse`.
+    The `text` fact `filled` now serves only the Row look.
 - Traps: the layer check maps a name to the FIRST role in `words.json` with that head, so the
   quiz's row is taught as `Answer row A` (a bare `Row` would shadow the standings' visible
   `Row n` plates); the importer still reads `Row A`. A write rule never restores drawn text once
