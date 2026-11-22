@@ -110,7 +110,8 @@ export function zipContents(entries, root = ROOT) {
 
 async function zip(folder, contents) {
   const archive = new JSZip();
-  for (const [name, bytes] of contents) archive.file(`${folder}/${name}`, bytes, ENTRY);
+  // Pictures, the PDF and .ai sources are compressed already: stored, they cost no CPU to pack.
+  for (const [name, bytes] of contents) archive.file(`${folder}/${name}`, bytes, /\.(png|pdf|ai)$/i.test(name) ? { ...ENTRY, compression: 'STORE' } : ENTRY);
   return archive.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
 }
 
