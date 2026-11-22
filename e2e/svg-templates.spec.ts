@@ -582,13 +582,14 @@ test('Countdown: the last ten seconds pulse, zero flashes once, and Pause, Reset
   await expect(air.locator('.imported-design-clock')).toHaveText('0:12');
   await expect(role(air, 'expired')).not.toHaveClass(/imported-design-on/);
   expect(await motion('expired')).toMatchObject({ move: null, opacity: 1, scale: 1 });
-  // Reduced motion: the same looks light, and nothing moves.
+  // Reduced motion: asked for while the warning pulses, the pulse stops on the next beat and the
+  // look stays lit; zero lights Time up with nothing moving.
   await page.getByTestId('verb-out').click();
-  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByTestId('verb-take').click();
-  await expect(role(air, 'warning')).toHaveClass(/imported-design-on/, { timeout: 6_000 });
-  await page.waitForTimeout(600);
-  expect(await motion('warning')).toMatchObject({ move: null, opacity: 1 });
+  await expect.poll(async () => (await motion('warning')).move, { timeout: 6_000 }).toBe('pulse');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(async () => motion('warning')).toMatchObject({ move: null, opacity: 1 });
+  await expect(role(air, 'warning')).toHaveClass(/imported-design-on/);
   await expect(role(air, 'expired')).toHaveClass(/imported-design-on/, { timeout: 15_000 });
   expect(await motion('expired')).toMatchObject({ move: null, opacity: 1, scale: 1 });
 });

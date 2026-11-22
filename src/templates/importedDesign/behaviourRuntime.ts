@@ -731,9 +731,11 @@ function noacgMotionReduced() {
 function noacgMove(el, move, appeared) {
   if (typeof gsap === 'undefined') return;
   var now = el.noacgMove || null;
+  // Reduced motion is read on every repaint, so turning it on stops a pulse already running.
+  var reduced = noacgMotionReduced();
   // A pulse someone else killed (a renderer's measuring pass kills every tween) starts again;
   // one still on the timeline runs on, paused host or not.
-  if (now && now.name === move && (move === 'pulse' ? gsap.getTweensOf(el).indexOf(now.tween) !== -1 : !appeared)) return;
+  if (now && !reduced && now.name === move && (move === 'pulse' ? gsap.getTweensOf(el).indexOf(now.tween) !== -1 : !appeared)) return;
   if (now) {
     now.tween.kill();
     gsap.set(el, { clearProps: now.name === 'flash' ? 'opacity,transform' : 'opacity' });
@@ -742,7 +744,7 @@ function noacgMove(el, move, appeared) {
     if (now.drawn !== null && now.drawn !== undefined) el.setAttribute('transform', now.drawn);
     el.noacgMove = null;
   }
-  if (!move || noacgMotionReduced()) return;
+  if (!move || reduced) return;
   if (move === 'pulse') {
     el.noacgMove = { name: move, tween: gsap.fromTo(el, { opacity: 1 }, { opacity: 0.35, duration: 0.5, ease: 'sine.inOut', yoyo: true, repeat: -1 }) };
   } else if (move === 'flash' && appeared) {
