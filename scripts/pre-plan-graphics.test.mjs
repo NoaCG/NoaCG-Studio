@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/templates/importedDesign/**, src/templates/behaviours/**, src/blocks/behaviourData.ts, src/validation/validateTemplate.ts, src/model/importTemplate.ts, src/components/wizard/import/draft.ts, src/preview/composeDocument.ts, scripts/fixtures/pre-tl2/**, e2e/fixtures/illustrator-exports/live-vote.svg
+// guards: src/templates/importedDesign/**, src/templates/behaviours/**, src/blocks/behaviourData.ts, src/validation/validateTemplate.ts, src/model/importTemplate.ts, src/components/wizard/import/draft.ts, src/preview/composeDocument.ts, scripts/fixtures/pre-tl2/**, scripts/fixtures/pre-tl5-rows/**, e2e/fixtures/illustrator-exports/live-vote.svg
 //
 // GRAPHICS AND EXPORTS MADE BEFORE THE SVG TEMPLATE LIBRARY PLAN KEEP WORKING (svg-template-library
 // TL2, AC-9; spec Rules C7 and C8). The fixtures in scripts/fixtures/pre-tl2 are committed bytes, built
@@ -235,4 +235,117 @@ test('reimporting edited artwork over the old vote keeps every field id, so the 
   assert.equal(r.painted.open.question, 'Where next?');
   assert.deepEqual(r.painted.open.lit, out.frozenVote.open.lit);
   assert.deepEqual(r.painted.closed.lit, out.frozenVote.closed.lit);
+});
+
+// ── TL5 group 7 (Rules S1, AC-9): a quiz and a goal meter saved before rows and tiers ─────────
+// scripts/fixtures/pre-tl5-rows holds a studio quiz and the navy goal meter imported at 45127dc
+// (main before TL5 group 7), committed bytes never regenerated. Each plays through today's
+// preview with its own runtime unchanged; edited artwork that adds the new layers (answer rows,
+// tiers), with a text drawn in front of every field, imported again over it keeps every field id,
+// so an old cue paints the same values, and gains the new behaviour.
+
+const OLD_QUIZ = JSON.parse(readFileSync(at('scripts/fixtures/pre-tl5-rows/quiz.json'), 'utf8'));
+const OLD_METER = JSON.parse(readFileSync(at('scripts/fixtures/pre-tl5-rows/meter.json'), 'utf8'));
+const QUIZ_SVG = readFileSync(at('docs/tutorials/template-library/SVG/quiz.svg'), 'utf8');
+const METER_SVG = readFileSync(at('docs/tutorials/template-library/SVG/meter.svg'), 'utf8');
+const BADGE = '\n    <text id="Badge" inkscape:label="Badge" x="210" y="660" font-size="20" fill="#FFFFFF">LIVE</text>';
+/** The quiz with each answer's plates and letter drawn as an `Answer row`, and a badge first. */
+const ROWS_QUIZ = ['A', 'B', 'C', 'D'].reduce((svg, k) => {
+  const plates = new RegExp(`(    <rect id="Letter_box_${k}"[^\\n]*\\n    <rect id="Answer_box_${k}"[^\\n]*\\n    <text id="static:Letter_${k}"[^\\n]*\\n)`);
+  return svg.replace(plates, `    <g id="Answer_row_${k}" inkscape:label="Answer row ${k}">\n$1    </g>\n`);
+}, QUIZ_SVG).replace('<g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">', (m) => m + BADGE);
+/** The meter with a title in front and three tiers drawn: their labels and figures, and a Reached node each. */
+const TIERS_METER = METER_SVG
+  .replace('<g id="Moments">', `<g id="Moments">${[1, 2, 3].map((n) => `\n    <g id="Reached_${n}" style="display:none"><circle cx="${440 + 520 * (n - 1)}" cy="760" r="14" fill="#fc0"/></g>`).join('')}`)
+  .replace('<g id="Text">', `<g id="Text">\n    <text id="Title" class="st3" transform="translate(380 330)"><tspan x="0" y="0">FUND</tspan></text>${[['Start', '10'], ['Middle', '50'], ['Goal', '100']].map(([label, figure], i) => `\n    <text id="Tier_${i + 1}" class="st3" transform="translate(${420 + 520 * i} 820)"><tspan x="0" y="0">${label}</tspan></text>\n    <text id="Threshold_${i + 1}" class="st3" transform="translate(${420 + 520 * i} 870)"><tspan x="0" y="0">${figure}</tspan></text>`).join('')}`);
+
+const RUN_ROWS = async ({ quiz, meter, rowsQuiz, tiersMeter }) => {
+  const check = (t) => window.NOACG_VALIDATE.validateTemplate(t).errors.filter((e) => e.rule === 'behaviour').map((e) => e.message);
+  const byTitle = (t, title) => t.fields.find((f) => f.title === title)?.field;
+  const paint = async (template, values) => {
+    const w = await window.__mountDesign(template);
+    w.update(JSON.stringify(values));
+    w.play();
+    w.__advance(3000);
+    const doc = w.document;
+    const res = {
+      lit: [...doc.querySelectorAll('.imported-design-on')].map((el) => el.getAttribute('data-noacg-role')).sort(),
+      roles: [...doc.querySelectorAll('[data-noacg-role]')].map((el) => el.getAttribute('data-noacg-role')).sort(),
+      percent: doc.querySelector('[data-noacg-role~="percent"]')?.textContent?.trim() ?? null,
+      answers: ['Answer A', 'Answer B', 'Answer C', 'Answer D'].map((title) => (byTitle(template, title) ? doc.getElementById(byTitle(template, title))?.textContent ?? null : null)),
+    };
+    document.getElementById('fx')?.remove();
+    return res;
+  };
+  const reimport = (old, markup) => {
+    const draft = window.__importDraft(window.NOACG_SVG.importSvgMarkup(markup));
+    const built = window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(draft) });
+    const done = window.NOACG_DRAFT.svgReimported({ template: old, baseline: old }, built);
+    return done ? { done, built } : null;
+  };
+  // A cue recorded on the old quiz (D left empty: a three-answer question) and on the old meter.
+  const quizCue = { [byTitle(quiz, 'Question')]: 'Which is largest?', [byTitle(quiz, 'Answer A')]: 'Mars', [byTitle(quiz, 'Answer B')]: 'Jupiter', [byTitle(quiz, 'Answer C')]: 'Venus', [byTitle(quiz, 'Answer D')]: '' };
+  const meterCue = { [byTitle(meter, 'Current')]: '60', [byTitle(meter, 'Target')]: '120' };
+  const out = {};
+  for (const [name, old, cue, markup] of [['quiz', quiz, quizCue, rowsQuiz], ['meter', meter, meterCue, tiersMeter]]) {
+    const js = old.js;
+    const frozen = { ...(await paint(old, cue)), errors: check(old), sameCode: old.js === js, verdict: window.NOACG_READS.behaviourReadsVerdict(old.js) };
+    const r = reimport(old, markup);
+    if (!r) { out[name] = { frozen, error: 'not a reimport' }; continue; }
+    const t = r.done.template;
+    out[name] = {
+      frozen,
+      unresolved: r.done.unresolved,
+      before: old.fields.map((f) => `${f.field}:${f.title}`),
+      after: t.fields.map((f) => `${f.field}:${f.title}`),
+      builtIds: r.built.fields.map((f) => `${f.field}:${f.title}`),
+      milestones: t.fields.find((f) => f.title === 'Milestones')?.value ?? null,
+      verdict: window.NOACG_READS.behaviourReadsVerdict(t.js),
+      errors: check(t),
+      painted: await paint(t, cue),
+    };
+  }
+  return out;
+};
+
+const rowsOut = await withBundledPage(SPECS, async (page) => {
+  await installDrivenPage(page);
+  return page.evaluate(RUN_ROWS, { quiz: OLD_QUIZ, meter: OLD_METER, rowsQuiz: ROWS_QUIZ, tiersMeter: TIERS_METER });
+});
+
+test('S1: a quiz and a goal meter saved before rows and tiers play as they did, through today\'s preview', () => {
+  const { quiz, meter } = rowsOut;
+  for (const g of [quiz.frozen, meter.frozen]) {
+    assert.equal(g.sameCode, true);
+    assert.deepEqual(g.errors, []);
+    assert.equal(g.verdict.status, 'ok');
+  }
+  // The old quiz draws no rows: an empty Answer D is an empty row, as it always was.
+  assert.equal(quiz.frozen.roles.some((r) => /answer\.row/.test(r)), false);
+  assert.deepEqual(quiz.frozen.answers, ['Mars', 'Jupiter', 'Venus', '']);
+  assert.equal(meter.frozen.percent, '50%');
+  assert.equal(meter.frozen.roles.some((r) => /^tier/.test(r)), false);
+});
+
+test('S1: reimporting artwork that adds answer rows or tiers keeps every field id and cue value, and gains them', () => {
+  for (const name of ['quiz', 'meter']) {
+    const r = rowsOut[name];
+    assert.equal(r.error, undefined, name);
+    assert.deepEqual(r.unresolved, [], name);
+    assert.notDeepEqual(r.builtIds.filter((x) => !/Badge|Title|Milestones/.test(x)), r.before, `${name}: the edit moved the built ids`);
+    for (const field of r.before) assert.ok(r.after.includes(field), `${name}: ${field} kept`);
+    assert.deepEqual(r.verdict, { status: 'ok' }, name);
+    assert.deepEqual(r.errors, [], name);
+  }
+  // The quiz gains no field; the old cue now shows three rows in use, D's row hidden.
+  const q = rowsOut.quiz;
+  assert.deepEqual(q.after.filter((f) => !/Badge/.test(f)).sort(), [...q.before].sort());
+  assert.deepEqual(q.painted.answers, ['Mars', 'Jupiter', 'Venus', '']);
+  assert.deepEqual(q.painted.lit.filter((r) => /answer\.row/.test(r)), ['answer.row/A', 'answer.row/B', 'answer.row/C']);
+  // The meter keeps Current and Target, gains Milestones from the drawn tiers, and the old cue's
+  // 60 of 120 reaches the first two.
+  const m = rowsOut.meter;
+  assert.equal(m.milestones, 'Start | 10\nMiddle | 50\nGoal | 100');
+  assert.equal(m.painted.percent, '50%');
+  assert.deepEqual(m.painted.lit.filter((r) => /tier\.reached/.test(r)), ['tier.reached/1', 'tier.reached/2']);
 });
