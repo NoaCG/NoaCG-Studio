@@ -34,18 +34,20 @@
  },
  "waitingOn": [
   {
-   "what": "TL1o agent receipt and its evidence PR",
-   "eta": "2026-11-22T12:00:00Z"
+   "what": "PR #2692 (TL1o evidence) in the merge queue",
+   "eta": "2026-11-22T10:30:00Z"
+  },
+  {
+   "what": "fix #2691 builder receipt",
+   "eta": "2026-11-22T13:00:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL1o",
-  "step": "build (agent at owner request)",
-  "session": "session_017SdbwQNvZxeWHBhQbe3W8Q",
-  "nonce": "tl1o-a-5d21",
-  "branch": "claude/plan-svg-template-library-tl1o-build",
-  "source": "516ab7f0cfa64ef3d193f96e454cb4d07a0b8654",
-  "asOf": "2026-11-22T09:08:34Z"
+  "step": "agent round trip done: FAIL at step 6 (#2691); evidence PR #2692 queued; fix in progress",
+  "agent": "session_017SdbwQNvZxeWHBhQbe3W8Q",
+  "evidencePr": 2692,
+  "asOf": "2026-11-22T09:43Z"
  },
  "owner": [
   {
@@ -53,7 +55,17 @@
    "where": "hand-over on #2678 when TL7 passes"
   }
  ],
- "fixes": [],
+ "fixes": [
+  {
+   "issue": 2691,
+   "what": "Illustrator-saved templates keep their text alignment (TL1o finding)",
+   "session": "session_017SdbwRGkXkRfL66WC2SLGP",
+   "nonce": "fix-2691-f-8da9",
+   "branch": "claude/plan-svg-template-library-fix-2691",
+   "source": "516ab7f0cfa64ef3d193f96e454cb4d07a0b8654",
+   "alsoReruns": "TL1o round trip; appends Re-run section to evidence/phase-TL1o.md"
+  }
+ ],
  "triggers": {
   "checkin": "trig_01PANkW3GEiqAM37wHd2hsfR",
   "at": "2026-11-22T09:40:00Z"
@@ -70,7 +82,8 @@
  "notes": [
   "Check briefs: pass the phase brief notes to the checker as NOTES (the check template omits them); TL0 needed its planned-rows scope note.",
   "Actor names: use the template casing (lowercase phase id) in build/check records; TL0 pass recorded under the launch record name checker-TL0-tl0-c-3e96 with receiptActor noted.",
-  "2026-11-21T23:24Z: worker rate limit status allowed_warning on the seven_day window; a usage stop pauses workers and check-ins (interaction run precedent)."
+  "2026-11-21T23:24Z: worker rate limit status allowed_warning on the seven_day window; a usage stop pauses workers and check-ins (interaction run precedent).",
+  "TL1o completes when the fix for #2691 lands with a clean re-run; then record TL1o landed (the fix merge) and launch an independent TL1o check. Join card picker step not reachable offline; covered by configured audience-live and Node tests."
  ],
  "tl0": {
   "pr": 2680,
