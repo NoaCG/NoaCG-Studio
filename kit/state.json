@@ -34,24 +34,17 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2682 through the merge queue",
-   "eta": "2026-11-22T07:45:00Z"
+   "what": "TL1 checker verdict",
+   "eta": "2026-11-22T08:30:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL1",
-  "step": "build: queued",
-  "session": "session_017SdbwMKvf4PuJ1By6SnUme",
-  "nonce": "tl1-b-080e",
-  "branch": "claude/plan-svg-template-library-tl1-build",
-  "source": "fba398c20eba8d875a256472dd30cda3761c93c3",
-  "asOf": "2026-11-22T06:54Z",
-  "progress": "in merge queue",
-  "pr": 2682,
-  "head": "f3b6de54f8bf213d16d8a07eb918968e6b7195de",
-  "receipt": "RECEIPT tl1-b-080e (updated) 06:52Z: CI 44993974906 green except Reviewed; Codex clean; Risky, Rules after coding; final /so A on f3b6de54",
-  "stamp": "cloud-queue-merge 44995654795 success; added_to_merge_queue 06:52:52Z",
-  "repairOwnerComment": 7075576368
+  "step": "check",
+  "session": "session_017SdbwMDrXbH2GaXtFh7rso",
+  "nonce": "tl1-c-0b82",
+  "merge": "f8f4f1dad9024dabcb9605cae15d991423a47d75",
+  "asOf": "2026-11-22T07:06:38Z"
  },
  "owner": [
   {
@@ -98,5 +91,10 @@
  ],
  "carry": {
   "TL5": "Add a per-option count readout to the Vote results template (owner ruling A, 2026-11-22)."
+ },
+ "tl1": {
+  "pr": 2682,
+  "merge": "f8f4f1dad9024dabcb9605cae15d991423a47d75",
+  "builder": "session_017SdbwMKvf4PuJ1By6SnUme"
  }
 }
