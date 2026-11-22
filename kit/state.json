@@ -55,8 +55,8 @@
  ],
  "fixes": [],
  "triggers": {
-  "checkin": "trig_01UK36vzA9nETzkPrfuYeaeG",
-  "at": "2026-11-22T04:30:00Z (long fallback while the owner answer is owed)"
+  "checkin": "trig_01PANkW3GEiqAM37wHd2hsfR",
+  "at": "2026-11-22T09:40:00Z"
  },
  "heartbeat": {
   "issue": 2678,
