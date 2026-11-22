@@ -34,21 +34,24 @@
  },
  "waitingOn": [
   {
-   "what": "TL3 builder receipt and its PR",
-   "eta": "2026-11-22T18:00:00Z"
+   "what": "PR #2697 through the merge queue",
+   "eta": "2026-11-22T15:30:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL3",
-  "step": "build",
+  "step": "build: queued",
   "session": "session_017SdbwMkDuHZrj8Rw6DLBjG",
   "nonce": "tl3-b-ea9f",
   "branch": "claude/plan-svg-template-library-tl3-build",
   "source": "304adc72902f468d3d6b711b2e342f17ff9565d4",
-  "asOf": "2026-11-22T14:07Z",
+  "asOf": "2026-11-22T14:40Z",
   "pr": 2697,
-  "head": "2a123489",
-  "progress": "CI 45029100479 green except Reviewed; worker idle waiting for CI; nudged 14:07Z"
+  "head": "cb7ab37f72eff17e38eeec50c3e2b0d15a3e6483",
+  "progress": "CI 45029100479 green except Reviewed; worker idle waiting for CI; nudged 14:07Z",
+  "receipt": "RECEIPT tl3-b-ea9f 14:38Z: CI 45031194719 green except Reviewed; Codex clean; builder class other, coordinator class Risky (e2e-affected, deploy-affecting-paths); Rules after coding; final /so A + delta A",
+  "stamp": "cloud-queue-merge 45033960368 success",
+  "repairOwnerComment": 7080700219
  },
  "owner": [
   {
@@ -89,7 +92,8 @@
   "Actor names: use the template casing (lowercase phase id) in build/check records; TL0 pass recorded under the launch record name checker-TL0-tl0-c-3e96 with receiptActor noted.",
   "2026-11-21T23:24Z: worker rate limit status allowed_warning on the seven_day window; a usage stop pauses workers and check-ins (interaction run precedent).",
   "TL1o completes when the fix for #2691 lands with a clean re-run; then record TL1o landed (the fix merge) and launch an independent TL1o check. Join card picker step not reachable offline; covered by configured audience-live and Node tests.",
-  "Builders tend to go idle while CI runs and miss its end; nudge them on the first check-in after CI finishes."
+  "Builders tend to go idle while CI runs and miss its end; nudge them on the first check-in after CI finishes.",
+  "Second Risky row without a Rules-first /so (TL3: CI scripts). Brief future builders explicitly that scripts/e2e-affected.mjs, deploy-affecting-paths.mjs and other CI or landing scripts make a row Risky."
  ],
  "tl0": {
   "pr": 2680,
@@ -108,6 +112,11 @@
    "what": "TL1o by an agent",
    "answer": "\"please use another agent to test this for me and then continue the run\" (owner, 2026-11-22)",
    "deferred": "real Illustrator round trip moved to TL8 (deferWithinPlan)"
+  },
+  {
+   "what": "TL3 test consolidation moved to TL4",
+   "answer": "deferWithinPlan (standing permission)",
+   "where": "#2678 comment 7080700485"
   }
  ],
  "carry": {
