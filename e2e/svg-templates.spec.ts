@@ -538,6 +538,42 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
   expect(errors, `${t.name}: no page errors`).toEqual([]);
 }
 
+/** Every export target's package of a production's first graphic, as text files by path. */
+async function exportPackages(page: Page, production: string, sampleData: Record<string, string>): Promise<Record<string, Record<string, string>>> {
+  return page.evaluate(async ({ production, sampleData }) => {
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
+    const template = shows.loadShows().find((s: { name: string }) => s.name === production)!.graphics[0].template;
+    const out: Record<string, Record<string, string>> = {};
+    for (const target of EXPORT_TARGETS) {
+      const zip = await target.build(template, { sampleData, graphicUsage: 'both' });
+      const files: Record<string, string> = {};
+      for (const name of Object.keys(zip.files)) if (!zip.files[name].dir && /\.(html|js|mjs|css|json)$/.test(name)) files[name] = await zip.file(name)!.async('string');
+      out[target.id] = files;
+    }
+    return out;
+  }, { production, sampleData });
+}
+
+/** One package's graphic page with its own css and js inlined, as its folder would serve it. */
+function inlined(files: Record<string, string>): string {
+  const html = Object.keys(files).find((n) => n.endsWith('.html') && !/control|panel|index|controller/i.test(n.split('/').pop()!))!;
+  const dir = html.slice(0, html.lastIndexOf('/') + 1);
+  const at = (ref: string) => files[dir + ref.replace(/^\.\//, '')];
+  return files[html]
+    .replace(/<link[^>]*href=["']([^"']+\.css)["'][^>]*>/gi, (tag, ref) => (at(ref) !== undefined ? `<style>${at(ref)}</style>` : tag))
+    .replace(/<script([^>]*)src=["']([^"']+\.js)["']([^>]*)><\/script>/gi, (tag, a, ref) => (at(ref) !== undefined ? `<script${a}>${at(ref).replace(/<\/script>/gi, '<\\/script>')}</script>` : tag));
+}
+
+/** Serve one OGraf package's files from a fake origin, as a renderer fetches them. */
+function serveOgrafFiles(page: Page, origin: string, files: Record<string, string>) {
+  const root = Object.keys(files).find((n) => n.endsWith('graphic.mjs'))!.replace(/graphic\.mjs$/, '');
+  return page.route(`${origin}**`, (route) => {
+    const body = files[root + new URL(route.request().url()).pathname.replace(/^\//, '')];
+    return body == null ? route.fulfill({ status: 404, body: 'not found' }) : route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body });
+  });
+}
+
 // ONE BATCHED SWEEP (spec "Tests and budget"): the templates run in batches by route, each
 // template still walked whole and checked on air exactly as before, so a batch shares one
 // browser page instead of one test per template. A batch holds what fits the 120 s ceiling.
@@ -649,19 +685,7 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
   await importTemplate(page, t);
   // Three seconds: inside the warning from the first tick, at zero three seconds later.
   const short = { f1: '0.05' };
-  const packages = await page.evaluate(async ({ production, short }) => {
-    const shows = await __noacgImport('/src/model/shows.ts');
-    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
-    const template = shows.loadShows().find((s: { name: string }) => s.name === production)!.graphics[0].template;
-    const out: Record<string, Record<string, string>> = {};
-    for (const target of EXPORT_TARGETS) {
-      const zip = await target.build(template, { sampleData: short, graphicUsage: 'both' });
-      const files: Record<string, string> = {};
-      for (const name of Object.keys(zip.files)) if (!zip.files[name].dir && /\.(html|js|mjs|css|json)$/.test(name)) files[name] = await zip.file(name)!.async('string');
-      out[target.id] = files;
-    }
-    return out;
-  }, { production: `${t.name} template`, short });
+  const packages = await exportPackages(page, `${t.name} template`, short);
   expect(Object.keys(packages).sort()).toEqual(['casparcg', 'h2r', 'html-overlay', 'liveos', 'ograf', 'spx']);
   // The non-real-time gate reads an SVG's namespace names as names, and still refuses a real
   // address beside them.
@@ -683,24 +707,7 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
   expect(gate.inkscape, 'any namespace an editor declares is a name').toEqual([]);
   expect(gate.credits).toContain('An imported credits roll starts once its fonts have loaded, which a seek cannot replay; export it for live use.');
 
-  /** One package's graphic page with its own css and js inlined, as its folder would serve it. */
-  const inlined = (files: Record<string, string>) => {
-    const html = Object.keys(files).find((n) => n.endsWith('.html') && !/control|panel|index|controller/i.test(n.split('/').pop()!))!;
-    const dir = html.slice(0, html.lastIndexOf('/') + 1);
-    const at = (ref: string) => files[dir + ref.replace(/^\.\//, '')];
-    return files[html]
-      .replace(/<link[^>]*href=["']([^"']+\.css)["'][^>]*>/gi, (tag, ref) => (at(ref) !== undefined ? `<style>${at(ref)}</style>` : tag))
-      .replace(/<script([^>]*)src=["']([^"']+\.js)["']([^>]*)><\/script>/gi, (tag, a, ref) => (at(ref) !== undefined ? `<script${a}>${at(ref).replace(/<\/script>/gi, '<\\/script>')}</script>` : tag));
-  };
-
-  /** Serve one OGraf package's files from a fake origin, as a renderer fetches them. */
-  const serveOgraf = (origin: string, files: Record<string, string>) => {
-    const root = Object.keys(files).find((n) => n.endsWith('graphic.mjs'))!.replace(/graphic\.mjs$/, '');
-    return page.route(`${origin}**`, (route) => {
-      const body = files[root + new URL(route.request().url()).pathname.replace(/^\//, '')];
-      return body == null ? route.fulfill({ status: 404, body: 'not found' }) : route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body });
-    });
-  };
+  const serveOgraf = (origin: string, files: Record<string, string>) => serveOgrafFiles(page, origin, files);
 
   // The page-based targets: CasparCG and H2R update then play, SPX likewise, the overlay plays itself.
   for (const id of ['spx', 'casparcg', 'h2r', 'html-overlay']) {
@@ -803,4 +810,105 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
   expect(at(frames.zero).warning.lit).toBe(false);
   expect(Number(at(frames.zero).expired.scale), 'the flash on its first frame').toBeGreaterThan(1);
   for (const f of frames.sequential.filter((x) => x.timestamp >= frames.zero + 1000)) expect(f.expired, `rest at ${f.timestamp}`).toEqual({ lit: true, opacity: '1.000', scale: '1.000' });
+});
+
+// TL5'S MECHANISMS IN EVERY EXPORT TARGET (AC-7, spec "Exports"): a vote row's own count, and a
+// choice that starts on the option drawn visible and is never empty. Each package is loaded as its
+// host loads it and driven as its host drives it (update and play; the overlay plays its baked
+// data; OGraf and LiveOS load, playAction and updateAction).
+test('Vote results count and Alert level starting level: both play in every export target', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  type Look = { lit: boolean; text: string } | null;
+  const targets = ['spx', 'casparcg', 'h2r', 'html-overlay', 'ograf', 'liveos'];
+
+  /** Import a template, take it, and read the field ids its titles compiled to. */
+  const prepare = async (slug: string, titles: string[]) => {
+    const t = templates.find((entry) => entry.slug === slug)!;
+    await importTemplate(page, t);
+    await page.getByTestId('verb-take').click();
+    const air = page.frameLocator('[data-testid="program-stage"] iframe');
+    const ids: Record<string, string> = {};
+    for (const title of titles) ids[title] = await fieldFor(air, title);
+    await page.getByTestId('verb-out').click();
+    return { production: `${t.name} template`, ids };
+  };
+
+  /** Load one package, send it `data` (the overlay plays the data it was built with), and read
+   *  each role's look and text; then, where the host can, send `next` and read again. */
+  const play = async (id: string, files: Record<string, string>, data: Record<string, string>, next: Record<string, string> | null, roles: string[]) => {
+    const read = (body: ParentNode, names: string[]) => Object.fromEntries(names.map((n) => {
+      const node = body.querySelector(`[data-noacg-role~="${n}"]`);
+      return [n, node ? { lit: node.classList.contains('imported-design-on'), text: (node.textContent ?? '').trim() } : null];
+    }));
+    if (id === 'ograf' || id === 'liveos') {
+      const origin = `http://${id}-${Math.random().toString(36).slice(2, 8)}.local/`;
+      await serveOgrafFiles(page, origin, files);
+      await installGraphicBody(page);
+      return page.evaluate(async ({ origin, data, next, roles, readSrc }) => {
+        const readIn = new Function(`return (${readSrc})`)() as (body: ParentNode, names: string[]) => Record<string, Look>;
+        const mod = await import(`${origin}graphic.mjs`);
+        const tag = `tl5-${origin.replace(/\W/g, '')}`;
+        customElements.define(tag, mod.default);
+        const el = document.createElement(tag) as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown>; updateAction(p: unknown): Promise<unknown>; dispose(): Promise<unknown> };
+        document.body.appendChild(el);
+        await el.load({ data, renderType: 'realtime', renderCharacteristics: {} });
+        await el.playAction({});
+        await new Promise((r) => setTimeout(r, 600));
+        const first = readIn(graphicBody(el), roles);
+        let second = null;
+        if (next) {
+          await el.updateAction({ data: { ...data, ...next } });
+          await new Promise((r) => setTimeout(r, 600));
+          second = readIn(graphicBody(el), roles);
+        }
+        await el.dispose();
+        return { first, second };
+      }, { origin, data, next, roles, readSrc: read.toString() });
+    }
+    const view = await context.newPage();
+    await view.setContent(inlined(files), { waitUntil: 'load' });
+    if (id !== 'html-overlay') {
+      await view.evaluate((d) => {
+        const w = window as unknown as { update(raw: string): void; play(): void };
+        w.update(JSON.stringify(d));
+        w.play();
+      }, data);
+    }
+    await view.waitForTimeout(600);
+    const first = await view.evaluate(({ roles, readSrc }) => (new Function(`return (${readSrc})`)() as (b: ParentNode, n: string[]) => Record<string, Look>)(document, roles), { roles, readSrc: read.toString() });
+    let second = null;
+    if (next && id !== 'html-overlay') {
+      await view.evaluate((d) => (window as unknown as { update(raw: string): void }).update(JSON.stringify(d)), { ...data, ...next });
+      await view.waitForTimeout(600);
+      second = await view.evaluate(({ roles, readSrc }) => (new Function(`return (${readSrc})`)() as (b: ParentNode, n: string[]) => Record<string, Look>)(document, roles), { roles, readSrc: read.toString() });
+    }
+    await view.close();
+    return { first, second };
+  };
+
+  // Vote results: each row prints its own count, shown with the shares (Live figures here, since
+  // a host that only sends data reaches no Show result).
+  const vote = await prepare('vote-results', ['Options', 'Live figures']);
+  const voteData = { [vote.ids.Options]: 'Coast | 3\nForest | 1', [vote.ids['Live figures']]: 'live' };
+  const votePackages = await exportPackages(page, vote.production, voteData);
+  expect(Object.keys(votePackages).sort()).toEqual([...targets].sort());
+  for (const id of targets) {
+    const seen = await play(id, votePackages[id], voteData, null, ['count/1', 'count/2', 'percent/1']);
+    expect(seen.first, `${id}: each row's count with its share`).toEqual({
+      'count/1': { lit: true, text: '3' },
+      'count/2': { lit: true, text: '1' },
+      'percent/1': { lit: true, text: '75%' },
+    });
+  }
+
+  // Alert level: it starts on Advisory with nothing sent, and a level sent as data shows alone.
+  const alert = await prepare('alert-level', ['Level']);
+  const levels = ['advisory', 'watch', 'warning', 'emergency'].map((key) => `choice.level.option/${key.toUpperCase()}`);
+  const alertPackages = await exportPackages(page, alert.production, {});
+  const lit = (looks: Record<string, Look> | null) => looks && Object.entries(looks).filter(([, l]) => l?.lit).map(([n]) => n);
+  for (const id of targets) {
+    const seen = await play(id, alertPackages[id], {}, { [alert.ids.Level]: 'emergency' }, levels);
+    expect(lit(seen.first), `${id}: the band starts on Advisory`).toEqual([levels[0]]);
+    if (id !== 'html-overlay') expect(lit(seen.second), `${id}: Emergency sent as data shows alone`).toEqual([levels[3]]);
+  }
 });

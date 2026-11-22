@@ -32,6 +32,7 @@ import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/be
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_PICKER_MODES } from '../../../templates/behaviours/clock';
 import { quizHasNoLock } from '../../../templates/behaviours/quiz';
+import { extraPrefixOf } from '../../../templates/behaviours/naming';
 import { formatClockTarget, localTimeZone, parseClockTarget, proposeClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
 import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
@@ -723,7 +724,9 @@ export default function BehaviourSection({
     };
     collect(behaviour);
   }
-  const hiddenUnclaimed = (draft.designSvg?.groups ?? []).filter((g) => g.hidden && !claimed.has(g.id));
+  // A layer NAMED as a choice's option is offered even when drawn visible: that is the option the
+  // choice starts on (svg-template-library TL5).
+  const hiddenUnclaimed = (draft.designSvg?.groups ?? []).filter((g) => (g.hidden || extraPrefixOf(g.label)?.kind === 'choice') && !claimed.has(g.id));
   /** A type with drawn MOMENTS to bind (a look shown and hidden, never a bar drawn full, which
    *  is visible by design), in a file with no hidden layer to bind them to. */
   const noHiddenLayers =
