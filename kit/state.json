@@ -45,7 +45,7 @@
   "nonce": "tl5-b-5193",
   "branch": "claude/plan-svg-template-library-tl5-build-2",
   "source": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "asOf": "2026-11-22T20:50Z",
+  "asOf": "2026-11-22T21:06Z",
   "note": "may land as several PRs; coordinator stamps each",
   "prs": [
    {
@@ -76,9 +76,17 @@
     "stamp": "cloud-queue-merge 45062526522",
     "repairOwnerComment": 7084655095,
     "merged": "f772fa22633d2c0f77947462fe4f613e9be8ad66"
+   },
+   {
+    "pr": 2708,
+    "group": "4-5",
+    "head": "fb435bc70e401c4dd36b6d8404d77d886cc885f9",
+    "covers": "17 templates incl. scorebug, match board/status/event, esports, transition, verdict, matchup, podium, chat highlight, timing tower, map round, head to head, player card, bracket, fixtures, agenda",
+    "stamp": "cloud-queue-merge 45069985510",
+    "repairOwnerComment": 7085773010
    }
   ],
-  "progress": "group 4 PR #2708 at fb435bc7, CI running; builder idle waiting",
+  "progress": "#2708 queued; coverage 90/101; remaining TL5: standings focus/final, milestone tiers, quiz-show 2/3/4",
   "replaced": "session_017SdbwQQ2ZBGZi3bdgF6TwN (tl5-b-eeed) after groups 1-3"
  },
  "owner": [
@@ -154,6 +162,10 @@
    "what": "TL4: Poll result case to TL5, end credits crawl to TL6",
    "answer": "deferWithinPlan (standing permission)",
    "where": "#2678 comment 7082339903"
+  },
+  {
+   "what": "public-notice cycle, ticker rotate, question-queue to TL6 (new runtime kinds per D7)",
+   "where": "#2678 comment 7085774509"
   }
  ],
  "carry": {
