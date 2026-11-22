@@ -484,9 +484,10 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       const state = await fieldFor(air, choice.name);
       const offered = await page.getByTestId(`cue-field-${state}`).locator('option').allTextContents();
       expect(offered, 'the operator picks among the options, and an empty value only where the choice starts empty').toEqual(choice.start ? choice.options : ['-', ...choice.options]);
-      // Every option is a button of its own, greyed only while it is the one showing.
+      // Every option is a button of its own, greyed only while it is the one showing; the start
+      // stays live (data alone can show another option while the machine rests on the start).
       for (const o of choice.options) {
-        await expect(press(o)).toBeEnabled({ enabled: o !== choice.start });
+        await expect(press(o)).toBeEnabled({ enabled: o === choice.start || choice.start === null });
       }
       for (const [i, o] of choice.options.filter((label) => label !== choice.start).entries()) {
         await press(o).click();
@@ -499,6 +500,15 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
         await air.locator('svg').first().evaluate((_, id) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [id]: '' })), state);
         await only(choice.start);
         await air.locator('svg').first().evaluate((_, id) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [id]: 'nothing-drawn' })), state);
+        await only(choice.start);
+        // A level sent as data while the machine rests on the start: the start's button brings it back.
+        await page.getByTestId('verb-out').click();
+        await page.getByTestId('verb-take').click();
+        const other = choice.options.find((o) => o !== choice.start)!;
+        await air.locator('svg').first().evaluate((_, v) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [v.id]: v.value })), { id: state, value: other.toLowerCase() });
+        await only(other);
+        await expect(press(choice.start)).toBeEnabled();
+        await press(choice.start).click();
         await only(choice.start);
       }
       // ALERT LEVEL (AC-10): every level reads without colour and without flashing - its look

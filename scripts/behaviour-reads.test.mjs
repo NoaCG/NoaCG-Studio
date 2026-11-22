@@ -360,8 +360,12 @@ test('a choice that starts on an option is never empty, and compiles to a table 
   const group = started.machine.parallel[0];
   assert.equal(group.initial, 'advisory');
   assert.deepEqual(group.states.map((s) => s.id), ['advisory', 'watch', 'warning'], 'no "none" state');
-  // Every option is reachable from every other, and from nowhere else.
-  for (const state of group.states) assert.deepEqual(state.edges.map((e) => e.from).sort(), group.states.map((s) => s.id).filter((id) => id !== state.id).sort());
+  // Every option is reachable from every other; the start from itself too, so after data alone
+  // showed another option (the machine stays on the start) its button still brings it back.
+  for (const state of group.states) {
+    const from = group.states.map((s) => s.id).filter((id) => id !== state.id || id === 'advisory').sort();
+    assert.deepEqual(state.edges.map((e) => e.from).sort(), from);
+  }
   assert.deepEqual(started.controls.map((c) => c.label), ['Advisory', 'Watch', 'Warning']);
   assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], binding({ initial: 'ADVISORY' })).js()), { status: 'ok' });
   // An initial that names no row is ignored: the empty start.

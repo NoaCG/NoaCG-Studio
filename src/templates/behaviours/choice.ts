@@ -67,8 +67,13 @@ export const choiceRecipe: BehaviourRecipe = {
               name: `${ctx.name}: ${ctx.label(ROLE, key)}`,
               timeline: null,
               // Reachable from every OTHER option and from none - never from itself, which is
-              // what greys the button for the option already showing.
-              edges: [...(start ? [] : ['none']), ...ctx.rows.filter((k) => k !== key).map((k) => k.toLowerCase())].map((from) => ({
+              // what greys the button for the option already showing. The STARTING option is the
+              // exception: data alone can show another option while the machine stays on the start
+              // (data never moves the machine), so its button must stay live to bring it back.
+              edges: [
+                ...(start ? [] : ['none']),
+                ...ctx.rows.filter((k) => k !== key || k === start).map((k) => k.toLowerCase()),
+              ].map((from) => ({
                 from,
                 to: key.toLowerCase(),
                 trigger: 'operator' as const,
