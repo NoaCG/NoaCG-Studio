@@ -5102,7 +5102,7 @@
    "emit": {
     "html": "c9bcdacaeed133c7dcd4fb749aaf269176d46a2d6df87b18f87ed62dd331c16a",
     "css": "bcf9b0f2e420dce69919d7a4e34df2ae2fb0b4d9fd505fe326a7efa982c017a6",
-    "js": "64d9b810592f2a6f8ad32973246608cf15349e932877446b131d1d98f3288c5d"
+    "js": "9e0f10299fd0d3b1bef452f3f3938f077d35131fef9698b3d8e799edbb0b42b4"
    },
    "runtime": {
     "rest": {
@@ -8166,7 +8166,7 @@
    "emit": {
     "html": "bf526963b187de2d8417588ca6ca9cc64cc60a30d4105e22856421707435b6dd",
     "css": "4fbe8f39680775b35d958b23cba1fdedea9234be5b968b2f1e9bf960cdfda8c5",
-    "js": "829e3c0bd2117d0c2d824c8286f270b3efd5c08fa3d64cd6968a1178024982d1"
+    "js": "588056c09b8175aa2ac71d7c9f5e7e563965b78ab295005095153e032d59d258"
    },
    "runtime": {
     "rest": {
@@ -10142,8 +10142,8 @@
     },
     "fillGap": {
      "recipe": "vote",
-     "empty": 0,
-     "spare": 0
+     "empty": 3,
+     "spare": 1
     }
    },
    "bind": "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"Layer_1\" x=\"0px\" y=\"0px\" viewBox=\"0 0 1920 1080\" style=\"enable-background:new 0 0 1920 1080;\" class=\"imported-design-art\">\n<style type=\"text/css\">\n\t.st0{fill:#0B0F14;}\n\t.st1{fill:#1C2530;}\n\t.st2{fill:#F6A623;}\n\t.st3{fill:#FFFFFF;}\n\t.st4{fill:#0B0F14;}\n\t.st5{fill:#8A97A6;}\n\t.st6{font-family:'Archivo-Bold';}\n\t.st7{font-size:46px;}\n\t.st8{font-family:'Inter-Medium';}\n\t.st9{font-size:30px;}\n\t.st10{font-family:'Archivo-Bold';font-size:28px;}\n\t.st11{font-family:'Archivo-Bold';font-size:22px;letter-spacing:3px;}\n\t.st12{font-family:'Inter-Medium';font-size:22px;}\n\t.st13{display:none;}\n</style>\n<g id=\"Band\">\n\t<rect id=\"Backplate\" data-name=\"Backplate\" x=\"0\" y=\"740\" class=\"st0\" width=\"1920\" height=\"340\"/>\n</g>\n<g id=\"Rails\">\n\t<rect id=\"Track_x20_1\" data-name=\"Track 1\" x=\"560\" y=\"880\" class=\"st1\" width=\"1000\" height=\"36\" rx=\"18\"/>\n\t<rect id=\"Track_x20_2\" data-name=\"Track 2\" x=\"560\" y=\"940\" class=\"st1\" width=\"1000\" height=\"36\" rx=\"18\"/>\n\t<rect id=\"Track_x20_3\" data-name=\"Track 3\" x=\"560\" y=\"1000\" class=\"st1\" width=\"1000\" height=\"36\" rx=\"18\"/>\n\t<rect id=\"Bar_x20_1\" data-name=\"Bar 1\" x=\"560\" y=\"880\" class=\"st2\" width=\"1000\" height=\"36\" rx=\"18\" data-noacg-role=\"bar/1\"/>\n\t<rect id=\"Bar_x20_2\" data-name=\"Bar 2\" x=\"560\" y=\"940\" class=\"st2\" width=\"1000\" height=\"36\" rx=\"18\" data-noacg-role=\"bar/2\"/>\n\t<rect id=\"Bar_x20_3\" data-name=\"Bar 3\" x=\"560\" y=\"1000\" class=\"st2\" width=\"1000\" height=\"36\" rx=\"18\" data-noacg-role=\"bar/3\"/>\n</g>\n<g id=\"Vote_x20_badge\" data-name=\"Vote badge\" data-noacg-role=\"badge\" class=\"imported-design-look\">\n\t<rect x=\"1600\" y=\"782\" class=\"st2\" width=\"260\" height=\"48\" rx=\"24\"/>\n\t<text id=\"f0\" data-name=\"Badge text\" transform=\"translate(1730 814)\" text-anchor=\"middle\" class=\"st4 st11\">VOTE NOW</text>\n</g>\n<g id=\"Winner_x20_1\" data-name=\"Winner 1\" class=\"st13 imported-design-look\" data-noacg-role=\"winner/1\">\n\t<polygon class=\"st3\" points=\"1580,884 1600,898 1580,912\"/>\n</g>\n<g id=\"Winner_x20_2\" data-name=\"Winner 2\" class=\"st13 imported-design-look\" data-noacg-role=\"winner/2\">\n\t<polygon class=\"st3\" points=\"1580,944 1600,958 1580,972\"/>\n</g>\n<g id=\"Winner_x20_3\" data-name=\"Winner 3\" class=\"st13 imported-design-look\" data-noacg-role=\"winner/3\">\n\t<polygon class=\"st3\" points=\"1580,1004 1600,1018 1580,1032\"/>\n</g>\n<g id=\"Words\">\n\t<text id=\"Question\" data-name=\"Question\" transform=\"translate(120 826)\" class=\"st3 st6 st7\" data-noacg-role=\"question\">Which way should the club vote?</text>\n\t<text id=\"Option_x20_1\" data-name=\"Option 1\" transform=\"translate(120 906)\" class=\"st3 st8 st9\" data-noacg-role=\"option/1\">Keep the crest</text>\n\t<text id=\"Option_x20_2\" data-name=\"Option 2\" transform=\"translate(120 966)\" class=\"st3 st8 st9\" data-noacg-role=\"option/2\">New crest</text>\n\t<text id=\"Option_x20_3\" data-name=\"Option 3\" transform=\"translate(120 1026)\" class=\"st3 st8 st9\" data-noacg-role=\"option/3\">Put it to members</text>\n\t<text id=\"Percent_x20_1\" data-name=\"Percent 1\" transform=\"translate(1620 906)\" class=\"st2 st10 imported-design-look\" data-noacg-role=\"percent/1\">0%</text>\n\t<text id=\"Percent_x20_2\" data-name=\"Percent 2\" transform=\"translate(1620 966)\" class=\"st2 st10 imported-design-look\" data-noacg-role=\"percent/2\">0%</text>\n\t<text id=\"Percent_x20_3\" data-name=\"Percent 3\" transform=\"translate(1620 1026)\" class=\"st2 st10 imported-design-look\" data-noacg-role=\"percent/3\">0%</text>\n\t<text id=\"Total_x20_votes\" data-name=\"Total votes\" transform=\"translate(120 1062)\" class=\"st5 st12\" data-noacg-role=\"total\">0 votes so far</text>\n</g>\n</svg>",
@@ -10318,7 +10318,7 @@
    "emit": {
     "html": "f14597e48375191f5be097dc9814cdcf8030a8ec0d3dd49c14836de44a969619",
     "css": "d6e19eaa2d16388f117db6f11bc237e54890461e31d6e0ebf85bbff61c44fa43",
-    "js": "8d26e357ccede2fc103077c84cf9d314de83d96be450e8a4f85584a501fac839"
+    "js": "262ec2e40111cb8dfc2d08569c9a5117d3254852fb71b1b73a63e6aba1a707f1"
    },
    "runtime": {
     "rest": {
@@ -11717,7 +11717,7 @@
    "emit": {
     "html": "5cc578760a4e6fb3ba96545453d89613b9b763dd60563796035f78fa669551f7",
     "css": "4fbe8f39680775b35d958b23cba1fdedea9234be5b968b2f1e9bf960cdfda8c5",
-    "js": "4c7214ac28303a81fd801175e969597401a5ab6d357b39a2a287de8098d4a12f"
+    "js": "f860c6b5a19d0a0e644d59db124fbd92c5f9b51870e2e773f04a88ecb32b6ce5"
    },
    "runtime": {
     "rest": {
@@ -12321,7 +12321,7 @@
    "emit": {
     "html": "e0421311f74f0fdc9b0d337886569cd303d72b72f5679995121d3180eafcb374",
     "css": "d6e19eaa2d16388f117db6f11bc237e54890461e31d6e0ebf85bbff61c44fa43",
-    "js": "64d9b810592f2a6f8ad32973246608cf15349e932877446b131d1d98f3288c5d"
+    "js": "9e0f10299fd0d3b1bef452f3f3938f077d35131fef9698b3d8e799edbb0b42b4"
    },
    "runtime": {
     "rest": {
@@ -14059,7 +14059,7 @@
    "emit": {
     "html": "cdc3e6645bcaab75fd1e6969a9441b27d6baa1acc4c1cc4fd8aedd8de04224db",
     "css": "d6e19eaa2d16388f117db6f11bc237e54890461e31d6e0ebf85bbff61c44fa43",
-    "js": "64d9b810592f2a6f8ad32973246608cf15349e932877446b131d1d98f3288c5d"
+    "js": "9e0f10299fd0d3b1bef452f3f3938f077d35131fef9698b3d8e799edbb0b42b4"
    },
    "runtime": {
     "rest": {
@@ -14676,7 +14676,7 @@
    "emit": {
     "html": "6b541aff9cce5bfba982bc706c817c3e08d7fa07c719cc35a3251286ec91794e",
     "css": "4fbe8f39680775b35d958b23cba1fdedea9234be5b968b2f1e9bf960cdfda8c5",
-    "js": "c9e2bddb23d40a44fe5e8a9e323c5571d70f246590ba3dfb855ac1f97f7d5567"
+    "js": "94979108f76c309ddb3ea22377da9a58c2f16bcbeb7ca1e2c3a7b2edd6d006a7"
    },
    "runtime": {
     "rest": {
@@ -15874,7 +15874,7 @@
    "emit": {
     "html": "16ad71f347e5294d06dcfdb31ac433f557007306bef1f1eb9e4622e0e6715691",
     "css": "02eef9d7ad33f74656d67344f738bbc43337da3cd1243665c222499776870f01",
-    "js": "64d9b810592f2a6f8ad32973246608cf15349e932877446b131d1d98f3288c5d"
+    "js": "9e0f10299fd0d3b1bef452f3f3938f077d35131fef9698b3d8e799edbb0b42b4"
    },
    "runtime": {
     "rest": {
@@ -21700,7 +21700,7 @@
    "emit": {
     "html": "34d857ed3b67225ebf933c1048df287d85c2754a37e2cc7d072a967be4bba58c",
     "css": "d6e19eaa2d16388f117db6f11bc237e54890461e31d6e0ebf85bbff61c44fa43",
-    "js": "64d9b810592f2a6f8ad32973246608cf15349e932877446b131d1d98f3288c5d"
+    "js": "9e0f10299fd0d3b1bef452f3f3938f077d35131fef9698b3d8e799edbb0b42b4"
    },
    "runtime": {
     "rest": {
@@ -22482,7 +22482,7 @@
    "emit": {
     "html": "4444af05a0f1f0acddac30d688611238050295538387e364c055459fb06ca16e",
     "css": "d6e19eaa2d16388f117db6f11bc237e54890461e31d6e0ebf85bbff61c44fa43",
-    "js": "64d9b810592f2a6f8ad32973246608cf15349e932877446b131d1d98f3288c5d"
+    "js": "9e0f10299fd0d3b1bef452f3f3938f077d35131fef9698b3d8e799edbb0b42b4"
    },
    "runtime": {
     "rest": {

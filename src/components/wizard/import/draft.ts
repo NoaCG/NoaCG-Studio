@@ -366,7 +366,7 @@ export interface SvgPollRowDraft {
 
 /** An empty option row — one place, so the step's "add a row" and the proposal agree. */
 export function emptyPollRow(): SvgPollRowDraft {
-  return { label: '', bar: '', value: '', winner: '', count: '' };
+  return { label: '', bar: '', value: '', winner: '' };
 }
 
 /**
@@ -1613,7 +1613,8 @@ export function proposeSvgBehaviour(svg: SvgImportResult): SvgBehaviourDraft | n
       bar: per(best.layers, 'bar', key),
       value: per(best.layers, 'percent', key),
       winner: per(best.layers, 'winner', key),
-      count: per(best.layers, 'count', key),
+      // Only where a count is drawn, so a board without one proposes exactly what it did.
+      ...(per(best.layers, 'count', key) ? { count: per(best.layers, 'count', key) } : {}),
     })),
     total: one(best.layers, 'total'),
     badge: one(best.layers, 'badge'),

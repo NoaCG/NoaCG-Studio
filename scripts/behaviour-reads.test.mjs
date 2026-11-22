@@ -343,3 +343,33 @@ test('versions: an additive key still parses; a table version the runtime does n
   const asTemplate = { ...VOTE, js: VOTE.js.replace(/var NOACG_BEHAVIOUR = /, 'var NOACG_BEHAVIOUR_READS = {"v":9};\nvar NOACG_BEHAVIOUR = ') };
   assert.match(warningsOf(asTemplate).join('\n'), /could not be checked/);
 });
+
+// ── TL5: a choice's starting option ────────────────────────────────────────────────────────
+
+test('a choice that starts on an option is never empty, and compiles to a table its runtime reads; without one it is the empty choice it always was', () => {
+  const binding = (options) => ({
+    recipe: 'choice', name: 'Level', ...(options ? { options } : {}),
+    rows: ['ADVISORY', 'WATCH', 'WARNING'], rowLabels: { ADVISORY: 'Advisory', WATCH: 'Watch', WARNING: 'Warning' },
+    fields: {}, layers: { option: { ADVISORY: 'g1', WATCH: 'g2', WARNING: 'g3' } },
+  });
+  const typeOf = (b) => compileBinding([], b).type('Alert level');
+  const started = typeOf(binding({ initial: 'ADVISORY' }));
+  const field = started.fields.find((f) => f.label === 'Level');
+  assert.equal(field.value, 'advisory');
+  assert.deepEqual(field.options.map((o) => o.value), ['advisory', 'watch', 'warning'], 'no empty value');
+  const group = started.machine.parallel[0];
+  assert.equal(group.initial, 'advisory');
+  assert.deepEqual(group.states.map((s) => s.id), ['advisory', 'watch', 'warning'], 'no "none" state');
+  // Every option is reachable from every other, and from nowhere else.
+  for (const state of group.states) assert.deepEqual(state.edges.map((e) => e.from).sort(), group.states.map((s) => s.id).filter((id) => id !== state.id).sort());
+  assert.deepEqual(started.controls.map((c) => c.label), ['Advisory', 'Watch', 'Warning']);
+  assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], binding({ initial: 'ADVISORY' })).js()), { status: 'ok' });
+  // An initial that names no row is ignored: the empty start.
+  const empty = typeOf(binding());
+  assert.deepEqual(typeOf(binding({ initial: 'NOPE' })).machine, empty.machine);
+  assert.equal(empty.machine.parallel[0].initial, 'none');
+  assert.deepEqual(empty.fields.find((f) => f.label === 'Level').options.map((o) => o.value), ['', 'advisory', 'watch', 'warning']);
+  const tableOf = (js) => JSON.parse(js.slice(js.indexOf('{', js.indexOf('var NOACG_BEHAVIOUR = ')), js.indexOf('\n};\n', js.indexOf('var NOACG_BEHAVIOUR = ')) + 2));
+  assert.equal('options' in tableOf(compileBinding([], binding()).js()), false, 'a choice without a start emits no options key');
+  assert.deepEqual(tableOf(compileBinding([], binding({ initial: 'ADVISORY' })).js()).options, { 'choice.level.initial': 'ADVISORY' });
+});
