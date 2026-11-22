@@ -34,17 +34,17 @@
  },
  "waitingOn": [
   {
-   "what": "TL5 checker verdict",
-   "eta": "2026-11-23T01:00:00Z"
+   "what": "TL6 builder first PR",
+   "eta": "2026-11-23T03:00:00Z"
   }
  ],
  "inFlight": {
-  "phase": "TL5",
-  "step": "check",
-  "session": "session_017SdbwNJvAA4LGxQQAuP7Fo",
-  "nonce": "tl5-c-99ec",
-  "merge": "62dc34aa28ba33af9f938f10d42497180776a7fa",
-  "asOf": "2026-11-22T23:28:02Z"
+  "phase": "TL6",
+  "step": "build",
+  "session": "session_017SdbwNDgPe1fcZ7vmJmuVN",
+  "nonce": "tl6-b-cf83",
+  "source": "62dc34aa28ba33af9f938f10d42497180776a7fa",
+  "asOf": "2026-11-22T23:48:29Z"
  },
  "owner": [
   {
