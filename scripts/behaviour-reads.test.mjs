@@ -401,3 +401,4 @@ test('a poll result is the vote with its figures live from the take; a vote with
   assert.deepEqual(poll, tableOf(compileBinding([], binding()).js()));
   assert.equal('options' in tableOf(compileBinding([], binding()).js()), false);
 });
+

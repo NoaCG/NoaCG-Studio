@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Winner card</title>
+  <desc>NoaCG Clean Studio template. A reveal: the Title over a sealed Cover; Reveal shows the name, drawn as Price and typed in The reveal box; a show:Celebration switch shows the drawn confetti and hides it again.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="560" y="320" width="800" height="440" rx="20" fill="#FFFFFF"/>
+    <rect id="Accent" x="560" y="320" width="800" height="10" rx="5" fill="#2E5BFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Cover" inkscape:label="Cover" style="display:none">
+      <rect x="640" y="500" width="640" height="160" rx="16" fill="#2E5BFF"/>
+      <path d="M640 516 L960 600 L1280 516" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+    </g>
+    <g id="show:Celebration" inkscape:label="show:Celebration" style="display:none">
+      <rect x="600" y="250" width="22" height="22" rx="4" fill="#2E5BFF" transform="rotate(20 611 261)"/>
+      <circle cx="700" cy="230" r="11" fill="#1DB56C"/>
+      <rect x="820" y="262" width="18" height="30" rx="4" fill="#F5A524" transform="rotate(-25 829 277)"/>
+      <circle cx="1000" cy="240" r="12" fill="#E5484D"/>
+      <rect x="1100" y="254" width="22" height="22" rx="4" fill="#1DB56C" transform="rotate(35 1111 265)"/>
+      <circle cx="1230" cy="236" r="10" fill="#2E5BFF"/>
+      <rect x="1300" y="262" width="18" height="30" rx="4" fill="#E5484D" transform="rotate(15 1309 277)"/>
+      <circle cx="640" cy="820" r="12" fill="#F5A524"/>
+      <rect x="760" y="806" width="22" height="22" rx="4" fill="#E5484D" transform="rotate(-15 771 817)"/>
+      <circle cx="920" cy="836" r="10" fill="#2E5BFF"/>
+      <rect x="1060" y="804" width="18" height="30" rx="4" fill="#1DB56C" transform="rotate(30 1069 819)"/>
+      <circle cx="1180" cy="826" r="12" fill="#2E5BFF"/>
+      <rect x="1280" y="808" width="22" height="22" rx="4" fill="#F5A524" transform="rotate(-30 1291 819)"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" x="960" y="430" text-anchor="middle" font-size="34" font-weight="700" fill="#5A6680">And the winner is</text>
+    <text id="Price" x="960" y="604" text-anchor="middle" font-size="64" font-weight="800" fill="#0F1729">Alex Rivera</text>
+  </g>
+</svg>

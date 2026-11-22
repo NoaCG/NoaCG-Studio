@@ -675,6 +675,20 @@ Group 1: Vote results count, Alert level, Public notice, Poll result (one PR, #2
   agent's import is a live vote until the author ticks the box. A row a new round leaves out keeps
   its old label (issue #2702, on main before TL5).
 
+Group 2: Winner card and Award reveal.
+
+- Previous verified `main`: `45fd2420091e422f1f07ace248579817a05bb3d9` (group 1 merged). Revert: `git revert -m 1 <the TL5 group 2 merge commit>`.
+- Mechanism: existing recipes, no extension. The reveal gives Sealed, Reveal and the typed
+  winner; the celebration is a `show:Celebration` switch beside it (Show and Hide Celebration),
+  a field a data-only host can set. A first cut added a celebration role and group to the reveal
+  recipe; review found it showed over a sealed card, was machine state no controller could see
+  or set, and would capture visible confetti in old artwork on reimport, so it was dropped.
+- The layer check holds studio templates to a role's taught name: the revealed text is `Price`
+  in every reveal template, whatever it holds (README says so), and the cover is `Cover`.
+- Labels: Reveal, Show Celebration, Hide Celebration; the built-ins' own words (Reveal result,
+  Open envelope, Applause, Settle) are not carried, since no recipe changed.
+- No state rule is set or changed: no recipe, runtime, persisted key or proposal changed.
+
 ## Test maintenance
 
 - 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22
