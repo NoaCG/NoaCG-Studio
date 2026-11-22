@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Nominee reveal</title>
+  <desc>NoaCG Clean Studio template. A category reveal at the bottom: the Title over the winner sealed under a dark Cover; a show:Suspense switch draws a blue ring for the moment before, and Reveal shows the winner typed in The reveal box, drawn as Price.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="460" y="660" width="1000" height="280" rx="20" fill="#FFFFFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="show:Suspense" inkscape:label="show:Suspense" style="display:none">
+      <rect x="444" y="644" width="1032" height="312" rx="28" fill="none" stroke="#2E5BFF" stroke-width="8"/>
+    </g>
+    <g id="Cover" inkscape:label="Cover" style="display:none">
+      <rect x="520" y="780" width="880" height="120" rx="16" fill="#0F1729"/>
+      <circle cx="900" cy="840" r="10" fill="#FFFFFF"/>
+      <circle cx="960" cy="840" r="10" fill="#FFFFFF"/>
+      <circle cx="1020" cy="840" r="10" fill="#FFFFFF"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" x="960" y="738" text-anchor="middle" font-size="30" font-weight="800" fill="#2E5BFF" letter-spacing="2">BEST NEWCOMER</text>
+    <text id="Price" x="960" y="862" text-anchor="middle" font-size="60" font-weight="800" fill="#0F1729">Sam Lindqvist</text>
+  </g>
+</svg>

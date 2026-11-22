@@ -528,9 +528,9 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       break;
     }
     case 'reveal': {
-      // REVEAL (TL5: Winner card, Award reveal): taken sealed under the cover; Reveal shows the
-      // typed winner. A drawn `show:Celebration` is a switch beside it: Show and Hide set its field,
-      // so a host that only sends data can raise it too.
+      // REVEAL (TL5: Winner card, Award reveal, Q&A card, Nominee reveal): taken sealed under the
+      // cover; Reveal shows the typed text. A drawn `show:` layer is a switch beside it: Show and
+      // Hide set its field, so a host that only sends data can raise it too.
       const reveal = await fieldFor(air, 'The reveal');
       await page.getByTestId(`cue-field-${reveal}`).fill('Jordan Okafor');
       await page.getByTestId('verb-update').click();
@@ -541,17 +541,20 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await expect(role(air, 'secret')).toHaveClass(/imported-design-on/);
       await expect(role(air, 'cover')).not.toHaveClass(/imported-design-on/);
       await checkAir(page, air, `${t.slug}-2-revealed`);
-      if (readFileSync(file(t.slug), 'utf8').includes('inkscape:label="show:Celebration"')) {
-        const party = role(air, 'switch.celebration.on');
-        await expect(party).not.toHaveClass(/imported-design-on/);
-        await expect(page.getByTestId('cue-action-celebration_hide')).toBeDisabled();
-        await page.getByTestId('cue-action-celebration_show').click();
-        await expect(party).toHaveClass(/imported-design-on/);
-        await expect(page.getByTestId('cue-action-celebration_show')).toBeDisabled();
-        await checkAir(page, air, `${t.slug}-3-celebrating`);
-        await page.getByTestId('cue-action-celebration_hide').click();
-        await expect(party).not.toHaveClass(/imported-design-on/);
-        await expect(page.getByTestId('cue-action-celebration_show')).toBeEnabled();
+      // Each `show:` switch the template draws beside the reveal (Celebration, Suspense): Show
+      // raises it, Hide puts it away, each greyed where it cannot act; the winner stays.
+      for (const [, name] of readFileSync(file(t.slug), 'utf8').matchAll(/inkscape:label="show:([^"]+)"/g)) {
+        const slug = name.toLowerCase();
+        const look = role(air, `switch.${slug}.on`);
+        await expect(look).not.toHaveClass(/imported-design-on/);
+        await expect(page.getByTestId(`cue-action-${slug}_hide`)).toBeDisabled();
+        await page.getByTestId(`cue-action-${slug}_show`).click();
+        await expect(look).toHaveClass(/imported-design-on/);
+        await expect(page.getByTestId(`cue-action-${slug}_show`)).toBeDisabled();
+        await checkAir(page, air, `${t.slug}-3-${slug}`);
+        await page.getByTestId(`cue-action-${slug}_hide`).click();
+        await expect(look).not.toHaveClass(/imported-design-on/);
+        await expect(page.getByTestId(`cue-action-${slug}_show`)).toBeEnabled();
         await expect(role(air, 'secret')).toHaveClass(/imported-design-on/);
       }
       break;
