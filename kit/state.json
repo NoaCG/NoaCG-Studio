@@ -34,17 +34,19 @@
  },
  "waitingOn": [
   {
-   "what": "TL4 checker verdict",
-   "eta": "2026-11-22T18:00:00Z"
+   "what": "TL5 builder notes per PR and final receipt",
+   "eta": "2026-11-23T12:00:00Z"
   }
  ],
  "inFlight": {
-  "phase": "TL4",
-  "step": "check",
-  "session": "session_017SdbwPdYs47QYDnKcHKERf",
-  "nonce": "tl4-c-6d82",
-  "merge": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "asOf": "2026-11-22T16:59:36Z"
+  "phase": "TL5",
+  "step": "build",
+  "session": "session_017SdbwQQ2ZBGZi3bdgF6TwN",
+  "nonce": "tl5-b-eeed",
+  "branch": "claude/plan-svg-template-library-tl5-build",
+  "source": "b06197d34fbd9c33e062690a908088128b9e3972",
+  "asOf": "2026-11-22T17:23:38Z",
+  "note": "may land as several PRs; coordinator stamps each"
  },
  "owner": [
   {
@@ -155,6 +157,9 @@
  "tl4": {
   "pr": 2698,
   "merge": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "builder": "session_017SdbwMYeduE5e6iXLcwf2D"
+  "builder": "session_017SdbwMYeduE5e6iXLcwf2D",
+  "pass": "2026-11-22T17:22Z",
+  "archived": true,
+  "nit": "SPX Continue/Stop not exercised for motion"
  }
 }
