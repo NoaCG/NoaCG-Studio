@@ -324,9 +324,9 @@ and clears it with Clear, so the Live bug is held to C1 too.
 
 | Target | Mode | Verdict (Clear) | Chat highlight (Hold on air) |
 | --- | --- | --- | --- |
-| SPX, CasparCG, H2R | update, play; operator events through NoaCG's control channel (`noacgDispatch`, what the Control panel sends) | False shows alone; the empty value clears it | held past the eight seconds |
+| SPX, CasparCG, H2R | update, play; operator events through NoaCG's control channel (`noacgDispatch`, what the Control panel sends) | False shows alone; the empty value clears it | SPX unheld clears itself after eight seconds; CasparCG and H2R held stay up past them, then Take it off (`dismiss`) clears them |
 | HTML overlay | autoplay with baked data | False shows alone | no control channel: it clears itself |
-| OGraf, LiveOS | real time: load, playAction, updateAction, custom action `hold` | as SPX | held past the eight seconds |
+| OGraf, LiveOS | real time: load, playAction, updateAction, custom actions `hold` and `dismiss` | as SPX | OGraf unheld clears itself; LiveOS held stays up, then `dismiss` clears it |
 
 ### AC-9
 
@@ -336,3 +336,12 @@ and clears it with Clear, so the Live bug is held to C1 too.
 - `scripts/behaviour-reads.test.mjs`: Clear's edges and button on an empty choice, none on a
   started one, an option named Clear keeps its own button; the alert without Hold is the machine
   it was, with Hold a pose-only `held` state and no timer out of it; both tables read `ok`.
+
+### Final review
+
+- Final `/so` on 387aff5 (fresh read-only cloud session): grade A, AGREE WITH CORRECTIONS. Taken:
+  finding 1, the Hold export case passed even if the self-clear never started in a host and never
+  pressed Take it off; it now plays one unheld package of each kind (SPX, OGraf, the overlay),
+  which clear themselves, and holds the others, which stay up and then clear on `dismiss`. Not
+  changed: Clear and Take it off are English labels, as every recipe's buttons are (finding 2);
+  Hold pressed during the entrance is untested, as in the built-in chat highlight (finding 3).

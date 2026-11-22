@@ -1194,7 +1194,7 @@ test('Vote results with counts, Poll result, Alert level, Winner card and Scoreb
 });
 
 // TL5 group 5 (AC-7): Clear is data (the choice's field set empty), so every host clears a verdict;
-// Hold on air is an operator event, which OGraf and LiveOS offer as a custom action and a page
+// Hold on air and Take it off are operator events, which OGraf and LiveOS offer as a custom action and a page
 // host receives through NoaCG's own control channel (`noacgDispatch`, what the Control panel sends).
 test('Verdict card and Chat highlight: Clear and Hold on air play in every export target', async ({ page, context }) => {
   test.setTimeout(120_000);
@@ -1265,17 +1265,23 @@ test('Verdict card and Chat highlight: Clear and Hold on air play in every expor
     await h.close();
   }
 
-  // Chat highlight: every host but the overlay holds it past the eight seconds; the overlay plays
-  // it and it clears itself, as a Pop-up alert does.
+  // Chat highlight: unheld it clears itself after the eight seconds in every host (SPX, OGraf and
+  // the overlay, one of each kind of package); held (CasparCG, H2R, LiveOS) it stays up past them,
+  // and Take it off (`dismiss`) then clears it.
   const chat = await prepare('chat-highlight', []);
   const chatPackages = await exportPackages(page, chat.production, {});
+  const held = new Set(['casparcg', 'h2r', 'liveos']);
   const hosts = await Promise.all(targets.map(async (id) => [id, await host(id, chatPackages[id], {})] as const));
   for (const [id, h] of hosts) await expect.poll(() => h.shown(), { message: `${id}: on air` }).toBe(true);
   await page.waitForTimeout(1_000);              // the entrance settles: Hold leaves the on-air state
-  for (const [id, h] of hosts) if (id !== 'html-overlay') await h.event('hold');
+  for (const [id, h] of hosts) if (held.has(id)) await h.event('hold');
   await page.waitForTimeout(9_500);
+  for (const [id, h] of hosts) expect(await h.shown(), held.has(id) ? `${id}: held past the eight seconds` : `${id}: clears itself`).toBe(held.has(id));
   for (const [id, h] of hosts) {
-    expect(await h.shown(), id === 'html-overlay' ? `${id}: clears itself` : `${id}: held past the eight seconds`).toBe(id !== 'html-overlay');
+    if (held.has(id)) {
+      await h.event('dismiss');
+      await expect.poll(() => h.shown(), { message: `${id}: Take it off clears it` }).toBe(false);
+    }
     await h.close();
   }
 });
