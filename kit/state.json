@@ -17,7 +17,8 @@
   "line": "Owner, 2026-11-21: \"the plan is agreed\". End date: \"No date, run until done\". Block renewal: \"Yes, renew automatically\".",
   "startedAt": "2026-11-21T23:22:38+02:00",
   "standing": {
-   "blockRenewal": "\"Yes, renew automatically\" (owner, 2026-11-21)"
+   "blockRenewal": "\"Yes, renew automatically\" (owner, 2026-11-21)",
+   "deferWithinPlan": "Owner, 2026-11-22: \"yes, grant that standing permission\", to: \"When a phase can't meet a criterion yet only because of the plan's own order, you may move that part to a later named phase, as long as nothing is dropped. Record it and tell me.\" No bar may be lowered; each use is recorded in ownerDecisions-style entries and on #2678, and reported to the owner."
   }
  },
  "brief": {
