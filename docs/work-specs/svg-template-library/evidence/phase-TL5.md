@@ -228,3 +228,120 @@ Row class: Ordinary (templates, inventories, tests and docs; no state rule, no R
 - AC-9: no recipe, runtime, proposal word or persisted key changed.
 - Labels: the press reads Reveal, not the built-in Q&A card's Show answer (a recipe's press has
   one label; changing it would move every saved reveal's control).
+
+## Group 4: Scorebug, Match status, Match board, Esports score, Transition, Match event
+
+Group 4 on its own is Ordinary (templates, inventories, tests and docs). It lands in one PR with
+group 5, whose recipe changes make the PR not Ordinary: the PR has a final `/so`.
+
+### What was built
+
+- Templates (studio): Scorebug, Match status, Match board, Esports score (games) on the score
+  recipe; Transition (titles) and Match event (games) on the Pop-up alert, chosen by the author.
+  Each has a default preview and, where it has them, named states with alt text. Library 81
+  templates; coverage 79 of 101 rows.
+- Mechanisms, all existing: the score recipe's +1, -1, flash and Full time; a `choice:` beside
+  the score for the period (Scorebug: First, Interval, Second) or the status (Match status: Live,
+  Break, Ended), each drawn with its starting option visible; a count-up match clock beside the
+  score (the clock instance, `CLOCKS.md`); plain fields for the period breakdown, format and map;
+  the Pop-up alert's hold, self-clear and Next for the cover and the event card.
+
+### AC-3
+
+The `score` and `alert` batches of `e2e/svg-templates.spec.ts` import each template. Recognition:
+score automatic, the choice offered by name (one box per option), the clock's direction and the
+Pop-up alert by author choice (README). Controls asserted:
+
+| Template | Controls asserted |
+| --- | --- |
+| Scorebug | +1 per team with its Goal flash, -1, the score from one digit to three in its plate, New game, Full time; Period starts on First, Interval and Second show alone, each greyed while it shows, an empty or unknown value shows First; the clock counts up from Start, holds on Pause, Reset returns to 0:00 |
+| Match status | as the score; Status starts on Live, Break and Ended; Detail retyped reaches the output |
+| Match board | as the score; Full time; each of the eight quarter figures and the Title retyped reaches the output |
+| Esports score | as the score; Full time shows Series over; Format and Map retyped reach the output |
+| Transition, Match event | Take shows it; Next clears it; taken again, it clears itself after the hold |
+
+The browser walk now runs each drawn `choice:` beside any full recipe and a `Clock` beside one,
+so a later template with either needs no new test code. One visual family: the same renderer
+made the new previews (it reproduces an existing preview pixel for pixel), and
+`scripts/check-example-layers.mjs` passes on every file.
+
+### AC-7
+
+In the every-target case ("... Winner card and Scorebug: ... a choice beside the score play in
+every export target"): the Scorebug's package starts on First and Interval sent as data shows
+alone.
+
+| Target | Mode | Result |
+| --- | --- | --- |
+| SPX, CasparCG, H2R | update, play | First; Interval by data |
+| HTML overlay | autoplay with baked data | First |
+| OGraf, LiveOS | real time: load, playAction, updateAction | First; Interval by data |
+
+The score recipe, the clock and the Pop-up alert export as before this plan (navy Scoreboard,
+Score and clock and Pop-up alert templates); nothing in them changed.
+
+### AC-9
+
+No recipe, runtime, proposal word or persisted key changed, so graphics made before keep building
+and playing exactly as they did; no pin moved.
+
+## Group 5: Verdict card, Matchup, Podium score, Chat highlight, Timing tower, Map round, Head to head, Player card, Bracket, Fixtures, Agenda
+
+Same PR as group 4. Row class: not Ordinary (two recipes' machines and controls change), not
+Risky (no ownership, target, retry, recovery or writer rule; no persisted key, field, kind or
+rule word added). Rules C1 to C3 (phase notes) were written after coding, so the final `/so`
+challenges them.
+
+### What was built
+
+- Recipe extensions: **Clear** on a choice that starts empty (C1) and **Hold on air**, an
+  option of the Pop-up alert (C2). Neither adds a word to `READS_ADDED`: both are machine arrows
+  and buttons over fields and states the runtime already reads.
+- Templates (studio): Verdict card (titles), Matchup, Podium score, Timing tower, Map round, Head
+  to head, Player card, Bracket, Fixtures (games), Chat highlight (audience), Agenda (titles), each
+  with a default preview and its named states with alt text. Library 92 templates; coverage 90 of
+  101 rows.
+
+### AC-3
+
+Batches of `e2e/svg-templates.spec.ts` by route; the walk of a choice now also presses Clear on a
+choice that starts empty (the field back to its empty value), then shows an option by data alone
+and clears it with Clear, so the Live bug is held to C1 too.
+
+| Template | Recognition | Controls asserted |
+| --- | --- | --- |
+| Verdict card, Matchup | automatic (`choice:`) | starts empty; each option shows alone and is greyed while it shows; Clear empties it, also after an option shown by data alone |
+| Timing tower | automatic (`choice:Focus/P1..P5`) | as above for the focus; Session, cars and gaps are fields that stay in place |
+| Map round | automatic (`choice:Phase`, Veto drawn visible) | starts on Veto, never empty; Picked and Live; an empty or unknown value shows Veto |
+| Podium score | automatic (score, the Spotlight choice offered by name) | +1 with its flash per podium, -1, sizes to 100, New game; Spotlight Left, Middle, Right; Clear |
+| Chat highlight | Pop-up alert and Hold on air ticked by the author (README) | Hold on air greys itself and keeps it up past the eight seconds; Take it off (`dismiss`) clears it; taken again, Next clears it and the self-clear still works; without the box no Hold button (Transition, Match event) |
+| Head to head, Bracket, Fixtures, Agenda | automatic (plain) | every named text is a field; the first retyped long fits |
+| Player card | automatic (plain, `f:Photo`) | as plain; a sent picture replaces the placeholder and an empty value restores it |
+
+### AC-7
+
+"Verdict card and Chat highlight: Clear and Hold on air play in every export target":
+
+| Target | Mode | Verdict (Clear) | Chat highlight (Hold on air) |
+| --- | --- | --- | --- |
+| SPX, CasparCG, H2R | update, play; operator events through NoaCG's control channel (`noacgDispatch`, what the Control panel sends) | False shows alone; the empty value clears it | SPX unheld clears itself after eight seconds; CasparCG and H2R held stay up past them, then Take it off (`dismiss`) clears them |
+| HTML overlay | autoplay with baked data | False shows alone | no control channel: it clears itself |
+| OGraf, LiveOS | real time: load, playAction, updateAction, custom actions `hold` and `dismiss` | as SPX | OGraf unheld clears itself; LiveOS held stays up, then `dismiss` clears it |
+
+### AC-9
+
+- A saved graphic keeps its machine, table and runtime (TL2 C7), so a choice or alert saved
+  before has no Clear or Hold until reimported (C3). No field, kind, fact, rule key or persisted
+  key is added, so field ids and cue values are unchanged on reimport, and no pin moved.
+- `scripts/behaviour-reads.test.mjs`: Clear's edges and button on an empty choice, none on a
+  started one, an option named Clear keeps its own button; the alert without Hold is the machine
+  it was, with Hold a pose-only `held` state and no timer out of it; both tables read `ok`.
+
+### Final review
+
+- Final `/so` on 387aff5 (fresh read-only cloud session): grade A, AGREE WITH CORRECTIONS. Taken:
+  finding 1, the Hold export case passed even if the self-clear never started in a host and never
+  pressed Take it off; it now plays one unheld package of each kind (SPX, OGraf, the overlay),
+  which clear themselves, and holds the others, which stay up and then clear on `dismiss`. Not
+  changed: Clear and Take it off are English labels, as every recipe's buttons are (finding 2);
+  Hold pressed during the entrance is untested, as in the built-in chat highlight (finding 3).

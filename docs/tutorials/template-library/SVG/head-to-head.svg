@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Head to head</title>
+  <desc>NoaCG Clean Studio template. Two people compared in the middle: Left name and Right name, then three rows, each a Stat with the Left and Right figures either side.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="460" y="240" width="1000" height="600" rx="20" fill="#FFFFFF"/>
+    <rect id="Left_name_box" inkscape:label="Left name box" x="500" y="280" width="420" height="80" rx="14" fill="#EEF1F6"/>
+    <rect id="Right_name_box" inkscape:label="Right name box" x="1000" y="280" width="420" height="80" rx="14" fill="#EEF1F6"/>
+    <rect id="Stat_box_1" inkscape:label="Stat box 1" x="500" y="400" width="920" height="110" rx="14" fill="#EEF1F6"/>
+    <rect id="Stat_box_2" inkscape:label="Stat box 2" x="500" y="540" width="920" height="110" rx="14" fill="#EEF1F6"/>
+    <rect id="Stat_box_3" inkscape:label="Stat box 3" x="500" y="680" width="920" height="110" rx="14" fill="#EEF1F6"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Left_name" inkscape:label="Left name" x="710" y="334" text-anchor="middle" font-size="36" font-weight="800" fill="#0F1729">Ana Holm</text>
+    <text id="Right_name" inkscape:label="Right name" x="1210" y="334" text-anchor="middle" font-size="36" font-weight="800" fill="#0F1729">Ben Ito</text>
+    <text id="Left_1" inkscape:label="Left 1" x="560" y="470" text-anchor="start" font-size="44" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">14</text>
+    <text id="Stat_1" inkscape:label="Stat 1" x="960" y="466" text-anchor="middle" font-size="24" font-weight="800" fill="#5B6478" letter-spacing="2">WINS</text>
+    <text id="Right_1" inkscape:label="Right 1" x="1360" y="470" text-anchor="end" font-size="44" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">11</text>
+    <text id="Left_2" inkscape:label="Left 2" x="560" y="610" text-anchor="start" font-size="44" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">3</text>
+    <text id="Stat_2" inkscape:label="Stat 2" x="960" y="606" text-anchor="middle" font-size="24" font-weight="800" fill="#5B6478" letter-spacing="2">TITLES</text>
+    <text id="Right_2" inkscape:label="Right 2" x="1360" y="610" text-anchor="end" font-size="44" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">2</text>
+    <text id="Left_3" inkscape:label="Left 3" x="560" y="750" text-anchor="start" font-size="44" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">1:21.4</text>
+    <text id="Stat_3" inkscape:label="Stat 3" x="960" y="746" text-anchor="middle" font-size="24" font-weight="800" fill="#5B6478" letter-spacing="2">BEST LAP</text>
+    <text id="Right_3" inkscape:label="Right 3" x="1360" y="750" text-anchor="end" font-size="44" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">1:21.9</text>
+  </g>
+</svg>

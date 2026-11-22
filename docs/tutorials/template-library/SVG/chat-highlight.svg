@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Chat highlight</title>
+  <desc>NoaCG Clean Studio template. A comment from the chat in the lower left: the Viewer and the Comment. Choose Pop-up alert at import and tick Hold on air: it clears itself after eight seconds, Hold on air keeps it up, and Take it off clears it.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="80" y="760" width="820" height="200" rx="20" fill="#FFFFFF"/>
+    <rect id="Accent" x="80" y="760" width="12" height="200" rx="6" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Viewer" x="124" y="826" text-anchor="start" font-size="28" font-weight="800" fill="#2E5BFF">@nightowl_42</text>
+    <text id="Comment" x="124" y="890" text-anchor="start" font-size="36" font-weight="800" fill="#0F1729">That last question was brilliant!</text>
+  </g>
+</svg>

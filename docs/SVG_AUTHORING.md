@@ -279,7 +279,7 @@ is on. Your artwork is never redrawn.
 **Any hidden layer can be a switch or part of a choice, with no behaviour at all.** Hide a layer and
 name it `show:Sponsor`, and the operator gets Show Sponsor and Hide Sponsor. Hide two or more and
 name them `choice:Status/Live`, `choice:Status/Replay`, `choice:Status/Standby`, and the operator
-gets one button per option, with one look showing at a time. Leave exactly one option visible and
+gets one button per option, with one look showing at a time, and Clear to show none again. Leave exactly one option visible and
 the choice starts on it and is never empty, as an alert level rests at its lowest level; name any
 word drawn in that visible option `static:` so it stays artwork. Both work beside a quiz or a
 scoreboard on the same graphic, and both are offered in the Fields step on every hidden layer that
@@ -508,7 +508,7 @@ pick Pop-up alert in the Fields step and the graphic clears itself eight seconds
 | Layer | Name it | What it is |
 |---|---|---|
 
-The operator gets nothing extra: it clears itself after eight seconds, and Next clears it sooner.
+The operator gets nothing extra: it clears itself after eight seconds, and Next clears it sooner; tick Hold on air at import for a Hold on air button that keeps it up until Take it off.
 <!-- behaviour:alert:end -->
 
 ### The survey board - reveal the answers, count the strikes

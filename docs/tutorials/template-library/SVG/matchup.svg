@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Matchup</title>
+  <desc>NoaCG Clean Studio template. Two sides of a matchup in the middle, Home team and Away team under the Event, and a Winner choice with two drawn marks, one under each side, both hidden so no winner shows until one is picked; Clear takes the pick away.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="460" y="380" width="1000" height="320" rx="20" fill="#FFFFFF"/>
+    <rect id="Home_team_box" inkscape:label="Home team box" x="500" y="470" width="400" height="110" rx="14" fill="#EEF1F6"/>
+    <rect id="Away_team_box" inkscape:label="Away team box" x="1020" y="470" width="400" height="110" rx="14" fill="#EEF1F6"/>
+    <text inkscape:label="static:Versus" x="960" y="538" text-anchor="middle" font-size="30" font-weight="800" fill="#5B6478" letter-spacing="2" font-family="Manrope, sans-serif">VS</text>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="choice_x3A_Winner_x2F_Home" inkscape:label="choice:Winner/Home" style="display:none">
+      <rect x="500" y="600" width="400" height="56" rx="12" fill="#1F9D55"/>
+      <text inkscape:label="static:Winner home" x="700" y="638" text-anchor="middle" font-size="24" font-weight="800" fill="#FFFFFF" letter-spacing="3" font-family="Manrope, sans-serif">WINNER</text>
+    </g>
+    <g id="choice_x3A_Winner_x2F_Away" inkscape:label="choice:Winner/Away" style="display:none">
+      <rect x="1020" y="600" width="400" height="56" rx="12" fill="#1F9D55"/>
+      <text inkscape:label="static:Winner away" x="1220" y="638" text-anchor="middle" font-size="24" font-weight="800" fill="#FFFFFF" letter-spacing="3" font-family="Manrope, sans-serif">WINNER</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Event" x="960" y="440" text-anchor="middle" font-size="26" font-weight="800" fill="#2E5BFF" letter-spacing="2">QUARTER-FINAL</text>
+    <text id="Home_team" inkscape:label="Home team" x="700" y="538" text-anchor="middle" font-size="40" font-weight="800" fill="#0F1729">Harbour</text>
+    <text id="Away_team" inkscape:label="Away team" x="1220" y="538" text-anchor="middle" font-size="40" font-weight="800" fill="#0F1729">Valley</text>
+  </g>
+</svg>

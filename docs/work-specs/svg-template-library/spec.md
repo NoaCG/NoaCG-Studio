@@ -698,6 +698,51 @@ Group 3: Q&A card and Nominee reveal.
 - The browser step for a reveal now walks every `show:` switch a template draws, so a later
   reveal template with its own moment needs no new test code.
 
+Group 4: Scorebug, Match status, Match board, Esports score, Transition, Match event.
+
+- Previous verified `main`: `f772fa22633d2c0f77947462fe4f613e9be8ad66` (group 3, #2706, merged). Revert: `git revert -m 1 <the TL5 group 4 merge commit>`.
+- Mechanism: existing recipes. The score recipe gives +1, -1, the flash and Full time; a
+  `choice:` beside it gives the scorebug's period (interval and resume as buttons) and the match
+  status; a count-up clock beside it is the match clock; the period breakdown, format and map are
+  plain fields. Transition and Match event are the Pop-up alert (author choice): cover or play,
+  hold eight seconds, clear, or Next sooner. No state rule is set or changed.
+- Trap: a choice option named `Final` would also match the score's `Full time` words; the Match
+  status option is `Ended` (its drawn word is FINAL). Option names are one word: the look's role
+  `option/<name>` sits in a space-separated role list on air, which a spaced name would split.
+- The browser walk runs each drawn `choice:` beside a full recipe and a match `Clock` beside one.
+
+Group 5 (same PR as group 4): Verdict card, Matchup, Podium score, Chat highlight, Timing tower,
+Head to head, Player card, Map round, Bracket, Fixtures, Agenda.
+
+- Two recipe extensions, machine and controls only: no field, kind, fact, rule key or persisted
+  key is added, so `READS_ADDED` is unchanged and old runtimes read every new table.
+  - **Clear** on a `choice:` that starts empty (verdict, winner pick, spotlight, focus).
+  - **Hold on air**, an option of the Pop-up alert (the chat highlight's Hold and Take it off).
+- Rules (state rules this group sets; written after coding, so the final `/so` challenges them):
+  - C1. A choice that starts empty has a Clear button. Clear sets its field to the empty value
+    and moves the machine to `none` from any option and from `none` itself, so it is never greyed:
+    data alone can show an option while the machine rests on `none` (as E2 found for a start). A
+    choice with a start has no Clear. An option named Clear keeps its own button and no second
+    Clear is made.
+  - C2. A Pop-up alert imported with Hold on air (`options.hold`, default off) gains a pose-only
+    `held` state: Hold on air from the on-air state cancels the self-clear timer and nothing
+    re-arms it; Take it off (`dismiss`, the built-in chat highlight's event) clears it held or
+    not, and Next clears it held or not. Without the box the machine and controls are what they
+    were.
+  - C3. A saved graphic keeps its own machine, table and runtime (TL2 C7): a choice or alert
+    saved before this change has no Clear and no Hold until it is imported again. Reimport adds
+    the Clear button to a choice that starts empty (the Live bug's included); field ids and cue
+    values are unchanged, and an alert reimported keeps Hold off unless the author ticks it.
+- Mechanisms otherwise existing: Podium score is the score with a Spotlight choice; Timing
+  tower's places are fields that never re-sort, with a Focus choice; Map round's phase is a
+  choice with a start; Head to head, Player card (an `f:Photo` slot), Bracket, Fixtures and
+  Agenda are plain fields. A bracket advances by typing a team into the next round.
+- Trap: a select of three values or fewer is drawn in the cue editor as buttons (a radiogroup),
+  not a dropdown, and its buttons carry the option names too: the browser walk reads either form
+  and presses a choice's buttons inside `cue-actions` only.
+- Left for later in TL5 or moved: see the receipt and evidence (studio Standings with focus and
+  final, milestone-track, quiz-show, question-queue, public-notice language cycle, ticker rotate).
+
 ## Test maintenance
 
 - 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22

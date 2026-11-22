@@ -157,21 +157,32 @@ function pictureSlots(slug: string): string[] {
   return [...svg.matchAll(/<image[^>]*inkscape:label="f:([^"]+)"/g)].map((m) => m[1]);
 }
 
-/** The choice a template draws (`choice:Level/Advisory`, ...): its name, its options in drawing
+/** The choices a template draws (`choice:Level/Advisory`, ...), by name in drawing order. */
+function choiceNames(slug: string): string[] {
+  return [...new Set([...readFileSync(file(slug), 'utf8').matchAll(/inkscape:label="choice:([^/"]+)\//g)].map((m) => m[1]))];
+}
+
+/** One choice a template draws (the first, unless named): its name, its options in drawing
  *  order, and the one option drawn visible, where the choice starts (null: it starts empty). */
-function choiceOf(slug: string): { name: string; options: string[]; start: string | null } {
+function choiceOf(slug: string, name = choiceNames(slug)[0]): { name: string; options: string[]; start: string | null } {
   // Each option group's whole tag: hidden by a `display` attribute or a style, wherever it sits.
   const groups = [...readFileSync(file(slug), 'utf8').matchAll(/<g\b[^>]*>/g)]
     .map(([tag]) => ({ tag, label: /inkscape:label="choice:([^/"]+)\/([^"]+)"/.exec(tag) }))
-    .filter((g): g is { tag: string; label: RegExpExecArray } => !!g.label);
+    .filter((g): g is { tag: string; label: RegExpExecArray } => !!g.label && g.label[1] === name);
   const shown = groups.filter((g) => !/\bdisplay\s*[:=]\s*"?\s*none/.test(g.tag));
-  return { name: groups[0].label[1], options: groups.map((g) => g.label[2]), start: shown.length === 1 ? shown[0].label[2] : null };
+  return { name, options: groups.map((g) => g.label[2]), start: shown.length === 1 ? shown[0].label[2] : null };
 }
 
 /** The answer rows a quiz template draws (`Answer A`, `Answer B`, ...). */
 const answerRows = (slug: string) => namedTexts(slug).filter((n) => /^Answer [A-Z]$/.test(n)).map((n) => n.slice(-1));
 /** The rows a stepped list draws (`Item 1`, ...). */
 const itemRows = (slug: string) => namedTexts(slug).filter((n) => /^Item \d+$/.test(n)).length;
+
+/** A `Clock` text beside a recipe that is not itself a clock: a match clock counting up. */
+const hasMatchClock = (t: Template) => t.recipe !== 'clock' && t.recipe !== 'countdown' && namedTexts(t.slug).includes('Clock');
+
+/** Pop-up alerts imported with Hold on air ticked. */
+const HELD = new Set(['chat-highlight']);
 
 async function importTemplate(page: Page, t: Template) {
   await page.goto('/app');
@@ -189,9 +200,25 @@ async function importTemplate(page: Page, t: Template) {
     await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
     const choice = choiceOf(t.slug);
     await expect(page.getByTestId('map-svg-extras').locator(`input[value="${choice.name}"]`)).toHaveCount(choice.options.length);
+  } else if (t.recipe === 'alert') {
+    // A pop-up alert is never proposed: the author chooses it (README, Pop-up alert).
+    await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+    await page.getByTestId('map-svg-behaviour-kind').selectOption('alert');
+    // Hold on air is the author's tick (README, Chat highlight); off, the alert is as it was.
+    await expect(page.getByTestId('map-svg-option-hold')).not.toBeChecked();
+    if (HELD.has(t.slug)) await page.getByTestId('map-svg-option-hold').check();
   } else {
     await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(t.recipe ? kind[t.recipe] ?? t.recipe : 'none');
     await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+  }
+  // A drawn choice beside a full recipe is offered by its name, one box per option.
+  if (t.recipe !== 'choice') {
+    for (const name of choiceNames(t.slug)) await expect(page.getByTestId('map-svg-extras').locator(`input[value="${name}"]`)).toHaveCount(choiceOf(t.slug, name).options.length);
+  }
+  // A match clock beside the score (Scorebug): the author chooses how Clock counts (CLOCKS.md).
+  if (hasMatchClock(t)) {
+    await expect(page.getByTestId('map-svg-clock-mode')).toHaveValue('none');
+    await page.getByTestId('map-svg-clock-mode').selectOption('count-up');
   }
   // A POLL RESULT is the vote recipe with its typed figures shown from the take: the author's
   // choice at import (library README), recorded here as the box the author ticks.
@@ -205,6 +232,84 @@ async function importTemplate(page: Page, t: Template) {
   }
   await intoProduction(page, t.name, `${t.name} template`);
   await settleDurableWrites(page);
+}
+
+/** A drawn choice through its buttons: each option shows only its own look; a choice that
+ *  starts on an option is never empty. */
+async function walkChoice(page: Page, air: FrameLocator, t: Template, name: string): Promise<void> {
+  // Choosing an option shows only that look. A choice drawn with one option visible starts
+  // on it and is never empty (TL5: Alert level, Public notice); one drawn all hidden starts
+  // with nothing shown (Live bug).
+  const choice = choiceOf(t.slug, name);
+  const option = (label: string) => air.locator(`[data-noacg-role~="choice.${choice.name.toLowerCase()}.option/${label}" i]`);
+  const only = async (label: string | null) => {
+    for (const o of choice.options) {
+      if (o === label) await expect(option(o), `${o} shows`).toHaveClass(/imported-design-on/);
+      else await expect(option(o), `${o} is hidden`).not.toHaveClass(/imported-design-on/);
+    }
+  };
+  // An option's button reads its name after the control's mark ("⚡ Replay").
+  const press = (label: string) => page.getByTestId('cue-actions').getByRole('button', { name: new RegExp(`^\\W*${label}$`) });
+  await only(choice.start);
+  const state = await fieldFor(air, choice.name);
+  // A field of a few values is drawn as buttons, a longer one as a dropdown; either lists them.
+  const field = page.getByTestId(`cue-field-${state}`);
+  const segmented = (await field.getAttribute('role')) === 'radiogroup';
+  const offered = await field.locator(segmented ? 'button' : 'option').allTextContents();
+  expect(offered, 'the operator picks among the options, and an empty value only where the choice starts empty').toEqual(choice.start ? choice.options : ['-', ...choice.options]);
+  // Every option is a button of its own, greyed only while it is the one showing; the start
+  // stays live (data alone can show another option while the machine rests on the start).
+  for (const o of choice.options) await expect(press(o)).toBeEnabled();
+  for (const [i, o] of choice.options.filter((label) => label !== choice.start).entries()) {
+    await press(o).click();
+    await only(o);
+    await expect(press(o), `${o} is greyed while it shows`).toBeDisabled();
+    if (i === 0) await checkAir(page, air, `${t.slug}-2-${o.toLowerCase()}`);
+  }
+  // CLEAR (TL5): a choice that starts empty goes back to empty; Clear stays live, since data alone
+  // can show an option while the machine rests on none.
+  if (!choice.start) {
+    await press('Clear').click();
+    await only(null);
+    await air.locator('svg').first().evaluate((_, v) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [v.id]: v.value })), { id: state, value: choice.options[0].toLowerCase() });
+    await only(choice.options[0]);
+    await expect(press('Clear'), 'Clear takes away an option data showed').toBeEnabled();
+    await press('Clear').click();
+    await only(null);
+    if (segmented) await expect(field.getByRole('button', { name: '-', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    else await expect(field).toHaveValue('');
+  }
+  // A value that names no option (a cue saved before the choice had a start, a host sending
+  // an empty level) shows the start: a choice that starts on an option is never empty.
+  if (choice.start) {
+    await air.locator('svg').first().evaluate((_, id) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [id]: '' })), state);
+    await only(choice.start);
+    await air.locator('svg').first().evaluate((_, id) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [id]: 'nothing-drawn' })), state);
+    await only(choice.start);
+    // A level sent as data while the machine rests on the start: the start's button brings it back.
+    await page.getByTestId('verb-out').click();
+    await page.getByTestId('verb-take').click();
+    const other = choice.options.find((o) => o !== choice.start)!;
+    await air.locator('svg').first().evaluate((_, v) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [v.id]: v.value })), { id: state, value: other.toLowerCase() });
+    await only(other);
+    await expect(press(choice.start)).toBeEnabled();
+    await press(choice.start).click();
+    await only(choice.start);
+  }
+  // ALERT LEVEL (AC-10): every level reads without colour and without flashing - its look
+  // carries the level's word, and nothing on it moves.
+  if (t.slug === 'alert-level') {
+    for (const o of choice.options) {
+      await press(o).click();
+      await expect(option(o).locator('text')).toHaveText(o.toUpperCase());
+      await expect(option(o).locator('text')).toBeVisible();
+      const still = await option(o).evaluate((el) => {
+        const nodes = [el, ...el.querySelectorAll('*')] as (Element & { noacgMove?: unknown })[];
+        return nodes.every((n) => !n.noacgMove && getComputedStyle(n).animationName === 'none');
+      });
+      expect(still, `${o}: no motion and no flashing`).toBe(true);
+    }
+  }
 }
 
 /** One template through the door, onto air, through its controls and off again. */
@@ -397,7 +502,8 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       for (let n = 1; n <= rows; n++) {
         await page.getByTestId(`cue-action-score${n}`).click();
         await expect(await scoreLayer(air, String(n))).toHaveText('1');
-        await expect(role(air, `team.flash/${n}`)).toHaveClass(/imported-design-on/);
+        // A drawn flash shows as the point lands (Match status draws none).
+        if (readFileSync(file(t.slug), 'utf8').includes(`inkscape:label="Flash ${n}"`)) await expect(role(air, `team.flash/${n}`)).toHaveClass(/imported-design-on/);
       }
       await page.getByTestId('cue-action-unscore1').click();
       await expect(await scoreLayer(air, '1')).toHaveText('0');
@@ -414,6 +520,22 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       // New game sets every score back to 0.
       await page.getByTestId('cue-action-newGame').click();
       for (let n = 1; n <= rows; n++) await expect(await scoreLayer(air, String(n))).toHaveText('0');
+      // A drawn Full time (TL5: Scorebug, Match board, Esports score) shows once the game is called.
+      if (readFileSync(file(t.slug), 'utf8').includes('inkscape:label="Full time"')) {
+        await expect(role(air, 'final')).not.toHaveClass(/imported-design-on/);
+        await page.getByTestId('cue-action-final').click();
+        await expect(role(air, 'final')).toHaveClass(/imported-design-on/);
+        await checkAir(page, air, `${t.slug}-3-full-time`);
+      }
+      // The texts beside the teams and scores (a period breakdown, a map, a detail line) are the
+      // operator's: each one retyped reaches the output.
+      for (const [i, name] of namedTexts(t.slug).filter((n) => !/^(Team|Score) \d$/.test(n) && n !== 'Clock').entries()) {
+        const id = await fieldFor(air, name);
+        const value = String(i + 7);
+        await page.getByTestId(`cue-field-${id}`).fill(value);
+        await page.getByTestId('verb-update').click();
+        await expect(air.locator(`[id="${id}"]`)).toHaveText(value);
+      }
       break;
     }
     case 'countdown': {
@@ -468,63 +590,7 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       break;
     }
     case 'choice': {
-      // Choosing an option shows only that look. A choice drawn with one option visible starts
-      // on it and is never empty (TL5: Alert level, Public notice); one drawn all hidden starts
-      // with nothing shown (Live bug).
-      const choice = choiceOf(t.slug);
-      const option = (label: string) => air.locator(`[data-noacg-role~="choice.${choice.name.toLowerCase()}.option/${label}" i]`);
-      const only = async (label: string | null) => {
-        for (const o of choice.options) {
-          if (o === label) await expect(option(o), `${o} shows`).toHaveClass(/imported-design-on/);
-          else await expect(option(o), `${o} is hidden`).not.toHaveClass(/imported-design-on/);
-        }
-      };
-      // An option's button reads its name after the control's mark ("⚡ Replay").
-      const press = (label: string) => page.getByRole('button', { name: new RegExp(`^\\W*${label}$`) });
-      await only(choice.start);
-      const state = await fieldFor(air, choice.name);
-      const offered = await page.getByTestId(`cue-field-${state}`).locator('option').allTextContents();
-      expect(offered, 'the operator picks among the options, and an empty value only where the choice starts empty').toEqual(choice.start ? choice.options : ['-', ...choice.options]);
-      // Every option is a button of its own, greyed only while it is the one showing; the start
-      // stays live (data alone can show another option while the machine rests on the start).
-      for (const o of choice.options) await expect(press(o)).toBeEnabled();
-      for (const [i, o] of choice.options.filter((label) => label !== choice.start).entries()) {
-        await press(o).click();
-        await only(o);
-        await expect(press(o), `${o} is greyed while it shows`).toBeDisabled();
-        if (i === 0) await checkAir(page, air, `${t.slug}-2-${o.toLowerCase()}`);
-      }
-      // A value that names no option (a cue saved before the choice had a start, a host sending
-      // an empty level) shows the start: a choice that starts on an option is never empty.
-      if (choice.start) {
-        await air.locator('svg').first().evaluate((_, id) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [id]: '' })), state);
-        await only(choice.start);
-        await air.locator('svg').first().evaluate((_, id) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [id]: 'nothing-drawn' })), state);
-        await only(choice.start);
-        // A level sent as data while the machine rests on the start: the start's button brings it back.
-        await page.getByTestId('verb-out').click();
-        await page.getByTestId('verb-take').click();
-        const other = choice.options.find((o) => o !== choice.start)!;
-        await air.locator('svg').first().evaluate((_, v) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [v.id]: v.value })), { id: state, value: other.toLowerCase() });
-        await only(other);
-        await expect(press(choice.start)).toBeEnabled();
-        await press(choice.start).click();
-        await only(choice.start);
-      }
-      // ALERT LEVEL (AC-10): every level reads without colour and without flashing - its look
-      // carries the level's word, and nothing on it moves.
-      if (t.slug === 'alert-level') {
-        for (const o of choice.options) {
-          await press(o).click();
-          await expect(option(o).locator('text')).toHaveText(o.toUpperCase());
-          await expect(option(o).locator('text')).toBeVisible();
-          const still = await option(o).evaluate((el) => {
-            const nodes = [el, ...el.querySelectorAll('*')] as (Element & { noacgMove?: unknown })[];
-            return nodes.every((n) => !n.noacgMove && getComputedStyle(n).animationName === 'none');
-          });
-          expect(still, `${o}: no motion and no flashing`).toBe(true);
-        }
-      }
+      await walkChoice(page, air, t, choiceNames(t.slug)[0]);
       break;
     }
     case 'reveal': {
@@ -557,6 +623,33 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
         await expect(page.getByTestId(`cue-action-${slug}_show`)).toBeEnabled();
         await expect(role(air, 'secret')).toHaveClass(/imported-design-on/);
       }
+      break;
+    }
+    case 'alert': {
+      // POP-UP ALERT (author choice; TL5: Transition, Match event, Chat highlight): Next clears
+      // it; taken again, it holds, then clears itself.
+      const design = air.locator('.imported-design');
+      await expect(design).not.toHaveCSS('opacity', '0');
+      // HOLD ON AIR (Chat highlight): held, it outlasts the hold; Take it off clears it.
+      if (HELD.has(t.slug)) {
+        await page.getByTestId('cue-action-hold').click();
+        await expect(page.getByTestId('cue-action-hold'), 'Hold is greyed while held').toBeDisabled();
+        await page.waitForTimeout(9_500);
+        await expect(design, 'held past the eight-second hold').not.toHaveCSS('opacity', '0');
+        await page.getByTestId('cue-action-dismiss').click();
+        await expect(design).toHaveCSS('opacity', '0', { timeout: 5_000 });
+        await page.getByTestId('verb-out').click();
+        await page.getByTestId('verb-take').click();
+        await expect(design).not.toHaveCSS('opacity', '0');
+      } else {
+        await expect(page.getByTestId('cue-action-hold')).toHaveCount(0);
+      }
+      await page.getByTestId('verb-next').click();
+      await expect(design).toHaveCSS('opacity', '0', { timeout: 5_000 });
+      await page.getByTestId('verb-out').click();
+      await page.getByTestId('verb-take').click();
+      await expect(design).not.toHaveCSS('opacity', '0');
+      await expect(design).toHaveCSS('opacity', '0', { timeout: 20_000 });
       break;
     }
     case 'credits': {
@@ -623,7 +716,23 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       break;
     }
   }
-  await page.getByTestId('verb-out').click();
+  // BESIDE THE RECIPE (TL5: Scorebug, Match status): each drawn choice through its buttons, and a
+  // match clock that counts up from Start, holds on Pause and goes back on Reset.
+  if (t.recipe !== 'choice') for (const name of choiceNames(t.slug)) await walkChoice(page, air, t, name);
+  if (hasMatchClock(t)) {
+    const readout = air.locator('.imported-design-clock');
+    await expect(readout).toHaveAttribute('data-count', 'up');
+    await expect(readout).toHaveText('0:00');
+    await page.getByTestId('cue-action-clock_start').click();
+    await expect(readout).not.toHaveText('0:00', { timeout: 4_000 });
+    await page.getByTestId('cue-action-clock_pause').click();
+    const held = await readout.textContent();
+    await page.waitForTimeout(1_100);
+    await expect(readout).toHaveText(held!);
+    await page.getByTestId('cue-action-clock_reset').click();
+    await expect(readout).toHaveText('0:00');
+  }
+  if (t.recipe !== 'alert') await page.getByTestId('verb-out').click();
   page.off('pageerror', onError);
   expect(errors, `${t.name}: no page errors`).toEqual([]);
 }
@@ -668,11 +777,14 @@ function serveOgrafFiles(page: Page, origin: string, files: Record<string, strin
 // template still walked whole and checked on air exactly as before, so a batch shares one
 // browser page instead of one test per template. A batch holds what fits the 120 s ceiling.
 const BATCH = 5;
+// A score walk presses +1 up to 100, so three scoreboards fill a batch.
+const BATCH_OF: Record<string, number> = { score: 3 };
 const routeOf = (t: Template) => t.recipe ?? (t.contract ? `contract:${t.contract}` : pictureSlots(t.slug).length ? 'pictures' : 'plain');
 const batches: { label: string; items: Template[] }[] = [];
 for (const route of [...new Set(templates.map(routeOf))]) {
   const items = templates.filter((t) => routeOf(t) === route);
-  for (let i = 0; i < items.length; i += BATCH) batches.push({ label: route, items: items.slice(i, i + BATCH) });
+  const size = BATCH_OF[route] ?? BATCH;
+  for (let i = 0; i < items.length; i += size) batches.push({ label: route, items: items.slice(i, i + size) });
 }
 
 for (const { label, items } of batches) {
@@ -906,7 +1018,7 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
 // choice that starts on the option drawn visible and is never empty. Each package is loaded as its
 // host loads it and driven as its host drives it (update and play; the overlay plays its baked
 // data; OGraf and LiveOS load, playAction and updateAction).
-test('Vote results with counts, Poll result, Alert level and Winner card: the count, the typed figures, the starting level and the reveal play in every export target', async ({ page, context }) => {
+test('Vote results with counts, Poll result, Alert level, Winner card and Scorebug: the count, the typed figures, the starting level, the reveal and a choice beside the score play in every export target', async ({ page, context }) => {
   test.setTimeout(120_000);
   type Look = { lit: boolean; text: string } | null;
   const targets = ['spx', 'casparcg', 'h2r', 'html-overlay', 'ograf', 'liveos'];
@@ -1067,5 +1179,109 @@ test('Vote results with counts, Poll result, Alert level and Winner card: the co
     const seen = await play(id, alertPackages[id], {}, { [alert.ids.Level]: 'emergency' }, levels);
     expect(lit(seen.first), `${id}: the band starts on Advisory`).toEqual([levels[0]]);
     if (id !== 'html-overlay') expect(lit(seen.second), `${id}: Emergency sent as data shows alone`).toEqual([levels[3]]);
+  }
+
+  // Scorebug: a choice beside a full recipe (the score) and a match clock, one table and one
+  // runtime: it starts on First, and Interval sent as data shows alone.
+  const bug = await prepare('scorebug', ['Period']);
+  const periods = ['FIRST', 'INTERVAL', 'SECOND'].map((key) => `choice.period.option/${key}`);
+  const bugPackages = await exportPackages(page, bug.production, {});
+  for (const id of targets) {
+    const seen = await play(id, bugPackages[id], {}, { [bug.ids.Period]: 'interval' }, periods);
+    expect(lit(seen.first), `${id}: the bug starts on First`).toEqual([periods[0]]);
+    if (id !== 'html-overlay') expect(lit(seen.second), `${id}: Interval sent as data shows alone`).toEqual([periods[1]]);
+  }
+});
+
+// TL5 group 5 (AC-7): Clear is data (the choice's field set empty), so every host clears a verdict;
+// Hold on air and Take it off are operator events, which OGraf and LiveOS offer as a custom action and a page
+// host receives through NoaCG's own control channel (`noacgDispatch`, what the Control panel sends).
+test('Verdict card and Chat highlight: Clear and Hold on air play in every export target', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const targets = ['spx', 'casparcg', 'h2r', 'html-overlay', 'ograf', 'liveos'];
+  const prepare = async (slug: string, titles: string[]) => {
+    const t = templates.find((entry) => entry.slug === slug)!;
+    await importTemplate(page, t);
+    await page.getByTestId('verb-take').click();
+    const air = page.frameLocator('[data-testid="program-stage"] iframe');
+    const ids: Record<string, string> = {};
+    for (const title of titles) ids[title] = await fieldFor(air, title);
+    await page.getByTestId('verb-out').click();
+    return { production: `${t.name} template`, ids };
+  };
+  type Host = { lit(names: string[]): Promise<string[]>; shown(): Promise<boolean>; update(d: Record<string, string>): Promise<void>; event(name: string): Promise<void>; close(): Promise<void> };
+  /** Load one package as its host does and play it with `data`. */
+  const host = async (id: string, files: Record<string, string>, data: Record<string, string>): Promise<Host> => {
+    if (id === 'ograf' || id === 'liveos') {
+      const origin = `http://${id}-${Math.random().toString(36).slice(2, 8)}.local/`;
+      const tag = `g5-${origin.replace(/\W/g, '')}`;
+      await serveOgrafFiles(page, origin, files);
+      await installGraphicBody(page);
+      await page.evaluate(async ({ origin, tag, data }) => {
+        const mod = await import(`${origin}graphic.mjs`);
+        customElements.define(tag, mod.default);
+        const el = document.createElement(tag) as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown> };
+        el.id = tag;
+        document.body.appendChild(el);
+        await el.load({ data, renderType: 'realtime', renderCharacteristics: {} });
+        await el.playAction({});
+      }, { origin, tag, data });
+      type El = HTMLElement & { updateAction(p: unknown): Promise<unknown>; customAction(p: unknown): Promise<unknown>; dispose(): Promise<unknown> };
+      return {
+        lit: (names) => page.evaluate(({ tag, names }) => names.filter((n) => graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${n}"]`)?.classList.contains('imported-design-on')), { tag, names }),
+        shown: () => page.evaluate((tag) => getComputedStyle(graphicBody(document.getElementById(tag)!).querySelector('.imported-design')!).opacity !== '0', tag),
+        update: (d) => page.evaluate(({ tag, d }) => (document.getElementById(tag) as El).updateAction({ data: d }).then(() => undefined), { tag, d }),
+        event: (name) => page.evaluate(({ tag, name }) => (document.getElementById(tag) as El).customAction({ id: name, payload: {} }).then(() => undefined), { tag, name }),
+        close: () => page.evaluate((tag) => (document.getElementById(tag) as El).dispose().then(() => undefined), tag),
+      };
+    }
+    const view = await context.newPage();
+    await view.setContent(inlined(files), { waitUntil: 'load' });
+    const w = (fn: string, arg?: unknown) => view.evaluate(({ fn, arg }) => (window as unknown as Record<string, (a?: unknown) => void>)[fn](arg), { fn, arg });
+    if (id !== 'html-overlay') {
+      await w('update', JSON.stringify(data));
+      await w('play');
+    }
+    return {
+      lit: (names) => view.evaluate((names) => names.filter((n) => document.querySelector(`[data-noacg-role~="${n}"]`)?.classList.contains('imported-design-on')), names),
+      shown: () => view.evaluate(() => getComputedStyle(document.querySelector('.imported-design')!).opacity !== '0'),
+      update: (d) => w('update', JSON.stringify(d)),
+      event: (name) => w('noacgDispatch', name),
+      close: () => view.close(),
+    };
+  };
+
+  // Verdict card: a verdict sent as data shows alone, and the empty value (Clear's) takes it away.
+  const verdict = await prepare('verdict-card', ['Verdict']);
+  const looks = ['TRUE', 'FALSE', 'MISLEADING'].map((key) => `choice.verdict.option/${key}`);
+  const verdictPackages = await exportPackages(page, verdict.production, { [verdict.ids.Verdict]: 'false' });
+  for (const id of targets) {
+    const h = await host(id, verdictPackages[id], { [verdict.ids.Verdict]: 'false' });
+    await expect.poll(() => h.lit(looks), { message: `${id}: False shows alone` }).toEqual([looks[1]]);
+    if (id !== 'html-overlay') {
+      await h.update({ [verdict.ids.Verdict]: '' });
+      await expect.poll(() => h.lit(looks), { message: `${id}: cleared` }).toEqual([]);
+    }
+    await h.close();
+  }
+
+  // Chat highlight: unheld it clears itself after the eight seconds in every host (SPX, OGraf and
+  // the overlay, one of each kind of package); held (CasparCG, H2R, LiveOS) it stays up past them,
+  // and Take it off (`dismiss`) then clears it.
+  const chat = await prepare('chat-highlight', []);
+  const chatPackages = await exportPackages(page, chat.production, {});
+  const held = new Set(['casparcg', 'h2r', 'liveos']);
+  const hosts = await Promise.all(targets.map(async (id) => [id, await host(id, chatPackages[id], {})] as const));
+  for (const [id, h] of hosts) await expect.poll(() => h.shown(), { message: `${id}: on air` }).toBe(true);
+  await page.waitForTimeout(1_000);              // the entrance settles: Hold leaves the on-air state
+  for (const [id, h] of hosts) if (held.has(id)) await h.event('hold');
+  await page.waitForTimeout(9_500);
+  for (const [id, h] of hosts) expect(await h.shown(), held.has(id) ? `${id}: held past the eight seconds` : `${id}: clears itself`).toBe(held.has(id));
+  for (const [id, h] of hosts) {
+    if (held.has(id)) {
+      await h.event('dismiss');
+      await expect.poll(() => h.shown(), { message: `${id}: Take it off clears it` }).toBe(false);
+    }
+    await h.close();
   }
 });

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Agenda</title>
+  <desc>NoaCG Clean Studio template. An agenda in the middle: a Title and four rows, each a Time and a Session.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="460" y="200" width="1000" height="620" rx="20" fill="#FFFFFF"/>
+    <rect id="Session_box_1" inkscape:label="Session box 1" x="500" y="310" width="920" height="96" rx="14" fill="#EEF1F6"/>
+    <rect id="Session_box_2" inkscape:label="Session box 2" x="500" y="430" width="920" height="96" rx="14" fill="#EEF1F6"/>
+    <rect id="Session_box_3" inkscape:label="Session box 3" x="500" y="550" width="920" height="96" rx="14" fill="#EEF1F6"/>
+    <rect id="Session_box_4" inkscape:label="Session box 4" x="500" y="670" width="920" height="96" rx="14" fill="#EEF1F6"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" x="500" y="268" text-anchor="start" font-size="30" font-weight="800" fill="#2E5BFF" letter-spacing="2">TODAY</text>
+    <text id="Time_1" inkscape:label="Time 1" x="540" y="370" text-anchor="start" font-size="30" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">09:00</text>
+    <text id="Session_1" inkscape:label="Session 1" x="700" y="370" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">Welcome and keynote</text>
+    <text id="Time_2" inkscape:label="Time 2" x="540" y="490" text-anchor="start" font-size="30" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">10:30</text>
+    <text id="Session_2" inkscape:label="Session 2" x="700" y="490" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">Panel: the next decade</text>
+    <text id="Time_3" inkscape:label="Time 3" x="540" y="610" text-anchor="start" font-size="30" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">13:00</text>
+    <text id="Session_3" inkscape:label="Session 3" x="700" y="610" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">Lunch</text>
+    <text id="Time_4" inkscape:label="Time 4" x="540" y="730" text-anchor="start" font-size="30" font-weight="700" fill="#5B6478" style="font-variant-numeric: tabular-nums">14:00</text>
+    <text id="Session_4" inkscape:label="Session 4" x="700" y="730" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">Workshops</text>
+  </g>
+</svg>

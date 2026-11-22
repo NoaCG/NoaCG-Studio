@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Verdict card</title>
+  <desc>NoaCG Clean Studio template. A fact check on the right: the Claim and its Source, and a Verdict choice with three drawn stamps, True, False and Misleading, all hidden so the card starts with no verdict; Clear takes the verdict away again.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="1180" y="300" width="620" height="400" rx="20" fill="#FFFFFF"/>
+    <text inkscape:label="static:Fact check" x="1236" y="370" text-anchor="start" font-size="22" font-weight="800" fill="#2E5BFF" letter-spacing="2" font-family="Manrope, sans-serif">FACT CHECK</text>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="choice_x3A_Verdict_x2F_True" inkscape:label="choice:Verdict/True" style="display:none">
+      <rect x="1236" y="598" width="520" height="72" rx="12" fill="#1F9D55"/>
+      <text inkscape:label="static:True" x="1496" y="647" text-anchor="middle" font-size="32" font-weight="800" fill="#FFFFFF" letter-spacing="4" font-family="Manrope, sans-serif">TRUE</text>
+    </g>
+    <g id="choice_x3A_Verdict_x2F_False" inkscape:label="choice:Verdict/False" style="display:none">
+      <rect x="1236" y="598" width="520" height="72" rx="12" fill="#E5484D"/>
+      <text inkscape:label="static:False" x="1496" y="647" text-anchor="middle" font-size="32" font-weight="800" fill="#FFFFFF" letter-spacing="4" font-family="Manrope, sans-serif">FALSE</text>
+    </g>
+    <g id="choice_x3A_Verdict_x2F_Misleading" inkscape:label="choice:Verdict/Misleading" style="display:none">
+      <rect x="1236" y="598" width="520" height="72" rx="12" fill="#E0A11A"/>
+      <text inkscape:label="static:Misleading" x="1496" y="647" text-anchor="middle" font-size="32" font-weight="800" fill="#0F1729" letter-spacing="4" font-family="Manrope, sans-serif">MISLEADING</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Claim" x="1236" y="450" text-anchor="start" font-size="40" font-weight="800" fill="#0F1729">Bus fares go up in May</text>
+    <text id="Source" x="1236" y="520" text-anchor="start" font-size="26" font-weight="600" fill="#5B6478">Said on the morning show</text>
+  </g>
+</svg>

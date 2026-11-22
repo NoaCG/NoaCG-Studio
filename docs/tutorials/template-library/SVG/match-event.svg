@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Match event</title>
+  <desc>NoaCG Clean Studio template. A pop-up card for one moment of a match: the Event word on a blue tile, the Player and a Detail line. Choose Pop-up alert at import: it plays, holds for eight seconds and clears itself; Next clears it sooner.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="80" y="780" width="720" height="180" rx="20" fill="#FFFFFF"/>
+    <rect id="Event_box" inkscape:label="Event box" x="80" y="780" width="220" height="180" rx="20" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Event" x="190" y="885" text-anchor="middle" font-size="44" font-weight="800" fill="#FFFFFF" letter-spacing="3">GOAL</text>
+    <text id="Player" x="336" y="862" text-anchor="start" font-size="40" font-weight="800" fill="#0F1729">Sam Lindqvist</text>
+    <text id="Detail" x="336" y="916" text-anchor="start" font-size="26" font-weight="600" fill="#5B6478">North, 67th minute</text>
+  </g>
+</svg>
