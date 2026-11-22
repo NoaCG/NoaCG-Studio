@@ -371,5 +371,9 @@ test('a choice that starts on an option is never empty, and compiles to a table 
   assert.deepEqual(empty.fields.find((f) => f.label === 'Level').options.map((o) => o.value), ['', 'advisory', 'watch', 'warning']);
   const tableOf = (js) => JSON.parse(js.slice(js.indexOf('{', js.indexOf('var NOACG_BEHAVIOUR = ')), js.indexOf('\n};\n', js.indexOf('var NOACG_BEHAVIOUR = ')) + 2));
   assert.equal('options' in tableOf(compileBinding([], binding()).js()), false, 'a choice without a start emits no options key');
-  assert.deepEqual(tableOf(compileBinding([], binding({ initial: 'ADVISORY' })).js()).options, { 'choice.level.initial': 'ADVISORY' });
+  const startedTable = tableOf(compileBinding([], binding({ initial: 'ADVISORY' })).js());
+  assert.deepEqual(startedTable.options, { 'choice.level.initial': 'ADVISORY' });
+  // The field's kind names the start, so a value naming no row (a cue saved before) picks it.
+  assert.equal(Object.values(startedTable.kinds).find((k) => k.kind === 'row-pick').start, 'ADVISORY');
+  assert.equal('start' in Object.values(tableOf(compileBinding([], binding()).js()).kinds).find((k) => k.kind === 'row-pick'), false);
 });
