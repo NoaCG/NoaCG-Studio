@@ -531,4 +531,8 @@ again.
 switch check after it could not reach staging (04:39). Staging may again have `production_copies`
 on and the other three off; restoring it needs one `p9r-switches.ts` run once staging answers.
 
+**Restored, 2026-11-22 05:44 UTC** ([44990564455](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44990564455)):
+found `production_copies` on and the other three off; set all four off and read them back off
+(`sw-final-switches-*.json`). Staging stands as this measurement found it: all four off.
+
 UTC time of the last run's end: 2026-11-22 04:39.
