@@ -494,3 +494,15 @@ the countdown stays issue #2699.
 - `tsc`, `eslint` on changed files, `check-copy`, `check-e2e-protection --changed origin/main`
   (svg-templates 28 -> 30 tests), `e2e-capacity --changed origin/main` (standing warnings only):
   pass. README.pdf reprinted (14 pages).
+- `/check`: review delegated (high), seven findings, all fixed. Product: a key on an emptied
+  quiz row still marked the rows in use Wrong (Q2a, `inUse` in the row-pick kind); a listed tier
+  line without a label or figure kept the old text (M3a, `has-label`, `has-amount`); a two-line
+  drawn label joined into one word (M2a). Nits: one line per drawn tier, a bar sign in a label,
+  "1 row", entities read once. Simplify (four angles, delegated): drawn text read on demand
+  (no stored map), "in use" decided in one place so the verdict rules are the quiz's own, the
+  lifted export helpers called directly, small duplicates removed. Not changed: sharing the XML
+  entity decoder with `src/control/fileSource.ts` (a templates-to-control import edge) and
+  merging the two host branches of the e2e driver (style only). After the fixes: `behaviour-reads`
+  22, gates 20 files 222 tests, the browser cases 4 passed (40.2 s), the browser-backed harnesses
+  as above with the same four environment records; pins re-taken on the final runtime and the
+  swap check repeated (main's credits test 50 of 50 with main's runtime swapped in).
