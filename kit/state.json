@@ -34,16 +34,17 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2693 (fix #2691) through the merge queue",
-   "eta": "2026-11-22T11:15:00Z"
+   "what": "TL1o checker verdict",
+   "eta": "2026-11-22T12:00:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL1o",
-  "step": "agent round trip done: FAIL at step 6 (#2691); evidence PR #2692 queued; fix in progress",
-  "agent": "session_017SdbwQNvZxeWHBhQbe3W8Q",
-  "evidencePr": 2692,
-  "asOf": "2026-11-22T09:43Z"
+  "step": "check",
+  "session": "session_017SdbwQY9xSNw3tcpyzC9cr",
+  "nonce": "tl1o-c-d33b",
+  "merge": "60a92df384015ac6abf4273e3bbe56a081cca0a0",
+  "asOf": "2026-11-22T10:38:16Z"
  },
  "owner": [
   {
@@ -62,7 +63,7 @@
    "alsoReruns": "TL1o round trip; appends Re-run section to evidence/phase-TL1o.md",
    "pr": 2693,
    "head": "9fbf1e591202ee88e7c3135358d3ed9a93d1d6ef",
-   "state": "queued 10:24:23Z; Ordinary; Codex clean; TL1o re-run clean (j-0004)",
+   "state": "landed 60a92df384015ac6abf4273e3bbe56a081cca0a0 (PR 2693); closes #2691",
    "tl8Check": "Percent figures end at the track right end after Show result and Call the winner; left-drawn labels start where drawn"
   }
  ],
