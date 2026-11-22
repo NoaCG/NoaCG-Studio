@@ -721,31 +721,38 @@ function noacgPop(el) {
 
 // noacgMove(el, move, appeared): a look's own motion while it shows (\`enter\` pulse or flash).
 // A PULSE runs while its rule holds and stops, back to the drawn look, the moment it does not:
-// one slow beat a second, never a strobe. A FLASH plays once, when the look appears, and leaves
-// the look at rest. GSAP rather than CSS, so a renderer that drives time (an OGraf seek) lands on
-// the same frame; a reader who asked for reduced motion gets the look with neither.
+// one beat a second whatever the graphic's speed, because its rate is the safe one (never a
+// strobe). A FLASH plays once, when the look appears, at the graphic's speed, and leaves the look
+// at rest. GSAP rather than CSS, so a renderer that drives time (an OGraf seek) lands on the same
+// frame; a reader who asked for reduced motion gets the look with neither.
 function noacgMotionReduced() {
   try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
 }
 function noacgMove(el, move, appeared) {
   if (typeof gsap === 'undefined') return;
   var now = el.noacgMove || null;
-  // A pulse someone else killed (a renderer's measuring pass kills every tween) starts again.
-  if (now && now.name === move && (move === 'pulse' ? now.tween.isActive() : !appeared)) return;
+  // A pulse someone else killed (a renderer's measuring pass kills every tween) starts again;
+  // one still on the timeline runs on, paused host or not.
+  if (now && now.name === move && (move === 'pulse' ? gsap.getTweensOf(el).indexOf(now.tween) !== -1 : !appeared)) return;
   if (now) {
     now.tween.kill();
-    gsap.set(el, { clearProps: 'opacity,transform' });
+    gsap.set(el, { clearProps: now.name === 'flash' ? 'opacity,transform' : 'opacity' });
+    // Clearing GSAP's transform takes the attribute with it: put back the position the markup
+    // gave the look (Illustrator writes a text's place as its transform).
+    if (now.drawn !== null && now.drawn !== undefined) el.setAttribute('transform', now.drawn);
     el.noacgMove = null;
   }
   if (!move || noacgMotionReduced()) return;
   if (move === 'pulse') {
     el.noacgMove = { name: move, tween: gsap.fromTo(el, { opacity: 1 }, { opacity: 0.35, duration: 0.5, ease: 'sine.inOut', yoyo: true, repeat: -1 }) };
   } else if (move === 'flash' && appeared) {
+    var speed = motionSpeed();
     el.noacgMove = {
       name: move,
+      drawn: el.getAttribute('transform'),
       tween: gsap.timeline()
-        .fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.12, ease: 'none' }, 0)
-        .fromTo(el, { scale: 1.18, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.6, ease: 'power3.out' }, 0)
+        .fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.12 / speed, ease: 'none' }, 0)
+        .fromTo(el, { scale: 1.18, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.6 / speed, ease: 'power3.out' }, 0)
     };
   }
 }

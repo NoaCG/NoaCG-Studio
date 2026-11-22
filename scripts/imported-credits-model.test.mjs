@@ -654,8 +654,8 @@ const sha = (o) => hash(JSON.stringify(o));
 // line (importedDesign/behaviourReads.ts); nothing else in these builds moved. The role-above and
 // faced pins below were re-taken for the same line.
 const PINS = {
-  editable: '559b96bd837e1285',
-  artwork: '0b92865102b0044f',
+  editable: 'd00fed6364ea3cc1',
+  artwork: 'e1805de47bff97ad',
   'fixed:credits-1': 'a375c013f03f5797',
   'fixed:credits-2': '178b1f229ed3f8a5',
   'fixed:credits-3': 'd3ecb7f6b853334b',
@@ -1067,7 +1067,7 @@ test('#1955: the editable roll\'s list holder keeps its line breaks through the 
  *  when the title began rolling with the list: the roll's js gains creditsRiders, creditsTitle
  *  (the list's first line in the drawn title's look) and the parser its comma rule, html and css
  *  unchanged; e2e/svg-templates.spec.ts walks the roll. */
-const ROLE_ABOVE_PINS = { one: '54147b00bc2dc4e4', bold: 'a2c06f68be9ae628', grouped: '99a142101f4e2d16', roleGroup: 'fc72741cecbfd86f', idGroup: 'c09fe191bf60ce64' };
+const ROLE_ABOVE_PINS = { one: '97579ff381162fe5', bold: '9a582952555cb4c7', grouped: 'a5eecc142e2d7d32', roleGroup: '54667b0120a6538f', idGroup: 'f1a34aeedf6cee11' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1081,7 +1081,7 @@ test('row 20: role-above styled credits build exactly as row 19 built them', () 
  *  Both re-taken for #2098 and the styled one for #2108 and #2104, as the pins above, and both
  *  for #1795 (the shared interpreter only), and both for the comma rule and the styled one for
  *  creditsRiders and creditsTitle, as the pins above. */
-const FACED_PINS = { styled: 'e43c84645432aadc', editable: '09049e6f03f2207b' };
+const FACED_PINS = { styled: '537569c4061299e2', editable: '137cef6899e0393a' };
 
 test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
   for (const k of ['styled', 'editable']) {

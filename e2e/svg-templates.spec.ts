@@ -627,11 +627,15 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
       own: validateOgrafOfflineCompatibility(template).errors,
       fetched: validateOgrafOfflineCompatibility({ ...template, html: template.html.replace('</svg>', '<image href="https://example.com/a.png"/></svg>') }).errors,
       lookalike: validateOgrafOfflineCompatibility({ ...template, js: `${template.js}\nvar u = 'http://www.w3.org/2000/svg.example.com/x';` }).errors,
+      inkscape: validateOgrafOfflineCompatibility({ ...template, html: template.html.replace('<svg ', '<svg xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" ') }).errors,
+      credits: validateOgrafOfflineCompatibility({ ...template, js: `${template.js}\nfunction noacgCreditsRoll() {}` }).errors,
     };
   }, `${t.name} template`);
   expect(gate.own, 'the imported countdown may be sought').toEqual([]);
   expect(gate.fetched).toContain('External network dependencies are not available during deterministic rendering.');
   expect(gate.lookalike).toContain('External network dependencies are not available during deterministic rendering.');
+  expect(gate.inkscape, 'any namespace an editor declares is a name').toEqual([]);
+  expect(gate.credits).toContain('An imported credits roll starts once its fonts have loaded, which a seek cannot replay; export it for live use.');
 
   /** One package's graphic page with its own css and js inlined, as its folder would serve it. */
   const inlined = (files: Record<string, string>) => {
