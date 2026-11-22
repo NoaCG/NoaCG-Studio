@@ -1,9 +1,9 @@
 // gate: factory
 // needs: browser
-// guards: src/templates/importedDesign/**, src/templates/behaviours/**, src/blocks/behaviourData.ts, src/validation/validateTemplate.ts, src/model/importTemplate.ts, src/components/wizard/import/draft.ts, src/preview/composeDocument.ts, e2e/fixtures/pre-tl2/**, e2e/fixtures/illustrator-exports/live-vote.svg
+// guards: src/templates/importedDesign/**, src/templates/behaviours/**, src/blocks/behaviourData.ts, src/validation/validateTemplate.ts, src/model/importTemplate.ts, src/components/wizard/import/draft.ts, src/preview/composeDocument.ts, scripts/fixtures/pre-tl2/**, e2e/fixtures/illustrator-exports/live-vote.svg
 //
 // GRAPHICS AND EXPORTS MADE BEFORE THE SVG TEMPLATE LIBRARY PLAN KEEP WORKING (svg-template-library
-// TL2, AC-9; spec Rules C7 and C8). The fixtures in e2e/fixtures/pre-tl2 are committed bytes, built
+// TL2, AC-9; spec Rules C7 and C8). The fixtures in scripts/fixtures/pre-tl2 are committed bytes, built
 // at df0c7a0 (the last main before the plan) and never regenerated: an imported live vote and an
 // imported countdown, and the vote's downloaded package (SPX and OGraf in one folder).
 //
@@ -36,9 +36,9 @@ const SPECS = [
   { entry: entry('validation/validateTemplate.ts'), globalName: 'NOACG_VALIDATE' },
   { entry: entry('templates/importedDesign/behaviourReads.ts'), globalName: 'NOACG_READS' },
 ];
-const VOTE = JSON.parse(readFileSync(at('e2e/fixtures/pre-tl2/vote.json'), 'utf8'));
-const COUNTDOWN = JSON.parse(readFileSync(at('e2e/fixtures/pre-tl2/countdown.json'), 'utf8'));
-const PACKAGE = readFileSync(at('e2e/fixtures/pre-tl2/vote-package.zip'));
+const VOTE = JSON.parse(readFileSync(at('scripts/fixtures/pre-tl2/vote.json'), 'utf8'));
+const COUNTDOWN = JSON.parse(readFileSync(at('scripts/fixtures/pre-tl2/countdown.json'), 'utf8'));
+const PACKAGE = readFileSync(at('scripts/fixtures/pre-tl2/vote-package.zip'));
 const BOARD = readFileSync(at('e2e/fixtures/illustrator-exports/live-vote.svg'), 'utf8');
 
 /** The edited artwork: a badge drawn in front of every field (so the build numbers it first and

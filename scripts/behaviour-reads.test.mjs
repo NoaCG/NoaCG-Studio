@@ -1,4 +1,4 @@
-// guards: src/templates/importedDesign/behaviourReads.ts, src/templates/importedDesign/behaviourRuntime.ts, src/templates/importedDesign/behaviour.ts, src/templates/behaviours/**, src/blocks/behaviourData.ts, src/validation/validateTemplate.ts, e2e/fixtures/pre-tl2/**
+// guards: src/templates/importedDesign/behaviourReads.ts, src/templates/importedDesign/behaviourRuntime.ts, src/templates/importedDesign/behaviour.ts, src/templates/behaviours/**, src/blocks/behaviourData.ts, src/validation/validateTemplate.ts, scripts/fixtures/pre-tl2/**
 //
 // WHAT A BEHAVIOUR RUNTIME READS, AND THE CHECK THAT REFUSES MORE (svg-template-library TL2,
 // spec Rules C1-C7). In Node, over the real modules:
@@ -38,7 +38,7 @@ const { compileBinding } = await load('src/templates/importedDesign/behaviour.ts
 const { BEHAVIOUR_RECIPES } = await load('src/templates/behaviours/registry.ts');
 const { validateTemplate } = await load('src/validation/validateTemplate.ts');
 
-const frozen = (name) => JSON.parse(readFileSync(path.join(root, `e2e/fixtures/pre-tl2/${name}.json`), 'utf8'));
+const frozen = (name) => JSON.parse(readFileSync(path.join(root, `scripts/fixtures/pre-tl2/${name}.json`), 'utf8'));
 const VOTE = frozen('vote');
 const COUNTDOWN = frozen('countdown');
 
