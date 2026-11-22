@@ -434,6 +434,25 @@ Actions. OW: the owner, with Illustrator on their own computer.
 
 ### TL2 (runtime compatibility)
 
+- Previous verified `main`: `60a92df384015ac6abf4273e3bbe56a081cca0a0`. Revert: `git revert -m 1 <the TL2 merge commit>`.
+- Evidence: `evidence/phase-TL2.md`.
+- For TL4, TL5 and TL6: a new word the runtime reads (a kind, a fact, a derivation, a kind spec
+  key, a rule key or value, a table version) is one `READS_ADDED` entry in
+  `src/templates/importedDesign/behaviourReads.ts`, in the commit that teaches the runtime. TL5's
+  per-option count is `derive:share.count` (already pinned as refused under the frozen vote);
+  TL4's countdown effect is a new rule key or `enter` value. `scripts/behaviour-reads.test.mjs`
+  fails until READS and the kind code agree, and every recipe and option must compile to a table
+  its own runtime reads. A runtime fix that adds no word needs nothing there.
+- Decisions: the declaration is emitted in every behaviour graphic (one line of JSON) rather than
+  a version number, so a saved graphic says itself what it reads and the build keeps no history
+  table; `READS_ADDED` is additive by construction. A runtime emitted without the clock tick does
+  not list `clock`. `axis` on a gauge rule was never read by any runtime and no recipe emits it,
+  so a hand edit using it is refused. The fixtures live in `scripts/fixtures/pre-tl2` (under
+  `e2e/fixtures` they would select the whole configured set with no spec reading them).
+- Trap: the emit pins move whenever the runtime text moves (`svg-corpus-passes.json` emit `js`,
+  `jev-svg-baseline.test.mjs` `appearance.js`). Re-record only the `js` hashes the change moves;
+  a local Chromium other than the recorded one also differs in html, inventory and runtime
+  records, and a control on `origin/main` shows the same.
 - Rules (state rules this phase sets, written before any code and corrected by the Rules-first
   `/so` on a297952, AGREE WITH CORRECTIONS; the PR repeats them):
   - C1. A behaviour table's VOCABULARY is every word it asks a runtime to read, read off the raw
