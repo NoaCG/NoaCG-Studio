@@ -700,7 +700,7 @@ Group 3: Q&A card and Nominee reveal.
 
 Group 4: Scorebug, Match status, Match board, Esports score, Transition, Match event.
 
-- Previous verified `main`: set at queue time. Revert: `git revert -m 1 <the TL5 group 4 merge commit>`.
+- Previous verified `main`: `f772fa22633d2c0f77947462fe4f613e9be8ad66` (group 3, #2706, merged). Revert: `git revert -m 1 <the TL5 group 4 merge commit>`.
 - Mechanism: existing recipes. The score recipe gives +1, -1, the flash and Full time; a
   `choice:` beside it gives the scorebug's period (interval and resume as buttons) and the match
   status; a count-up clock beside it is the match clock; the period breakdown, format and map are
