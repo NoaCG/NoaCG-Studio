@@ -68,7 +68,7 @@
  "fixes": [],
  "triggers": {
   "checkin": "trig_01UK36vzA9nETzkPrfuYeaeG",
-  "at": "2026-11-22T00:25:00Z"
+  "at": "2026-11-22T04:30:00Z (long fallback while the owner answer is owed)"
  },
  "heartbeat": {
   "issue": 2678,
