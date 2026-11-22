@@ -193,6 +193,12 @@ async function importTemplate(page: Page, t: Template) {
     await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(t.recipe ? kind[t.recipe] ?? t.recipe : 'none');
     await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
   }
+  // A POLL RESULT is the vote recipe with its typed figures shown from the take: the author's
+  // choice at import (library README), recorded here as the box the author ticks.
+  if (t.slug === 'poll-result') {
+    await expect(page.getByTestId('map-svg-poll-figures')).not.toBeChecked();
+    await page.getByTestId('map-svg-poll-figures').check();
+  }
   if (t.recipe === 'clock') {
     await expect(page.getByTestId('map-svg-clock-mode')).toHaveValue('none');
     await page.getByTestId('map-svg-clock-mode').selectOption('duration');
@@ -308,8 +314,28 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       break;
     }
     case 'vote': {
-      // Voting open: the badge shows, the bars follow the counts, the figures wait for the result.
       const options = await fieldFor(air, 'Options');
+      // POLL RESULT (AC-5, its own case beside Live vote and Vote results): the operator types the
+      // question and the rows, and the board shows them at once, figures included, with no press.
+      if (t.slug === 'poll-result') {
+        await page.getByTestId(`cue-field-${await fieldFor(air, 'Question')}`).fill('Which day suits the final?');
+        await page.getByTestId(`cue-field-${options}`).fill('Saturday | 62\nSunday | 27\nFriday | 11');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'question')).toHaveText('Which day suits the final?');
+        await expect(role(air, 'option/2')).toHaveText('Sunday');
+        await expect(role(air, 'percent/1')).toHaveText('62%');
+        for (const n of [1, 2, 3]) await expect(role(air, `percent/${n}`)).toHaveClass(/imported-design-on/);
+        const barOf = (n: number) => role(air, `bar/${n}`).evaluate((el) => el.getBoundingClientRect().width);
+        await expect.poll(async () => (await barOf(1)) / Math.max(1, await barOf(3)), { message: 'Saturday is drawn about 62 to 11 against Friday' }).toBeCloseTo(62 / 11, 0);
+        await checkAir(page, air, `${t.slug}-2-typed`);
+        // A new set of rows replaces the figures on air, still with no press.
+        await page.getByTestId(`cue-field-${options}`).fill('Saturday | 1\nSunday | 3');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'percent/2')).toHaveText('75%');
+        await expect(role(air, 'percent/3')).toHaveText('0%');
+        break;
+      }
+      // Voting open: the badge shows, the bars follow the counts, the figures wait for the result.
       await page.getByTestId(`cue-field-${options}`).fill('Coast | 3\nForest | 1\nCity | 0\nMountains | 0');
       await page.getByTestId('verb-update').click();
       await expect(role(air, 'option/1')).toHaveText('Coast');
@@ -830,7 +856,7 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
 // choice that starts on the option drawn visible and is never empty. Each package is loaded as its
 // host loads it and driven as its host drives it (update and play; the overlay plays its baked
 // data; OGraf and LiveOS load, playAction and updateAction).
-test('Vote results with counts and Alert level: the count and the starting level play in every export target', async ({ page, context }) => {
+test('Vote results with counts, Poll result and Alert level: the count, the typed figures and the starting level play in every export target', async ({ page, context }) => {
   test.setTimeout(120_000);
   type Look = { lit: boolean; text: string } | null;
   const targets = ['spx', 'casparcg', 'h2r', 'html-overlay', 'ograf', 'liveos'];
@@ -913,6 +939,15 @@ test('Vote results with counts and Alert level: the count and the starting level
       'count/2': { lit: true, text: '1' },
       'percent/1': { lit: true, text: '75%' },
     });
+  }
+
+  // Poll result: typed rows show their figures from the start, with Live figures left as built.
+  const poll = await prepare('poll-result', ['Options']);
+  const pollData = { [poll.ids.Options]: 'Saturday | 3\nSunday | 1' };
+  const pollPackages = await exportPackages(page, poll.production, pollData);
+  for (const id of targets) {
+    const seen = await play(id, pollPackages[id], pollData, null, ['percent/1', 'percent/2']);
+    expect(seen.first, `${id}: the typed figures show at once`).toEqual({ 'percent/1': { lit: true, text: '75%' }, 'percent/2': { lit: true, text: '25%' } });
   }
 
   // Alert level: it starts on Advisory with nothing sent, and a level sent as data shows alone.

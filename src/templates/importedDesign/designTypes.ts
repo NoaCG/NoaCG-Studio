@@ -252,6 +252,9 @@ export interface DesignSvgPollBehaviour {
   /** The drawn VOTE NOW badge — shown while voting is open, hidden the moment it closes.
    *  This one IS the quiz's drawn-state model (plan §4, L2) reused unchanged. */
   badge?: string;
+  /** `figures`: a POLL RESULT (svg-template-library TL5), whose typed figures show from the take.
+   *  Absent on every vote made before, which waits for Show result as it always did. */
+  options?: { figures?: boolean };
 }
 
 /** One option row of a poll board. */

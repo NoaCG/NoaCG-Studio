@@ -48,6 +48,7 @@ Names in these templates are made up.
 | **Live vote** | The room votes on their phones. The bars follow the votes; Close voting, Show result and Call the winner run the round. |
 | **Vote results** | The same controls on a side panel. In Interaction, Add results stages a round's counts and whether voting is open or closed. |
 | **Vote results with counts** | Vote results with each option's own vote count under its bar, shown with the percentages. |
+| **Poll result** | Typed results, not a live vote. At import, tick Poll result. Type the question, and in Options one line per option: its name, a bar sign, its figure (`Streaming \| 62`). The bars and percentages show at once. |
 | **Message** | In Interaction, Prepare puts a viewer's message and name on it (in `From`): pasted, live chat or Twitch. |
 
 ---
@@ -93,6 +94,7 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **Join card** | `Label`, `Call to action` | none | `Panel`, `QR plate`, `QR` |
 | **Live vote, Vote results** | `Question`, `Option 1`, `Percent 1`, `Total votes` | `Bar 1` (visible), `Winner 1`, `Vote badge` | `Panel`, `Track 1` |
 | **Vote results with counts** | as Vote results, plus `Count 1` per option | as Vote results | as Vote results |
+| **Poll result** | `Question`, `Option 1`, `Percent 1` | `Bar 1` (visible) | `Panel`, `Track 1` |
 | **Message** | `From`, `Message` | none | `From box`, `Message box` |
 
 ---

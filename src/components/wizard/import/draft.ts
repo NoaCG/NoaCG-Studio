@@ -346,6 +346,8 @@ export interface SvgPollDraft {
   total: string;
   /** Group candidate id of the VOTE NOW badge — a drawn state, shown while voting is open. */
   badge: string;
+  /** A POLL RESULT (TL5): the figures show from the take. Absent or false: a live vote. */
+  figures?: boolean;
 }
 
 /** One option row of a poll board, as the step holds it. Every member may be empty: a board with
@@ -1422,6 +1424,7 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       })),
       total: behaviour.total || undefined,
       badge: behaviour.badge || undefined,
+      ...(behaviour.figures ? { options: { figures: true } } : {}),
     };
   }
   if (behaviour.kind === 'timer') {

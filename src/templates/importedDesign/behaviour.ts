@@ -201,6 +201,7 @@ function voteBinding(poll: DesignSvgPollBehaviour): BehaviourBinding {
   const keys = poll.rows.map((_, i) => String(i + 1));
   return {
     recipe: 'vote',
+    ...(poll.options?.figures ? { options: { figures: true } } : {}),
     rows: keys,
     fields: {},
     layers: layers({

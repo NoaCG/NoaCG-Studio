@@ -1067,6 +1067,17 @@ export default function BehaviourSection({
                     ))}
                   </select>
                 </label>
+                {/* A POLL RESULT (svg-template-library TL5): the figures are typed, not voted, so
+                    they show from the take instead of waiting for Show result. */}
+                <label className="save-field" title="The figures show from the take, as typed results do, instead of waiting for Show result.">
+                  <input
+                    type="checkbox"
+                    checked={poll.figures === true}
+                    onChange={(e) => patchPoll({ figures: e.target.checked })}
+                    data-testid="map-svg-poll-figures"
+                  />
+                  <span>Poll result</span>
+                </label>
               </div>
               <p className="hint">
                 Per option: the layer holding its wording, the bar whose length is its share, the

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Poll result</title>
+  <desc>NoaCG Clean Studio template. A typed poll result: the Question and Option 1 to Option 3 with bars and percentages, filled from the Options lines (Label | figure). Tick Poll result at import so the figures show from the take.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="120" y="240" width="760" height="600" rx="20" fill="#FFFFFF"/>
+    <rect id="Accent" x="120" y="272" width="10" height="536" rx="5" fill="#2E5BFF"/>
+    <rect id="Track_1" inkscape:label="Track 1" x="184" y="488" width="632" height="20" rx="10" fill="#E4E9F2"/>
+    <rect id="Track_2" inkscape:label="Track 2" x="184" y="628" width="632" height="20" rx="10" fill="#E4E9F2"/>
+    <rect id="Track_3" inkscape:label="Track 3" x="184" y="768" width="632" height="20" rx="10" fill="#E4E9F2"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <rect id="Bar_1" inkscape:label="Bar 1" x="184" y="488" width="632" height="20" rx="10" fill="#2E5BFF"/>
+    <rect id="Bar_2" inkscape:label="Bar 2" x="184" y="628" width="632" height="20" rx="10" fill="#2E5BFF"/>
+    <rect id="Bar_3" inkscape:label="Bar 3" x="184" y="768" width="632" height="20" rx="10" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Question" x="184" y="350" text-anchor="start" font-size="40" font-weight="800" fill="#0F1729">How do you watch live news?</text>
+    <text id="Option_1" inkscape:label="Option 1" x="184" y="468" text-anchor="start" font-size="32" font-weight="700" fill="#0F1729">Streaming</text>
+    <text id="Percent_1" inkscape:label="Percent 1" x="816" y="468" text-anchor="end" font-size="32" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Option_2" inkscape:label="Option 2" x="184" y="608" text-anchor="start" font-size="32" font-weight="700" fill="#0F1729">Broadcast</text>
+    <text id="Percent_2" inkscape:label="Percent 2" x="816" y="608" text-anchor="end" font-size="32" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Option_3" inkscape:label="Option 3" x="184" y="748" text-anchor="start" font-size="32" font-weight="700" fill="#0F1729">On demand</text>
+    <text id="Percent_3" inkscape:label="Percent 3" x="816" y="748" text-anchor="end" font-size="32" font-weight="800" fill="#2E5BFF">0%</text>
+  </g>
+</svg>

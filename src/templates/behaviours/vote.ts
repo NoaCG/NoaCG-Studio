@@ -68,7 +68,7 @@ export const voteRecipe: BehaviourRecipe = {
   roles: rolesOf('vote'),
   // THE FIVE FIELDS THAT ARE THE WIRE, in the order they were appended: a control's payload key
   // resolves by INDEX, so a field added LAST moves nothing already saved or exported.
-  fields: () => [
+  fields: (ctx) => [
     { key: 'voteQuestion', label: 'Question', kind: 'text', value: '' },
     // The options arrive as LINES - "Label | count", one per option - the same box a rehearsing
     // operator types into by hand and an audience round fills automatically.
@@ -77,7 +77,9 @@ export const voteRecipe: BehaviourRecipe = {
     // nothing machine-readable may depend on its wording. The status below is the machine's half.
     { key: 'voteCount', label: 'Vote count', kind: 'text', value: '' },
     { key: 'voteStatus', label: POLL_STATUS_TITLE, kind: 'select', value: '', options: POLL_STATUS_CHOICES },
-    { key: 'liveFigures', label: POLL_LIVE_TITLE, kind: 'select', value: '', options: POLL_LIVE_CHOICES, spec: { kind: 'select' } },
+    // A POLL RESULT (TL5, the import's "Poll result" box) starts with its figures live: they are
+    // typed results, not a vote, so nothing waits for Show result. The operator can still switch.
+    { key: 'liveFigures', label: POLL_LIVE_TITLE, kind: 'select', value: ctx.options.figures === true ? POLL_LIVE_ON : '', options: POLL_LIVE_CHOICES, spec: { kind: 'select' } },
   ],
   // The result is a real STEP on the default path, so Continue on a bare playout server reaches
   // it; the entrance is the VOTING state, which is why the take opens the vote.
