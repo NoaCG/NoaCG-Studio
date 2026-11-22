@@ -82,4 +82,4 @@ addresses redirect instead of keeping two more copies.
   `check-vercel-config`, `check-e2e-protection --changed origin/main`, `tsc`, `eslint` on the
   changed files: pass.
 - `vite build --mode e2e`: writes the six zips and 103 files under `downloads/`.
-- Browser (job queue, this cloud worker, on the e2e build): `downloads`, `svg-templates`, `svg-examples`, `import-svg`, `import-svg-centred-title`, `score-tracker-moments`, `docs`: 152 passed (job j-0001, 4.0 min); after the review fixes, `downloads`, `svg-templates`, `svg-examples`, `import-svg`, `docs`: J2.
+- Browser (job queue, this cloud worker, on the e2e build): `downloads`, `svg-templates`, `svg-examples`, `import-svg`, `import-svg-centred-title`, `score-tracker-moments`, `docs`: 152 passed (job j-0001, 4.0 min); after the review fixes, `downloads`, `svg-templates`, `svg-examples`, `import-svg`, `docs`: 150 passed (job j-0002, 3.6 min).
