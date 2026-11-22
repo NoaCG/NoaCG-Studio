@@ -34,6 +34,7 @@ import { motionSpeedJs } from '../shared/base';
 import { BEHAVIOUR_ROLE_ATTR, serializeBehaviourData, type BehaviourData } from '../../blocks/behaviourData';
 import { BAR_GROW, BAR_STAGGER } from '../poll/pollMotion';
 import { PREFIX } from './shared';
+import { readsJs } from './behaviourReads';
 
 /** The class every drawn LOOK carries - hidden, waiting for its rule. One pair for every recipe
  *  from now on; the per-behaviour pairs of the module era live only in files already exported. */
@@ -89,6 +90,11 @@ export function behaviourRuntimeJs(withClock: boolean, withAwards = false): stri
 // Reads NOACG_BEHAVIOUR (above) and the machine's state, and paints YOUR drawings: a look is
 // shown or hidden by class, a gauge is scaled from the length you drew it at, a readout is
 // written. Nothing here is specific to a quiz, a score board or a vote - the table is.
+
+// Every word of the table this runtime reads, so a later build can tell what a saved graphic
+// understands before it lets a rule depend on it (importedDesign/behaviourReads.ts). Generated:
+// edit the table above, never this line.
+${readsJs(withClock)}
 
 ${motionSpeedJs}
 
