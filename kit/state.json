@@ -34,20 +34,24 @@
  },
  "waitingOn": [
   {
-   "what": "TL2 builder receipt and its PR",
-   "eta": "2026-11-22T15:00:00Z"
+   "what": "PR #2695 through the merge queue",
+   "eta": "2026-11-22T13:20:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL2",
-  "step": "build",
+  "step": "build: queued",
   "session": "session_017SdbwQzdQoNSjiFKVDJN66",
   "nonce": "tl2-b-8299",
   "branch": "claude/plan-svg-template-library-tl2-build",
   "source": "60a92df384015ac6abf4273e3bbe56a081cca0a0",
-  "asOf": "2026-11-22T12:03Z",
+  "asOf": "2026-11-22T12:27Z",
   "progress": "PR #2695 open at b2fc2281, CI running",
-  "pr": 2695
+  "pr": 2695,
+  "head": "40379bc54496b18b8f8cf24efd8ceaba09e39d36",
+  "receipt": "RECEIPT tl2-b-8299 12:25Z: CI 45020797794 green except Reviewed; Risky, Rules-first /so before code; final /so A on 40379bc; Codex clean",
+  "stamp": "cloud-queue-merge 45022205226 success",
+  "repairOwnerComment": 7079108373
  },
  "owner": [
   {
