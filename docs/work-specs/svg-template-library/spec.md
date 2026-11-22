@@ -689,6 +689,15 @@ Group 2: Winner card and Award reveal.
   Open envelope, Applause, Settle) are not carried, since no recipe changed.
 - No state rule is set or changed: no recipe, runtime, persisted key or proposal changed.
 
+Group 3: Q&A card and Nominee reveal.
+
+- Previous verified `main`: `9c438c2b906a83bc68aec5d2376cddf117d83967` (group 2, #2705, merged). Revert: `git revert -m 1 <the TL5 group 3 merge commit>`.
+- Mechanism: existing recipes again. The Q&A card is the reveal (its Reveal is the built-in's
+  Show answer); the nominee reveal is the reveal with a `show:Suspense` switch for the moment
+  before. No state rule is set or changed.
+- The browser step for a reveal now walks every `show:` switch a template draws, so a later
+  reveal template with its own moment needs no new test code.
+
 ## Test maintenance
 
 - 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22

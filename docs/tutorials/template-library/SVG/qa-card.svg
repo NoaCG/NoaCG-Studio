@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Q&amp;A card</title>
+  <desc>NoaCG Clean Studio template. A question card on the right: the Question and who asked it, and the answer sealed under a Cover; Reveal shows the answer typed in The reveal box, drawn as Price.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="1120" y="280" width="680" height="360" rx="20" fill="#FFFFFF"/>
+    <rect id="Accent" x="1120" y="280" width="680" height="10" rx="5" fill="#2E5BFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Cover" inkscape:label="Cover" style="display:none">
+      <rect x="1160" y="484" width="600" height="110" rx="14" fill="#E4E9F2"/>
+      <rect x="1200" y="531" width="200" height="16" rx="8" fill="#C5CCDA"/>
+      <rect x="1420" y="531" width="140" height="16" rx="8" fill="#C5CCDA"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Question" x="1176" y="380" text-anchor="start" font-size="36" font-weight="800" fill="#0F1729">How long did the build take?</text>
+    <text id="Asked_by" inkscape:label="Asked by" x="1176" y="440" text-anchor="start" font-size="22" font-weight="700" fill="#5A6680">Robin, Helsinki</text>
+    <text id="Price" x="1176" y="551" text-anchor="start" font-size="32" font-weight="700" fill="#2E5BFF">Three weeks, with a crew of six.</text>
+  </g>
+</svg>
