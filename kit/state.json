@@ -45,7 +45,7 @@
   "nonce": "tl5-b-eeed",
   "branch": "claude/plan-svg-template-library-tl5-build",
   "source": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "asOf": "2026-11-22T18:55Z",
+  "asOf": "2026-11-22T19:23Z",
   "note": "may land as several PRs; coordinator stamps each",
   "prs": [
    {
@@ -56,9 +56,18 @@
     "stamp": "cloud-queue-merge 45056469250",
     "repairOwnerComment": 7083790791,
     "merged": "45fd2420091e422f1f07ace248579817a05bb3d9"
+   },
+   {
+    "pr": 2705,
+    "group": 2,
+    "head": "681c52c2934cd6a5768e82a78b0c9cc17535f299",
+    "covers": "winner card, award reveal",
+    "class": "Ordinary",
+    "stamp": "cloud-queue-merge 45060319466",
+    "repairOwnerComment": 7084333125
    }
   ],
-  "progress": "group 1 merged 18:54Z; builder told to start group 2"
+  "progress": "group 2 queued; group 3 in progress locally"
  },
  "owner": [
   {
