@@ -1,3 +1,8 @@
+- AC-4 row counts, owner ruling 2026-11-22, verbatim: "A" (asked on run issue #2678,
+  https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7071540752). Meaning, as asked:
+  share plus total on air, with raw counts in the cue, meet AC-4 for TL1.
+- Carry-over to TL5: add a per-option count readout to the Vote results template, after the TL2
+  compatibility check (a new derived value in the imported-design runtime).
 # SVG Template Library: one library, every graphic type, working with its feature
 
 Authority: owner, 2026-11-21, in a planning session ("NoaCG: Unify SVG Templates and Examples").

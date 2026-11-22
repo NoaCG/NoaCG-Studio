@@ -43,12 +43,12 @@ Run: `npm run test:e2e -- e2e/svg-templates.spec.ts -g "(Join card|Live vote|Vot
     Vote badge; Show result prints 66.7%; Call the winner marks row 1.
   - Message: the Vote results copy is not offered (a vote board); the saved Message design is; a
     keyboard pick stages one cue with the body and the name, and Take airs both.
-- Not met as worded, ruling needed: "results show row counts". On air the Vote results template
-  shows each row's share of the staged counts (66.7%) and the total count line
-  (`3 votes · voting closed`). The raw count per row is in the cue (`Yes | 2`, `No | 1`) but the
-  artwork has no per-row count readout. Adding one needs a new derived value in the
-  imported-design runtime, which belongs with TL2's compatibility check. The coordinator decides:
-  accept the cue data plus share and total, or schedule a per-row count readout for TL5 or TL6.
+- Row counts: on air the Vote results template shows each row's share of the staged counts
+  (66.7%) and the total count line (`3 votes · voting closed`); the raw count per row is in the
+  cue (`Yes | 2`, `No | 1`). Owner ruling 2026-11-22, verbatim: "A" (run issue #2678,
+  https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7071540752): share plus total on
+  air, with raw counts in the cue, meet AC-4 for TL1. A per-option count readout is carried to
+  TL5, after the TL2 compatibility check.
 - Retry without a duplicate: `scripts/audience-pickers.test.mjs` "a retry after a failed staging
   write fills the copy's leftover seeded cue". A built-in's leftover cue on retry is pre-existing
   (issue #2683).
