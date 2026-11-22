@@ -138,3 +138,14 @@ by what TL4 adds: 28 templates and the AC-5, AC-6 and AC-7 cases. The capacity c
   (inline): one helper serves the OGraf packages in the export test.
 - `tsc`, `eslint` on the changed files, `check-copy`, `check-e2e-protection --changed
   origin/main`: pass. README.pdf reprinted (10 pages).
+
+## Final review
+
+- Final `/so` on 3a4678a (fresh read-only cloud session): grade A, AGREE WITH CORRECTIONS, nothing
+  blocking. Taken: `docs/OGRAF.md` now names the imported credits refusal and what is proven for
+  imported designs (finding 2); TL5's phase line carries AC-5 for Poll result (finding 3);
+  reduced motion asked for mid-pulse now stops the pulse, the same finding the PR's automated
+  review raised on 3a4678a, with an AC-6 step for it (finding 4). Finding 1, seek parity for other
+  imported designs, is issue #2699 for TL5.
+- Automated PR review on 3a4678a: one finding (reduced motion mid-pulse), fixed as above; the
+  countdown cases pass after it (j-0012, 3 passed).

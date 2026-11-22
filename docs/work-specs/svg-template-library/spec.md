@@ -294,7 +294,7 @@ Actions. OW: the owner, with Illustrator on their own computer.
   countdown motion). Every type whose route exists, including the corner game timer with its
   motion and the picture-slot templates. Carried from TL3: the batched browser sweep from "Tests
   and budget", its before and after minutes and its dated test-maintenance entry.
-- **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension, AC-10 for Alert level). Each
+- **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension, AC-10 for Alert level, AC-5 for Poll result, deferred from TL4). Each
   extension lands with its template, controls, compatibility tests and export proof. Carried
   from TL1 (owner ruling 2026-11-22): a per-option count readout on the Vote results template.
 - **TL6. New runtime kinds** (CA; depends on TL5; AC-3, AC-7, AC-9 per kind, AC-4 for the Word cloud template). Word cloud, ticker
@@ -610,7 +610,8 @@ Actions. OW: the owner, with Illustrator on their own computer.
   new template joins its route's batch through `library.json` alone. Stand-alone cases: Live
   vote timing (AC-5), countdown motion (AC-6) and the motion in every export target (AC-7).
 - For TL5: the Poll result template (AC-5's third case) needs the poll-rows extension, so it is
-  TL5's. Picture slots need no runtime work: `f:` images are fields, and `update()` with an image
+  TL5's (now on its phase line). Seek parity for imported designs other than the countdown is
+  issue #2699. Picture slots need no runtime work: `f:` images are fields, and `update()` with an image
   replaces them on air.
 - Traps: a template text drawn BESIDE another plate grows into it when retyped long (the Location
   chip and Sponsor strip did): stack a tag above or below its plate. A retyped value can wrap into
