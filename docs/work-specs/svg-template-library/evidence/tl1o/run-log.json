@@ -1,0 +1,71 @@
+{
+  "liveVoteLook": {
+    "font": "Sora-ExtraBold, Sora",
+    "plate": "rgb(23, 20, 42)"
+  },
+  "joinLook": {
+    "font": "Sora-ExtraBold, Sora",
+    "plate": "rgb(23, 20, 42)"
+  },
+  "library": [
+    "Coral Live vote",
+    "Coral Join card",
+    "Coral Vote results",
+    "Coral Message"
+  ],
+  "joinAddOffline": 0,
+  "voteResultsLook": {
+    "font": "Sora-ExtraBold, Sora",
+    "plate": "rgb(23, 20, 42)"
+  },
+  "voteResultsCues": [
+    {
+      "f0": "Encore?",
+      "f1": "Yes | 2\nNo | 1",
+      "f2": "3 votes · voting closed",
+      "f3": "closed",
+      "f4": ""
+    }
+  ],
+  "messageLook": {
+    "font": "Sora-SemiBold, Sora",
+    "plate": "rgb(255, 90, 54)"
+  },
+  "messageCues": [
+    {
+      "f0": "Sam",
+      "f1": "Is there an encore tonight?"
+    }
+  ],
+  "pool": [
+    {
+      "name": "Hairline",
+      "savedAs": null,
+      "cues": 1
+    },
+    {
+      "name": "Coral Vote results",
+      "savedAs": "Coral Vote results",
+      "cues": 1
+    },
+    {
+      "name": "Coral Message",
+      "savedAs": "Coral Message",
+      "cues": 1
+    }
+  ],
+  "pageErrors": [],
+  "airProblems": {
+    "live-vote-1-take": [],
+    "live-vote-2-voting": [],
+    "live-vote-3-result": [],
+    "live-vote-4-winner": [],
+    "join-card-1-take": [],
+    "vote-results-1-take": [],
+    "vote-results-2-result": [],
+    "vote-results-3-winner": [
+      "\"66.7%\" is cut by a <rect>"
+    ],
+    "message-1-take": []
+  }
+}

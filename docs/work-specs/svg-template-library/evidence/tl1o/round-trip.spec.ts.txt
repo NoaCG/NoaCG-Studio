@@ -1,0 +1,283 @@
+// TL1o evidence run (svg-template-library), not a maintained spec: the four pilot templates
+// downloaded as a user gets them, restyled and written the Illustrator way (illustrate.mjs), then
+// imported, saved, picked and taken through the real app. TL1O_DIR holds downloads, restyles and
+// screenshots.
+import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { dropSvg, intoExistingProduction, intoProduction } from './_svg-import';
+import { settleDurableWrites } from './_durable';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
+import { openWorkspace } from './_workspace';
+import { addQuestion, goLive, stopLive } from './_interaction';
+import { installDoor } from './_door';
+import { qrReader } from './_qr';
+
+const DIR = process.env.TL1O_DIR ?? '';
+const SHOTS = path.join(DIR, 'shots');
+const PILOT = [
+  { slug: 'join-card', name: 'Join card', kind: 'none' },
+  { slug: 'live-vote', name: 'Live vote', kind: 'poll' },
+  { slug: 'vote-results', name: 'Vote results', kind: 'poll' },
+  { slug: 'message', name: 'Message', kind: 'none' },
+];
+const source = (slug: string) => readFileSync(new URL(`../docs/tutorials/svg-templates/SVG/${slug}.svg`, import.meta.url));
+const restyled = (slug: string) => path.join(DIR, 'restyled', `${slug}.svg`);
+
+test.use({ deviceScaleFactor: 2 });
+test.beforeEach(({ context }) => installDoor(context));
+
+/** Copied from e2e/svg-templates.spec.ts: every visible text that overlaps another, is cut by a
+ *  shape it is not inside, or is cut off by the frame edge. */
+async function airProblems(air: FrameLocator): Promise<string[]> {
+  return air.locator('svg').first().evaluate((root) => {
+    type Box = { l: number; t: number; r: number; b: number };
+    const art = root.closest('svg') as SVGSVGElement;
+    const frame = art.getBoundingClientRect();
+    const shown = (el: Element): boolean => {
+      for (let e: Element | null = el; e && e !== document.documentElement; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return false;
+      }
+      return true;
+    };
+    const cut = (r: Box, w: Box): Box | null => {
+      const c = { l: Math.max(r.l, w.l), t: Math.max(r.t, w.t), r: Math.min(r.r, w.r), b: Math.min(r.b, w.b) };
+      return c.r - c.l > 1 && c.b - c.t > 1 ? c : null;
+    };
+    const boxOf = (el: Element, inset = 0): Box | null => {
+      const g = el.getBoundingClientRect();
+      if (!(g.width > 0 && g.height > 0) || !shown(el)) return null;
+      const c = g.height * inset;
+      return { l: g.left, t: g.top + c, r: g.right, b: g.bottom - c };
+    };
+    const cross = (a: Box, b: Box) => Math.min(a.r, b.r) - Math.max(a.l, b.l) > 2 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 2;
+    const holds = (o: Box, i: Box) => o.l <= i.l + 2 && o.t <= i.t + 2 && o.r >= i.r - 2 && o.b >= i.b - 2;
+    const name = (el: Element) => `"${(el.textContent ?? '').trim().slice(0, 30)}"`;
+    const texts = [...art.querySelectorAll('text')]
+      .filter((t) => (t.textContent ?? '').trim())
+      .map((el) => ({ el, box: boxOf(el, 1 / 6) }))
+      .filter((t): t is { el: SVGTextElement; box: Box } => !!t.box);
+    const shapes = [...art.querySelectorAll('rect, path, polygon, polyline, line, ellipse, circle')]
+      .map((el) => ({ el, box: boxOf(el) }))
+      .filter((s): s is { el: Element; box: Box } => !!s.box);
+    const out: string[] = [];
+    const fr = { l: frame.left, t: frame.top, r: frame.right, b: frame.bottom };
+    texts.forEach((a, i) => {
+      if (cut(a.box, fr) && !holds(fr, a.box)) out.push(`${name(a.el)} is cut off by the frame edge`);
+      for (const b of texts.slice(i + 1)) if (cross(a.box, b.box)) out.push(`${name(a.el)} overlaps ${name(b.el)}`);
+      const covered = (s: Element) => shapes.some((h) => h.el !== s && holds(h.box, a.box) && !!(s.compareDocumentPosition(h.el) & Node.DOCUMENT_POSITION_FOLLOWING));
+      for (const s of shapes) if (cross(a.box, s.box) && !holds(s.box, a.box) && !covered(s.el)) out.push(`${name(a.el)} is cut by a <${s.el.tagName}>${s.el.id ? ' #' + s.el.id : ''}`);
+    });
+    return out;
+  });
+}
+
+const problems: Record<string, string[]> = {};
+async function onAir(page: Page, air: FrameLocator, label: string): Promise<void> {
+  // Recorded, not thrown: a finding is reported and the walk goes on to the remaining steps.
+  let found: string[] = [];
+  await expect.poll(async () => (found = await airProblems(air)), { timeout: 6_000 }).toEqual([]).catch(() => undefined);
+  problems[label] = found;
+  await page.waitForTimeout(1_200); // the entrance finishes before the picture
+  await page.getByTestId('program-stage').screenshot({ path: `${SHOTS}/${label}.png` });
+}
+
+/** What the restyle put on air: the plate colour and the font the artwork's text is set in. */
+async function looks(air: FrameLocator, text: string) {
+  return air.locator('svg').first().evaluate((root, t) => {
+    const el = [...root.querySelectorAll('text')].find((e) => (e.textContent ?? '').includes(t));
+    const plate = root.querySelector('rect');
+    return { font: el ? getComputedStyle(el).fontFamily : null, plate: plate ? getComputedStyle(plate).fill : null };
+  }, text);
+}
+
+async function fieldFor(air: FrameLocator, title: string): Promise<string> {
+  const field = await air.locator('svg').first().evaluate((_, n) => {
+    const d = (window as unknown as { SPXGCTemplateDefinition: { DataFields: { field: string; title: string }[] } }).SPXGCTemplateDefinition;
+    return d.DataFields.find((e) => e.title === n)?.field;
+  }, title);
+  expect(field, `the operator has a ${title} field`).toBeTruthy();
+  return field!;
+}
+
+test('1. download the four pilot templates as a user does', async ({ page }) => {
+  mkdirSync(path.join(DIR, 'downloaded'), { recursive: true });
+  await page.goto('/svg-templates#audience');
+  const pkg = page.getByTestId('svg-package-audience');
+  await expect(pkg).toBeVisible();
+  const report: string[] = [];
+  for (const t of PILOT) {
+    const [dl] = await Promise.all([page.waitForEvent('download'), pkg.getByRole('link', { name: `Download ${t.name} SVG` }).click()]);
+    const to = path.join(DIR, 'downloaded', `${t.slug}.svg`);
+    await dl.saveAs(to);
+    expect(readFileSync(to).equals(source(t.slug)), `${t.name}: the download is the source file`).toBe(true);
+    report.push(`${t.slug}.svg per-file download (${dl.url().replace(/^https?:\/\/[^/]+/, '')}) = source`);
+  }
+  const [zip] = await Promise.all([page.waitForEvent('download'), page.getByTestId('svg-set-templates-zip').click()]);
+  const zipTo = path.join(DIR, 'templates.zip');
+  await zip.saveAs(zipTo);
+  const unz = path.join(DIR, 'zip');
+  execFileSync('unzip', ['-o', '-q', zipTo, '-d', unz]);
+  const all = execFileSync('find', [unz, '-name', '*.svg']).toString().trim().split('\n');
+  for (const t of PILOT) {
+    const hit = all.find((f) => path.basename(f) === `${t.slug}.svg`);
+    expect(hit, `${t.slug}.svg is in the zip`).toBeTruthy();
+    expect(readFileSync(hit!).equals(source(t.slug)), `${t.name}: the zip copy is the source file`).toBe(true);
+    report.push(`${path.relative(unz, hit!)} in ${zip.url().replace(/^https?:\/\/[^/]+/, '')} = source`);
+  }
+  writeFileSync(path.join(DIR, 'download-report.txt'), report.join('\n') + '\n');
+});
+
+test('2. the restyled pilot templates import, save, pick and take', async ({ page, browser }) => {
+  test.setTimeout(300_000);
+  mkdirSync(SHOTS, { recursive: true });
+  expect(readdirSync(path.join(DIR, 'restyled')).sort()).toEqual(PILOT.map((t) => `${t.slug}.svg`).sort());
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const role = (name: string) => air.locator(`[data-noacg-role~="${name}"]`);
+  const reader = await qrReader(browser);
+  const log: Record<string, unknown> = {};
+
+  // ── Live vote: imported into its own production and run there, as TL1 runs it ──
+  await page.goto('/app');
+  await dropSvg(page, restyled('live-vote'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('poll');
+  await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+  await intoProduction(page, 'Coral Live vote', 'TL1o live vote');
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  await expect(air.locator('svg').first()).toBeVisible();
+  await fieldFor(air, 'Question');
+  log.liveVoteLook = await looks(air, 'Which city');
+  await onAir(page, air, 'live-vote-1-take');
+  await page.getByTestId(`cue-field-${await fieldFor(air, 'Options')}`).fill('Lisbon | 3\nOslo | 1\nTurin | 0\nLeeds | 0');
+  await page.getByTestId('verb-update').click();
+  await expect(role('option/1')).toHaveText('Lisbon');
+  await expect(role('badge')).toHaveClass(/imported-design-on/);
+  await onAir(page, air, 'live-vote-2-voting');
+  await page.getByTestId('cue-action-close').click();
+  await expect(role('badge')).not.toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-result').click();
+  await expect(role('percent/1')).toHaveText('75%');
+  await onAir(page, air, 'live-vote-3-result');
+  await page.getByTestId('cue-action-call').click();
+  await expect(role('winner/1')).toHaveClass(/imported-design-on/);
+  await expect(role('winner/2')).not.toHaveClass(/imported-design-on/);
+  await onAir(page, air, 'live-vote-4-winner');
+  await page.getByTestId('verb-out').click();
+
+  // ── Join card: imported (saved) and taken; its QR decodes to the Join link the cue holds ──
+  await page.goto('/app');
+  await dropSvg(page, restyled('join-card'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+  await intoProduction(page, 'Coral Join card', 'TL1o designs');
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  await expect(air.locator('svg').first()).toBeVisible();
+  const linkField = await fieldFor(air, 'Join link');
+  const link = 'https://noacg.studio/j/pilot-night';
+  await page.getByTestId(`cue-field-${linkField}`).fill(link);
+  await page.getByTestId('verb-update').click();
+  const code = air.locator('[class$="-qr-code"]');
+  await expect(code).toBeVisible();
+  await expect.poll(async () => reader.read(await code.screenshot()), { message: 'the QR on air decodes to the Join link' }).toBe(link);
+  log.joinLook = await looks(air, 'Join us live');
+  await onAir(page, air, 'join-card-1-take');
+  await page.getByTestId('verb-out').click();
+
+  // ── Vote results and Message: imported into the same production (saved to the library) ──
+  for (const [slug, name, kind] of [['vote-results', 'Coral Vote results', 'poll'], ['message', 'Coral Message', 'none']] as const) {
+    await page.goto('/app');
+    await dropSvg(page, restyled(slug));
+    await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(kind);
+    await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+    await intoExistingProduction(page, name, 'TL1o designs');
+    await settleDurableWrites(page);
+  }
+  log.library = await page.evaluate(async () => {
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    return loadGraphics().map((g) => g.name).filter((n) => n.startsWith('Coral'));
+  });
+
+  // ── A different production's Interaction tab ──
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await openProductionWithCurrent(page, 'Pilot Night');
+  const audience = await openWorkspace(page, 'audience');
+  const note = audience.getByTestId('audience-note');
+  const program = (g: string) => page.frameLocator(`[data-testid="program-stage"] iframe[title="${g}"]`);
+  const vr = (n: string) => program('Coral Vote results').locator(`[data-noacg-role~="${n}"]`);
+  const pool = () =>
+    audience.evaluate(async (id) => {
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+      const show = loadShows().find((s) => s.id === id)!;
+      const saved = Object.fromEntries(loadGraphics().map((g) => [g.id, g.name]));
+      return show.graphics.map((g) => ({ name: g.name, savedAs: g.graphicId ? saved[g.graphicId] ?? null : null, cues: (show.cues ?? []).filter((c) => c.sourceId === g.id).map((c) => c.values) }));
+    }, showId);
+
+  // The Join card picker needs a published link, which needs the Supabase backend: offline the
+  // Join area says so instead of offering Add Join card.
+  log.joinAddOffline = await audience.getByTestId('join-card-add').count();
+
+  // Vote results: a live multiple-choice question, votes, Add results to rundown on the saved design.
+  await addQuestion(audience, 'choice', 'Encore?', ['Yes', 'No']);
+  await goLive(audience, 'Encore?');
+  await audience.getByTestId('audience-simulate-votes').click();
+  await expect(audience.getByTestId('audience-tally-0')).toHaveText('2', { timeout: 10_000 });
+  await audience.getByTestId('audience-round-stage').click();
+  const results = audience.getByTestId('result-choose');
+  await results.getByRole('button', { name: 'Results on Coral Vote results, saved design' }).click();
+  await expect(note).toContainText('✓ Added a result cue on “Coral Vote results”');
+  await settleDurableWrites(audience);
+  await page.locator('.pd-cue', { hasText: 'Vote — Encore?' }).first().click();
+  await page.getByTestId('verb-take').click();
+  await expect(vr('option/1')).toHaveText('Yes');
+  await expect(vr('badge')).toHaveClass(/imported-design-on/);
+  log.voteResultsLook = await looks(program('Coral Vote results'), 'Encore?');
+  await onAir(page, program('Coral Vote results'), 'vote-results-1-take');
+  await stopLive(audience, 'Encore?');
+  await expect(note).toContainText('The result cue on “Coral Vote results” now carries the final counts');
+  await page.getByTestId('cue-action-close').click();
+  await expect(vr('badge')).not.toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-result').click();
+  await expect(vr('percent/1')).toHaveText('66.7%');
+  await onAir(page, program('Coral Vote results'), 'vote-results-2-result');
+  await page.getByTestId('cue-action-call').click();
+  await expect(vr('winner/1')).toHaveClass(/imported-design-on/);
+  await expect(vr('winner/2')).not.toHaveClass(/imported-design-on/);
+  await onAir(page, program('Coral Vote results'), 'vote-results-3-winner');
+  await page.getByTestId('verb-out').click();
+  const copy = (await pool()).find((g) => g.savedAs === 'Coral Vote results')!;
+  expect(copy.cues, 'one result cue on the copy, no blank seed beside it').toHaveLength(1);
+  log.voteResultsCues = copy.cues;
+
+  // Message: paste with a name, Prepare on the saved Message, Take.
+  await audience.getByTestId('message-paste-name').fill('Sam');
+  await audience.getByTestId('message-paste-body').fill('Is there an encore tonight?');
+  await audience.getByTestId('message-paste-add').click();
+  const row = audience.locator('.pd-aud-row').first();
+  await row.getByTestId('audience-prepare').click();
+  const messages = row.getByTestId('audience-choose');
+  await expect(messages.getByTestId('audience-choose-saved')).toHaveText(['Coral Message']);
+  await messages.getByRole('button', { name: 'Prepare on Coral Message, saved design' }).click();
+  await expect(note).toContainText('✓ Cue “Is there an encore tonight?” is ready on Coral Message');
+  await settleDurableWrites(audience);
+  await page.locator('.pd-cue', { hasText: 'Is there an encore tonight?' }).first().click();
+  await page.getByTestId('verb-take').click();
+  await expect(program('Coral Message').locator('text', { hasText: 'Is there an encore tonight?' })).toBeVisible();
+  await expect(program('Coral Message').locator('text', { hasText: 'Sam' })).toBeVisible();
+  log.messageLook = await looks(program('Coral Message'), 'encore');
+  await onAir(page, program('Coral Message'), 'message-1-take');
+  const card = (await pool()).find((g) => g.savedAs === 'Coral Message')!;
+  expect(card.cues, 'one message cue on the copy').toHaveLength(1);
+  log.messageCues = card.cues;
+  log.pool = (await pool()).map((g) => ({ name: g.name, savedAs: g.savedAs, cues: g.cues.length }));
+  log.pageErrors = errors;
+  log.airProblems = problems;
+  await reader.close();
+  writeFileSync(path.join(DIR, 'run-log.json'), JSON.stringify(log, null, 2));
+});
