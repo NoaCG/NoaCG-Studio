@@ -100,11 +100,30 @@ from Playwright's list reporter:
 
 | | Before (base, job j-0001) | After (this branch) |
 | --- | --- | --- |
-| `svg-templates.spec.ts` | 15 tests, 15 templates, 101.7 s | AFTER_TEMPLATES |
-| `svg-examples.spec.ts` | 21 tests, 134.9 s | AFTER_EXAMPLES |
+| `svg-templates.spec.ts` | 15 tests, 15 templates, 101.7 s (6.8 s a template) | 19 tests, 43 templates plus three new cases, 281.2 s; the 16 batches 211 s (4.9 s a template), the three cases 70 s (job j-0008) |
+| `svg-examples.spec.ts` | 21 tests, 134.9 s | 6 tests, 123.9 s, the same 19 templates and the show walk (job j-0008) |
 
-AFTER_NOTE
+A batch saves the per-test page and fixture start (about a quarter of a template's time on the
+studio set, 8% on the navy set, where the show walk dominates). The studio file still grows,
+by what TL4 adds: 28 templates and the AC-5, AC-6 and AC-7 cases. The capacity check
+(`scripts/e2e-capacity.mjs --changed origin/main`) passes with the run's standing warnings.
+`check-e2e-protection` counts 21 -> 6 and 15 -> 19 tests; the dated entries in the spec's
+"Test maintenance" cover the navy file's removal.
 
 ## Verification
 
-VERIFICATION
+- Browser (job queue, this cloud worker, e2e build): `svg-templates` and `svg-examples`, 25
+  passed (j-0008, 3.5 min). Mutation: with the runtime's look motion call removed, the AC-6 and
+  AC-7 cases fail at the pulse (j-0007); restored.
+- Node: `behaviour-reads`, `behaviour-look`, `svg-files`, `check-svg-example-coverage`,
+  `concept-names`, `check-example-layers`, `template-coverage`, `illustrator-exports`,
+  `check-tree-shape`, `svg-figure-fit`, `deploy-affecting-paths`, `e2e-affected` (200 tests), and
+  every Node test that guards the imported-design runtime or the recipes: pass, except the four
+  `svg-import-passes` records (inventory, bind, emit html, runtime) that fail the same way on an
+  untouched copy of `main` on this machine (local Chromium; the TL2 trap). Pins moved by this
+  change and re-recorded: the runtime `js` emit of ten corpus files and the countdown corpus
+  file's table, two `appearance.js` hashes in `jev-svg-baseline`, nine credits build pins, the
+  countdown paint in `jev-svg-contract` (taken from a local re-record on main and on this branch,
+  only where the two differ).
+- `tsc`, `eslint` on the changed files, `check-copy`, `check-e2e-protection --changed
+  origin/main`: pass. README.pdf reprinted (10 pages).
