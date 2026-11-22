@@ -211,3 +211,20 @@ target"), the revealed text reads the typed winner in every target:
 
 No recipe, runtime, proposal word or persisted key changed, so graphics made before keep
 building and playing exactly as they did; no pin moved.
+
+## Group 3: Q&A card and Nominee reveal
+
+Row class: Ordinary (templates, inventories, tests and docs; no state rule, no Risky path):
+`/check` and the automated PR review, no `/so`.
+
+- Templates: Q&A card (audience) and Nominee reveal (games), sealed and revealed, the nominee
+  reveal also with its suspense ring, each state with alt text. Coverage: `qa-card` and
+  `nominee-reveal` covered (73 of 101 rows).
+- AC-3: the `reveal` batch imports both (reveal detected, the switch offered by its `show:`
+  name), checks sealed and Reveal, and walks every drawn `show:` switch (Show, Hide, each greyed
+  where it cannot act), with the frame clean on air.
+- AC-7: the mechanisms are the reveal and the `show:` switch, both proven in every export target
+  by group 2's case (the Winner card); nothing new to export.
+- AC-9: no recipe, runtime, proposal word or persisted key changed.
+- Labels: the press reads Reveal, not the built-in Q&A card's Show answer (a recipe's press has
+  one label; changing it would move every saved reveal's control).
