@@ -315,7 +315,8 @@ What each key is for:
 - `default` names the platform treatment painted when the look's layer is absent for that row -
   the ratified ladder's rung 1 (§7d). A rule with no `default` shows nothing when undrawn, which is
   the correct answer for a flash.
-- A gauge rule is `{ "gauge": "bar", "from": "f7:fraction", "axis": "x" }`; a readout rule is
+- A gauge rule is `{ "gauge": "bar", "from": "f7:fraction" }` (it scales along the axis the layer
+  was drawn on; no runtime reads an `axis` key); a readout rule is
   `{ "write": "percent", "from": "f7:percent" }`. `from` is always `field:derivation`, and the
   derivation is one the field's kind exposes.
 

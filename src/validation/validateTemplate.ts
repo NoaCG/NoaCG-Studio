@@ -32,6 +32,7 @@ import {
 } from '../blocks/behaviourData';
 import { deriveMachine } from '../blocks/animMachine';
 import { hasBehaviourRuntime } from '../templates/importedDesign/behaviourRuntime';
+import { behaviourReadsVerdict } from '../templates/importedDesign/behaviourReads';
 import { missingLiveControls } from './liveControlsCheck';
 
 export interface ValidationIssue {
@@ -564,10 +565,16 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
           'The NOACG_BEHAVIOUR block is not valid - the behaviour rules would run unchecked on air. Fix the table (or remove it) before exporting.',
       });
     } else if (fault === 'unknown-version') {
-      warnings.push({
-        rule: 'behaviour',
-        message: 'The NOACG_BEHAVIOUR block is a version this build does not read; the template is treated as hand-crafted behaviour.',
-      });
+      // A version this build cannot parse is the graphic's own business, unless its runtime
+      // cannot read that version either: then the table would do nothing on air.
+      const verdict = behaviourReadsVerdict(template.js);
+      if (verdict.status === 'unread') errors.push(unreadError(verdict.missing, verdict.upgradable));
+      else {
+        warnings.push({
+          rule: 'behaviour',
+          message: 'The NOACG_BEHAVIOUR block is a version this build does not read; the template is treated as hand-crafted behaviour.',
+        });
+      }
     } else if (fault === 'ok') {
       const table = parseBehaviourData(template.js)!;
       if (!hasBehaviourRuntime(template.js)) {
@@ -576,6 +583,22 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
           message:
             'The template carries a NOACG_BEHAVIOUR table but no behaviour runtime - re-create the graphic so the runtime that reads the table is emitted with it.',
         });
+      } else {
+        // The table may ask only for words this graphic's own saved runtime reads.
+        const verdict = behaviourReadsVerdict(template.js);
+        if (verdict.status === 'unread') errors.push(unreadError(verdict.missing, verdict.upgradable));
+        else if (verdict.status === 'unknown') {
+          warnings.push({
+            rule: 'behaviour',
+            message: "This graphic's behaviour runtime describes what it reads in a format this build does not know, so its rules could not be checked.",
+          });
+        }
+        if ((verdict.status === 'ok' || verdict.status === 'unread') && verdict.ignored) {
+          warnings.push({
+            rule: 'behaviour',
+            message: `The NOACG_BEHAVIOUR table carries ${verdict.ignored.join(', ')}, which no behaviour runtime reads, so it changes nothing on air. Remove it.`,
+          });
+        }
       }
       const anim = parseAnimData(template.js);
       if (anim) {
@@ -606,4 +629,15 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
   }
 
   return { ok: errors.length === 0, errors, warnings };
+}
+
+/** A table asking its saved runtime for words that runtime does not read (behaviourReads.ts).
+ *  `upgradable`: this build's runtime reads every one, so importing the artwork again fixes it. */
+function unreadError(missing: string[], upgradable: boolean): ValidationIssue {
+  return {
+    rule: 'behaviour',
+    message: `The NOACG_BEHAVIOUR table asks for ${missing.join(', ')}, which this graphic's saved behaviour runtime does not read, so those rules would do nothing on air. ${
+      missing.some((w) => w.startsWith('version:')) ? 'Set the table\'s "version" to 1. ' : ''
+    }${upgradable ? 'Import the artwork again to rebuild the runtime, or remove those rules.' : 'Remove those rules.'}`,
+  };
 }

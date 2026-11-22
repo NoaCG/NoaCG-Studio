@@ -432,6 +432,99 @@ Actions. OW: the owner, with Illustrator on their own computer.
   `text-anchor`, so a vote's right-aligned `Percent n` grows right on air and the Winner mark
   cuts it. TL3 and TL5 should know it before more right-aligned figures ship.
 
+### TL2 (runtime compatibility)
+
+- Previous verified `main`: `60a92df384015ac6abf4273e3bbe56a081cca0a0`. Revert: `git revert -m 1 <the TL2 merge commit>`.
+- Evidence: `evidence/phase-TL2.md`.
+- For TL4, TL5 and TL6: a new word the runtime reads (a kind, a fact, a derivation, a kind spec
+  key, a rule key or value, a table version) is one `READS_ADDED` entry in
+  `src/templates/importedDesign/behaviourReads.ts`, in the commit that teaches the runtime. TL5's
+  per-option count is `derive:share.count` (already pinned as refused under the frozen vote);
+  TL4's countdown effect is a new rule key or `enter` value. `scripts/behaviour-reads.test.mjs`
+  fails until READS and the kind code agree, and every recipe and option must compile to a table
+  its own runtime reads. A runtime fix that adds no word needs nothing there.
+- Decisions: the declaration is emitted in every behaviour graphic (one line of JSON) rather than
+  a version number, so a saved graphic says itself what it reads and the build keeps no history
+  table; `READS_ADDED` is additive by construction. A runtime emitted without the clock tick does
+  not list `clock`. `axis` on a gauge rule was never read by any runtime and no recipe emits it,
+  so a hand edit using it is warned about (C3a) and `docs/SVG_BEHAVIOUR_PLAN.md` no longer shows it. The fixtures live in `scripts/fixtures/pre-tl2` (under
+  `e2e/fixtures` they would select the whole configured set with no spec reading them).
+- Trap: the emit pins move whenever the runtime text moves (`svg-corpus-passes.json` emit `js`,
+  `jev-svg-baseline.test.mjs` `appearance.js`). Re-record only the `js` hashes the change moves;
+  a local Chromium other than the recorded one also differs in html, inventory and runtime
+  records, and a control on `origin/main` shows the same.
+- Rules (state rules this phase sets, written before any code and corrected by the Rules-first
+  `/so` on a297952, AGREE WITH CORRECTIONS; the PR repeats them):
+  - C1. A behaviour table's VOCABULARY is every word it asks a runtime to read, read off the raw
+    JSON (never the typed shape, which ignores unknown keys): each top-level key; each field kind
+    it names and each key of that kind's spec; each fact and derivation its tokens ask of a
+    field's kind (resolved through `fields` and `kinds`; a field with no kind is `text`; a fact
+    with an argument counts by its prefix, `is:` and `reached:`); each key of each paint rule and
+    of its `when`; and the `enter`, `axis` and `default` values (`default` by its head:
+    `row-highlight`, `row-mark`, `badge`). The table's version is a word too. Free text is not
+    vocabulary: the names inside `options`, `rows` and `fields`, role and state names, row keys,
+    and argument values.
+  - C2. A runtime emitted from now on carries its own READS: one strict JSON declaration,
+    `var NOACG_BEHAVIOUR_READS = {...};`, with its own `v` (1), the table versions it reads, and
+    the words, written with the runtime and per variant (`clock` only where `clockPainted` is
+    emitted, since a tick reaches the kind only through it). A saved runtime without READS
+    (everything made before this phase) reads the frozen pre-TL2 vocabulary: a constant that
+    never changes, extracted from the df0c7a0 runtime, cut to the kinds its code defines (both
+    `noacgKinds.k =` and `noacgKinds['k'] =`), to `clock` only with `function clockPainted(`, and
+    to `place` and the default treatments only where their functions are in its code. It
+    includes the keys every pre-TL2 build emitted and the runtime ignores (`version`, `recipe`,
+    `parts`, `options`). Documented limits: a word added inside an existing kind before TL2 is
+    not told apart (the build always emitted those tables with their own runtime), and READS is
+    trusted as written, so only a deliberate hand edit of READS can fake a pass.
+  - C3. A table whose vocabulary has a word its template's runtime does not read is refused: the
+    validator's `behaviour` rule reports each such word as an export-blocking error, beside the
+    existing pairing error for a table with no runtime at all. A table version the runtime does
+    not list is refused the same way. A table every word of which the runtime reads passes,
+    whatever else changed in the runtime. READS of a `v` this build does not know is a warning
+    that the check cannot be made, never a pass and never a rewrite.
+  - C4. READS changes exactly when the vocabulary changes. A runtime change that adds no word (the
+    readout alignment of #2691) leaves READS as it is, needs no version bump, and reaches a saved
+    graphic only by reimport, which rebuilds the runtime. A new word (TL5's per-option count,
+    TL4's countdown effect, TL6's kinds) is added to READS in the same commit as the code that
+    reads it. A word is never removed while the table format stays version 1. A Node drift test
+    checks, per kind, that every fact and derivation READS declares is a literal comparison in
+    that kind's code (`name === 'w'`, `name.indexOf('w:') === 0`), and every key and value
+    likewise, so a declared word the code does not read fails.
+  - C5. Two writers put a table in a template: the build, which always emits the table with the
+    runtime that reads it, and the Advanced-mode hand edit (the table's own header invites it),
+    which C3 covers at export. Every recipe, with every option, compiles to a table its emitted
+    runtime reads (a Node gate). Any later writer that puts a table under a runtime it did not
+    emit in the same pass asks the same check first and refuses on a missing word.
+  - C6. Versioning stays `docs/STATE_MACHINE_SCHEMA.md` section 5: an additive optional key keeps
+    `version: 1` and still parses; a breaking change bumps the version and migrates on read in
+    `parseBehaviourData` in the same commit, and adds the version to READS; an unknown version
+    parses to null and the template's own runtime still plays it, refused at export only where
+    its runtime does not list that version.
+  - C7. A graphic made before this plan keeps working unchanged: its saved code is never
+    rewritten (load and validate leave the saved JS byte for byte), it passes the check, its
+    frozen runtime still paints from its fields, and an export made before this plan, imported
+    again, passes the check and still plays. The fixtures are committed bytes built at df0c7a0,
+    never regenerated. Every recipe with every option, compiled at df0c7a0, gives a table the
+    frozen vocabulary reads (TL2 evidence).
+  - C8. Reimport of edited artwork over a graphic made before this plan keeps every matched field
+    id, so a cue's values (field id to value) recorded on the old graphic paint the same layers on
+    the reimported one; the rebuilt table passes the check against its new runtime.
+- Rules found after coding (from the final `/so` on 66471c6, A, AGREE WITH CORRECTIONS):
+  - C3a. A KEY word (`table.`, `rule.`, a kind's spec key) that no runtime this build
+    emits reads either (a gauge's `axis`, a note) is ignored by every runtime and the rule still
+    paints: the export gate WARNS and passes, so a graphic hand-edited before this plan with such
+    a key keeps exporting. A key word this build's runtime reads and the saved one does not (a
+    future rule key) is refused like a meaning word. The error says to import again only when
+    this build's runtime reads every refused word, and otherwise to remove the rules. The keys
+    of a kind the runtime does not read are said by that kind's own word.
+    A `when.` key is never a key word: a condition narrows when a look shows, so an unknown one
+    is refused (delta `/so` on b2fc228). The same would hold for a future kind spec key that
+    limits what a kind counts; none exists outside the frozen list. A missing table version says
+    to set `version` to 1.
+  - Note for TL6: C1 treats the VALUES of existing keys as free text, yet the runtime compares
+    some of them (rank `order === 'asc'`, the row-mark argument `wrong`). A new value of an
+    existing key would play as the old one and pass the gate; widen C1 for that key first.
+
 ## Non-goals
 
 - Redesigning the import workflow or its dropdown.

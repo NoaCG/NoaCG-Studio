@@ -78,6 +78,8 @@ export interface GaugeRule {
   rows?: string;
   /** `field:derivation` - a value the field's kind derives (`f7:share`, `f1:fraction`). */
   from: string;
+  /** Accepted by the shape gate for old tables, read by no runtime: the export gate warns that it is
+   *  ignored (templates/importedDesign/behaviourReads.ts). */
   axis?: 'x' | 'y';
 }
 

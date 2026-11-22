@@ -218,6 +218,11 @@ adds no emitted JS**: a behaviour that needs a line is a missing FIELD KIND in t
   THREE drivers: a state entry (`noacgRepaint` on every recipe state), a data write
   (`noacgRepaintData`) and the clock's tick (`clockPainted`).
 - The validator pairs the table with its runtime and checks every state and field a rule names.
+- **A table may ask only for words its own runtime reads** (`behaviourReads.ts`): the runtime emits
+  `NOACG_BEHAVIOUR_READS`, a saved one without it reads the frozen pre-TL2 list, and a NEW kind,
+  fact, derivation, rule key or value goes into `READS_ADDED` in the commit that teaches the runtime
+  to read it (`scripts/behaviour-reads.test.mjs` fails otherwise). A runtime fix that adds no word
+  changes nothing there.
 - **A graphic composes ONE full recipe at most with any number of INSTANCED ones** (`switch`,
   `choice` - `DesignSvg.extras`), each namespaced by its name (`ctx.ns` / `ctx.nsId`); the parts
   merge into one table, one runtime and one machine (`composeParts`).
