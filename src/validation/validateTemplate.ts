@@ -636,6 +636,8 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
 function unreadError(missing: string[], upgradable: boolean): ValidationIssue {
   return {
     rule: 'behaviour',
-    message: `The NOACG_BEHAVIOUR table asks for ${missing.join(', ')}, which this graphic's saved behaviour runtime does not read, so those rules would do nothing on air. ${upgradable ? 'Import the artwork again to rebuild the runtime, or remove those rules.' : 'Remove those rules.'}`,
+    message: `The NOACG_BEHAVIOUR table asks for ${missing.join(', ')}, which this graphic's saved behaviour runtime does not read, so those rules would do nothing on air. ${
+      missing.some((w) => w.startsWith('version:')) ? 'Set the table\'s "version" to 1. ' : ''
+    }${upgradable ? 'Import the artwork again to rebuild the runtime, or remove those rules.' : 'Remove those rules.'}`,
   };
 }

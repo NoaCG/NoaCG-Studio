@@ -510,13 +510,17 @@ Actions. OW: the owner, with Illustrator on their own computer.
     id, so a cue's values (field id to value) recorded on the old graphic paint the same layers on
     the reimported one; the rebuilt table passes the check against its new runtime.
 - Rules found after coding (from the final `/so` on 66471c6, A, AGREE WITH CORRECTIONS):
-  - C3a. A KEY word (`table.`, `rule.`, `when.`, a kind's spec key) that no runtime this build
+  - C3a. A KEY word (`table.`, `rule.`, a kind's spec key) that no runtime this build
     emits reads either (a gauge's `axis`, a note) is ignored by every runtime and the rule still
     paints: the export gate WARNS and passes, so a graphic hand-edited before this plan with such
     a key keeps exporting. A key word this build's runtime reads and the saved one does not (a
     future rule key) is refused like a meaning word. The error says to import again only when
     this build's runtime reads every refused word, and otherwise to remove the rules. The keys
     of a kind the runtime does not read are said by that kind's own word.
+    A `when.` key is never a key word: a condition narrows when a look shows, so an unknown one
+    is refused (delta `/so` on b2fc228). The same would hold for a future kind spec key that
+    limits what a kind counts; none exists outside the frozen list. A missing table version says
+    to set `version` to 1.
   - Note for TL6: C1 treats the VALUES of existing keys as free text, yet the runtime compares
     some of them (rank `order === 'asc'`, the row-mark argument `wrong`). A new value of an
     existing key would play as the old one and pass the gate; widen C1 for that key first.

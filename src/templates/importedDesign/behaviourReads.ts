@@ -247,9 +247,11 @@ export function unreadWords(raw: unknown, reads: BehaviourReads): string[] {
   return tableWords(raw).filter((w) => !known.has(w));
 }
 
-/** A KEY word (`table.`, `rule.`, `when.`, `kind:<kind>.<key>`) names where a value sits, not what a
- *  rule means: a runtime that does not read a key ignores it and the rule still paints. */
-const isKeyWord = (w: string) => /^(?:table\.|rule\.|when\.)/.test(w) || /^kind:[^.]+\./.test(w);
+/** A KEY word (`table.`, `rule.`, `kind:<kind>.<key>`) names where a value sits, not what a rule
+ *  means: a runtime that does not read one ignores it and the rule still paints. A `when.` key is
+ *  never one: a condition narrows when a look shows, so ignoring it would show the look where the
+ *  author ruled it out - it is a meaning word, refused like a kind. */
+const isKeyWord = (w: string) => /^(?:table\.|rule\.)/.test(w) || /^kind:[^.]+\./.test(w);
 
 /** THE CHECK (C3) for one template's JS: its table against its own runtime.
  *  - `ok`: no table, or every word read; `ignored` lists KEY words no runtime this build emits

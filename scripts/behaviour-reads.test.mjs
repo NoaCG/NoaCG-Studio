@@ -298,6 +298,12 @@ test('a hand edit asking the frozen vote runtime for a per-option count is refus
   assert.deepEqual(R.behaviourReadsVerdict(keysOnly.js), { status: 'ok', ignored: ['rule.axis'] });
   assert.deepEqual(errorsOf(keysOnly), [], 'a documented key no runtime reads never blocks an export');
   assert.match(warningsOf(keysOnly).join('\n'), /rule\.axis, which no behaviour runtime reads/);
+  // A condition key is never ignorable: it narrows when a look shows.
+  const narrower = handEdit(VOTE, (table) => {
+    table.paint.find((r) => typeof r.look === 'string').when.notFacts = ['options:leader'];
+  });
+  assert.deepEqual(R.behaviourReadsVerdict(narrower.js), { status: 'unread', missing: ['when.notFacts'], upgradable: false });
+  assert.equal(errorsOf(narrower).length, 1);
 });
 
 test('a key this build\'s runtime reads and a saved runtime does not is refused, and importing again is the fix', () => {
@@ -321,6 +327,7 @@ test('versions: an additive key still parses; a table version the runtime does n
   const v2 = handEdit(VOTE, (table) => { table.version = 2; });
   assert.match(errorsOf(v2).join('\n'), /version:2.*Remove those rules/);
   const none = handEdit(VOTE, (table) => { delete table.version; });
+  assert.match(errorsOf(none).join('\n'), /version:none.*Set the table's "version" to 1/);
   assert.ok(R.tableWords(JSON.parse(none.js.slice(none.js.indexOf('{', none.js.indexOf('var NOACG_BEHAVIOUR = ')), none.js.indexOf('\n};\n', none.js.indexOf('var NOACG_BEHAVIOUR = ')) + 2))).includes('version:none'));
   // A runtime whose READS is of a version this build does not know: a warning, never a pass.
   const fresh = compileBinding(...Object.values(fullBinding(BEHAVIOUR_RECIPES.find((r) => r.id === 'vote'), {}))).js();
