@@ -136,6 +136,21 @@ seek parity for imported designs other than the countdown stays issue #2699.
   field (issue #2700, the templates name it `static:`); the count prints the parsed figure, as
   the share reads it. Simplify inline: the fill's row mapping written out step by step.
 
+### Poll result and the start fix: verification
+
+- Browser: `import-svg`, `import-svg-behaviour` and `svg-templates` whole, 134 passed (j-0010,
+  8.0 min); after the review fixes, the vote batch, Live vote, both export cases, 4 passed
+  (j-0011). Node: `behaviour-reads` (15, a poll-result case), `concept-names`, `svg-files`,
+  `template-coverage`, `check-example-layers`, `check-svg-example-coverage`, `imported-credits-model`,
+  `jev-svg-baseline`: pass; `svg-import-passes` only its four environment records.
+- `/check` on the delta from 83af9bf (review delegated, high): seven findings. Fixed: the Poll
+  result box is offered only where a figure or count is drawn, and unticking it removes the key
+  rather than storing false; the pin note names this re-take. Decided and recorded in the phase
+  notes: a Poll result staged from Interaction follows the production's Live figures switch, as
+  every results board does; data naming no option shows the start while the machine stays put;
+  the proposal path has no Poll result intent yet. Pre-existing: an unlisted row keeps its old
+  label (#2702).
+
 ### Final review
 
 - Final `/so` on 83af9bf (fresh read-only cloud session): grade A, AGREE WITH CORRECTIONS, nothing
