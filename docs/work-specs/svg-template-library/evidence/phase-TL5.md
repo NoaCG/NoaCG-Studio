@@ -196,10 +196,16 @@ away and the winner stays. The frame is checked clean when revealed and when cel
 
 ### AC-7
 
-In the every-target case: SPX offers Reveal, Celebrate and Settle as buttons calling the graphic's
-own `noacgDispatch`; SPX, CasparCG and H2R, driven through that function, go sealed, revealed,
-celebrating, settled; the HTML overlay plays sealed (it has no control channel); OGraf and LiveOS
-custom actions `reveal`, `celebrate`, `settle` walk the same four frames.
+In the every-target case ("... and Winner card: ... the celebration play in every export target"):
+
+| Target | Mode | Result |
+| --- | --- | --- |
+| SPX, CasparCG, H2R | update, play; Continue (`next`) reveals; Celebrate and Settle by invoking the graphic's own `noacgDispatch` (CasparCG INVOKE) | sealed, revealed, celebrating, settled |
+| HTML overlay | autoplay with baked data, no control channel | sealed |
+| OGraf, LiveOS | real time: load, playAction, custom actions `reveal`, `celebrate`, `settle` | sealed, revealed, celebrating, settled |
+
+SPX has no button field for a machine event; its operator reaches the reveal by Continue, and the
+celebration only where the host can call a template function (recorded as the supported mode).
 
 ### AC-9
 
