@@ -707,8 +707,8 @@ Group 4: Scorebug, Match status, Match board, Esports score, Transition, Match e
   plain fields. Transition and Match event are the Pop-up alert (author choice): cover or play,
   hold eight seconds, clear, or Next sooner. No state rule is set or changed.
 - Trap: a choice option named `Final` would also match the score's `Full time` words; the Match
-  status option is `Ended` (its drawn word is FINAL). Option names are one word, since the role
-  `option/<name>` is matched as a word on air.
+  status option is `Ended` (its drawn word is FINAL). Option names are one word: the look's role
+  `option/<name>` sits in a space-separated role list on air, which a spaced name would split.
 - The browser walk runs each drawn `choice:` beside a full recipe and a match `Clock` beside one.
 
 ## Test maintenance
