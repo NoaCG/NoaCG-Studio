@@ -816,7 +816,7 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
 // choice that starts on the option drawn visible and is never empty. Each package is loaded as its
 // host loads it and driven as its host drives it (update and play; the overlay plays its baked
 // data; OGraf and LiveOS load, playAction and updateAction).
-test('Vote results count and Alert level starting level: both play in every export target', async ({ page, context }) => {
+test('Vote results with counts and Alert level: the count and the starting level play in every export target', async ({ page, context }) => {
   test.setTimeout(120_000);
   type Look = { lit: boolean; text: string } | null;
   const targets = ['spx', 'casparcg', 'h2r', 'html-overlay', 'ograf', 'liveos'];
@@ -888,7 +888,7 @@ test('Vote results count and Alert level starting level: both play in every expo
 
   // Vote results: each row prints its own count, shown with the shares (Live figures here, since
   // a host that only sends data reaches no Show result).
-  const vote = await prepare('vote-results', ['Options', 'Live figures']);
+  const vote = await prepare('vote-results-counts', ['Options', 'Live figures']);
   const voteData = { [vote.ids.Options]: 'Coast | 3\nForest | 1', [vote.ids['Live figures']]: 'live' };
   const votePackages = await exportPackages(page, vote.production, voteData);
   expect(Object.keys(votePackages).sort()).toEqual([...targets].sort());

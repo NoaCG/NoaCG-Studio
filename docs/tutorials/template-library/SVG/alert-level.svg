@@ -8,7 +8,7 @@
   <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
     <g id="choice:Level_x2F_Advisory" inkscape:label="choice:Level/Advisory">
       <rect x="200" y="840" width="320" height="120" rx="14" fill="#1F5FA8"/>
-      <text x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">ADVISORY</text>
+      <text inkscape:label="static:Advisory" x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">ADVISORY</text>
       <rect x="232" y="916" width="56" height="16" rx="4" fill="#FFFFFF"/>
       <rect x="296" y="916" width="56" height="16" rx="4" fill="none" stroke="#FFFFFF" stroke-width="3"/>
       <rect x="360" y="916" width="56" height="16" rx="4" fill="none" stroke="#FFFFFF" stroke-width="3"/>
@@ -16,7 +16,7 @@
     </g>
     <g id="choice:Level_x2F_Watch" inkscape:label="choice:Level/Watch" style="display:none">
       <rect x="200" y="840" width="320" height="120" rx="14" fill="#E0A11A"/>
-      <text x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#0B0D11" font-family="Manrope, sans-serif" letter-spacing="2">WATCH</text>
+      <text inkscape:label="static:Watch" x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#0B0D11" font-family="Manrope, sans-serif" letter-spacing="2">WATCH</text>
       <rect x="232" y="916" width="56" height="16" rx="4" fill="#0B0D11"/>
       <rect x="296" y="916" width="56" height="16" rx="4" fill="#0B0D11"/>
       <rect x="360" y="916" width="56" height="16" rx="4" fill="none" stroke="#0B0D11" stroke-width="3"/>
@@ -24,7 +24,7 @@
     </g>
     <g id="choice:Level_x2F_Warning" inkscape:label="choice:Level/Warning" style="display:none">
       <rect x="200" y="840" width="320" height="120" rx="14" fill="#E0621A"/>
-      <text x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#0B0D11" font-family="Manrope, sans-serif" letter-spacing="2">WARNING</text>
+      <text inkscape:label="static:Warning" x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#0B0D11" font-family="Manrope, sans-serif" letter-spacing="2">WARNING</text>
       <rect x="232" y="916" width="56" height="16" rx="4" fill="#0B0D11"/>
       <rect x="296" y="916" width="56" height="16" rx="4" fill="#0B0D11"/>
       <rect x="360" y="916" width="56" height="16" rx="4" fill="#0B0D11"/>
@@ -32,7 +32,7 @@
     </g>
     <g id="choice:Level_x2F_Emergency" inkscape:label="choice:Level/Emergency" style="display:none">
       <rect x="200" y="840" width="320" height="120" rx="14" fill="#CF2F2F"/>
-      <text x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">EMERGENCY</text>
+      <text inkscape:label="static:Emergency" x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">EMERGENCY</text>
       <rect x="232" y="916" width="56" height="16" rx="4" fill="#FFFFFF"/>
       <rect x="296" y="916" width="56" height="16" rx="4" fill="#FFFFFF"/>
       <rect x="360" y="916" width="56" height="16" rx="4" fill="#FFFFFF"/>
