@@ -317,8 +317,9 @@ one text layer per answer, then the moments:
 | correct (one per row) | `Correct A` | on the reveal, if it is the correct answer |
 | wrong (one per row) | `Wrong A` | on the reveal, if it is not |
 | locked in | `Locked in` | once the answer is locked (one, whole board) |
+| row (one per row) | `Row A` | the row's plate and letter, shown while that answer has text, so one board plays two, three or four answers |
 
-`Kysymys`, `Fråga` work as well as `Question`; `Vastaus A`, `Svar A` work as well as `Answer A`; `Picked A`, `Chosen A`, `Valittu A`, `Vald A` work as well as `Selected A`; `Right A`, `Oikein A`, `Rätt A` work as well as `Correct A`; `Incorrect A`, `Väärin A`, `Fel A` work as well as `Wrong A`; `Locked`, `Lukittu`, `Låst` work as well as `Locked in`.
+`Kysymys`, `Fråga` work as well as `Question`; `Vastaus A`, `Svar A` work as well as `Answer A`; `Picked A`, `Chosen A`, `Valittu A`, `Vald A` work as well as `Selected A`; `Right A`, `Oikein A`, `Rätt A` work as well as `Correct A`; `Incorrect A`, `Väärin A`, `Fel A` work as well as `Wrong A`; `Locked`, `Lukittu`, `Låst` work as well as `Locked in`; `Rivi A`, `Rad A` work as well as `Row A`.
 
 Two to six answers. The operator gets Select answer, Lock it in and Reveal correct.
 <!-- behaviour:quiz:end -->
@@ -493,10 +494,15 @@ with + and -, and nothing else is needed.
 |---|---|---|
 | bar | `Progress bar` | draw it at its FULL length - that length is the target |
 | percent | `Percent` | written as the current figure's share of the target |
+| tier (one per row) | `Tier 1` | the tier's name, written from its line in the Milestones box; hidden while the box has no line for it |
+| threshold (one per row) | `Threshold 1` | the tier's figure as typed after the bar sign in its line |
+| reached (one per row) | `Reached 1` | shown once Current is at or past the tier's figure |
+| segment (one per row) | `Segment 1` | draw it at its FULL length, from the tier before to this one; it fills as Current climbs between them |
+| milestone (one per row) | `Milestone 1` | the tier's own drawing (its node, its plate), hidden while the box has no line for it |
 
-`Meter` works as well as `Progress bar`; `Share`, `Osuus` work as well as `Percent`.
+`Meter` works as well as `Progress bar`; `Share`, `Osuus` work as well as `Percent`; `Stage 1`, `Taso 1` work as well as `Tier 1`; `Kynnys 1` works as well as `Threshold 1`; `Passed 1`, `Saavutettu 1` work as well as `Reached 1`; `Leg 1`, `Väli 1` work as well as `Segment 1`; `Virstanpylväs 1` works as well as `Milestone 1`.
 
-The operator gets the Current and Target figures, each with + and −.
+Up to eight tiers, in order, or none for a plain meter. The operator gets the Current and Target figures, each with + and −, plus the Milestones box (one line per tier, `Warm-up | 5000`) when you draw tiers.
 <!-- behaviour:meter:end -->
 
 ### The pop-up alert - it plays, holds, and takes itself off

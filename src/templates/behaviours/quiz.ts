@@ -21,6 +21,9 @@ import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { rolesOf, rowsOf, withRepaint } from './recipe';
 import type { TypeBranch, TypeMachine } from '../types/graphicType';
 
+/** The drawn row of one answer (`Row A`): its plate and letter, shown while the row is in use. */
+const ROW_ROLE = 'answer.row';
+
 /** How long after the lock a self-revealing board waits, in speed-relative seconds. */
 const AUTO_REVEAL_AFTER = 5;
 
@@ -140,11 +143,18 @@ export const quizRecipe: BehaviourRecipe = {
       ? ANSWER_BOARD_CONTROLS.map((c) => (c.section === ANSWER_PICK_SECTION ? { ...c, section: ANSWER_PICK_LOCK_OPTIONAL_SECTION } : c))
       : ANSWER_BOARD_CONTROLS,
   paint: (ctx) => {
+    // ROWS IN USE (svg-template-library TL5, Rules Q1-Q3): where the board draws a Row layer, a
+    // row is in use while its Answer holds text, so one board plays two, three or four answers
+    // as data. Its Row shows only then, and no pick or verdict lights on a row not in use. A
+    // board with no Row layer asks nothing new, so it compiles to exactly what it did.
+    const inUse = ctx.rows.some((key) => ctx.bound(ROW_ROLE, key)) ? ['answer:filled'] : [];
     const rules: LookRule[] = [
-      { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },
-      { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct', anchor: 'answer' },
-      { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong', anchor: 'answer' },
+      { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked', ...inUse] }, default: 'row-highlight', anchor: 'answer' },
+      { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked', ...inUse] }, default: 'row-mark:correct', anchor: 'answer' },
+      { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked', ...inUse] }, default: 'row-mark:wrong', anchor: 'answer' },
       { look: 'locked', when: { state: ['main/locked', 'main/sealed'] }, default: 'badge:Locked in' },
+      // A plate never pops: it is the row, shown as long as the row is in use.
+      ...(inUse.length > 0 ? [{ look: ROW_ROLE, rows: 'answer', when: { facts: inUse } }] : []),
     ];
     if (!quizHasNoLock(ctx.options)) return rules;
     // No lock: its look goes, and no rule names a state the machine no longer has.

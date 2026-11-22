@@ -320,7 +320,7 @@ export interface SvgQuizDraft {
   answers: string[];
   /** Per answer row (parallel to `answers`), the DRAWN states as group candidate ids. Empty
    *  means the designer drew nothing for that moment, which is a valid board. */
-  rows: { selected: string; correct: string; wrong: string }[];
+  rows: { selected: string; correct: string; wrong: string; row?: string }[];
   /** The board-level "locked in" drawing, as a group candidate id. */
   locked: string;
 }
@@ -1506,6 +1506,8 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       selected: r.selected || undefined,
       correct: r.correct || undefined,
       wrong: r.wrong || undefined,
+      // Only where a Row is drawn, so a board without one saves exactly what it did.
+      ...(r.row ? { row: r.row } : {}),
     })),
     locked: behaviour.locked || undefined,
     ...(behaviour.options && Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
@@ -1564,6 +1566,7 @@ export function proposeSvgBehaviour(svg: SvgImportResult): SvgBehaviourDraft | n
         selected: per(best.layers, 'answer.selected', key),
         correct: per(best.layers, 'answer.correct', key),
         wrong: per(best.layers, 'answer.wrong', key),
+        ...(per(best.layers, 'answer.row', key) ? { row: per(best.layers, 'answer.row', key) } : {}),
       })),
       locked: one(best.layers, 'locked'),
     };
