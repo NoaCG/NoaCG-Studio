@@ -47,3 +47,4 @@ Project: {"version":1,"id":"plan-svg-template-library-2026-11-21","ownership":"l
 - One owner stop (AC-4 row counts) before the standing deferWithinPlan permission; since then, two deferrals were recorded without stopping.
 - 2026-11-22T15:16:26.450Z phase 6 build {"actor":"builder-tl4-tl4-b-92ca","nonce":"tl4-b-92ca","evidence":"create_session from 66ab49d3db8058f0eb972414623e155ecabb71c0, brief saved in kit briefs/tl4-build-tl4-b-92ca.txt"}
 - 2026-11-22T16:58:59.787Z phase 6 landed {"mergeSha":"b06197d34fbd9c33e062690a908088128b9e3972","pr":2698}
+- 2026-11-22T16:59:06.802Z phase 6 check {"actor":"checker-tl4-tl4-c-6d82","nonce":"tl4-c-6d82","evidence":"create_session from b06197d34fbd9c33e062690a908088128b9e3972, brief saved in kit briefs/tl4-check-tl4-c-6d82.txt"}
