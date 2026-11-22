@@ -345,3 +345,59 @@ and clears it with Clear, so the Live bug is held to C1 too.
   which clear themselves, and holds the others, which stay up and then clear on `dismiss`. Not
   changed: Clear and Take it off are English labels, as every recipe's buttons are (finding 2);
   Hold pressed during the entrance is untested, as in the built-in chat highlight (finding 3).
+
+### Downloads check (group 4 and 5 PR, fb435bc)
+
+`e2e/downloads.spec.ts`, the Template Library page check, now decodes its previews one at a
+time. CI rejected one decode twice ("The source image cannot be decoded") once the page reached
+151 previews, though every PNG decodes on its own and the case passed locally. Every preview
+must still decode and none may have zero width; the final `/so` on fb435bc judged it no weaker.
+
+## Group 6: Standings with focus
+
+Its own PR, on `main` after #2708. Row class: Ordinary (a template, its previews, README rows
+and a browser walk for the ranking route; no recipe, runtime, proposal word or persisted key
+changed).
+
+Not in this PR (left for a later builder, each a saved-state change, so Risky with a Rules-first
+`/so`): milestone track tiers and quiz show 2, 3 or 4 answers. Each needs a runtime fact (a tier
+reached from the Milestones lines; an answer row that has text) and a new per-row layer in the
+saved binding (a tier row set on the goal meter, which adds a row count to its import step; a
+row layer in the quiz's `DesignSvgQuizRow`). Tried here and refused: a quiz's third and fourth
+rows inside `show:` switches, because the reader never offers a text inside a hidden layer, so
+Answer C would not be a field.
+
+### What was built
+
+- Template (studio, games): Standings with focus, `standings-focus.svg`, on the ranking recipe
+  (`Name n`, `Points n`, `Position n`, `Row n` plates) with two choices beside it: Status
+  (Provisional drawn visible, the start; Final) and Focus (First to Fourth, all hidden, so it
+  has Clear). The focus frames a place, not a team: the frames are not row plates, so they stay
+  in their slots while the rows re-sort. Default preview plus Final and Focus on second place,
+  with alt text. Library 91 templates (`library.json`; group 5's "92" counted two too many); coverage still 90 of 101 rows (the standings row moves
+  its proof to this template; the navy Standings stays the ranking recipe's proof).
+- Option names are one word each (group 4 trap). The drawn status words are PROVISIONAL and FINAL.
+
+### AC-3
+
+`e2e/svg-templates.spec.ts` gains a ranking batch ("ranking: Standings with focus: ..."):
+
+| Template | Recognition | Controls asserted |
+| --- | --- | --- |
+| Standings with focus | automatic (ranking proposed; Status and Focus offered by name) | every named text but `Position n` is a field; Points 4 typed to 99 moves that row into first place and the old leader down, while the position numbers stay 1 to 4 in their slots; a long Title stays clear of the Status tag; +1 under the first team adds a point; Reset points sets every row to 0 and every slot reads 1 (a tie); Status starts on Provisional, never empty, Final shows alone, an empty or unknown value shows Provisional; Focus starts empty, each place is framed alone and greyed while it shows, Clear takes it away, also after a focus sent as data |
+
+Local run on the final code: 1 passed (8.2 s). One visual family: the previews come from the same renderer
+(960 by 540, `#7B8494`, Manrope), which reproduces `timing-tower.png` and
+`timing-tower-2-focus.png` pixel for pixel; `scripts/check-example-layers.mjs` passes on every
+file. README.pdf reprinted: the "Picks, focus and boards" page is now two pages (13 in all).
+
+### AC-7
+
+No new mechanism: the ranking recipe exports as before (navy Standings), and the choice with a
+start and the choice with Clear are the ones proven in every target by group 1 (Alert level)
+and group 5 (Verdict card).
+
+### AC-9
+
+No recipe, runtime, proposal word or persisted key changed; no pin moved. The navy
+`standings.svg` and its old addresses are unchanged.
