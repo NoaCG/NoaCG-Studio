@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Standings with focus</title>
+  <desc>NoaCG Clean Studio template. A league table in the middle: a Title and four rows, each a Position, a Name and Points on a Row plate, that re-sort as the points change. A Status choice starts on Provisional (drawn visible) and changes to Final; a Focus choice frames one place, First to Fourth, all hidden until one is picked; Clear takes it away.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="460" y="170" width="1000" height="670" rx="20" fill="#FFFFFF"/>
+    <rect id="Title_box" inkscape:label="Title box" x="500" y="210" width="620" height="56" fill="#FFFFFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <rect id="Row_1" inkscape:label="Row 1" x="500" y="300" width="920" height="110" rx="14" fill="#EEF1F6"/>
+    <rect id="Row_2" inkscape:label="Row 2" x="500" y="430" width="920" height="110" rx="14" fill="#EEF1F6"/>
+    <rect id="Row_3" inkscape:label="Row 3" x="500" y="560" width="920" height="110" rx="14" fill="#EEF1F6"/>
+    <rect id="Row_4" inkscape:label="Row 4" x="500" y="690" width="920" height="110" rx="14" fill="#EEF1F6"/>
+    <g id="choice_x3A_Focus_x2F_First" inkscape:label="choice:Focus/First" style="display:none">
+      <rect x="494" y="294" width="932" height="122" rx="18" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="choice_x3A_Focus_x2F_Second" inkscape:label="choice:Focus/Second" style="display:none">
+      <rect x="494" y="424" width="932" height="122" rx="18" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="choice_x3A_Focus_x2F_Third" inkscape:label="choice:Focus/Third" style="display:none">
+      <rect x="494" y="554" width="932" height="122" rx="18" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="choice_x3A_Focus_x2F_Fourth" inkscape:label="choice:Focus/Fourth" style="display:none">
+      <rect x="494" y="684" width="932" height="122" rx="18" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="choice_x3A_Status_x2F_Provisional" inkscape:label="choice:Status/Provisional">
+      <rect x="1140" y="210" width="280" height="56" rx="12" fill="#EEF1F6"/>
+      <text inkscape:label="static:Provisional" x="1280" y="248" text-anchor="middle" font-size="26" font-weight="800" fill="#5B6478" font-family="Manrope, sans-serif" letter-spacing="2">PROVISIONAL</text>
+    </g>
+    <g id="choice_x3A_Status_x2F_Final" inkscape:label="choice:Status/Final" style="display:none">
+      <rect x="1140" y="210" width="280" height="56" rx="12" fill="#2E5BFF"/>
+      <text inkscape:label="static:Final" x="1280" y="248" text-anchor="middle" font-size="26" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">FINAL</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" x="500" y="250" text-anchor="start" font-size="30" font-weight="800" fill="#2E5BFF" letter-spacing="2">LEAGUE TABLE</text>
+    <text id="Position_1" inkscape:label="Position 1" x="556" y="368" text-anchor="middle" font-size="32" font-weight="800" fill="#2E5BFF" style="font-variant-numeric: tabular-nums">1</text>
+    <text id="Name_1" inkscape:label="Name 1" x="620" y="368" text-anchor="start" font-size="36" font-weight="800" fill="#0F1729">Harbour</text>
+    <text id="Points_1" inkscape:label="Points 1" x="1380" y="368" text-anchor="end" font-size="36" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">24</text>
+    <text id="Position_2" inkscape:label="Position 2" x="556" y="498" text-anchor="middle" font-size="32" font-weight="800" fill="#2E5BFF" style="font-variant-numeric: tabular-nums">2</text>
+    <text id="Name_2" inkscape:label="Name 2" x="620" y="498" text-anchor="start" font-size="36" font-weight="800" fill="#0F1729">Valley</text>
+    <text id="Points_2" inkscape:label="Points 2" x="1380" y="498" text-anchor="end" font-size="36" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">21</text>
+    <text id="Position_3" inkscape:label="Position 3" x="556" y="628" text-anchor="middle" font-size="32" font-weight="800" fill="#2E5BFF" style="font-variant-numeric: tabular-nums">3</text>
+    <text id="Name_3" inkscape:label="Name 3" x="620" y="628" text-anchor="start" font-size="36" font-weight="800" fill="#0F1729">Ridge</text>
+    <text id="Points_3" inkscape:label="Points 3" x="1380" y="628" text-anchor="end" font-size="36" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">18</text>
+    <text id="Position_4" inkscape:label="Position 4" x="556" y="758" text-anchor="middle" font-size="32" font-weight="800" fill="#2E5BFF" style="font-variant-numeric: tabular-nums">4</text>
+    <text id="Name_4" inkscape:label="Name 4" x="620" y="758" text-anchor="start" font-size="36" font-weight="800" fill="#0F1729">Nova</text>
+    <text id="Points_4" inkscape:label="Points 4" x="1380" y="758" text-anchor="end" font-size="36" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">12</text>
+  </g>
+</svg>
