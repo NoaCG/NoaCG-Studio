@@ -34,17 +34,18 @@
  },
  "waitingOn": [
   {
-   "what": "TL2 checker verdict",
-   "eta": "2026-11-22T14:00:00Z"
+   "what": "TL3 builder receipt and its PR",
+   "eta": "2026-11-22T18:00:00Z"
   }
  ],
  "inFlight": {
-  "phase": "TL2",
-  "step": "check",
-  "session": "session_017SdbwPZL7EABJdm446EbkB",
-  "nonce": "tl2-c-ab7a",
-  "merge": "5d6b79b304552dc09a7c4ed0e16e7d0dfd26ba90",
-  "asOf": "2026-11-22T12:38:43Z"
+  "phase": "TL3",
+  "step": "build",
+  "session": "session_017SdbwMkDuHZrj8Rw6DLBjG",
+  "nonce": "tl3-b-ea9f",
+  "branch": "claude/plan-svg-template-library-tl3-build",
+  "source": "304adc72902f468d3d6b711b2e342f17ff9565d4",
+  "asOf": "2026-11-22T13:04:28Z"
  },
  "owner": [
   {
@@ -126,6 +127,8 @@
  "tl2": {
   "pr": 2695,
   "merge": "5d6b79b304552dc09a7c4ed0e16e7d0dfd26ba90",
-  "builder": "session_017SdbwQzdQoNSjiFKVDJN66"
+  "builder": "session_017SdbwQzdQoNSjiFKVDJN66",
+  "pass": "2026-11-22T13:03Z",
+  "archived": true
  }
 }
