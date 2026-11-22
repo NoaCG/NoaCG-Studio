@@ -160,9 +160,12 @@ function pictureSlots(slug: string): string[] {
 /** The choice a template draws (`choice:Level/Advisory`, ...): its name, its options in drawing
  *  order, and the one option drawn visible, where the choice starts (null: it starts empty). */
 function choiceOf(slug: string): { name: string; options: string[]; start: string | null } {
-  const groups = [...readFileSync(file(slug), 'utf8').matchAll(/<g [^>]*inkscape:label="choice:([^/"]+)\/([^"]+)"([^>]*)>/g)];
-  const shown = groups.filter((m) => !/display:\s*none/.test(m[3]));
-  return { name: groups[0][1], options: groups.map((m) => m[2]), start: shown.length === 1 ? shown[0][2] : null };
+  // Each option group's whole tag: hidden by a `display` attribute or a style, wherever it sits.
+  const groups = [...readFileSync(file(slug), 'utf8').matchAll(/<g\b[^>]*>/g)]
+    .map(([tag]) => ({ tag, label: /inkscape:label="choice:([^/"]+)\/([^"]+)"/.exec(tag) }))
+    .filter((g): g is { tag: string; label: RegExpExecArray } => !!g.label);
+  const shown = groups.filter((g) => !/\bdisplay\s*[:=]\s*"?\s*none/.test(g.tag));
+  return { name: groups[0].label[1], options: groups.map((g) => g.label[2]), start: shown.length === 1 ? shown[0].label[2] : null };
 }
 
 /** The answer rows a quiz template draws (`Answer A`, `Answer B`, ...). */
@@ -326,6 +329,17 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
         await expect(role(air, 'count/1')).toHaveText('3');
         await expect(role(air, 'count/2')).toHaveText('1');
         await expect(role(air, 'count/1')).toHaveClass(/imported-design-on/);
+        // The count is written by the vote, never typed: no operator field is made of it.
+        const titles = await air.locator('svg').first().evaluate(() => (window as unknown as { SPXGCTemplateDefinition: { DataFields: { title: string }[] } }).SPXGCTemplateDefinition.DataFields.map((f) => f.title));
+        expect(titles.filter((title) => /^Count \d/.test(title)), 'no Count field').toEqual([]);
+        // A row the next round does not list reads 0, never the last round's count.
+        await page.getByTestId(`cue-field-${options}`).fill('Coast | 2');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'count/1')).toHaveText('2');
+        await expect(role(air, 'count/2')).toHaveText('0');
+        await page.getByTestId(`cue-field-${options}`).fill('Coast | 3\nForest | 1\nCity | 0\nMountains | 0');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'count/2')).toHaveText('1');
       }
       await checkAir(page, air, `${t.slug}-3-result`);
       await page.getByTestId('cue-action-call').click();

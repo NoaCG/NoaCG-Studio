@@ -266,7 +266,7 @@ function extraBinding(svg: DesignSvg, extra: DesignSvgExtra): BehaviourBinding |
   }
   const taken = new Set<string>();
   const keyed = extra.options.map((o) => ({ ...o, key: optionKey(o.label, taken) }));
-  const initial = extra.initial === undefined ? undefined : keyed.find((o) => o.label === extra.initial)?.key;
+  const initial = extra.initial === undefined ? undefined : keyed.find((o) => o.layer === extra.initial)?.key;
   return {
     recipe: 'choice',
     name: extra.name,

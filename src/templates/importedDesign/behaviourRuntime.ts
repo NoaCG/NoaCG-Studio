@@ -452,7 +452,8 @@ noacgKinds.share = {
     if (name === 'share') return share;
     if (name === 'percent') return noacgPercentText(share * 100);
     // The row's own count, as a figure (svg-template-library TL5, the owner's ruling A on #2678).
-    if (name === 'count') return row ? String(row.count) : '';
+    // A drawn row the round does not list reads 0, as its share does, never the last round's.
+    if (name === 'count') return row ? String(row.count) : '0';
     return null;
   },
   report: function (id, spec) {

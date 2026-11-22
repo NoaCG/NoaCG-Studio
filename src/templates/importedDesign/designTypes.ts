@@ -367,7 +367,7 @@ export type DesignSvgExtra =
       name: string;
       /** Two or more options, each a hidden layer with the word the operator presses. */
       options: { label: string; layer: string }[];
-      /** The option that shows from the take, by its label: the one option the designer drew
+      /** The option that shows from the take, by its layer: the one option the designer drew
        *  VISIBLE (an alert level's resting level, svg-template-library TL5). With it the choice is
        *  never empty: no "none" state and no empty value. Absent on every choice made before,
        *  which starts empty as it always did. */

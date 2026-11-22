@@ -544,7 +544,7 @@ export function pollDrivenLayers(behaviour: SvgBehaviourDraft | null): Set<strin
   }
   if (behaviour?.kind !== 'poll') return new Set();
   return new Set(
-    [behaviour.question, behaviour.total, ...behaviour.rows.flatMap((r) => [r.label, r.value])].filter(Boolean),
+    [behaviour.question, behaviour.total, ...behaviour.rows.flatMap((r) => [r.label, r.value, r.count ?? ''])].filter(Boolean),
   );
 }
 
@@ -1221,7 +1221,7 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
   for (const [name, options] of groups) {
     if (options.length < 2) continue;
     const visible = options.filter((o) => shown(o.layer));
-    out.push({ kind: 'choice', name: unique(name), options, ...(visible.length === 1 ? { initial: visible[0].label } : {}) });
+    out.push({ kind: 'choice', name: unique(name), options, ...(visible.length === 1 ? { initial: visible[0].layer } : {}) });
   }
   if (clock) out.push(clock);
   return out.length > 0 ? out : undefined;
