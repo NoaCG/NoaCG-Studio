@@ -175,8 +175,8 @@ seek parity for imported designs other than the countdown stays issue #2699.
 ## Group 2: Winner card and Award reveal
 
 Base: `main` at `45fd2420091e422f1f07ace248579817a05bb3d9`. Row class: Ordinary by the traps
-table (templates, inventories, tests and docs only; no state rule, no Risky path), but the run
-keeps one final `/so`, so it gets one.
+table (templates, inventories, tests and docs only; no state rule, no Risky path): `/check` and
+the automated PR review, no `/so`.
 
 ### What was built
 
