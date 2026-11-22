@@ -743,6 +743,57 @@ Head to head, Player card, Map round, Bracket, Fixtures, Agenda.
 - Left for later in TL5 or moved: see the receipt and evidence (studio Standings with focus and
   final, milestone-track, quiz-show, question-queue, public-notice language cycle, ticker rotate).
 
+Group 7: Milestone track (tiers on the goal meter) and Quiz show (two to four answers in use).
+
+- Previous verified `main`: recorded when the PR is opened. Revert: `git revert -m 1 <the TL5 group 7 merge commit>`.
+- Row class: Risky (each extension adds a per-row layer to a saved binding and new runtime
+  words). The Rules below were written and pushed before any code, for a Rules-first `/so`.
+- Rules (written before coding):
+  - M1. A goal meter may draw TIERS, a row set of up to eight rows: per row a `Tier n` text
+    (the row's label), and optionally a `Threshold n` text (the row's figure), a `Reached n` look
+    and a `Segment n` bar drawn at its full length. A meter with no tier rows is the meter it was.
+  - M2. A meter with one or more tier rows owns a `Milestones` lines field, one `Label | target`
+    per line (the built-in milestone track's wire), empty by default, made after Current and
+    Target. Line n fills row n: `Tier n` prints its label and `Threshold n` its figure. Current
+    and Target stay what they were on every meter, so their field ids never move; a tier track
+    that draws no Bar or Percent simply does not use Target.
+  - M3. `Reached n` shows exactly when row n has a line and Current is at or past that line's
+    figure (the built-in's `current >= target`), with Current and the figures read as the
+    meter's figures are. A row with no line never shows Reached.
+  - M4. `Segment n` fills by how far Current has gone from the previous line's figure (0 before
+    the first line) to row n's figure, clamped from empty to full: full once row n is reached,
+    empty until the previous row is. A row with no line is empty; a figure not above the previous
+    one gives a segment that is full when reached and empty otherwise. Drawn end to end, the
+    segments run the line from node to node, as the built-in's evenly spaced track does.
+  - M5. Tiers are data only: Milestones and Current are fields, so every host plays them by
+    data. No event, state, button or machine arrow is added; a look and a segment follow a data
+    write at once, as the meter's bar does.
+  - Q1. A quiz may draw a ROW layer per answer (`Row A`, a drawn group such as the row's plate
+    and letter). On a board with any row layer, a row is IN USE while its Answer field holds
+    text (after trimming spaces); `Row X` shows while row X is in use and hides while it is not.
+  - Q2. On such a board, Selected, Correct and Wrong light only on rows in use: a pick or an
+    answer key naming an unused row lights nothing, and Reveal marks Wrong only on the other
+    rows in use (the built-in quiz show: "Pick C on a board showing two answers lights nothing").
+    The machine, the two dropdowns, the buttons and the lock are unchanged.
+  - Q3. Two, three or four answers in use is data: emptying an Answer hides its row and typing
+    it back shows it, on the take and on air, in every host that sends data. No event, state,
+    button or field is added.
+  - Q4. Text bound inside a row layer is measured when the row first shows (the fit's owed
+    measurement, as for any look), so a row typed back on air fits like the others.
+  - S1. A meter without tier rows and a quiz without row layers compile to the table, fields,
+    words and bytes they compiled to before, and a saved one keeps its own table and runtime
+    (TL2 C7). Reimport of artwork that adds tier or row layers keeps every existing field id and
+    cue value: the Milestones field is made after the existing ones, and a quiz gains no field.
+    An old cue with an empty Answer then hides that row (it showed an empty row before).
+  - S2. The words the runtime newly reads are one `READS_ADDED` entry each, in the commit that
+    teaches the runtime: the `text` kind's fact `filled`, and the `list` kind's spec key `of`
+    (the role whose figure the rows are compared with), its fact `reached` and its derivation
+    `span`. A table asking any of them under a runtime that does not read it is refused at
+    export, upgradable by importing again.
+  - S3. Recognition: `Row A` names bind the quiz's row layer but are not evidence of a quiz;
+    `Reached n` is evidence of a goal meter. `docs/svg-samples/quiz-board.svg` already draws
+    `Row A` to `Row D` plates, so importing it again now binds them (S1 applies).
+
 ## Test maintenance
 
 - 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22
