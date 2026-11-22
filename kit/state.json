@@ -34,80 +34,17 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2710 (last TL5) through the merge queue",
-   "eta": "2026-11-23T00:10:00Z"
+   "what": "TL5 checker verdict",
+   "eta": "2026-11-23T01:00:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL5",
-  "step": "build",
-  "session": "session_017SdbwPdhYk9pbtKPSPNUew",
-  "nonce": "tl5-b-5d9c",
-  "branch": "claude/plan-svg-template-library-tl5-build-4",
-  "source": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "asOf": "2026-11-22T23:15Z",
-  "note": "may land as several PRs; coordinator stamps each",
-  "prs": [
-   {
-    "pr": 2701,
-    "group": 1,
-    "head": "0f15ad89334c54af3524a18fde4a9b258382b564",
-    "covers": "vote results with counts, alert-level, notice-card, poll result (AC-5)",
-    "stamp": "cloud-queue-merge 45056469250",
-    "repairOwnerComment": 7083790791,
-    "merged": "45fd2420091e422f1f07ace248579817a05bb3d9"
-   },
-   {
-    "pr": 2705,
-    "group": 2,
-    "head": "681c52c2934cd6a5768e82a78b0c9cc17535f299",
-    "covers": "winner card, award reveal",
-    "class": "Ordinary",
-    "stamp": "cloud-queue-merge 45060319466",
-    "repairOwnerComment": 7084333125,
-    "merged": "9c438c2b906a83bc68aec5d2376cddf117d83967"
-   },
-   {
-    "pr": 2706,
-    "group": 3,
-    "head": "4c3e034998a23c7b0156a88993bee75581315bf0",
-    "covers": "Q&A card, nominee reveal",
-    "class": "Ordinary",
-    "stamp": "cloud-queue-merge 45062526522",
-    "repairOwnerComment": 7084655095,
-    "merged": "f772fa22633d2c0f77947462fe4f613e9be8ad66"
-   },
-   {
-    "pr": 2708,
-    "group": "4-5",
-    "head": "fb435bc70e401c4dd36b6d8404d77d886cc885f9",
-    "covers": "17 templates incl. scorebug, match board/status/event, esports, transition, verdict, matchup, podium, chat highlight, timing tower, map round, head to head, player card, bracket, fixtures, agenda",
-    "stamp": "cloud-queue-merge 45069985510",
-    "repairOwnerComment": 7085773010,
-    "merged": "3728a1c9431457e96f50cfed9638815f92219d5b"
-   },
-   {
-    "pr": 2709,
-    "group": 6,
-    "head": "c9e2d0edcbaf168e292fe9f7c73978376a34a051",
-    "covers": "standings with focus and final/provisional",
-    "class": "Ordinary",
-    "stamp": "cloud-queue-merge 45072715539",
-    "repairOwnerComment": 7086139865,
-    "merged": "45127dc15db7170c1fb78200635c5ab791a0453e"
-   },
-   {
-    "pr": 2710,
-    "group": 7,
-    "head": "ec710a38a6f85b5981d73aeb369b32e09afa4495",
-    "covers": "milestone track tiers, quiz show 2/3/4",
-    "class": "Risky (Rules-first /so before code)",
-    "stamp": "cloud-queue-merge 45082125928",
-    "repairOwnerComment": 7087427951
-   }
-  ],
-  "progress": "#2710 queued: the last TL5 PR; on merge record TL5 landed and launch the check",
-  "replaced": "session_017SdbwPqEaRwPmejCNaAGBi (tl5-b-a0a1) after #2709"
+  "step": "check",
+  "session": "session_017SdbwNJvAA4LGxQQAuP7Fo",
+  "nonce": "tl5-c-99ec",
+  "merge": "62dc34aa28ba33af9f938f10d42497180776a7fa",
+  "asOf": "2026-11-22T23:28:02Z"
  },
  "owner": [
   {
@@ -241,5 +178,16 @@
   "epoch": 2,
   "deadline": "2026-11-23T21:26:02.228Z",
   "renewed": "2026-11-22T21:26Z under standing blockRenewal"
+ },
+ "tl5": {
+  "prs": [
+   2701,
+   2705,
+   2706,
+   2708,
+   2709,
+   2710
+  ],
+  "merge": "62dc34aa28ba33af9f938f10d42497180776a7fa"
  }
 }
