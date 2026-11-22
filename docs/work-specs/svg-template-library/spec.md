@@ -675,6 +675,23 @@ Group 1: Vote results count, Alert level, Public notice, Poll result (one PR, #2
   agent's import is a live vote until the author ticks the box. A row a new round leaves out keeps
   its old label (issue #2702, on main before TL5).
 
+Group 2: the reveal's celebration (Winner card, Award reveal).
+
+- Previous verified `main`: `45fd2420091e422f1f07ace248579817a05bb3d9` (group 1 merged). Revert: `git revert -m 1 <the TL5 group 2 merge commit>`.
+- The reveal recipe gains an optional `celebration` look (`Celebration`, words.json). Where it is
+  drawn, a parallel group `celebration` (calm, on) adds Celebrate and Settle; the walk, its
+  Continue and the runtime are untouched, so no READS word is added and no pin moves.
+- The layer check holds studio templates to a role's taught name: the revealed text is `Price`
+  in every reveal template, whatever it holds (README says so), and the cover is `Cover`.
+- Labels: the presses read Reveal, Celebrate and Settle on both templates; the built-ins' own
+  words (Reveal result, Open envelope, Applause) are not carried (a recipe's press has one label).
+- Rules (state rules this group sets; written after coding, so the final `/so` challenges them):
+  - R1. A reveal with a drawn Celebration has a second group of its own: it starts calm;
+    Celebrate (from calm) shows the celebration, Settle (from on) puts it away, each button
+    greyed where its arrow does not start. The walk (Sealed, Revealed) and Continue are unchanged.
+  - R2. A reveal without a Celebration compiles to the machine, controls and table it compiled
+    to before; a saved reveal keeps its own runtime and table.
+
 ## Test maintenance
 
 - 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22

@@ -171,3 +171,38 @@ seek parity for imported designs other than the countdown stays issue #2699.
   the `proposeExtras` comment says every prefixed group, visible ones included.
 - CI on 83af9bf: `Factory gates` failed only on pins recorded one runtime edit before that head
   (the review's count fix); the pins are re-recorded on the final runtime.
+
+## Group 2: the reveal's celebration (Winner card, Award reveal)
+
+Base: `main` at `45fd2420091e422f1f07ace248579817a05bb3d9`. Row class: not Ordinary (a recipe's
+machine), not Risky (no Risky path, no persisted key changed or added beyond the binding's layer
+map). Rules R1 and R2 (phase notes) were written after coding.
+
+### What was built
+
+- The reveal recipe gains an optional drawn `Celebration` (words.json). Where it is bound, a
+  parallel group `celebration` (calm, on) adds Celebrate and Settle; the look shows while the
+  group is on. Nothing is added to the runtime.
+- Templates (studio, games package): Winner card (a centred card, confetti) and Award reveal (a
+  lower third with a category tag, stars), each sealed, revealed and celebrating, with alt text.
+  Coverage: `winner-card` and `award-reveal` covered (71 of 101 rows).
+
+### AC-3
+
+The `reveal` batch of `e2e/svg-templates.spec.ts` imports each template (reveal recipe detected),
+types the winner in The reveal, and checks: sealed under the cover, Settle greyed; Reveal shows
+the winner and hides the cover; Celebrate shows the celebration and greys itself; Settle puts it
+away and the winner stays. The frame is checked clean when revealed and when celebrating.
+
+### AC-7
+
+In the every-target case: SPX offers Reveal, Celebrate and Settle as buttons calling the graphic's
+own `noacgDispatch`; SPX, CasparCG and H2R, driven through that function, go sealed, revealed,
+celebrating, settled; the HTML overlay plays sealed (it has no control channel); OGraf and LiveOS
+custom actions `reveal`, `celebrate`, `settle` walk the same four frames.
+
+### AC-9
+
+`scripts/behaviour-reads.test.mjs`: a reveal without a celebration has its one control and no
+parallel group; with one, the walk is the same and the table asks the runtime for nothing new.
+No corpus or build pin moved.
