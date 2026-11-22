@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Headline card</title>
+  <desc>NoaCG Clean Studio template. A news card on the left: Kicker, Headline, the Story under it and its Source, each on its own plate.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Kicker_box" inkscape:label="Kicker box" x="120" y="300" width="240" height="48" rx="12" fill="#2E5BFF"/>
+    <rect id="Headline_box" inkscape:label="Headline box" x="120" y="356" width="900" height="120" rx="16" fill="#FFFFFF"/>
+    <rect id="Story_box" inkscape:label="Story box" x="120" y="484" width="900" height="128" rx="16" fill="#FFFFFF"/>
+    <rect id="Source_box" inkscape:label="Source box" x="120" y="620" width="560" height="48" rx="12" fill="#E3E7EF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Kicker" x="144" y="333" text-anchor="start" font-size="22" font-weight="800" fill="#FFFFFF" letter-spacing="2">TOP STORY</text>
+    <text id="Headline" x="160" y="434" text-anchor="start" font-size="52" font-weight="800" fill="#0F1729">Council agrees energy plan</text>
+    <text id="Story" x="160" y="542" text-anchor="start" font-size="30" font-weight="600" fill="#3A4560">Households get help with bills from next month.</text>
+    <text id="Source" x="144" y="652" text-anchor="start" font-size="22" font-weight="700" fill="#5B6478">Reporting: Anna Weiss, politics</text>
+  </g>
+</svg>

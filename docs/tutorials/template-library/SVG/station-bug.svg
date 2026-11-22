@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Station ident</title>
+  <desc>NoaCG Clean Studio template. The channel ident in the top left corner: a drawn Logo to replace, the Channel and the Show on air.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <g id="Logo">
+      <rect x="96" y="96" width="112" height="112" rx="16" fill="#2E5BFF"/>
+      <circle cx="152" cy="152" r="28" fill="none" stroke="#FFFFFF" stroke-width="10"/>
+    </g>
+    <rect id="Channel_box" inkscape:label="Channel box" x="216" y="96" width="360" height="60" rx="14" fill="#FFFFFF"/>
+    <rect id="Show_box" inkscape:label="Show box" x="216" y="164" width="360" height="44" rx="12" fill="#0F1729"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Channel" x="240" y="138" text-anchor="start" font-size="30" font-weight="800" fill="#0F1729">NOACG TV</text>
+    <text id="Show" x="240" y="193" text-anchor="start" font-size="20" font-weight="700" fill="#FFFFFF" letter-spacing="1">THE MORNING LINE</text>
+  </g>
+</svg>

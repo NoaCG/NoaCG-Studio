@@ -294,7 +294,7 @@ Actions. OW: the owner, with Illustrator on their own computer.
   countdown motion). Every type whose route exists, including the corner game timer with its
   motion and the picture-slot templates. Carried from TL3: the batched browser sweep from "Tests
   and budget", its before and after minutes and its dated test-maintenance entry.
-- **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension, AC-10 for Alert level). Each
+- **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension, AC-10 for Alert level, AC-5 for Poll result, deferred from TL4). Each
   extension lands with its template, controls, compatibility tests and export proof. Carried
   from TL1 (owner ruling 2026-11-22): a per-option count readout on the Vote results template.
 - **TL6. New runtime kinds** (CA; depends on TL5; AC-3, AC-7, AC-9 per kind, AC-4 for the Word cloud template). Word cloud, ticker
@@ -587,6 +587,49 @@ Actions. OW: the owner, with Illustrator on their own computer.
   - A3. A change to the library folder or the coverage matrix triggers a production build.
   - A4. Recipe ids, type ids, role words, field titles and persisted keys are unchanged; no
     template's SVG content changes.
+
+### TL4 (templates on existing routes)
+
+- Previous verified `main`: `66ab49d3db8058f0eb972414623e155ecabb71c0`. Revert: `git revert -m 1 <the TL4 merge commit>`.
+- Evidence: `evidence/phase-TL4.md`.
+- 28 studio templates (library 65): plain-field cards and bugs for the 17 plain types, Key facts
+  and Recap card (list), Live bug (choice), two answer boards (quiz), End credits pages and still
+  board (credits, playback by author choice), QR card, Versus and Framed picture (picture slots,
+  `f:` images with an embedded placeholder) and Two-up frames (open windows). 66 of 101 rows
+  covered. `end-credits-crawl` moved to TL6: the credits import plays roll, still and cards, and a
+  crawl is the ticker crawl kind's.
+- Countdown motion: a look rule's `enter` gains `pulse` (while the rule holds, on every repaint,
+  so the clock's tick drives it) and `flash` (once, when the look appears), GSAP in the runtime
+  (`noacgMove`), none under reduced motion; `READS_ADDED` lists both. The countdown recipe pulses
+  its warning only while `clock/running` (a second warning rule keeps it lit when paused).
+- OGraf non-real time: the gate (`validateOgrafOfflineCompatibility`) refused every imported
+  design because the SVG namespace URI matched its network check. Known XML namespace names are
+  now skipped; any other address is still refused. Imported designs can be sought from TL4 on.
+- Tests: `e2e/svg-templates.spec.ts` and `e2e/svg-examples.spec.ts` run their templates in
+  batches (by route, five at most, one page per batch, 120 s each); every assertion is kept. A
+  new template joins its route's batch through `library.json` alone. Stand-alone cases: Live
+  vote timing (AC-5), countdown motion (AC-6) and the motion in every export target (AC-7).
+- For TL5: the Poll result template (AC-5's third case) needs the poll-rows extension, so it is
+  TL5's (now on its phase line). Seek parity for imported designs other than the countdown is
+  issue #2699. Picture slots need no runtime work: `f:` images are fields, and `update()` with an image
+  replaces them on air.
+- Traps: a template text drawn BESIDE another plate grows into it when retyped long (the Location
+  chip and Sponsor strip did): stack a tag above or below its plate. A retyped value can wrap into
+  tspans; read it line by line. Hidden-state previews are rendered with the state's groups shown.
+- Rules (state rules this phase sets; written after coding, so the final `/so` challenges them):
+  - M1. A look with `enter: 'pulse'` moves while a pulse rule for it holds and is at rest (no
+    inline opacity or transform) the moment none holds; a paused countdown shows its warning still.
+  - M2. A look with `enter: 'flash'` flashes once when it goes from hidden to shown, on any
+    repaint, and then rests at opacity 1 and scale 1; a repaint that keeps it shown does not flash
+    again. Reset, or the rule ceasing to hold, clears the motion.
+  - M3. Under `prefers-reduced-motion: reduce` neither moves; the looks show and hide as before.
+  - M4. Motion is GSAP driven, so an OGraf non-real-time seek lands on the same frame whatever
+    order the seeks come in.
+
+## Test maintenance
+
+- 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22
+- 2026-11-22 `e2e/svg-templates.spec.ts`: the same consolidation for the studio set: 15 one-template tests became 16 batches by route over 43 templates (geometry and clean air at every state, long text, hidden states, the credits roll at ten points, the QR decode and the score sizes kept, by the same function) plus three stand-alone cases (AC-5, AC-6, AC-7); receipt in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22
 
 ## Non-goals
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Product card</title>
+  <desc>NoaCG Clean Studio template. A lower-left product: a picture of the Product, its Cost beside the price it Was, the Saving, and a Detail line. Replace the drawn picture with the product's artwork.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <g id="Photo">
+      <rect x="120" y="700" width="380" height="280" rx="16" fill="#E3E7EF"/>
+      <path d="M240 880 L240 820 A70 70 0 0 1 380 820 L380 880" fill="none" stroke="#0F1729" stroke-width="16" stroke-linecap="round"/>
+      <rect x="222" y="840" width="44" height="76" rx="14" fill="#2E5BFF"/>
+      <rect x="354" y="840" width="44" height="76" rx="14" fill="#2E5BFF"/>
+    </g>
+    <rect id="Product_box" inkscape:label="Product box" x="508" y="700" width="780" height="96" rx="14" fill="#FFFFFF"/>
+    <rect id="Cost_box" inkscape:label="Cost box" x="508" y="804" width="236" height="96" rx="14" fill="#2E5BFF"/>
+    <rect id="Was_box" inkscape:label="Was box" x="752" y="804" width="236" height="96" rx="14" fill="#FFFFFF"/>
+    <rect id="Saving_box" inkscape:label="Saving box" x="996" y="804" width="292" height="96" rx="14" fill="#0F1729"/>
+    <rect id="Detail_box" inkscape:label="Detail box" x="508" y="908" width="780" height="72" rx="12" fill="#FFFFFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Product" x="540" text-anchor="start" y="762" font-size="40" font-weight="800" fill="#0F1729">Aurora Studio Headphones</text>
+    <text id="Cost" x="536" text-anchor="start" y="870" font-size="52" font-weight="800" fill="#FFFFFF">€149</text>
+    <text id="Was" x="780" text-anchor="start" y="864" font-size="30" font-weight="600" fill="#5B6478">Was €229</text>
+    <text id="Saving" x="1024" text-anchor="start" y="864" font-size="30" font-weight="800" fill="#FFFFFF" letter-spacing="1">SAVE 35%</text>
+    <text id="Detail" x="540" text-anchor="start" y="954" font-size="26" font-weight="600" fill="#5B6478">Free next-day delivery, 2-year warranty</text>
+  </g>
+</svg>

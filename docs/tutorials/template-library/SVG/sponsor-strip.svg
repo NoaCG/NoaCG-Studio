@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Sponsor strip</title>
+  <desc>NoaCG Clean Studio template. A Kicker such as Supported by on a blue tag above a white strip with three partner logos. Replace the logo shapes with the partners' artwork.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="420" y="830" width="300" height="46" rx="12" fill="#2E5BFF"/>
+    <rect id="Logo_strip" inkscape:label="Logo strip" x="420" y="884" width="1080" height="96" rx="14" fill="#FFFFFF"/>
+    <g id="Logo_1" inkscape:label="Logo 1" transform="translate(-260 0)">
+      <rect x="780" y="906" width="200" height="52" rx="10" fill="#E3E7EF"/>
+      <circle cx="810" cy="932" r="14" fill="#2E5BFF"/>
+      <rect x="834" y="926" width="120" height="12" rx="6" fill="#5B6478"/>
+    </g>
+    <g id="Logo_2" inkscape:label="Logo 2" transform="translate(-164 0)">
+      <rect x="1024" y="906" width="200" height="52" rx="10" fill="#E3E7EF"/>
+      <rect x="1040" y="918" width="28" height="28" rx="6" fill="#0F1729"/>
+      <rect x="1078" y="926" width="128" height="12" rx="6" fill="#5B6478"/>
+    </g>
+    <g id="Logo_3" inkscape:label="Logo 3" transform="translate(-68 0)">
+      <rect x="1268" y="906" width="200" height="52" rx="10" fill="#E3E7EF"/>
+      <path d="M1284 946 L1298 918 L1312 946 Z" fill="#2E5BFF"/>
+      <rect x="1322" y="926" width="128" height="12" rx="6" fill="#5B6478"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Kicker" x="442" text-anchor="start" y="862" font-size="22" font-weight="800" fill="#FFFFFF" letter-spacing="2">SUPPORTED BY</text>
+  </g>
+</svg>

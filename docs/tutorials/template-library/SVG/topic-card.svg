@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Topic card</title>
+  <desc>NoaCG Clean Studio template. The topic under discussion on the right of the screen: Topic, a Detail line and its Source, each on its own plate.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Topic_box" inkscape:label="Topic box" x="1124" y="380" width="700" height="120" rx="16" fill="#FFFFFF"/>
+    <rect id="Accent" x="1124" y="380" width="10" height="120" rx="5" fill="#2E5BFF"/>
+    <rect id="Detail_box" inkscape:label="Detail box" x="1124" y="508" width="700" height="88" rx="14" fill="#FFFFFF"/>
+    <rect id="Source_box" inkscape:label="Source box" x="1124" y="604" width="420" height="48" rx="12" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Topic" x="1164" y="456" text-anchor="start" font-size="44" font-weight="800" fill="#0F1729">Four-day working week</text>
+    <text id="Detail" x="1164" y="562" text-anchor="start" font-size="30" font-weight="600" fill="#5B6478">Trial results from 60 companies</text>
+    <text id="Source" x="1148" y="636" text-anchor="start" font-size="22" font-weight="700" fill="#FFFFFF">Source: national survey 2026</text>
+  </g>
+</svg>

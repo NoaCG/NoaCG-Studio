@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Two-up frames</title>
+  <desc>NoaCG Clean Studio template. Two camera windows side by side, each with a name under it. The windows are open frames with no fill, so the cameras behind them show through.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Window_1" inkscape:label="Window 1" x="100" y="246" width="840" height="472" rx="16" fill="none" stroke="#FFFFFF" stroke-width="6"/>
+    <rect id="Window_edge_1" inkscape:label="Window edge 1" x="124" y="243" width="160" height="12" rx="6" fill="#2E5BFF"/>
+    <rect id="Person_box_1" inkscape:label="Person box 1" x="100" y="750" width="560" height="84" rx="14" fill="#FFFFFF"/>
+    <rect id="Window_2" inkscape:label="Window 2" x="980" y="246" width="840" height="472" rx="16" fill="none" stroke="#FFFFFF" stroke-width="6"/>
+    <rect id="Window_edge_2" inkscape:label="Window edge 2" x="1004" y="243" width="160" height="12" rx="6" fill="#2E5BFF"/>
+    <rect id="Person_box_2" inkscape:label="Person box 2" x="980" y="750" width="560" height="84" rx="14" fill="#FFFFFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Person_1" inkscape:label="Person 1" x="128" text-anchor="start" y="806" font-size="38" font-weight="800" fill="#0F1729">Maya Lindqvist</text>
+    <text id="Person_2" inkscape:label="Person 2" x="1008" text-anchor="start" y="806" font-size="38" font-weight="800" fill="#0F1729">Daniel Okafor</text>
+  </g>
+</svg>

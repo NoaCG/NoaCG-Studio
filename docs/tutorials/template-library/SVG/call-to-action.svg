@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Call to action</title>
+  <desc>NoaCG Clean Studio template. A lower-left ask: the Action on a blue plate, the Target it points at on a white plate, and a Detail line with the reason.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Action_box" inkscape:label="Action box" x="120" y="820" width="260" height="88" rx="14" fill="#2E5BFF"/>
+    <rect id="Target_box" inkscape:label="Target box" x="388" y="820" width="640" height="88" rx="14" fill="#FFFFFF"/>
+    <rect id="Detail_box" inkscape:label="Detail box" x="120" y="916" width="908" height="64" rx="12" fill="#FFFFFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Action" x="148" text-anchor="start" y="878" font-size="36" font-weight="800" fill="#FFFFFF" letter-spacing="2">FOLLOW</text>
+    <text id="Target" x="420" text-anchor="start" y="880" font-size="44" font-weight="800" fill="#0F1729">@noacgstudio</text>
+    <text id="Detail" x="148" text-anchor="start" y="958" font-size="26" font-weight="600" fill="#5B6478">New broadcast graphics every Friday</text>
+  </g>
+</svg>

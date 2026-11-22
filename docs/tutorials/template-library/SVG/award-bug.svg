@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Award mark</title>
+  <desc>NoaCG Clean Studio template. A lower-left mark: the award logo beside the Award, such as Winner 2026, and the Category it was given in. Replace the star with the award's artwork.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <g id="Logo">
+      <rect x="120" y="852" width="128" height="128" rx="16" fill="#FFFFFF"/>
+      <path d="M184 878 L196 904 L224 907 L203 926 L209 954 L184 940 L159 954 L165 926 L144 907 L172 904 Z" fill="#2E5BFF"/>
+    </g>
+    <rect id="Award_box" inkscape:label="Award box" x="256" y="852" width="440" height="68" rx="14" fill="#2E5BFF"/>
+    <rect id="Category_box" inkscape:label="Category box" x="256" y="928" width="440" height="52" rx="12" fill="#FFFFFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Award" x="284" text-anchor="start" y="898" font-size="32" font-weight="800" fill="#FFFFFF" letter-spacing="1">WINNER 2026</text>
+    <text id="Category" x="284" text-anchor="start" y="963" font-size="23" font-weight="700" fill="#0F1729">Best documentary</text>
+  </g>
+</svg>

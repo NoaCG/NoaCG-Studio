@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Listing card</title>
+  <desc>NoaCG Clean Studio template. A lower-left listing: a photo, a Status tag, the Listing and its Details, and a Value with its Value label. Replace the drawn house with the listing's picture.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <g id="Photo">
+      <rect x="120" y="640" width="400" height="340" rx="16" fill="#E3E7EF"/>
+      <path d="M220 800 L320 720 L420 800 Z" fill="#2E5BFF"/>
+      <rect x="240" y="800" width="160" height="110" fill="#FFFFFF"/>
+      <rect x="300" y="846" width="40" height="64" fill="#0F1729"/>
+    </g>
+    <rect id="Status_box" inkscape:label="Status box" x="528" y="640" width="300" height="52" rx="12" fill="#2E5BFF"/>
+    <rect id="Listing_box" inkscape:label="Listing box" x="528" y="700" width="780" height="96" rx="14" fill="#FFFFFF"/>
+    <rect id="Details_box" inkscape:label="Details box" x="528" y="804" width="780" height="64" rx="12" fill="#FFFFFF"/>
+    <rect id="Value_label_box" inkscape:label="Value label box" x="528" y="876" width="276" height="104" rx="14" fill="#E3E7EF"/>
+    <rect id="Value_box" inkscape:label="Value box" x="812" y="876" width="496" height="104" rx="14" fill="#FFFFFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Status" x="552" text-anchor="start" y="675" font-size="22" font-weight="800" fill="#FFFFFF">Viewing today</text>
+    <text id="Listing" x="560" text-anchor="start" y="762" font-size="40" font-weight="800" fill="#0F1729">14 Meadow Lane, Hillside</text>
+    <text id="Details" x="560" text-anchor="start" y="845" font-size="26" font-weight="600" fill="#5B6478">3 bed · 118 m² · garden · garage</text>
+    <text id="Value_label" inkscape:label="Value label" x="556" text-anchor="start" y="937" font-size="26" font-weight="700" fill="#5B6478">Guide price</text>
+    <text id="Value" x="844" text-anchor="start" y="946" font-size="52" font-weight="800" fill="#0F1729">£415,000</text>
+  </g>
+</svg>

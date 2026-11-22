@@ -545,7 +545,9 @@ test('a saved countdown compiles exactly as before: its recipe, engine, field, p
   assert.deepEqual(t.paint, [
     { gauge: 'bar', from: 'clock:fraction' },
     { look: 'warning', when: { facts: ['clock:warning'] } },
-    { look: 'expired', when: { facts: ['clock:expired'] } },
+    // svg-template-library TL4: the last stretch pulses while the clock runs, zero flashes once.
+    { look: 'warning', when: { facts: ['clock:warning'], state: ['clock/running'] }, enter: 'pulse' },
+    { look: 'expired', when: { facts: ['clock:expired'] }, enter: 'flash' },
     { look: 'paused', when: { state: ['clock/paused'] } },
   ]);
   assert.equal(t.options, undefined);

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>End credits, still board</title>
+  <desc>NoaCG Clean Studio template. A thank-you wall that holds still: Heading on a blue band, then the roles on the left and the names on the right, Credits, Credits 2 and on. At import, choose Hold still under Plays as; in playout, paste the list: its first line is the heading.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" width="1920" height="1080" fill="#FFFFFF"/>
+    <rect id="Heading_box" inkscape:label="Heading box" width="1920" height="250" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Heading" x="960" y="152" text-anchor="middle" font-size="72" font-weight="800" fill="#FFFFFF">Thank you</text>
+    <text id="Credits" x="930" y="380" text-anchor="end" font-size="28" font-weight="700" fill="#2E5BFF" letter-spacing="1">Hosts</text>
+    <text id="Credits_2" inkscape:label="Credits 2" x="990" y="380" text-anchor="start" font-size="44" font-weight="600" fill="#0F1729">Alex Rivera</text>
+    <text id="Credits_3" inkscape:label="Credits 3" x="990" y="440" text-anchor="start" font-size="44" font-weight="600" fill="#0F1729">Sam Lee</text>
+    <text id="Credits_4" inkscape:label="Credits 4" x="930" y="532" text-anchor="end" font-size="28" font-weight="700" fill="#2E5BFF" letter-spacing="1">Guests</text>
+    <text id="Credits_5" inkscape:label="Credits 5" x="990" y="532" text-anchor="start" font-size="44" font-weight="600" fill="#0F1729">Kim Park</text>
+    <text id="Credits_6" inkscape:label="Credits 6" x="990" y="592" text-anchor="start" font-size="44" font-weight="600" fill="#0F1729">Jo Berg</text>
+    <text id="Credits_7" inkscape:label="Credits 7" x="930" y="684" text-anchor="end" font-size="28" font-weight="700" fill="#2E5BFF" letter-spacing="1">Music</text>
+    <text id="Credits_8" inkscape:label="Credits 8" x="990" y="684" text-anchor="start" font-size="44" font-weight="600" fill="#0F1729">The Late Trio</text>
+    <text id="Credits_9" inkscape:label="Credits 9" x="930" y="776" text-anchor="end" font-size="28" font-weight="700" fill="#2E5BFF" letter-spacing="1">With thanks to</text>
+    <text id="Credits_10" inkscape:label="Credits 10" x="990" y="776" text-anchor="start" font-size="44" font-weight="600" fill="#0F1729">Everyone watching</text>
+  </g>
+</svg>

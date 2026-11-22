@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Recap card</title>
+  <desc>NoaCG Clean Studio template. A recap of what happened: a Title on a blue tag and Item 1 to Item 3 on three cards, revealed one at a time with Next, each with a hidden Mark that shows on the point that just arrived.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Title_box" inkscape:label="Title box" x="160" y="592" width="560" height="84" rx="14" fill="#2E5BFF"/>
+    <rect id="Item_box_1" inkscape:label="Item box 1" x="160" y="692" width="520" height="236" rx="18" fill="#FFFFFF"/>
+    <text id="static:Label_1" inkscape:label="static:Label 1" x="196" y="752" text-anchor="start" font-size="26" font-weight="800" fill="#2E5BFF" font-family="Manrope, sans-serif" letter-spacing="2">01</text>
+    <rect id="Item_box_2" inkscape:label="Item box 2" x="700" y="692" width="520" height="236" rx="18" fill="#FFFFFF"/>
+    <text id="static:Label_2" inkscape:label="static:Label 2" x="736" y="752" text-anchor="start" font-size="26" font-weight="800" fill="#2E5BFF" font-family="Manrope, sans-serif" letter-spacing="2">02</text>
+    <rect id="Item_box_3" inkscape:label="Item box 3" x="1240" y="692" width="520" height="236" rx="18" fill="#FFFFFF"/>
+    <text id="static:Label_3" inkscape:label="static:Label 3" x="1276" y="752" text-anchor="start" font-size="26" font-weight="800" fill="#2E5BFF" font-family="Manrope, sans-serif" letter-spacing="2">03</text>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Mark_1" inkscape:label="Mark 1" style="display:none">
+      <rect x="163" y="695" width="514" height="230" rx="15" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Mark_2" inkscape:label="Mark 2" style="display:none">
+      <rect x="703" y="695" width="514" height="230" rx="15" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Mark_3" inkscape:label="Mark 3" style="display:none">
+      <rect x="1243" y="695" width="514" height="230" rx="15" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" x="196" y="648" text-anchor="start" font-size="40" font-weight="800" fill="#FFFFFF">What happened</text>
+    <text id="Item_1" inkscape:label="Item 1" x="196" y="812" text-anchor="start" font-size="32" font-weight="700" fill="#0F1729">Two early goals</text>
+    <text id="Item_2" inkscape:label="Item 2" x="736" y="812" text-anchor="start" font-size="32" font-weight="700" fill="#0F1729">A red card on the hour</text>
+    <text id="Item_3" inkscape:label="Item 3" x="1276" y="812" text-anchor="start" font-size="32" font-weight="700" fill="#0F1729">A late save keeps the win</text>
+  </g>
+</svg>

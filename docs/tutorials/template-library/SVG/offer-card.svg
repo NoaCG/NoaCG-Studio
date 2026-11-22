@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Offer card</title>
+  <desc>NoaCG Clean Studio template. A mid-left offer: a Kicker, the Offer in large type, a Detail line with its terms, the promo Code and when it Ends.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Kicker_box" inkscape:label="Kicker box" x="120" y="300" width="300" height="60" rx="12" fill="#2E5BFF"/>
+    <rect id="Offer_box" inkscape:label="Offer box" x="120" y="368" width="680" height="180" rx="18" fill="#FFFFFF"/>
+    <rect id="Detail_box" inkscape:label="Detail box" x="120" y="556" width="680" height="72" rx="12" fill="#FFFFFF"/>
+    <rect id="Code_box" inkscape:label="Code box" x="120" y="636" width="412" height="88" rx="14" fill="#E3E7EF"/>
+    <rect id="Ends_box" inkscape:label="Ends box" x="540" y="636" width="260" height="88" rx="14" fill="#E5484D"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Kicker" x="146" text-anchor="start" y="340" font-size="24" font-weight="800" fill="#FFFFFF" letter-spacing="2">FLASH DEAL</text>
+    <text id="Offer" x="156" text-anchor="start" y="500" font-size="120" font-weight="800" fill="#0F1729">40% off</text>
+    <text id="Detail" x="156" text-anchor="start" y="602" font-size="26" font-weight="700" fill="#5B6478">Everything in the winter range</text>
+    <text id="Code" x="150" text-anchor="start" y="694" font-size="40" font-weight="800" fill="#2E5BFF" letter-spacing="3">WINTER40</text>
+    <text id="Ends" x="566" text-anchor="start" y="689" font-size="24" font-weight="800" fill="#FFFFFF">Ends tonight</text>
+  </g>
+</svg>

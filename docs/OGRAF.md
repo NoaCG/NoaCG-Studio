@@ -246,9 +246,15 @@ times.
 
 That mode is gated by a conservative compatibility check, and the export is refused with the
 reason if the graphic uses anything a virtual clock cannot own: wall-clock CSS animations,
-`Math.random()`, Web Animations API calls, `<video>`/`<audio>`, a live network dependency, or a
-timeline we cannot read. Better a refusal at export than a render farm producing frames that
-disagree with each other.
+`Math.random()`, Web Animations API calls, `<video>`/`<audio>`, a live network dependency, an
+imported credits roll (it restarts once its fonts load, which no seek replays), or a timeline we
+cannot read. Better a refusal at export than a render farm producing frames that disagree with
+each other.
+
+An XML namespace name (the `xmlns` values every SVG declares, and the SVG, XLink and XHTML names
+quoted in code) is an identifier, not a network dependency, so imported SVG designs can be sought.
+Seek parity is proven for the imported countdown, its pulse and its flash included
+(`e2e/svg-templates.spec.ts`); other imported designs are not yet swept the way the catalog is.
 
 ## Known limits
 

@@ -17,7 +17,7 @@
 // covers: scripts/svg-files.mjs
 // covers: src/components/home/CueActions.tsx
 
-import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { test, expect, type FrameLocator, type Page, type TestInfo } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg, intoExistingProduction, intoProduction } from './_svg-import';
@@ -306,190 +306,208 @@ test('the advertised behavior inventory equals the live import registry', async 
   }
 });
 
-for (const example of examples.filter((entry) => entry.recipe)) {
-  test(`${example.name}: its ${example.source === 'svg' ? 'editable SVG source' : 'Illustrator export'} imports and its controls change the output`, async ({ page }, testInfo) => {
-    const errors: string[] = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto('/app');
-    await dropSvg(page, svg(example.slug));
-    if (example.recipe === 'alert') await page.getByTestId('map-svg-behaviour-kind').selectOption('alert');
-    if (example.recipe === 'clock') {
-      await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(example.slug === 'scorebug-clock' ? 'score' : 'none');
-      await expect(page.getByTestId('map-svg-clock-mode')).toHaveValue('none');
-      await page.getByTestId('map-svg-clock-mode').selectOption('duration');
-    } else if (example.recipe === 'switch' || example.recipe === 'choice') {
-      const extras = page.getByTestId('map-svg-extras');
-      await expect(extras).toBeVisible();
-      await expect(extras.locator(example.recipe === 'switch' ? 'input[value="Sponsor"]' : 'input[value="Status"]')).toHaveCount(example.recipe === 'switch' ? 1 : 3);
-    } else {
-      await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(selection[example.recipe!] ?? example.recipe!);
-      await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
-    }
-    if (example.slug === 'editable-credits') {
-      await expect(page.getByTestId('map-svg-credits-engine')).toHaveValue('editable');
-      await expect(page.getByTestId('map-svg-credits-preview')).toHaveAttribute('data-layout', 'role-above');
-      await expect(page.getByTestId('map-svg-credits-list')).toContainText('Alex Rivera');
-      await expect(page.getByTestId('map-svg-credits-fallback')).toHaveCount(0);
-    }
-    if (example.slug === 'end-credits-navy') {
-      await expect(page.locator('.wz-stage').first()).not.toHaveAttribute('data-doc-pending', '1');
-      await expect(page.locator('.wz-stage').first()).toHaveAttribute('data-doc-rev', /\d/);
-      await expect(page.getByTestId('map-svg-why-fields').locator('..')).toContainText('0 editable, 1 artwork');
-      const previewText = page.frameLocator('.wz-stage iframe').locator('.imported-design-credits');
-      await expect.poll(() => previewText.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
-      // Document an actual frame within the roll. At its initial boundary the text's bounds
-      // can intersect by a subpixel while every glyph remains below the visible output.
-      await previewText.evaluate(() => {
-        const tween = (window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void } }).noacgCreditsTween;
-        tween.pause();
-        tween.progress(0.25);
-      });
-      await expect.poll(() => previewText.locator('tspan').first().evaluate((el) => {
-        const bounds = el.getBoundingClientRect();
-        const frame = document.body.getBoundingClientRect();
-        const root = document.querySelector('.imported-design')!;
-        return getComputedStyle(el).visibility === 'visible' && Number(getComputedStyle(root).opacity) > 0.5 && bounds.top >= frame.top && bounds.bottom <= frame.bottom;
-      })).toBe(true);
-      await testInfo.attach('Credits import fields', { body: await page.screenshot(), contentType: 'image/png' });
-    }
-    await intoProduction(page, example.name, `${example.name} qualification`);
-    await settleDurableWrites(page);
-    if (example.slug === 'editable-credits') {
-      // The drawn heading is the list's first line, so the list is the one field, f0.
-      await page.getByTestId('cue-field-f0').fill('Director: Casey Hill\nCamera:\nRobin Vale\nAri Moss');
-    }
-    await page.getByTestId('verb-take').click();
-    const air = page.frameLocator('[data-testid="program-stage"] iframe');
-    await expect(air.locator('svg').first()).toBeVisible();
+/** One navy template through the door, onto air and through its controls. */
+async function runExample(page: Page, testInfo: TestInfo, example: Example): Promise<void> {
+  const errors: string[] = [];
+  const onError = (error: Error) => errors.push(error.message);
+  page.on('pageerror', onError);
+  await page.goto('/app');
+  await dropSvg(page, svg(example.slug));
+  if (example.recipe === 'alert') await page.getByTestId('map-svg-behaviour-kind').selectOption('alert');
+  if (example.recipe === 'clock') {
+    await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(example.slug === 'scorebug-clock' ? 'score' : 'none');
+    await expect(page.getByTestId('map-svg-clock-mode')).toHaveValue('none');
+    await page.getByTestId('map-svg-clock-mode').selectOption('duration');
+  } else if (example.recipe === 'switch' || example.recipe === 'choice') {
+    const extras = page.getByTestId('map-svg-extras');
+    await expect(extras).toBeVisible();
+    await expect(extras.locator(example.recipe === 'switch' ? 'input[value="Sponsor"]' : 'input[value="Status"]')).toHaveCount(example.recipe === 'switch' ? 1 : 3);
+  } else {
+    await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(selection[example.recipe!] ?? example.recipe!);
+    await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+  }
+  if (example.slug === 'editable-credits') {
+    await expect(page.getByTestId('map-svg-credits-engine')).toHaveValue('editable');
+    await expect(page.getByTestId('map-svg-credits-preview')).toHaveAttribute('data-layout', 'role-above');
+    await expect(page.getByTestId('map-svg-credits-list')).toContainText('Alex Rivera');
+    await expect(page.getByTestId('map-svg-credits-fallback')).toHaveCount(0);
+  }
+  if (example.slug === 'end-credits-navy') {
+    await expect(page.locator('.wz-stage').first()).not.toHaveAttribute('data-doc-pending', '1');
+    await expect(page.locator('.wz-stage').first()).toHaveAttribute('data-doc-rev', /\d/);
+    await expect(page.getByTestId('map-svg-why-fields').locator('..')).toContainText('0 editable, 1 artwork');
+    const previewText = page.frameLocator('.wz-stage iframe').locator('.imported-design-credits');
+    await expect.poll(() => previewText.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+    // Document an actual frame within the roll. At its initial boundary the text's bounds
+    // can intersect by a subpixel while every glyph remains below the visible output.
+    await previewText.evaluate(() => {
+      const tween = (window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void } }).noacgCreditsTween;
+      tween.pause();
+      tween.progress(0.25);
+    });
+    await expect.poll(() => previewText.locator('tspan').first().evaluate((el) => {
+      const bounds = el.getBoundingClientRect();
+      const frame = document.body.getBoundingClientRect();
+      const root = document.querySelector('.imported-design')!;
+      return getComputedStyle(el).visibility === 'visible' && Number(getComputedStyle(root).opacity) > 0.5 && bounds.top >= frame.top && bounds.bottom <= frame.bottom;
+    })).toBe(true);
+    await testInfo.attach('Credits import fields', { body: await page.screenshot(), contentType: 'image/png' });
+  }
+  await intoProduction(page, example.name, `${example.name} qualification`);
+  await settleDurableWrites(page);
+  if (example.slug === 'editable-credits') {
+    // The drawn heading is the list's first line, so the list is the one field, f0.
+    await page.getByTestId('cue-field-f0').fill('Director: Casey Hill\nCamera:\nRobin Vale\nAri Moss');
+  }
+  await page.getByTestId('verb-take').click();
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator('svg').first()).toBeVisible();
 
-    switch (example.recipe) {
-      case 'quiz':
-        await page.getByTestId('cue-pick-select-B').click();
-        await expect(role(air, 'answer.selected/B')).toHaveClass(/imported-design-on/);
-        await page.getByTestId('cue-action-lock').click();
-        await expect(role(air, 'locked')).toHaveClass(/imported-design-on/);
-        break;
-      case 'score':
+  switch (example.recipe) {
+    case 'quiz':
+      await page.getByTestId('cue-pick-select-B').click();
+      await expect(role(air, 'answer.selected/B')).toHaveClass(/imported-design-on/);
+      await page.getByTestId('cue-action-lock').click();
+      await expect(role(air, 'locked')).toHaveClass(/imported-design-on/);
+      break;
+    case 'score':
+      await page.getByTestId('cue-action-score1').click();
+      await expect(await fieldLayer(air, 'score', '1')).toHaveText('1');
+      break;
+    case 'clock': {
+      const readout = air.locator('.imported-design-clock');
+      await expect(readout).toHaveAttribute('data-count', 'down');
+      await expect(readout).not.toHaveText('12:00', { timeout: 4_000 });
+      await page.getByTestId('cue-action-clock_pause').click();
+      const held = await readout.textContent();
+      await page.waitForTimeout(1_100);
+      await expect(readout).toHaveText(held!);
+      await page.getByTestId('cue-action-clock_reset').click();
+      await expect(readout).toHaveText('12:00');
+      if (example.slug === 'scorebug-clock') {
         await page.getByTestId('cue-action-score1').click();
         await expect(await fieldLayer(air, 'score', '1')).toHaveText('1');
-        break;
-      case 'clock': {
-        const readout = air.locator('.imported-design-clock');
-        await expect(readout).toHaveAttribute('data-count', 'down');
-        await expect(readout).not.toHaveText('12:00', { timeout: 4_000 });
-        await page.getByTestId('cue-action-clock_pause').click();
-        const held = await readout.textContent();
-        await page.waitForTimeout(1_100);
-        await expect(readout).toHaveText(held!);
-        await page.getByTestId('cue-action-clock_reset').click();
         await expect(readout).toHaveText('12:00');
-        if (example.slug === 'scorebug-clock') {
-          await page.getByTestId('cue-action-score1').click();
-          await expect(await fieldLayer(air, 'score', '1')).toHaveText('1');
-          await expect(readout).toHaveText('12:00');
-        }
-        break;
       }
-      case 'countdown':
-        await page.getByTestId('cue-action-pause').click();
-        await expect(role(air, 'paused')).toHaveClass(/imported-design-on/);
-        await page.getByTestId('cue-action-start').click();
-        await expect(role(air, 'paused')).not.toHaveClass(/imported-design-on/);
-        break;
-      case 'ranking': {
-        const competitor = await fieldLayer(air, 'competitor', '3');
-        const leader = await fieldLayer(air, 'competitor', '1');
-        const before = await competitor.evaluate((el) => el.getBoundingClientRect().top);
-        const firstPlace = await leader.evaluate((el) => el.getBoundingClientRect().top);
-        expect(before).toBeGreaterThan(firstPlace + 1);
-        await fill(page, air, 'Points 3', '99');
-        await page.getByTestId('verb-update').click();
-        await expect.poll(() => competitor.evaluate((el) => el.getBoundingClientRect().top)).toBeCloseTo(firstPlace, 0);
-        break;
-      }
-      case 'vote':
-        await fill(page, air, 'Options', 'Coast | 3\nForest | 1\nCity | 0');
-        await page.getByTestId('verb-update').click();
-        await page.getByTestId('cue-action-result').click();
-        await expect(role(air, 'percent/1')).toHaveText('75%');
-        break;
-      case 'meter':
-        await fill(page, air, 'Current', '25');
-        await fill(page, air, 'Target', '100');
-        await page.getByTestId('verb-update').click();
-        await expect(role(air, 'percent')).toHaveText('25%');
-        break;
-      case 'alert':
-        await expect(air.locator('.imported-design')).not.toHaveCSS('opacity', '0');
-        await expect(air.locator('.imported-design')).toHaveCSS('opacity', '0', { timeout: 20_000 });
-        break;
-      case 'survey':
-        await fill(page, air, 'Answers', 'Clothes | 40\nToothbrush | 30\nCamera | 20');
-        await page.getByTestId('verb-update').click();
-        await page.getByTestId('cue-action-reveal1').click();
-        await expect(role(air, 'answer/1')).toHaveText('Clothes');
-        await expect(role(air, 'answer/1')).toHaveClass(/imported-design-on/);
-        await expect(role(air, 'total')).toHaveText('40');
-        break;
-      case 'list':
-        await fill(page, air, 'Entries', 'Coast\nForest\nCity');
-        await page.getByTestId('verb-update').click();
-        await page.getByTestId('verb-next').click();
-        await expect(role(air, 'item/3')).toHaveText('City');
-        await expect(role(air, 'item/3')).toHaveClass(/imported-design-on/);
-        break;
-      case 'lineup':
-        await page.getByTestId('cue-action-nextGuest').click();
-        await expect(role(air, 'guest.now/1')).toHaveClass(/imported-design-on/);
-        await page.getByTestId('cue-action-nextGuest').click();
-        await expect(role(air, 'guest.done/1')).toHaveClass(/imported-design-on/);
-        await expect(role(air, 'guest.now/2')).toHaveClass(/imported-design-on/);
-        break;
-      case 'puzzle':
-        await fill(page, air, 'Puzzle', 'BROADCAST');
-        await fill(page, air, 'Guess', 'B');
-        await page.getByTestId('verb-update').click();
-        await page.getByTestId('cue-action-revealLetter').click();
-        await expect(role(air, 'tile/1')).toHaveText('B');
-        await expect(role(air, 'tile/1')).toHaveClass(/imported-design-on/);
-        await page.getByTestId('cue-action-solve').click();
-        await expect(role(air, 'tile/2')).toHaveClass(/imported-design-on/);
-        break;
-      case 'reveal':
-        await fill(page, air, 'The reveal', '2400');
-        await page.getByTestId('verb-update').click();
-        await expect(role(air, 'secret')).not.toHaveClass(/imported-design-on/);
-        await page.getByTestId('cue-action-reveal').click();
-        await expect(role(air, 'secret')).toHaveText('2400');
-        await expect(role(air, 'secret')).toHaveClass(/imported-design-on/);
-        break;
-      case 'bingo':
-        await fill(page, air, 'Number to call', '7');
-        await page.getByTestId('verb-update').click();
-        await page.getByTestId('cue-action-call').click();
-        await expect(role(air, 'called/7')).toHaveClass(/imported-design-on/);
-        await expect(role(air, 'latest')).toHaveText('7');
-        break;
-      case 'credits':
-        if (example.slug === 'editable-credits') {
-          await expect(air.locator('.imported-design-credits-row')).toHaveText(['Director', 'Casey Hill', 'Camera', 'Robin Vale', 'Ari Moss']);
-          break;
-        }
-        await expect(air.locator('.imported-design-credits')).toContainText('The Weekly Show 2026');
-        await expect.poll(() => air.locator('.imported-design-credits').evaluate(() => (window as unknown as { noacgCreditsTween?: { progress(): number } }).noacgCreditsTween?.progress() ?? 0)).toBeGreaterThan(0);
-        break;
-      case 'switch':
-        await page.getByRole('button', { name: /Show Sponsor/ }).click();
-        await expect(air.locator('[data-noacg-role*="switch.sponsor"]')).toHaveClass(/imported-design-on/);
-        await page.getByRole('button', { name: /Hide Sponsor/ }).click();
-        await expect(air.locator('[data-noacg-role*="switch.sponsor"]')).not.toHaveClass(/imported-design-on/);
-        break;
-      case 'choice':
-        await page.getByRole('button', { name: /Replay/ }).click();
-        await expect(role(air, 'choice.status.option/REPLAY')).toHaveClass(/imported-design-on/);
-        break;
+      break;
     }
-    if (example.recipe !== 'alert') await page.getByTestId('verb-out').click();
-    expect(errors).toEqual([]);
+    case 'countdown':
+      await page.getByTestId('cue-action-pause').click();
+      await expect(role(air, 'paused')).toHaveClass(/imported-design-on/);
+      await page.getByTestId('cue-action-start').click();
+      await expect(role(air, 'paused')).not.toHaveClass(/imported-design-on/);
+      break;
+    case 'ranking': {
+      const competitor = await fieldLayer(air, 'competitor', '3');
+      const leader = await fieldLayer(air, 'competitor', '1');
+      const before = await competitor.evaluate((el) => el.getBoundingClientRect().top);
+      const firstPlace = await leader.evaluate((el) => el.getBoundingClientRect().top);
+      expect(before).toBeGreaterThan(firstPlace + 1);
+      await fill(page, air, 'Points 3', '99');
+      await page.getByTestId('verb-update').click();
+      await expect.poll(() => competitor.evaluate((el) => el.getBoundingClientRect().top)).toBeCloseTo(firstPlace, 0);
+      break;
+    }
+    case 'vote':
+      await fill(page, air, 'Options', 'Coast | 3\nForest | 1\nCity | 0');
+      await page.getByTestId('verb-update').click();
+      await page.getByTestId('cue-action-result').click();
+      await expect(role(air, 'percent/1')).toHaveText('75%');
+      break;
+    case 'meter':
+      await fill(page, air, 'Current', '25');
+      await fill(page, air, 'Target', '100');
+      await page.getByTestId('verb-update').click();
+      await expect(role(air, 'percent')).toHaveText('25%');
+      // The Progress bar the designer drew at full length fills to Current over Target.
+      await expect.poll(async () => {
+        const bar = role(air, 'bar');
+        const [now, full] = await Promise.all([bar.evaluate((el) => el.getBoundingClientRect().width), air.locator('[id="Track"]').evaluate((el) => el.getBoundingClientRect().width)]);
+        return Math.round((now / full) * 100);
+      }, { message: 'the bar fills to 25%' }).toBe(25);
+      break;
+    case 'alert':
+      await expect(air.locator('.imported-design')).not.toHaveCSS('opacity', '0');
+      await expect(air.locator('.imported-design')).toHaveCSS('opacity', '0', { timeout: 20_000 });
+      break;
+    case 'survey':
+      await fill(page, air, 'Answers', 'Clothes | 40\nToothbrush | 30\nCamera | 20');
+      await page.getByTestId('verb-update').click();
+      await page.getByTestId('cue-action-reveal1').click();
+      await expect(role(air, 'answer/1')).toHaveText('Clothes');
+      await expect(role(air, 'answer/1')).toHaveClass(/imported-design-on/);
+      await expect(role(air, 'total')).toHaveText('40');
+      break;
+    case 'list':
+      await fill(page, air, 'Entries', 'Coast\nForest\nCity');
+      await page.getByTestId('verb-update').click();
+      await page.getByTestId('verb-next').click();
+      await expect(role(air, 'item/3')).toHaveText('City');
+      await expect(role(air, 'item/3')).toHaveClass(/imported-design-on/);
+      break;
+    case 'lineup':
+      await page.getByTestId('cue-action-nextGuest').click();
+      await expect(role(air, 'guest.now/1')).toHaveClass(/imported-design-on/);
+      await page.getByTestId('cue-action-nextGuest').click();
+      await expect(role(air, 'guest.done/1')).toHaveClass(/imported-design-on/);
+      await expect(role(air, 'guest.now/2')).toHaveClass(/imported-design-on/);
+      break;
+    case 'puzzle':
+      await fill(page, air, 'Puzzle', 'BROADCAST');
+      await fill(page, air, 'Guess', 'B');
+      await page.getByTestId('verb-update').click();
+      await page.getByTestId('cue-action-revealLetter').click();
+      await expect(role(air, 'tile/1')).toHaveText('B');
+      await expect(role(air, 'tile/1')).toHaveClass(/imported-design-on/);
+      await page.getByTestId('cue-action-solve').click();
+      await expect(role(air, 'tile/2')).toHaveClass(/imported-design-on/);
+      break;
+    case 'reveal':
+      await fill(page, air, 'The reveal', '2400');
+      await page.getByTestId('verb-update').click();
+      await expect(role(air, 'secret')).not.toHaveClass(/imported-design-on/);
+      await page.getByTestId('cue-action-reveal').click();
+      await expect(role(air, 'secret')).toHaveText('2400');
+      await expect(role(air, 'secret')).toHaveClass(/imported-design-on/);
+      break;
+    case 'bingo':
+      await fill(page, air, 'Number to call', '7');
+      await page.getByTestId('verb-update').click();
+      await page.getByTestId('cue-action-call').click();
+      await expect(role(air, 'called/7')).toHaveClass(/imported-design-on/);
+      await expect(role(air, 'latest')).toHaveText('7');
+      break;
+    case 'credits':
+      if (example.slug === 'editable-credits') {
+        await expect(air.locator('.imported-design-credits-row')).toHaveText(['Director', 'Casey Hill', 'Camera', 'Robin Vale', 'Ari Moss']);
+        break;
+      }
+      await expect(air.locator('.imported-design-credits')).toContainText('The Weekly Show 2026');
+      await expect.poll(() => air.locator('.imported-design-credits').evaluate(() => (window as unknown as { noacgCreditsTween?: { progress(): number } }).noacgCreditsTween?.progress() ?? 0)).toBeGreaterThan(0);
+      break;
+    case 'switch':
+      await page.getByRole('button', { name: /Show Sponsor/ }).click();
+      await expect(air.locator('[data-noacg-role*="switch.sponsor"]')).toHaveClass(/imported-design-on/);
+      await page.getByRole('button', { name: /Hide Sponsor/ }).click();
+      await expect(air.locator('[data-noacg-role*="switch.sponsor"]')).not.toHaveClass(/imported-design-on/);
+      break;
+    case 'choice':
+      await page.getByRole('button', { name: /Replay/ }).click();
+      await expect(role(air, 'choice.status.option/REPLAY')).toHaveClass(/imported-design-on/);
+      break;
+  }
+  if (example.recipe !== 'alert') await page.getByTestId('verb-out').click();
+  page.off('pageerror', onError);
+  expect(errors, `${example.name}: no page errors`).toEqual([]);
+}
+
+// ONE BATCHED SWEEP (svg-template-library TL4, spec "Tests and budget"): the navy templates run
+// five to a test, each walked whole as before, so a batch shares one browser page.
+const runnable = examples.filter((entry) => entry.recipe);
+for (let i = 0; i < runnable.length; i += 5) {
+  const batch = runnable.slice(i, i + 5);
+  test(`${batch.map((example) => `${example.name} (${example.source === 'svg' ? 'editable SVG source' : 'Illustrator export'})`).join(', ')}: each imports and its controls change the output`, async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    for (const example of batch) await test.step(example.name, () => runExample(page, testInfo, example));
   });
 }

@@ -719,6 +719,56 @@ function noacgPop(el) {
   gsap.fromTo(el, { scale: 1.04 }, { scale: 1, duration: 0.3 / motionSpeed(), ease: 'back.out(2)' });
 }
 
+// noacgMove(el, move, appeared): a look's own motion while it shows (\`enter\` pulse or flash).
+// A PULSE runs while its rule holds and stops, back to the drawn look, the moment it does not:
+// one beat a second whatever the graphic's speed, because its rate is the safe one (never a
+// strobe). A FLASH plays once, when the look appears, at the graphic's speed, and leaves the look
+// at rest. GSAP rather than CSS, so a renderer that drives time (an OGraf seek) lands on the same
+// frame; a reader who asked for reduced motion gets the look with neither.
+// The preference is read through the graphic's own stylesheet, never the page's window: one
+// media rule, added to this document's head on first need (under OGraf, the graphic's own shadow
+// root), marks a look, and the look's computed style answers.
+var noacgMotionSheet = null;
+function noacgMotionReduced(el) {
+  if (!noacgMotionSheet) {
+    noacgMotionSheet = document.createElement('style');
+    noacgMotionSheet.textContent = '@media (prefers-reduced-motion: reduce) { .${LOOK_CLASS} { --noacg-motion: reduce; } }';
+    (document.head || document.documentElement).appendChild(noacgMotionSheet);
+  }
+  try { return getComputedStyle(el).getPropertyValue('--noacg-motion').trim() === 'reduce'; } catch (e) { return false; }
+}
+function noacgMove(el, move, appeared) {
+  if (typeof gsap === 'undefined') return;
+  var now = el.noacgMove || null;
+  if (!now && !move) return;
+  // Reduced motion is read on every repaint, so turning it on stops a pulse already running.
+  var reduced = noacgMotionReduced(el);
+  // A pulse someone else killed (a renderer's measuring pass kills every tween) starts again;
+  // one still on the timeline runs on, paused host or not.
+  if (now && !reduced && now.name === move && (move === 'pulse' ? gsap.getTweensOf(el).indexOf(now.tween) !== -1 : !appeared)) return;
+  if (now) {
+    now.tween.kill();
+    gsap.set(el, { clearProps: now.name === 'flash' ? 'opacity,transform' : 'opacity' });
+    // Clearing GSAP's transform takes the attribute with it: put back the position the markup
+    // gave the look (Illustrator writes a text's place as its transform).
+    if (now.drawn !== null && now.drawn !== undefined) el.setAttribute('transform', now.drawn);
+    el.noacgMove = null;
+  }
+  if (!move || reduced) return;
+  if (move === 'pulse') {
+    el.noacgMove = { name: move, tween: gsap.fromTo(el, { opacity: 1 }, { opacity: 0.35, duration: 0.5, ease: 'sine.inOut', yoyo: true, repeat: -1 }) };
+  } else if (move === 'flash' && appeared) {
+    var speed = motionSpeed();
+    el.noacgMove = {
+      name: move,
+      drawn: el.getAttribute('transform'),
+      tween: gsap.timeline()
+        .fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.12 / speed, ease: 'none' }, 0)
+        .fromTo(el, { scale: 1.18, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.6 / speed, ease: 'power3.out' }, 0)
+    };
+  }
+}
+
 // noacgGaugeFull(el): the layer as the designer drew it, which is what 100% means. Measured at
 // rest, once, and only a REAL measurement is remembered: getBBox throws in some engines and
 // answers zero in others while the element is unlaid-out, and caching that would retire the
@@ -962,7 +1012,7 @@ function noacgRepaintWith(reason) {
   }
   var rules = NOACG_BEHAVIOUR.paint || [];
   // Looks first: any rule naming a token turns it on; a token no rule holds for goes off.
-  var lit = {}, pops = {}, seen = {}, defaults = {};
+  var lit = {}, pops = {}, seen = {}, defaults = {}, moves = {};
   var plates = {};                // row key ('' for none) -> its lit looks, for the readout inks
   var r, rule, keys, k;
   for (r = 0; r < rules.length; r++) {
@@ -976,6 +1026,9 @@ function noacgRepaintWith(reason) {
       if (noacgHolds(rule.when, keys[k])) {
         lit[token] = true;
         if (rule.enter === 'pop' && reason === 'state'${withAwards ? ' && noacgPopEntered(rule)' : ''}) pops[token] = true;
+        // A pulse or a flash follows the rule on EVERY repaint: the clock's tick is what lights
+        // a countdown's last stretch and its zero.
+        if (rule.enter === 'pulse' || rule.enter === 'flash') moves[token] = rule.enter;
       }
     }
   }
@@ -992,8 +1045,9 @@ ${withAwards ? `  // The entries this repaint answered are spent: the next state
     }
     var plateRow = slash === -1 ? '' : t.slice(slash + 1);
     for (var e = 0; e < els.length; e++) {
-      noacgLookShow(els[e], !!lit[t]);
+      var appeared = noacgLookShow(els[e], !!lit[t]);
       if (lit[t] && pops[t]) noacgPop(els[e]);
+      noacgMove(els[e], lit[t] ? moves[t] : undefined, appeared);
       if (lit[t]) (plates[plateRow] = plates[plateRow] || []).push(els[e]);
     }
   }

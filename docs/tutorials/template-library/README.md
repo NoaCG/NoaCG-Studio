@@ -35,7 +35,7 @@ Names in these templates are made up.
 | Template | What it does in NoaCG |
 |---|---|
 | **Lower third** | Type Name and Role. Take, then Update for the next person. |
-| **Countdown** | A corner countdown. Clock is minutes: the drawn `1:00` is one minute. Take starts it; Pause, Start and Reset control it. The timer bar shortens with the time left, Warning shows near the end and Time up at zero. |
+| **Countdown** | A corner countdown. Clock is minutes: the drawn `1:00` is one minute. Take starts it; Pause, Start and Reset control it. The timer bar shortens with the time left. Warning pulses in the last ten seconds while the clock runs, and Time up flashes once at zero. With reduced motion they show without moving. |
 | **Show clock** | A full-screen clock before the show. At import, choose how Clock counts: down from its time, or to a set time such as 18:00. |
 | **Quiz** | Type the question and answers, choose the correct answer, then Take. Select answer, Lock it in and Reveal correct run the round. |
 | **Game rules** | A full-screen card with a heading and Rule 1 to Rule 5. |
@@ -48,6 +48,27 @@ Names in these templates are made up.
 | **Live vote** | The room votes on their phones. The bars follow the votes; Close voting, Show result and Call the winner run the round. |
 | **Vote results** | The same controls on a side panel. In Interaction, Add results stages a round's counts and whether voting is open or closed. |
 | **Message** | In Interaction, Prepare puts a viewer's message and name on it (in `From`): pasted, live chat or Twitch. |
+
+---
+
+## More templates
+
+| Template | What it does in NoaCG |
+|---|---|
+| **Sponsor bug, Logo mark, Station ident, Event ident, Award mark** | Corner marks. Replace the drawn logo in Illustrator; their words are fields. |
+| **Sponsor strip** | A row of partner logos under a Kicker such as Supported by. |
+| **Topic card, Headline card, Statement** | Cards for a story, a headline or a quote. Every text is a field; Update changes it on air. |
+| **Now and next, Sign-off, Call to action, Social handle, Location chip** | Programme and channel cards. Every text is a field. |
+| **Product card, Offer card, Listing card** | Shopping and property cards. Replace the drawn picture in Illustrator. |
+| **Key facts, Recap card** | Type one entry per line in Entries. Next shows them one at a time, from the last number down, and each stays up. |
+| **Live bug** | A corner tag with Live, Replay and Delayed looks. The status buttons show one of them. |
+| **Answer board, three answers; two answers** | The Quiz controls with three or two answers. |
+| **End credits, pages** | At import, set Plays as to Cards. A blank line in the list starts a new page; Next card shows it. |
+| **End credits, still board** | At import, set Plays as to Hold still. The list stands still, roles on the left. |
+| **QR card** | Put your own QR code picture in `QR image` (a printed code, not the join link). |
+| **Versus** | Two team logos in `Home logo` and `Away logo`, and two names. |
+| **Two-up frames** | Two open camera windows with a name under each. The windows stay empty, so your cameras show through. |
+| **Framed picture** | A picture in `Picture` with a Caption under it. |
 
 ---
 
@@ -69,6 +90,22 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **Join card** | `Label`, `Call to action` | none | `Panel`, `QR plate`, `QR` |
 | **Live vote, Vote results** | `Question`, `Option 1`, `Percent 1`, `Total votes` | `Bar 1` (visible), `Winner 1`, `Vote badge` | `Panel`, `Track 1` |
 | **Message** | `From`, `Message` | none | `From box`, `Message box` |
+
+---
+
+## Layer names, more templates
+
+| Template | Text | Moments | Board |
+|---|---|---|---|
+| **Corner marks** | `Caption`, `Wordmark`, `Channel`, `Show`, `Event`, `Detail`, `Award`, `Category` | none | `Logo`, `Panel` or a box per text |
+| **Sponsor strip** | `Kicker` | none | `Panel`, `Logo 1` to `Logo 3` |
+| **Cards** | one text per field, such as `Topic`, `Headline`, `Statement`, `Now`, `Next`, `Action`, `Product`, `Cost` | none | a `... box` under each text |
+| **Key facts, Recap card** | `Title`, `Item 1` to `Item 4` | `Mark 1` to `Mark 4` | `Item box 1`, `static:Fact 1` |
+| **Live bug** | `Title` | `choice:Status/Live`, `choice:Status/Replay`, `choice:Status/Delayed` | `Panel` |
+| **Answer boards** | `Question`, `Answer A` to `Answer C` | as the Quiz | as the Quiz |
+| **End credits, pages and still board** | `Heading`, `Credits`, `Credits 2`… | none | `Panel`, `Page frame` or `Heading box` |
+| **QR card, Versus, Framed picture** | `f:QR image`, `f:Home logo`, `f:Away logo`, `f:Picture`, and their texts | none | a plate under each picture |
+| **Two-up frames** | `Person 1`, `Person 2` | none | `Window 1`, `Window 2` (outlines with no fill), `Person box 1` |
 
 Moments items except the timer bar are hidden groups: show one with its eye icon, edit it, hide it again before saving. Fixed words on the Board start with `static:`.
 

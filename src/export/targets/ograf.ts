@@ -556,6 +556,11 @@ export interface OgrafOfflineCompatibility {
   warnings: string[];
 }
 
+/** XML namespace names are identifiers, never fetched: the value of any `xmlns` or `xmlns:x`
+ *  attribute, and the SVG, XLink and XHTML names quoted whole in code (`createElementNS`). */
+const XML_NAMESPACE_DECLARATIONS = /\bxmlns(?::[\w.-]+)?\s*=\s*(["'])[^"']*\1/g;
+const XML_NAMESPACE_LITERALS = /(["'])https?:\/\/www\.w3\.org\/(?:2000\/svg|1999\/xlink|1999\/xhtml)\1/g;
+
 /** Conservative target-specific gate. Non-real-time is advertised only for templates whose
  * authored NoaCG timeline can be replayed against the shared virtual clock. */
 export function validateOgrafOfflineCompatibility(template: SpxTemplate): OgrafOfflineCompatibility {
@@ -564,9 +569,16 @@ export function validateOgrafOfflineCompatibility(template: SpxTemplate): OgrafO
   if (!parseAnimData(template.js)) {
     errors.push('Post-production export requires a readable NOACG_ANIM timeline.');
   }
-  const source = `${template.html}\n${template.css}\n${template.js}`;
+  // An XML namespace name is an identifier, never fetched: every SVG declares one, so an imported
+  // design would otherwise read as a network dependency and could never be sought.
+  const source = `${template.html}\n${template.css}\n${template.js}`.replace(XML_NAMESPACE_DECLARATIONS, '').replace(XML_NAMESPACE_LITERALS, '');
   if (/https?:\/\//i.test(source.replace(OGRAF_SCHEMA_URL, '')) || /(?:src|href)\s*=\s*["']\/\//i.test(source)) {
     errors.push('External network dependencies are not available during deterministic rendering.');
+  }
+  // An imported credits roll is built and restarted once its fonts load, which no seek clock
+  // drives, so it is not offered for non-real time until its seeks are proven.
+  if (/\bfunction noacgCreditsRoll\s*\(/.test(template.js)) {
+    errors.push('An imported credits roll starts once its fonts have loaded, which a seek cannot replay; export it for live use.');
   }
   if (/\bMath\.random\s*\(|\bcrypto\.(?:getRandomValues|randomUUID)\s*\(/.test(template.js)) {
     errors.push('Unseeded randomness is not deterministic.');
