@@ -113,7 +113,9 @@ by what TL4 adds: 28 templates and the AC-5, AC-6 and AC-7 cases. The capacity c
 ## Verification
 
 - Browser (job queue, this cloud worker, e2e build): `svg-templates` and `svg-examples`, 25
-  passed (j-0008, 3.5 min). Mutation: with the runtime's look motion call removed, the AC-6 and
+  passed (j-0008, 3.5 min, the minutes above); after the review fixes, `svg-templates`,
+  `svg-examples`, `import-svg-behaviour`, `exports`, `ograf-conformance` and `graphic-sound`, 116
+  passed (j-0010, 7.3 min); after the simplification, the three countdown cases, 3 passed (j-0011). Mutation: with the runtime's look motion call removed, the AC-6 and
   AC-7 cases fail at the pulse (j-0007); restored.
 - Node: `behaviour-reads`, `behaviour-look`, `svg-files`, `check-svg-example-coverage`,
   `concept-names`, `check-example-layers`, `template-coverage`, `illustrator-exports`,
@@ -125,5 +127,14 @@ by what TL4 adds: 28 templates and the AC-5, AC-6 and AC-7 cases. The capacity c
   file's table, two `appearance.js` hashes in `jev-svg-baseline`, nine credits build pins, the
   countdown paint in `jev-svg-contract` (taken from a local re-record on main and on this branch,
   only where the two differ).
+- Review (`/check`, delegated, high): six findings. Fixed: a cleared flash dropped the look's own
+  `transform` attribute (restored now); a pulse was judged dead by `isActive()` under a paused
+  host (now: still on GSAP's list for the element); the flash ignored the graphic's speed (now
+  divided by `motionSpeed()`; the pulse keeps one beat a second on purpose); the namespace skip
+  was a host list (now any `xmlns` value and the quoted SVG, XLink and XHTML names); and non-real
+  time is refused for imported credits rolls, which restart on font load. Not changed: batch
+  titles carry template names (the coverage gate reads its case from a test title, and a name
+  says what failed); a failing template still stops its batch, as a failing test did. Simplify
+  (inline): one helper serves the OGraf packages in the export test.
 - `tsc`, `eslint` on the changed files, `check-copy`, `check-e2e-protection --changed
   origin/main`: pass. README.pdf reprinted (10 pages).
