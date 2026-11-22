@@ -839,6 +839,9 @@ Group 7: Milestone track (tiers on the goal meter) and Quiz show (two to four an
   - Q2a. "In use" lives in the dropdowns' kind (`row-pick` spec key `inUse`): on a board with
     rows, no fact holds on a row not in use, and a pick or key naming one names nothing. So a key
     on an emptied row marks no row Wrong, and the three verdict rules are exactly the quiz's own.
+  - S3a (from CI): `Row A` is NOT read as an answer row, only the taught `Answer row A` and its
+    translations, because existing artwork (the shared sample `docs/svg-samples/quiz-board.svg`)
+    draws plain `Row A` plates; reimporting it now changes nothing. This replaces S3's first half.
   - S2 grows by these words: `list` facts `has-label`, `has-amount`; `row-pick` spec key `inUse`.
     The `text` fact `filled` now serves only the Row look.
 - Traps: the layer check maps a name to the FIRST role in `words.json` with that head, so the

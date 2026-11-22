@@ -128,11 +128,11 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "^(?:answer row|row|rivi|rad|zeile|fila)$",
+        "words": "^(?:answer row|vastausrivi|svarsrad|antwortzeile)$",
         "teach": "Answer row A",
         "also": [
-          "Row A",
-          "Rivi A"
+          "Vastausrivi A",
+          "Svarsrad A"
         ],
         "what": "the row's plate and letter, shown while that answer has text, so one board plays two, three or four answers"
       }

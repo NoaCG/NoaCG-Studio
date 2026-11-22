@@ -418,8 +418,8 @@ returned AGREE WITH CORRECTIONS (B), and the corrected Rules and the coordinator
   saved markup at build, `drawnTextOf`); the runtime's `list` kind reads it against Current
   (`of`), lights `reached`, fills `span` and prints `amount` as typed. A meter with no tiers
   compiles to its old table, fields and html (Node case).
-- **Quiz rows in use.** An optional `Answer row A` layer per answer (the importer also reads
-  `Row A`). Where any is drawn, a row shows while its Answer has text (`text` fact `filled`), and
+- **Quiz rows in use.** An optional `Answer row A` layer per answer (a plain `Row A` is not read,
+  so existing artwork imports as before). Where any is drawn, a row shows while its Answer has text (`text` fact `filled`), and
   the two dropdowns' kind holds no fact on a row not in use (`row-pick` `inUse`), so Selected,
   Correct and Wrong light only on rows in use. No field, event, state or button.
 - READS: `text.filled`; `list` `of`, `reached`, `has-label`, `has-amount`, `span`, `amount`;
@@ -506,3 +506,8 @@ the countdown stays issue #2699.
   22, gates 20 files 222 tests, the browser cases 4 passed (40.2 s), the browser-backed harnesses
   as above with the same four environment records; pins re-taken on the final runtime and the
   swap check repeated (main's credits test 50 of 50 with main's runtime swapped in).
+- CI on a1bdbfd: `dashboard-operator-walk` failed because the shared sample
+  `docs/svg-samples/quiz-board.svg` draws plain `Row A` to `Row D` plates, which the importer read as
+  answer rows (S3), so four row looks were lit at the question. Fixed at the cause (S3a): only the
+  taught `Answer row A` and its translations bind, so existing artwork named `Row A` imports exactly
+  as before; the walk's assertion is unchanged.

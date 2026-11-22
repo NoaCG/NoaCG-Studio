@@ -319,7 +319,7 @@ one text layer per answer, then the moments:
 | locked in | `Locked in` | once the answer is locked (one, whole board) |
 | row (one per row) | `Answer row A` | the row's plate and letter, shown while that answer has text, so one board plays two, three or four answers |
 
-`Kysymys`, `Fråga` work as well as `Question`; `Vastaus A`, `Svar A` work as well as `Answer A`; `Picked A`, `Chosen A`, `Valittu A`, `Vald A` work as well as `Selected A`; `Right A`, `Oikein A`, `Rätt A` work as well as `Correct A`; `Incorrect A`, `Väärin A`, `Fel A` work as well as `Wrong A`; `Locked`, `Lukittu`, `Låst` work as well as `Locked in`; `Row A`, `Rivi A` work as well as `Answer row A`.
+`Kysymys`, `Fråga` work as well as `Question`; `Vastaus A`, `Svar A` work as well as `Answer A`; `Picked A`, `Chosen A`, `Valittu A`, `Vald A` work as well as `Selected A`; `Right A`, `Oikein A`, `Rätt A` work as well as `Correct A`; `Incorrect A`, `Väärin A`, `Fel A` work as well as `Wrong A`; `Locked`, `Lukittu`, `Låst` work as well as `Locked in`; `Vastausrivi A`, `Svarsrad A` work as well as `Answer row A`.
 
 Two to six answers. The operator gets Select answer, Lock it in and Reveal correct.
 <!-- behaviour:quiz:end -->

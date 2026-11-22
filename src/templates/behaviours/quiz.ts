@@ -21,7 +21,7 @@ import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { rolesOf, rowsOf, withRepaint } from './recipe';
 import type { TypeBranch, TypeMachine } from '../types/graphicType';
 
-/** The drawn row of one answer (`Row A`): its plate and letter, shown while the row is in use. */
+/** The drawn row of one answer (`Answer row A`): its plate and letter, shown while the row is in use. */
 const ROW_ROLE = 'answer.row';
 
 /** How long after the lock a self-revealing board waits, in speed-relative seconds. */
