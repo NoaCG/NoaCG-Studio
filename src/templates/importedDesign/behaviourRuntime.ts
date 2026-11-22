@@ -1005,7 +1005,7 @@ ${withAwards ? `  // The entries this repaint answered are spent: the next state
         else {
           // A readout with nothing to say is left as drawn - an empty round must not blank a
           // board the designer filled in.
-          if (value !== null && value !== undefined && value !== '') targets[g].textContent = String(value);
+          if (value !== null && value !== undefined && value !== '') noacgReadoutWrite(targets[g], String(value));
           noacgReadoutInk(targets[g], plates[keys[k] === null ? '' : String(keys[k])] || []);
         }
       }
@@ -1013,6 +1013,56 @@ ${withAwards ? `  // The entries this repaint answered are spent: the next state
   }
   // Places last: the readouts above are already written, and a row moves as a whole.
   noacgPlaceAll(rules, reason);
+}
+
+// ── A readout keeps the alignment it was drawn with (#2691) ──────────────────────────
+// Illustrator writes no text-anchor: a figure set right against its track arrives as point text
+// at its measured left edge, so a written value longer than the sample grew rightwards past the
+// track. A readout is not a fitted field, so svgAlignOf never sees it; the same reading is made
+// here, once, off the DRAWN sample in the box the fit would choose (svgFitPanel, svgLocalBox,
+// SVG_ALIGN_TOL), and a line drawn centred or against the right is anchored where it was drawn.
+// Nothing moves: the anchor is the drawn centre or the drawn right edge, never the box's own.
+// A line the file anchors already, or one drawn against the left, is written exactly as before.
+
+// noacgDrawnAnchor(el): { h, x } for a readout drawn centred or right in its box, null for one
+// that fills rightwards, undefined while it cannot be measured (a look not yet showing).
+function noacgDrawnAnchor(el) {
+  if (typeof svgFitPanel !== 'function' || typeof svgLocalBox !== 'function') return null;
+  var stated = getComputedStyle(el).textAnchor;
+  if (stated === 'middle' || stated === 'end') return null;
+  var own;
+  try { own = el.getBBox(); } catch (e) { return undefined; }
+  if (!(own.width > 0) || !(own.height > 0)) return undefined;
+  var panel = svgFitPanel(el);
+  var box = panel ? svgLocalBox(panel, el) : null;
+  if (!box) return null;
+  var tol = typeof SVG_ALIGN_TOL === 'number' ? SVG_ALIGN_TOL : 0.05;
+  var cx = own.x + own.width / 2;
+  if (Math.abs(cx - box.cx) <= (box.right - box.left) * tol) return { h: 'middle', x: cx };
+  return cx > box.cx ? { h: 'end', x: own.x + own.width } : null;
+}
+
+// noacgReadoutWrite(el, text): write a readout's value, anchored as it was drawn. The drawn
+// sample is kept so a readout first written while hidden is still measured off the drawing.
+function noacgReadoutWrite(el, text) {
+  if (!/^text$/i.test(el.tagName || '')) { el.textContent = text; return; }
+  var i;
+  if (el.noacgDrawnNodes === undefined) {
+    el.noacgDrawnNodes = [];
+    for (i = 0; i < el.childNodes.length; i++) el.noacgDrawnNodes.push(el.childNodes[i].cloneNode(true));
+  }
+  if (el.noacgAnchor === undefined) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+    for (i = 0; i < el.noacgDrawnNodes.length; i++) el.appendChild(el.noacgDrawnNodes[i].cloneNode(true));
+    el.noacgAnchor = noacgDrawnAnchor(el);
+  }
+  var a = el.noacgAnchor;
+  if (a) {
+    if (el.getAttribute('text-anchor') !== a.h) el.setAttribute('text-anchor', a.h);
+    var x = a.x.toFixed(2);
+    if (el.getAttribute('x') !== x) el.setAttribute('x', x);
+  }
+  el.textContent = text;
 }
 
 // ── A readout stays legible on a look lit under it ──────────────────────────────────
