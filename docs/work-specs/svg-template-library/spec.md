@@ -447,7 +447,7 @@ Actions. OW: the owner, with Illustrator on their own computer.
   a version number, so a saved graphic says itself what it reads and the build keeps no history
   table; `READS_ADDED` is additive by construction. A runtime emitted without the clock tick does
   not list `clock`. `axis` on a gauge rule was never read by any runtime and no recipe emits it,
-  so a hand edit using it is refused. The fixtures live in `scripts/fixtures/pre-tl2` (under
+  so a hand edit using it is warned about (C3a) and `docs/SVG_BEHAVIOUR_PLAN.md` no longer shows it. The fixtures live in `scripts/fixtures/pre-tl2` (under
   `e2e/fixtures` they would select the whole configured set with no spec reading them).
 - Trap: the emit pins move whenever the runtime text moves (`svg-corpus-passes.json` emit `js`,
   `jev-svg-baseline.test.mjs` `appearance.js`). Re-record only the `js` hashes the change moves;
@@ -509,6 +509,17 @@ Actions. OW: the owner, with Illustrator on their own computer.
   - C8. Reimport of edited artwork over a graphic made before this plan keeps every matched field
     id, so a cue's values (field id to value) recorded on the old graphic paint the same layers on
     the reimported one; the rebuilt table passes the check against its new runtime.
+- Rules found after coding (from the final `/so` on 66471c6, A, AGREE WITH CORRECTIONS):
+  - C3a. A KEY word (`table.`, `rule.`, `when.`, a kind's spec key) that no runtime this build
+    emits reads either (a gauge's `axis`, a note) is ignored by every runtime and the rule still
+    paints: the export gate WARNS and passes, so a graphic hand-edited before this plan with such
+    a key keeps exporting. A key word this build's runtime reads and the saved one does not (a
+    future rule key) is refused like a meaning word. The error says to import again only when
+    this build's runtime reads every refused word, and otherwise to remove the rules. The keys
+    of a kind the runtime does not read are said by that kind's own word.
+  - Note for TL6: C1 treats the VALUES of existing keys as free text, yet the runtime compares
+    some of them (rank `order === 'asc'`, the row-mark argument `wrong`). A new value of an
+    existing key would play as the old one and pass the gate; widen C1 for that key first.
 
 ## Non-goals
 

@@ -278,29 +278,50 @@ test('a hand edit asking the frozen vote runtime for a per-option count is refus
     .paint.find((r) => typeof r.write === 'string' && /:percent$/.test(r.from));
   assert.ok(percent, 'the frozen vote writes a percent');
   const asksCount = write(`${head(percent.from)}:count`);
-  assert.deepEqual(R.behaviourReadsVerdict(asksCount.js), { status: 'unread', missing: ['derive:share.count'] });
+  assert.deepEqual(R.behaviourReadsVerdict(asksCount.js), { status: 'unread', missing: ['derive:share.count'], upgradable: false });
   const errors = errorsOf(asksCount);
   assert.equal(errors.length, 1);
   assert.match(errors[0], /derive:share\.count/);
   assert.deepEqual(errorsOf(write(percent.from)), []);
-  // A new kind, a new key on a rule and a new spec key are words too.
+  // A new kind is refused; a key NO runtime reads (a rule's `effect` before TL4, a spec key) is
+  // ignored by every runtime, so it is only warned about and the graphic still exports.
   const more = handEdit(VOTE, (table) => {
     table.kinds.f0 = { kind: 'word-cloud' };
     table.paint[0].effect = 'pulse';
-    shareField && (table.kinds[shareField[0]].scale = 'log');
+    table.kinds[shareField[0]].scale = 'log';
   });
   const verdict = R.behaviourReadsVerdict(more.js);
-  assert.equal(verdict.status, 'unread');
-  for (const w of ['kind:word-cloud', 'rule.effect', 'kind:share.scale']) assert.ok(verdict.missing.includes(w), w);
+  assert.deepEqual(verdict, { status: 'unread', missing: ['kind:word-cloud', 'derive:word-cloud.text'], upgradable: false, ignored: ['kind:share.scale', 'rule.effect'] });
+  const keysOnly = handEdit(VOTE, (table) => {
+    table.paint.find((r) => typeof r.gauge === 'string').axis = 'x';
+  });
+  assert.deepEqual(R.behaviourReadsVerdict(keysOnly.js), { status: 'ok', ignored: ['rule.axis'] });
+  assert.deepEqual(errorsOf(keysOnly), [], 'a documented key no runtime reads never blocks an export');
+  assert.match(warningsOf(keysOnly).join('\n'), /rule\.axis, which no behaviour runtime reads/);
+});
+
+test('a key this build\'s runtime reads and a saved runtime does not is refused, and importing again is the fix', () => {
+  // A runtime from before the place rule: its code has no noacgPlaceAll, so `place` is not read.
+  const older = { ...VOTE, js: VOTE.js.replace(/function noacgPlaceAll\(/g, 'function noacgPlaceAllGone(') };
+  const withPlace = handEdit(older, (table) => {
+    table.paint.push({ place: 'option', rows: 'option', from: 'options:label', anchor: 'option' });
+  });
+  assert.deepEqual(R.behaviourReadsVerdict(withPlace.js), { status: 'unread', missing: ['rule.place'], upgradable: true });
+  assert.match(errorsOf(withPlace).join('\n'), /rule\.place.*Import the artwork again/);
 });
 
 test('versions: an additive key still parses; a table version the runtime does not list is refused; an unknown READS cannot pass', () => {
-  // An additive optional key keeps version 1 and parses (the shape gate is silent about it).
+  // An additive optional key keeps version 1 and parses (the shape gate is silent about it); no
+  // runtime reads it, so the export gate warns and still passes.
   const additive = handEdit(VOTE, (table) => { table.note = 'kept'; });
-  assert.deepEqual(validateTemplate(additive).errors.filter((e) => e.rule === 'behaviour' && /not valid/.test(e.message)), []);
+  assert.deepEqual(R.behaviourReadsVerdict(additive.js), { status: 'ok', ignored: ['table.note'] });
+  assert.deepEqual(errorsOf(additive), []);
+  assert.match(warningsOf(additive).join('\n'), /table\.note/);
   // A version 2 table under a runtime that reads version 1 is refused, not merely warned about.
   const v2 = handEdit(VOTE, (table) => { table.version = 2; });
-  assert.match(errorsOf(v2).join('\n'), /version:2/);
+  assert.match(errorsOf(v2).join('\n'), /version:2.*Remove those rules/);
+  const none = handEdit(VOTE, (table) => { delete table.version; });
+  assert.ok(R.tableWords(JSON.parse(none.js.slice(none.js.indexOf('{', none.js.indexOf('var NOACG_BEHAVIOUR = ')), none.js.indexOf('\n};\n', none.js.indexOf('var NOACG_BEHAVIOUR = ')) + 2))).includes('version:none'));
   // A runtime whose READS is of a version this build does not know: a warning, never a pass.
   const fresh = compileBinding(...Object.values(fullBinding(BEHAVIOUR_RECIPES.find((r) => r.id === 'vote'), {}))).js();
   const unknown = fresh.replace('var NOACG_BEHAVIOUR_READS = {"v":1', 'var NOACG_BEHAVIOUR_READS = {"v":9');

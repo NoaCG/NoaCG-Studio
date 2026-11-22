@@ -187,7 +187,7 @@ export function tableWords(raw: unknown): string[] {
   const words = new Set<string>();
   if (!isRecord(raw)) return [];
   for (const key of Object.keys(raw)) words.add(`table.${key}`);
-  words.add(`version:${String(raw.version)}`);
+  words.add(raw.version === undefined ? 'version:none' : `version:${String(raw.version)}`);
   const fields = isRecord(raw.fields) ? raw.fields : {};
   const kinds = isRecord(raw.kinds) ? raw.kinds : {};
   for (const spec of Object.values(kinds)) {
@@ -247,14 +247,22 @@ export function unreadWords(raw: unknown, reads: BehaviourReads): string[] {
   return tableWords(raw).filter((w) => !known.has(w));
 }
 
+/** A KEY word (`table.`, `rule.`, `when.`, `kind:<kind>.<key>`) names where a value sits, not what a
+ *  rule means: a runtime that does not read a key ignores it and the rule still paints. */
+const isKeyWord = (w: string) => /^(?:table\.|rule\.|when\.)/.test(w) || /^kind:[^.]+\./.test(w);
+
 /** THE CHECK (C3) for one template's JS: its table against its own runtime.
- *  - `ok`: no table, or every word read;
- *  - `unread`: the words its runtime does not read (`missing`), refused;
+ *  - `ok`: no table, or every word read; `ignored` lists KEY words no runtime this build emits
+ *    reads either (an `axis`, a note), which change nothing on air and are only warned about;
+ *  - `unread`: the words its runtime does not read that matter (`missing`): every meaning word
+ *    (kind, fact, derivation, `enter` and `default` values, version), and every key word this
+ *    build's runtime reads - a key a newer runtime acts on would do nothing under this one;
+ *    `upgradable` when this build's runtime reads all of them, so importing again fixes it;
  *  - `unknown`: its READS is a version this build does not know, so it cannot judge;
  *  - `no-runtime`: a table and no runtime (the validator's existing pairing error). */
 export type ReadsVerdict =
-  | { status: 'ok' }
-  | { status: 'unread'; missing: string[] }
+  | { status: 'ok'; ignored?: string[] }
+  | { status: 'unread'; missing: string[]; upgradable: boolean; ignored?: string[] }
   | { status: 'unknown'; v: unknown }
   | { status: 'no-runtime' };
 
@@ -265,6 +273,15 @@ export function behaviourReadsVerdict(js: string): ReadsVerdict {
   const runtime = readsOfRuntime(js);
   if (runtime.status === 'none') return { status: 'no-runtime' };
   if (runtime.status === 'unknown') return { status: 'unknown', v: runtime.v };
-  const missing = unreadWords(raw, runtime.reads);
-  return missing.length ? { status: 'unread', missing } : { status: 'ok' };
+  const now = readsWords(runtimeReads(true));
+  // The keys of a kind the runtime does not read at all are said by that kind's own word.
+  const unread = unreadWords(raw, runtime.reads).filter((w, _, all) => {
+    const kind = /^kind:([^.]+)\./.exec(w);
+    return !kind || !all.includes(`kind:${kind[1]}`);
+  });
+  const ignored = unread.filter((w) => isKeyWord(w) && !now.has(w));
+  const missing = unread.filter((w) => !ignored.includes(w));
+  const also = ignored.length ? { ignored } : {};
+  if (missing.length === 0) return { status: 'ok', ...also };
+  return { status: 'unread', missing, upgradable: missing.every((w) => now.has(w)), ...also };
 }

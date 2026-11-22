@@ -568,7 +568,7 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
       // A version this build cannot parse is the graphic's own business, unless its runtime
       // cannot read that version either: then the table would do nothing on air.
       const verdict = behaviourReadsVerdict(template.js);
-      if (verdict.status === 'unread') errors.push(unreadError(verdict.missing));
+      if (verdict.status === 'unread') errors.push(unreadError(verdict.missing, verdict.upgradable));
       else {
         warnings.push({
           rule: 'behaviour',
@@ -586,11 +586,17 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
       } else {
         // The table may ask only for words this graphic's own saved runtime reads.
         const verdict = behaviourReadsVerdict(template.js);
-        if (verdict.status === 'unread') errors.push(unreadError(verdict.missing));
+        if (verdict.status === 'unread') errors.push(unreadError(verdict.missing, verdict.upgradable));
         else if (verdict.status === 'unknown') {
           warnings.push({
             rule: 'behaviour',
             message: "This graphic's behaviour runtime describes what it reads in a format this build does not know, so its rules could not be checked.",
+          });
+        }
+        if ((verdict.status === 'ok' || verdict.status === 'unread') && verdict.ignored) {
+          warnings.push({
+            rule: 'behaviour',
+            message: `The NOACG_BEHAVIOUR table carries ${verdict.ignored.join(', ')}, which no behaviour runtime reads, so it changes nothing on air. Remove it.`,
           });
         }
       }
@@ -625,10 +631,11 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
   return { ok: errors.length === 0, errors, warnings };
 }
 
-/** A table asking its saved runtime for words that runtime does not read (behaviourReads.ts). */
-function unreadError(missing: string[]): ValidationIssue {
+/** A table asking its saved runtime for words that runtime does not read (behaviourReads.ts).
+ *  `upgradable`: this build's runtime reads every one, so importing the artwork again fixes it. */
+function unreadError(missing: string[], upgradable: boolean): ValidationIssue {
   return {
     rule: 'behaviour',
-    message: `The NOACG_BEHAVIOUR table asks for ${missing.join(', ')}, which this graphic's saved behaviour runtime does not read, so those rules would do nothing on air. Import the artwork again to rebuild the runtime, or remove those rules.`,
+    message: `The NOACG_BEHAVIOUR table asks for ${missing.join(', ')}, which this graphic's saved behaviour runtime does not read, so those rules would do nothing on air. ${upgradable ? 'Import the artwork again to rebuild the runtime, or remove those rules.' : 'Remove those rules.'}`,
   };
 }
