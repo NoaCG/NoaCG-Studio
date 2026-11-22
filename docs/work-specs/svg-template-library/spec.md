@@ -1,8 +1,3 @@
-- AC-4 row counts, owner ruling 2026-11-22, verbatim: "A" (asked on run issue #2678,
-  https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7071540752). Meaning, as asked:
-  share plus total on air, with raw counts in the cue, meet AC-4 for TL1.
-- Carry-over to TL5: add a per-option count readout to the Vote results template, after the TL2
-  compatibility check (a new derived value in the imported-design runtime).
 # SVG Template Library: one library, every graphic type, working with its feature
 
 Authority: owner, 2026-11-21, in a planning session ("NoaCG: Unify SVG Templates and Examples").
@@ -299,7 +294,8 @@ Actions. OW: the owner, with Illustrator on their own computer.
   countdown motion). Every type whose route exists, including the corner game timer with its
   motion and the picture-slot templates.
 - **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension, AC-10 for Alert level). Each
-  extension lands with its template, controls, compatibility tests and export proof.
+  extension lands with its template, controls, compatibility tests and export proof. Carried
+  from TL1 (owner ruling 2026-11-22): a per-option count readout on the Vote results template.
 - **TL6. New runtime kinds** (CA; depends on TL5; AC-3, AC-7, AC-9 per kind, AC-4 for the Word cloud template). Word cloud, ticker
   crawl, notification queue, speaking timer, sponsor rotator. Any new feature hookup (for example
   a notification inbox) is specified separately before it is built.
@@ -422,12 +418,12 @@ Actions. OW: the owner, with Illustrator on their own computer.
   - R5. Nothing airs from a pick: every path writes cues only.
 - Trap: a text whose drawn centre is within 5% of its panel's centre is read as centred and grows
   both ways; the Join card states `text-anchor="start"` so its texts stay left of the QR.
-- Open for the coordinator: AC-4 says "results show row counts". The Vote results template shows
-  each row's share of the staged counts and the total count line on air. The raw count per row is
-  in the cue (`Yes | 2`) but has no readout on the artwork. A per-row count needs a new derived
-  value in the imported-design runtime (with TL2's compatibility check), so this phase did not
-  add one. Ruling needed: treat row counts as satisfied by the cue data plus share and total, or
-  add a per-row count readout in TL5 or TL6.
+- AC-4 row counts, owner ruling 2026-11-22, verbatim: "A" (asked on run issue #2678,
+  https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7071540752; the answer is
+  recorded there in comment 7075308815). Meaning, as asked: share plus total on air, with raw
+  counts in the cue, meet AC-4 for TL1.
+- Carry-over to TL5: add a per-option count readout to the Vote results template, after the TL2
+  compatibility check (a new derived value in the imported-design runtime).
 
 ## Non-goals
 
