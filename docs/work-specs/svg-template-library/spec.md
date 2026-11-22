@@ -759,6 +759,101 @@ Group 6: Standings with focus (its own PR, after #2708).
 - Left in TL5: milestone track tiers and quiz show 2, 3 or 4 answers, each a runtime fact plus a
   per-row layer in the saved binding, so Risky (evidence, group 6).
 
+Group 7: Milestone track (tiers on the goal meter) and Quiz show (two to four answers in use).
+
+- Previous verified `main`: `45127dc15db7170c1fb78200635c5ab791a0453e` (group 6, #2709, merged). Revert: `git revert -m 1 <the TL5 group 7 merge commit>`.
+- Evidence: `evidence/phase-TL5.md`, group 7.
+- Row class: Risky (each extension adds a per-row layer to a saved binding and new runtime
+  words). The Rules below were written and pushed before any code, for a Rules-first `/so`.
+- Rules (written before coding, then corrected by the Rules-first `/so` on 99f7a86, AGREE WITH
+  CORRECTIONS, B: an unlisted tier must hide, Threshold prints as typed, a line with no figure is
+  never reached; and by the coordinator's decisions 3a and 3b on #2678):
+  - M1. A goal meter may draw TIERS, a row set of up to eight rows: per row a `Tier n` text (the
+    row's label), and optionally a `Threshold n` text (its figure), a `Reached n` look, a
+    `Segment n` bar drawn at its full length and a `Milestone n` drawing (the tier's node or
+    plate). A meter with no tier rows is the meter it was. A ninth line has no row and is reported
+    as too long through the fit's too-long channel, as every list is.
+  - M2. A meter with one or more tier rows owns a `Milestones` lines field, one `Label | figure`
+    per line, split at the LAST bar sign as every imported list is (a label may hold one), blank
+    lines skipped; it is made after Current and Target. It STARTS with the tiers as drawn (3b):
+    `Tier n | Threshold n` per drawn tier, the label alone where no Threshold is drawn, so a take
+    with nothing typed shows the drawing. Line n fills row n: `Tier n` prints its label and
+    `Threshold n` the text after the bar sign as typed (`$15,000`). Current and Target stay on
+    every meter (3a), so their field ids never move.
+  - M3. Row n is LISTED while line n exists. `Tier n`, `Threshold n` and `Milestone n` show only
+    on a listed row: an unlisted row hides, never keeping a label written before; emptying the box
+    hides every tier. A tier drawn without a `Milestone n` keeps its other drawing (a grey node, an
+    empty segment) when unlisted.
+  - M4. `Reached n` shows exactly when row n is listed, its line has a readable figure (a number
+    after the bar sign, read as the meter's figures are) and Current is at or past it (the
+    built-in's `current >= target`). A line with no readable figure, or no Current, is never
+    reached.
+  - M5. `Segment n` fills by how far Current has gone from the figure of the nearest earlier line
+    with a readable figure (0 when there is none) to row n's figure, clamped from empty to full.
+    It is empty on an unlisted row or one without a readable figure; a figure not above the
+    earlier one gives a segment that is full when reached and empty otherwise. Drawn end to end,
+    the segments run the line from node to node, as the built-in's evenly spaced track does.
+  - M6. Tiers are data only: Milestones and Current are fields, so every host plays them by
+    data. No event, state, button or machine arrow is added; looks and segments follow a data
+    write at once, as the meter's bar does, and none of them pops.
+  - Q1. A quiz may draw a ROW layer per answer (`Row A`, a drawn group such as the row's plate
+    and letter). On a board with any row layer, a row is IN USE while its Answer field holds
+    text (after trimming spaces); `Row X` shows while row X is in use and hides while it is not.
+  - Q2. On such a board, Selected, Correct and Wrong light only on rows in use: a pick or an
+    answer key naming an unused row lights nothing, and Reveal marks Wrong only on the other
+    rows in use (the built-in quiz show: "Pick C on a board showing two answers lights nothing").
+    The machine, the two dropdowns, the buttons and the lock are unchanged.
+  - Q3. Two, three or four answers in use is data: emptying an Answer hides its row and typing
+    it back shows it, on the take and on air, in every host that sends data. No event, state,
+    button or field is added.
+  - Q4. Text bound inside a row layer is measured when the row first shows (the fit's owed
+    measurement, as for any look), so a row typed back on air fits like the others.
+  - S1. A meter without tier rows and a quiz without row layers compile to the table, fields,
+    words and bytes they compiled to before, and a saved one keeps its own table and runtime
+    (TL2 C7). Reimport of artwork that adds tier or row layers keeps every existing field id and
+    cue value: the Milestones field is made after the existing ones, and a quiz gains no field.
+    An old cue with an empty Answer then hides that row (it showed an empty row before).
+  - S2. The words the runtime newly reads are one `READS_ADDED` entry each, in the commit that
+    teaches the runtime: the `text` kind's fact `filled`, and the `list` kind's spec key `of`
+    (the role whose figure the rows are compared with), its fact `reached` and its derivations
+    `span` and `amount`. A table asking any of them under a runtime that does not read it is
+    refused at export, upgradable by importing again.
+  - S3. Recognition: `Row A` names bind the quiz's row layer but are not evidence of a quiz;
+    `Reached n` is evidence of a goal meter. `docs/svg-samples/quiz-board.svg` and the talk-show
+    set's `quiz.svg` already draw `Row A` to `Row D` plates, so importing them again now binds
+    them (S1 applies).
+- Decisions (coordinator on #2678, reversible by the owner): 3a, Target stays on every meter,
+  so ids never depend on what is drawn; the Milestone track template draws a Percent toward the
+  final goal so Target is a working control there. 3b, the box starts with the drawn tiers (the
+  coordinator first approved an "empty shows as drawn" fact; it was replaced because a runtime
+  that has written a label cannot bring the drawn text back, so it would be false after one
+  edit). Quiz rows are in use while their Answer has text, rather than the built-in's Answers
+  shown dropdown: no field is added, and a gap (A and C in use) is allowed.
+- Rules found after coding (from the `/check` review; they make M2, M3 and Q2 true as written):
+  - M3a. On a listed row, `Tier n` shows only while its line has a label and `Threshold n` only
+    while it has text after the bar sign (`list` facts `has-label`, `has-amount`): a readout with
+    nothing to write keeps what it showed before, so it hides instead.
+  - M2a. The starting box keeps one line per drawn tier, so line n stays row n: a tier drawn with
+    no text is named for its row (`Tier 2`), and a label holding a bar sign with no figure drawn
+    ends in a bar sign so it is not split. Drawn on two lines, a label's words stay apart.
+  - Q2a. "In use" lives in the dropdowns' kind (`row-pick` spec key `inUse`): on a board with
+    rows, no fact holds on a row not in use, and a pick or key naming one names nothing. So a key
+    on an emptied row marks no row Wrong, and the three verdict rules are exactly the quiz's own.
+  - S3a (from CI): `Row A` is NOT read as an answer row, only the taught `Answer row A` and its
+    translations, because existing artwork (the shared sample `docs/svg-samples/quiz-board.svg`)
+    draws plain `Row A` plates; reimporting it now changes nothing. This replaces S3's first half.
+  - S2 grows by these words: `list` facts `has-label`, `has-amount`; `row-pick` spec key `inUse`.
+    The `text` fact `filled` now serves only the Row look.
+- Traps: the layer check maps a name to the FIRST role in `words.json` with that head, so the
+  quiz's row is taught as `Answer row A` (a bare `Row` would shadow the standings' visible
+  `Row n` plates); the importer still reads `Row A`. A write rule never restores drawn text once
+  it has written, which is why the box starts with the drawn tiers instead of an "empty shows as
+  drawn" fact. The library previews are drawn in the system face, not Manrope: a new preview
+  matches only from the same renderer.
+- Q1 to Q4 stand as written. A Row look never pops (nit from the Rules-first `/so`). The pin
+  for S1's bytes is the corpus emit record (`scripts/svg-corpus-passes.json`) plus the Node
+  case that a meter with no tiers compiles to its old table.
+
 ## Test maintenance
 
 - 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22

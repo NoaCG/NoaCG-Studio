@@ -401,3 +401,118 @@ and group 5 (Verdict card).
 
 No recipe, runtime, proposal word or persisted key changed; no pin moved. The navy
 `standings.svg` and its old addresses are unchanged.
+
+## Group 7: Milestone track and Quiz show
+
+Base: `main` at `45127dc15db7170c1fb78200635c5ab791a0453e` (group 6, #2709, merged). Row class:
+Risky (a per-row layer in two saved bindings and new runtime words). Rules M1 to M6, Q1 to Q4 and
+S1 to S3 (phase notes) were pushed before any code (99f7a86); the Rules-first `/so` on 99f7a86
+returned AGREE WITH CORRECTIONS (B), and the corrected Rules and the coordinator's decisions (3a,
+3b, rows in use) are in the phase notes.
+
+### What was built
+
+- **Tiers on the goal meter.** An optional row set `tier` (none to eight): `Tier n` and
+  `Threshold n` texts written from a new owned `Milestones` lines field, a `Reached n` look, a
+  `Segment n` gauge and a `Milestone n` drawing. The box starts with the drawn tiers (read off the
+  saved markup at build, `drawnTextOf`); the runtime's `list` kind reads it against Current
+  (`of`), lights `reached`, fills `span` and prints `amount` as typed. A meter with no tiers
+  compiles to its old table, fields and html (Node case).
+- **Quiz rows in use.** An optional `Answer row A` layer per answer (a plain `Row A` is not read,
+  so existing artwork imports as before). Where any is drawn, a row shows while its Answer has text (`text` fact `filled`), and
+  the two dropdowns' kind holds no fact on a row not in use (`row-pick` `inUse`), so Selected,
+  Correct and Wrong light only on rows in use. No field, event, state or button.
+- READS: `text.filled`; `list` `of`, `reached`, `has-label`, `has-amount`, `span`, `amount`;
+  `row-pick` `inUse`.
+- The import step offers the meter's tier count from none, and a Row picker per quiz answer.
+- Templates (studio): Milestone track (titles) and Quiz show (games), each with a default preview
+  and two named states with alt text. Library 93 templates; coverage 92 of 101 rows.
+- The owned-field holders now escape their default value as HTML (a drawn label with `&` or `<`
+  reaches the box as text); no default before this held such a character.
+
+### AC-3
+
+`e2e/svg-templates.spec.ts`, batches `meter: Milestone track` and `quiz: Quiz, Quiz show, ...`:
+
+| Template | Recognition | Controls asserted |
+| --- | --- | --- |
+| Milestone track | automatic (meter, four tiers proposed from the names) | the box starts as `Warm-up \| 5,000` and so on, each tier shows its drawn label, none reached; Current 18,400 and Target 50,000: Percent 36.8%, tiers 1 and 2 reached, segment 2 full, segment 3 at 3,400/15,000, segment 4 empty; three lines: tier 4, its figure and its node hide, `$30,000` prints as typed; Current 30,000 reaches three; an emptied box hides every tier |
+| Quiz show | automatic (quiz, Answer rows bound) | four rows in use; C and D emptied hide their rows; a pick of C lights nothing; Select B, Lock it in, Reveal correct: Correct B, Wrong A, no verdict on C or D; Answer C typed back shows its row and marks it Wrong |
+
+Clean air at every state. One visual family: the previews come from one renderer (960 by 540,
+`#7B8494`, the drawn type) that reproduces `quiz-1-question.png` and `quiz-2-selected.png` pixel
+for pixel; `scripts/check-example-layers.mjs` passes on every file.
+
+### AC-7
+
+"Milestone track and Quiz show: tiers and rows in use play in every export target":
+
+| Target | Mode | Milestone track | Quiz show |
+| --- | --- | --- | --- |
+| SPX, CasparCG, H2R | update, play | three lines and Current 15: tiers 1 and 2 reached, tier 4 hidden, `$20` as typed, segment 3 half run; Current 30 by data reaches the third | Answer D empty: three rows in use; D typed by data: four |
+| HTML overlay | autoplay with baked data | the baked state as above | three rows in use |
+| OGraf, LiveOS | real time: load, playAction, updateAction | as SPX | as SPX |
+
+Both are data only (M6, Q3), so a host that sends only data plays them. OGraf non-real time:
+repaints of data the graphic already has, no motion; seek parity for imported designs other than
+the countdown stays issue #2699.
+
+### AC-9
+
+- `scripts/pre-plan-graphics.test.mjs`, new fixtures `scripts/fixtures/pre-tl5-rows` (a studio
+  quiz and the navy goal meter imported at 45127dc, never regenerated): each plays through
+  today's preview with its saved code unchanged and passes the check (the old quiz has no rows:
+  an empty Answer D is an empty row, as before; the meter shows 50% for 60 of 120). Edited
+  artwork that adds answer rows or three tiers, with a text drawn in front of every field,
+  imported again: no unresolved item, every old field id kept although the build moved them, the
+  quiz gains no field, the meter gains Milestones from the drawn tiers, the old cues paint the
+  same values, the rebuilt tables pass against their new runtimes, and the new behaviour plays.
+- `scripts/behaviour-reads.test.mjs`: the frozen pre-TL2 vote runtime asked for `filled` or the
+  four list words is refused, upgradable by importing again; a quiz without a row and a meter
+  without tiers compile to exactly the old shape.
+- Pins moved only by the runtime text (verified: with main's `behaviourRuntime.ts` and
+  `behaviourReads.ts` swapped in, main's own credits test passes 50 of 50 on this branch):
+  ten corpus `emit.js` hashes, two `appearance.js` in `jev-svg-baseline`, nine credits
+  build pins. The corpus `step` records of six quiz files count four more empty pickers (one Row
+  picker per answer row), as group 1's count did.
+
+### Verification
+
+- Node: `behaviour-reads` 22 (a reference model of M2 to M5 written from the Rules, 15 cases,
+  against the emitted runtime; both of two mutants caught), `template-coverage`,
+  `behaviour-look`, `behaviour-keys`, `behaviour-removed-layer`, `check-example-layers`,
+  `check-svg-example-coverage`, `concept-names`, `svg-files`, `svg-step-proposal`,
+  `wizard-draft`, `behaviour-docs --check`, the gates for the change (20 files, 222 tests):
+  pass. Browser-backed Node: `pre-plan-graphics` 7, `jev-svg-baseline`, `imported-credits-model`,
+  `imported-score-event`, `jev-svg-apply`, `readout-ink`, `readout-anchor`,
+  `imported-match-clock`, `imported-clock-wire`, `svg-figure-fit`: pass; `svg-import-passes`:
+  only the four records (inventory, bind, emit html, runtime) that fail the same way on an
+  untouched `main` worktree on this machine (control run, TL2 trap).
+- Browser (job queue, this cloud worker): the meter and quiz batches, the new export case and the
+  Verdict and Chat export case (its host driver moved to module level): 4 passed (40.8 s); with
+  the tier and row looks forced on (a mutant), all three new checks fail.
+- `tsc`, `eslint` on changed files, `check-copy`, `check-e2e-protection --changed origin/main`
+  (svg-templates 28 -> 30 tests), `e2e-capacity --changed origin/main` (standing warnings only):
+  pass. README.pdf reprinted (14 pages).
+- `/check`: review delegated (high), seven findings, all fixed. Product: a key on an emptied
+  quiz row still marked the rows in use Wrong (Q2a, `inUse` in the row-pick kind); a listed tier
+  line without a label or figure kept the old text (M3a, `has-label`, `has-amount`); a two-line
+  drawn label joined into one word (M2a). Nits: one line per drawn tier, a bar sign in a label,
+  "1 row", entities read once. Simplify (four angles, delegated): drawn text read on demand
+  (no stored map), "in use" decided in one place so the verdict rules are the quiz's own, the
+  lifted export helpers called directly, small duplicates removed. Not changed: sharing the XML
+  entity decoder with `src/control/fileSource.ts` (a templates-to-control import edge) and
+  merging the two host branches of the e2e driver (style only). After the fixes: `behaviour-reads`
+  22, gates 20 files 222 tests, the browser cases 4 passed (40.2 s), the browser-backed harnesses
+  as above with the same four environment records; pins re-taken on the final runtime and the
+  swap check repeated (main's credits test 50 of 50 with main's runtime swapped in).
+- CI on a1bdbfd: `dashboard-operator-walk` failed because the shared sample
+  `docs/svg-samples/quiz-board.svg` draws plain `Row A` to `Row D` plates, which the importer read as
+  answer rows (S3), so four row looks were lit at the question. Fixed at the cause (S3a): only the
+  taught `Answer row A` and its translations bind, so existing artwork named `Row A` imports exactly
+  as before; the walk's assertion is unchanged.
+- CI on 20e3034: the mapping-step notice case (`import-svg-behaviour`, "the mapping step explains
+  itself") counted 17 empty boxes where it expected 13: a test expectation this change moves (one
+  Row picker per answer row, as group 1's Count picker moved the vote's count). Updated to 17 and,
+  after Undo, 16, with the reason in the comment; the Fill press is unchanged (3 boxes) and the
+  vote case still reads 13. Both pass locally.

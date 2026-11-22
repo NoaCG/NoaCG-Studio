@@ -324,6 +324,10 @@ export interface DesignSvgQuizRow {
   correct?: string;
   /** Shown on this row by the reveal when it is NOT the correct answer. */
   wrong?: string;
+  /** The row's own drawing (`Row A`: its plate and letter), shown while its Answer holds text, so
+   *  one board plays two, three or four answers (svg-template-library TL5). Absent on every board
+   *  made before it, which shows every row as drawn. */
+  row?: string;
 }
 
 /**

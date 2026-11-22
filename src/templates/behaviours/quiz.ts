@@ -21,6 +21,9 @@ import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { rolesOf, rowsOf, withRepaint } from './recipe';
 import type { TypeBranch, TypeMachine } from '../types/graphicType';
 
+/** The drawn row of one answer (`Answer row A`): its plate and letter, shown while the row is in use. */
+const ROW_ROLE = 'answer.row';
+
 /** How long after the lock a self-revealing board waits, in speed-relative seconds. */
 const AUTO_REVEAL_AFTER = 5;
 
@@ -91,6 +94,14 @@ function quizMachine(ctx: RecipeContext): TypeMachine {
 
 const letterOptions = (ctx: RecipeContext) => ctx.rows.map((letter) => ({ label: letter, value: letter }));
 
+/** Does the board draw a Row for any answer? Then a row is in use only while its answer has text. */
+const drawsRows = (ctx: RecipeContext): boolean => ctx.rows.some((key) => ctx.bound(ROW_ROLE, key));
+
+/** The two dropdowns read as row picks. On a board with Rows, no fact holds on a row not in use
+ *  and a pick or a key naming one names nothing (`inUse`, Rule Q2); without Rows the spec is what
+ *  it always was. */
+const pickSpec = (ctx: RecipeContext) => ({ kind: 'row-pick', rows: 'answer', ...(drawsRows(ctx) ? { inUse: 'answer' } : {}) });
+
 export const quizRecipe: BehaviourRecipe = {
   id: 'quiz',
   name: 'Quiz',
@@ -113,7 +124,7 @@ export const quizRecipe: BehaviourRecipe = {
       kind: 'select',
       value: ctx.rows[0] ?? 'A',
       options: letterOptions(ctx),
-      spec: { kind: 'row-pick', rows: 'answer' },
+      spec: pickSpec(ctx),
     },
     {
       key: 'selectedAnswer',
@@ -123,7 +134,7 @@ export const quizRecipe: BehaviourRecipe = {
       // kind checks before any lookup.
       value: '',
       options: [{ label: '-', value: '' }, ...letterOptions(ctx)],
-      spec: { kind: 'row-pick', rows: 'answer' },
+      spec: pickSpec(ctx),
     },
   ],
   // The reveal is a real STEP on the default path (SPX's Continue reaches it), and the entrance
@@ -140,11 +151,18 @@ export const quizRecipe: BehaviourRecipe = {
       ? ANSWER_BOARD_CONTROLS.map((c) => (c.section === ANSWER_PICK_SECTION ? { ...c, section: ANSWER_PICK_LOCK_OPTIONAL_SECTION } : c))
       : ANSWER_BOARD_CONTROLS,
   paint: (ctx) => {
+    // ROWS IN USE (svg-template-library TL5, Rules Q1-Q3): where the board draws a Row layer, a
+    // row is in use while its Answer holds text, so one board plays two, three or four answers
+    // as data. Its Row shows only then, and the two dropdowns' kind (`inUse`, `pickSpec`) lights
+    // no pick or verdict on a row not in use. A board with no Row layer asks nothing new, so it
+    // compiles to exactly what it did.
     const rules: LookRule[] = [
       { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },
       { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct', anchor: 'answer' },
       { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong', anchor: 'answer' },
       { look: 'locked', when: { state: ['main/locked', 'main/sealed'] }, default: 'badge:Locked in' },
+      // A plate never pops: it is the row, shown as long as the row is in use.
+      ...(drawsRows(ctx) ? [{ look: ROW_ROLE, rows: 'answer', when: { facts: ['answer:filled'] } }] : []),
     ];
     if (!quizHasNoLock(ctx.options)) return rules;
     // No lock: its look goes, and no rule names a state the machine no longer has.

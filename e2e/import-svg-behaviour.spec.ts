@@ -2157,10 +2157,10 @@ test('the mapping step explains itself: the name under an empty box, the count o
   // …and none under a box the names filled.
   await expect(page.getByTestId('map-svg-quiz-answer-0-hint')).toHaveCount(0);
 
-  // 2. The count: four rows of three moments plus the lock are thirteen empty boxes, and the
-  //    file holds five hidden layers nothing is using.
+  // 2. The count: four rows of three moments and a Row each (TL5: the answer's own drawing) plus
+  //    the lock are seventeen empty boxes, and the file holds five hidden layers nothing is using.
   const notice = page.getByTestId('map-svg-unmatched');
-  await expect(notice).toContainText('13 boxes');
+  await expect(notice).toContainText('17 boxes');
   await expect(notice).toContainText('5 layers');
 
   // 3. One press. The two drawings across row A are told apart by colour - the red one is the
@@ -2189,7 +2189,7 @@ test('the mapping step explains itself: the name under an empty box, the count o
   await expect(page.getByTestId('map-svg-quiz-wrong-0-hint')).toHaveText('name it “Wrong A”');
   await expect(page.getByTestId('map-svg-quiz-correct-1').locator('option:checked')).toContainText('NoaCG');
   await expect(page.getByTestId('map-svg-quiz-selected-0').locator('option:checked')).toHaveText('Layer 10 (hidden)');
-  await expect(notice).toContainText('12 boxes');
+  await expect(notice).toContainText('16 boxes');
   await expect(page.getByTestId('map-svg-fill-button')).toBeVisible();
 });
 

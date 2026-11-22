@@ -541,11 +541,14 @@ function mapBoxes(
       ...b,
       question: f('question', undefined, b.question, undefined),
       answers: b.answers.map((a, i) => f('answer', keys[i], a, i)),
-      rows: b.rows.map((r, i) => ({
-        selected: f('answer.selected', keys[i], r.selected, i),
-        correct: f('answer.correct', keys[i], r.correct, i),
-        wrong: f('answer.wrong', keys[i], r.wrong, i),
-      })),
+      rows: b.rows.map((r, i) => {
+        // In the step's own order: the three moments, then the row's own drawing.
+        const selected = f('answer.selected', keys[i], r.selected, i);
+        const correct = f('answer.correct', keys[i], r.correct, i);
+        const wrong = f('answer.wrong', keys[i], r.wrong, i);
+        const row = f('answer.row', keys[i], r.row ?? '', i);
+        return { selected, correct, wrong, ...(row ? { row } : {}) };
+      }),
       locked: f('locked', undefined, b.locked, undefined),
     };
   }

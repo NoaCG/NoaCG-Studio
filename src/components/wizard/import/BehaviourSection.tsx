@@ -516,7 +516,9 @@ export default function BehaviourSection({
   const generic = behaviour?.kind === 'recipe' ? behaviour : null;
   const genericRecipe = generic ? recipeById(generic.recipe) : null;
   const genericRoles = (genericRecipe?.roles ?? []).filter((role) => generic?.recipe !== 'credits' || role.id !== 'box');
-  const genericRows = generic?.rows ?? null;
+  // A draft with no rows saved leaves them out (the meter's tiers, none by default); a recipe that
+  // declares a row set still offers its row count.
+  const genericRows = generic?.rows ?? (genericRecipe?.rows ? [] : null);
   const patchGeneric = (patch: Partial<SvgRecipeDraft>) => {
     if (generic) onDraft({ svgBehaviour: { ...generic, ...patch } });
   };
@@ -1436,7 +1438,7 @@ export default function BehaviourSection({
                     >
                       {Array.from({ length: genericRecipe.rows.max - genericRecipe.rows.min + 1 }, (_, i) => genericRecipe.rows!.min + i).map((n) => (
                         <option key={n} value={n}>
-                          {n} rows
+                          {n === 0 ? 'None' : n === 1 ? '1 row' : `${n} rows`}
                         </option>
                       ))}
                     </select>
@@ -1571,6 +1573,26 @@ export default function BehaviourSection({
                       {hintFor(`answer.${state}`, rowKeyAt[at], quiz.rows[at]?.[state] ?? '', `map-svg-quiz-${state}-${at}`)}
                     </label>
                   ))}
+                  {/* The row's own drawing: shown while its answer has text (TL5, Rule Q1). A
+                      plate is often one rectangle, so the drawn pool offers shapes too. */}
+                  <label className="save-field">
+                    <span>{roleLabel('quiz', 'answer.row')}</span>
+                    <select
+                      value={quiz.rows[at]?.row ?? ''}
+                      onChange={(e) => patchQuizRow(at, { row: e.target.value })}
+                      onFocus={() => setHoverId(quiz.rows[at]?.row || null)}
+                      data-testid={`map-svg-quiz-rowlayer-${at}`}
+                    >
+                      <option value="">{NOT_DRAWN}</option>
+                      {scoreDrawn.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.label}
+                          {g.hidden ? ' (hidden)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {hintFor('answer.row', rowKeyAt[at], quiz.rows[at]?.row ?? '', `map-svg-quiz-rowlayer-${at}`)}
+                  </label>
                   </div>
                 </div>
               ))}

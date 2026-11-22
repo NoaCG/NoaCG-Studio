@@ -147,8 +147,13 @@ function noacgFieldFor(head, rowKey) {
 
 var noacgKinds = {};
 
+// text: what the operator typed. "filled" holds while it has text other than spaces: a quiz row
+// is in use while its answer does (svg-template-library TL5), so a board plays fewer answers.
 noacgKinds.text = {
-  fact: function () { return false; },
+  fact: function (id, spec, name) {
+    if (name === 'filled') return noacgFieldText(id).trim() !== '';
+    return false;
+  },
   derive: function (id, spec, name) { return name === 'text' ? noacgFieldText(id) : null; }
 };
 
@@ -167,13 +172,21 @@ noacgKinds.select = {
 // and "after" are the ORDER facts: this row comes before the picked one in row order (a guest
 // who has already been on), or after it (one still to come). A start row (a choice that starts
 // on an option, svg-template-library TL5) is what a value naming no row means: such a choice is
-// never empty, even under a cue saved before it had a start.
+// never empty, even under a cue saved before it had a start. Where spec.inUse names a per-row role
+// (a quiz drawing its answer rows, svg-template-library TL5), a row is IN USE while its field of
+// that role holds text: a value naming a row not in use names nothing, and no fact holds on a row
+// not in use, so neither a pick nor a verdict ever lights one.
+function noacgRowInUse(spec, key) {
+  if (!spec.inUse) return true;
+  var field = noacgFieldFor(spec.inUse, key);
+  return !!field && noacgFieldText(field).trim() !== '';
+}
 noacgKinds['row-pick'] = {
   fact: function (id, spec, name, rowKey) {
     var value = noacgFieldText(id).trim().toUpperCase();
     var keys = noacgRowsOf(spec.rows);
     if (spec.start && keys.indexOf(value) === -1) value = String(spec.start).toUpperCase();
-    var named = value !== '' && keys.indexOf(value) !== -1;
+    var named = value !== '' && keys.indexOf(value) !== -1 && noacgRowInUse(spec, value) && noacgRowInUse(spec, rowKey);
     if (name === 'picked') return named && value === rowKey;
     if (name === 'unpicked') return named && value !== rowKey;
     if (name === 'before') return named && keys.indexOf(rowKey) < keys.indexOf(value);
@@ -217,6 +230,13 @@ noacgKinds.counter = {
 // holds on a row the list has a line for. "total" adds up the figures of the rows whose
 // companion field - the per-row role spec.when names, a survey's "revealed" switch - reads
 // on, so a board's round total is the sum of what is showing and nothing the operator types.
+//
+// A list read AGAINST a figure (spec.of names its role: a milestone track's tiers against Current,
+// svg-template-library TL5): "reached" holds on a listed row whose line has a readable figure that
+// the figure has met, and "span" derives how far the figure has gone from the nearest earlier row
+// with a readable figure (0 before the first) to this row's, 0..1, so segments drawn end to end
+// run the line from node to node. A line with no readable figure is never reached and spans
+// nothing. "amount" is what was typed after the bar sign, as typed ("$15,000").
 function noacgListRows(id) {
   var out = [];
   var lines = noacgFieldText(id).split('\\n');
@@ -226,14 +246,36 @@ function noacgListRows(id) {
     var at = raw.lastIndexOf('|');
     var label = at === -1 ? raw : raw.slice(0, at).trim();
     var figure = at === -1 ? NaN : parseFloat(raw.slice(at + 1).replace(/[^0-9.\\-]/g, ''));
-    out.push({ label: label, figure: isNaN(figure) ? 0 : figure, line: raw });
+    out.push({ label: label, figure: isNaN(figure) ? 0 : figure, known: !isNaN(figure), amount: at === -1 ? '' : raw.slice(at + 1).trim(), line: raw });
   }
   return out;
+}
+function noacgListAgainst(spec) {
+  var against = spec.of ? noacgFieldFor(spec.of, null) : null;
+  return against ? parseFloat(noacgFieldText(against).replace(/[^0-9.\\-]/g, '')) : NaN;
+}
+function noacgListSpan(rows, at, value) {
+  if (!rows[at] || !rows[at].known || isNaN(value)) return 0;
+  var from = 0;
+  for (var i = at - 1; i >= 0; i--) if (rows[i].known) { from = rows[i].figure; break; }
+  var to = rows[at].figure;
+  if (!(to > from)) return value >= to ? 1 : 0;
+  var share = (value - from) / (to - from);
+  return share < 0 ? 0 : share > 1 ? 1 : share;
 }
 noacgKinds.list = {
   fact: function (id, spec, name, rowKey) {
     var at = noacgRowsOf(spec.rows).indexOf(rowKey);
     if (name === 'listed') return at !== -1 && at < noacgListRows(id).length;
+    var row = at === -1 ? null : noacgListRows(id)[at];
+    if (name === 'reached') {
+      var value = noacgListAgainst(spec);
+      return !!row && row.known && !isNaN(value) && value >= row.figure;
+    }
+    // A row whose line has a label, or text after the bar sign: a readout of either shows only
+    // then, since a readout with nothing to write would keep what it showed before.
+    if (name === 'has-label') return !!row && row.label !== '';
+    if (name === 'has-amount') return !!row && row.amount !== '';
     return false;
   },
   derive: function (id, spec, name, rowKey) {
@@ -250,7 +292,9 @@ noacgKinds.list = {
     var row = keys.indexOf(rowKey) === -1 ? null : rows[keys.indexOf(rowKey)];
     if (name === 'label') return row ? row.label : '';
     if (name === 'figure') return row ? String(row.figure) : '';
+    if (name === 'amount') return row ? row.amount : '';
     if (name === 'line') return row ? row.line : '';
+    if (name === 'span') return keys.indexOf(rowKey) === -1 ? 0 : noacgListSpan(rows, keys.indexOf(rowKey), noacgListAgainst(spec));
     return name === 'text' ? noacgFieldText(id) : null;
   },
   report: function (id, spec) {

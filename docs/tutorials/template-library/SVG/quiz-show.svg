@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Quiz show</title>
+  <desc>NoaCG Clean Studio template. Question and Answer A to D, each answer on its own Answer row; a row shows only while its answer has text, so one board plays two, three or four answers. Hidden Selected, Correct and Wrong moments per answer, and Locked in.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Question_box" inkscape:label="Question box" x="360" y="440" width="1200" height="104" rx="14" fill="#FFFFFF"/>
+    <g id="Answer_row_A" inkscape:label="Answer row A">
+      <rect id="Letter_box_A" inkscape:label="Letter box A" x="360" y="560" width="76" height="76" rx="14" fill="#2E5BFF"/>
+      <rect id="Answer_box_A" inkscape:label="Answer box A" x="442" y="560" width="1118" height="76" rx="14" fill="#FFFFFF"/>
+      <text id="static:Letter_A" inkscape:label="static:Letter A" x="398" y="611" text-anchor="middle" font-size="36" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">A</text>
+    </g>
+    <g id="Answer_row_B" inkscape:label="Answer row B">
+      <rect id="Letter_box_B" inkscape:label="Letter box B" x="360" y="648" width="76" height="76" rx="14" fill="#2E5BFF"/>
+      <rect id="Answer_box_B" inkscape:label="Answer box B" x="442" y="648" width="1118" height="76" rx="14" fill="#FFFFFF"/>
+      <text id="static:Letter_B" inkscape:label="static:Letter B" x="398" y="699" text-anchor="middle" font-size="36" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">B</text>
+    </g>
+    <g id="Answer_row_C" inkscape:label="Answer row C">
+      <rect id="Letter_box_C" inkscape:label="Letter box C" x="360" y="736" width="76" height="76" rx="14" fill="#2E5BFF"/>
+      <rect id="Answer_box_C" inkscape:label="Answer box C" x="442" y="736" width="1118" height="76" rx="14" fill="#FFFFFF"/>
+      <text id="static:Letter_C" inkscape:label="static:Letter C" x="398" y="787" text-anchor="middle" font-size="36" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">C</text>
+    </g>
+    <g id="Answer_row_D" inkscape:label="Answer row D">
+      <rect id="Letter_box_D" inkscape:label="Letter box D" x="360" y="824" width="76" height="76" rx="14" fill="#2E5BFF"/>
+      <rect id="Answer_box_D" inkscape:label="Answer box D" x="442" y="824" width="1118" height="76" rx="14" fill="#FFFFFF"/>
+      <text id="static:Letter_D" inkscape:label="static:Letter D" x="398" y="875" text-anchor="middle" font-size="36" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif">D</text>
+    </g>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Selected_A" inkscape:label="Selected A" style="display:none">
+      <rect x="445" y="563" width="1112" height="70" rx="11" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Correct_A" inkscape:label="Correct A" style="display:none">
+      <rect x="442" y="560" width="1118" height="76" rx="14" fill="#1DB56C"/>
+    </g>
+    <g id="Wrong_A" inkscape:label="Wrong A" style="display:none">
+      <rect x="442" y="560" width="1118" height="76" rx="14" fill="#DCE1EA"/>
+    </g>
+    <g id="Selected_B" inkscape:label="Selected B" style="display:none">
+      <rect x="445" y="651" width="1112" height="70" rx="11" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Correct_B" inkscape:label="Correct B" style="display:none">
+      <rect x="442" y="648" width="1118" height="76" rx="14" fill="#1DB56C"/>
+    </g>
+    <g id="Wrong_B" inkscape:label="Wrong B" style="display:none">
+      <rect x="442" y="648" width="1118" height="76" rx="14" fill="#DCE1EA"/>
+    </g>
+    <g id="Selected_C" inkscape:label="Selected C" style="display:none">
+      <rect x="445" y="739" width="1112" height="70" rx="11" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Correct_C" inkscape:label="Correct C" style="display:none">
+      <rect x="442" y="736" width="1118" height="76" rx="14" fill="#1DB56C"/>
+    </g>
+    <g id="Wrong_C" inkscape:label="Wrong C" style="display:none">
+      <rect x="442" y="736" width="1118" height="76" rx="14" fill="#DCE1EA"/>
+    </g>
+    <g id="Selected_D" inkscape:label="Selected D" style="display:none">
+      <rect x="445" y="827" width="1112" height="70" rx="11" fill="none" stroke="#2E5BFF" stroke-width="6"/>
+    </g>
+    <g id="Correct_D" inkscape:label="Correct D" style="display:none">
+      <rect x="442" y="824" width="1118" height="76" rx="14" fill="#1DB56C"/>
+    </g>
+    <g id="Wrong_D" inkscape:label="Wrong D" style="display:none">
+      <rect x="442" y="824" width="1118" height="76" rx="14" fill="#DCE1EA"/>
+    </g>
+    <g id="Locked_in" inkscape:label="Locked in" style="display:none">
+      <rect x="1340" y="388" width="220" height="42" rx="10" fill="#2E5BFF"/>
+      <text x="1450" y="416" text-anchor="middle" font-size="20" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">LOCKED IN</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Question" x="960" y="506" text-anchor="middle" font-size="40" font-weight="800" fill="#0F1729">Which planet has the most moons?</text>
+    <text id="Answer_A" inkscape:label="Answer A" x="470" y="610" font-size="32" font-weight="600" fill="#0F1729">Mars</text>
+    <text id="Answer_B" inkscape:label="Answer B" x="470" y="698" font-size="32" font-weight="600" fill="#0F1729">Saturn</text>
+    <text id="Answer_C" inkscape:label="Answer C" x="470" y="786" font-size="32" font-weight="600" fill="#0F1729">Venus</text>
+    <text id="Answer_D" inkscape:label="Answer D" x="470" y="874" font-size="32" font-weight="600" fill="#0F1729">Mercury</text>
+  </g>
+</svg>

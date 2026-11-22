@@ -118,6 +118,23 @@
           "Låst"
         ],
         "what": "once the answer is locked (one, whole board)"
+      },
+      {
+        "id": "answer.row",
+        "label": "Row",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "^(?:answer row|vastausrivi|svarsrad|antwortzeile)$",
+        "teach": "Answer row A",
+        "also": [
+          "Vastausrivi A",
+          "Svarsrad A"
+        ],
+        "what": "the row's plate and letter, shown while that answer has text, so one board plays two, three or four answers"
       }
     ]
   },
@@ -547,7 +564,14 @@
   "meter": {
     "name": "The goal meter",
     "verbs": "a bar fills toward a target",
-    "buttons": "the Current and Target figures, each with + and −",
+    "buttons": "the Current and Target figures, each with + and −, plus the Milestones box (one line per tier, `Warm-up | 5000`) when you draw tiers",
+    "rows": {
+      "role": "tier",
+      "keys": "numbers",
+      "min": 0,
+      "max": 8,
+      "teach": "Up to eight tiers, in order, or none for a plain meter."
+    },
     "roles": [
       {
         "id": "bar",
@@ -581,6 +605,93 @@
           "Osuus"
         ],
         "what": "written as the current figure's share of the target"
+      },
+      {
+        "id": "tier",
+        "label": "Tier",
+        "kind": "layer",
+        "paint": [
+          "write",
+          "look"
+        ],
+        "perRow": true,
+        "required": true,
+        "pool": "text",
+        "words": "^(?:tier|stage|taso|etappi|stufe|etapa)$",
+        "teach": "Tier 1",
+        "also": [
+          "Stage 1",
+          "Taso 1"
+        ],
+        "what": "the tier's name, written from its line in the Milestones box; hidden while the box has no line for it"
+      },
+      {
+        "id": "tier.figure",
+        "label": "Threshold",
+        "kind": "layer",
+        "paint": [
+          "write",
+          "look"
+        ],
+        "perRow": true,
+        "pool": "text",
+        "words": "^(?:threshold|kynnys|schwelle|umbral|tr[oö]skel)$",
+        "teach": "Threshold 1",
+        "also": [
+          "Kynnys 1"
+        ],
+        "what": "the tier's figure as typed after the bar sign in its line"
+      },
+      {
+        "id": "tier.reached",
+        "label": "Reached",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "reached|passed|unlocked|saavutettu|erreicht|alcanzad[oa]|uppn[aå]dd",
+        "teach": "Reached 1",
+        "also": [
+          "Passed 1",
+          "Saavutettu 1"
+        ],
+        "what": "shown once Current is at or past the tier's figure"
+      },
+      {
+        "id": "tier.bar",
+        "label": "Segment",
+        "kind": "layer",
+        "paint": [
+          "gauge"
+        ],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "^(?:segment|leg|v[aä]li|abschnitt|tramo)$",
+        "teach": "Segment 1",
+        "also": [
+          "Leg 1",
+          "Väli 1"
+        ],
+        "what": "draw it at its FULL length, from the tier before to this one; it fills as Current climbs between them"
+      },
+      {
+        "id": "tier.row",
+        "label": "Milestone",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "^(?:milestone|virstanpylv[aä]s|meilenstein|hito)$",
+        "teach": "Milestone 1",
+        "also": [
+          "Virstanpylväs 1"
+        ],
+        "what": "the tier's own drawing (its node, its plate), hidden while the box has no line for it"
       }
     ]
   },

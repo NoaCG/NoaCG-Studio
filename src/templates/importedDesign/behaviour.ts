@@ -41,7 +41,7 @@ import { REPAINT_CALL } from '../behaviours/recipe';
 import { recipeById } from '../behaviours/registry';
 import { behaviourDataJs, behaviourRuntimeJs, LOOK_CLASS, lookCss } from './behaviourRuntime';
 import { countdownIndex } from './artworkFields';
-import { PREFIX } from './shared';
+import { escapeHtml, PREFIX } from './shared';
 import { styledCredits } from './creditsRoll';
 
 // ── The module interface (the seam svg.ts speaks) ────────────────────────────────────────────
@@ -105,6 +105,9 @@ export interface BehaviourBinding {
   layers: Record<string, string | Record<string, string>>;
   /** Credits only: the styled binding, where the design builds it (`RecipeContext.credits`). */
   credits?: DesignSvgCredits;
+  /** The saved markup, so a recipe can read the text a bound layer draws (`RecipeContext.drawn`),
+   *  only when it asks. Never saved on the binding: the design already holds the markup. */
+  markup?: string;
 }
 
 /**
@@ -129,7 +132,7 @@ export function bindingsOf(svg: DesignSvg): BehaviourBinding[] {
   else if (behaviour?.kind === 'timer') out.push(countdownBinding(svg, behaviour));
   else if (behaviour?.kind === 'score') out.push(scoreBinding(behaviour));
   else if (behaviour?.kind === 'recipe') {
-    const binding = recipeBinding(behaviour);
+    const binding = { ...recipeBinding(behaviour), markup: svg.markup };
     // A styled credits binding that builds (not one gone stale, which builds the editable roll).
     out.push(behaviour.credits && styledCredits(svg) ? { ...binding, credits: behaviour.credits } : binding);
   }
@@ -138,6 +141,73 @@ export function bindingsOf(svg: DesignSvg): BehaviourBinding[] {
     if (binding) out.push(binding);
   }
   return out;
+}
+
+/** The text drawn in one candidate of the saved markup: its element's text with the tags taken
+ *  out, a space between drawn lines, entities read and white space joined. DOM-free, so the build
+ *  reads the same in a browser, in the CLI and in Node. Empty when the candidate is not there. */
+export function drawnTextOf(markup: string, candidateId: string): string {
+  const mark = `${SVG_CANDIDATE_ATTR}="${candidateId}"`;
+  const found = markup.indexOf(mark);
+  if (found === -1) return '';
+  const opening = /<([A-Za-z][\w:-]*)/y;
+  opening.lastIndex = markup.lastIndexOf('<', found);
+  const tag = opening.exec(markup)?.[1];
+  const start = markup.indexOf('>', found);
+  if (!tag || start === -1 || markup[start - 1] === '/') return '';
+  const end = markup.indexOf(`</${tag}>`, start);
+  if (end === -1) return '';
+  // A tspan that starts a new LINE is a word apart; a run on the same line (kerning, a weight
+  // change, a superscript's baseline nudge) joins as textContent joins it. A line is the import
+  // reader's (`textFields` in assets/svgImport.ts): a baseline of its own (`y`) at least 0.8 em
+  // from the last, or `x` back at the margin with a `dy` step DOWN of at least 0.8 em. Without a
+  // drawn size in the markup, any `y` change or such a step counts.
+  const sizeOf = (attrs: string): number | null => {
+    const raw = /\sfont-size="([\d.]+)/.exec(attrs)?.[1] ?? /font-size:\s*([\d.]+)/.exec(attrs)?.[1];
+    return raw ? parseFloat(raw) : null;
+  };
+  const textSize = sizeOf(markup.slice(markup.lastIndexOf('<', found), start + 1));
+  let lineY: number | null = null;
+  let first = true;
+  const lines = markup.slice(start + 1, end).replace(/<tspan\b([^>]*)>/g, (_, attrs: string) => {
+    const size = sizeOf(attrs) ?? textSize;
+    const step = (gap: number) => (size === null ? gap > 0 : gap >= 0.8 * size);
+    const y = /\sy="([-\d.]+)/.exec(attrs);
+    const x = /\sx="/.test(attrs);
+    const dyRaw = /\sdy="([-\d.]+)(em)?/.exec(attrs);
+    const dy = dyRaw ? parseFloat(dyRaw[1]) * (dyRaw[2] && size !== null ? size : 1) : 0;
+    const yValue = y ? parseFloat(y[1]) : null;
+    const newLine = !first && (
+      (yValue !== null && lineY !== null && step(Math.abs(yValue - lineY))) ||
+      (yValue === null && x && (dyRaw?.[2] && size === null ? parseFloat(dyRaw[1]) >= 0.8 : step(dy)))
+    );
+    if (yValue !== null && (lineY === null || newLine)) lineY = yValue;
+    else if (newLine && lineY !== null) lineY += dy;
+    first = false;
+    return newLine ? ' ' : '';
+  });
+  const entities: Record<string, string> = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' };
+  // The tags out, by hand rather than by one pattern a broken tag could survive: each `<` starts
+  // a tag that ends at its `>`, and a `<` with no `>` after it is a broken tag, never text. A
+  // drawn text holds no raw angle bracket (the file writes `&lt;`), so a stray `>` goes too,
+  // before the entities are read.
+  const untagged = lines
+    .split('<')
+    .map((part, i) => {
+      if (i === 0) return part;
+      const close = part.indexOf('>');
+      return close === -1 ? '' : part.slice(close + 1);
+    })
+    .join('')
+    .split('>')
+    .join('');
+  return untagged
+    // One pass, so a decoded `&` never starts a second entity.
+    .replace(/&(#x[0-9a-f]+|#\d+|lt|gt|quot|apos|amp);/gi, (whole, name: string) =>
+      name[0] === '#' ? String.fromCodePoint(name[1] === 'x' || name[1] === 'X' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10)) : entities[name.toLowerCase()] ?? whole,
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** Per-row layer bindings from a list of rows, skipping the rows the designer left undrawn. */
@@ -167,6 +237,7 @@ function quizBinding(quiz: DesignSvgQuizBehaviour): BehaviourBinding {
       'answer.selected': perRow(keys, quiz.rows, (r) => r.selected),
       'answer.correct': perRow(keys, quiz.rows, (r) => r.correct),
       'answer.wrong': perRow(keys, quiz.rows, (r) => r.wrong),
+      'answer.row': perRow(keys, quiz.rows, (r) => r.row),
       locked: quiz.locked,
     }),
   };
@@ -399,6 +470,10 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
       return key ? `${declared} ${key}` : declared;
     },
     bound: (role, key) => at(binding.layers, role, key) !== undefined || at(binding.fields, role, key) !== undefined,
+    drawn: (role, key) => {
+      const candidateId = at(binding.layers, role, key);
+      return candidateId && binding.markup ? drawnTextOf(binding.markup, candidateId) : '';
+    },
   };
   owned = recipe.fields(ctx);
   const ownedIds = owned.map((_, i) => `f${from + i}`);
@@ -580,7 +655,7 @@ export function composeParts(artworkFields: SpxField[], bindings: BehaviourBindi
         : `
     <!-- The behaviour's own values. SPX writes them here; the rules in template.js read them.
          None of these is ever drawn - the artwork's own layers are what the audience sees. -->
-${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLASS}">${field.value}</div>`).join('\n')}`,
+${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLASS}">${escapeHtml(field.value)}</div>`).join('\n')}`,
     js: () => `\n${behaviourDataJs(table())}${behaviourRuntimeJs(withClock, withAwards)}`,
     updateHook: `  if (typeof noacgRepaintData === 'function') noacgRepaintData();  // the behaviour's looks, gauges and readouts (below)`,
     steps: (data) => {

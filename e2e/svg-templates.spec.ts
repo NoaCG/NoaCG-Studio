@@ -17,7 +17,7 @@
 // covers: docs/tutorials/template-library/**
 // covers: src/templates/importedDesign/creditsRoll.ts
 
-import { test, expect, type Browser, type FrameLocator, type Page } from '@playwright/test';
+import { test, expect, type Browser, type BrowserContext, type FrameLocator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg, intoProduction } from './_svg-import';
@@ -29,6 +29,9 @@ interface Template { slug: string; name: string; style: string; recipe: string |
 const templates = (JSON.parse(readFileSync(new URL('../docs/tutorials/template-library/library.json', import.meta.url), 'utf8')) as Template[])
   .filter((t) => t.style === 'studio');
 const file = (slug: string) => fileURLToPath(new URL(`../docs/tutorials/template-library/SVG/${slug}.svg`, import.meta.url));
+
+/** The drawn width of a layer by its label (`Segment 3`): a gauge's full length. */
+const drawnWidth = (slug: string, label: string) => Number(new RegExp(`inkscape:label="${label}"[^>]*width="([\\d.]+)"`).exec(readFileSync(file(slug), 'utf8'))?.[1]);
 
 /** The texts a template names in its Text layer, in drawing order - each one is a field. */
 function namedTexts(slug: string): string[] {
@@ -339,7 +342,8 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       || (t.recipe === 'vote' && (/^(Option|Percent|Count) \d/.test(n) || n === 'Total votes'))
       || (t.recipe === 'list' && /^Item \d/.test(n))
       || (t.recipe === 'reveal' && n === 'Price')
-      || (t.recipe === 'ranking' && /^Position \d/.test(n));
+      || (t.recipe === 'ranking' && /^Position \d/.test(n))
+      || (t.recipe === 'meter' && (n === 'Percent' || /^(Tier|Threshold) \d/.test(n)));
     for (const name of namedTexts(t.slug).filter((n) => !driven(n))) await fieldFor(air, name);
     await checkAir(page, air, `${t.slug}-1-take`);
   }
@@ -483,8 +487,24 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
     }
     case 'quiz': {
       // Every answer the board draws: select B, lock it in, reveal B correct and the rest wrong.
-      const rows = answerRows(t.slug);
+      let rows = answerRows(t.slug);
       expect(rows.length, `${t.slug} draws answers`).toBeGreaterThanOrEqual(2);
+      // ROWS IN USE (TL5, Rules Q1-Q3: Quiz show): a board drawing an Answer row plays as many
+      // answers as have text. Two answers: C and D emptied, their rows go, and a pick of a row
+      // not in use lights nothing.
+      const drawsRows = readFileSync(file(t.slug), 'utf8').includes('inkscape:label="Answer row A"');
+      if (drawsRows) {
+        for (const row of rows) await expect(role(air, `answer.row/${row}`), `row ${row} in use`).toHaveClass(/imported-design-on/);
+        for (const row of ['C', 'D']) await page.getByTestId(`cue-field-${await fieldFor(air, `Answer ${row}`)}`).fill('');
+        await page.getByTestId('verb-update').click();
+        for (const row of ['C', 'D']) await expect(role(air, `answer.row/${row}`), `row ${row} is not in use`).not.toHaveClass(/imported-design-on/);
+        for (const row of ['A', 'B']) await expect(role(air, `answer.row/${row}`)).toHaveClass(/imported-design-on/);
+        await checkAir(page, air, `${t.slug}-2-two-answers`);
+        await page.locator('[data-testid^="cue-field-"][data-testid$="-opt-C"]').first().click();
+        await page.getByTestId('cue-pick-select-C').click();
+        await expect(role(air, 'answer.selected/C'), 'a pick of a row not in use lights nothing').not.toHaveClass(/imported-design-on/);
+        rows = ['A', 'B'];
+      }
       await page.locator('[data-testid^="cue-field-"][data-testid$="-opt-B"]').first().click();
       await page.getByTestId('cue-pick-select-B').click();
       await expect(role(air, 'answer.selected/B')).toHaveClass(/imported-design-on/);
@@ -496,6 +516,62 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await expect(role(air, 'answer.correct/B')).toHaveClass(/imported-design-on/);
       for (const row of rows.filter((r) => r !== 'B')) await expect(role(air, `answer.wrong/${row}`)).toHaveClass(/imported-design-on/);
       await checkAir(page, air, `${t.slug}-4-revealed`);
+      if (drawsRows) {
+        for (const row of ['C', 'D']) await expect(role(air, `answer.wrong/${row}`), `no verdict on row ${row}, not in use`).not.toHaveClass(/imported-design-on/);
+        // Typed back on air, a row is in use again: its row shows and the verdict marks it.
+        await page.getByTestId(`cue-field-${await fieldFor(air, 'Answer C')}`).fill('Venus');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'answer.row/C')).toHaveClass(/imported-design-on/);
+        await expect(role(air, 'answer.wrong/C')).toHaveClass(/imported-design-on/);
+        await expect(role(air, 'answer.row/D')).not.toHaveClass(/imported-design-on/);
+        await checkAir(page, air, `${t.slug}-5-three-answers`);
+      }
+      break;
+    }
+    case 'meter': {
+      // TIERS ON THE GOAL METER (TL5, Rules M1-M6: Milestone track). The Milestones box starts with
+      // the tiers as drawn, so the take shows the drawing, nothing reached at 0.
+      const tiers = namedTexts(t.slug).filter((n) => /^Tier \d/.test(n)).map((n) => n.slice(5));
+      const svgText = readFileSync(file(t.slug), 'utf8');
+      const drawn = (name: string) => new RegExp(`inkscape:label="${name}"[^>]*>([^<]*)<`).exec(svgText)?.[1] ?? '';
+      const milestones = await fieldFor(air, 'Milestones');
+      await expect(page.getByTestId(`cue-field-${milestones}`)).toHaveValue(tiers.map((k) => `${drawn(`Tier ${k}`)} | ${drawn(`Threshold ${k}`)}`).join('\n'));
+      const lit = (r: string, on: boolean) => (on ? expect(role(air, r), `${r} shows`).toHaveClass(/imported-design-on/) : expect(role(air, r), `${r} is hidden`).not.toHaveClass(/imported-design-on/));
+      for (const k of tiers) {
+        await expect(role(air, `tier/${k}`)).toHaveText(drawn(`Tier ${k}`));
+        await lit(`tier/${k}`, true);
+        await lit(`tier.reached/${k}`, false);
+      }
+      // Current past two tiers: they light, the line runs a part of the way to the third, and the
+      // percent is of Target.
+      const full: Record<string, number> = {};
+      for (const k of tiers) full[k] = drawnWidth(t.slug, `Segment ${k}`);
+      const share = (k: string) => role(air, `tier.bar/${k}`).evaluate((el, w) => (el as SVGGraphicsElement).getBBox().width / w, full[k]);
+      await page.getByTestId(`cue-field-${await fieldFor(air, 'Current')}`).fill('18400');
+      await page.getByTestId(`cue-field-${await fieldFor(air, 'Target')}`).fill('50000');
+      await page.getByTestId('verb-update').click();
+      await expect(role(air, 'percent')).toHaveText('36.8%');
+      for (const k of tiers) await lit(`tier.reached/${k}`, Number(k) <= 2);
+      await expect.poll(() => share('2'), { message: 'the line runs past the second tier' }).toBeCloseTo(1, 2);
+      await expect.poll(() => share('3'), { message: 'and (18,400 - 15,000) / 15,000 of the way to the third' }).toBeCloseTo(3400 / 15000, 2);
+      await expect.poll(() => share('4')).toBeCloseTo(0, 2);
+      await checkAir(page, air, `${t.slug}-2-reached`);
+      // Three lines: the fourth tier hides with its node and figure; typed lines are written.
+      await page.getByTestId(`cue-field-${milestones}`).fill('Kickoff | 1,000\nHalfway | 15,000\nStretch | $30,000');
+      await page.getByTestId('verb-update').click();
+      await expect(role(air, 'tier/1')).toHaveText('Kickoff');
+      await expect(role(air, 'tier.figure/3')).toHaveText('$30,000');
+      for (const r of ['tier/4', 'tier.figure/4', 'tier.row/4']) await lit(r, false);
+      for (const r of ['tier/3', 'tier.figure/3', 'tier.row/3']) await lit(r, true);
+      await checkAir(page, air, `${t.slug}-3-three-tiers`);
+      // Every listed tier reached; an emptied box hides every tier.
+      await page.getByTestId(`cue-field-${await fieldFor(air, 'Current')}`).fill('30000');
+      await page.getByTestId('verb-update').click();
+      for (const k of ['1', '2', '3']) await lit(`tier.reached/${k}`, true);
+      await lit('tier.reached/4', false);
+      await page.getByTestId(`cue-field-${milestones}`).fill('');
+      await page.getByTestId('verb-update').click();
+      for (const k of tiers) await lit(`tier/${k}`, false);
       break;
     }
     case 'score': {
@@ -1231,67 +1307,88 @@ test('Vote results with counts, Poll result, Alert level, Winner card and Scoreb
 // TL5 group 5 (AC-7): Clear is data (the choice's field set empty), so every host clears a verdict;
 // Hold on air and Take it off are operator events, which OGraf and LiveOS offer as a custom action and a page
 // host receives through NoaCG's own control channel (`noacgDispatch`, what the Control panel sends).
+/** Every export target, by id. */
+const EXPORT_IDS = ['spx', 'casparcg', 'h2r', 'html-overlay', 'ograf', 'liveos'];
+
+/** A template imported into its own production, with the field ids of the titles asked for. */
+async function prepareExport(page: Page, slug: string, titles: string[]): Promise<{ production: string; ids: Record<string, string> }> {
+  const t = templates.find((entry) => entry.slug === slug)!;
+  await importTemplate(page, t);
+  await page.getByTestId('verb-take').click();
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const ids: Record<string, string> = {};
+  for (const title of titles) ids[title] = await fieldFor(air, title);
+  await page.getByTestId('verb-out').click();
+  return { production: `${t.name} template`, ids };
+}
+
+type Host = {
+  lit(names: string[]): Promise<string[]>;
+  shown(): Promise<boolean>;
+  /** A role's text and its drawn width (getBBox), or null where the package draws no such role. */
+  read(name: string): Promise<{ text: string; width: number } | null>;
+  update(d: Record<string, string>): Promise<void>;
+  event(name: string): Promise<void>;
+  close(): Promise<void>;
+};
+
+/** Load one package as its host does and play it with `data`. */
+async function packageHost(page: Page, context: BrowserContext, id: string, files: Record<string, string>, data: Record<string, string>): Promise<Host> {
+  if (id === 'ograf' || id === 'liveos') {
+    const origin = `http://${id}-${Math.random().toString(36).slice(2, 8)}.local/`;
+    const tag = `g5-${origin.replace(/\W/g, '')}`;
+    await serveOgrafFiles(page, origin, files);
+    await installGraphicBody(page);
+    await page.evaluate(async ({ origin, tag, data }) => {
+      const mod = await import(`${origin}graphic.mjs`);
+      customElements.define(tag, mod.default);
+      const el = document.createElement(tag) as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown> };
+      el.id = tag;
+      document.body.appendChild(el);
+      await el.load({ data, renderType: 'realtime', renderCharacteristics: {} });
+      await el.playAction({});
+    }, { origin, tag, data });
+    type El = HTMLElement & { updateAction(p: unknown): Promise<unknown>; customAction(p: unknown): Promise<unknown>; dispose(): Promise<unknown> };
+    return {
+      lit: (names) => page.evaluate(({ tag, names }) => names.filter((n) => graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${n}"]`)?.classList.contains('imported-design-on')), { tag, names }),
+      shown: () => page.evaluate((tag) => getComputedStyle(graphicBody(document.getElementById(tag)!).querySelector('.imported-design')!).opacity !== '0', tag),
+      read: (name) => page.evaluate(({ tag, name }) => {
+        const el = graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${name}"]`) as SVGGraphicsElement | null;
+        return el ? { text: (el.textContent ?? '').trim(), width: el.getBBox().width } : null;
+      }, { tag, name }),
+      update: (d) => page.evaluate(({ tag, d }) => (document.getElementById(tag) as El).updateAction({ data: d }).then(() => undefined), { tag, d }),
+      event: (name) => page.evaluate(({ tag, name }) => (document.getElementById(tag) as El).customAction({ id: name, payload: {} }).then(() => undefined), { tag, name }),
+      close: () => page.evaluate((tag) => (document.getElementById(tag) as El).dispose().then(() => undefined), tag),
+    };
+  }
+  const view = await context.newPage();
+  await view.setContent(inlined(files), { waitUntil: 'load' });
+  const w = (fn: string, arg?: unknown) => view.evaluate(({ fn, arg }) => (window as unknown as Record<string, (a?: unknown) => void>)[fn](arg), { fn, arg });
+  if (id !== 'html-overlay') {
+    await w('update', JSON.stringify(data));
+    await w('play');
+  }
+  return {
+    lit: (names) => view.evaluate((names) => names.filter((n) => document.querySelector(`[data-noacg-role~="${n}"]`)?.classList.contains('imported-design-on')), names),
+    shown: () => view.evaluate(() => getComputedStyle(document.querySelector('.imported-design')!).opacity !== '0'),
+    read: (name) => view.evaluate((name) => {
+      const el = document.querySelector(`[data-noacg-role~="${name}"]`) as SVGGraphicsElement | null;
+      return el ? { text: (el.textContent ?? '').trim(), width: el.getBBox().width } : null;
+    }, name),
+    update: (d) => w('update', JSON.stringify(d)),
+    event: (name) => w('noacgDispatch', name),
+    close: () => view.close(),
+  };
+}
+
 test('Verdict card and Chat highlight: Clear and Hold on air play in every export target', async ({ page, context }) => {
   test.setTimeout(120_000);
-  const targets = ['spx', 'casparcg', 'h2r', 'html-overlay', 'ograf', 'liveos'];
-  const prepare = async (slug: string, titles: string[]) => {
-    const t = templates.find((entry) => entry.slug === slug)!;
-    await importTemplate(page, t);
-    await page.getByTestId('verb-take').click();
-    const air = page.frameLocator('[data-testid="program-stage"] iframe');
-    const ids: Record<string, string> = {};
-    for (const title of titles) ids[title] = await fieldFor(air, title);
-    await page.getByTestId('verb-out').click();
-    return { production: `${t.name} template`, ids };
-  };
-  type Host = { lit(names: string[]): Promise<string[]>; shown(): Promise<boolean>; update(d: Record<string, string>): Promise<void>; event(name: string): Promise<void>; close(): Promise<void> };
-  /** Load one package as its host does and play it with `data`. */
-  const host = async (id: string, files: Record<string, string>, data: Record<string, string>): Promise<Host> => {
-    if (id === 'ograf' || id === 'liveos') {
-      const origin = `http://${id}-${Math.random().toString(36).slice(2, 8)}.local/`;
-      const tag = `g5-${origin.replace(/\W/g, '')}`;
-      await serveOgrafFiles(page, origin, files);
-      await installGraphicBody(page);
-      await page.evaluate(async ({ origin, tag, data }) => {
-        const mod = await import(`${origin}graphic.mjs`);
-        customElements.define(tag, mod.default);
-        const el = document.createElement(tag) as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown> };
-        el.id = tag;
-        document.body.appendChild(el);
-        await el.load({ data, renderType: 'realtime', renderCharacteristics: {} });
-        await el.playAction({});
-      }, { origin, tag, data });
-      type El = HTMLElement & { updateAction(p: unknown): Promise<unknown>; customAction(p: unknown): Promise<unknown>; dispose(): Promise<unknown> };
-      return {
-        lit: (names) => page.evaluate(({ tag, names }) => names.filter((n) => graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${n}"]`)?.classList.contains('imported-design-on')), { tag, names }),
-        shown: () => page.evaluate((tag) => getComputedStyle(graphicBody(document.getElementById(tag)!).querySelector('.imported-design')!).opacity !== '0', tag),
-        update: (d) => page.evaluate(({ tag, d }) => (document.getElementById(tag) as El).updateAction({ data: d }).then(() => undefined), { tag, d }),
-        event: (name) => page.evaluate(({ tag, name }) => (document.getElementById(tag) as El).customAction({ id: name, payload: {} }).then(() => undefined), { tag, name }),
-        close: () => page.evaluate((tag) => (document.getElementById(tag) as El).dispose().then(() => undefined), tag),
-      };
-    }
-    const view = await context.newPage();
-    await view.setContent(inlined(files), { waitUntil: 'load' });
-    const w = (fn: string, arg?: unknown) => view.evaluate(({ fn, arg }) => (window as unknown as Record<string, (a?: unknown) => void>)[fn](arg), { fn, arg });
-    if (id !== 'html-overlay') {
-      await w('update', JSON.stringify(data));
-      await w('play');
-    }
-    return {
-      lit: (names) => view.evaluate((names) => names.filter((n) => document.querySelector(`[data-noacg-role~="${n}"]`)?.classList.contains('imported-design-on')), names),
-      shown: () => view.evaluate(() => getComputedStyle(document.querySelector('.imported-design')!).opacity !== '0'),
-      update: (d) => w('update', JSON.stringify(d)),
-      event: (name) => w('noacgDispatch', name),
-      close: () => view.close(),
-    };
-  };
-
   // Verdict card: a verdict sent as data shows alone, and the empty value (Clear's) takes it away.
-  const verdict = await prepare('verdict-card', ['Verdict']);
+  const verdict = await prepareExport(page, 'verdict-card', ['Verdict']);
   const looks = ['TRUE', 'FALSE', 'MISLEADING'].map((key) => `choice.verdict.option/${key}`);
   const verdictPackages = await exportPackages(page, verdict.production, { [verdict.ids.Verdict]: 'false' });
-  for (const id of targets) {
-    const h = await host(id, verdictPackages[id], { [verdict.ids.Verdict]: 'false' });
+  for (const id of EXPORT_IDS) {
+    const h = await packageHost(page, context, id, verdictPackages[id], { [verdict.ids.Verdict]: 'false' });
     await expect.poll(() => h.lit(looks), { message: `${id}: False shows alone` }).toEqual([looks[1]]);
     if (id !== 'html-overlay') {
       await h.update({ [verdict.ids.Verdict]: '' });
@@ -1303,10 +1400,10 @@ test('Verdict card and Chat highlight: Clear and Hold on air play in every expor
   // Chat highlight: unheld it clears itself after the eight seconds in every host (SPX, OGraf and
   // the overlay, one of each kind of package); held (CasparCG, H2R, LiveOS) it stays up past them,
   // and Take it off (`dismiss`) then clears it.
-  const chat = await prepare('chat-highlight', []);
+  const chat = await prepareExport(page, 'chat-highlight', []);
   const chatPackages = await exportPackages(page, chat.production, {});
   const held = new Set(['casparcg', 'h2r', 'liveos']);
-  const hosts = await Promise.all(targets.map(async (id) => [id, await host(id, chatPackages[id], {})] as const));
+  const hosts = await Promise.all(EXPORT_IDS.map(async (id) => [id, await packageHost(page, context, id, chatPackages[id], {})] as const));
   for (const [id, h] of hosts) await expect.poll(() => h.shown(), { message: `${id}: on air` }).toBe(true);
   await page.waitForTimeout(1_000);              // the entrance settles: Hold leaves the on-air state
   for (const [id, h] of hosts) if (held.has(id)) await h.event('hold');
@@ -1316,6 +1413,45 @@ test('Verdict card and Chat highlight: Clear and Hold on air play in every expor
     if (held.has(id)) {
       await h.event('dismiss');
       await expect.poll(() => h.shown(), { message: `${id}: Take it off clears it` }).toBe(false);
+    }
+    await h.close();
+  }
+});
+
+test('Milestone track and Quiz show: tiers and rows in use play in every export target', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  // MILESTONE TRACK (Rules M2-M5): three lines and Current 15 as data. Two tiers reached, the third
+  // segment half run, the fourth tier hidden; then Current 30 reaches the third, where the host
+  // sends data (the overlay plays its baked data only).
+  const track = await prepareExport(page, 'milestone-track', ['Milestones', 'Current']);
+  const tiers = { [track.ids.Milestones]: 'A | 5\nB | 10\nC | $20', [track.ids.Current]: '15' };
+  const trackPackages = await exportPackages(page, track.production, tiers);
+  const reached = ['1', '2', '3', '4'].map((k) => `tier.reached/${k}`);
+  for (const id of EXPORT_IDS) {
+    const h = await packageHost(page, context, id, trackPackages[id], tiers);
+    await expect.poll(() => h.lit(reached), { message: `${id}: the first two tiers reached` }).toEqual(reached.slice(0, 2));
+    expect(await h.lit(['tier/3', 'tier/4', 'tier.row/4']), `${id}: three tiers listed`).toEqual(['tier/3']);
+    expect((await h.read('tier.figure/3'))?.text, `${id}: the figure as typed`).toBe('$20');
+    const full = drawnWidth('milestone-track', 'Segment 3');
+    await expect.poll(async () => ((await h.read('tier.bar/3'))?.width ?? 0) / full, { message: `${id}: halfway from 10 to 20` }).toBeCloseTo(0.5, 2);
+    if (id !== 'html-overlay') {
+      await h.update({ ...tiers, [track.ids.Current]: '30' });
+      await expect.poll(() => h.lit(reached), { message: `${id}: the third reached by data` }).toEqual(reached.slice(0, 3));
+    }
+    await h.close();
+  }
+
+  // QUIZ SHOW (Rules Q1-Q3): Answer D empty as data, so row D is not in use; typed as data, it is.
+  const quiz = await prepareExport(page, 'quiz-show', ['Answer D']);
+  const three = { [quiz.ids['Answer D']]: '' };
+  const quizPackages = await exportPackages(page, quiz.production, three);
+  const rows = ['A', 'B', 'C', 'D'].map((k) => `answer.row/${k}`);
+  for (const id of EXPORT_IDS) {
+    const h = await packageHost(page, context, id, quizPackages[id], three);
+    await expect.poll(() => h.lit(rows), { message: `${id}: three rows in use` }).toEqual(rows.slice(0, 3));
+    if (id !== 'html-overlay') {
+      await h.update({ [quiz.ids['Answer D']]: 'Mercury' });
+      await expect.poll(() => h.lit(rows), { message: `${id}: Answer D typed, its row is in use` }).toEqual(rows);
     }
     await h.close();
   }

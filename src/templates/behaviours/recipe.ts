@@ -180,6 +180,9 @@ export interface RecipeContext {
   label(role: string, key?: string): string;
   /** Whether a layer role is bound at all (per row when `key` is given). */
   bound(role: string, key?: string): boolean;
+  /** The text a bound TEXT layer draws in the artwork (per row when `key` is given), or '' -
+   *  what a recipe-owned field may start from, so a take with nothing typed shows the drawing. */
+  drawn(role: string, key?: string): string;
   /** The recipe's options as chosen, with the declaration's defaults filled in. */
   options: Record<string, string | number | boolean>;
   /** Credits only: the styled binding where the design builds it (`styledCredits`), so a still
