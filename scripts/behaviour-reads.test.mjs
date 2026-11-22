@@ -377,3 +377,22 @@ test('a choice that starts on an option is never empty, and compiles to a table 
   assert.equal(Object.values(startedTable.kinds).find((k) => k.kind === 'row-pick').start, 'ADVISORY');
   assert.equal('start' in Object.values(tableOf(compileBinding([], binding()).js()).kinds).find((k) => k.kind === 'row-pick'), false);
 });
+
+// ── TL5: a poll result ─────────────────────────────────────────────────────────────────────
+
+test('a poll result is the vote with its figures live from the take; a vote without the box is unchanged', () => {
+  const binding = (options) => ({
+    recipe: 'vote', ...(options ? { options } : {}), rows: ['1', '2'], fields: {},
+    layers: { option: { 1: 'c1', 2: 'c2' }, bar: { 1: 'c3', 2: 'c4' }, percent: { 1: 'c5', 2: 'c6' } },
+  });
+  const liveOf = (b) => compileBinding([], b).type('Poll result').fields.find((f) => f.label === 'Live figures').value;
+  assert.equal(liveOf(binding({ figures: true })), 'live');
+  assert.equal(liveOf(binding()), '');
+  assert.deepEqual(R.behaviourReadsVerdict(compileBinding([], binding({ figures: true })).js()), { status: 'ok' });
+  // The figures are the vote's own words: nothing new is asked of the runtime.
+  const tableOf = (js) => JSON.parse(js.slice(js.indexOf('{', js.indexOf('var NOACG_BEHAVIOUR = ')), js.indexOf('\n};\n', js.indexOf('var NOACG_BEHAVIOUR = ')) + 2));
+  const { options: _o, ...poll } = tableOf(compileBinding([], binding({ figures: true })).js());
+  const { options: _p, ...vote } = tableOf(compileBinding([], binding()).js());
+  assert.deepEqual(poll, vote);
+  assert.equal('options' in tableOf(compileBinding([], binding()).js()), false);
+});
