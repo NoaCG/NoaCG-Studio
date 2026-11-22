@@ -45,8 +45,9 @@
   "nonce": "tl2-b-8299",
   "branch": "claude/plan-svg-template-library-tl2-build",
   "source": "60a92df384015ac6abf4273e3bbe56a081cca0a0",
-  "asOf": "2026-11-22T11:31Z",
-  "progress": "progressing: commits, CI running"
+  "asOf": "2026-11-22T12:03Z",
+  "progress": "PR #2695 open at b2fc2281, CI running",
+  "pr": 2695
  },
  "owner": [
   {
