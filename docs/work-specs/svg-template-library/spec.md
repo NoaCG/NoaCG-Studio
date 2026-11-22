@@ -743,6 +743,22 @@ Head to head, Player card, Map round, Bracket, Fixtures, Agenda.
 - Left for later in TL5 or moved: see the receipt and evidence (studio Standings with focus and
   final, milestone-track, quiz-show, question-queue, public-notice language cycle, ticker rotate).
 
+Group 6: Standings with focus (its own PR, after #2708).
+
+- Previous verified `main`: `3728a1c9431457e96f50cfed9638815f92219d5b` (#2708, groups 4 and 5, merged). Revert: `git revert -m 1 <the TL5 group 6 merge commit>`.
+- Mechanism: the ranking recipe with a Status choice (a start) and a Focus choice (Clear) beside
+  it. The focus frames a PLACE: frames are choice looks, not `Row n` plates, so they stay in
+  their slots while the rows re-sort. No state rule is set or changed.
+- The browser walk has a ranking case: the last row raised to 99 moves to first place, the
+  position numbers stay, +1 and Reset points work; any choice beside it is walked as before.
+- A coverage row whose proof is the studio loop lists only studio templates
+  (`template-coverage.mjs` checks each template's style), so the standings row names the new
+  template and the navy one stays the ranking recipe's proof.
+- Trap: a text inside a hidden layer is never offered as a field (the SVG reader's invariant), so
+  a `show:` switch cannot hold an operator's text.
+- Left in TL5: milestone track tiers and quiz show 2, 3 or 4 answers, each a runtime fact plus a
+  per-row layer in the saved binding, so Risky (evidence, group 6).
+
 Group 7: Milestone track (tiers on the goal meter) and Quiz show (two to four answers in use).
 
 - Previous verified `main`: recorded when the PR is opened. Revert: `git revert -m 1 <the TL5 group 7 merge commit>`.

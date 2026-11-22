@@ -338,7 +338,8 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
     const driven = (n: string) => n === 'Clock' || /^Score \d/.test(n)
       || (t.recipe === 'vote' && (/^(Option|Percent|Count) \d/.test(n) || n === 'Total votes'))
       || (t.recipe === 'list' && /^Item \d/.test(n))
-      || (t.recipe === 'reveal' && n === 'Price');
+      || (t.recipe === 'reveal' && n === 'Price')
+      || (t.recipe === 'ranking' && /^Position \d/.test(n));
     for (const name of namedTexts(t.slug).filter((n) => !driven(n))) await fieldFor(air, name);
     await checkAir(page, air, `${t.slug}-1-take`);
   }
@@ -587,6 +588,40 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await expect(role(air, `item/${n - 1}`)).toHaveClass(/imported-design-on/);
       await expect(role(air, `item/${n}`)).toHaveClass(/imported-design-on/);
       await checkAir(page, air, `${t.slug}-2-next`);
+      break;
+    }
+    case 'ranking': {
+      // STANDINGS (TL5): raising the last row's points moves its name, points and plate into first
+      // place; the position numbers stay in their slots, written with the place of whoever is there.
+      const rows = namedTexts(t.slug).filter((n) => /^Points \d/.test(n)).length;
+      const last = String(rows);
+      const nameOf = async (row: string) => {
+        const id = await air.locator('svg').first().evaluate((_, r) => (window as unknown as { noacgFieldFor(role: string, key: string): string | null }).noacgFieldFor('competitor', r), row);
+        expect(id, `competitor/${row} binds an artwork field`).toMatch(/^f\d+$/);
+        return air.locator(`[id="${id}"]`);
+      };
+      const competitor = await nameOf(last);
+      const leader = await nameOf('1');
+      const top = (l: typeof leader) => l.evaluate((el) => el.getBoundingClientRect().top);
+      const firstPlace = await top(leader);
+      expect(await top(competitor), 'the last row starts below the first').toBeGreaterThan(firstPlace + 1);
+      await page.getByTestId(`cue-field-${await fieldFor(air, `Points ${last}`)}`).fill('99');
+      await page.getByTestId('verb-update').click();
+      await expect.poll(() => top(competitor), { message: 'the row with 99 points moves to first place' }).toBeCloseTo(firstPlace, 0);
+      await expect.poll(() => top(leader), { message: 'the old leader moves down a place' }).toBeGreaterThan(firstPlace + 1);
+      for (let n = 1; n <= rows; n++) await expect(role(air, `position/${n}`), `the slot's number stays ${n}`).toHaveText(String(n));
+      await checkAir(page, air, `${t.slug}-2-moved`);
+      // A long title stays clear of whatever is drawn beside it (the Status tag).
+      await page.getByTestId(`cue-field-${await fieldFor(air, 'Title')}`).fill('PREMIER LEAGUE TABLE - MATCHWEEK 12');
+      await page.getByTestId('verb-update').click();
+      await checkAir(page, air, `${t.slug}-3-long-title`);
+      // +1 under a competitor's own name moves its points; Reset points sets every row to 0.
+      await page.getByTestId('cue-action-up1').click();
+      await expect(air.locator(`[id="${await fieldFor(air, 'Points 1')}"]`)).toHaveText('25');
+      await page.getByTestId('cue-action-resetPoints').click();
+      for (let n = 1; n <= rows; n++) await expect(air.locator(`[id="${await fieldFor(air, `Points ${n}`)}"]`)).toHaveText('0');
+      // Every row tied on 0 shares first place.
+      for (let n = 1; n <= rows; n++) await expect(role(air, `position/${n}`)).toHaveText('1');
       break;
     }
     case 'choice': {

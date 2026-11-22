@@ -141,16 +141,15 @@ Moments items except the timer bar and a choice's starting option are hidden gro
 
 ---
 
-## Picks, focus and boards
+## Picks and focus
 
 | Template | What it does in NoaCG |
 |---|---|
 | **Verdict card, Matchup** | Starts with no verdict or winner. Each option is a button; Clear takes it away again. |
 | **Podium score** | +1 and -1 for each contestant. Left, Middle and Right put the amber spotlight on one podium; Clear takes it off. |
 | **Timing tower** | Places stay where they are drawn: type the cars and gaps. P1 to P5 frame one place; Clear takes the frame off. |
+| **Standings with focus** | +1 and -1 under each team; the rows re-sort by points and the position numbers stay. Status starts at Provisional, Final marks the result. First to Fourth frame a place; Clear takes the frame off. |
 | **Map round** | Starts at Veto; Picked and Live change its tab. The map, bans and pick are fields. |
-| **Chat highlight** | At import, choose Pop-up alert and tick Hold on air. It clears itself after eight seconds; Hold on air keeps it up and Take it off clears it. |
-| **Head to head, Player card, Bracket, Fixtures, Agenda** | Every text is a field. Put a photo in `Photo`. In the bracket, type a team into the next round to move it on. |
 
 | Template | Text | Moments | Board |
 |---|---|---|---|
@@ -158,7 +157,20 @@ Moments items except the timer bar and a choice's starting option are hidden gro
 | **Matchup** | `Event`, `Home team`, `Away team` | `choice:Winner/Home`, `choice:Winner/Away` | `Panel`, `Home team box` |
 | **Podium score** | `Team 1`, `Score 1`, and so on | `Flash 1`, `choice:Spotlight/Left`, `/Middle`, `/Right` | `Team box 1`, `Score box 1` |
 | **Timing tower** | `Session`, `Car 1`, `Gap 1` to 5 | `choice:Focus/P1` to `P5` | `Session box`, `Car box 1`, `static:P1` |
+| **Standings with focus** | `Title`, `Position 1`, `Name 1`, `Points 1` to 4 | `Row 1` to 4 (visible plates), `choice:Status/Provisional` (visible), `/Final`, `choice:Focus/First` to `/Fourth` | `Panel`, `Title box` |
 | **Map round** | `Series`, `Map`, `Ban 1`, `Ban 2`, `Pick` | `choice:Phase/Veto` (visible), `/Picked`, `/Live` | `Panel`, `Ban box 1`, `Pick box` |
+
+---
+
+## Highlights and boards
+
+| Template | What it does in NoaCG |
+|---|---|
+| **Chat highlight** | At import, choose Pop-up alert and tick Hold on air. It clears itself after eight seconds; Hold on air keeps it up and Take it off clears it. |
+| **Head to head, Player card, Bracket, Fixtures, Agenda** | Every text is a field. Put a photo in `Photo`. In the bracket, type a team into the next round to move it on. |
+
+| Template | Text | Moments | Board |
+|---|---|---|---|
 | **Chat highlight** | `Viewer`, `Comment` | none | `Panel`, `Accent` |
 | **Head to head** | `Left name`, `Stat 1`, `Left 1`, `Right 1` to 3 | none | `Panel`, `Stat box 1` |
 | **Player card** | `f:Photo`, `Player`, `Team`, `Number`, `Stat 1`, `Stat 2` | none | `Panel`, `Photo frame`, `Number box` |
