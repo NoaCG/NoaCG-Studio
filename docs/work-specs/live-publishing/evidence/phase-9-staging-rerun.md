@@ -496,6 +496,39 @@ fetch"). The reloaded editor's page showed the cue's original text in its box wh
 "Five edit A by 0 #60"; it had stopped typing at #60 when the page did not come back as started.
 This run measures a staging outage, not 3 people.
 
-**Switches:** the (B) soak set `production_copies` on and timed out before restoring; no later run
-could read staging. Staging may still have `production_copies` on. Restoring and reading back is
-pending on staging answering again.
+Later attempts at (B):
+
+| Run | UTC | What | Result |
+|---|---|---|---|
+| [44968012920](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44968012920) | 00:45 | switch check | did not start: REST 503 (PGRST002) |
+| [44973011499](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44973011499) | 01:48 | switch check | did not start: `admin/users` 504 |
+| [44977875943](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44977875943) | 02:51 | switch check | staging back; found `production_copies` **on** (left by the timed-out soak), the rest off; restored all off, read back |
+| [44978017813](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44978017813) | 02:53 | (B) soak | set-up failed: creating the team answered "canceling statement due to statement timeout"; switches read back all off |
+| [44978815496](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44978815496) | 03:05 | (B) 7 pairs | set-up failed: the owner's sign-in did not show within 20 s; switches read back all off |
+| [44983927028](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44983927028) | 04:11 | (B) soak | ran; staging stopped answering within about two minutes; 25 of 53 Takes never ran; test timed out in tear-down |
+| [44985910418](https://github.com/NoaCG/NoaCG-Studio/actions/runs/44985910418) | 04:39 | switch check | did not start: `admin/users` 504 |
+
+The second (B) soak, as found (`B3-soak-soak.json`): staging from all pages median 704 ms, p95
+4,009 ms, max 9,391 ms over the answers that came back, with 499 of 895 requests failing (478
+cancelled by the page); per minute 533 / 3,969 / 6,668 ms, then 1,579 / 7,824 / 9,391 ms, then no
+answer recorded. Takes: 53, **25 never ran**; Out stayed disabled after 16 of them, the first with
+"Take is on this monitor only... Send it again." Editors: neither last text reached the server in
+120 s; the reloaded editor's page did not come back as started and stopped at its 60th text,
+exactly as in the first (B) soak.
+
+**Both (B) soaks on this build coincided with staging falling over**, while (A) on the same build an
+hour earlier, and the same (B) scene on 5634c2f in the afternoon (run 2 above), kept staging
+reachable. The trace of 44983927028 shows each editor page sending about 85 to 90
+`GET /rest/v1/documents` and 18 `team_production_save_v2` a minute in the two minutes before staging
+stopped answering, and 350 of the taker's 405 Take sends never answered. Filed as a suspected defect:
+#2684 (P1, area: control). Staging is a free project and may have failed on its own; its database
+metrics are not visible from here. No further (B) runs were made, so as not to take staging down
+again.
+
+**(B) pairs: not measured.** **(B) soak: measured only as two staging failures.**
+
+**Switches:** the second (B) soak set `production_copies` on and timed out before restoring, and the
+switch check after it could not reach staging (04:39). Staging may again have `production_copies`
+on and the other three off; restoring it needs one `p9r-switches.ts` run once staging answers.
+
+UTC time of the last run's end: 2026-11-22 04:39.
