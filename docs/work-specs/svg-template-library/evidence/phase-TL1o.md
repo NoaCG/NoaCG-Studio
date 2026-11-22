@@ -45,7 +45,7 @@ run, kept out of `e2e/`), `download-report.txt` and `run-log.json` (what the run
 
 - **#2691 (P2, area: output).** Illustrator writes no `text-anchor` (none in the 19 archived
   Illustrator 30 exports), so the right-aligned `Percent n` arrives start-anchored: `66.7%` and
-  `33.3%` grow about 50 px past the track end, and once the winner is called its outline cuts
+  `33.3%` grow past the track end, to the panel's edge, and once the winner is called its outline cuts
   through the figure (`vote-results-2-result.png`, `vote-results-3-winner.png`). The source file,
   which says `text-anchor="end"`, is clean in TL1. Live vote passed only because its panel leaves
   room right of the figures (`live-vote-3-result.png` shows the same ragged right edge).
