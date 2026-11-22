@@ -91,7 +91,8 @@ depend on these: it needs only that Illustrator writes no `text-anchor`.
 
 The same run on the fix branch `claude/plan-svg-template-library-fix-2691` (main at `b53db30d`
 merged in), with the four files from `tl1o/` and the spec copied into `e2e/` for the run only:
-job j-0002, 2 passed (39.4s). **Step 6: all nine frames clean**, `airProblems` empty in every
+job j-0002, 2 passed (39.4s), and again after the review fixes on the final runtime, job
+j-0004, 2 passed (39.7s). **Step 6: all nine frames clean** in both, `airProblems` empty in every
 one, `vote-results-3-winner` included. On that frame `66.7%` and `33.3%` end at the track's right
 end, inside the Winner 1 outline, as the drawn `0%` did. Live vote's figures keep the same right
 edge too. The fix: a readout the board writes is anchored where it was drawn (centre or right) in
