@@ -46,7 +46,7 @@ template imports, keeps every named text, runs its controls and stays clean on a
 
 | Template | Recognition | Controls asserted |
 | --- | --- | --- |
-| Vote results with counts | automatic (vote recipe, `Count n` bound) | as Live vote; after Show result each row prints its own count (3 and 1) with its share |
+| Vote results with counts | automatic (vote recipe, `Count n` bound) | as Live vote; after Show result each row prints its own count (3 and 1) with its share; no Count operator field is made; a row the next round leaves out reads 0 |
 | Alert level | automatic (`choice:Level/...`, Advisory drawn visible) | starts on Advisory, never empty; the Level field offers exactly the four levels; every level is a button, greyed only while shown; each shows only its look |
 | Public notice | automatic (`choice:Level/...`, Standard drawn visible) | starts on Standard; Urgent shows only the urgent band; Standard returns |
 
@@ -95,14 +95,28 @@ seek parity for imported designs other than the countdown stays issue #2699.
 
 ### Verification
 
-- Browser (job queue, this cloud worker): `choice`, `vote` batches, the Live vote case and the
-  new export case, 4 passed (j-0005).
+- Browser (job queue, this cloud worker): `svg-templates`, `import-svg-behaviour`, `import-svg`,
+  `svg-examples`, 139 passed and 1 failed (j-0006, 9.8 min); the failure was the unmatched-count
+  notice reading 13 boxes for the hand-picked vote (two option rows, each with a Count box now),
+  a test expectation this change moves, updated with its reason. After the review fixes, the
+  choice and vote batches, the Live vote case, the new export case, the unmatched-count case and
+  the switches-and-choice case: 6 passed (j-0007).
 - Node: `behaviour-reads` (14), `behaviour-look`, `behaviour-keys`, `behaviour-removed-layer`,
   `check-example-layers` (20, one new case), `template-coverage`, `check-svg-example-coverage`,
   `concept-names`, `svg-files`, `vote-board-bars`, `jev-svg-contract`, `jev-svg-baseline`,
-  `imported-credits-model`: pass. `svg-import-passes`: the four records (inventory, bind, emit
-  html, runtime) that fail the same way on an untouched `main` worktree on this machine (TL2 trap)
-  and nothing else. Pins moved by this change and re-recorded only where a re-record on `main`
-  and on this branch differ: ten `emit.js` hashes and the vote band's `fillGap`, two
-  `appearance.js` in `jev-svg-baseline`, four credits build pins.
-- `tsc`, `eslint` on changed files, `check-copy`: pass. README.pdf reprinted (10 pages).
+  `imported-credits-model`, `illustrator-exports`, `svg-figure-fit`, `deploy-affecting-paths`,
+  `e2e-affected`, `imported-clock-wire`, `behaviour-docs`: pass. `svg-import-passes`: the four
+  records (inventory, bind, emit html, runtime) that fail the same way on an untouched `main`
+  worktree on this machine (TL2 trap) and nothing else. Pins moved by this change and re-recorded
+  only where a re-record on `main` and on this branch differ: ten `emit.js` hashes and the vote
+  band's `fillGap`, two `appearance.js` in `jev-svg-baseline`, four credits build pins.
+- `tsc`, `eslint` on changed files, `check-copy`, `check-e2e-protection --changed origin/main`
+  (svg-templates 19 -> 20 tests), `e2e-capacity --changed origin/main` (standing warnings only):
+  pass. README.pdf reprinted (10 pages).
+- `/check`: review delegated (high), seven findings. Fixed: the count layers were left as
+  operator text fields (now written layers, like the percent); a drawn row a later round leaves
+  out kept the last round's count (now 0); the starting option is recorded by its layer, not its
+  label; the spec's option parser reads any form of `display: none`; the fill visits the Count
+  box in the step's order. Not changed: a live word in the visible starting option becomes a
+  field (issue #2700, the templates name it `static:`); the count prints the parsed figure, as
+  the share reads it. Simplify inline: the fill's row mapping written out step by step.
