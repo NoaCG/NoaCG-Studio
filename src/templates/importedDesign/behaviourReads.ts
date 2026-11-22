@@ -84,13 +84,12 @@ export const READS_BEFORE_TL2: BehaviourReads = Object.freeze({
  */
 export const READS_ADDED: Array<{ since: string; what: string; reads: Partial<Omit<BehaviourReads, 'v' | 'kinds'>> & { kinds?: Record<string, Partial<KindReads>> } }> = [];
 
-const union = (a: string[], b: string[] = []): string[] => [...a, ...b.filter((w) => !a.includes(w))];
-const unionNumbers = (a: number[], b: number[] = []): number[] => [...a, ...b.filter((w) => !a.includes(w))];
+const union = <T>(a: T[], b: T[] = []): T[] => [...a, ...b.filter((w) => !a.includes(w))];
 
 function merged(): BehaviourReads {
   const out: BehaviourReads = JSON.parse(JSON.stringify(READS_BEFORE_TL2));
   for (const { reads } of READS_ADDED) {
-    out.tables = unionNumbers(out.tables, reads.tables);
+    out.tables = union(out.tables, reads.tables);
     for (const key of ['table', 'rule', 'when', 'enter', 'default'] as const) out[key] = union(out[key], reads[key]);
     for (const [kind, add] of Object.entries(reads.kinds ?? {})) {
       const has = out.kinds[kind] ?? { spec: ['kind'], facts: [], derive: [] };
