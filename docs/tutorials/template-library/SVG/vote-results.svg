@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
   <title>Vote results</title>
-  <desc>NoaCG Clean Studio template. A side panel for a vote's results staged from Interaction: the question, Option 1 to Option 4 with bars and percentages, the vote count with open or closed status, a Voting open badge and a Winner mark per option.</desc>
+  <desc>NoaCG Clean Studio template. A side panel for a vote's results staged from Interaction: the question, Option 1 to Option 4 with bars, percentages and each option's count, the vote count with open or closed status, a Voting open badge and a Winner mark per option.</desc>
   <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
     <rect id="Panel" x="1180" y="120" width="620" height="860" rx="20" fill="#FFFFFF"/>
     <rect id="Accent" x="1180" y="120" width="620" height="10" rx="5" fill="#2E5BFF"/>
@@ -36,12 +36,16 @@
     <text id="Question" x="1236" y="282" font-size="38" font-weight="800" fill="#0F1729">Play one more song?</text>
     <text id="Option_1" inkscape:label="Option 1" x="1236" y="420" font-size="32" font-weight="700" fill="#0F1729">Yes</text>
     <text id="Percent_1" inkscape:label="Percent 1" x="1756" y="420" text-anchor="end" font-size="32" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Count_1" inkscape:label="Count 1" x="1756" y="486" text-anchor="end" font-size="22" font-weight="700" fill="#5A6680">0</text>
     <text id="Option_2" inkscape:label="Option 2" x="1236" y="548" font-size="32" font-weight="700" fill="#0F1729">No</text>
     <text id="Percent_2" inkscape:label="Percent 2" x="1756" y="548" text-anchor="end" font-size="32" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Count_2" inkscape:label="Count 2" x="1756" y="614" text-anchor="end" font-size="22" font-weight="700" fill="#5A6680">0</text>
     <text id="Option_3" inkscape:label="Option 3" x="1236" y="676" font-size="32" font-weight="700" fill="#0F1729">Not sure</text>
     <text id="Percent_3" inkscape:label="Percent 3" x="1756" y="676" text-anchor="end" font-size="32" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Count_3" inkscape:label="Count 3" x="1756" y="742" text-anchor="end" font-size="22" font-weight="700" fill="#5A6680">0</text>
     <text id="Option_4" inkscape:label="Option 4" x="1236" y="804" font-size="32" font-weight="700" fill="#0F1729">Skip</text>
     <text id="Percent_4" inkscape:label="Percent 4" x="1756" y="804" text-anchor="end" font-size="32" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Count_4" inkscape:label="Count 4" x="1756" y="870" text-anchor="end" font-size="22" font-weight="700" fill="#5A6680">0</text>
     <text id="Total_votes" inkscape:label="Total votes" x="1236" y="934" font-size="24" font-weight="600" fill="#5A6680">0 votes</text>
   </g>
 </svg>

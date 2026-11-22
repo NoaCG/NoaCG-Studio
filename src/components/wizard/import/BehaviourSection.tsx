@@ -1067,7 +1067,7 @@ export default function BehaviourSection({
               </div>
               <p className="hint">
                 Per option: the layer holding its wording, the bar whose length is its share, the
-                figure beside it, and a winner mark if you drew one. The bar is measured at the
+                figure beside it, its count, and a winner mark if you drew one. The bar is measured at the
                 length you drew it, and that length is 100%.
               </p>
               {/* The row layout is the quiz's, reused rather than restated: a marker, one wide
@@ -1132,6 +1132,23 @@ export default function BehaviourSection({
                         ))}
                       </select>
                       {hintFor('percent', rowKeyAt[at], row.value, `map-svg-poll-value-${at}`)}
+                    </label>
+                    <label className="save-field">
+                      <span>Count</span>
+                      <select
+                        value={row.count ?? ''}
+                        onChange={(e) => patchPollRow(at, { count: e.target.value })}
+                        onFocus={() => setHoverId(row.count || null)}
+                        data-testid={`map-svg-poll-count-${at}`}
+                      >
+                        <option value="">{NOT_DRAWN}</option>
+                        {textLayers.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                      {hintFor('count', rowKeyAt[at], row.count ?? '', `map-svg-poll-count-${at}`)}
                     </label>
                     <label className="save-field">
                       <span>Winner</span>

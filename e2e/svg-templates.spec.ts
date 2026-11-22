@@ -157,6 +157,14 @@ function pictureSlots(slug: string): string[] {
   return [...svg.matchAll(/<image[^>]*inkscape:label="f:([^"]+)"/g)].map((m) => m[1]);
 }
 
+/** The choice a template draws (`choice:Level/Advisory`, ...): its name, its options in drawing
+ *  order, and the one option drawn visible, where the choice starts (null: it starts empty). */
+function choiceOf(slug: string): { name: string; options: string[]; start: string | null } {
+  const groups = [...readFileSync(file(slug), 'utf8').matchAll(/<g [^>]*inkscape:label="choice:([^/"]+)\/([^"]+)"([^>]*)>/g)];
+  const shown = groups.filter((m) => !/display:\s*none/.test(m[3]));
+  return { name: groups[0][1], options: groups.map((m) => m[2]), start: shown.length === 1 ? shown[0][2] : null };
+}
+
 /** The answer rows a quiz template draws (`Answer A`, `Answer B`, ...). */
 const answerRows = (slug: string) => namedTexts(slug).filter((n) => /^Answer [A-Z]$/.test(n)).map((n) => n.slice(-1));
 /** The rows a stepped list draws (`Item 1`, ...). */
@@ -176,7 +184,8 @@ async function importTemplate(page: Page, t: Template) {
   } else if (t.recipe === 'choice') {
     // A choice is an instanced part beside no full recipe: its options are offered by name.
     await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
-    await expect(page.getByTestId('map-svg-extras').locator('input[value="Status"]')).toHaveCount(3);
+    const choice = choiceOf(t.slug);
+    await expect(page.getByTestId('map-svg-extras').locator(`input[value="${choice.name}"]`)).toHaveCount(choice.options.length);
   } else {
     await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(t.recipe ? kind[t.recipe] ?? t.recipe : 'none');
     await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
@@ -213,7 +222,7 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
   // items from the one Entries field).
   if (t.recipe !== 'credits') {
     const driven = (n: string) => n === 'Clock' || /^Score \d/.test(n)
-      || (t.recipe === 'vote' && (/^(Option|Percent) \d/.test(n) || n === 'Total votes'))
+      || (t.recipe === 'vote' && (/^(Option|Percent|Count) \d/.test(n) || n === 'Total votes'))
       || (t.recipe === 'list' && /^Item \d/.test(n));
     for (const name of namedTexts(t.slug).filter((n) => !driven(n))) await fieldFor(air, name);
     await checkAir(page, air, `${t.slug}-1-take`);
@@ -312,6 +321,12 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await page.getByTestId('cue-action-result').click();
       await expect(role(air, 'percent/1')).toHaveText('75%');
       await expect(role(air, 'percent/1')).toHaveClass(/imported-design-on/);
+      // A board that draws each option's count (TL5) prints it with the share, timed the same.
+      if (namedTexts(t.slug).includes('Count 1')) {
+        await expect(role(air, 'count/1')).toHaveText('3');
+        await expect(role(air, 'count/2')).toHaveText('1');
+        await expect(role(air, 'count/1')).toHaveClass(/imported-design-on/);
+      }
       await checkAir(page, air, `${t.slug}-3-result`);
       await page.getByTestId('cue-action-call').click();
       await expect(role(air, 'winner/1')).toHaveClass(/imported-design-on/);
@@ -412,16 +427,44 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       break;
     }
     case 'choice': {
-      // Choosing a status shows only that look.
-      const option = (label: string) => air.locator(`[data-noacg-role~="choice.status.option/${label}" i]`);
-      await page.getByRole('button', { name: /Replay/ }).click();
-      await expect(option('Replay')).toHaveClass(/imported-design-on/);
-      await expect(option('Live')).not.toHaveClass(/imported-design-on/);
-      await expect(option('Delayed')).not.toHaveClass(/imported-design-on/);
-      await checkAir(page, air, `${t.slug}-2-replay`);
-      await page.getByRole('button', { name: /Delayed/ }).click();
-      await expect(option('Delayed')).toHaveClass(/imported-design-on/);
-      await expect(option('Replay')).not.toHaveClass(/imported-design-on/);
+      // Choosing an option shows only that look. A choice drawn with one option visible starts
+      // on it and is never empty (TL5: Alert level, Public notice); one drawn all hidden starts
+      // with nothing shown (Live bug).
+      const choice = choiceOf(t.slug);
+      const option = (label: string) => air.locator(`[data-noacg-role~="choice.${choice.name.toLowerCase()}.option/${label}" i]`);
+      const only = async (label: string | null) => {
+        for (const o of choice.options) {
+          if (o === label) await expect(option(o), `${o} shows`).toHaveClass(/imported-design-on/);
+          else await expect(option(o), `${o} is hidden`).not.toHaveClass(/imported-design-on/);
+        }
+      };
+      await only(choice.start);
+      const state = await fieldFor(air, choice.name);
+      const offered = await page.getByTestId(`cue-field-${state}`).locator('option').allTextContents();
+      expect(offered, 'the operator picks among the options, and an empty value only where the choice starts empty').toEqual(choice.start ? choice.options : ['-', ...choice.options]);
+      // Every option is a button of its own, greyed only while it is the one showing.
+      for (const o of choice.options) {
+        await expect(page.getByRole('button', { name: o, exact: true })).toBeEnabled({ enabled: o !== choice.start });
+      }
+      for (const [i, o] of choice.options.filter((label) => label !== choice.start).entries()) {
+        await page.getByRole('button', { name: o, exact: true }).click();
+        await only(o);
+        if (i === 0) await checkAir(page, air, `${t.slug}-2-${o.toLowerCase()}`);
+      }
+      // ALERT LEVEL (AC-10): every level reads without colour and without flashing - its look
+      // carries the level's word, and nothing on it moves.
+      if (t.slug === 'alert-level') {
+        for (const o of choice.options) {
+          await page.getByRole('button', { name: o, exact: true }).click();
+          await expect(option(o).locator('text')).toHaveText(o.toUpperCase());
+          await expect(option(o).locator('text')).toBeVisible();
+          const still = await option(o).evaluate((el) => {
+            const nodes = [el, ...el.querySelectorAll('*')] as (Element & { noacgMove?: unknown })[];
+            return nodes.every((n) => !n.noacgMove && getComputedStyle(n).animationName === 'none');
+          });
+          expect(still, `${o}: no motion and no flashing`).toBe(true);
+        }
+      }
       break;
     }
     case 'credits': {

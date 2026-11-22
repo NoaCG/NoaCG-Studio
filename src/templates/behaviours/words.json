@@ -509,6 +509,24 @@
         "what": "written from the round"
       },
       {
+        "id": "count",
+        "label": "Count",
+        "kind": "layer",
+        "paint": [
+          "write",
+          "look"
+        ],
+        "perRow": true,
+        "pool": "text",
+        "words": "^(?:count|määrä|ääniä|antal|anzahl|cantidad)$",
+        "teach": "Count 1",
+        "also": [
+          "Määrä 1",
+          "Antal 1"
+        ],
+        "what": "the row's own votes, shown with the result"
+      },
+      {
         "id": "badge",
         "label": "Vote badge",
         "kind": "layer",

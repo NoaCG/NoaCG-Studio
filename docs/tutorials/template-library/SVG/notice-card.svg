@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Public notice</title>
+  <desc>NoaCG Clean Studio template. A notice card with Notice label, Headline and Details, and a Level choice with two drawn looks: Standard, drawn visible so the card starts there, and Urgent, a red band with the word Urgent.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="1180" y="300" width="620" height="420" rx="20" fill="#FFFFFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="choice:Level_x2F_Standard" inkscape:label="choice:Level/Standard">
+      <rect x="1180" y="300" width="620" height="12" rx="6" fill="#2E5BFF"/>
+    </g>
+    <g id="choice:Level_x2F_Urgent" inkscape:label="choice:Level/Urgent" style="display:none">
+      <rect x="1180" y="330" width="620" height="34" fill="#E5484D"/>
+      <rect x="1180" y="300" width="620" height="64" rx="20" fill="#E5484D"/>
+      <text x="1236" y="344" text-anchor="start" font-size="24" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="3">URGENT</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Notice_label" inkscape:label="Notice label" x="1236" y="424" text-anchor="start" font-size="22" font-weight="800" fill="#2E5BFF" letter-spacing="2">PUBLIC INFORMATION</text>
+    <text id="Headline" x="1236" y="500" text-anchor="start" font-size="40" font-weight="800" fill="#0F1729">Harbour Street closed</text>
+    <text id="Details" x="1236" y="580" text-anchor="start" font-size="26" font-weight="600" fill="#0F1729">Use the ring road until 18:00.</text>
+  </g>
+</svg>

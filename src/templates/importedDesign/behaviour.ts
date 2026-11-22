@@ -209,6 +209,7 @@ function voteBinding(poll: DesignSvgPollBehaviour): BehaviourBinding {
       bar: perRow(keys, poll.rows, (r) => r.bar),
       percent: perRow(keys, poll.rows, (r) => r.value),
       winner: perRow(keys, poll.rows, (r) => r.winner),
+      count: perRow(keys, poll.rows, (r) => r.count),
       total: poll.total,
       badge: poll.badge,
     }),
@@ -265,9 +266,11 @@ function extraBinding(svg: DesignSvg, extra: DesignSvgExtra): BehaviourBinding |
   }
   const taken = new Set<string>();
   const keyed = extra.options.map((o) => ({ ...o, key: optionKey(o.label, taken) }));
+  const initial = extra.initial === undefined ? undefined : keyed.find((o) => o.label === extra.initial)?.key;
   return {
     recipe: 'choice',
     name: extra.name,
+    ...(initial ? { options: { initial } } : {}),
     rows: keyed.map((o) => o.key),
     rowLabels: Object.fromEntries(keyed.map((o) => [o.key, o.label])),
     fields: {},

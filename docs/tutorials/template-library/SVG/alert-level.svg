@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Alert level</title>
+  <desc>NoaCG Clean Studio template. A severity band: a Level choice with four drawn looks, Advisory, Watch, Warning and Emergency, each with its word and a four-step meter so the level reads without colour; Advisory is drawn visible, so the band starts there and is never empty. Headline, Detail and Source beside it.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="160" y="800" width="1600" height="200" rx="20" fill="#FFFFFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="choice:Level_x2F_Advisory" inkscape:label="choice:Level/Advisory">
+      <rect x="200" y="840" width="320" height="120" rx="14" fill="#1F5FA8"/>
+      <text x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">ADVISORY</text>
+      <rect x="232" y="916" width="56" height="16" rx="4" fill="#FFFFFF"/>
+      <rect x="296" y="916" width="56" height="16" rx="4" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+      <rect x="360" y="916" width="56" height="16" rx="4" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+      <rect x="424" y="916" width="56" height="16" rx="4" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+    </g>
+    <g id="choice:Level_x2F_Watch" inkscape:label="choice:Level/Watch" style="display:none">
+      <rect x="200" y="840" width="320" height="120" rx="14" fill="#E0A11A"/>
+      <text x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#0B0D11" font-family="Manrope, sans-serif" letter-spacing="2">WATCH</text>
+      <rect x="232" y="916" width="56" height="16" rx="4" fill="#0B0D11"/>
+      <rect x="296" y="916" width="56" height="16" rx="4" fill="#0B0D11"/>
+      <rect x="360" y="916" width="56" height="16" rx="4" fill="none" stroke="#0B0D11" stroke-width="3"/>
+      <rect x="424" y="916" width="56" height="16" rx="4" fill="none" stroke="#0B0D11" stroke-width="3"/>
+    </g>
+    <g id="choice:Level_x2F_Warning" inkscape:label="choice:Level/Warning" style="display:none">
+      <rect x="200" y="840" width="320" height="120" rx="14" fill="#E0621A"/>
+      <text x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#0B0D11" font-family="Manrope, sans-serif" letter-spacing="2">WARNING</text>
+      <rect x="232" y="916" width="56" height="16" rx="4" fill="#0B0D11"/>
+      <rect x="296" y="916" width="56" height="16" rx="4" fill="#0B0D11"/>
+      <rect x="360" y="916" width="56" height="16" rx="4" fill="#0B0D11"/>
+      <rect x="424" y="916" width="56" height="16" rx="4" fill="none" stroke="#0B0D11" stroke-width="3"/>
+    </g>
+    <g id="choice:Level_x2F_Emergency" inkscape:label="choice:Level/Emergency" style="display:none">
+      <rect x="200" y="840" width="320" height="120" rx="14" fill="#CF2F2F"/>
+      <text x="232" y="893" text-anchor="start" font-size="34" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="2">EMERGENCY</text>
+      <rect x="232" y="916" width="56" height="16" rx="4" fill="#FFFFFF"/>
+      <rect x="296" y="916" width="56" height="16" rx="4" fill="#FFFFFF"/>
+      <rect x="360" y="916" width="56" height="16" rx="4" fill="#FFFFFF"/>
+      <rect x="424" y="916" width="56" height="16" rx="4" fill="#FFFFFF"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Headline" x="560" y="878" text-anchor="start" font-size="40" font-weight="800" fill="#0F1729">Strong winds on the coast</text>
+    <text id="Detail" x="560" y="926" text-anchor="start" font-size="26" font-weight="600" fill="#0F1729">Gusts up to 90 km/h from 18:00 until midnight</text>
+    <text id="Source" x="560" y="970" text-anchor="start" font-size="20" font-weight="700" fill="#5A6680" letter-spacing="1">National Weather Service</text>
+  </g>
+</svg>

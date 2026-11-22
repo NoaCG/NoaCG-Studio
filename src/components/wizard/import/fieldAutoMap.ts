@@ -569,6 +569,7 @@ function mapBoxes(
         bar: f('bar', keys[i], r.bar, i),
         value: f('percent', keys[i], r.value, i),
         winner: f('winner', keys[i], r.winner, i),
+        count: f('count', keys[i], r.count ?? '', i),
       })),
       total: f('total', undefined, b.total, undefined),
       badge: f('badge', undefined, b.badge, undefined),
