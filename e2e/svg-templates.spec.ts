@@ -992,14 +992,13 @@ test('Vote results with counts, Poll result, Alert level and Winner card: the co
     expect(seen.first, `${id}: the typed figures show at once`).toEqual({ 'percent/1': { lit: true, text: '75%' }, 'percent/2': { lit: true, text: '25%' } });
   }
 
-  // Winner card: the reveal and the celebration are the graphic's own events. A page host fires
-  // them as its buttons do (SPX's are DataFields calling noacgDispatch; CasparCG and H2R invoke
-  // the same function); OGraf and LiveOS as custom actions. The overlay plays sealed.
+  // Winner card: Reveal is a step on the walk, so a page host's Continue (`next`) reveals it; the
+  // celebration is the graphic's own event, which a page host reaches by invoking the function
+  // the graphic carries (`noacgDispatch`, CasparCG's INVOKE); OGraf and LiveOS run all three as
+  // custom actions. The overlay plays sealed.
   const winner = await prepare('winner-card', ['The reveal']);
   const winnerData = { [winner.ids['The reveal']]: 'Jordan Okafor' };
   const winnerPackages = await exportPackages(page, winner.production, winnerData);
-  const spxDefinition = Object.entries(winnerPackages.spx).find(([n]) => n.endsWith('.html') && !/control|panel|index|controller/i.test(n.split('/').pop()!))![1];
-  for (const event of ['reveal', 'celebrate', 'settle']) expect(spxDefinition, `SPX offers ${event} as a button`).toContain(`noacgDispatch('${event}'`);
   const celebration = ['cover', 'secret', 'celebration'];
   const litOf = (looks: Record<string, Look> | null) => looks && celebration.filter((n) => looks[n]?.lit);
   for (const id of ['spx', 'casparcg', 'h2r']) {
@@ -1012,8 +1011,8 @@ test('Vote results with counts, Poll result, Alert level and Winner card: the co
       w.play();
     }, winnerData);
     await expect.poll(read, { message: `${id}: sealed` }).toEqual(['cover']);
-    await view.evaluate(() => (window as unknown as { noacgDispatch(e: string): void }).noacgDispatch('reveal'));
-    await expect.poll(read, { message: `${id}: revealed` }).toEqual(['secret']);
+    await view.evaluate(() => (window as unknown as { next(): void }).next());
+    await expect.poll(read, { message: `${id}: Continue reveals` }).toEqual(['secret']);
     await view.evaluate(() => (window as unknown as { noacgDispatch(e: string): void }).noacgDispatch('celebrate'));
     await expect.poll(read, { message: `${id}: celebrating` }).toEqual(['secret', 'celebration']);
     await view.evaluate(() => (window as unknown as { noacgDispatch(e: string): void }).noacgDispatch('settle'));
