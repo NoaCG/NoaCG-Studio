@@ -511,3 +511,8 @@ the countdown stays issue #2699.
   answer rows (S3), so four row looks were lit at the question. Fixed at the cause (S3a): only the
   taught `Answer row A` and its translations bind, so existing artwork named `Row A` imports exactly
   as before; the walk's assertion is unchanged.
+- CI on 20e3034: the mapping-step notice case (`import-svg-behaviour`, "the mapping step explains
+  itself") counted 17 empty boxes where it expected 13: a test expectation this change moves (one
+  Row picker per answer row, as group 1's Count picker moved the vote's count). Updated to 17 and,
+  after Undo, 16, with the reason in the comment; the Fill press is unchanged (3 boxes) and the
+  vote case still reads 13. Both pass locally.
