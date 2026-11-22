@@ -189,6 +189,9 @@ export function drawnTextOf(markup: string, candidateId: string): string {
   const entities: Record<string, string> = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' };
   return lines
     .replace(/<[^>]*>/g, '')
+    // A drawn text holds no raw angle bracket (the file writes `&lt;`), so any left is a broken
+    // tag, never text: dropped before the entities are read.
+    .replace(/[<>]/g, '')
     // One pass, so a decoded `&` never starts a second entity.
     .replace(/&(#x[0-9a-f]+|#\d+|lt|gt|quot|apos|amp);/gi, (whole, name: string) =>
       name[0] === '#' ? String.fromCodePoint(name[1] === 'x' || name[1] === 'X' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10)) : entities[name.toLowerCase()] ?? whole,
