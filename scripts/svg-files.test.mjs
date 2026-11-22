@@ -42,7 +42,7 @@ test('the page holds the gallery marker and no Examples set', () => {
   assert.ok(readFileSync(new URL('svg-templates.html', ROOT), 'utf8').includes(SVG_GALLERY_MARKER));
   // The old #examples anchor is an address, not copy.
   assert.doesNotMatch(renderSvgGallery().replace(/ id="examples"/, ''), /example/i, 'one library: no Examples set on the page');
-  assert.doesNotMatch(readFileSync(new URL('svg-templates.html', ROOT), 'utf8').replace(/<!--[\s\S]*?-->/g, ''), /example/i);
+  assert.doesNotMatch(readFileSync(new URL('svg-templates.html', ROOT), 'utf8'), /example/i);
 });
 
 test('each package shows each of its templates with its pictures and SVG, and its zip', () => {
