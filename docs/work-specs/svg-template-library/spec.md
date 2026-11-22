@@ -432,6 +432,46 @@ Actions. OW: the owner, with Illustrator on their own computer.
   `text-anchor`, so a vote's right-aligned `Percent n` grows right on air and the Winner mark
   cuts it. TL3 and TL5 should know it before more right-aligned figures ship.
 
+### TL2 (runtime compatibility)
+
+- Rules (state rules this phase sets, written before any code; the PR repeats them):
+  - C1. A behaviour table's VOCABULARY is every word it asks a runtime to read: each field kind
+    it names, each kind parameter, each fact and derivation its tokens ask of a field's kind
+    (resolved through `fields` and `kinds`; a field with no kind is `text`; a fact with an
+    argument counts by its prefix, `is:` and `reached:`), each rule form (`look`, `gauge`,
+    `write`, `place`) with its keys, the `enter`, `default` and `axis` values, and its top-level
+    keys.
+  - C2. A runtime emitted from now on carries its own READS: one strict JSON declaration,
+    `var NOACG_BEHAVIOUR_READS = {...};`, written beside the runtime and never edited. A saved
+    runtime without one (everything made before this phase) reads the frozen pre-TL2
+    vocabulary, kept as its own constant that never changes, cut to the kinds its code defines
+    (`noacgKinds.<kind> =`) and to `place` and the default treatments only where their functions
+    are in its code. Documented limit: a word added inside an existing kind before TL2 is not
+    told apart; the build always emitted those tables with their own runtime.
+  - C3. A table whose vocabulary has a word its template's runtime does not read is refused:
+    the validator's `behaviour` rule reports each such word as an export-blocking error, beside
+    the existing pairing error for a table with no runtime at all. A table every word of which
+    the runtime reads passes, whatever else changed in the runtime.
+  - C4. The declaration changes exactly when the vocabulary changes. A runtime change that adds
+    no word (the readout alignment of #2691) leaves READS as it is, needs no version bump, and
+    reaches a saved graphic only by reimport, which rebuilds the runtime. A new word (TL5's
+    per-option count, TL4's countdown effect, TL6's kinds) is added to READS in the same commit
+    as the code that reads it. A word is never removed while the table format stays version 1.
+  - C5. The build is the only writer of a table today, and it always emits the table with the
+    runtime that reads it. Every recipe, with every option, compiles to a table its emitted
+    runtime reads (a Node gate). Any later writer that puts a table under a runtime it did not
+    emit in the same pass asks the same check first and refuses on a missing word.
+  - C6. Versioning stays `docs/STATE_MACHINE_SCHEMA.md` §5: an additive optional key keeps
+    `version: 1` and still parses; a breaking change bumps the version and migrates on read in
+    `parseBehaviourData` in the same commit; an unknown version parses to null, is a warning, and
+    the template's own frozen runtime still plays it.
+  - C7. A graphic made before this plan keeps working unchanged: its saved code is never
+    rewritten, it passes the check, its frozen runtime still paints from its fields, and an
+    export made before this plan, imported again, passes the check and still plays.
+  - C8. Reimport of edited artwork over a graphic made before this plan keeps every matched
+    field id, so a cue's values (field id to value) recorded on the old graphic paint the same
+    layers on the reimported one; the rebuilt table passes the check against its new runtime.
+
 ## Non-goals
 
 - Redesigning the import workflow or its dropdown.
