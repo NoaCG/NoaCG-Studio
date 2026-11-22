@@ -658,6 +658,9 @@ test('the build reads the text a bound layer draws off the saved markup, as text
   // Drawn on two lines, the words stay apart; split on one line, they join.
   const lines = '<text data-noacg-candidate="c4"><tspan x="0" y="0">Stretch</tspan><tspan x="0" y="30">goal</tspan></text><text data-noacg-candidate="c5"><tspan x="0" y="0">Big</tspan><tspan x="0" dy="1.2em">win</tspan></text><text data-noacg-candidate="c6"><tspan x="0" y="0">Kick</tspan><tspan x="41" y="0">off</tspan></text>';
   assert.deepEqual(['c4', 'c5', 'c6'].map((id) => drawnTextOf(lines, id)), ['Stretch goal', 'Big win', 'Kickoff']);
+  // A baseline nudge inside a line (a superscript) is no line: it joins, as the import reads it.
+  const nudged = '<text data-noacg-candidate="c8" font-size="28"><tspan x="0" y="0">10</tspan><tspan dy="-5">th</tspan><tspan dy="5"> goal</tspan></text><text data-noacg-candidate="c9" font-size="28"><tspan x="0" y="0">10</tspan><tspan y="-4">th</tspan></text><text data-noacg-candidate="c10" font-size="20"><tspan x="0" y="0">Big</tspan><tspan x="0" dy="24">win</tspan></text>';
+  assert.deepEqual(['c8', 'c9', 'c10'].map((id) => drawnTextOf(nudged, id)), ['10th goal', '10th', 'Big win']);
   // Entities are read once: an escaped ampersand never starts a second entity.
   assert.equal(drawnTextOf('<text data-noacg-candidate="c7">R&amp;lt;D &#38;amp;</text>', 'c7'), 'R&lt;D &amp;');
   assert.equal(drawnTextOf(markup, 'c9'), '');

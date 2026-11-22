@@ -157,15 +157,32 @@ export function drawnTextOf(markup: string, candidateId: string): string {
   if (!tag || start === -1 || markup[start - 1] === '/') return '';
   const end = markup.indexOf(`</${tag}>`, start);
   if (end === -1) return '';
-  // A tspan that starts a new LINE (its own y, or a dy) is a word apart; a run the exporter split
-  // on one line (kerning, a weight change) joins as textContent joins it.
-  let lineY: string | null = null;
+  // A tspan that starts a new LINE is a word apart; a run on the same line (kerning, a weight
+  // change, a superscript's baseline nudge) joins as textContent joins it. A line is the import
+  // reader's (`textFields` in assets/svgImport.ts): a baseline of its own (`y`) at least 0.8 em
+  // from the last, or `x` back at the margin with a `dy` step DOWN of at least 0.8 em. Without a
+  // drawn size in the markup, any `y` change or such a step counts.
+  const sizeOf = (attrs: string): number | null => {
+    const raw = /\sfont-size="([\d.]+)/.exec(attrs)?.[1] ?? /font-size:\s*([\d.]+)/.exec(attrs)?.[1];
+    return raw ? parseFloat(raw) : null;
+  };
+  const textSize = sizeOf(markup.slice(markup.lastIndexOf('<', found), start + 1));
+  let lineY: number | null = null;
   let first = true;
   const lines = markup.slice(start + 1, end).replace(/<tspan\b([^>]*)>/g, (_, attrs: string) => {
-    const y = /\sy="([^"]*)"/.exec(attrs)?.[1] ?? null;
-    const dy = parseFloat(/\sdy="([^"]*)"/.exec(attrs)?.[1] ?? '0') || 0;
-    const newLine = !first && ((y !== null && lineY !== null && y !== lineY) || dy !== 0);
-    if (y !== null) lineY = y;
+    const size = sizeOf(attrs) ?? textSize;
+    const step = (gap: number) => (size === null ? gap > 0 : gap >= 0.8 * size);
+    const y = /\sy="([-\d.]+)/.exec(attrs);
+    const x = /\sx="/.test(attrs);
+    const dyRaw = /\sdy="([-\d.]+)(em)?/.exec(attrs);
+    const dy = dyRaw ? parseFloat(dyRaw[1]) * (dyRaw[2] && size !== null ? size : 1) : 0;
+    const yValue = y ? parseFloat(y[1]) : null;
+    const newLine = !first && (
+      (yValue !== null && lineY !== null && step(Math.abs(yValue - lineY))) ||
+      (yValue === null && x && (dyRaw?.[2] && size === null ? parseFloat(dyRaw[1]) >= 0.8 : step(dy)))
+    );
+    if (yValue !== null && (lineY === null || newLine)) lineY = yValue;
+    else if (newLine && lineY !== null) lineY += dy;
     first = false;
     return newLine ? ' ' : '';
   });
