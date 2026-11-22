@@ -264,3 +264,142 @@ input shows the same picture as the browser output at each step (`s8-*-vmix.png`
 `s8-*-browser.png`). In `s8-04` vMix was grabbed 70 ms before the browser output and still had the
 previous text; 6 s later (`s8-05`) it shows the update. vMix was closed afterwards and its last
 preset file restored.
+
+## Final rerun (2026-11-22)
+
+Run on 2026-11-22 from 07:07 to 07:49 UTC on the studio laptop, against https://noacg.studio, for
+the coordinator's final local checklist (steps 4 and 5, plus #2662 and #2676). Production served
+`main` 502418268 (after e8fda70b) when the run started; 516ab7f0c (TL1 templates and a spec map
+refresh) deployed at 07:19 UTC during it. No production switch was changed and no account was
+made.
+
+| Piece | What ran |
+|---|---|
+| Operator page | The owner's Chrome (Claude in Chrome), signed in as before, a new production "Phase 9 final 2026-11-22" with four library graphics (Pro lower third, Arcade Strap, Volt Scorebug, House Poll), published with CasparCG via Bridge on |
+| NoaCG Bridge | 0.13.1, built from `main` 502418268 (`cli/`, `noacg bridge`) |
+| CasparCG 2.5 | 2.5.0 69e8ad5, same folder and config as before |
+| CasparCG 2.3 | the `casparcg-server-v2.3.3-lts-stable` folder (its AMCP `VERSION` answers "2.3.2 4de6d18f Dev") |
+| Browser output | a visible Chrome window opened by a Playwright script, `/output?…&destination=browser` |
+
+How it was measured: the light (`production-status`) polled every 20 ms in the operator page, with
+each press and restart marked in the same log; CasparCG's channel grabbed with `ADD 1-990 IMAGE`
+every 0.26 s on 2.5 and 0.35 s on 2.3 (an empty frame is about 8.2 KB, the lower third 65 to 67
+KB); the browser output screenshotted continuously and each change logged. "Green minus picture" is
+the light's first green after the page noticed the restart, minus the first grab with the picture
+back; a negative number means green came early. Logs, helper scripts and the browser output's
+frames are on the laptop in `C:\claude\noacg-archives\phase-9-local-2026-11-17\final-rerun-2026-11-22\`.
+
+Stand-ins, because the outputs, the Bridge and this session share one laptop:
+
+- **Full machine restart**: the output process killed hard and started again (`taskkill /F` on
+  `casparcg.exe`, or on the browser output's whole Chrome tree). Restarting the laptop would have
+  ended the measurement.
+- **Output cable pull**: the browser output's network set offline through DevTools emulation.
+  CasparCG's own network could not be cut without changing firewall settings.
+- **Production page network** (items 5, 7 and 8): the page's own requests to the backend failed (or
+  were slowed) and its realtime messages dropped inside the page, with the socket left open, as a
+  silent cable pull leaves it. Calls to the local Bridge kept working, as they would with a pulled
+  cable. The first item 5 attempt also blocked the Bridge, read red "Bridge not running", and is not
+  counted.
+
+### Summary
+
+| Item | Result |
+|---|---|
+| 1. Restart after a Take, CasparCG 2.5 and browser output | pass once noticed: green 0.50 to 3.0 s after the picture, never before it |
+| 1. Restart after a Take, CasparCG 2.3 | pass on 2 of 3; one green 1.0 s over the blank output before the page noticed, one stuck on a stale entry |
+| 2. Restart with a graphic on air, nothing pressed | pass once noticed (green 0.57 to 10.6 s after the picture); before noticing, green over the blank output for up to 2.4 s on CasparCG 2.5 and 0.7 s on the browser output |
+| 2. On air, CasparCG 2.3 | **fail**: 5 of 11 loads of the output died with "Uncaught SyntaxError: Unexpected token ."; with the stale entry removed as item 3 says, the light read green "Ready" while the 2.3 slot said "Loading…" and CasparCG showed nothing, through two Takes |
+| 3. Stale "not answering" entry (#2611) | seen after plain template reloads too, not only a full restart; ✕ removed it each time; while it stood the light went red "lost" over a working output |
+| 4. Output cable pull, nothing pressed | pass with the window measured: green for the whole of a 60 s cut, and 54.3 s of a 150 s cut; then grey "not answering" and red 16 s later |
+| 5. Production page cut off | pass: green for 41.1 s, then amber "cannot confirm", never green until 3.8 s after the network came back |
+| 6. Data feed alone | not run: no feed is configured |
+| 7. Take on a throttled page | pass: "still sending" with Stop sending at 4.0 s, never "failed", one `control_send_seq` at a time, aired once when the network returned |
+| 8. Take then Out on a throttled page | pass: never flashed on either output in 3 runs; but the page said "Take is on this monitor only… Send it again" for the Take that Out had replaced |
+
+### Step 4: restarts
+
+Item 1, a Take 0.5 s before the restart (template reload: `PLAY 1-20 [HTML]` with the same URL, or
+the browser output window's reload). Times from the restart.
+
+| Output | Run | Page noticed | Picture back | Green | Green minus picture |
+|---|---|---|---|---|---|
+| CasparCG 2.5 reload | 1 | 1.0 s (grey "Confirming…") | 2.47 | 3.68 | +1.21 |
+| CasparCG 2.5 reload | 2 | 0.48 | 2.16 | none | listed as "CasparCG 1-20 #2" beside a stale "CasparCG 1-20", red "lost" from 19 s; green only when the stale one was removed at 48 s |
+| CasparCG 2.5 reload | 3 | 0.48 | 2.50 | 3.56 | +1.06 |
+| CasparCG 2.5 reload | 4 | 0.54 | 2.26 | 3.66 | +1.41 |
+| Browser output reload | 1 to 3 | 0.46 to 0.77 | 1.90 to 2.08 | 2.94 to 3.50 | +1.17, +1.60, +0.98 |
+| CasparCG 2.5 hard restart, Take 2.5 s before | 1 | 1.97 (red "CasparCG not answering") | 7.81 | 8.31 | +0.50 |
+| Browser output hard kill, Take 6.5 s before | 1 | 1.24 (grey, the output listed twice) | 8.93 | 11.94 | +3.01 |
+| CasparCG 2.3 reload | 1 | 0.50 | 1.61 | 0.55, then grey at 2.16 and green at 2.18 | green at 0.55 s while the picture was blank from 0.57 to 1.61 s: the old page confirmed the Take just before the reload replaced it |
+| CasparCG 2.3 reload | 2 | 0.44 | 1.51 | 2.28 | +0.77 |
+| CasparCG 2.3 reload | 3 | 0.46 | yes | none in 14 s | stale entry |
+
+The light read grey "Confirming…" while it waited, amber "Reloading on 1-20" once (hard restart,
+nothing pressed), red "lost" or "not answering" when an output stayed away. Amber "Updating outputs"
+did not appear: no placement lasted 5 s.
+
+Item 2, a graphic on air for 7 s, nothing pressed, then the restart. Stale entries were removed
+before each run.
+
+| Output | Green over the blank output before the page noticed | Green minus picture |
+|---|---|---|
+| CasparCG 2.5 reload, 4 runs | 1.3, 2.1, 1.0, 2.4 s | +1.70, +1.85, +0.70, +0.76 |
+| Browser output reload, 3 runs | 0.72, 0.39, 0.07 s | +2.13, +0.81, +2.34 |
+| CasparCG 2.5 hard restart, 2 runs | 2.3, 2.4 s (green over a dead CasparCG) | +0.57; +10.6 (amber "Reloading on 1-20" from 8.2 s, green at 19.2 s) |
+| Browser output hard kill | none: red "Browser out lost" at 1.7 s, its age reading "41 s" | +0.69 |
+| CasparCG 2.3 reload, clean run | 0.2 s | +2.32 |
+
+A first batch of item 2 runs without removing stale entries went red "CasparCG 1-20 lost" or
+"CasparCG 1-20 #2 lost" over working outputs and is not counted.
+
+**CasparCG 2.3: the output died on load, and the light read green.** CasparCG 2.3's log shows
+these loads of the output failing at once with `Uncaught SyntaxError: Unexpected token .` and the
+page destroyed: 07:26:45, 07:27:12, 07:27:39, 07:31:31 and 07:31:57 UTC. Loads at 07:25:36,
+07:25:57, 07:26:18, 07:29:52, 07:30:10 and 07:31:04 worked. Every failed load came right after a
+reload with a graphic on air, but two such reloads (07:30:10, 07:31:04) worked, so that is not the
+whole trigger. The app's own output chunks are not the cause: all 28 chunks the output page loads
+from the deployment tokenize clean of `?.`, `??` and logical assignment. A graphic's own script
+evaluated in the output is the next suspect. While the slot was dead, the outputs list held only
+"Browser out" once the stale "CasparCG 1-20" was removed (item 3), so the light read green "Ready"
+with its title "This production is on 1-20 and still loading" and "Output slot 1-20 Loading…", and
+two Takes went green with nothing on CasparCG (grabs empty from 07:26:46 to 07:29:52). CasparCG
+2.3's log for the run is in the archive folder as `caspar23-2026-11-22.log`.
+
+### Step 5: the network
+
+- **Item 4, browser output offline, a graphic on air, nothing pressed.** 60 s cut (07:34:51): green
+  for the whole 60 s; grey "Browser out not answering (0 s)" 1.0 s after the network came back, amber
+  "Commands slow" at 8.6 s and green at 17.6 s. 150 s cut (07:36:35): green for 54.3 s; then red
+  "Browser out lost … not answering (81 s)" for 10 ms, grey "not answering (0 s)", and red at 70.2 s
+  (16 s after the grey). Back online: amber "Commands slow" after 14 s, green after 26 s. The window
+  before the page notices a silent output is 54 s to over 60 s here.
+- **Item 5, the production page cut off for 90 s**, a graphic on air: green for 41.1 s, then amber
+  "Browser out cannot confirm: this page cannot hear the outputs right now / CasparCG 1-20 cannot
+  confirm…" until the network came back; green 3.8 s after it did. It never read green after
+  noticing. On 2026-11-20 the same cut stayed green for all 60 s.
+- **Item 6**: not run. The production has no data feed, and configuring one needs an outside source.
+
+### #2662 and #2676: held presses
+
+- **Item 7, every backend request held 9 s** (07:46:00): "sending…" at once, "still sending" with
+  Stop sending at 4.05 s, never "failed". `control_send_seq` went one at a time: each attempt was
+  cancelled at 8.0 s and the next started 0.4 to 2.0 s later (4 attempts). With the requests fast
+  again at 25.0 s, the next attempt landed at 27.5 s; one entrance on each output (browser 27.6 s,
+  CasparCG 27.8 s). The light stayed green "Ready" for the 27 s the Take was still being sent. With
+  requests held only 3 s, the Take landed at 3.1 s and "still sending" did not appear, as expected.
+- **Item 7, page offline 10 s, Take 1 s in**: "still sending" with Stop sending 4.0 s after the
+  Take, never "failed"; five attempts failed at once while offline; landed 2.4 s after the network
+  came back; one entrance on each output.
+- **Item 8, Take then Out 0.3 to 0.4 s later**, once with requests held 9 s and twice with the page
+  offline 10 s: neither output ever showed the graphic (CasparCG empty in all 55 to 112 grabs per
+  run, the browser output unchanged). Out landed when the network returned. Two things to know:
+  - With requests held, the Out's request started at 1.5 s while the Take's was still open, so two
+    `control_send_seq` were in flight until the Take's was cancelled at 8.0 s.
+  - The page said "Take is on this monitor only. It may not have reached the screens or the log
+    (the server did not answer). Send it again." for the replaced Take: at 8.0 s with requests held,
+    and 0.3 s after Out when offline. An operator who follows it puts the graphic back on air after
+    pressing Out.
+
+Not run: a real cable pull, a real machine restart, and a data feed. The test production "Phase 9
+final 2026-11-22" is left in the account.
