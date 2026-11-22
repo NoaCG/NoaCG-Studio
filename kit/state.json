@@ -45,7 +45,7 @@
   "nonce": "tl5-b-5193",
   "branch": "claude/plan-svg-template-library-tl5-build-2",
   "source": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "asOf": "2026-11-22T19:46:36Z",
+  "asOf": "2026-11-22T19:56Z",
   "note": "may land as several PRs; coordinator stamps each",
   "prs": [
    {
@@ -74,7 +74,8 @@
     "covers": "Q&A card, nominee reveal",
     "class": "Ordinary",
     "stamp": "cloud-queue-merge 45062526522",
-    "repairOwnerComment": 7084655095
+    "repairOwnerComment": 7084655095,
+    "merged": "f772fa22633d2c0f77947462fe4f613e9be8ad66"
    }
   ],
   "progress": "#2706 queued; replacement builder on the remaining extensions; coverage 73/101",
