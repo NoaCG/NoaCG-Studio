@@ -34,17 +34,22 @@
  },
  "waitingOn": [
   {
-   "what": "TL1o checker verdict",
+   "what": "TL2 builder receipt and its PR",
+   "eta": "2026-11-22T15:00:00Z"
+  },
+  {
+   "what": "Quarantine PR #2694 (flake from TL1o checks) landing",
    "eta": "2026-11-22T12:00:00Z"
   }
  ],
  "inFlight": {
-  "phase": "TL1o",
-  "step": "check",
-  "session": "session_017SdbwQY9xSNw3tcpyzC9cr",
-  "nonce": "tl1o-c-d33b",
-  "merge": "60a92df384015ac6abf4273e3bbe56a081cca0a0",
-  "asOf": "2026-11-22T10:38:16Z"
+  "phase": "TL2",
+  "step": "build",
+  "session": "session_017SdbwQzdQoNSjiFKVDJN66",
+  "nonce": "tl2-b-8299",
+  "branch": "claude/plan-svg-template-library-tl2-build",
+  "source": "60a92df384015ac6abf4273e3bbe56a081cca0a0",
+  "asOf": "2026-11-22T10:59:23Z"
  },
  "owner": [
   {
@@ -115,5 +120,12 @@
   "pass": "2026-11-22T07:26Z",
   "archived": true,
   "nits": "3 non-blocking: https://github.com/NoaCG/NoaCG-Studio/pull/2682#issuecomment-7075910783"
+ },
+ "tl1o": {
+  "pass": "2026-11-22T10:58Z",
+  "merge": "60a92df384015ac6abf4273e3bbe56a081cca0a0",
+  "evidencePr": 2692,
+  "fixPr": 2693,
+  "flake": "editor-projects.spec.ts:310 fail-then-pass, quarantine PR #2694 opened by the checker"
  }
 }
