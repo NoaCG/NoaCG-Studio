@@ -34,17 +34,18 @@
  },
  "waitingOn": [
   {
-   "what": "TL3 checker verdict",
-   "eta": "2026-11-22T16:00:00Z"
+   "what": "TL4 builder receipt and its PR (large phase)",
+   "eta": "2026-11-23T03:00:00Z"
   }
  ],
  "inFlight": {
-  "phase": "TL3",
-  "step": "check",
-  "session": "session_017SdbwMkwZ3rdvsge8qr35L",
-  "nonce": "tl3-c-f1be",
-  "merge": "66ab49d3db8058f0eb972414623e155ecabb71c0",
-  "asOf": "2026-11-22T14:53:37Z"
+  "phase": "TL4",
+  "step": "build",
+  "session": "session_017SdbwMYeduE5e6iXLcwf2D",
+  "nonce": "tl4-b-92ca",
+  "branch": "claude/plan-svg-template-library-tl4-build",
+  "source": "66ab49d3db8058f0eb972414623e155ecabb71c0",
+  "asOf": "2026-11-22T15:16:52Z"
  },
  "owner": [
   {
@@ -140,6 +141,10 @@
  "tl3": {
   "pr": 2697,
   "merge": "66ab49d3db8058f0eb972414623e155ecabb71c0",
-  "builder": "session_017SdbwMkDuHZrj8Rw6DLBjG"
- }
+  "builder": "session_017SdbwMkDuHZrj8Rw6DLBjG",
+  "pass": "2026-11-22T15:15Z",
+  "archived": true,
+  "nit": "old Whats new note says SVG examples"
+ },
+ "retro": "Midpoint retro written in the wave file 2026-11-22T15:16Z"
 }
