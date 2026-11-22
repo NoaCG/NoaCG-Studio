@@ -2985,3 +2985,11 @@ button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgb
 /* An All together member's delay (FolderEditor): a short number box at the end of its row. */
 .pd-folder-editor .pd-folder-delay { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; font-size: 12px; }
 .pd-folder-editor .pd-folder-delay input { width: 4.5em; }
+/* THE AUDIENCE PICKERS (svg-template-library D6): the production's designs, then saved designs,
+   then built-ins, each group on its own row. A long or translated design name wraps inside its
+   button rather than widening the panel. */
+.pd-aud-choose { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.pd-aud-choose-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pd-aud-choose-group .hint { flex: 1 1 100%; }
+.pd-aud-choose button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.pd-aud-choose > button { align-self: flex-start; }

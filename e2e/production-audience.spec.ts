@@ -31,6 +31,8 @@ import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 import { addQuestion, goLive, moreWaysIn, questionRow, simulateArrivals, stopLive } from './_interaction';
 import { qrReader } from './_qr';
 import { installDoor } from './_door';
+import { fileURLToPath } from 'node:url';
+import { dropSvg, intoExistingProduction, intoProduction } from './_svg-import';
 
 // This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
 test.beforeEach(({ context }) => installDoor(context));
@@ -1661,4 +1663,96 @@ test('the studio QR code decodes to the short link, as SVG and as PNG (AC-5)', a
   } finally {
     await reader.close();
   }
+});
+
+// ── THE TEMPLATE LIBRARY'S AUDIENCE PILOT (docs/work-specs/svg-template-library/spec.md TL1, AC-4
+// and AC-10). The downloadable Vote results and Message templates, imported unchanged and saved
+// from one production, are offered by another production's pickers after its own graphics; a
+// keyboard pick copies the design in (linked to the saved one) and stages one working cue on it,
+// which Take airs with its data. ──
+test('saved Vote results and Message templates are offered in their pickers and each pick stages one working cue (svg-template-library AC-4, AC-10)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const template = (slug: string) => fileURLToPath(new URL(`../docs/tutorials/svg-templates/SVG/${slug}.svg`, import.meta.url));
+  await page.goto('/app');
+  await dropSvg(page, template('vote-results'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('poll');
+  await intoProduction(page, 'Vote results', 'Template shelf');
+  await page.goto('/app');
+  await dropSvg(page, template('message'));
+  await intoExistingProduction(page, 'Message', 'Template shelf');
+  await settleDurableWrites(page);
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Pilot Night');
+  const audience = await openWorkspace(page, 'audience');
+  const note = audience.getByTestId('audience-note');
+  const program = (graphic: string) => page.frameLocator(`[data-testid="program-stage"] iframe[title="${graphic}"]`);
+  const role = (name: string) => program('Vote results').locator(`[data-noacg-role~="${name}"]`);
+  const pool = () =>
+    audience.evaluate(async (id) => {
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+      const show = loadShows().find((s) => s.id === id)!;
+      const saved = Object.fromEntries(loadGraphics().map((g) => [g.id, g.name]));
+      return show.graphics.map((g) => ({ name: g.name, savedAs: g.graphicId ? saved[g.graphicId] ?? null : null, cues: (show.cues ?? []).filter((c) => c.sourceId === g.id).map((c) => c.values) }));
+    }, showId);
+
+  // ── Vote results ──
+  await addQuestion(audience, 'choice', 'Encore?', ['Yes', 'No']);
+  await goLive(audience, 'Encore?');
+  await audience.getByTestId('audience-simulate-votes').click();
+  await expect(audience.getByTestId('audience-tally-0')).toHaveText('2', { timeout: 10_000 });
+  await audience.getByTestId('audience-round-stage').click();
+  const results = audience.getByTestId('result-choose');
+  await expect(results.getByTestId('result-no-destination')).toBeVisible();
+  // Saved designs before built-ins, every button with its own accessible name.
+  expect(await results.locator('.pd-aud-choose-group').evaluateAll((gs) => gs.map((g) => g.getAttribute('data-testid')))).toEqual(['result-group-saved', 'result-group-built-in']);
+  const names = await results.getByRole('button').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label') ?? b.textContent));
+  expect(new Set(names).size).toBe(names.length);
+  const saved = results.getByRole('button', { name: 'Results on Vote results, saved design' });
+  await saved.focus();
+  await audience.keyboard.press('Enter');
+  await expect(note).toContainText('✓ Added a result cue on “Vote results”');
+  await expect(audience.getByTestId('audience-round-stage')).toHaveText('Add results to rundown on Vote results');
+  // Stopped, then staged again: the same one cue now says closed.
+  await stopLive(audience, 'Encore?');
+  await expect(note).toContainText('The result cue on “Vote results” now carries the final counts');
+  await audience.getByTestId('audience-round-stage').click();
+  await expect(note).toContainText('✓ The result cue on “Vote results” now carries the final 3 votes');
+  await settleDurableWrites(audience);
+  const copy = (await pool()).find((g) => g.savedAs === 'Vote results')!;
+  expect(copy.cues, 'one cue on the copy, no blank seed beside it').toHaveLength(1);
+  expect(Object.values(copy.cues[0])).toEqual(expect.arrayContaining(['Encore?', 'Yes | 2\nNo | 1', '3 votes · voting closed', 'closed']));
+
+  // Take airs it: rows and count from the round, closed, then the result and the winner.
+  await page.locator('.pd-cue', { hasText: 'Vote — Encore?' }).first().click();
+  await page.getByTestId('verb-take').click();
+  await expect(role('option/1')).toHaveText('Yes');
+  await expect(role('option/2')).toHaveText('No');
+  await expect(role('total')).toHaveText('3 votes · voting closed');
+  await expect(role('badge')).not.toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-result').click();
+  await expect(role('percent/1')).toHaveText('66.7%');
+  await page.getByTestId('cue-action-call').click();
+  await expect(role('winner/1')).toHaveClass(/imported-design-on/);
+  await page.getByTestId('verb-out').click();
+
+  // ── Message ──
+  await paste(audience, 'Is there an encore tonight?', 'Sam');
+  const row = audience.locator('.pd-aud-row').first();
+  await row.getByTestId('audience-prepare').click();
+  const messages = row.getByTestId('audience-choose');
+  // The Vote results copy is a vote board, never a message destination.
+  await expect(messages.getByTestId('audience-choose-graphic')).toHaveCount(0);
+  await expect(messages.getByTestId('audience-choose-saved')).toHaveText(['Message']);
+  await messages.getByRole('button', { name: 'Prepare on Message, saved design' }).focus();
+  await audience.keyboard.press('Enter');
+  await expect(note).toContainText('✓ Cue “Is there an encore tonight?” is ready on Message');
+  await settleDurableWrites(audience);
+  const card = (await pool()).find((g) => g.savedAs === 'Message')!;
+  expect(card.cues).toHaveLength(1);
+  expect(Object.values(card.cues[0])).toEqual(expect.arrayContaining(['Is there an encore tonight?', 'Sam']));
+  await page.locator('.pd-cue', { hasText: 'Is there an encore tonight?' }).first().click();
+  await page.getByTestId('verb-take').click();
+  await expect(program('Message').locator('text', { hasText: 'Is there an encore tonight?' })).toBeVisible();
+  await expect(program('Message').locator('text', { hasText: 'Sam' })).toBeVisible();
 });

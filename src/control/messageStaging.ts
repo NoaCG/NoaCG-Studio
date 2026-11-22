@@ -4,7 +4,8 @@
 //
 // What it guarantees, by construction:
 //  - A message goes only where it fits. A graphic is a destination when it has a body field
-//    (titled Message, Question, Comment, Body, Text or Request), is not a vote board, and neither
+//    (titled Message, Question, Comment, Body, Text or Request), is not a vote board or a quiz
+//    board (a Correct or Selected answer field), and neither
 //    its body nor its name field is bound to live data. Nothing is chosen by elimination: with no
 //    remembered choice the caller asks the operator, and with no compatible graphic it offers the
 //    Q&A cards. The old fallback - the production's first graphic and its first text field - put
@@ -71,6 +72,34 @@ export function messageFields(fields: readonly Field[]): { body: string; name: s
   return { body, name: firstTitled(fields, NAME_TITLES) };
 }
 
+/** Titles only a quiz board carries: positive evidence that its Question is a quiz question. */
+export const QUIZ_EVIDENCE_TITLES = ['correct answer', 'selected answer'] as const;
+
+/** A graphic with a Correct answer or Selected answer field: its Question is the quiz's. */
+export function isQuizBoard(fields: readonly Field[]): boolean {
+  return fields.some((f) => (QUIZ_EVIDENCE_TITLES as readonly string[]).includes((f.title ?? '').trim().toLowerCase()));
+}
+
+/**
+ * Where a message would land on this POOL graphic, under the one rule Prepare and the cue editor's
+ * Fill share: `messageFields`, minus quiz boards (an imported quiz's Question made it a message
+ * destination by accident). The production's remembered message graphic keeps working whatever it
+ * is, because that was the operator's own choice before this rule existed.
+ */
+export function destinationFields(
+  show: Pick<Show, 'messageTarget'>,
+  graphic: { id: string; template: { fields?: readonly Field[] } },
+): { body: string; name: string | null } | null {
+  const fields = graphic.template.fields ?? [];
+  if (isQuizBoard(fields) && graphic.id !== show.messageTarget) return null;
+  return messageFields(fields);
+}
+
+/** Whether a graphic's fields take messages: a design the Message picker may offer. */
+export function takesMessages(fields: readonly Field[]): boolean {
+  return !isQuizBoard(fields) && messageFields(fields) !== null;
+}
+
 export interface MessageDestination {
   graphicId: string;
   name: string;
@@ -80,10 +109,10 @@ export interface MessageDestination {
 
 /** The pool graphics a message may go to, in pool order. A graphic whose body or name field is
  *  bound is left out: that binding is a live route into what the operator approved. */
-export function messageDestinations(show: Pick<Show, 'graphics' | 'bindings'>): MessageDestination[] {
+export function messageDestinations(show: Pick<Show, 'graphics' | 'bindings' | 'messageTarget'>): MessageDestination[] {
   const out: MessageDestination[] = [];
   for (const g of show.graphics) {
-    const at = messageFields(g.template.fields ?? []);
+    const at = destinationFields(show, g);
     if (!at) continue;
     const bound = show.bindings?.[g.name] ?? {};
     if (bound[at.body] || (at.name && bound[at.name])) continue;
@@ -100,10 +129,10 @@ export function rememberedDestination(show: Pick<Show, 'graphics' | 'bindings' |
 
 /** A graphic that would hold a message but cannot take one now, and why - so the cue editor can
  *  say it rather than hide the door. */
-export function destinationRefusal(show: Pick<Show, 'graphics' | 'bindings'>, graphicId: string): string | null {
+export function destinationRefusal(show: Pick<Show, 'graphics' | 'bindings' | 'messageTarget'>, graphicId: string): string | null {
   const g = show.graphics.find((x) => x.id === graphicId);
   if (!g) return 'This graphic was removed.';
-  const at = messageFields(g.template.fields ?? []);
+  const at = destinationFields(show, g);
   if (!at) return `“${g.name}” has no message field.`;
   if (!messageDestinations(show).some((d) => d.graphicId === graphicId)) {
     return `“${g.name}” follows live data on its message or name, so a prepared message could change on air. Add a separate card for messages.`;

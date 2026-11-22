@@ -16,8 +16,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg, intoProduction } from './_svg-import';
 import { settleDurableWrites } from './_durable';
+import { qrReader } from './_qr';
 
-interface Template { slug: string; name: string; recipe: string | null; preview: string }
+interface Template { slug: string; name: string; recipe: string | null; preview: string; contract?: string }
 const templates = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-templates/templates.json', import.meta.url), 'utf8')) as Template[];
 const file = (slug: string) => fileURLToPath(new URL(`../docs/tutorials/svg-templates/SVG/${slug}.svg`, import.meta.url));
 
@@ -115,7 +116,7 @@ async function checkAir(page: Page, air: FrameLocator, label: string): Promise<v
 }
 
 const role = (air: FrameLocator, name: string) => air.locator(`[data-noacg-role~="${name}"]`);
-const kind: Record<string, string> = { countdown: 'timer', clock: 'none' };
+const kind: Record<string, string> = { countdown: 'timer', clock: 'none', vote: 'poll' };
 
 async function fieldFor(air: FrameLocator, title: string): Promise<string> {
   const field = await air.locator('svg').first().evaluate((_, name) => {
@@ -154,7 +155,7 @@ async function importTemplate(page: Page, t: Template) {
 }
 
 for (const t of templates) {
-  test(`${t.name} template imports, keeps every named text, runs its controls and stays clean on air`, async ({ page }) => {
+  test(`${t.name} template imports, keeps every named text, runs its controls and stays clean on air`, async ({ page, browser }) => {
     test.setTimeout(120_000);
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
@@ -168,8 +169,10 @@ for (const t of templates) {
 
     // Every text the Text layer names is an operator field (credits fold theirs into one list,
     // a clock owns its own readout).
+    // (a vote writes its rows and total from the round, so those layers are not typed fields).
     if (t.recipe !== 'credits') {
-      for (const name of namedTexts(t.slug).filter((n) => n !== 'Clock' && !/^Score \d/.test(n))) await fieldFor(air, name);
+      const driven = (n: string) => n === 'Clock' || /^Score \d/.test(n) || (t.recipe === 'vote' && (/^(Option|Percent) \d/.test(n) || n === 'Total votes'));
+      for (const name of namedTexts(t.slug).filter((n) => !driven(n))) await fieldFor(air, name);
       await checkAir(page, air, `${t.slug}-1-take`);
     }
 
@@ -183,6 +186,59 @@ for (const t of templates) {
         await page.getByTestId('verb-update').click();
         await expect(air.locator(`#${field}`)).toHaveText('Technical difficulties');
         await checkAir(page, air, `${t.slug}-2-retyped`);
+        // AUDIENCE CONTRACTS (svg-template-library TL1): the QR draws the Join link the cue holds,
+        // and long translated words fit their plates without cutting or overlap (AC-10).
+        const long: Record<string, Record<string, string>> = {
+          'join-link': {
+            Label: 'Machen Sie mit bei unserer Livesendung',
+            'Call to action': 'Scannen Sie den Code mit der Kamera Ihres Telefons, um abzustimmen und der Moderation eine Frage zu senden.',
+          },
+          message: {
+            From: 'Maria-Magdalena Österberg-Lindqvist',
+            Message: 'Wie lange haben Sie gebraucht, um das ganze Bühnenbild für diese Sendung zu bauen, und was war dabei am schwierigsten?',
+          },
+        };
+        if (t.contract === 'join-link') {
+          const link = 'https://noacg.studio/j/friday-night-live';
+          await page.getByTestId(`cue-field-${await fieldFor(air, 'Join link')}`).fill(link);
+          await page.getByTestId('verb-update').click();
+          // A phone reading the code on air gets exactly this link.
+          const reader = await qrReader(browser);
+          try {
+            const code = air.locator('[class$="-qr-code"]');
+            await expect(code).toBeVisible();
+            await expect.poll(async () => reader.read(await code.screenshot()), { message: 'the QR on air decodes to the Join link' }).toBe(link);
+          } finally {
+            await reader.close();
+          }
+        }
+        if (t.contract && long[t.contract]) {
+          for (const [title, value] of Object.entries(long[t.contract])) await page.getByTestId(`cue-field-${await fieldFor(air, title)}`).fill(value);
+          await page.getByTestId('verb-update').click();
+          for (const value of Object.values(long[t.contract])) await expect(air.locator('text', { hasText: value.slice(0, 20) }).first()).toBeVisible();
+          await checkAir(page, air, `${t.slug}-3-long`);
+        }
+        break;
+      }
+      case 'vote': {
+        // Voting open: the badge shows, the bars follow the counts, the figures wait for the result.
+        const options = await fieldFor(air, 'Options');
+        await page.getByTestId(`cue-field-${options}`).fill('Coast | 3\nForest | 1\nCity | 0\nMountains | 0');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'option/1')).toHaveText('Coast');
+        await expect(role(air, 'badge')).toHaveClass(/imported-design-on/);
+        await expect(role(air, 'percent/1')).not.toHaveClass(/imported-design-on/);
+        await checkAir(page, air, `${t.slug}-2-voting`);
+        await page.getByTestId('cue-action-close').click();
+        await expect(role(air, 'badge')).not.toHaveClass(/imported-design-on/);
+        await page.getByTestId('cue-action-result').click();
+        await expect(role(air, 'percent/1')).toHaveText('75%');
+        await expect(role(air, 'percent/1')).toHaveClass(/imported-design-on/);
+        await checkAir(page, air, `${t.slug}-3-result`);
+        await page.getByTestId('cue-action-call').click();
+        await expect(role(air, 'winner/1')).toHaveClass(/imported-design-on/);
+        await expect(role(air, 'winner/2')).not.toHaveClass(/imported-design-on/);
+        await checkAir(page, air, `${t.slug}-4-winner`);
         break;
       }
       case 'quiz':

@@ -187,7 +187,9 @@ test.describe(() => {
       await expect(async () => expect(await phoneLogo()).toBeNull()).toPass({ timeout: 40_000 });
       await viewer.close();
 
-      // ADD JOIN CARD TO RUNDOWN: one press, one Join card cue whose Join link is this link.
+      // ADD JOIN CARD TO RUNDOWN: one press, one Join card cue whose Join link is this link; a
+      // second press, after the link is renamed below, updates that cue to the current link rather
+      // than adding a duplicate (svg-template-library AC-4).
       const joinCues = () =>
         ws.evaluate(async (id) => {
           const { loadShows } = await __noacgImport('/src/model/shows.ts');
@@ -197,11 +199,9 @@ test.describe(() => {
         }, showId);
       expect(await joinCues()).toEqual([]);
       await join.getByTestId('join-card-add').click();
-      await expect(ws.getByTestId('audience-note')).toContainText('Join card added', { timeout: 20_000 });
+      await expect(ws.getByTestId('audience-note')).toContainText('has the current link', { timeout: 20_000 });
       await settleDurableWrites(ws);
       expect(await joinCues()).toEqual([joinUrl]);
-      await join.getByTestId('join-card-add').click();
-      await expect.poll(joinCues, { timeout: 20_000 }).toEqual([joinUrl, joinUrl]);
 
       // A hand-picked name still wins, claimed here beside the code; the code follows it.
       const claim = join.getByTestId('join-name-claim');
@@ -215,6 +215,8 @@ test.describe(() => {
       const renamed = joinUrl.replace(`/j/${expected}`, `/j/${claimed}`);
       await expect(join.getByTestId('join-link')).toHaveText(renamed);
       expect(await reader.read(await join.getByTestId('join-qr').screenshot()), 'the QR after the rename').toBe(renamed);
+      await join.getByTestId('join-card-add').click();
+      await expect.poll(joinCues, { timeout: 20_000 }).toEqual([renamed]);
       // Typing again clears the verdict: a note left under a different name is about the wrong name.
       await join.getByTestId('join-name-input').fill('another-name');
       await expect(ws.getByTestId('join-name-note')).toHaveCount(0);

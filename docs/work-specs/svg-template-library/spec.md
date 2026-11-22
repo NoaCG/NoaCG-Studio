@@ -294,7 +294,8 @@ Actions. OW: the owner, with Illustrator on their own computer.
   countdown motion). Every type whose route exists, including the corner game timer with its
   motion and the picture-slot templates.
 - **TL5. Recipe extensions** (CA; depends on TL2 and TL4; AC-3, AC-7, AC-9 per extension, AC-10 for Alert level). Each
-  extension lands with its template, controls, compatibility tests and export proof.
+  extension lands with its template, controls, compatibility tests and export proof. Carried
+  from TL1 (owner ruling 2026-11-22): a per-option count readout on the Vote results template.
 - **TL6. New runtime kinds** (CA; depends on TL5; AC-3, AC-7, AC-9 per kind, AC-4 for the Word cloud template). Word cloud, ticker
   crawl, notification queue, speaking timer, sponsor rotator. Any new feature hookup (for example
   a notification inbox) is specified separately before it is built.
@@ -370,6 +371,59 @@ Actions. OW: the owner, with Illustrator on their own computer.
   runs Chromium. `e2e/downloads.spec.ts` compares the zip to the repo.
 - Trap: editing this spec changes `work.json`'s `specSha256`; TL0 updated it with the notes only
   (acceptance unchanged).
+
+### TL1 (audience pilot)
+
+- Previous verified `main`: `fba398c20eba8d875a256472dd30cda3761c93c3`. Revert: `git revert -m 1 <the TL1 merge commit>`.
+- Pickers: `src/control/audiencePickers.ts` `pickerItems(show, library, kind)` lists production,
+  saved, built-in for `join`, `results`, `message` and `words`, with the staging matchers; one
+  `DesignPicker` in `ProductionAudienceWorkspace.tsx` renders all four (test ids
+  `<prefix>-choose-graphic`, `-saved`, the old built-in ids, groups `<prefix>-group-<group>`).
+  The library is `ProductionPage`'s `pickerLibrary`. A saved design is copied by
+  `addSavedDesign`: reused by its `graphicId` link, else added under a free name; the pick fills
+  the copy's seeded cue (`seededCue`), so there is no blank cue beside the staged one. The Word
+  cloud picker already offers saved word clouds; its template is TL6's.
+- Join: `Show.joinTarget` (additive, not published) and `model/joinCues.ts` `planJoinCue`; the
+  write is `stageShowJoin` in `model/shows.ts`, rebased, one Join cue per card. Add Join card
+  with no Join card and no saved design adds the built-in as before. A second press now updates
+  the Join cue instead of adding a second one (`e2e/configured/audience-live.spec.ts` moved with
+  it: after a rename, the one Join cue holds the new link).
+- Message: `messageStaging.ts` `destinationFields` leaves out graphics with a Correct answer or
+  Selected answer field; a remembered `messageTarget` on such a graphic keeps working.
+- Templates: `join-card`, `live-vote`, `vote-results`, `message` in
+  `docs/tutorials/svg-templates` (inventory fields `packages`, `alt`, `states`, `contract`). Layer
+  names follow `layer-names.json`: the Join card's texts are `Label` and `Call to action` (the
+  built-in Join card's titles), the Message's name is `From` (a lower third owns `Name`), and a
+  moment such as `Vote badge` is drawn hidden.
+- Library page prototype: `scripts/svg-files.mjs` `SVG_PACKAGES` renders an Audience package
+  section (default preview plus each named state, alt text on every picture) above the two sets;
+  public copies include the state previews. Package zips stay TL3's.
+- Rules (state rules this phase sets; written after coding, so the final `/so` challenges them):
+  - R1. A pick never replaces a pool graphic by name. A saved design reuses its linked copy
+    (`graphicId`, not an OBS scene copy), else it and any built-in get a free name, computed on
+    the production as stored.
+  - R2. One pick, one cue: the pick fills the seeded cue of the design it brought in, and no blank
+    cue is left beside it. For a saved design's copy, a retry after a failed write fills that
+    same seeded cue on every road to the destination: picked, remembered, or the question's own
+    graphic (`copySeededCue`). A built-in copy has no link to tell its seed apart, so a retry
+    there behaves as on base (issue #2683).
+  - R3. Join: the explicit pick, else the remembered `joinTarget` while it is a Join card, else
+    the only Join card, else the operator is asked. An explicit pick that is no longer a Join card
+    asks again. One Join cue per card: the cue labelled Join card, else one with no link yet
+    (which is then labelled Join card); another cue holding a link is never overwritten.
+    `joinTarget` is written by an explicit pick, or when the press adds the built-in Join card to
+    a production that has none. It is not published.
+  - R4. Messages: a graphic with a Correct answer or Selected answer field is not offered; a
+    remembered `messageTarget` on one keeps working.
+  - R5. Nothing airs from a pick: every path writes cues only.
+- Trap: a text whose drawn centre is within 5% of its panel's centre is read as centred and grows
+  both ways; the Join card states `text-anchor="start"` so its texts stay left of the QR.
+- AC-4 row counts, owner ruling 2026-11-22, verbatim: "A" (asked on run issue #2678,
+  https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7071540752; the answer is
+  recorded there in comment 7075308815). Meaning, as asked: share plus total on air, with raw
+  counts in the cue, meet AC-4 for TL1.
+- Carry-over to TL5: add a per-option count readout to the Vote results template, after the TL2
+  compatibility check (a new derived value in the imported-design runtime).
 
 ## Non-goals
 

@@ -32,7 +32,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 // TEMPLATES (`--set templates`, docs/tutorials/svg-templates), whose SVGs are their own sources.
 const SETS = {
   examples: { dir: 'svg-examples', zip: 'NoaCG-SVG-examples', pages: 4, inventory: 'examples.json', extra: ['Illustrator'] },
-  templates: { dir: 'svg-templates', zip: 'NoaCG-SVG-templates', pages: 2, inventory: 'templates.json', extra: [] },
+  templates: { dir: 'svg-templates', zip: 'NoaCG-SVG-templates', pages: 4, inventory: 'templates.json', extra: [] },
 };
 const argv = process.argv.slice(2);
 const SET = argv.includes('--set') ? SETS[argv[argv.indexOf('--set') + 1]] : SETS.examples;

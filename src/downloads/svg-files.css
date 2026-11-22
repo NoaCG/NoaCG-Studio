@@ -38,3 +38,13 @@
 }
 .svg-get:hover { border-color: color-mix(in srgb, var(--amber) 55%, transparent); }
 .svg-get::before { content: '↓ '; }
+
+/* A PACKAGE tile (svg-template-library D3 prototype): the default preview, then each named state
+   the operator sees, small, with its name under it. */
+.svg-states {
+  grid-column: 1 / -1; list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+.svg-states li { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.svg-states img { border-radius: 5px; }
+.svg-states span { font-size: 12px; color: var(--dim); overflow-wrap: anywhere; }
