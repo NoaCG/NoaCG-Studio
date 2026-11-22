@@ -1025,11 +1025,14 @@ ${withAwards ? `  // The entries this repaint answered are spent: the next state
 // A line the file anchors already, or one drawn against the left, is written exactly as before.
 
 // noacgDrawnAnchor(el): { h, x } for a readout drawn centred or right in its box, null for one
-// that fills rightwards, undefined while it cannot be measured (a look not yet showing).
+// that fills rightwards or whose file states its anchor, undefined while it cannot be measured
+// (a look not yet showing). Asked with the drawn sample and the drawn attributes in place.
 function noacgDrawnAnchor(el) {
   if (typeof svgFitPanel !== 'function' || typeof svgLocalBox !== 'function') return null;
-  var stated = getComputedStyle(el).textAnchor;
-  if (stated === 'middle' || stated === 'end') return null;
+  // A STATED anchor, start included, is the file's answer, as svgAlignOf believes it.
+  if (/^(start|middle|end)$/.test(el.getAttribute('text-anchor') || '')) return null;
+  var computed = getComputedStyle(el).textAnchor;
+  if (computed === 'middle' || computed === 'end') return null;
   var own;
   try { own = el.getBBox(); } catch (e) { return undefined; }
   if (!(own.width > 0) || !(own.height > 0)) return undefined;
@@ -1043,26 +1046,52 @@ function noacgDrawnAnchor(el) {
 }
 
 // noacgReadoutWrite(el, text): write a readout's value, anchored as it was drawn. The drawn
-// sample is kept so a readout first written while hidden is still measured off the drawing.
+// sample and attributes are kept, so a readout first written while hidden, or while its face was
+// still loading, is measured again off the drawing rather than off whatever it says now.
 function noacgReadoutWrite(el, text) {
   if (!/^text$/i.test(el.tagName || '')) { el.textContent = text; return; }
   var i;
-  if (el.noacgDrawnNodes === undefined) {
-    el.noacgDrawnNodes = [];
-    for (i = 0; i < el.childNodes.length; i++) el.noacgDrawnNodes.push(el.childNodes[i].cloneNode(true));
+  if (el.noacgDrawn === undefined) {
+    el.noacgDrawn = { nodes: [], anchor: el.getAttribute('text-anchor'), x: el.getAttribute('x') };
+    for (i = 0; i < el.childNodes.length; i++) el.noacgDrawn.nodes.push(el.childNodes[i].cloneNode(true));
   }
   if (el.noacgAnchor === undefined) {
+    var d = el.noacgDrawn;
     while (el.firstChild) el.removeChild(el.firstChild);
-    for (i = 0; i < el.noacgDrawnNodes.length; i++) el.appendChild(el.noacgDrawnNodes[i].cloneNode(true));
-    el.noacgAnchor = noacgDrawnAnchor(el);
+    for (i = 0; i < d.nodes.length; i++) el.appendChild(d.nodes[i].cloneNode(true));
+    if (d.anchor === null) el.removeAttribute('text-anchor'); else el.setAttribute('text-anchor', d.anchor);
+    if (d.x === null) el.removeAttribute('x'); else el.setAttribute('x', d.x);
+    var a0 = noacgDrawnAnchor(el);
+    // MEASURED IN A FACE THAT HAS NOT LANDED is used for this write and not kept: the fallback
+    // face has other widths, so the anchor is taken again off the drawing once fonts settle.
+    if (a0 !== undefined && document.fonts && document.fonts.status === 'loading') noacgReadoutLater(el);
+    else el.noacgAnchor = a0;
+    el.noacgAnchorNow = a0;
   }
-  var a = el.noacgAnchor;
+  var a = el.noacgAnchor !== undefined ? el.noacgAnchor : el.noacgAnchorNow;
   if (a) {
     if (el.getAttribute('text-anchor') !== a.h) el.setAttribute('text-anchor', a.h);
     var x = a.x.toFixed(2);
     if (el.getAttribute('x') !== x) el.setAttribute('x', x);
   }
   el.textContent = text;
+}
+
+// noacgReadoutLater(el): once the fonts settle, write the readout's current value again, so it is
+// anchored off the drawing in the face it will be seen in.
+var noacgReadoutsWaiting = null;
+function noacgReadoutLater(el) {
+  if (!noacgReadoutsWaiting) {
+    noacgReadoutsWaiting = [];
+    document.fonts.ready.then(function () {
+      var waiting = noacgReadoutsWaiting;
+      noacgReadoutsWaiting = null;
+      for (var i = 0; i < waiting.length; i++) {
+        if (waiting[i].noacgAnchor === undefined) noacgReadoutWrite(waiting[i], waiting[i].textContent);
+      }
+    });
+  }
+  if (noacgReadoutsWaiting.indexOf(el) === -1) noacgReadoutsWaiting.push(el);
 }
 
 // ── A readout stays legible on a look lit under it ──────────────────────────────────

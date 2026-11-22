@@ -33,7 +33,7 @@ const SPECS = [
 const BOARD = readFileSync(new URL('../e2e/fixtures/illustrator-exports/live-vote.svg', import.meta.url), 'utf8');
 
 /** Runs in the browser: build the board as the wizard would, write two tallies, read the edges. */
-const ROUND = async ({ markup, live, tallies }) => {
+const ROUND = async ({ markup, live, tallies, lateFont }) => {
   const svg = window.NOACG_SVG.importSvgMarkup(markup);
   const draft = window.__importDraft(svg);
   const template = window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(draft) });
@@ -55,6 +55,29 @@ const ROUND = async ({ markup, live, tallies }) => {
   for (const el of shown) el.classList.add('imported-design-on');
   const drawn = read();
   for (const el of shown) el.classList.remove('imported-design-on');
+  // A FACE STILL LOADING at the first write: the fallback face is stood in for by a larger size,
+  // the font set says it is loading, and it lands (the size goes, `ready` resolves) after the
+  // take and the first tally are written. The figures must end up anchored off the drawing in
+  // the real face.
+  let land = null;
+  if (lateFont) {
+    const fonts = w.document.fonts;
+    let resolve;
+    const ready = new Promise((r) => { resolve = r; });
+    let status = 'loading';
+    Object.defineProperty(fonts, 'status', { configurable: true, get: () => status });
+    Object.defineProperty(fonts, 'ready', { configurable: true, get: () => ready });
+    const fallback = w.document.createElement('style');
+    fallback.textContent = '.imported-design-art text { font-size: 60px !important; }';
+    w.document.head.appendChild(fallback);
+    land = async () => {
+      fallback.remove();
+      status = 'loaded';
+      resolve(fonts);
+      // The settle pass is the iframe's own promise callback: a task turn lets it run.
+      await new Promise((r) => setTimeout(r, 50));
+    };
+  }
   w.update(JSON.stringify({ [field('Live figures')]: live }));
   w.play();
   w.__advance(3000);
@@ -62,19 +85,20 @@ const ROUND = async ({ markup, live, tallies }) => {
   for (const t of tallies) {
     w.update(JSON.stringify({ [field('Live figures')]: live, [field('Options')]: t }));
     w.__advance(2000);
+    if (land) { await land(); land = null; }
     rounds.push(read());
   }
   document.getElementById('fx')?.remove();
   return { drawn, rounds };
 };
 
-const run = await withBundledPage(SPECS, async (page) => {
+const TALLIES = ['Coast | 2\nForest | 1\nCity | 1', 'Coast | 7\nForest | 2\nCity | 1'];
+/** The same board with the file STATING a start anchor on every figure. */
+const STATED = BOARD.replace(/(<text id="Percent_\d")/g, '$1 text-anchor="start"');
+const [run, late, stated] = await withBundledPage(SPECS, async (page) => {
   await installDrivenPage(page);
-  return page.evaluate(ROUND, {
-    markup: BOARD,
-    live: POLL_LIVE_ON,
-    tallies: ['Coast | 2\nForest | 1\nCity | 1', 'Coast | 7\nForest | 2\nCity | 1'],
-  });
+  const one = (markup, lateFont) => page.evaluate(ROUND, { markup, live: POLL_LIVE_ON, tallies: TALLIES, lateFont });
+  return [await one(BOARD, false), await one(BOARD, true), await one(STATED, false)];
 });
 
 measured(run.rounds?.length ?? 0, 'vote tallies written');
@@ -83,18 +107,33 @@ test('the Illustrator live vote builds as a vote board', () => {
   assert.equal(run.error, undefined);
 });
 
-test('a right-aligned figure keeps its drawn right edge whatever it says', () => {
+/** Every figure whose right (or left) edge left where it was drawn, in every round of a run. */
+function moved(r, side) {
   const bad = [];
-  for (const round of run.rounds) {
+  for (const round of r.rounds) {
     for (const row of round) {
       const was = run.drawn[row.n - 1].percent;
       if (row.percent.text === was.text) bad.push(`Percent ${row.n} was never written (still "${was.text}")`);
-      else if (Math.abs(row.percent.right - was.right) > 0.5) {
-        bad.push(`Percent ${row.n} "${row.percent.text}" ends at ${row.percent.right.toFixed(1)}, drawn "${was.text}" ended at ${was.right.toFixed(1)}`);
+      else if (Math.abs(row.percent[side] - was[side]) > 0.5) {
+        bad.push(`Percent ${row.n} "${row.percent.text}" ${side} edge at ${row.percent[side].toFixed(1)}, drawn "${was.text}" at ${was[side].toFixed(1)}`);
       }
     }
   }
-  assert.deepEqual(bad, []);
+  return bad;
+}
+
+test('a right-aligned figure keeps its drawn right edge whatever it says', () => {
+  assert.deepEqual(moved(run, 'right'), []);
+});
+
+test('a figure first written while its face is still loading is anchored again once it lands', () => {
+  assert.equal(late.error, undefined);
+  assert.deepEqual(moved(late, 'right'), []);
+});
+
+test('a figure whose file states a start anchor still fills rightwards from where it was drawn', () => {
+  assert.equal(stated.error, undefined);
+  assert.deepEqual(moved(stated, 'left'), []);
 });
 
 test('a label drawn against the left keeps its drawn left edge', () => {
