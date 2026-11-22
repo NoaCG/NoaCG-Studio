@@ -45,7 +45,7 @@
   "nonce": "tl5-b-5d9c",
   "branch": "claude/plan-svg-template-library-tl5-build-4",
   "source": "b06197d34fbd9c33e062690a908088128b9e3972",
-  "asOf": "2026-11-22T21:44Z",
+  "asOf": "2026-11-22T21:46Z",
   "note": "may land as several PRs; coordinator stamps each",
   "prs": [
    {
@@ -97,7 +97,7 @@
     "merged": "45127dc15db7170c1fb78200635c5ab791a0453e"
    }
   ],
-  "progress": "#2709 queued; fourth builder on milestone tiers and quiz-show 2/3/4 (Risky, Rules-first)",
+  "progress": "Rules-first /so B, corrections applied; product decisions 3a/3b answered; building",
   "replaced": "session_017SdbwPqEaRwPmejCNaAGBi (tl5-b-a0a1) after #2709"
  },
  "owner": [
@@ -178,6 +178,11 @@
   {
    "what": "public-notice cycle, ticker rotate, question-queue to TL6 (new runtime kinds per D7)",
    "where": "#2678 comment 7085774509"
+  },
+  {
+   "what": "TL5 group 7 product decisions (coordinator): meter keeps Target; empty Milestones shows drawn tiers; quiz row in use while Answer has text",
+   "where": "#2678 (coordinator decisions comment)",
+   "reversible": true
   }
  ],
  "carry": {
