@@ -33,9 +33,8 @@
  },
  "waitingOn": [
   {
-   "what": "Owner ruling on AC-4 row counts for TL1 (A: share+total now, counts in TL5; B: counts before TL1 passes)",
-   "where": "https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7071540752",
-   "eta": "owner"
+   "what": "TL1 builder: ruling in notes, delta re-review, CI on new head, updated receipt",
+   "eta": "2026-11-22T10:30:00Z"
   }
  ],
  "inFlight": {
@@ -46,16 +45,12 @@
   "branch": "claude/plan-svg-template-library-tl1-build",
   "source": "fba398c20eba8d875a256472dd30cda3761c93c3",
   "asOf": "2026-11-22T00:25Z",
-  "progress": "held for the owner AC-4 ruling; builder told to hold",
+  "progress": "owner ruled A; builder recording it and running the delta re-review",
   "pr": 2682,
   "head": "8c6fa28fcde9f4ec17a52de1aa96371a9d43dd71",
   "receipt": "RECEIPT tl1-b-080e 00:20Z: CI 44964367575 green except Reviewed; Codex clean; Risky row, Rules written after coding, no Rules-first /so; final /so B on cb8df204 (delta confirmed R2 fix), only blocker AC-4 row-count ruling; #2683 pre-existing filed"
  },
  "owner": [
-  {
-   "what": "TL1 AC-4 ruling: row counts on air now or in TL5",
-   "where": "#2678 comment 7071540752"
-  },
   {
    "what": "TL1o pilot round trip in Illustrator",
    "where": "hand-over on #2678 when TL1 passes"
@@ -90,5 +85,15 @@
   "pass": "2026-11-21T22:52Z",
   "archived": true,
   "nits": "4 TL7 naming nits: https://github.com/NoaCG/NoaCG-Studio/pull/2680#issuecomment-7070472364"
+ },
+ "ownerDecisions": [
+  {
+   "what": "TL1 AC-4 row counts",
+   "answer": "\"A\" (owner, 2026-11-22): share plus total on air, raw counts in the cue, meet AC-4 for TL1; per-option count readout added to the Vote results template in TL5",
+   "where": "#2678 comment 7071540752 and the ruling comment after it"
+  }
+ ],
+ "carry": {
+  "TL5": "Add a per-option count readout to the Vote results template (owner ruling A, 2026-11-22)."
  }
 }
