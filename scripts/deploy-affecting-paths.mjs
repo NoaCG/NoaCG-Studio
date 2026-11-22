@@ -47,6 +47,14 @@ export const NEVER_DEPLOYED_DIRS = [
   'supabase/', // migrations and config; generated types land in src/ and are caught there
 ];
 
+/**
+ * The exceptions inside a denied directory: what the build reads from `docs/` and writes into the
+ * site. The Template Library's folder is made into its downloads by vite.config.ts
+ * (scripts/svg-files.mjs), README.md included, since it goes into every zip, and its page shows
+ * the built-in alternatives from the coverage matrix. Checked before every deny rule.
+ */
+export const DEPLOYED_DOCS = ['docs/tutorials/template-library/', 'docs/template-library/coverage.json'];
+
 /** Single files that cannot reach the deployed artifact. */
 export const NEVER_DEPLOYED_FILES = ['LICENSE'];
 
@@ -114,6 +122,7 @@ function isMarkdown(file) {
 export function affectsDeployment(file) {
   const p = String(file).trim().replace(/\\/g, '/').replace(/^\.\//, '');
   if (p === '') return false;
+  if (DEPLOYED_DOCS.some((prefix) => p === prefix || (prefix.endsWith('/') && p.startsWith(prefix)))) return true;
   if (isMarkdown(p)) return false;
   if (NEVER_DEPLOYED_FILES.includes(p)) return false;
   if (NEVER_DEPLOYED_DIRS.some((dir) => p.startsWith(dir))) return false;

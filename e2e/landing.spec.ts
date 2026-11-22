@@ -12,9 +12,9 @@
 // The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge, the Companion module
 // and the NoaCG CLI.
 // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
-// and its footer, so both of those specs ride along. public/downloads/ holds the SVG examples
-// zip the page links, and downloads.spec.ts fetches it.
-// covers: {downloads.html,src/downloads/**,public/downloads/**}
+// and its footer, so both of those specs ride along. The build makes the Template Library
+// zip the page links (scripts/svg-files.mjs), and downloads.spec.ts fetches it.
+// covers: {downloads.html,src/downloads/**}
 //
 // What's new and the roadmap: two public pages the landing links, whose lists the build generates
 // from docs/whats-new/ and docs/GOALS.md (scripts/whats-new.mjs, scripts/roadmap.mjs).

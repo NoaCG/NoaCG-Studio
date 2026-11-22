@@ -5,15 +5,16 @@
 // covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,artworkFields,svg}.ts,endCredits/shared.ts}
 // covers: e2e/fixtures/credits-roll.svg
 //
-// The SVG examples are the other road through real Illustrator output, and the only files
-// anywhere carrying Illustrator 30's look-wrapped lines (svgImport.ts `unwrapLookWrappers`).
+// The navy templates are the other road through real Illustrator output, and the only files
+// anywhere carrying Illustrator 30's look-wrapped lines (svgImport.ts `unwrapLookWrappers`;
+// e2e/fixtures/illustrator-exports/ archives the same bytes).
 // covers: src/assets/svgImport.ts
 //
-// THE SVG EXAMPLES (docs/tutorials/svg-examples/) are a fixture set for the same reason: this spec
-// imports their SVG/ files, so the ignore in scripts/e2e-affected.mjs carves the folder out.
-// downloads.spec.ts rides along because it checks the committed zip still holds these files.
-// covers: docs/tutorials/svg-examples/**
-// covers: public/downloads/svg/examples/**
+// THE TEMPLATE LIBRARY (docs/tutorials/template-library/) is a fixture set for the same reason:
+// this spec imports its navy SVG/ files, so the ignore in scripts/e2e-affected.mjs carves the
+// folder out. downloads.spec.ts rides along because it checks the zip the build makes from them.
+// covers: docs/tutorials/template-library/**
+// covers: scripts/svg-files.mjs
 // covers: src/components/home/CueActions.tsx
 
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
@@ -22,7 +23,8 @@ import { fileURLToPath } from 'node:url';
 import { dropSvg, intoExistingProduction, intoProduction } from './_svg-import';
 import { settleDurableWrites } from './_durable';
 
-// THE SVG EXAMPLES, RUN AS A SHOW (docs/tutorials/svg-examples, offered at /svg-templates#examples).
+// THE NAVY TEMPLATES, RUN AS A SHOW (style `navy` in docs/tutorials/template-library/library.json,
+// offered at /svg-templates).
 //
 // Somebody downloads the seven examples and does what the README says: import each one, put them
 // in one production, run the show. This walks exactly that with the SVGs Illustrator wrote (never
@@ -36,7 +38,7 @@ import { settleDurableWrites } from './_durable';
 //
 // `NOACG_SHOTS=<dir>` writes one frame per beat for a person to look at.
 
-const svg = (name: string) => fileURLToPath(new URL(`../docs/tutorials/svg-examples/SVG/${name}.svg`, import.meta.url));
+const svg = (name: string) => fileURLToPath(new URL(`../docs/tutorials/template-library/SVG/${name}.svg`, import.meta.url));
 const SHOW = 'The Weekly Show';
 
 const SHOTS = process.env.NOACG_SHOTS ?? '';
@@ -84,12 +86,12 @@ test('the seven SVG examples import with their fields and moments and run from o
   const errors = watchErrors(page);
 
   await addGraphic(page, 'title', 'Title', true);
-  await addGraphic(page, 'lower-third', 'Lower third', false);
+  await addGraphic(page, 'lower-third-navy', 'Lower third', false);
 
   // The quiz, the scoreboard and the countdown are recognised from the names alone, every
   // drawn moment bound to its picker.
   await page.goto('/app');
-  await dropSvg(page, svg('quiz'));
+  await dropSvg(page, svg('quiz-navy'));
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
   await expect(page.getByTestId('map-svg-quiz-count')).toHaveValue('4');
   await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toContainText('Locked in');
@@ -119,7 +121,7 @@ test('the seven SVG examples import with their fields and moments and run from o
   await settleDurableWrites(page);
 
   await addGraphic(page, 'ticker', 'Ticker', false);
-  await addGraphic(page, 'end-credits', 'End credits', false);
+  await addGraphic(page, 'end-credits-navy', 'End credits', false);
 
   // ── One production, seven cues, seven layers. ──
   await expect(page.getByTestId('select-cue')).toHaveCount(7);
@@ -271,8 +273,9 @@ test('the seven SVG examples import with their fields and moments and run from o
 });
 
 // Every advertised behavior runs through its downloadable editable source or Illustrator export.
-interface Example { slug: string; name: string; recipe: string | null; source?: 'illustrator' | 'svg' }
-const examples = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-examples/examples.json', import.meta.url), 'utf8')) as Example[];
+interface Example { slug: string; name: string; style: string; recipe: string | null; source?: 'illustrator' | 'svg' }
+const examples = (JSON.parse(readFileSync(new URL('../docs/tutorials/template-library/library.json', import.meta.url), 'utf8')) as Example[])
+  .filter((entry) => entry.style === 'navy');
 const selection: Record<string, string> = { vote: 'poll', countdown: 'timer' };
 const role = (air: FrameLocator, name: string) => air.locator(`[data-noacg-role~="${name}"]`);
 async function fieldLayer(air: FrameLocator, name: string, row: string) {
@@ -296,9 +299,9 @@ test('the advertised behavior inventory equals the live import registry', async 
   const registered = await page.evaluate(async () => (await __noacgImport('/src/templates/behaviours/registry.ts')).BEHAVIOUR_RECIPES.map((entry) => entry.id));
   expect([...new Set(examples.flatMap((entry) => entry.recipe ? [entry.recipe] : []))].sort()).toEqual(registered.sort());
   for (const entry of examples) {
-    const response = await request.get(`/downloads/svg/examples/${entry.slug}.svg`);
+    const response = await request.get(`/downloads/svg/${entry.slug}.svg`);
     expect(response.status(), entry.slug).toBe(200);
-    expect((await response.text()).replace(/\r\n/g, '\n')).toBe(readFileSync(new URL(`../docs/tutorials/svg-examples/SVG/${entry.slug}.svg`, import.meta.url), 'utf8').replace(/\r\n/g, '\n'));
+    expect((await response.text()).replace(/\r\n/g, '\n')).toBe(readFileSync(new URL(`../docs/tutorials/template-library/SVG/${entry.slug}.svg`, import.meta.url), 'utf8').replace(/\r\n/g, '\n'));
   }
 });
 
@@ -307,7 +310,7 @@ for (const example of examples.filter((entry) => entry.recipe)) {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/app');
-    await dropSvg(page, fileURLToPath(new URL(`../docs/tutorials/svg-examples/SVG/${example.slug}.svg`, import.meta.url)));
+    await dropSvg(page, fileURLToPath(new URL(`../docs/tutorials/template-library/SVG/${example.slug}.svg`, import.meta.url)));
     if (example.recipe === 'alert') await page.getByTestId('map-svg-behaviour-kind').selectOption('alert');
     if (example.recipe === 'clock') {
       await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(example.slug === 'scorebug-clock' ? 'score' : 'none');
@@ -327,7 +330,7 @@ for (const example of examples.filter((entry) => entry.recipe)) {
       await expect(page.getByTestId('map-svg-credits-list')).toContainText('Alex Rivera');
       await expect(page.getByTestId('map-svg-credits-fallback')).toHaveCount(0);
     }
-    if (example.slug === 'end-credits') {
+    if (example.slug === 'end-credits-navy') {
       await expect(page.locator('.wz-stage').first()).not.toHaveAttribute('data-doc-pending', '1');
       await expect(page.locator('.wz-stage').first()).toHaveAttribute('data-doc-rev', /\d/);
       await expect(page.getByTestId('map-svg-why-fields').locator('..')).toContainText('0 editable, 1 artwork');

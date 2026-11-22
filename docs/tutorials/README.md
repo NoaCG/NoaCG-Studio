@@ -44,11 +44,13 @@ node scripts/tutorial-shots.mjs first-graphic
 |---|---|---|
 | `first-graphic/` | Import your own SVG and put it on air, end to end (`/docs#first-graphic`) | `e2e/import-svg-behaviour.spec.ts`, "imported scoreboard: a numeric layer is a ± stepper" |
 
-`svg-examples/` is not a video pack. It is the source of the SVG examples zip on
-`/svg-templates#examples`: `scripts/illustrator/build-svg-examples.jsx` draws it in Illustrator
-and `scripts/illustrator/pack-svg-examples.mjs` packs it. It lives here so that
-`npm run check:example-layers` holds its SVGs to the one layer-naming system, and
-`e2e/svg-examples.spec.ts` imports every one of them.
+`template-library/` is not a video pack. It is the Template Library, every SVG template with
+its previews, offered on `/svg-templates` by package: the build makes its downloads and zips
+(`scripts/svg-files.mjs`) and `scripts/print-library-readme.mjs` prints its README as a PDF.
+`library.json` is its one inventory. Its navy templates were drawn in Illustrator by
+`scripts/illustrator/build-svg-examples.jsx`; the SVG is now the maintained source. It lives here
+so that `npm run check:example-layers` holds its SVGs to the one layer-naming system, and
+`e2e/svg-examples.spec.ts` and `e2e/svg-templates.spec.ts` import every one of them.
 
 ## Writing a new one
 

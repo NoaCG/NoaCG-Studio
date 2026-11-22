@@ -6,8 +6,8 @@ whole road and not one lower third twenty times.
 
 **This is a design gallery, not the teaching set.** The files here show what the importer can
 read and what a finished design looks like, and their layer trees predate the one naming system.
-The files to copy are `public/docs/examples/` and the SVG examples package
-(`docs/tutorials/svg-examples/`, offered at `/svg-templates#examples`), one per graphic type,
+The files to copy are `public/docs/examples/` and the Template Library
+(`docs/tutorials/template-library/`, offered at `/svg-templates`), one per graphic type,
 each with the three layers `Text`, `Moments` and `Board` and the spellings the public docs teach
 ([`docs/backlog/one-layer-naming-system-for-every-graphic.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-layer-naming-system-for-every-graphic.md)). Import them, learn from them,
 but copy a layer tree from the docs examples. `npm run check:example-layers` holds the docs

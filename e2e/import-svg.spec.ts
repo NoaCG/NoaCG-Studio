@@ -146,7 +146,8 @@ test('svg import: the design step says the workflow in one line and links the ex
   await expect(line).toContainText('choose what it does');
   const examples = line.locator('a[href^="/svg-templates"]');
   await expect(examples).toBeVisible();
-  await expect(examples).toHaveAttribute('href', '/svg-templates#examples');
+  await expect(examples).toHaveAttribute('href', '/svg-templates');
+  await expect(examples).toHaveText('SVG templates');
 
   for (const size of [{ width: 1366, height: 768 }, { width: 1280, height: 800 }]) {
     await page.setViewportSize(size);

@@ -10,7 +10,7 @@ import { dropSvg } from './_svg-import';
 // measured only in the wider fallback it read as right-aligned - on the step (MapSvgFieldsStep,
 // `fontKey`) and in the runtime, which wrote that anchor onto the title (svg.ts, svgRereadAlign).
 const EXAMPLE_TITLE = fileURLToPath(
-  new URL('../docs/tutorials/svg-examples/SVG/title.svg', import.meta.url),
+  new URL('../docs/tutorials/template-library/SVG/title.svg', import.meta.url),
 );
 
 test('svg import: a centred title reads centred on the Fields step, as the graphic centres it', async ({ page, baseURL }) => {

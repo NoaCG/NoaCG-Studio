@@ -1,8 +1,17 @@
-/* THE SVG TEMPLATES PAGE (svg-templates.html, built by scripts/svg-files.mjs). The header, footer
+/* THE TEMPLATE LIBRARY PAGE (svg-templates.html, built by scripts/svg-files.mjs). The header, footer
    and buttons are the site's (src/site-chrome.css), the hero the docs' (src/docs/docs.css); this
-   file adds only the sets and their preview grid. */
+   file adds only the packages and their preview grid. */
 
 .svg-files { padding: 18px 0 80px; }
+
+/* The whole library's zip, then a link to each package. */
+.svg-library-head {
+  display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; margin-bottom: 40px;
+}
+.svg-library-head span { scroll-margin-top: 24px; }
+.svg-package-nav { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.svg-package-nav a { color: var(--amber); text-decoration: none; font-size: 14.5px; }
+.svg-package-nav a:hover { text-decoration: underline; }
 .svg-set { scroll-margin-top: 24px; }
 .svg-set + .svg-set { margin-top: 56px; }
 
@@ -38,9 +47,13 @@
 }
 .svg-get:hover { border-color: color-mix(in srgb, var(--amber) 55%, transparent); }
 .svg-get::before { content: '↓ '; }
+.svg-zip { font-size: 13px; white-space: nowrap; }
 
-/* A PACKAGE tile (svg-template-library D3 prototype): the default preview, then each named state
-   the operator sees, small, with its name under it. */
+/* The catalog designs of the same type, so a reader sees what is already built in (D4). */
+.svg-builtins { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--dim); }
+
+/* A tile: the default preview, then each named state the operator sees, small, with its name
+   under it. */
 .svg-states {
   grid-column: 1 / -1; list-style: none; margin: 0; padding: 0;
   display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));

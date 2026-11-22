@@ -9,7 +9,7 @@ import { isTemplateFile, type ImportedTemplateResult } from '../../../model/impo
 import { declaredFieldLabels, readForeignPackage } from '../../../model/foreignPackage';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 import SectionHead from '../SectionHead';
-import { SVG_EXAMPLES_URL } from '../../../downloads/links';
+import { SVG_TEMPLATES_URL } from '../../../downloads/links';
 
 interface Props {
   art: DesignArt | null;
@@ -294,13 +294,13 @@ export default function ImportDesignStep({
             <span style={{ whiteSpace: 'normal' }}>
               Name your layers, save the SVG, drop it here, then choose what it does.{' '}
               <a
-                href={SVG_EXAMPLES_URL}
+                href={SVG_TEMPLATES_URL}
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: 'inherit' }}
                 data-testid="import-design-examples"
               >
-                Example files
+                SVG templates
               </a>
             </span>
           }

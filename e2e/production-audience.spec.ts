@@ -1672,7 +1672,7 @@ test('the studio QR code decodes to the short link, as SVG and as PNG (AC-5)', a
 // which Take airs with its data. ──
 test('saved Vote results and Message templates are offered in their pickers and each pick stages one working cue (svg-template-library AC-4, AC-10)', async ({ page }) => {
   test.setTimeout(120_000);
-  const template = (slug: string) => fileURLToPath(new URL(`../docs/tutorials/svg-templates/SVG/${slug}.svg`, import.meta.url));
+  const template = (slug: string) => fileURLToPath(new URL(`../docs/tutorials/template-library/SVG/${slug}.svg`, import.meta.url));
   await page.goto('/app');
   await dropSvg(page, template('vote-results'));
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('poll');

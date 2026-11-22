@@ -11,7 +11,7 @@ import { SCORE_SVG, dropSvg, intoProduction } from './_svg-import';
 // and nothing changed on air. The recipe now follows the quiz's rule (behaviours/score.ts): Full
 // time exists only on a board that draws it, and Clear flash only on one that draws a flash.
 
-const EXAMPLE_SCORE = fileURLToPath(new URL('../docs/tutorials/svg-examples/SVG/scoreboard.svg', import.meta.url));
+const EXAMPLE_SCORE = fileURLToPath(new URL('../docs/tutorials/template-library/SVG/scoreboard.svg', import.meta.url));
 
 /** The ⚡ buttons the production page renders for the selected cue, by event id. */
 async function actionEvents(page: Page): Promise<string[]> {

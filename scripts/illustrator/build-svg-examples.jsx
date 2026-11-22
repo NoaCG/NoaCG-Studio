@@ -6,8 +6,12 @@
 // teaches (Text, Moments, Board; src/templates/behaviours/layer-names.json), saves the .ai into
 // Illustrator/, writes the SVG into SVG/ with exportFile(ExportType.SVG), which is the same SVG
 // export plug-in that "File > Save a Copy > SVG" runs, with the settings the NoaCG docs teach, and
-// writes a PNG of every state into Previews/. The package is the one /svg-templates#examples
-// offers (src/downloads/links.ts).
+// writes a PNG of every state into Previews/. They are the Template Library's navy templates now
+// (docs/tutorials/template-library, offered on /svg-templates), and since TL3 of the
+// svg-template-library plan the SVG is their maintained source: this script is kept as the record
+// of how they were drawn. It still writes the old names, and four of them were renamed in the
+// library (lower-third, quiz, end-credits, live-vote gained -navy, previews included), so rename
+// its output the same way before committing a rerun.
 //
 // A graphic with no moments gets NO Moments layer: Illustrator's SVG save drops an empty layer
 // anyway (measured 2026-09-24, the retired owner rulings), so the .ai and the SVG say the same thing.
@@ -15,16 +19,16 @@
 // Run it from Illustrator (File > Scripts > Other Script...) or through COM on Windows:
 //   $ai = New-Object -ComObject Illustrator.Application
 //   $ai.DoJavaScriptFile("<repo>\scripts\illustrator\build-svg-examples.jsx")
-// It writes into docs/tutorials/svg-examples/ and its log to noacg-svg-examples.log in the system
-// temp folder. Then `node scripts/illustrator/pack-svg-examples.mjs` writes the README PDF and the
-// zip. Needs the Oswald family installed (free from Google Fonts).
+// It writes into docs/tutorials/template-library/ and its log to noacg-svg-examples.log in the
+// system temp folder. The build makes the zips (scripts/svg-files.mjs). Needs the Oswald family
+// installed (free from Google Fonts).
 //
 // ExtendScript is ES3: no let, no arrow functions, and non-ASCII text is written as \u escapes
 // because Illustrator reads a script without a byte-order mark as the system code page.
 
 #target illustrator
 var REPO = new File($.fileName).parent.parent.parent;
-var OUT = REPO.fsName + "/docs/tutorials/svg-examples";
+var OUT = REPO.fsName + "/docs/tutorials/template-library";
 var LOG = new File(Folder.temp.fsName + "/noacg-svg-examples.log");
 LOG.encoding = "UTF-8"; LOG.open("w"); LOG.close();
 // Appends and closes every line, so a run that stops half way still says where.
