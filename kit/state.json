@@ -34,17 +34,15 @@
  },
  "waitingOn": [
   {
-   "what": "TL7 checker verdict",
-   "eta": "2026-11-23T08:30:00Z"
+   "what": "owner TL8 report on #2678",
+   "eta": null
   }
  ],
  "inFlight": {
-  "phase": "TL7",
-  "step": "check",
-  "session": "session_017SdbwPfrn1zi5Qyja3BeXq",
-  "nonce": "tl7-c-8ead",
-  "merge": "d636ac355b5ef094606aeaf0e15983b849b4586b",
-  "asOf": "2026-11-23T07:09:54Z"
+  "phase": "TL8",
+  "step": "owner",
+  "handover": "https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7095099105",
+  "asOf": "2026-11-23T08:10:00Z"
  },
  "owner": [
   {
@@ -208,5 +206,12 @@
   "pr": 2720,
   "merge": "d636ac355b5ef094606aeaf0e15983b849b4586b",
   "builder": "session_017SdbwNbFvuBHVuM4ryeyPd"
- }
+ },
+ "ownerItems": [
+  {
+   "phase": "TL8",
+   "what": "one sample per package in Illustrator and on air, the four audience pilots round trip, RTL crawl direction A or B",
+   "handover": "#2678 comment 7095099105"
+  }
+ ]
 }
