@@ -27,6 +27,7 @@ import {
   svgCountdownDrawn,
   styledCreditsOf,
   creditsRollsAll,
+  hasPictureField,
 } from './draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
@@ -49,12 +50,12 @@ import {
   type FillLayer,
   type FillPick,
 } from './fieldAutoMap';
-import { measureLayers } from './stageMeasure';
+import { drawnOutsideArtboard, measureLayers } from './stageMeasure';
 import { ClockFoldPick, targetFormat } from './ClockFold';
 import { CREDITS_CARD_SECONDS } from '../../../templates/behaviours/credits';
 import { CREDITS_RENDERED, creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
 import type { DesignSvgCredits } from '../../../model/wizard';
-import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
+import type { SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
 
 /** The two empty choices every behaviour picker offers, written once. One string rather than
@@ -134,22 +135,7 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * author answers which column holds the roles. The answer changes the preview and the saved
  * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
-/** Whether a drawn element paints anything, the roll's own rule (creditsArtwork.ts
- *  `creditsPaints`): displayed, visible, not transparent, and a shape with a fill or a stroke. */
-function paints(el: Element): boolean {
-  for (let e: Element | null = el; e && e.localName !== 'svg'; e = e.parentElement) {
-    const cs = getComputedStyle(e);
-    if (cs.display === 'none' || parseFloat(cs.opacity) === 0) return false;
-  }
-  const own = getComputedStyle(el);
-  if (own.visibility !== 'visible') return false;
-  if (el.localName === 'image' || el.localName === 'use') return true;
-  const fills = own.fill !== 'none' && parseFloat(own.fillOpacity) !== 0;
-  const strokes = own.stroke !== 'none' && parseFloat(own.strokeOpacity) !== 0 && parseFloat(own.strokeWidth) !== 0;
-  return fills || strokes;
-}
-
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, whole, outside, pictures, onPatch }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, rollsAll, outside, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
@@ -167,11 +153,10 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   /** The author chose cards, and the seconds each holds where stated. */
   cards: boolean;
   advance: number | undefined;
-  /** Fixed artwork only: the author's Rolls answer, the evidence found outside the artboard, and
-   *  whether a picture layer is a field (Rules R8). */
-  whole: boolean | undefined;
+  /** Fixed artwork only: whether everything rolls, as the draft answers it now (`creditsRollsAll`),
+   *  and the drawn-outside evidence the draft holds, which this step measures (Rules R8). */
+  rollsAll: boolean;
   outside: boolean;
-  pictures: boolean;
   onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork' | 'creditsStill' | 'creditsCards' | 'creditsAdvance' | 'creditsWhole' | 'creditsOutside'>) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
@@ -193,29 +178,12 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   // Whether anything other than the credits text is drawn outside the artboard: only a whole roll
   // can bring it on screen, so it is the drawing's case for rolling everything (Rules R8).
   const anchorKey = shown?.styled ? shown.anchors.map((a) => a.candidateId).join('\n') : '';
-  const drawnOutside = useMemo(() => {
-    const root = stage.current?.querySelector('svg');
-    if (!root) return false;
-    const textOf = (id: string) => root.querySelector(`[${SVG_CANDIDATE_ATTR}="${id}"]`)?.closest('text') ?? null;
-    const block = new Set([creditsId, ...anchorKey.split('\n').filter(Boolean)].map(textOf).filter((t): t is SVGTextElement => !!t));
-    const frame = root.getBoundingClientRect();
-    // A few pixels of bleed is drawing, not content: only a clear step past the edge counts.
-    const bleed = Math.max(2, frame.height * 0.02);
-    for (const el of Array.from(root.querySelectorAll('text, image, rect, path, circle, ellipse, line, polyline, polygon, use'))) {
-      if (el.closest('defs, clipPath, mask, pattern, marker, symbol')) continue;
-      const text = el.closest('text');
-      if (text && block.has(text)) continue;
-      if (!paints(el)) continue;
-      const box = el.getBoundingClientRect();
-      if (!(box.width > 0 || box.height > 0)) continue;
-      // A backdrop covering the whole artboard stays put whichever way the file is read.
-      if (box.left <= frame.left + bleed && box.right >= frame.right - bleed && box.top <= frame.top + bleed && box.bottom >= frame.bottom - bleed) continue;
-      if (box.bottom > frame.bottom + bleed || box.top < frame.top - bleed) return true;
-    }
-    return false;
+  const drawnOutside = useMemo(
+    () => (stage.current ? drawnOutsideArtboard(stage.current, [creditsId, ...anchorKey.split('\n').filter(Boolean)]) : false),
     // `measured` stands for the stage's render, as above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, creditsId, anchorKey, measured]);
+    [stage, creditsId, anchorKey, measured],
+  );
   useEffect(() => {
     if (drawnOutside !== outside) onPatch({ creditsOutside: drawnOutside ? true : undefined });
     // The callback is the parent's patch of this render.
@@ -247,7 +215,6 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const artwork = !!reading && fixed;
   // Fixed artwork either way - by the author's choice or because the drawing cannot be styled.
   const fixedArtwork = !reading || fixed;
-  const rollsAll = creditsRollsAll({ creditsWhole: whole, creditsOutside: outside ? true : undefined }, pictures);
   return (
     <>
       {reading && (
@@ -1539,9 +1506,8 @@ export default function BehaviourSection({
                   still={!!generic.creditsStill}
                   cards={!!generic.creditsCards}
                   advance={generic.creditsAdvance}
-                  whole={generic.creditsWhole}
+                  rollsAll={creditsRollsAll(generic, hasPictureField(draft))}
                   outside={!!generic.creditsOutside}
-                  pictures={draft.svgImages.some((f) => f.on)}
                   onPatch={patchGeneric}
                 />
               )}

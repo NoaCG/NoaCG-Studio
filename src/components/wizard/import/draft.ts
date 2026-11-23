@@ -310,6 +310,11 @@ export interface SvgRecipeDraft {
  *  drawing's evidence that more than the text belongs to the roll - a picture layer that is a
  *  field, or something drawn outside the artboard (Rules R8,
  *  docs/work-specs/svg-template-library/evidence/full-roll.md). */
+/** Whether a picture layer of the drawing is an operator field: half of R8's evidence. */
+export function hasPictureField(draft: Pick<SvgImportDraft, 'svgImages'>): boolean {
+  return draft.svgImages.some((f) => f.on);
+}
+
 export function creditsRollsAll(behaviour: Pick<SvgRecipeDraft, 'creditsWhole' | 'creditsOutside'>, pictures: boolean): boolean {
   return behaviour.creditsWhole ?? (pictures || !!behaviour.creditsOutside);
 }
@@ -1480,7 +1485,7 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
     const styled = styledCreditsOf(behaviour);
     // Fixed-artwork credits only: the whole file rolls as one picture (Rules R8). Additive, so an
     // answer of the credits text saves the binding it always did.
-    const wholeArtwork = behaviour.recipe === 'credits' && creditsRollsAll(behaviour, draft.svgImages.some((f) => f.on)) ? { wholeArtwork: true as const } : {};
+    const wholeArtwork = creditsRollsAll(behaviour, hasPictureField(draft)) ? { wholeArtwork: true as const } : {};
     return {
       kind: 'recipe',
       recipe: behaviour.recipe,

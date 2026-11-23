@@ -232,6 +232,12 @@ else creditsArtwork();
 `;
 }
 
+/** What a whole-artwork roll measures: every element that can draw, outside what only defines
+ *  (gradients, clips, masks, patterns, markers, symbols). Shared with the import step's own mirror
+ *  of the rule (components/wizard/import/stageMeasure.ts `drawnOutsideArtboard`). */
+export const CREDITS_DRAWN_SELECTOR = 'text, image, rect, path, circle, ellipse, line, polyline, polygon, use, foreignObject';
+export const CREDITS_DEFINES_SELECTOR = 'defs, clipPath, mask, pattern, marker, symbol';
+
 /** THE WHOLE ARTWORK ROLLS (`DesignSvgRecipeBehaviour.wholeArtwork`; the Rules are
  *  docs/work-specs/svg-template-library/evidence/full-roll.md). Everything the file draws moves as
  *  one picture: one wrapper around every drawing child of the artwork's root `<svg>`, one tween,
@@ -281,36 +287,37 @@ function creditsArtwork() {
   return { root: root, travel: travel };
 }
 
-// Whether an element paints anything: displayed, visible, not transparent, and for a shape a fill
-// or a stroke that shows. Visibility is inherited, so the element's own value answers for its
-// ancestors. A transparent hit area (fill-opacity 0) paints nothing.
+// The element's own computed style when it paints anything, else null: displayed, visible, not
+// transparent, and for a shape a fill or a stroke that shows. Visibility is inherited, so the
+// element's own value answers for its ancestors. A transparent hit area (fill-opacity 0) paints
+// nothing.
 function creditsPaints(node, travel) {
   for (var e = node; e && e !== travel; e = e.parentNode) {
     var cs = getComputedStyle(e);
-    if (cs.display === 'none' || parseFloat(cs.opacity) === 0) return false;
+    if (cs.display === 'none' || parseFloat(cs.opacity) === 0) return null;
   }
   var own = getComputedStyle(node);
-  if (own.visibility !== 'visible') return false;
+  if (own.visibility !== 'visible') return null;
   var tag = node.localName;
-  if (tag === 'image' || tag === 'use' || tag === 'foreignObject') return true;
+  if (tag === 'image' || tag === 'use' || tag === 'foreignObject') return own;
   var fills = own.fill !== 'none' && parseFloat(own.fillOpacity) !== 0;
   var strokes = own.stroke !== 'none' && parseFloat(own.strokeOpacity) !== 0 && parseFloat(own.strokeWidth) !== 0;
-  return fills || strokes;
+  return fills || strokes ? own : null;
 }
 
 // The screen top and bottom of everything the wrapper paints, or null.
 function creditsPaintedBox(travel) {
-  var nodes = travel.querySelectorAll('text, image, rect, path, circle, ellipse, line, polyline, polygon, use, foreignObject');
+  var nodes = travel.querySelectorAll('${CREDITS_DRAWN_SELECTOR}');
   var top = Infinity;
   var bottom = -Infinity;
   for (var i = 0; i < nodes.length; i++) {
     var n = nodes[i];
-    if (n.closest('defs, clipPath, mask, pattern, marker, symbol')) continue;
-    if (!creditsPaints(n, travel)) continue;
+    if (n.closest('${CREDITS_DEFINES_SELECTOR}')) continue;
     var box = n.getBoundingClientRect();
     // A flat rule has no height but paints; a stroke paints half its width outside the box.
     if (!(box.height > 0 || box.width > 0)) continue;
-    var style = getComputedStyle(n);
+    var style = creditsPaints(n, travel);
+    if (!style) continue;
     var m = n.getScreenCTM && n.getScreenCTM();
     var pad = style.stroke !== 'none' && m ? parseFloat(style.strokeWidth) / 2 * Math.sqrt(m.c * m.c + m.d * m.d) : 0;
     if (!(pad > 0)) pad = 0;
@@ -328,8 +335,9 @@ function creditsLiveSpeed() {
   return Math.min(400, Math.max(10, percent)) / 100 * (typeof motionSpeed === 'function' ? motionSpeed() : 1);
 }
 
-// Invalidate a take still waiting for fonts as well as a take already moving; the pose stays.
-function creditsHalt() {
+// Out, and the start of every take and snap: invalidate a take still waiting for fonts as well as
+// a take already moving. The pose stays, so the graphic's own Out plays over the frozen roll.
+function stopCreditsRoll() {
   noacgCreditsGeneration++;
   if (noacgCreditsStart) noacgCreditsStart.kill();
   noacgCreditsStart = null;
@@ -340,13 +348,8 @@ function creditsHalt() {
   return artwork;
 }
 
-// Out: the roll stops where it is, and the graphic's own Out plays over it.
-function stopCreditsRoll() {
-  creditsHalt();
-}
-
 function noacgCreditsRoll() {
-  var held = creditsHalt();
+  var held = stopCreditsRoll();
   if (held) held.travel.setAttribute('data-noacg-stopped', '');
   noacgCreditsLast = null;
   var generation = noacgCreditsGeneration;
@@ -388,16 +391,19 @@ function noacgCreditsRoll() {
     };
     noacgCreditsTween = gsap.to(position, { y: endY, duration: duration, ease: 'none', onUpdate: paint });
   };
+  // The In's actual GSAP playheads are authoritative: on the wrapper's ancestors (the box) and on
+  // every wrapped element (a staggered In moves the layers one by one). Listed once per take.
+  var targets = null;
   var afterEntrance = function () {
     if (generation !== noacgCreditsGeneration) return;
-    var artwork = creditsArtwork();
-    if (!artwork) return;
-    // The In's actual GSAP playheads are authoritative: on the wrapper's ancestors (the box) and on
-    // every wrapped element (a staggered In moves the layers one by one).
-    var targets = [];
-    for (var node = artwork.travel; node; node = node.parentElement) targets.push(node);
-    var inner = artwork.travel.querySelectorAll('*');
-    for (var k = 0; k < inner.length; k++) targets.push(inner[k]);
+    if (!targets) {
+      var artwork = creditsArtwork();
+      if (!artwork) return;
+      targets = [];
+      for (var node = artwork.travel; node; node = node.parentElement) targets.push(node);
+      var inner = artwork.travel.querySelectorAll('*');
+      for (var k = 0; k < inner.length; k++) targets.push(inner[k]);
+    }
     var tweens = gsap.getTweensOf(targets, true);
     for (var i = 0; i < tweens.length; i++) {
       var span = tweens[i].totalDuration();
@@ -423,7 +429,9 @@ function creditsDataUpdated() {
   if (noacgCreditsTween) noacgCreditsTween.timeScale(creditsLiveSpeed() / noacgCreditsBuiltAt);
 }
 
-// The fit ladder measures the artwork at rest, never where the roll has moved it (R11).
+// The fit ladder measures the artwork at rest, never where the roll has moved it (R11). Both doors
+// are wrapped: refitSvgText re-measures (and reaches fitSvgText already at rest), while a data
+// write calls fitSvgText alone.
 function creditsFitAtRest(fit) {
   return function () {
     var artwork = creditsArtwork();
@@ -440,7 +448,7 @@ if (typeof refitSvgText === 'function') refitSvgText = creditsFitAtRest(refitSvg
 if (typeof noacgSnap === 'function') {
   var noacgCreditsWholeSnapOf = noacgSnap;
   noacgSnap = function (assignments, opts) {
-    var artwork = creditsHalt();
+    var artwork = stopCreditsRoll();
     if (artwork) {
       artwork.travel.removeAttribute('transform');
       artwork.travel.removeAttribute('data-noacg-stopped');
