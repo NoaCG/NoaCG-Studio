@@ -26,6 +26,8 @@ import {
   svgClockTarget,
   svgCountdownDrawn,
   styledCreditsOf,
+  creditsRollsAll,
+  hasPictureField,
 } from './draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
@@ -48,7 +50,7 @@ import {
   type FillLayer,
   type FillPick,
 } from './fieldAutoMap';
-import { measureLayers } from './stageMeasure';
+import { drawnOutsideArtboard, measureLayers } from './stageMeasure';
 import { ClockFoldPick, targetFormat } from './ClockFold';
 import { CREDITS_CARD_SECONDS } from '../../../templates/behaviours/credits';
 import { CREDITS_RENDERED, creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
@@ -138,7 +140,7 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * author answers which column holds the roles. The answer changes the preview and the saved
  * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, onPatch }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, rollsAll, outside, placedLines, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
@@ -156,7 +158,14 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   /** The author chose cards, and the seconds each holds where stated. */
   cards: boolean;
   advance: number | undefined;
-  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork' | 'creditsStill' | 'creditsCards' | 'creditsAdvance'>) => void;
+  /** Fixed artwork only: whether everything rolls, as the draft answers it now (`creditsRollsAll`),
+   *  and the drawn-outside evidence the draft holds, which this step measures (Rules R8). */
+  rollsAll: boolean;
+  outside: boolean;
+  /** Texts drawn as outlines and given a live field: they stand in place over the artwork, outside
+   *  the SVG, so they do not roll with everything else (said where the choice is made). */
+  placedLines: boolean;
+  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork' | 'creditsStill' | 'creditsCards' | 'creditsAdvance' | 'creditsWhole' | 'creditsOutside'>) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
@@ -174,6 +183,20 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const key = (p: CreditsPreview) => (p.styled ? JSON.stringify(p.anchors) : '');
   const asks = !!readings?.swapped && (readings.read.styled || readings.swapped.styled) && key(readings.read) !== key(readings.swapped);
   const shown = readings ? (swap && asks && readings.swapped ? readings.swapped : readings.read) : null;
+  // Whether anything other than the credits text is drawn outside the artboard: only a whole roll
+  // can bring it on screen, so it is the drawing's case for rolling everything (Rules R8).
+  const anchorKey = shown?.styled ? shown.anchors.map((a) => a.candidateId).join('\n') : '';
+  const drawnOutside = useMemo(
+    () => (stage.current ? drawnOutsideArtboard(stage.current, [creditsId, ...anchorKey.split('\n').filter(Boolean)]) : false),
+    // `measured` stands for the stage's render, as above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stage, creditsId, anchorKey, measured],
+  );
+  useEffect(() => {
+    if (drawnOutside !== outside) onPatch({ creditsOutside: drawnOutside ? true : undefined });
+    // The callback is the parent's patch of this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawnOutside, outside]);
   const reading = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll') ? shown : null;
   const stills = !!reading && CREDITS_RENDERED[reading.layout].includes('static');
   const decks = !!reading && CREDITS_RENDERED[reading.layout].includes('cards');
@@ -198,6 +221,8 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const rtl = readings?.read.rtl ?? false;
   // Only credits that can be styled offer the choice; the one that cannot is fixed artwork anyway.
   const artwork = !!reading && fixed;
+  // Fixed artwork either way - by the author's choice or because the drawing cannot be styled.
+  const fixedArtwork = !reading || fixed;
   return (
     <>
       {reading && (
@@ -211,6 +236,16 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
             <option value="editable">Editable, in this design&apos;s styling</option>
             <option value="artwork">Fixed artwork</option>
           </select>
+        </label>
+      )}
+      {fixedArtwork && (
+        <label className="save-field">
+          <span>Rolls</span>
+          <select value={rollsAll ? 'all' : 'text'} onChange={(e) => onPatch({ creditsWhole: e.target.value === 'all' })} data-testid="map-svg-credits-rolls">
+            <option value="text">The credits text</option>
+            <option value="all">Everything in the file</option>
+          </select>
+          {rollsAll && placedLines && <span className="hint" data-testid="map-svg-credits-rolls-placed">Text drawn as outlines and made a field stays in place.</span>}
         </label>
       )}
       {stills && !artwork && (
@@ -1472,6 +1507,9 @@ export default function BehaviourSection({
                   still={!!generic.creditsStill}
                   cards={!!generic.creditsCards}
                   advance={generic.creditsAdvance}
+                  rollsAll={creditsRollsAll(generic, hasPictureField(draft))}
+                  outside={!!generic.creditsOutside}
+                  placedLines={draft.svgOutlines.some((f) => f.on)}
                   onPatch={patchGeneric}
                 />
               )}

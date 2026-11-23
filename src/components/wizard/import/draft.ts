@@ -305,6 +305,25 @@ export interface SvgRecipeDraft {
    *  seconds each card holds (`advance`); absent, a card changes on the operator's Next card. */
   creditsCards?: true;
   creditsAdvance?: number;
+  /** Credits only, as fixed artwork: the author's Rolls answer - everything in the file (true) or
+   *  the credits text (false). Absent, the drawing decides (`creditsRollsAll`). */
+  creditsWhole?: boolean;
+  /** Credits only: the Fields step found something other than the Credits text drawn outside the
+   *  artboard, which only a whole roll can show (`CreditsListPreview`). */
+  creditsOutside?: true;
+}
+
+/** Whether fixed-artwork credits roll everything in the file: the author's answer, or else the
+ *  drawing's evidence that more than the text belongs to the roll - a picture layer that is a
+ *  field, or something drawn outside the artboard (Rules R8,
+ *  docs/work-specs/svg-template-library/evidence/full-roll.md). */
+/** Whether a picture layer of the drawing is an operator field: half of R8's evidence. */
+export function hasPictureField(draft: Pick<SvgImportDraft, 'svgImages'>): boolean {
+  return draft.svgImages.some((f) => f.on);
+}
+
+export function creditsRollsAll(behaviour: Pick<SvgRecipeDraft, 'creditsWhole' | 'creditsOutside'>, pictures: boolean): boolean {
+  return behaviour.creditsWhole ?? (pictures || !!behaviour.creditsOutside);
 }
 
 export interface SvgRecipeRow {
@@ -1511,6 +1530,9 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       ...perRow((row) => Object.fromEntries(Object.entries(picked(row.fields)).map(([role, id]) => [role, indexOf(id)]))),
     };
     const styled = styledCreditsOf(behaviour);
+    // Fixed-artwork credits only: the whole file rolls as one picture (Rules R8). Additive, so an
+    // answer of the credits text saves the binding it always did.
+    const wholeArtwork = creditsRollsAll(behaviour, hasPictureField(draft)) ? { wholeArtwork: true as const } : {};
     return {
       kind: 'recipe',
       recipe: behaviour.recipe,
@@ -1526,9 +1548,9 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       ...(styled && !behaviour.creditsArtwork
         ? { credits: styled, ...(Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}) }
         : styled
-        ? { options: { ...behaviour.options, artwork: true }, artworkLayers: styled.anchors.map((a) => a.candidateId).filter((id) => id !== behaviour.fields?.credits) }
+        ? { options: { ...behaviour.options, artwork: true }, artworkLayers: styled.anchors.map((a) => a.candidateId).filter((id) => id !== behaviour.fields?.credits), ...wholeArtwork }
         : behaviour.recipe === 'credits'
-        ? { options: { ...behaviour.options, artwork: true } }
+        ? { options: { ...behaviour.options, artwork: true }, ...wholeArtwork }
         : Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
     };
   }

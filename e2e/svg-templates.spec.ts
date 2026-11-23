@@ -156,8 +156,10 @@ async function scoreLayer(air: FrameLocator, row: string) {
 
 /** The credits forms the studio set draws, each with the layout the import reads and the
  *  playback the author picks in the import step (recorded as author choice in library.json). */
-const CREDIT_FORMS: Record<string, { layout: 'role-above' | 'role-beside'; playback: 'roll' | 'static' | 'cards' }> = {
+const CREDIT_FORMS: Record<string, { layout: 'role-above' | 'role-beside' | 'list'; playback: 'roll' | 'static' | 'cards'; whole?: true }> = {
   'end-credits': { layout: 'role-above', playback: 'roll' },
+  // One text object, fixed artwork, with its logos and plate: the whole file rolls as one picture.
+  'end-credits-full-roll': { layout: 'list', playback: 'roll', whole: true },
   'end-credits-columns': { layout: 'role-beside', playback: 'roll' },
   'end-credits-pager': { layout: 'role-above', playback: 'cards' },
   'end-credits-static': { layout: 'role-beside', playback: 'static' },
@@ -202,7 +204,11 @@ async function importTemplate(page: Page, t: Template) {
   await expect(page.getByTestId('map-svg-fields')).toBeVisible();
   if (t.recipe === 'credits') {
     const form = CREDIT_FORMS[t.slug];
-    await expect(page.getByTestId('map-svg-credits-engine')).toHaveValue('editable');
+    if (form.whole) {
+      // Fixed artwork by its drawing; its picture fields make Everything in the file the default.
+      await expect(page.getByTestId('map-svg-credits-engine')).toHaveCount(0);
+      await expect(page.getByTestId('map-svg-credits-rolls')).toHaveValue('all');
+    } else await expect(page.getByTestId('map-svg-credits-engine')).toHaveValue('editable');
     await expect(page.getByTestId('map-svg-credits-preview')).toHaveAttribute('data-layout', form.layout);
     await expect(page.getByTestId('map-svg-credits-list')).toContainText('Alex Rivera');
     // A still board or a deck of pages is the author's choice in the import step.
@@ -324,6 +330,51 @@ async function walkChoice(page: Page, air: FrameLocator, t: Template, name: stri
   }
 }
 
+/** THE FULL ROLL (owner 2026-11-23): everything the file draws rolls as one picture. At eleven
+ *  points of the roll the frame is clean, the logos and the plate keep their distance to the
+ *  credits text, the roll starts wholly below the frame and ends wholly above it, and a logo the
+ *  operator replaces mid-roll keeps rolling with the rest. */
+async function rollsWhole(page: Page, air: FrameLocator, t: Template): Promise<void> {
+  const root = air.locator('svg').first();
+  await expect.poll(() => root.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+  const at = (share: number) => root.evaluate((svg, p) => {
+    const tween = (window as unknown as { noacgCreditsTween: { pause(): void; progress(v: number): void } }).noacgCreditsTween;
+    tween.pause();
+    tween.progress(p);
+    const art = svg.closest('svg') as SVGSVGElement;
+    const box = (el: Element) => { const b = el.getBoundingClientRect(); return { top: b.top, bottom: b.bottom }; };
+    const images = [...art.querySelectorAll('image')];
+    return { frame: box(document.body), logo: box(images[0]), endLogo: box(images[1]), panel: box(art.querySelector('[id="Panel"]')!), text: box(art.querySelector('.imported-design-credits')!) };
+  }, share);
+  const poses = [];
+  for (let k = 0; k <= 10; k++) {
+    poses.push(await at(k / 10));
+    expect(await airProblems(air), `the full roll at ${k * 10}%`).toEqual([]);
+    if (SHOTS && k % 2 === 1) await page.getByTestId('program-stage').screenshot({ path: `${SHOTS}/${t.slug}-roll-${k * 10}.png` });
+  }
+  const [first, last] = [poses[0], poses[10]];
+  expect(first.panel.top, 'nothing shows before the roll').toBeGreaterThanOrEqual(first.frame.bottom - 1);
+  expect(last.panel.bottom, 'nothing is left when it ends').toBeLessThanOrEqual(last.frame.top + 1);
+  for (const pose of poses) {
+    for (const part of ['logo', 'endLogo', 'panel'] as const) {
+      expect(Math.abs((pose[part].top - pose.text.top) - (first[part].top - first.text.top)), `${part} moves with the text`).toBeLessThan(1);
+    }
+  }
+  for (let k = 1; k < poses.length; k++) expect(poses[k].text.top, 'the roll moves up').toBeLessThan(poses[k - 1].text.top);
+  // A logo replaced on air, mid-roll, rides the roll; the roll does not restart.
+  await at(0.5);
+  const id = await fieldFor(air, 'Logo');
+  const sent = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#e5484d"/></svg>').toString('base64');
+  const swap = await root.evaluate((_, v) => {
+    const w = window as unknown as { noacgCreditsTween: unknown; update(raw: string): void };
+    const tween = w.noacgCreditsTween;
+    w.update(JSON.stringify({ [v.id]: v.sent }));
+    return { same: w.noacgCreditsTween === tween, rides: !!document.getElementById(v.id)?.closest('.imported-design-credits-travel') };
+  }, { id, sent });
+  expect(swap).toEqual({ same: true, rides: true });
+  await expect(air.locator(`image[id="${id}"]`)).toHaveAttribute('href', sent);
+}
+
 /** One template through the door, onto air, through its controls and off again. */
 async function runTemplate(page: Page, browser: Browser, t: Template): Promise<void> {
   const errors: string[] = [];
@@ -333,7 +384,7 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
   const form = CREDIT_FORMS[t.slug];
   // The list in the README's own format: the show title first, then a role and its names on
   // one line, commas between names. A blank line starts a new page.
-  if (t.recipe === 'credits') {
+  if (t.recipe === 'credits' && !form.whole) {
     const list = form.playback === 'cards'
       ? 'Night Quiz\nDirector: Casey Hill\nCamera: Robin Vale, Ari Moss\n\nSound: Jo Berg'
       : 'Night Quiz\nDirector: Casey Hill\nCamera: Robin Vale, Ari Moss\nSound: Jo Berg';
@@ -1035,6 +1086,10 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       break;
     }
     case 'credits': {
+      if (form.whole) {
+        await rollsWhole(page, air, t);
+        break;
+      }
       // The first line is the show title, in the drawn title's look; the title is no field of its own.
       expect(await air.locator('svg').first().evaluate(() => (window as unknown as { SPXGCTemplateDefinition: { DataFields: { title: string }[] } }).SPXGCTemplateDefinition.DataFields.map((f) => f.title))).not.toContain('Heading');
       const rowsOnAir = air.locator('.imported-design-credits-row');
@@ -1120,20 +1175,20 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
 }
 
 /** Every export target's package of a production's first graphic, as text files by path. */
-async function exportPackages(page: Page, production: string, sampleData: Record<string, string>): Promise<Record<string, Record<string, string>>> {
-  return page.evaluate(async ({ production, sampleData }) => {
+async function exportPackages(page: Page, production: string, sampleData: Record<string, string>, graphicUsage: 'both' | 'live' = 'both'): Promise<Record<string, Record<string, string>>> {
+  return page.evaluate(async ({ production, sampleData, graphicUsage }) => {
     const shows = await __noacgImport('/src/model/shows.ts');
     const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
     const template = shows.loadShows().find((s: { name: string }) => s.name === production)!.graphics[0].template;
     const out: Record<string, Record<string, string>> = {};
     for (const target of EXPORT_TARGETS) {
-      const zip = await target.build(template, { sampleData, graphicUsage: 'both' });
+      const zip = await target.build(template, { sampleData, graphicUsage });
       const files: Record<string, string> = {};
       for (const name of Object.keys(zip.files)) if (!zip.files[name].dir && /\.(html|js|mjs|css|json)$/.test(name)) files[name] = await zip.file(name)!.async('string');
       out[target.id] = files;
     }
     return out;
-  }, { production, sampleData });
+  }, { production, sampleData, graphicUsage });
 }
 
 /** One package's graphic page with its own css and js inlined, as its folder would serve it. */
@@ -1602,6 +1657,8 @@ type Host = {
   left(name: string): Promise<number | null>;
   /** The text of the first element a selector finds, or null. */
   textOf(selector: string): Promise<string | null>;
+  /** The screen top of the first element each selector finds, or null where it finds none. */
+  tops(selectors: string[]): Promise<(number | null)[]>;
   update(d: Record<string, string>): Promise<void>;
   event(name: string): Promise<void>;
   close(): Promise<void>;
@@ -1636,6 +1693,7 @@ async function packageHost(page: Page, context: BrowserContext, id: string, file
         return el ? ((el.parentNode as SVGGElement).transform?.baseVal.consolidate()?.matrix.e ?? 0) : null;
       }, { tag, name }),
       textOf: (selector) => page.evaluate(({ tag, selector }) => graphicBody(document.getElementById(tag)!).querySelector(selector)?.textContent?.trim() ?? null, { tag, selector }),
+      tops: (selectors) => page.evaluate(({ tag, selectors }) => selectors.map((q) => graphicBody(document.getElementById(tag)!).querySelector(q)?.getBoundingClientRect().top ?? null), { tag, selectors }),
       update: (d) => page.evaluate(({ tag, d }) => (document.getElementById(tag) as El).updateAction({ data: d }).then(() => undefined), { tag, d }),
       event: (name) => page.evaluate(({ tag, name }) => (document.getElementById(tag) as El).customAction({ id: name, payload: {} }).then(() => undefined), { tag, name }),
       close: () => page.evaluate((tag) => (document.getElementById(tag) as El).dispose().then(() => undefined), tag),
@@ -1660,6 +1718,7 @@ async function packageHost(page: Page, context: BrowserContext, id: string, file
       return el ? ((el.parentNode as SVGGElement).transform?.baseVal.consolidate()?.matrix.e ?? 0) : null;
     }, name),
     textOf: (selector) => view.evaluate((selector) => document.querySelector(selector)?.textContent?.trim() ?? null, selector),
+    tops: (selectors) => view.evaluate((selectors) => selectors.map((q) => document.querySelector(q)?.getBoundingClientRect().top ?? null), selectors),
     update: (d) => w('update', JSON.stringify(d)),
     event: (name) => w('noacgDispatch', name),
     close: () => view.close(),
@@ -1835,6 +1894,36 @@ test('Ticker crawl and Word cloud: the crawl travels and the staged words fill t
       await h.update({ [cloud.ids.Words]: 'Calm | 1' });
       await expect.poll(() => h.lit(slots), { message: `${id}: one word as data` }).toEqual(['word/1']);
     }
+    await h.close();
+  }
+});
+
+// THE FULL ROLL IN EVERY EXPORT TARGET (owner 2026-11-23): the whole artwork rolls, the logo riding
+// the credits text, in every host. The roll starts once the In and the fonts have settled; OGraf
+// plays it in real time (its non-real-time gate refuses imported credits, as before).
+test('End credits, full roll: the whole artwork rolls, logo and text together, in every export target', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const roll = await prepareExport(page, 'end-credits-full-roll', ['Logo']);
+  // Built for live use: OGraf refuses imported credits for post-production (the gate, unchanged).
+  const packages = await exportPackages(page, roll.production, {}, 'live');
+  const parts = ['image', '.imported-design-credits'];
+  for (const id of EXPORT_IDS) {
+    const h = await packageHost(page, context, id, packages[id], {});
+    const sample = async () => {
+      const [logo, text] = await h.tops(parts);
+      return logo === null || text === null ? null : { logo, text };
+    };
+    // Two samples a moment apart: once the roll runs, everything has moved up by the same amount.
+    let pair: { a: { logo: number; text: number }; b: { logo: number; text: number } } | null = null;
+    await expect.poll(async () => {
+      const a = await sample();
+      await page.waitForTimeout(250);
+      const b = await sample();
+      pair = a && b ? { a, b } : null;
+      return pair ? pair.a.text - pair.b.text : 0;
+    }, { message: `${id}: it rolls up` }).toBeGreaterThan(5);
+    const { a, b } = pair!;
+    expect(Math.abs((b.logo - b.text) - (a.logo - a.text)), `${id}: the logo rides the text`).toBeLessThan(1);
     await h.close();
   }
 });

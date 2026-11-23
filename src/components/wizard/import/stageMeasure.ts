@@ -26,6 +26,7 @@ import { parseCssColor } from '../../../model/cssVars';
 import { transformedBox } from '../../../assets/svgGeometry';
 import { PANEL_SAFE, SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_BACKPLATE_SHARE, SVG_LINE_HEIGHT, isSvgFigure } from '../../../templates/importedDesign/svg';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
+import { CREDITS_DEFINES_SELECTOR, CREDITS_DRAWN_SELECTOR } from '../../../templates/importedDesign/creditsArtwork';
 import type { DesignSvgAlign } from '../../../templates/importedDesign/designTypes';
 import type { PreviewBoxOverlay } from '../WizardPreview';
 import type { SvgOutlineDraft } from './draft';
@@ -42,6 +43,49 @@ export function isTextLayer(svg: SvgImportResult | null, id: string): boolean {
  *  Written once because three of them ask the same question of the same stage. */
 function markerEl(stage: HTMLElement, id: string): Element | null {
   return stage.querySelector(`[${SVG_CANDIDATE_ATTR}="${id}"]`);
+}
+
+/** Whether a drawn element paints anything: `creditsPaints` in the whole-artwork roll
+ *  (templates/importedDesign/creditsArtwork.ts) - displayed, visible, not transparent, and a shape
+ *  with a fill or a stroke that shows. */
+function creditsPaints(el: Element): boolean {
+  for (let e: Element | null = el; e && e.localName !== 'svg'; e = e.parentElement) {
+    const cs = getComputedStyle(e);
+    if (cs.display === 'none' || parseFloat(cs.opacity) === 0) return false;
+  }
+  const own = getComputedStyle(el);
+  if (own.visibility !== 'visible') return false;
+  if (el.localName === 'image' || el.localName === 'use' || el.localName === 'foreignObject') return true;
+  const fills = own.fill !== 'none' && parseFloat(own.fillOpacity) !== 0;
+  const strokes = own.stroke !== 'none' && parseFloat(own.strokeOpacity) !== 0 && parseFloat(own.strokeWidth) !== 0;
+  return fills || strokes;
+}
+
+/**
+ * WHETHER ANYTHING BUT THE CREDITS IS DRAWN OFF THE ARTBOARD: the drawing's case for rolling the
+ * whole artwork (Rules R8, docs/work-specs/svg-template-library/evidence/full-roll.md), since only a
+ * whole roll can bring it on screen. `credits` are the candidate ids of the credits text layers,
+ * which may run past the artboard on their own. Read as the roll reads it, what PAINTS, so no
+ * hiding is lifted: a hidden moment does not roll in. A backdrop covering the whole artboard and a
+ * few pixels of bleed are drawing, not content.
+ */
+export function drawnOutsideArtboard(stage: HTMLElement, credits: string[]): boolean {
+  const root = stage.querySelector('svg');
+  if (!root) return false;
+  const block = new Set(credits.map((id) => markerEl(stage, id)?.closest('text')).filter((t): t is SVGTextElement => !!t));
+  const frame = root.getBoundingClientRect();
+  const bleed = Math.max(2, frame.height * 0.02);
+  for (const el of Array.from(root.querySelectorAll(CREDITS_DRAWN_SELECTOR))) {
+    const box = el.getBoundingClientRect();
+    if (!(box.width > 0 || box.height > 0)) continue;
+    if (box.bottom <= frame.bottom + bleed && box.top >= frame.top - bleed) continue;
+    if (box.left <= frame.left + bleed && box.right >= frame.right - bleed && box.top <= frame.top + bleed && box.bottom >= frame.bottom - bleed) continue;
+    if (el.closest(CREDITS_DEFINES_SELECTOR)) continue;
+    const text = el.closest('text');
+    if (text && block.has(text)) continue;
+    if (creditsPaints(el)) return true;
+  }
+  return false;
 }
 
 /** The largest painted shape's fill inside a layer - the colour a reader would say it is. */

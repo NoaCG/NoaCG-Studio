@@ -180,6 +180,11 @@ export interface DesignSvgRecipeBehaviour {
    *  separate layers, kept as fixed artwork by the author's choice. ADDITIVE: absent, the Credits
    *  text scrolls alone, exactly as saved. */
   artworkLayers?: string[];
+  /** The credits recipe with `options.artwork` only: EVERYTHING the file draws rolls as one
+   *  picture (texts, pictures, shapes, groups), not the Credits text alone - the owner's "a
+   *  template that scrolls anything that is in the svg" (2026-11-23). ADDITIVE: absent, the Credits
+   *  text (and `artworkLayers`) roll exactly as saved. */
+  wholeArtwork?: true;
 }
 
 /**

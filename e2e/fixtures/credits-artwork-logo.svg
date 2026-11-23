@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <!-- credits-artwork.svg with an end logo drawn below the artboard as plain shapes, no picture
+       field: the owner's "you add a logo, and it's not in the text layer" (2026-11-23), and a word
+       drawn as outlines, which the import can turn into a field that stands in place. -->
+  <defs><style>
+    .credit-body { font-family: Inter; font-size: 42px; fill: #fff; }
+    .credit-heading { font-size: 58px; font-weight: 700; fill: #ffcb45; letter-spacing: 3px; }
+    .credit-small { font-size: 30px; fill: #b8c9e0; }
+  </style></defs>
+  <g id="Text" transform="translate(90 30)">
+    <g transform="translate(110 15) scale(.9 1.1)">
+      <text id="Programme_text" data-name="Programme text" class="credit-body" text-anchor="middle" transform="translate(820 85)"><tspan class="credit-heading" x="0" y="0">NIGHT SKY</tspan><tspan class="credit-small" x="0" y="95">A community film</tspan><tspan x="-24" y="220">Avery Kwon</tspan><tspan font-style="italic" xml:space="preserve" x="32" y="285">Jordan
+  Hale</tspan><tspan class="credit-heading" x="0" y="470">Made together</tspan><tspan x="0" y="560">Morgan El-Sayed</tspan><tspan x="0" y="620">Alexis Rivera</tspan><tspan x="0" y="680">Remi Laurent</tspan><tspan class="credit-small" x="-18" y="850">Recorded beside the river</tspan><tspan x="0" y="1040">Casey Byrne</tspan><tspan x="0" y="1100">Noor Haddad</tspan><tspan class="credit-heading" x="0" y="1290">With thanks</tspan><tspan x="0" y="1380">The night crew</tspan><tspan class="credit-small" x="0" y="1555">Every story belongs to someone</tspan><tspan class="credit-heading" x="0" y="1810">See you next time</tspan></text>
+    </g>
+  </g>
+  <g id="Tagline" fill="#fff">
+    <path d="M100 920 h20 v80 h-20 Z M100 920 h60 v18 h-60 Z"/>
+    <path d="M180 920 h20 v80 h-20 Z"/>
+    <path d="M240 920 h20 v80 h-20 Z M300 920 h20 v80 h-20 Z M220 920 l20 0 l60 80 l-20 0 Z"/>
+    <path d="M360 920 h20 v80 h-20 Z M360 920 h60 v18 h-60 Z"/>
+    <path d="M440 920 h20 v80 h-20 Z M440 982 h50 v18 h-50 Z"/>
+  </g>
+  <g id="End_logo"><path d="M900 2300h120v80H900z" fill="#2E5BFF"/></g>
+</svg>

@@ -3,7 +3,7 @@
 // and its fixture. The SVG examples walk rides along: its credits are the list the default
 // pace was set by (about thirty seconds), rolled from Illustrator's own output.
 // covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,creditsArtwork,artworkFields,svg,svgBind}.ts,endCredits/shared.ts}
-// covers: e2e/fixtures/{credits-roll,credits-artwork}.svg, e2e/fixtures/jev-svg/dev/{credits-1,credits-2}.svg
+// covers: e2e/fixtures/{credits-roll,credits-artwork,credits-artwork-logo}.svg, e2e/fixtures/jev-svg/dev/{credits-1,credits-2}.svg
 // covers: src/components/wizard/import/{draft.ts,BehaviourSection.tsx}
 // covers: src/components/wizard/draft/template.ts, src/blocks/motionPresets.ts
 // covers: src/components/home/CueActions.tsx
@@ -47,6 +47,7 @@ test.beforeEach(({ context }) => installDoor(context));
 
 const CREDITS_SVG = fileURLToPath(new URL('./fixtures/credits-roll.svg', import.meta.url));
 const ARTWORK_CREDITS_SVG = fileURLToPath(new URL('./fixtures/credits-artwork.svg', import.meta.url));
+const ARTWORK_LOGO_SVG = fileURLToPath(new URL('./fixtures/credits-artwork-logo.svg', import.meta.url));
 const BESIDE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-2.svg', import.meta.url));
 const ABOVE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-1.svg', import.meta.url));
 
@@ -166,6 +167,9 @@ test('imported artwork credits preserve the complete design and roll off the who
   await expect(artworkRows.first()).toContainText('scrolls as artwork');
   await expect(artworkRows.filter({ hasText: 'sets the look' })).toHaveCount(0);
   expect(await artworkRows.count()).toBe(await artworkRows.filter({ hasText: /, scrolls as artwork$/ }).count());
+  // Only the credits text runs past the artboard and no picture is a field: the text rolls alone,
+  // as it always has (the whole artwork rolling is svg-templates' End credits, full roll).
+  await expect(page.getByTestId('map-svg-credits-rolls')).toHaveValue('text');
   await intoProduction(page, 'Night sky credits', 'Night sky');
   await settleDurableWrites(page);
   await page.getByTestId('verb-take').click();
@@ -334,6 +338,25 @@ async function openLegacyProduction(page: Page, graphic: string, production: str
   }, { source: readFileSync(CREDITS_SVG, 'utf8'), graphicName: graphic, useBox: boxed });
   await openProductionWithCurrent(page, production);
 }
+
+test('fixed artwork with a logo drawn below the artboard rolls everything by default, and the answer can be changed', async ({ page }) => {
+  // Owner 2026-11-23: a logo added to the file, not in the text layer, must roll with the credits.
+  // Here it is plain shapes, no picture field, so only the drawing off the artboard says so (R8).
+  await page.goto('/app');
+  await dropSvg(page, ARTWORK_LOGO_SVG);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  const rolls = page.getByTestId('map-svg-credits-rolls');
+  await expect(rolls).toHaveValue('all');
+  // A word drawn as outlines, made a field, stands in place over the artwork, outside the SVG:
+  // the choice says so where it is made (#2734).
+  const placed = page.getByTestId('map-svg-credits-rolls-placed');
+  await expect(placed).toHaveCount(0);
+  await page.locator('[data-testid^="map-svg-outline-o"] input[type="checkbox"]').first().check();
+  await expect(placed).toHaveText('Text drawn as outlines and made a field stays in place.');
+  await rolls.selectOption('text');
+  await expect(rolls).toHaveValue('text');
+  await expect(placed).toHaveCount(0);
+});
 
 test('the Credits preview reads roles and names off a role-beside drawing', async ({ page }) => {
   // AC-23 (jev-svg-import row 18): the list the Credits layer declares, read by the shipped
@@ -521,7 +544,12 @@ test('credits that can be styled can be kept as fixed artwork, and then the whol
   // Editable credits stay the default.
   await expect(engine).toHaveValue('editable');
   await expect(fixedLine).toHaveCount(0);
+  // Rolls is a fixed-artwork question: editable credits do not ask it.
+  const rolls = page.getByTestId('map-svg-credits-rolls');
+  await expect(rolls).toHaveCount(0);
   await engine.selectOption('artwork');
+  // No picture field and nothing drawn off the artboard but the credits: the text rolls alone.
+  await expect(rolls).toHaveValue('text');
   await expect(fixedLine).toHaveText('The text stays part of the artwork and cannot be edited on the production page.');
   await expect(page.getByTestId('map-svg-credits-fallback')).toHaveCount(0);
   // Every role and name layer, the picked one included, scrolls as artwork.
