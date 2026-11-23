@@ -134,6 +134,21 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * author answers which column holds the roles. The answer changes the preview and the saved
  * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
+/** Whether a drawn element paints anything, the roll's own rule (creditsArtwork.ts
+ *  `creditsPaints`): displayed, visible, not transparent, and a shape with a fill or a stroke. */
+function paints(el: Element): boolean {
+  for (let e: Element | null = el; e && e.localName !== 'svg'; e = e.parentElement) {
+    const cs = getComputedStyle(e);
+    if (cs.display === 'none' || parseFloat(cs.opacity) === 0) return false;
+  }
+  const own = getComputedStyle(el);
+  if (own.visibility !== 'visible') return false;
+  if (el.localName === 'image' || el.localName === 'use') return true;
+  const fills = own.fill !== 'none' && parseFloat(own.fillOpacity) !== 0;
+  const strokes = own.stroke !== 'none' && parseFloat(own.strokeOpacity) !== 0 && parseFloat(own.strokeWidth) !== 0;
+  return fills || strokes;
+}
+
 function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, whole, outside, pictures, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
@@ -182,14 +197,20 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
     const root = stage.current?.querySelector('svg');
     if (!root) return false;
     const textOf = (id: string) => root.querySelector(`[${SVG_CANDIDATE_ATTR}="${id}"]`)?.closest('text') ?? null;
-    const block = new Set([creditsId, ...anchorKey.split('\n').filter(Boolean)].map(textOf));
+    const block = new Set([creditsId, ...anchorKey.split('\n').filter(Boolean)].map(textOf).filter((t): t is SVGTextElement => !!t));
     const frame = root.getBoundingClientRect();
+    // A few pixels of bleed is drawing, not content: only a clear step past the edge counts.
+    const bleed = Math.max(2, frame.height * 0.02);
     for (const el of Array.from(root.querySelectorAll('text, image, rect, path, circle, ellipse, line, polyline, polygon, use'))) {
       if (el.closest('defs, clipPath, mask, pattern, marker, symbol')) continue;
-      if (block.has(el.closest('text'))) continue;
+      const text = el.closest('text');
+      if (text && block.has(text)) continue;
+      if (!paints(el)) continue;
       const box = el.getBoundingClientRect();
       if (!(box.width > 0 || box.height > 0)) continue;
-      if (box.bottom > frame.bottom + 1 || box.top < frame.top - 1) return true;
+      // A backdrop covering the whole artboard stays put whichever way the file is read.
+      if (box.left <= frame.left + bleed && box.right >= frame.right - bleed && box.top <= frame.top + bleed && box.bottom >= frame.bottom - bleed) continue;
+      if (box.bottom > frame.bottom + bleed || box.top < frame.top - bleed) return true;
     }
     return false;
     // `measured` stands for the stage's render, as above.

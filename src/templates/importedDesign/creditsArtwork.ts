@@ -282,7 +282,8 @@ function creditsArtwork() {
 }
 
 // Whether an element paints anything: displayed, visible, not transparent, and for a shape a fill
-// or a stroke. Visibility is inherited, so the element's own value answers for its ancestors.
+// or a stroke that shows. Visibility is inherited, so the element's own value answers for its
+// ancestors. A transparent hit area (fill-opacity 0) paints nothing.
 function creditsPaints(node, travel) {
   for (var e = node; e && e !== travel; e = e.parentNode) {
     var cs = getComputedStyle(e);
@@ -291,8 +292,10 @@ function creditsPaints(node, travel) {
   var own = getComputedStyle(node);
   if (own.visibility !== 'visible') return false;
   var tag = node.localName;
-  if (tag !== 'image' && tag !== 'use' && tag !== 'foreignObject' && own.fill === 'none' && own.stroke === 'none') return false;
-  return true;
+  if (tag === 'image' || tag === 'use' || tag === 'foreignObject') return true;
+  var fills = own.fill !== 'none' && parseFloat(own.fillOpacity) !== 0;
+  var strokes = own.stroke !== 'none' && parseFloat(own.strokeOpacity) !== 0 && parseFloat(own.strokeWidth) !== 0;
+  return fills || strokes;
 }
 
 // The screen top and bottom of everything the wrapper paints, or null.
@@ -305,9 +308,14 @@ function creditsPaintedBox(travel) {
     if (n.closest('defs, clipPath, mask, pattern, marker, symbol')) continue;
     if (!creditsPaints(n, travel)) continue;
     var box = n.getBoundingClientRect();
-    if (!(box.height > 0)) continue;
-    top = Math.min(top, box.top);
-    bottom = Math.max(bottom, box.bottom);
+    // A flat rule has no height but paints; a stroke paints half its width outside the box.
+    if (!(box.height > 0 || box.width > 0)) continue;
+    var style = getComputedStyle(n);
+    var m = n.getScreenCTM && n.getScreenCTM();
+    var pad = style.stroke !== 'none' && m ? parseFloat(style.strokeWidth) / 2 * Math.sqrt(m.c * m.c + m.d * m.d) : 0;
+    if (!(pad > 0)) pad = 0;
+    top = Math.min(top, box.top - pad);
+    bottom = Math.max(bottom, box.bottom + pad);
   }
   return bottom > top ? { top: top, bottom: bottom } : null;
 }
@@ -425,6 +433,21 @@ function creditsFitAtRest(fit) {
   };
 }
 if (typeof refitSvgText === 'function') refitSvgText = creditsFitAtRest(refitSvgText);
+// A snap (recovery, the editor's park, a reset) shows the artwork at its drawn pose (R13): the roll
+// is a plain object tween and a delayed call, which the snap's own killTweensOf cannot reach, and
+// its pose and hiding live in attributes no style reset clears. Rested first, so a snap into an
+// on-air state may start a roll of its own.
+if (typeof noacgSnap === 'function') {
+  var noacgCreditsWholeSnapOf = noacgSnap;
+  noacgSnap = function (assignments, opts) {
+    var artwork = creditsHalt();
+    if (artwork) {
+      artwork.travel.removeAttribute('transform');
+      artwork.travel.removeAttribute('data-noacg-stopped');
+    }
+    return noacgCreditsWholeSnapOf(assignments, opts);
+  };
+}
 if (typeof fitSvgText === 'function') fitSvgText = creditsFitAtRest(fitSvgText);
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', creditsArtwork);

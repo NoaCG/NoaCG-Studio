@@ -21,11 +21,12 @@ import { withBundledPage } from './catalog-emit.mjs';
 const SRC = fileURLToPath(new URL('../src/', import.meta.url));
 const TEMPLATE = readFileSync(fileURLToPath(new URL('../docs/tutorials/template-library/SVG/end-credits-full-roll.svg', import.meta.url)), 'utf8');
 // The same file with what must NOT count towards the extent (R7) - an artboard rectangle with no
-// fill, a transparent plate and a hidden one, each reaching far below the drawing - and a second
-// live text the fit ladder owns (R11).
+// fill, a transparent plate, a hidden one and a transparent hit area, each reaching far beyond the
+// drawing - what MUST count although its box is flat (a stroked rule under the plate, whose stroke
+// paints past its box), and a second live text the fit ladder owns (R11).
 const PADDED = TEMPLATE.replace(
   '<g id="Board"',
-  '<rect id="Artboard" width="1920" height="6000" fill="none"/><rect id="Ghost" y="-3000" width="10" height="9000" opacity="0"/><rect id="Hidden" y="-3000" width="10" height="9000" visibility="hidden"/><g id="Board"',
+  '<rect id="Artboard" width="1920" height="6000" fill="none"/><rect id="Ghost" y="-3000" width="10" height="9000" opacity="0"/><rect id="Hidden" y="-3000" width="10" height="9000" visibility="hidden"/><rect id="Hit" y="-3000" width="1920" height="9000" fill="#000" fill-opacity="0"/><line id="Rule" x1="860" y1="2040" x2="1060" y2="2040" stroke="#2E5BFF" stroke-width="8"/><g id="Board"',
 ).replace('</g>\n</svg>', '<text id="Tagline" x="960" y="1990" text-anchor="middle" font-size="24" fill="#8FA8FF">A NoaCG production</text>\n  </g>\n</svg>');
 
 /** Runs in the browser: each build, and the answers that need no document of their own. */
@@ -77,6 +78,8 @@ async function play(context, built) {
         endLogo: box(art.querySelectorAll('image')[1]),
         panel: box(art.querySelector('[id="Panel"]')),
         credits: box(art.querySelector('.imported-design-credits')),
+        rule: art.querySelector('[id="Rule"]') ? box(art.querySelector('[id="Rule"]')) : null,
+        scale: art.getScreenCTM().d,
       };
     };
     const rest = await page.evaluate(() => {
@@ -132,7 +135,11 @@ async function play(context, built) {
       window.stopCreditsRoll();
       const frozen = { tween: window.noacgCreditsTween, pose: travel.getAttribute('transform') === pose, hidden: travel.hasAttribute('data-noacg-stopped') };
       window.noacgCreditsRoll();
-      return { frozen, retakeHidden: travel.hasAttribute('data-noacg-stopped') };
+      const retakeHidden = travel.hasAttribute('data-noacg-stopped');
+      // R13: a snap, with that take still waiting to start, rests the artwork at its drawn pose,
+      // visible, with nothing left to start or move.
+      window.noacgSnap(null, { timers: false });
+      return { frozen, retakeHidden, snapped: { pose: travel.getAttribute('transform'), hidden: travel.hasAttribute('data-noacg-stopped'), tween: window.noacgCreditsTween, start: window.noacgCreditsStart } };
     });
     return { errors, rest, start, mid, end, last, refit, swap, out };
   } finally {
@@ -195,9 +202,11 @@ test('everything drawn rolls as one picture, from below the frame to above it (R
 test('only what paints sets the extent (R7)', () => {
   const Q = R.paddedPlayed;
   assert.deepEqual(Q.errors, []);
-  near(Q.last.distance, R.played.last.distance + (Q.start.panel.bottom - Q.start.panel.top) - (R.played.start.panel.bottom - R.played.start.panel.top), 'same plate, same distance');
-  near(Q.start.panel.top, Q.start.frame.bottom, 'an empty artboard, a transparent plate and a hidden one add nothing at the start');
-  near(Q.end.panel.bottom, Q.end.frame.top, 'nor at the end');
+  near(Q.start.panel.top, Q.start.frame.bottom, 'an empty artboard, transparent and hidden plates and a hit area add nothing at the start');
+  // The rule under the plate paints last: the roll ends when its stroke (4 units below its flat
+  // box) has cleared the top, not when the plate has.
+  near(Q.end.rule.top + 4 * Q.end.scale, Q.end.frame.top, 'a flat stroked rule ends the roll, stroke included');
+  near(Q.last.distance, R.played.last.distance + (Q.start.rule.top + 4 * Q.start.scale - Q.start.panel.bottom), 'the distance grows by the rule alone');
 });
 
 test('a re-fit while rolled measures at rest and puts the roll back (R11)', () => {
@@ -207,9 +216,10 @@ test('a re-fit while rolled measures at rest and puts the roll back (R11)', () =
   assert.equal(F.tagline, R.paddedPlayed.rest.tagline, 'the live text fits as it did at rest');
 });
 
-test('a picture swapped mid-roll rides it; Out freezes; Take hides then rolls again (R5, R6)', () => {
+test('a picture swapped mid-roll rides it; Out freezes; Take hides then rolls again; a snap rests it (R5, R6, R13)', () => {
   const P = R.played;
   assert.deepEqual(P.swap, { sameTween: true, inside: true });
   assert.deepEqual(P.out.frozen, { tween: null, pose: true, hidden: false });
   assert.equal(P.out.retakeHidden, true);
+  assert.deepEqual(P.out.snapped, { pose: null, hidden: false, tween: null, start: null });
 });
