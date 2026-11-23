@@ -14,7 +14,7 @@ import { obsScenesOf } from '../model/obsScenes';
 import type { Show } from '../model/shows';
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
 import { buildPanelSpec, copyDigest, graphicSpec, outputCuesOf, readPublishedWhole, writeControlShow, type CuePublished, type OutputGraphicSpec, type OutputPayload } from './hostedControl';
-import { additiveRefusal, newGraphicNames, planAdditive, uploadSounds, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
+import { additiveRefusal, newGraphicNames, planAdditive, SOUND_NOT_SENT, SOUND_NOT_UPLOADED, uploadSounds, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
 import { readPayloadVersion, type PayloadVersion } from './payloadVersion';
 import { forgetOwnPublish, notePublishedBoxes } from './publishParts';
 import { classifyFailure } from './autoPublish';
@@ -73,10 +73,14 @@ export async function publishNewGraphics(
     });
   }
   // Every refusal that needs no upload first: a refused add uploads nothing. The stored sounds must be
-  // under this account's key, since this write makes it their owner (migration 0121).
-  const session = (await sb.auth.getSession()).data.session;
-  if (!session) return { kind: 'transient', reason: 'this page is not signed in' };
-  const uploader = session.user.id;
+  // under this account's key, since this write makes it their owner (migration 0121). The account is
+  // the one `publishAudio` keys sounds by, and the same one must still be signed in at the write.
+  const signedIn = async () => {
+    const { data, error: failed } = await sb.auth.getUser();
+    return failed ? null : (data.user?.id ?? null);
+  };
+  const uploader = await signedIn();
+  if (!uploader) return { kind: 'transient', reason: 'this page is not signed in' };
   const early = await additiveRefusal(row.output, added, uploader);
   if (early?.kind === 'nothing') return { kind: 'current', ...(stored ? { ver: stored } : {}) };
   if (early) return early;
@@ -87,7 +91,9 @@ export async function publishNewGraphics(
   const publishedOf = measure ? await measure(stored) : undefined;
   const plan = await planAdditive({ output: row.output, panel: row.panel, added, cues: outputCuesOf(show, publishedOf), sounds: uploaded.sounds, uploader });
   if (plan.kind === 'nothing') return { kind: 'current', ...(stored ? { ver: stored } : {}) };
-  if (plan.kind === 'refused') return plan;
+  if (plan.kind === 'refused') return plan.reason === SOUND_NOT_UPLOADED ? { kind: 'transient', reason: SOUND_NOT_SENT } : plan;
+  // Another account signed in meanwhile (another tab): this write would make it the audio owner.
+  if ((await signedIn()) !== uploader) return { kind: 'transient', reason: 'the account on this page changed' };
   let error: Awaited<ReturnType<typeof writeControlShow>>;
   try {
     error = await writeControlShow(sb, { id: show.id, output: plan.output, panel: plan.panel }, { exists: true, n: plan.base.n });

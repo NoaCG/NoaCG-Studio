@@ -13,7 +13,7 @@ import './lib/tsResolve.mjs';
 const {
   newGraphicNames, planAdditive, mergeCues, notOnOutputsWhy, createAdditivePublisher,
   UNREADABLE, TOUCHES_PUBLISHED, BIGGER_STAGE, IN_SCENE, GONE, SETTLE_MS, WAIT_MS,
-  OTHER_OWNER_SOUNDS, SOUND_NOT_UPLOADED, soundsStayFetchable, uploadSounds, additiveRefusal,
+  OTHER_OWNER_SOUNDS, SOUND_NOT_UPLOADED, SOUND_REFUSED, SOUND_NOT_SENT, soundsStayFetchable, uploadSounds, additiveRefusal,
 } = await import('../src/control/additivePublish.ts');
 const { graphicDigest, stampPayload } = await import('../src/control/payloadVersion.ts');
 
@@ -137,11 +137,27 @@ test('new sounds are uploaded with the manifest, whose keys the plan carries; a 
   assert.deepEqual(await additiveRefusal(before.output, [await added('Join', { inScene: true })], 'u1'), { kind: 'refused', reason: IN_SCENE });
   assert.equal(await additiveRefusal(before.output, [join], 'u1'), null);
   assert.deepEqual(await additiveRefusal(before.output, [], 'u1'), { kind: 'nothing' });
-  // A sound the store refuses, or this browser cannot read, holds; a sign-in or a lost send retries.
+  // Only a fault of the file itself holds, in this module's words; anything that can clear by itself
+  // (storage full, signed out, no answer, a copy not in this browser yet) is tried again.
   const failing = (message) => async () => { throw new Error(message); };
-  assert.deepEqual(await uploadSounds([join.spec], failing('Sound unavailable: sfx. Prepare while connected.')), { kind: 'refused', reason: 'Sound unavailable: sfx. Prepare while connected' });
-  assert.equal((await uploadSounds([join.spec], failing('Sign in to publish sounds.'))).kind, 'transient');
-  assert.equal((await uploadSounds([join.spec], failing('Sound upload failed: timeout'))).kind, 'transient');
+  for (const permanent of ['Sound changed: sfx. Prepare again after replacing it.', 'a file in it is larger than the cloud accepts in one upload']) {
+    assert.deepEqual(await uploadSounds([join.spec], failing(permanent)), { kind: 'refused', reason: SOUND_REFUSED }, permanent);
+  }
+  for (const passing of ['this account is out of cloud storage', 'Sign in to publish sounds.', 'Sound upload failed: timeout', 'Sound unavailable: sfx. Prepare while connected.', 'boom']) {
+    assert.deepEqual(await uploadSounds([join.spec], failing(passing)), { kind: 'transient', reason: SOUND_NOT_SENT }, passing);
+  }
+});
+
+test('a stored payload is hashed once for the check before the upload and the plan after it', async () => {
+  const before = await stored();
+  const join = await added('Join');
+  assert.equal(await additiveRefusal(before.output, [join], 'u1'), null);
+  // Changed after the check: the plan trusts the check made on this very object, and a fresh read
+  // of the same row is checked again.
+  const fresh = JSON.parse(JSON.stringify(before.output));
+  fresh.graphics[0].css = '.changed{}';
+  assert.deepEqual(await additiveRefusal(fresh, [join], 'u1'), { kind: 'refused', reason: UNREADABLE });
+  assert.equal((await planAdditive({ ...before, added: [join], cues: [], uploader: 'u1' })).kind, 'publish');
 });
 
 test('it is idempotent: the publication it wrote, read again, has nothing to add', async () => {

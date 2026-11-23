@@ -68,6 +68,8 @@ export const BIGGER_STAGE = 'it is larger than the published stage';
 export const IN_SCENE = 'it is in an OBS scene';
 export const OTHER_OWNER_SOUNDS = 'the sounds already on the outputs would stop playing';
 export const SOUND_NOT_UPLOADED = 'its sound has not been uploaded';
+export const SOUND_REFUSED = 'its sound cannot be uploaded';
+export const SOUND_NOT_SENT = 'its sound could not be uploaded yet';
 
 /** The storage key an output may fetch a published sound by: the publication's audio owner's
  *  (api/_lib/outputAudio.ts). Every write of `output` makes the writer that owner (migration 0121). */
@@ -101,6 +103,9 @@ export function mergeCues(stored: readonly OutputCue[], cues: readonly OutputCue
   return result.map((cue) => (cue.next && !ids.has(cue.next) ? (({ next: _gone, ...rest }) => rest)(cue) : cue));
 }
 
+/** Stored payloads, as read, that were found to read back to their own stamp. */
+const readBack = new WeakSet<object>();
+
 type Checked =
   | { kind: 'refused'; reason: string }
   | { kind: 'nothing' }
@@ -114,13 +119,18 @@ async function check(output: unknown, candidates: readonly AddedGraphic[], uploa
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.graphics) || !base) return { kind: 'refused', reason: UNREADABLE };
   // What is stored IS what its stamp says: every graphic reads back to its digest, and the stamp
   // names no other. Otherwise nothing is known to stay the same, so nothing is written.
-  const keys = new Set<string>();
-  for (const spec of raw.graphics) {
-    if (!spec || typeof spec.key !== 'string' || !Array.isArray(spec.assets) || !spec.resolution) return { kind: 'refused', reason: UNREADABLE };
-    if (base.g[spec.key] !== (await graphicDigest(spec))) return { kind: 'refused', reason: UNREADABLE };
-    keys.add(spec.key);
+  // Hashed once per payload read: the check before the upload and the plan after it share the result.
+  if (!readBack.has(raw)) {
+    const keys = new Set<string>();
+    for (const spec of raw.graphics) {
+      if (!spec || typeof spec.key !== 'string' || !Array.isArray(spec.assets) || !spec.resolution) return { kind: 'refused', reason: UNREADABLE };
+      if (base.g[spec.key] !== (await graphicDigest(spec))) return { kind: 'refused', reason: UNREADABLE };
+      keys.add(spec.key);
+    }
+    if (Object.keys(base.g).some((key) => !keys.has(key))) return { kind: 'refused', reason: UNREADABLE };
+    readBack.add(raw);
   }
-  if (Object.keys(base.g).some((key) => !keys.has(key))) return { kind: 'refused', reason: UNREADABLE };
+  const keys = new Set(raw.graphics.map((g) => g.key));
   const added = candidates.filter((a) => !(a.name in base.g) && !keys.has(a.name));
   if (!added.length) return { kind: 'nothing' };
   const stage = raw.resolution;
@@ -156,8 +166,13 @@ export async function uploadSounds<G extends { assets: { audio?: SoundAssetRef }
     const uploaded = await upload({ graphics: specs, soundAssets: refs });
     return { graphics: uploaded.graphics, sounds: uploaded.soundAssets };
   } catch (e) {
-    const message = String((e as Error)?.message ?? e).replace(/\.$/, '');
-    return /^(Sign in|Sound upload failed)/.test(message) ? { kind: 'transient', reason: message } : { kind: 'refused', reason: message };
+    // Only a fault of the sound file itself, or one too big for the store (backend/assets.ts
+    // `classifyAssetRefusal`, permanent), holds; anything else (storage full, signed out, no answer,
+    // a copy this browser does not hold yet) is tried again.
+    const message = String((e as Error)?.message ?? e);
+    return /^(Sound changed|Invalid sound|Sound files must be|a file in it is larger)/.test(message)
+      ? { kind: 'refused', reason: SOUND_REFUSED }
+      : { kind: 'transient', reason: SOUND_NOT_SENT };
   }
 }
 
