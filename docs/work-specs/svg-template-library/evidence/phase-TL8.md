@@ -5,9 +5,11 @@ use another agent to test this for me". The checklist is the hand-over on #2678 
 7095099105). An agent ran every step it can, the way TL1o was run. It cannot run Illustrator: the
 real Illustrator round trip has not been run by a person.
 
-**Verdict: ALL PASS.** Nine templates downloaded, restyled, written the Illustrator way,
-imported, saved, taken and driven through their controls. `airProblems` found nothing in any of
-the 22 frames it checked or at four points of the credits roll; the published Join card frame
+**Verdict: ALL PASS for everything an agent can run; the real Illustrator step was not run.**
+All nine templates were downloaded, restyled, written the Illustrator way, imported, saved, taken
+and driven through their controls. `airProblems` found nothing in any of the 21 frames it checked
+or at four points of the credits roll (recorded in `run-log.json`, not thrown, so a job's pass
+alone does not mean clean air; every entry there is empty); the published Join card frame
 was checked by eye. No page error, one cue per graphic. One on-air wording problem that TL1o
 also saw is filed as #2725 (P3); it is not a TL8 check failure (see Findings).
 
@@ -16,8 +18,9 @@ Files in `tl8/`: the nine restyled SVGs, `illustrate.mjs` (restyle and Illustrat
 `download-report.txt`, `run-log.json` and `run-log-join.json` (what the runs read back). The 24
 on-air screenshots (deviceScaleFactor 2) named below are not committed: the repository keeps no
 pictures under `docs/` (`.gitignore`, `scripts/check-tree-shape.mjs`), as with TL1o's. A contact
-sheet of all 24 was sent to the owner in the run's session; the checks each picture backs are in
-`run-log.json`.
+sheet of all 24 was sent to the owner in the run's session. What each picture backs is either a
+value in `run-log.json` or an assertion in the spec files (62.5%, 66.7%, the winner on row 1
+only, the badge, Pause and Reset), whose jobs passed.
 
 ## The templates
 
@@ -51,8 +54,8 @@ sheet of all 24 was sent to the owner in the run's session; the checks each pict
    step read every `Outfit-*` PostScript name as the bundled Outfit. Each went into a production,
    which saves it to the library.
 5. **Controls: pass.**
-   - Lower third: Take shows it; a long name (`Marguerite Okonkwo-Hallström`) widens the plate and
-     stays inside the frame; Out takes it to opacity 0.
+   - Lower third: Take shows it; a long name (`Marguerite Okonkwo-Hallström`) shows and
+     the frame stays clean; Out takes it to opacity 0.
    - Countdown, set to 0:15: it runs from the take; Pause shows Paused and holds the time; Start
      runs again; the last ten seconds pulse (the Warning's opacity reached 0.38 within a second);
      at zero the Warning stops, Time up flashes once (one motion start in three seconds of
@@ -64,8 +67,8 @@ sheet of all 24 was sent to the owner in the run's session; the checks each pict
      roll.
    - Ticker crawl: two items crawl right to left; a third item added mid-run keeps the text moving
      from where it is (the replaced K3); then a Hebrew list (see below).
-   - Audience, offline: Live vote in its own production: typed counts move the bars, the Vote badge
-     shows while open, Close voting hides it, Show result prints 62.5%, Call the winner marks row 1
+   - Audience, offline: Live vote in its own production: typed counts show (Neon on row 1), the Vote
+     badge shows while open, Close voting hides it, Show result prints 62.5%, Call the winner marks row 1
      only. In a different production ("Lab Night") Interaction: a live multiple-choice question,
      simulated votes (2 to 1), Add results to rundown with "Results on Teal Vote results, saved
      design", Take, Stop, Close voting, Show result (66.7%), Call the winner (row 1 only); a pasted
@@ -77,22 +80,26 @@ sheet of all 24 was sent to the owner in the run's session; the checks each pict
      production's join link; Take; the QR on air decodes (`e2e/_qr.ts`) to that link,
      `http://127.0.0.1:<port>/j/lab-night-<n>`. A second press updates the same cue (still one).
      Offline, the Join card was also taken with a typed link and its QR decodes to it.
-6. **On air: pass.** Every frame shows the restyle: Outfit is the face on air and loaded in the
-   output frame, the teal plate is the first plate's fill, the mint accent and bars are there.
+6. **On air: pass.** Every frame read shows the restyle: the text's face is Outfit and Outfit is
+   loaded in the output frame (one variable file, weights 400 to 900, so one check covers the
+   weights used; End credits' rows read Outfit but were not load-checked); the first plate's fill
+   is the teal plate, except the Message, whose first plate is the mint name strip, as restyled.
    `airProblems` is empty in every frame the offline run checked and at every checked point of the
    roll; the published Join card frame (`join-card-2-saved-design-published.png`, which also shows
    the monitor's own logged-time badge) was checked by eye. Every graphic
    has exactly one cue; the Interaction copies of the saved Vote results and Message have one cue
    each, no blank seed beside them.
 
-## The Hebrew crawl (owner question Q3, spec K2)
+## The Hebrew crawl (spec K2; the owner's right-to-left question on #2678, comment 7095099105)
 
 A list of two Hebrew items (`החדשות הערב בשמונה`, `מזג האוויר: גשם קל`) **travels right to left**,
-like every other list, at the same pace (186 against 190 monitor pixels a second for the English
-list; the run's offset went -145, -220, -292, -387, -463, -537 over 2.5 s). The run is laid out
+like every other list, at the same pace (186 against 190 artwork units a second for the English
+list, as the spec's pace reading takes it: 100 ms steps times ten; the timed samples, offsets
+-145, -220, -292, -387, -463, -537 over 2.5 s, give about 157 a second, the gap being the time
+each reading takes). The run is laid out
 left to right (`direction: ltr`): each item reads correctly right to left inside itself, and the
 items follow one another left to right, so on a right-to-left move each item enters at the right
-edge with its LAST word first (`ticker-crawl-3-hebrew.png`). This is K2 as built, option A. Outfit
+edge with its LAST word first (`ticker-crawl-3-hebrew.png`). This is K2 as built, answer A on the owner's question (keep). Outfit
 has no Hebrew glyphs, so the browser drew the Hebrew in a fallback face; a designer who wants a
 Hebrew ticker should pick a font with Hebrew.
 

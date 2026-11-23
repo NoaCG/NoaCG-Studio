@@ -1115,8 +1115,10 @@ Group 3 (Risky): Speaking timer (two clocks, one floor); Event notification on t
 ### TL8 (owner confirmation)
 
 - TL8 was run by an agent at the owner's request (2026-11-23); a real Illustrator round trip has not been run by a person.
-- Evidence: `evidence/phase-TL8.md`. All nine items pass. A Hebrew list crawls right to left like
-  every other list (K2, option A), each item entering last word first. One P3 found, #2725: Vote
+- Evidence: `evidence/phase-TL8.md`. Everything an agent can run passes for all nine templates;
+  the real Illustrator step was not run. A Hebrew list crawls right to left like every other list
+  (K2 as built, the keep answer to the owner's question on #2678), each item entering last word
+  first. One P3 found, #2725: Vote
   results keeps "voting open" in its count line after Stop and Close voting until Update.
 
 ## Test maintenance
