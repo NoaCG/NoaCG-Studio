@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // THE TEMPLATE LIBRARY COVERAGE MATRIX (docs/work-specs/svg-template-library/spec.md, AC-2 and D9).
 //
-//   node scripts/template-coverage.mjs           # check: the matrix matches the registries, every covered row holds
+//   node scripts/template-coverage.mjs           # check: the matrix matches the registries, every row is covered and holds
 //   node scripts/template-coverage.mjs --write   # regenerate docs/template-library/coverage.json from the registries
 //
 // One row per id in scope: every registered graphic type, the untyped kinds (end credits by form,
@@ -15,7 +15,9 @@
 //   - a `covered` row loses a template file, its proof test, the case in that test, or its
 //     inventory entry, or its proof is quarantined (e2e/quarantine.json: a flaky proof is not passing);
 //   - an untyped catalog design maps to no row (D9: a look is a capability of a family row).
-// Complete enforcement (no `planned` row at all) is `--complete`, switched on when the last gap closes.
+// Complete enforcement is on since the last gap closed (TL7): a `planned` row or an open extension
+// fails the check and the build, so a newly registered id lands covered, with its template and
+// proof, in the same change. `--complete` is still accepted and changes nothing.
 //
 // The registry half needs the app's modules, so it runs through Vite (`withSsrServer`); the
 // evidence half is plain file reads (`validateMatrix`), unit-tested on its own in
@@ -327,7 +329,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   const matrix = args.includes('--write') ? generated : committed;
   const problems = [
     ...(args.includes('--write') ? [] : staleRows(committed, generated)),
-    ...validateMatrix(matrix, { untypedLooks: registry.untypedLooks, complete: args.includes('--complete') }),
+    ...validateMatrix(matrix, { untypedLooks: registry.untypedLooks, complete: true }),
   ];
   const { rows, covered, planned } = summary(matrix);
   if (problems.length) {
