@@ -32,7 +32,7 @@ draws instead of the Credits text alone. The Fields step asks it as **Rolls**: *
 or *Everything in the file*. Nothing else changes: the same take, pace, Scroll speed, Out and
 exports.
 
-## Rules (stated before code)
+## Rules (stated before code; R5 to R8 amended and R11 to R13 added after the Rules-first `/so`, grade B, before code)
 
 - R1. A credits binding with `options.artwork: true` and `wholeArtwork: true` rolls everything
   drawn in the artwork (texts, pictures, shapes, groups) as one piece. At the start of the roll
@@ -46,18 +46,34 @@ exports.
 - R4. The pace is today's: 90 px a second in a 1080-high frame at Scroll speed 100, over the
   frame height plus the drawn content's height; a Scroll speed change on air applies without a
   restart.
-- R5. Out cancels a pending or running roll and hides the rolled content until the next Take;
-  Take again starts it from the bottom, the same as the text roll.
-- R6. The extent is measured once per Take, after the entrance and the fonts settle. A picture
-  the operator replaces during the roll moves with the rest, and does not restart the roll.
+- R5. Out stops a running roll where it is and lets the graphic's own Out play over it (the
+  whole graphic fades rather than cutting); a roll still waiting to start never starts. Take again
+  hides the artwork, then starts it from the bottom. (The text roll keeps hiding its text at Out,
+  unchanged.)
+- R6. The roll IS the entrance: from Take until the graphic's In has finished and its fonts have
+  settled, the frame shows nothing of the artwork, then the roll begins below the frame. The wait
+  covers every wrapped element's own tweens (a staggered In), not only the Credits text's. The
+  extent is measured once per Take; a picture the operator replaces during the roll moves with
+  the rest and does not restart the roll.
 - R7. "Everything" is every child of the artwork's root `<svg>` except what never draws (`defs`,
-  `style`, `title`, `desc`, `metadata`, `script`); an element that is not displayed adds nothing
-  to the measured extent.
-- R8. In the Fields step, credits that build as fixed artwork offer **Rolls** with *The credits
-  text* and *Everything in the file*. Its default is *Everything in the file* when at least one
-  picture layer is a field, otherwise *The credits text*. Only *Everything in the file* saves
-  `wholeArtwork: true`. Editable credits do not show the choice.
+  `style`, `title`, `desc`, `metadata`, `script`), wrapped in one group. The measured extent is
+  the union of what PAINTS: an element not displayed, hidden, at zero opacity, or a shape with
+  neither fill nor stroke (an artboard rectangle) adds nothing. Accepted: a file stylesheet rule
+  that selects a direct child of the root `<svg>` (`svg > g`) no longer matches once wrapped.
+- R8. In the Fields step, beside **Show as**, credits that build as fixed artwork offer **Rolls**
+  with *The credits text* and *Everything in the file*. Its default is *Everything in the file*
+  when the drawing shows that more than the text belongs to the roll: a picture layer is a field,
+  or something other than the Credits text is drawn outside the artboard. Otherwise *The credits
+  text*. Only *Everything in the file* saves `wholeArtwork: true`. Editable credits do not show
+  the choice. A reimport asks again, as it does for Show as.
 - R9. The choice is baked into the emitted roll runtime, outside the `NOACG_BEHAVIOUR` table, so
   no table word is added and `READS_ADDED` does not change.
 - R10. Every export the fixed-artwork credits ship in today carries the same runtime and plays the
   whole roll; the OGraf non-real-time gate is unchanged.
+- R11. A re-fit while the artwork is rolled (fonts landing, a resize, a data write) measures the
+  artwork at rest: no line shrinks, wraps or reports overflow because the roll moved it, and the
+  roll's position is restored afterwards.
+- R12. With `wholeArtwork`, `artworkLayers` changes nothing on air (everything already rolls) and
+  those layers stay protected from writes and fit, as today.
+- R13. The recipe still needs a Credits text (it can be one line). Reload or a snap, which run no
+  entrance calls, show the artwork at its drawn pose.
