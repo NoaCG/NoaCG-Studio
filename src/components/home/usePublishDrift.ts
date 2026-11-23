@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { libraryGraphicDigests } from '../../control/hostedControl';
 import { rendersDiffer } from '../../control/payloadVersion';
-import { publishChangesDue, type PublishDue } from '../../control/additivePublish';
+import type { PublishDue } from '../../control/additivePublish';
 import { loadGraphics } from '../../model/library';
 import { recordChangedSincePublish as recordChanged } from '../../model/publishedRecord';
 import type { Show } from '../../model/shows';
@@ -33,7 +33,7 @@ const SETTLE_MS = 400;
  * `check()` answers the same question NOW, without the settle delay, for a press that must not act
  * on a reading a moment old (Prepare for Live deciding whether to publish).
  */
-export function usePublishDrift(show: Show | null, published: Record<string, string> | null): { unpublished: boolean; requiresPreparation: boolean; due: PublishDue; check: () => Promise<boolean> } {
+export function usePublishDrift(show: Show | null, published: Record<string, string> | null): { unpublished: boolean; due: PublishDue; check: () => Promise<boolean> } {
   const [drift, setDrift] = useState(false);
   const latest = useRef({ show, published });
   latest.current = { show, published };
@@ -71,5 +71,5 @@ export function usePublishDrift(show: Show | null, published: Record<string, str
     };
   }, [show, published, changed, check]);
   const due: PublishDue = { drift, added, removed, unstamped: changed && !published };
-  return { unpublished: changed || drift || poolChanged, requiresPreparation: publishChangesDue(due, false), due, check };
+  return { unpublished: changed || drift || poolChanged, due, check };
 }

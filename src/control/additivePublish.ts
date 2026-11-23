@@ -26,6 +26,8 @@
 
 import type { OutputCue, OutputGraphicSpec, OutputPayload, PanelGraphicSpec } from './hostedControl';
 import type { SoundAssetRef } from '../model/types';
+import type { Show } from '../model/shows';
+import { publishedRecordDigest } from '../model/publishedRecord';
 import { graphicDigest, readPayloadVersion, stampFromDigests, type PayloadVersion } from './payloadVersion';
 import { retryDelay } from './autoPublish';
 
@@ -52,6 +54,16 @@ export type AdditivePlan =
 /** The pool's graphics the published stamp does not name, in pool order. */
 export function newGraphicNames(pool: readonly string[], published: Record<string, string>): string[] {
   return pool.filter((name) => !(name in published));
+}
+
+/** The record digest to keep as published once the new graphics `names` are on the outputs, or
+ *  null: only when the record, without them and their cues, is the one last published, so adding
+ *  them was its only change and nothing is left for Publish changes (model/publishedRecord.ts). */
+export function recordAfterAdd(show: Show, names: ReadonlySet<string>): string | null {
+  if (!show.publishedRecord) return null;
+  const ids = new Set(show.graphics.filter((g) => names.has(g.name)).map((g) => g.id));
+  const before: Show = { ...show, graphics: show.graphics.filter((g) => !ids.has(g.id)), cues: (show.cues ?? []).filter((c) => !ids.has(c.sourceId)) };
+  return publishedRecordDigest(before) === show.publishedRecord ? publishedRecordDigest(show) : null;
 }
 
 /** Why a publish would change what the outputs render (components/home/usePublishDrift.ts). */
@@ -260,8 +272,9 @@ export type AdditiveOutcome =
 
 export interface AdditiveView {
   running: boolean;
-  /** Why nothing is written for these graphics: a refusal, held until they change, or the reason
-   *  of a third failure in a row, while it is still tried again. */
+  /** Why nothing is written for these graphics: a refusal, held until they change and the next
+   *  attempt answers, or the reason of a third failure or tenth wait for a save in a row, while it
+   *  is still tried again. */
   refusal: string | null;
 }
 
@@ -277,6 +290,10 @@ export interface AdditiveIo {
 export const SETTLE_MS = 1_500;
 /** How long an attempt waits for a save on its way, or for another publish. */
 export const WAIT_MS = 2_000;
+/** Waits for a save in a row after which the status says why the graphic has not gone (still
+ *  tried again): about 20 s. */
+export const WAITS_SAID = 10;
+export const SAVE_WAITING = 'its save has not reached the server yet';
 
 export interface AdditivePublisher {
   /** What is new now (a key over the new graphics and their saves), or null: nothing. */
@@ -291,6 +308,7 @@ export function createAdditivePublisher(io: AdditiveIo): AdditivePublisher {
   let owed = false;
   let stopped = false;
   let failures = 0;
+  let waits = 0;
   let refusal: string | null = null;
   let cancel: (() => void) | null = null;
   let current: AdditiveView = { running: false, refusal: null };
@@ -334,13 +352,17 @@ export function createAdditivePublisher(io: AdditiveIo): AdditivePublisher {
           if (wanted !== null) schedule(SETTLE_MS);
           return;
         }
+        // Every answer replaces the reason said before; each case below says its own.
+        refusal = null;
         switch (outcome.kind) {
           case 'published':
           case 'current':
             failures = 0;
-            refusal = null;
+            waits = 0;
             break;
           case 'wait':
+            waits += 1;
+            if (waits >= WAITS_SAID) refusal = SAVE_WAITING;
             schedule(WAIT_MS);
             break;
           case 'transient':
@@ -366,8 +388,11 @@ export function createAdditivePublisher(io: AdditiveIo): AdditivePublisher {
     want(key) {
       if (stopped || key === wanted) return;
       wanted = key;
-      refusal = null;
+      // A reason said for the graphics before stays until the next attempt answers, so the page
+      // never takes its Publish changes away for the few seconds a new attempt takes.
+      if (key === null) refusal = null;
       failures = 0;
+      waits = 0;
       if (cancel) cancel();
       cancel = null;
       if (key !== null) schedule(SETTLE_MS);

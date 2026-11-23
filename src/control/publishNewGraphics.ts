@@ -14,14 +14,14 @@ import { obsScenesOf } from '../model/obsScenes';
 import type { Show } from '../model/shows';
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
 import { buildPanelSpec, copyDigest, graphicSpec, outputCuesOf, readPublishedWhole, writeControlShow, type CuePublished, type OutputGraphicSpec, type OutputPayload } from './hostedControl';
-import { additiveRefusal, newGraphicNames, planAdditive, SOUND_NOT_SENT, SOUND_NOT_UPLOADED, uploadSounds, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
+import { additiveRefusal, newGraphicNames, planAdditive, recordAfterAdd, SOUND_NOT_SENT, SOUND_NOT_UPLOADED, uploadSounds, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
 import { readPayloadVersion, type PayloadVersion } from './payloadVersion';
 import { forgetOwnPublish, notePublishedBoxes } from './publishParts';
 import { classifyFailure } from './autoPublish';
 
 /** What an attempt hands the page besides its outcome: the stamp stored now, and the payload when
  *  this attempt wrote it. */
-export type NewGraphicsResult = AdditiveOutcome & { ver?: PayloadVersion; output?: OutputPayload };
+export type NewGraphicsResult = AdditiveOutcome & { ver?: PayloadVersion; output?: OutputPayload; record?: string | null };
 
 const DENIED_WORDS = 'this account cannot publish this production';
 
@@ -112,7 +112,8 @@ export async function publishNewGraphics(
   // This page's own last publish no longer stands for what is stored (live-publishing G4).
   forgetOwnPublish(show.id);
   notePublishedBoxes(show.id, plan.ver, plan.output.cues);
-  return { kind: 'published', ver: plan.ver, output: plan.output };
+  // The record this publication now matches, when adding was its only change since the last one.
+  return { kind: 'published', ver: plan.ver, output: plan.output, record: recordAfterAdd(show, names) };
 }
 
 function outcomeOf(e: unknown): NewGraphicsResult {

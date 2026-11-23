@@ -2191,6 +2191,15 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   border-radius: 4px;
   padding: 2px 5px;
 }
+/* NOT ON OUTPUTS inside the name's button (live-production-reliability P2): like NEXT ON SERVER it
+   gives way before the name does, down to `NOT…`, its tooltip saying the rest. */
+.pd-rundown .pd-cue-label .pd-cue-off {
+  flex: 0 100 auto;
+  min-width: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* Said where the ON AIR tag stood until something else took the slot on the server. */
 .pd-cue-replaced { flex: none; font-size: 11px; font-style: italic; color: var(--amber); white-space: nowrap; }
 /* UNIDENTIFIED ITEMS above the rows: on a rundown slot, but no cue here can be named for them. A

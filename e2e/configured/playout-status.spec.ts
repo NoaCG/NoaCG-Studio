@@ -182,7 +182,7 @@ test('the playout status: quiet until something reports, green when it does, red
     const { loadShows, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
     const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const g = loadShows().find((x) => x.id === id)!.graphics.find((x) => x.name === 'House Scorebug')!;
-    const { error } = addGraphicToShow(id, { ...g.template, name: g.name, css: `${g.template.css}\n/* a design edit */` });
+    const { error } = addGraphicToShow(id, { ...g.template, name: g.name, css: `${g.template.css}\n/* a design edit */` }, { graphicId: g.graphicId ?? null });
     const failure = error ?? (await commitDurableWrites());
     if (failure) throw new Error(failure);
     window.dispatchEvent(new Event('spx-data-changed'));

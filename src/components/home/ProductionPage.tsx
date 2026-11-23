@@ -11,6 +11,7 @@ import {
   graphicLayer,
   loadShows,
   setShowOutputSetup,
+  setShowOutputSlug,
   setShowProfile,
   setGraphicCopyScript,
   setOwnReaderStops,
@@ -1318,11 +1319,14 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     // would move them off it and the run would wait out its time, so the add waits for the run.
     busy: () => publishing || prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing' || !!autoPublish.view?.running,
     appearanceFor: appearanceForRef,
-    onStamp: (ver, output) => {
+    onStamp: (ver, output, record) => {
       // Never back over a newer stamp a press's publish set meanwhile, nor its readers and request.
       if (publishedStamp && publishedStamp.n > ver.n) return;
       setPublishedStamp((cur) => (cur && cur.n > ver.n ? cur : ver));
       if (!output) return;
+      // Adding was the record's only change: it is the published record now, so nothing is left due.
+      const at = show ? loadShows().find((s) => s.id === show.id) : undefined;
+      if (record && at?.outputSlug) setShows(setShowOutputSlug(at.id, at.outputSlug, record));
       fastEventGraphicsRef.current = fastEventGraphics(output.graphics);
       setPublishedReaders(new Set(output.graphics.filter((g) => hasLiveData(g.js)).map((g) => g.key)));
       setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
@@ -1331,7 +1335,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** Whether this page adds them by itself, and why it will not when it will not. */
   const newGraphicsAdds = newGraphics.enabled ? { refusal: newGraphics.refusal } : null;
   /** Publish changes is due for what only it can send: never for graphics this page adds itself. */
-  const requiresPreparation = publishChangesDue(publishDue, !!newGraphicsAdds && !newGraphicsAdds.refusal);
+  // While the account is still being read, whether this page adds them is not known yet: no press is
+  // offered for them meanwhile, so none appears and then goes when sign-in resolves.
+  const requiresPreparation = publishChangesDue(publishDue, newGraphicsAdds ? !newGraphicsAdds.refusal : authStatus === 'loading');
   const offOutputs = hostedSlug && notOnOutputs?.length ? { graphics: new Set(notOnOutputs), why: notOnOutputsWhy(newGraphicsAdds) } : null;
   const relevanceSettings = loadPlayoutSettings();
   const casparTarget = casparOutputTarget(relevanceSettings);
@@ -4543,7 +4549,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     addsNew: newGraphicsAdds,
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
-  const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing';
+  // An add on its way counts too: a readiness run started under it would wait for a version the
+  // add then moves the outputs off.
+  const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing' || newGraphics.running;
   const { headerAction, casparFacts } = publishFacts(publishState, {
     started, casparOn, playoutIsConfigured, bridgeOk, outputSlot, cues, backendConfigured, needsSignIn, slotWhere,
     outputUrl, requiresPreparation: requiresPreparation && !autoPublish.active, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory, casparTarget,

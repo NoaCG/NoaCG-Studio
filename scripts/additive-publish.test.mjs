@@ -14,9 +14,10 @@ const {
   newGraphicNames, planAdditive, mergeCues, notOnOutputsWhy, createAdditivePublisher,
   UNREADABLE, TOUCHES_PUBLISHED, BIGGER_STAGE, IN_SCENE, GONE, SETTLE_MS, WAIT_MS,
   OTHER_OWNER_SOUNDS, SOUND_NOT_UPLOADED, SOUND_REFUSED, SOUND_NOT_SENT, soundsStayFetchable, uploadSounds, additiveRefusal,
-  publishChangesDue,
+  publishChangesDue, WAITS_SAID, SAVE_WAITING, recordAfterAdd,
 } = await import('../src/control/additivePublish.ts');
 const { graphicDigest, stampPayload } = await import('../src/control/payloadVersion.ts');
+const { publishedRecordDigest } = await import('../src/model/publishedRecord.ts');
 
 const stage = { width: 1920, height: 1080 };
 const spec = (key, css = '.a{}', over = {}) => ({ key, html: `<div>${key}</div>`, css, js: '', assets: [], resolution: stage, fps: 50, layer: 20, ...over });
@@ -216,6 +217,21 @@ test('Publish changes is due only for what the add cannot send: never for graphi
   assert.equal(publishChangesDue(none, false), false);
 });
 
+test('once the add lands, the record is the published one only when adding was its only change (the panel then offers nothing)', () => {
+  const graphic = (id, name, css = '.a{}') => ({ id, name, type: 'lower-third', savedAt: '2026-11-23T18:00:00Z', template: { name, html: '<div></div>', css, js: '', fields: [], assets: [] } });
+  const published = { id: 'p1', name: 'Show', graphics: [graphic('g1', 'Hairline')], cues: [{ id: 'c1', sourceId: 'g1', label: 'Strap', values: {} }] };
+  const record = publishedRecordDigest(published);
+  const added = { ...published, publishedRecord: record, graphics: [...published.graphics, graphic('g2', 'Join')], cues: [...published.cues, { id: 'j1', sourceId: 'g2', label: 'Join', values: {} }] };
+  assert.equal(recordAfterAdd(added, new Set(['Join'])), publishedRecordDigest(added));
+  // Anything else changed too (a cue on a published graphic, a design edit): still due.
+  const plusCue = { ...added, cues: [...added.cues, { id: 'c2', sourceId: 'g1', label: 'Another', values: {} }] };
+  assert.equal(recordAfterAdd(plusCue, new Set(['Join'])), null);
+  // A design edit saves the copy again (a new savedAt names its design).
+  const edited = { ...added, graphics: [{ ...graphic('g1', 'Hairline', '.b{}'), savedAt: '2026-11-23T20:30:00Z' }, added.graphics[1]] };
+  assert.equal(recordAfterAdd(edited, new Set(['Join'])), null);
+  assert.equal(recordAfterAdd({ ...added, publishedRecord: undefined }, new Set(['Join'])), null, 'no record digest known');
+});
+
 test('the words on a cue and at its Take say what the graphic waits for', () => {
   assert.equal(notOnOutputsWhy({ refusal: null }), 'It is being added to the outputs now.');
   assert.equal(notOnOutputsWhy({ refusal: IN_SCENE }), 'It is not added by itself: it is in an OBS scene. Publish changes to play it.');
@@ -296,6 +312,24 @@ test('one attempt runs shortly after the new graphics are saved, never two at on
   assert.equal(w.attempts, 2);
 });
 
+test('a save that never reaches the server is said after about 20 s, and still waited for', async () => {
+  const w = world();
+  const p = createAdditivePublisher(w.io);
+  p.want('Join@1');
+  await w.advance(SETTLE_MS);
+  for (let i = 1; i < WAITS_SAID; i++) {
+    await w.answer({ kind: 'wait' });
+    assert.equal(p.view().refusal, null, `wait ${i}`);
+    await w.advance(WAIT_MS);
+  }
+  await w.answer({ kind: 'wait' });
+  assert.equal(p.view().refusal, SAVE_WAITING);
+  await w.advance(WAIT_MS);
+  assert.equal(w.attempts, WAITS_SAID + 1, 'still waited for');
+  await w.answer({ kind: 'published' });
+  assert.equal(p.view().refusal, null);
+});
+
 test('it waits while another publish runs, and for a save on its way', async () => {
   const w = world();
   const p = createAdditivePublisher(w.io);
@@ -321,9 +355,9 @@ test('a refusal holds until the new graphics change; a transient failure retries
   await w.advance(10 * 60_000);
   assert.equal(w.attempts, 1, 'held');
   p.want('Join@2');
-  assert.equal(p.view().refusal, null, 'a new save is a new attempt');
+  assert.equal(p.view().refusal, IN_SCENE, 'said until the new attempt answers, so Publish changes is not taken away meanwhile');
   await w.advance(SETTLE_MS);
-  assert.equal(w.attempts, 2);
+  assert.equal(w.attempts, 2, 'a new save is a new attempt');
   await w.answer({ kind: 'transient', reason: 'no answer' });
   await w.advance(1_999);
   assert.equal(w.attempts, 2);

@@ -882,7 +882,7 @@ export default function CueRundown({
                     as NEXT ON SERVER is, so a press on it selects the cue like the rest of the
                     row (beside the button it took the press and selected nothing). */}
                 {started && !!cueGraphic && offOutputs?.graphics.has(cueGraphic) && (
-                  <span className="pd-tag unsent" title={`Not on the outputs yet. ${offOutputs.why}`} data-testid="cue-off-outputs">
+                  <span className="pd-tag unsent pd-cue-off" title={`Not on the outputs yet. ${offOutputs.why}`} data-testid="cue-off-outputs">
                     NOT ON OUTPUTS
                   </span>
                 )}
