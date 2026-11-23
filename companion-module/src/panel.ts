@@ -22,7 +22,7 @@ import {
 	type Press,
 	type PressResult,
 } from './protocol.js'
-import type { ListenStatus, Relay } from './relay.js'
+import { RelayError, type ListenStatus, type Relay } from './relay.js'
 
 /** The time functions the panel uses, so a test can drive them. */
 export interface Clock {
@@ -59,8 +59,16 @@ const UNSETTLED_MAX = 64
 
 /** How long a refused key flashes. */
 export const FLASH_MS = 1_200
-/** The rejoin backoff, then every 8 s. */
+/** The reconnect backoff, then every 8 s. */
 const BACKOFF_MS = [1_000, 2_000, 4_000, 8_000]
+/** How often the module tells the backend it is alive (protocol §7.5). The page reads a panel as
+ *  connected while its last report is under 45 s old, so one lost report changes nothing. */
+export const BEAT_MS = 15_000
+/** A status change is reported at once, but never sooner than this after the last report. */
+export const BEAT_GAP_MS = 5_000
+/** This many calls in a row refused by the backend's gateway (HTTP 401 or 403) mean the publishable
+ *  key in hand is stale: the backend is found again from `<address>/panel.json`. */
+export const AUTH_FAILS_MAX = 3
 
 /** What a graphic key's last press came to, as its key shows it: on its way (`running`), done, not
  *  known (`unknown`: it may have run, and is never sent again), or refused or failed. */
@@ -83,7 +91,12 @@ export interface Flash {
 }
 
 export interface PanelOptions {
-	relay: Relay
+	/** A fixed relay (tests), or how to make one: `connect` finds the backend, and is called again
+	 *  after repeated gateway refusals, so a rotated publishable key is picked up. */
+	relay?: Relay
+	connect?: () => Promise<Relay>
+	/** This module's version, sent with each liveness report. */
+	version?: string
 	clock?: Clock
 	/** Mints this run's press-id prefix; a test passes a fixed one. */
 	instance?: string
@@ -110,12 +123,24 @@ function mintInstance(): string {
  * after a network error can never run twice.
  */
 export class PanelClient {
-	readonly #relay: Relay
+	#relay: Relay | null
+	readonly #connect: (() => Promise<Relay>) | null
 	readonly #clock: Clock
 	readonly #instance: string
 	readonly #opts: PanelOptions
 
 	#key = ''
+	/** A pairing code still to exchange, and the panel's name for it. */
+	#code = ''
+	#label = ''
+	/** Calls refused by the gateway in a row (RelayError.auth). */
+	#authFails = 0
+	#beatTimer: unknown = null
+	/** When the next liveness report is due, and when the last one went. */
+	#beatAt = Infinity
+	#beatLast = -Infinity
+	/** The backend has no `panel_seen` (an older NoaCG server): no reports this run. */
+	#beatMissing = false
 	#status: Status = 'pairing'
 	#note = 'Pair in the connection settings with the code the production page shows'
 	#title = ''
@@ -156,7 +181,8 @@ export class PanelClient {
 
 	constructor(opts: PanelOptions) {
 		this.#opts = opts
-		this.#relay = opts.relay
+		this.#relay = opts.relay ?? null
+		this.#connect = opts.connect ?? null
 		this.#clock = opts.clock ?? systemClock
 		this.#instance = opts.instance ?? mintInstance()
 	}
@@ -237,8 +263,11 @@ export class PanelClient {
 	}
 
 	#set(status: Status, note: string): void {
+		const changed = status !== this.#status
 		this.#status = status
 		this.#note = note
+		// The page learns a new status from the next liveness report: send it sooner than the beat.
+		if (changed && this.#key && !this.#stopped) this.#beatSoon()
 		this.#opts.onChange?.()
 	}
 
@@ -246,47 +275,119 @@ export class PanelClient {
 	async start(config: { key: string; code: string; label: string }): Promise<void> {
 		this.#stopped = false
 		this.#key = config.key.trim()
-		const code = config.code.replace(/[\s-]/g, '').toUpperCase()
-		if (!this.#key && code) {
-			this.#set('pairing', 'Pairing...')
-			let answer
-			try {
-				answer = await this.#relay.pairFinish(code, config.label.trim() || 'Companion')
-			} catch (err) {
-				this.#set('offline', `NoaCG offline: ${(err as Error).message}`)
-				return
-			}
-			if (!answer.ok) {
-				this.#set('pairing', refusalSentence(answer.refused, answer.note))
-				return
-			}
-			this.#key = answer.key
-			this.#title = answer.title
-			this.#opts.onPaired?.(answer.key)
-		}
-		if (!this.#key) {
+		this.#code = this.#key ? '' : config.code.replace(/[\s-]/g, '').toUpperCase()
+		this.#label = config.label.trim() || 'Companion'
+		if (!this.#key && !this.#code) {
 			this.#set('pairing', 'Pair in the connection settings with the code the production page shows')
 			return
 		}
-		this.#set('connecting', 'Connecting to NoaCG...')
-		await this.#hello()
+		if (this.#key) this.#set('connecting', 'Connecting to NoaCG...')
+		else this.#set('pairing', 'Pairing...')
+		await this.#run()
 	}
 
 	async stop(): Promise<void> {
 		this.#stopped = true
 		this.#clock.clearTimeout(this.#retryTimer)
 		this.#clock.clearTimeout(this.#silenceTimer)
-		this.#leave?.()
-		this.#leave = null
-		this.#topic = ''
+		this.#clock.clearTimeout(this.#beatTimer)
+		this.#beatAt = Infinity
+		this.#leaveTopic()
 		for (const resolve of this.#waits.values())
 			resolve({ v: PROTOCOL, id: '', panel: '', outcome: 'not-here', note: 'Stopped' })
 		this.#waits.clear()
+		await this.#dropRelay()
+	}
+
+	/**
+	 * THE ONE CONNECT STEP, which every start and transport failure retries on the backoff: find the
+	 * backend when no relay is in hand, exchange the pairing code when there is one, then hello. Only
+	 * a key the server does not know or has revoked ends it (pair again), and a pairing code it
+	 * refused (make a new one).
+	 */
+	async #run(): Promise<void> {
+		if (this.#stopped) return
+		const relay = await this.#relayNow()
+		if (!relay || this.#stopped) return
+		if (!this.#key && this.#code) {
+			let answer
+			try {
+				answer = await relay.pairFinish(this.#code, this.#label)
+			} catch (err) {
+				this.#failed(err)
+				return
+			}
+			if (this.#stopped) return
+			this.#authFails = 0
+			if (!answer.ok) {
+				// Too many tries passes by itself; a code that is wrong, used or expired needs a new one.
+				this.#set('pairing', refusalSentence(answer.refused, answer.note))
+				if (answer.refused === 'slow-down') this.#retryLater()
+				return
+			}
+			this.#code = ''
+			this.#key = answer.key
+			this.#title = answer.title
+			this.#opts.onPaired?.(answer.key)
+			this.#set('connecting', 'Connecting to NoaCG...')
+		}
+		if (!this.#key) return
+		if (this.#beatAt === Infinity) this.#beatSoon()
+		await this.#hello()
+	}
+
+	/** The relay, found now if none is in hand; null (offline, retrying) when it cannot be. */
+	async #relayNow(): Promise<Relay | null> {
+		if (this.#relay) return this.#relay
+		if (!this.#connect) return null
+		try {
+			const relay = await this.#connect()
+			if (this.#stopped) {
+				await relay.close()
+				return null
+			}
+			this.#relay = relay
+			return relay
+		} catch (err) {
+			this.#set('offline', `NoaCG offline: ${(err as Error).message}. Retrying...`)
+			this.#retryLater()
+			return null
+		}
+	}
+
+	/** Let go of a relay this panel made (a fixed one is its owner's), leaving its topic first. */
+	async #dropRelay(): Promise<void> {
+		const relay = this.#relay
+		if (!relay || !this.#connect) return
+		this.#leaveTopic()
+		this.#relay = null
+		try {
+			await relay.close()
+		} catch {
+			// A client whose socket is already gone has nothing left to close.
+		}
+	}
+
+	/** A call threw: offline, on the backoff. Repeated gateway refusals find the backend again. */
+	#failed(err: unknown): void {
+		if (err instanceof RelayError && err.auth && ++this.#authFails >= AUTH_FAILS_MAX) {
+			this.#authFails = 0
+			this.#opts.log?.('warn', 'NoaCG refused this module several times in a row: finding the backend again')
+			void this.#dropRelay()
+		}
+		this.#set('offline', `NoaCG offline: ${(err as Error).message}. Retrying...`)
+		this.#retryLater()
 	}
 
 	/** Ask the cloud who we are and where to listen. One at a time; a request during one runs once after. */
 	async #hello(): Promise<void> {
 		if (this.#stopped || !this.#key) return
+		const relay = this.#relay
+		if (!relay) {
+			// Being found again: the connect step says hello once it is.
+			if (this.#connect) this.#retryLater()
+			return
+		}
 		if (this.#helloBusy) {
 			this.#helloAgain = true
 			return
@@ -295,13 +396,13 @@ export class PanelClient {
 		try {
 			let answer
 			try {
-				answer = await this.#relay.hello(this.#key)
+				answer = await relay.hello(this.#key)
 			} catch (err) {
-				this.#set('offline', `NoaCG offline: ${(err as Error).message}`)
-				this.#retryLater()
+				this.#failed(err)
 				return
 			}
 			if (this.#stopped) return
+			this.#authFails = 0
 			if (!answer.ok) {
 				this.#leaveTopic()
 				this.#state = null
@@ -312,10 +413,13 @@ export class PanelClient {
 					this.#retryLater()
 					return
 				}
-				this.#set(
-					answer.refused === 'unknown-key' || answer.refused === 'revoked' ? 'revoked' : 'offline',
-					refusalSentence(answer.refused, answer.note),
-				)
+				// Only a key the server does not know or has revoked is final: pair again.
+				if (answer.refused === 'unknown-key' || answer.refused === 'revoked') {
+					this.#set('revoked', refusalSentence(answer.refused, answer.note))
+					return
+				}
+				this.#set('offline', `${refusalSentence(answer.refused, answer.note)} Retrying...`)
+				this.#retryLater()
 				return
 			}
 			this.#attempt = 0
@@ -341,7 +445,61 @@ export class PanelClient {
 		this.#clock.clearTimeout(this.#retryTimer)
 		const ms = BACKOFF_MS[Math.min(this.#attempt, BACKOFF_MS.length - 1)]
 		this.#attempt++
-		this.#retryTimer = this.#clock.setTimeout(() => void this.#hello(), ms)
+		this.#retryTimer = this.#clock.setTimeout(() => void this.#run(), ms)
+	}
+
+	/** Report liveness soon: now, or BEAT_GAP_MS after the last report. */
+	#beatSoon(): void {
+		if (this.#beatMissing) return
+		const at = Math.max(this.#clock.now(), this.#beatLast + BEAT_GAP_MS)
+		if (at < this.#beatAt) this.#armBeat(at)
+	}
+
+	#armBeat(at: number): void {
+		this.#clock.clearTimeout(this.#beatTimer)
+		this.#beatAt = at
+		this.#beatTimer = this.#clock.setTimeout(() => void this.#beat(), Math.max(0, at - this.#clock.now()))
+	}
+
+	/**
+	 * THE LIVENESS REPORT (protocol §7.5): every BEAT_MS while a key is held, whatever the status, with
+	 * this module's version and status, so the page can say Companion is connected, not seen, needs
+	 * an update, or holds a refused key. Hello and the channel own the status: a failed report changes
+	 * nothing here but the gateway count, and a refused key, which it reports as hello would.
+	 */
+	async #beat(): Promise<void> {
+		if (this.#stopped || !this.#key || this.#beatMissing) {
+			this.#beatAt = Infinity
+			return
+		}
+		this.#beatLast = this.#clock.now()
+		this.#armBeat(this.#beatLast + BEAT_MS)
+		const relay = this.#relay
+		if (!relay) return
+		let answer
+		try {
+			answer = await relay.seen(this.#key, this.#opts.version ?? '', this.#status)
+		} catch (err) {
+			if (err instanceof RelayError && err.missing) {
+				// An older NoaCG server: everything else works, it only cannot show liveness.
+				this.#beatMissing = true
+				this.#clock.clearTimeout(this.#beatTimer)
+				this.#beatAt = Infinity
+			} else if (err instanceof RelayError && err.auth && this.#status !== 'revoked') this.#failed(err)
+			return
+		}
+		if (this.#stopped) return
+		this.#authFails = 0
+		if (
+			!answer.ok &&
+			(answer.refused === 'unknown-key' || answer.refused === 'revoked') &&
+			this.#status !== 'revoked'
+		) {
+			this.#state = null
+			this.#leaveTopic()
+			this.#clock.clearTimeout(this.#retryTimer)
+			this.#set('revoked', refusalSentence(answer.refused))
+		}
 	}
 
 	#join(topic: string): void {
@@ -350,7 +508,7 @@ export class PanelClient {
 		this.#actions = null
 		this.#actionsNewer = false
 		this.#topic = topic
-		this.#leave = this.#relay.listen(
+		this.#leave = this.#relay!.listen(
 			topic,
 			(event, payload) => this.#onEvent(topic, event, payload),
 			(s) => this.#onListen(topic, s),
@@ -510,7 +668,7 @@ export class PanelClient {
 	/** Press a verb. Resolves when the page answered, or with the reason it was not run. */
 	async press(verb: PanelVerb, row = ''): Promise<PressOutcome> {
 		const send = this.#sender({ verb, row })
-		if (this.#status !== 'ok' || !this.#state) return send.refused(this.#note)
+		if (this.#status !== 'ok' || !this.#state || !this.#relay) return send.refused(this.#note)
 		if ((verb === 'select-cue' || verb === 'take-cue' || verb === 'trigger-cue') && !row)
 			return send.refused('Choose a cue for this key')
 		return send.go({
@@ -535,7 +693,7 @@ export class PanelClient {
 		unsendable?: string,
 	): Promise<PressOutcome> {
 		const send = this.#sender({ verb: ACTION_VERB, row: `${graphic}/${cap}` })
-		if (this.#status !== 'ok' || !this.#state) return send.refused(this.#note)
+		if (this.#status !== 'ok' || !this.#state || !this.#relay) return send.refused(this.#note)
 		if (unsendable) return send.refused(unsendable)
 		if (this.#actionsNewer) return send.refused("Update the NoaCG module to press this production's graphic actions")
 		const actions = this.actions
@@ -620,13 +778,16 @@ export class PanelClient {
 			tell(PENDING_SENTENCE)
 			this.#opts.onChange?.()
 			let answer
+			const relay = this.#relay!
 			try {
-				answer = await this.#relay.press(this.#key, press)
+				answer = await relay.press(this.#key, press)
 			} catch {
 				// One retry, same id: the page drops an id it has already run.
 				try {
-					answer = await this.#relay.press(this.#key, press)
+					answer = await relay.press(this.#key, press)
 				} catch (err) {
+					// The gateway refused the access key: reconnect, finding the backend again if it repeats.
+					if (err instanceof RelayError && err.auth) this.#failed(err)
 					this.#waits.get(press.id)?.({ v: PROTOCOL, id: press.id, panel: '', outcome: 'not-here' })
 					// The page already said what it came to: that stands, whatever the calls' own answers.
 					const said = this.#settledSaid.get(press.id)

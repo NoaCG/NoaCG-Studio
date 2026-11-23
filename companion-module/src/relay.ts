@@ -4,7 +4,7 @@ import {
 	type RealtimeChannel,
 	type SupabaseClient,
 } from '@supabase/supabase-js'
-import type { ActionPress, Answer, HelloAnswer, PairAnswer, Press, PressAnswer } from './protocol.js'
+import type { ActionPress, Answer, HelloAnswer, PairAnswer, Press, PressAnswer, SeenAnswer } from './protocol.js'
 
 /** The channel's own state, as the panel needs it. */
 export type ListenStatus = 'joined' | 'closed' | 'error'
@@ -13,13 +13,16 @@ export type ListenStatus = 'joined' | 'closed' | 'error'
  * Everything the module says to the NoaCG cloud and hears from it. The panel logic talks only to
  * this, so its tests run against a fake relay instead of a backend.
  *
- * The three calls answer a refusal as `{ok: false, refused}` and THROW only when the backend
- * could not be reached or answered something that is not a panel answer.
+ * The calls answer a refusal as `{ok: false, refused}` and THROW only when the backend could not
+ * be reached or answered something that is not a panel answer. A throw the backend's gateway made
+ * by refusing the publishable key (HTTP 401 or 403) is a `RelayError` with `auth` set.
  */
 export interface Relay {
 	pairFinish(code: string, label: string): Promise<Answer<PairAnswer>>
 	hello(key: string): Promise<Answer<HelloAnswer>>
 	press(key: string, press: Press | ActionPress): Promise<Answer<PressAnswer>>
+	/** The liveness report: this module's version and the status it shows (protocol §7.5). */
+	seen(key: string, version: string, status: string): Promise<Answer<SeenAnswer>>
 	/** Join a feedback topic; returns the leave function. */
 	listen(
 		topic: string,
@@ -61,6 +64,19 @@ const DISCOVER_MS = 10_000
  *  open after this has failed for the operator, and the action must not hang Companion. */
 const RPC_MS = 5_000
 
+/** A call that failed: `auth` when the backend refused the publishable key itself (HTTP 401 or
+ *  403), so a module holding a rotated key finds the backend again; `missing` when the backend has
+ *  no such function (an older NoaCG server). */
+export class RelayError extends Error {
+	readonly auth: boolean
+	readonly missing: boolean
+	constructor(message: string, status = 0, code = '') {
+		super(message)
+		this.auth = status === 401 || status === 403
+		this.missing = code === 'PGRST202' || /could not find the function/i.test(message)
+	}
+}
+
 function asAnswer<T>(data: unknown): Answer<T> {
 	if (typeof data !== 'object' || data === null || typeof (data as { ok?: unknown }).ok !== 'boolean') {
 		throw new Error('The backend answered something that is not a panel answer')
@@ -68,7 +84,7 @@ function asAnswer<T>(data: unknown): Answer<T> {
 	return data as Answer<T>
 }
 
-/** The relay over a Supabase backend: three RPCs and one private Realtime channel at a time. */
+/** The relay over a Supabase backend: four RPCs and one private Realtime channel at a time. */
 export class SupabaseRelay implements Relay {
 	readonly #client: SupabaseClient
 	readonly #channels = new Set<RealtimeChannel>()
@@ -81,8 +97,8 @@ export class SupabaseRelay implements Relay {
 	}
 
 	async #rpc<T>(name: string, args: Record<string, unknown>): Promise<Answer<T>> {
-		const { data, error } = await this.#client.rpc(name, args).abortSignal(AbortSignal.timeout(RPC_MS))
-		if (error) throw new Error(error.message)
+		const { data, error, status } = await this.#client.rpc(name, args).abortSignal(AbortSignal.timeout(RPC_MS))
+		if (error) throw new RelayError(error.message, status, error.code)
 		return asAnswer<T>(data)
 	}
 
@@ -96,6 +112,10 @@ export class SupabaseRelay implements Relay {
 
 	async press(key: string, press: Press | ActionPress): Promise<Answer<PressAnswer>> {
 		return this.#rpc('panel_press', { p_key: key, p_press: press })
+	}
+
+	async seen(key: string, version: string, status: string): Promise<Answer<SeenAnswer>> {
+		return this.#rpc('panel_seen', { p_key: key, p_version: version, p_status: status })
 	}
 
 	listen(

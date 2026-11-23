@@ -7,6 +7,7 @@ import { UpdateFeedbacks, type FeedbacksSchema } from './feedbacks.js'
 import { UpdatePresets } from './presets.js'
 import { PanelClient, type PressOutcome, type Status } from './panel.js'
 import { SupabaseRelay, discoverBackend, type Relay } from './relay.js'
+import { MODULE_VERSION } from './version.js'
 import { offerShape, type PanelVerb } from './protocol.js'
 
 export type ModuleSchema = {
@@ -36,7 +37,6 @@ export default class ModuleInstance extends InstanceBase<ModuleSchema> {
 	config!: ModuleConfig
 	secrets: ModuleSecrets = { key: '' }
 	panel: PanelClient = new PanelClient({ relay: idleRelay() })
-	#relay: Relay | null = null
 	#tick: ReturnType<typeof setInterval> | null = null
 	#shownRows = -1
 	#shownOffer = ''
@@ -75,17 +75,12 @@ export default class ModuleInstance extends InstanceBase<ModuleSchema> {
 			await this.panel.start({ key: '', code: '', label: '' })
 			return
 		}
-		let relay: Relay
-		try {
-			relay = new SupabaseRelay(await discoverBackend(this.config.address))
-		} catch (err) {
-			this.#running = ''
-			this.updateStatus(InstanceStatus.ConnectionFailure, (err as Error).message)
-			return
-		}
-		this.#relay = relay
+		const address = this.config.address
 		this.panel = new PanelClient({
-			relay,
+			// Found on every connect step until it works, and found again after repeated refusals of
+			// its access key: a backend not reachable at start, or a rotated key, recovers by itself.
+			connect: async () => new SupabaseRelay(await discoverBackend(address)),
+			version: MODULE_VERSION,
 			onChange: () => this.#redraw(false),
 			onPaired: (key) => {
 				this.config = { ...this.config, code: '' }
@@ -100,8 +95,6 @@ export default class ModuleInstance extends InstanceBase<ModuleSchema> {
 
 	async #teardown(): Promise<void> {
 		await this.panel.stop()
-		await this.#relay?.close()
-		this.#relay = null
 	}
 
 	getConfigFields(): SomeCompanionConfigField[] {
@@ -156,5 +149,12 @@ export default class ModuleInstance extends InstanceBase<ModuleSchema> {
 /** The relay before a backend is known: everything refuses, nothing is reached. */
 function idleRelay(): Relay {
 	const fail = async () => Promise.reject(new Error('Not configured'))
-	return { pairFinish: fail, hello: fail, press: fail, listen: () => () => {}, close: async () => Promise.resolve() }
+	return {
+		pairFinish: fail,
+		hello: fail,
+		press: fail,
+		seen: fail,
+		listen: () => () => {},
+		close: async () => Promise.resolve(),
+	}
 }
