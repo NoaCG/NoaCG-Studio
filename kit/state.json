@@ -34,17 +34,14 @@
  },
  "waitingOn": [
   {
-   "what": "TL8 checker verdict",
+   "what": "quarantine PR for #2731 (repair owner: coordinator)",
    "eta": "2026-11-23T11:30:00Z"
   }
  ],
  "inFlight": {
-  "phase": "TL8",
-  "step": "check",
-  "session": "session_017SdbwLdeVdfrij71jjV7Ty",
-  "nonce": "tl8-c-b644",
-  "merge": "68d3977148b4f196fe9590565d0dec435e822974",
-  "asOf": "2026-11-23T09:44:50Z"
+  "phase": null,
+  "step": "finished",
+  "asOf": "2026-11-23T10:28:00Z"
  },
  "owner": [
   {
@@ -203,7 +200,13 @@
   "merge": "0f2a2eeb69c7ce1b6bbeb10e786aaf1543f285bf",
   "builder": "session_017SdbwNDgPe1fcZ7vmJmuVN"
  },
- "sideRows": [],
+ "sideRows": [
+  {
+   "what": "quarantine output-debate-clock flake (#2731)",
+   "session": "session_017SdbwMeNfi8B49JEhGdUbg",
+   "branch": "claude/quarantine-debate-clock-68d3977"
+  }
+ ],
  "tl7": {
   "pr": 2720,
   "merge": "d636ac355b5ef094606aeaf0e15983b849b4586b",
