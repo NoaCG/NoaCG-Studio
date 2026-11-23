@@ -14,11 +14,20 @@ export async function addQuestion(ws: Page, type: 'open' | 'choice' | 'word', te
   await ws.getByTestId('question-add').click();
   await ws.getByTestId(`question-type-${type}`).click();
   await ws.getByTestId('question-text').fill(text);
-  if (type === 'choice') await ws.getByTestId('question-options').fill(options.join('\n'));
+  if (type === 'choice') await fillOptions(ws, options);
   await ws.getByTestId('question-save').click();
   const row = questionRow(ws, text);
   await expect(row).toHaveCount(1);
   return row;
+}
+
+/** Write a vote's options in the open composer, one row each: rows are added as needed and any
+ *  left over are emptied, which saving drops. */
+export async function fillOptions(ws: Page, options: string[]): Promise<void> {
+  const fields = ws.getByTestId('question-options').getByTestId('question-option');
+  while ((await fields.count()) < options.length) await ws.getByTestId('question-option-add').click();
+  const count = await fields.count();
+  for (let at = 0; at < count; at++) await fields.nth(at).fill(options[at] ?? '');
 }
 
 /** Put a question live on phones and wait for the mark. */

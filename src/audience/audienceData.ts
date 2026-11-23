@@ -30,6 +30,8 @@ import {
   OPERATOR_SETTLE_MAX,
   NOT_SENT,
   QUESTION_CLOSED,
+  TOO_MANY_VOTES,
+  VOTE_FINAL,
   WORD_ALREADY_SENT,
   clampProvenance,
   openRoundOf,
@@ -42,6 +44,7 @@ import {
   type AudienceTally,
   type JoinView,
   type ObservableAudience,
+  type RoundVote,
   type SubmitResult,
 } from './audienceTypes';
 
@@ -81,6 +84,8 @@ interface JoinRow {
       openedAt: string;
       /** 0111; absent from a server that has not run it. */
       revision?: number;
+      /** 0127; absent from a server that has not run it (then a vote can change, as before). */
+      allowChange?: boolean;
     } | null;
   };
   brand: AudienceBrand | null;
@@ -122,6 +127,9 @@ interface RoundRow {
   /** 0111. */
   question_id?: string | null;
   revision?: number;
+  /** 0127. */
+  allow_change?: boolean;
+  earlier_of?: string | null;
 }
 
 function readRound(row: RoundRow): AudienceRound {
@@ -135,6 +143,8 @@ function readRound(row: RoundRow): AudienceRound {
     correctOption: row.correct_option,
     openedAt: row.opened_at,
     closedAt: row.closed_at,
+    allowChange: row.allow_change !== false,
+    earlierOf: row.earlier_of ?? null,
   };
 }
 
@@ -195,6 +205,10 @@ function refusalOf(message: string): SubmitResult {
   if (/question has closed/.test(message)) return { ok: false, error: QUESTION_CLOSED, closed: true };
   // A Word question takes one word per phone (0114, W3); a phone that already sent one is told.
   if (/already sent your word/.test(message)) return { ok: false, error: WORD_ALREADY_SENT };
+  // A vote that is final (0127): this phone's first vote stands.
+  if (/your vote is already in/.test(message)) return { ok: false, error: VOTE_FINAL };
+  // The round's burst cap (0127): a big room voting at once, not this phone's fault.
+  if (/too many votes at once/.test(message)) return { ok: false, error: TOO_MANY_VOTES };
   return { ok: false, error: REFUSED };
 }
 
@@ -327,6 +341,7 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
                 correctOption: null,
                 openedAt: round.openedAt,
                 closedAt: null,
+                allowChange: round.allowChange !== false,
               }
             : null,
         },
@@ -362,7 +377,8 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
         p_revision: revision,
       });
       if (result.ok) changed();
-      return result.ok || result.closed || result.error === NOT_SENT ? result : { ok: false, error: 'That vote could not be counted.' };
+      // Every refusal that says what it is passes through; the rest read as a vote.
+      return result.error === REFUSED ? { ok: false, error: 'That vote could not be counted.' } : result;
     },
 
     // ── The operator's half ─────────────────────────────────────────────────────────────────
@@ -467,7 +483,7 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
       await operator<unknown>(() => sb.rpc('audience_set_join', { p_slug: control(), p_patch: { brand } }));
     },
 
-    async goLive(question): Promise<AudienceRound> {
+    async goLive(question, opts): Promise<AudienceRound> {
       const sb = await client();
       // One transaction on the server (0111, R3): the other round closes, this one opens, the
       // state points at it.
@@ -478,7 +494,11 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
             id: question.id,
             type: question.type,
             text: question.text,
-            ...(question.type === 'choice' ? { options: (question.options ?? []).slice(0, AUDIENCE_LIMITS.options) } : {}),
+            ...(question.type === 'choice'
+              ? { options: (question.options ?? []).slice(0, AUDIENCE_LIMITS.options), allow_change: question.allowChange !== false }
+              : {}),
+            // 0127: keep the counted result as an earlier count and start this one from zero.
+            ...(opts?.newCount ? { new_count: true } : {}),
           },
         }),
       );
@@ -527,6 +547,18 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
       return raw.flatMap((x) => {
         const t = x as { word?: unknown; count?: unknown };
         return typeof t.word === 'string' && Number(t.count) > 0 ? [{ word: t.word, count: Number(t.count) }] : [];
+      });
+    },
+
+    async votes(roundId): Promise<RoundVote[]> {
+      const sb = await client();
+      // One jsonb value, not a set of rows, so a big room's export is never cut at a page (0127).
+      const raw = await operator<{ votes?: unknown } | null>(() => sb.rpc('audience_votes_export', { p_slug: control(), p_round: roundId }));
+      return (Array.isArray(raw?.votes) ? raw.votes : []).flatMap((x) => {
+        const v = x as Partial<RoundVote>;
+        return typeof v.at === 'string' && typeof v.option === 'number' && typeof v.voter === 'string'
+          ? [{ at: v.at, option: v.option, source: v.source === 'chat' ? 'chat' : 'phone', voter: v.voter } as RoundVote]
+          : [];
       });
     },
 

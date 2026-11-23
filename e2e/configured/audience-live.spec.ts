@@ -5,6 +5,7 @@
 // covers: supabase/migrations/0112_join_logos.sql
 // covers: supabase/migrations/0113_audience_chat_votes.sql
 // covers: src/control/additivePublish.ts, src/control/publishNewGraphics.ts, src/components/home/usePublishNewGraphics.ts
+// covers: supabase/migrations/0127_verifiable_voting.sql
 
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -18,7 +19,7 @@ import { openProductionWithCurrent } from '../_create';
 import { createGraphicInEditor, haveCreds, readyOf, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 import { openWorkspace } from '../_workspace';
 import { settleDurableWrites } from '../_durable';
-import { addQuestion, addResults, goLive, moreWaysIn, stopLive } from '../_interaction';
+import { addQuestion, addResults, fillOptions, goLive, moreWaysIn, stopLive } from '../_interaction';
 import { installDoor } from '../_door';
 
 // This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
@@ -782,6 +783,144 @@ test.describe(() => {
     await secondContext.close();
     await presenter.close();
     await messages.close();
+    await unpublishForCleanup(page);
+    await wipeMyGraphics(page);
+  });
+
+  test('one vote run twice from three phones: run again asks, continue or a new count, a final vote is refused, and the panel, the phones and the CSV agree (P1 AC-1, AC-3, AC-5, AC-6)', async ({
+    page,
+    browser,
+  }) => {
+    // docs/work-specs/live-production-reliability/spec.md P1, against migration 0127 through the
+    // real pages: three phone browsers on the published join link, the operator's Interaction tab,
+    // and the phone provider's own refusal words for a final vote.
+    test.setTimeout(180_000);
+    await signIn(page);
+    await settleSync(page);
+    await wipeMyGraphics(page);
+    await createGraphicInEditor(page, 'Lower thirds', 'Hairline');
+    const showId = await openProductionWithCurrent(page, `Vote Twice ${Date.now()}`);
+    await publishProduction(page);
+    await expect(page.getByTestId('production-status-panel')).toBeVisible({ timeout: 30_000 });
+    await page.keyboard.press('Escape');
+    const slugs = await page.evaluate(async (id) => {
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const show = loadShows().find((s) => s.id === id)!;
+      return { control: show.hostedSlug!, join: show.joinSlug! };
+    }, showId);
+    const ws = await openWorkspace(page, 'audience');
+    await expect(ws.getByTestId('join-published')).toBeVisible({ timeout: 30_000 });
+    const joinUrl = ((await ws.getByTestId('join-published').getByTestId('join-link').textContent()) ?? '').trim();
+    expect(joinUrl).toContain('/j/');
+
+    const phones = await Promise.all(
+      [0, 1, 2].map(async () => {
+        const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+        await installDoor(context);
+        const phone = await context.newPage();
+        await phone.goto(joinUrl);
+        return { context, phone };
+      }),
+    );
+    const LETTER = ['A', 'B'];
+    /** A phone picks and presses Vote (or Change vote) once the question is on it, and reads back. */
+    const voteFrom = async (n: number, option: number, words: string[]) => {
+      const { phone } = phones[n];
+      await expect(phone.locator('#join .nj-opt')).toHaveCount(words.length, { timeout: 20_000 });
+      await phone.locator('#join .nj-opt').nth(option).tap();
+      await phone.locator('#join .nj-send').tap();
+      await expect(phone.getByTestId('nj-voted')).toHaveText(`Your vote: ${LETTER[option]} ${words[option]}`, { timeout: 20_000 });
+    };
+    /** What each phone reads back from the server, after its next poll. */
+    const readBacks = async () => {
+      const out: (string | null)[] = [];
+      for (const { phone } of phones) {
+        await phone.reload();
+        await expect(phone.locator('#join .nj-opt').first()).toBeVisible({ timeout: 20_000 });
+        const voted = phone.getByTestId('nj-voted');
+        out.push((await voted.count()) ? await voted.textContent() : null);
+      }
+      return out;
+    };
+    const panel = async () => [await ws.getByTestId('audience-tally-0').textContent(), await ws.getByTestId('audience-tally-1').textContent()].map(Number);
+    const csvRows = async (button: ReturnType<typeof ws.getByTestId>) => {
+      const [file] = await Promise.all([ws.waitForEvent('download'), button.click()]);
+      const { readFileSync } = await import('node:fs');
+      return readFileSync((await file.path())!, 'utf8').trim().split('\r\n').slice(1).map((l) => l.split(','));
+    };
+
+    // RUN 1: two phones vote Home, one Away. The panel and the phones agree.
+    const WORDS = ['Home', 'Away'];
+    await addQuestion(ws, 'choice', 'Who wins twice?', WORDS);
+    const row = ws.locator('.pd-aud-q', { hasText: 'Who wins twice?' });
+    await goLive(ws, 'Who wins twice?');
+    await voteFrom(0, 0, WORDS);
+    await voteFrom(1, 0, WORDS);
+    await voteFrom(2, 1, WORDS);
+    await expect.poll(panel, { timeout: 20_000 }).toEqual([2, 1]);
+    await stopLive(ws, 'Who wins twice?');
+
+    // RUN 2, CONTINUE: Go live asks; continuing keeps every vote, and a phone changes its own.
+    await row.getByTestId('question-go-live').click();
+    await expect(ws.getByTestId('question-run-choice')).toContainText('has 3 votes');
+    await ws.getByTestId('question-run-continue').click();
+    await expect(row.getByTestId('question-live')).toBeVisible();
+    await expect(ws.getByTestId('audience-note')).toContainText('Its earlier 3 votes still count.');
+    expect(await readBacks()).toEqual(['Your vote: A Home', 'Your vote: A Home', 'Your vote: B Away']);
+    await expect(phones[0].phone.locator('#join .nj-send')).toHaveText('Change vote');
+    await voteFrom(0, 1, WORDS);
+    await expect.poll(panel, { timeout: 20_000 }).toEqual([1, 2]);
+    await stopLive(ws, 'Who wins twice?');
+
+    // RUN 3, A NEW COUNT: zero, the phones vote afresh, and the earlier 3 stay readable and in a CSV
+    // that agrees with the panel's last reading of them.
+    await row.getByTestId('question-go-live').click();
+    await ws.getByTestId('question-run-new').click();
+    await expect(row.getByTestId('question-live')).toBeVisible();
+    await expect(ws.getByTestId('audience-note')).toContainText('A new count starts from zero; the earlier 3 votes are kept under Earlier counts.');
+    expect(await readBacks()).toEqual([null, null, null]);
+    await expect.poll(panel, { timeout: 20_000 }).toEqual([0, 0]);
+    await voteFrom(0, 0, WORDS);
+    await voteFrom(1, 1, WORDS);
+    await expect.poll(panel, { timeout: 20_000 }).toEqual([1, 1]);
+    await expect(ws.getByTestId('earlier-count-total')).toHaveText('3 votes', { timeout: 20_000 });
+    const earlier = await csvRows(ws.getByTestId('earlier-count-export'));
+    expect(earlier.map((r) => r[1]).sort()).toEqual(['A', 'B', 'B']);
+    expect(earlier.every((r) => r[3] === 'phone' && /^[0-9a-f]{10}$/.test(r[4]))).toBe(true);
+    const current = await csvRows(ws.getByTestId('audience-export-votes'));
+    expect(current.map((r) => r[1]).sort()).toEqual(['A', 'B']);
+    // One phone, two rounds, two keys: the export cannot follow a device across counts.
+    expect(new Set([...earlier, ...current].map((r) => r[4])).size).toBe(5);
+    expect(await readBacks()).toEqual(['Your vote: A Home', 'Your vote: B Away', null]);
+    await stopLive(ws, 'Who wins twice?');
+
+    // A FINAL VOTE: set in the composer, told to the phone before it votes, and a second vote from
+    // the same device refused by the database in the phone's own words.
+    await ws.getByTestId('question-add').click();
+    await ws.getByTestId('question-type-choice').click();
+    await ws.getByTestId('question-text').fill('Final call?');
+    await fillOptions(ws, ['Yes', 'No']);
+    await ws.getByTestId('question-allow-change').uncheck();
+    await ws.getByTestId('question-save').click();
+    await goLive(ws, 'Final call?');
+    await expect(phones[2].phone.getByTestId('nj-final')).toHaveText("Your vote can't be changed after you send it.", { timeout: 20_000 });
+    await voteFrom(2, 1, ['Yes', 'No']);
+    await expect(phones[2].phone.locator('#join .nj-send')).toHaveCount(0);
+    const token = await phones[2].phone.evaluate(() => localStorage.getItem('noacg-audience-device'));
+    const again = await page.evaluate(
+      async ({ join, control, device }) => {
+        const { createSupabaseAudience } = await __noacgImport('/src/audience/audienceData.ts');
+        const round = (await createSupabaseAudience({ controlSlug: control }).rounds()).find((r) => !r.closedAt)!;
+        return createSupabaseAudience({ joinSlug: join }).vote(device!, round.id, 0, round.revision);
+      },
+      { join: slugs.join, control: slugs.control, device: token },
+    );
+    expect(again).toEqual({ ok: false, error: 'Your vote is already in.' });
+    await expect.poll(panel, { timeout: 20_000 }).toEqual([0, 1]);
+    await stopLive(ws, 'Final call?');
+
+    for (const { context } of phones) await context.close();
+    await ws.close();
     await unpublishForCleanup(page);
     await wipeMyGraphics(page);
   });

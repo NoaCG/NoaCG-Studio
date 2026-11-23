@@ -27,6 +27,10 @@ export interface ShowQuestion {
   text: string;
   /** Multiple choice only: 2 to 8, each at most 60 characters. */
   options?: string[];
+  /** Multiple choice only: false makes each phone's first vote final (owner, 2026-11-23). Absent
+   *  means a vote can be changed while the question is live, as before; true is never stored. Part
+   *  of what was asked, so locked with the words. */
+  allowChange?: false;
   /** Word only: the words the operator hid, by `wordKey` (model/wordCloud.ts). A hidden word stays
    *  in the count but never reaches a cue. Not part of what was asked, so never locked. */
   hidden?: string[];
@@ -44,20 +48,77 @@ export function isQuestionId(id: string): boolean {
 }
 
 /** What Go live sends for a question this build can ask (audienceTypes `QuestionLive`). */
-export function toLive(q: ShowQuestion & { type: QuestionType }): { id: string; type: QuestionType; text: string; options?: string[] } {
-  return q.type === 'choice' ? { id: q.id, type: 'choice', text: q.text, options: q.options ?? [] } : { id: q.id, type: q.type, text: q.text };
+export function toLive(q: ShowQuestion & { type: QuestionType }): { id: string; type: QuestionType; text: string; options?: string[]; allowChange?: boolean } {
+  return q.type === 'choice'
+    ? { id: q.id, type: 'choice', text: q.text, options: q.options ?? [], allowChange: q.allowChange !== false }
+    : { id: q.id, type: q.type, text: q.text };
 }
 
 export function isKnownType(type: string): type is QuestionType {
   return type === 'open' || type === 'choice' || type === 'word';
 }
 
+/** One option as the server takes it: trimmed and capped. */
+const cleanOption = (line: string): string => line.trim().slice(0, QUESTION_LIMITS.option);
+
 /** One option per line, trimmed, blank lines dropped, capped as the server caps them. */
 export function cleanOptions(lines: readonly string[]): string[] {
-  return lines
-    .map((line) => line.trim().slice(0, QUESTION_LIMITS.option))
-    .filter(Boolean)
-    .slice(0, QUESTION_LIMITS.maxOptions);
+  return lines.map(cleanOption).filter(Boolean).slice(0, QUESTION_LIMITS.maxOptions);
+}
+
+/** An option's letter, as phones, chat votes and the composer name it: A, B, C... */
+export function optionLetter(index: number): string {
+  return String.fromCharCode(65 + index);
+}
+
+// THE OPTION ROWS of the composer (live-production-reliability P3, owner 2026-11-23): one row per
+// option as the operator is typing them, blanks included; `cleanOptions` makes what is saved. Each
+// edit returns a new list, or null where the limits refuse it.
+
+/** A vote's rows: its options, then empty rows up to the fewest a vote takes. */
+export function startOptionRows(options: readonly string[] = []): string[] {
+  const rows = [...options];
+  while (rows.length < QUESTION_LIMITS.minOptions) rows.push('');
+  return rows;
+}
+
+/** An empty row after `at`, or null at the most a vote takes. */
+export function addOptionRow(rows: readonly string[], at: number): string[] | null {
+  if (rows.length >= QUESTION_LIMITS.maxOptions) return null;
+  const next = [...rows];
+  next.splice(Math.max(0, Math.min(at + 1, rows.length)), 0, '');
+  return next;
+}
+
+/** Without row `at`, or null at the fewest a vote takes. */
+export function removeOptionRow(rows: readonly string[], at: number): string[] | null {
+  if (rows.length <= QUESTION_LIMITS.minOptions || at < 0 || at >= rows.length) return null;
+  return rows.filter((_, i) => i !== at);
+}
+
+/** Move the item at `from` to `to` (clamped): an option row, or a question in the list. */
+export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
+  const next = [...list];
+  if (from < 0 || from >= list.length) return next;
+  const [moved] = next.splice(from, 1);
+  next.splice(Math.max(0, Math.min(to, next.length)), 0, moved);
+  return next;
+}
+
+/**
+ * Text with line breaks pasted into row `at` becomes rows there, each cleaned as `cleanOptions`
+ * cleans it. `text` is the row's whole text with the paste in it. The empty rows go (they were room
+ * to type), the other options keep their places, and the pasted lines take the room that is left:
+ * `dropped` counts the lines that did not fit, `focus` is the last row pasted. Null when the text
+ * has no line break, so a plain paste stays a plain paste.
+ */
+export function pasteOptionRows(rows: readonly string[], at: number, text: string): { rows: string[]; focus: number; dropped: number } | null {
+  if (!/[\r\n]/.test(text)) return null;
+  const lines = text.split(/\r\n|\r|\n/).map(cleanOption).filter(Boolean);
+  const before = rows.slice(0, at).filter((r) => r.trim() !== '');
+  const after = rows.slice(at + 1).filter((r) => r.trim() !== '');
+  const kept = lines.slice(0, Math.max(0, QUESTION_LIMITS.maxOptions - before.length - after.length));
+  return { rows: startOptionRows([...before, ...kept, ...after]), focus: Math.max(0, before.length + kept.length - 1), dropped: lines.length - kept.length };
 }
 
 /** Why a question cannot be saved as written, or null when it can. */
@@ -90,9 +151,9 @@ export function readQuestions(raw: unknown): ShowQuestion[] {
     // Additive optional fields a newer build stored stay on the question (the spread), so a list
     // edit here never drops them.
     const options = Array.isArray(q.options) ? q.options.filter((o): o is string => typeof o === 'string') : [];
-    const { options: _options, hidden: _hidden, ...rest } = q;
+    const { options: _options, hidden: _hidden, allowChange: _allowChange, ...rest } = q;
     const hidden = Array.isArray(q.hidden) ? [...new Set(q.hidden.filter((w): w is string => typeof w === 'string' && w.length > 0))] : [];
-    if (q.type === 'choice') out.push({ ...rest, options } as unknown as ShowQuestion);
+    if (q.type === 'choice') out.push({ ...rest, options, ...(q.allowChange === false ? { allowChange: false } : {}) } as unknown as ShowQuestion);
     else if (q.type === 'word' && hidden.length > 0) out.push({ ...rest, hidden } as unknown as ShowQuestion);
     else out.push({ ...rest } as unknown as ShowQuestion);
   }
@@ -105,12 +166,14 @@ export function makeQuestion(
   type: QuestionType,
   text: string,
   options: readonly string[] = [],
+  allowChange = true,
 ): { question: ShowQuestion } | { error: string } {
   if (!ID.test(id)) return { error: 'That question id cannot be used.' };
   const problem = questionProblem(type, text, options);
   if (problem) return { error: problem };
   const clean = text.trim().slice(0, QUESTION_LIMITS.text);
-  return { question: type === 'choice' ? { id, type, text: clean, options: cleanOptions(options) } : { id, type, text: clean } };
+  if (type !== 'choice') return { question: { id, type, text: clean } };
+  return { question: { id, type, text: clean, options: cleanOptions(options), ...(allowChange ? {} : { allowChange: false as const }) } };
 }
 
 /**
@@ -127,12 +190,12 @@ export function addQuestion(list: readonly ShowQuestion[], question: ShowQuestio
   return [...list, question];
 }
 
-/** Change the text or options of a question that is not locked. The type is not editable here
- *  or anywhere (R8): a changed type is a new question. */
+/** Change the text, options or change policy of a question that is not locked. The type is not
+ *  editable here or anywhere (R8): a changed type is a new question. */
 export function editQuestion(
   list: readonly ShowQuestion[],
   id: string,
-  patch: { text?: string; options?: readonly string[] },
+  patch: { text?: string; options?: readonly string[]; allowChange?: boolean },
   locked: boolean,
 ): { list: ShowQuestion[] } | { error: string } {
   const at = list.findIndex((q) => q.id === id);
@@ -140,10 +203,12 @@ export function editQuestion(
   if (locked) return { error: 'This question is live or has answers, so its words stay as they were asked. Duplicate it to ask a changed version.' };
   const was = list[at];
   if (!isKnownType(was.type)) return { error: 'This question was made by a newer version of NoaCG.' };
-  const made = makeQuestion(was.id, was.type, patch.text ?? was.text, patch.options ?? was.options ?? []);
+  const made = makeQuestion(was.id, was.type, patch.text ?? was.text, patch.options ?? was.options ?? [], patch.allowChange ?? was.allowChange !== false);
   if ('error' in made) return made;
   const next = [...list];
-  next[at] = { ...was, ...made.question };
+  // The policy is written whole by `made`: switching changes back on must not leave the old false.
+  const { allowChange: _allowChange, ...kept } = was;
+  next[at] = { ...kept, ...made.question };
   return { list: next };
 }
 
@@ -163,12 +228,7 @@ export function setWordHidden(list: readonly ShowQuestion[], id: string, key: st
 
 /** Move a question to `to` (clamped), for drag and for the keyboard's up and down. */
 export function moveQuestion(list: readonly ShowQuestion[], id: string, to: number): ShowQuestion[] {
-  const from = list.findIndex((q) => q.id === id);
-  if (from < 0) return [...list];
-  const next = [...list];
-  const [moved] = next.splice(from, 1);
-  next.splice(Math.max(0, Math.min(to, next.length)), 0, moved);
-  return next;
+  return moveItem(list, list.findIndex((q) => q.id === id), to);
 }
 
 /** A copy under a NEW id, right after the original. It has no result yet, so it starts from zero

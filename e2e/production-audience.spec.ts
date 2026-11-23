@@ -28,9 +28,10 @@ import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { openWorkspace } from './_workspace';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
-import { addQuestion, goLive, moreWaysIn, questionRow, simulateArrivals, stopLive } from './_interaction';
+import { addQuestion, fillOptions, goLive, moreWaysIn, questionRow, simulateArrivals, stopLive } from './_interaction';
 import { qrReader } from './_qr';
 import { installDoor } from './_door';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg, intoExistingProduction, intoProduction } from './_svg-import';
 
@@ -563,20 +564,53 @@ test('questions are written, browsed and changed safely, and the list survives a
   await expect(ws.getByTestId('question-edit')).toBeDisabled();
   await ws.keyboard.press('Escape');
 
-  // Going live again continues the same count.
-  await goLive(ws, 'Who wins?');
+  // Going live again ASKS (owner, 2026-11-23), and nothing goes live until the operator chooses.
+  // Continue the count keeps it going.
+  const runAgain = ws.getByTestId('question-run-choice');
+  await vote.getByTestId('question-go-live').click();
+  await expect(runAgain).toContainText('“Who wins?” has 3 votes.');
+  await expect(vote.getByTestId('question-live')).toHaveCount(0);
+  await runAgain.getByTestId('question-run-cancel').click();
+  await expect(runAgain).toHaveCount(0);
+  await expect(vote.getByTestId('question-live')).toHaveCount(0);
+  await vote.getByTestId('question-go-live').click();
+  await runAgain.getByTestId('question-run-continue').click();
+  await expect(vote.getByTestId('question-live')).toBeVisible();
+  await expect(ws.getByTestId('audience-note')).toContainText('Its earlier 3 votes still count.');
   await expect(vote.getByTestId('question-count')).toHaveText('3');
   await ws.getByTestId('audience-simulate-votes').click();
   await expect(vote.getByTestId('question-count')).toHaveText('6', { timeout: 10_000 });
   await stopLive(ws, 'Who wins?');
 
-  // Clear results takes two presses and leaves nothing; the words may then change.
+  // Start a new count: it starts from zero, and the six are kept under Earlier counts, readable and
+  // downloadable as a CSV (P1 AC-3, AC-5).
+  await vote.getByTestId('question-go-live').click();
+  await runAgain.getByTestId('question-run-new').click();
+  await expect(vote.getByTestId('question-live')).toBeVisible();
+  await expect(ws.getByTestId('audience-note')).toContainText('A new count starts from zero; the earlier 6 votes are kept under Earlier counts.');
+  await expect(vote.getByTestId('question-count')).toHaveText('0');
+  await expect(ws.getByTestId('earlier-count')).toHaveCount(1);
+  await expect(ws.getByTestId('earlier-count-total')).toHaveText('6 votes');
+  const [earlierCsv] = await Promise.all([ws.waitForEvent('download'), ws.getByTestId('earlier-count-export').click()]);
+  expect(earlierCsv.suggestedFilename()).toMatch(/^votes-who-wins-\d{4}-\d{2}-\d{2}\.csv$/);
+  const earlierLines = readFileSync((await earlierCsv.path())!, 'utf8').trim().split('\r\n');
+  expect(earlierLines[0]).toBe('Time (UTC),Option,Answer,Source,Voter');
+  expect(earlierLines.slice(1).map((l) => l.split(',').slice(1, 4).join(',')).sort()).toEqual([
+    'A,Home,phone', 'A,Home,phone', 'A,Home,phone', 'A,Home,phone', 'B,Away,phone', 'B,Away,phone',
+  ]);
+  await ws.getByTestId('audience-simulate-votes').click();
+  await expect(vote.getByTestId('question-count')).toHaveText('3', { timeout: 10_000 });
+  await stopLive(ws, 'Who wins?');
+
+  // Clear results takes two presses and leaves nothing of the current count; the earlier one stays,
+  // and the words may then change.
   await vote.getByTestId('question-more').click();
   await ws.getByTestId('question-clear').click();
   await expect(ws.getByTestId('question-clear')).toHaveText('Press again to clear its results');
-  await expect(vote.getByTestId('question-count')).toHaveText('6');
+  await expect(vote.getByTestId('question-count')).toHaveText('3');
   await ws.getByTestId('question-clear').click();
   await expect(vote.getByTestId('question-count')).toHaveText('0');
+  await expect(ws.getByTestId('earlier-count-total')).toHaveText('6 votes');
   await vote.getByTestId('question-more').click();
   await expect(ws.getByTestId('question-edit')).toBeEnabled();
   await ws.keyboard.press('Escape');
@@ -619,6 +653,97 @@ test('questions are written, browsed and changed safely, and the list survives a
   await expect(orphan).toHaveCount(0);
   expect(((await room(ws, showId))?.rounds ?? []).filter((r) => !r.closedAt)).toHaveLength(0);
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+
+  // THE OPTION BUILDER (live-production-reliability P3, owner 2026-11-23): one row per option, two
+  // to start. Enter adds the next row, Backspace in an empty one removes it, Alt+Up, the handle's
+  // arrows and a drag reorder, a paste of several lines makes rows, eight is the most, and the draft
+  // shows on a phone, drawn by the join page's own renderer, while it is written.
+  await ws.getByTestId('question-add').click();
+  await ws.getByTestId('question-type-choice').click();
+  const composer = ws.getByTestId('question-composer');
+  const fields = composer.getByTestId('question-option');
+  const values = () => fields.evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value));
+  const phone = composer.getByTestId('question-preview');
+  const pasteInto = (field: Locator, text: string) =>
+    field.evaluate((el, clip) => {
+      const data = new DataTransfer();
+      data.setData('text/plain', clip);
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    }, text);
+  await expect(fields).toHaveCount(2);
+  await expect(composer.getByTestId('question-option-count')).toHaveCount(0);
+  await expect(composer.getByTestId('question-results')).toHaveText('Results: counts and shares per option, for a vote board.');
+  await ws.getByTestId('question-text').fill('Best snack?');
+  await expect(phone.locator('.nj-prompt')).toHaveText('Best snack?');
+  await fields.nth(0).fill('Crisps');
+  await fields.nth(0).press('Enter');
+  await expect(fields).toHaveCount(3);
+  await expect(fields.nth(1)).toBeFocused();
+  await ws.keyboard.type('Nuts');
+  await ws.keyboard.press('Enter');
+  await expect(fields).toHaveCount(4);
+  await ws.keyboard.press('Backspace');
+  await expect(fields).toHaveCount(3);
+  await expect(fields.nth(1)).toBeFocused();
+  await fields.nth(2).fill('Popcorn');
+  await fields.nth(2).press('Alt+ArrowUp');
+  await expect.poll(values).toEqual(['Crisps', 'Popcorn', 'Nuts']);
+  await expect(fields.nth(1)).toBeFocused();
+  // Each field is named by its letter, and so is each button on its row.
+  await expect(composer.getByLabel('Option B', { exact: true })).toHaveValue('Popcorn');
+  await expect(composer.getByRole('button', { name: 'Remove option C' })).toBeEnabled();
+  await expect(phone.locator('.nj-opt')).toHaveText(['ACrisps', 'BPopcorn', 'CNuts']);
+
+  // A paste of several lines into a new row: one row each, trimmed, blank lines dropped.
+  await composer.getByTestId('question-option-add').click();
+  await expect(fields.nth(3)).toBeFocused();
+  await pasteInto(fields.nth(3), 'Fruit\r\nCake\n\n  Cheese ');
+  await expect.poll(values).toEqual(['Crisps', 'Popcorn', 'Nuts', 'Fruit', 'Cake', 'Cheese']);
+  await expect(fields.nth(5)).toBeFocused();
+  await expect(composer.getByTestId('question-option-count')).toHaveText('6 of 8');
+  // Past the most a vote takes, the paste fills what is left and says what it left out.
+  await composer.getByTestId('question-option-add').click();
+  await pasteInto(fields.nth(6), 'One\nTwo\nThree\nFour');
+  await expect.poll(values).toEqual(['Crisps', 'Popcorn', 'Nuts', 'Fruit', 'Cake', 'Cheese', 'One', 'Two']);
+  await expect(composer.getByTestId('question-option-dropped')).toHaveText('Only 8 options fit; 2 left out.');
+  await expect(composer.getByTestId('question-option-count')).toHaveText('8 of 8');
+  await expect(composer.getByTestId('question-option-add')).toBeDisabled();
+  await fields.nth(7).press('Enter');
+  await expect(fields).toHaveCount(8);
+  await composer.getByRole('button', { name: 'Remove option H' }).click();
+  await composer.getByRole('button', { name: 'Remove option G' }).click();
+  await expect.poll(values).toEqual(['Crisps', 'Popcorn', 'Nuts', 'Fruit', 'Cake', 'Cheese']);
+  await expect(composer.getByTestId('question-option-dropped')).toHaveCount(0);
+  // The handle moves its row by the arrow keys, and by a drag.
+  await composer.getByRole('button', { name: 'Move option A', exact: true }).press('ArrowDown');
+  await expect.poll(values).toEqual(['Popcorn', 'Crisps', 'Nuts', 'Fruit', 'Cake', 'Cheese']);
+  await expect(composer.getByRole('button', { name: 'Move option B', exact: true })).toBeFocused();
+  await composer.getByTestId('question-option-grip').nth(5).dragTo(composer.getByTestId('question-option-row').nth(0));
+  await expect.poll(values).toEqual(['Cheese', 'Popcorn', 'Crisps', 'Nuts', 'Fruit', 'Cake']);
+  // The phone follows every change, the vote rule included.
+  await expect(phone.locator('.nj-opt')).toHaveText(['ACheese', 'BPopcorn', 'CCrisps', 'DNuts', 'EFruit', 'FCake']);
+  await composer.getByTestId('question-allow-change').uncheck();
+  await expect(phone.getByTestId('nj-final')).toBeVisible();
+  await composer.getByTestId('question-allow-change').check();
+  await expect(phone.getByTestId('nj-final')).toHaveCount(0);
+  await ws.getByTestId('question-save').click();
+  const snack = questionRow(ws, 'Best snack?');
+  await expect(snack).toHaveCount(1);
+  await expect(ws.locator('.pd-aud-tally-label')).toHaveText(['Cheese', 'Popcorn', 'Crisps', 'Nuts', 'Fruit', 'Cake']);
+
+  // Live, a question being edited shows its rows and changes none of them.
+  await snack.getByTestId('question-more').click();
+  await ws.getByTestId('question-edit').click();
+  await expect.poll(values).toEqual(['Cheese', 'Popcorn', 'Crisps', 'Nuts', 'Fruit', 'Cake']);
+  await goLive(ws, 'Best snack?');
+  await expect(fields.first()).toHaveAttribute('readonly', '');
+  await expect(composer.getByTestId('question-option-grip')).toHaveCount(0);
+  await expect(composer.getByTestId('question-option-remove')).toHaveCount(0);
+  await expect(composer.getByTestId('question-option-add')).toHaveCount(0);
+  await expect(ws.getByTestId('question-save')).toBeDisabled();
+  await expect(ws.getByTestId('question-locked')).toBeVisible();
+  await stopLive(ws, 'Best snack?');
+  await ws.getByTestId('question-cancel').click();
 });
 
 test('a Word question takes one word per phone, lists words by frequency, and airs only the shown words through Take (AC-14)', async ({ page, context }) => {
@@ -790,6 +915,10 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await phone.locator('#join .nj-send').click();
   await expect(phone.getByTestId('nj-voted')).toHaveText('Your vote: B Blue');
   await expect(pick.getByTestId('question-count')).toHaveText('1', { timeout: 10_000 });
+  // An installed clock still runs by itself; PAUSED, the phone re-reads only when it sends or the
+  // test runs its clock, so it keeps the old options however long the edit below takes. Paused here,
+  // after the phone's last message, so its messages keep the times they were sent at.
+  await phone.clock.pauseAt((await phone.evaluate(() => Date.now())) + 500);
   await stopLive(ws, 'Pick one');
   await pick.getByTestId('question-more').click();
   await ws.getByTestId('question-clear').click();
@@ -797,7 +926,7 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await expect(pick.getByTestId('question-count')).toHaveText('0');
   await pick.getByTestId('question-more').click();
   await ws.getByTestId('question-edit').click();
-  await ws.getByTestId('question-options').fill('Blue\nRed\nGreen');
+  await fillOptions(ws, ['Blue', 'Red', 'Green']);
   await ws.getByTestId('question-save').click();
   await goLive(ws, 'Pick one');
   await phone.locator('#join .nj-opt').nth(0).click(); // still the old "Red"
@@ -815,6 +944,33 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await phone.clock.runFor(7_000);
   await expect(phone.locator('#join .nj-waiting')).toBeVisible();
   await expect(phone.locator('#join .nj-note')).toHaveCount(0);
+
+  // A vote that cannot be changed (owner, 2026-11-23): one checkbox in the composer, said on the
+  // phone before the vote is sent, no change offered after; the export names the vote under a key
+  // that is not the phone's token (P1 AC-1, AC-3).
+  await ws.getByTestId('question-add').click();
+  await ws.getByTestId('question-type-choice').click();
+  await ws.getByTestId('question-text').fill('Final answer');
+  await fillOptions(ws, ['Yes', 'No']);
+  await expect(ws.getByTestId('question-allow-change')).toBeChecked();
+  await ws.getByTestId('question-allow-change').uncheck();
+  await ws.getByTestId('question-save').click();
+  await goLive(ws, 'Final answer');
+  await expect(ws.getByTestId('question-final')).toHaveText("A phone's first vote is final.");
+  await phone.clock.runFor(7_000);
+  await expect(phone.getByTestId('nj-final')).toHaveText("Your vote can't be changed after you send it.");
+  await phone.locator('#join .nj-opt').nth(1).click();
+  await phone.locator('#join .nj-send').click();
+  await expect(phone.getByTestId('nj-voted')).toHaveText('Your vote: B No');
+  await expect(phone.locator('#join .nj-send')).toHaveCount(0);
+  await expect(phone.locator('#join .nj-opt').nth(0)).toBeDisabled();
+  await expect(questionRow(ws, 'Final answer').getByTestId('question-count')).toHaveText('1', { timeout: 10_000 });
+  const token = await phone.evaluate(() => localStorage.getItem('noacg-audience-device'));
+  expect(token).toBeTruthy();
+  const [csv] = await Promise.all([ws.waitForEvent('download'), ws.getByTestId('audience-export-votes').click()]);
+  const text = readFileSync((await csv.path())!, 'utf8');
+  expect(text.trim().split('\r\n').slice(1).map((l) => l.split(',').slice(1, 4).join(','))).toEqual(['B,No,phone']);
+  expect(text).not.toContain(token!);
 });
 
 test('unpublished, Interaction offers Publish where phones would join and publishes nothing by itself (AC-8)', async ({ page }) => {
@@ -1736,6 +1892,24 @@ test('a tap only picks, Vote sends once and reads back, and a failed send leaves
   await vote.click();
   await expect(page.getByTestId('nj-voted')).toHaveText('Your vote: C A draw after extra time');
   expect(await sent()).toEqual([1, 2]);
+
+  // A question that does not allow changing a vote (owner, 2026-11-23): the phone says so before
+  // the vote is sent, and once it is in, offers no change.
+  await page.evaluate(() => {
+    const w = window as unknown as { __view: { state: { round: Record<string, unknown> }; myVote: number | null }; __join: { refresh(): void } };
+    w.__view = { ...w.__view, myVote: null, state: { ...w.__view.state, round: { ...w.__view.state.round, id: 'r2', allowChange: false } } };
+    w.__join.refresh();
+  });
+  await expect(page.getByTestId('nj-final')).toHaveText("Your vote can't be changed after you send it.");
+  await expect(vote).toHaveText('Vote');
+  await options.nth(0).click();
+  await vote.click();
+  await expect(page.locator('.nj-note')).toHaveText('Your vote is in.');
+  await expect(page.getByTestId('nj-voted')).toHaveText('Your vote: A The home side');
+  await expect(vote).toHaveCount(0);
+  await expect(page.getByTestId('nj-final')).toHaveCount(0);
+  await expect(options.nth(1)).toBeDisabled();
+  expect(await sent()).toEqual([1, 2, 0]);
 });
 
 test('the studio QR code decodes to the short link, as SVG and as PNG (AC-5)', async ({ page, browser }) => {

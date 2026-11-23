@@ -43,6 +43,7 @@ import {
   type JoinSurfaceHandle,
 } from '../../audience/joinSurface';
 import { createSupabaseAudience } from '../../audience/audienceData';
+import { votesCsv, votesFileName } from '../../audience/voteExport';
 import { joinPageBrand, lookLogoDataUrl } from '../../audience/audienceBrand';
 import { qrPng, qrSvg } from '../../audience/joinQr';
 import { JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT } from '../../audience/audienceTypes';
@@ -55,7 +56,7 @@ import SignInPrompt from '../auth/SignInPrompt';
 import { joinPageUrl } from '../../control/hostedControl';
 import { copyLink } from './copyLink';
 import { useDeferredEdits } from './useDeferredEdits';
-import { QuestionComposer, QuestionList, type QuestionRowState } from './InteractionQuestions';
+import { PREVIEW_REFUSAL, QuestionComposer, QuestionList, type ComposerPhone, type QuestionRowState } from './InteractionQuestions';
 import {
   addQuestion,
   duplicateQuestion,
@@ -969,6 +970,10 @@ export default function ProductionAudienceWorkspace({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composer, setComposer] = useState<{ editing: ShowQuestion | null } | null>(null);
   const [armedClear, setArmedClear] = useState<string | null>(null);
+  /** A stopped vote with votes whose Go live is asking: continue its count, or start a new one. */
+  const [runChoice, setRunChoice] = useState<{ id: string; votes: number } | null>(null);
+  /** A CSV of votes being read: the export buttons wait for it. */
+  const [exporting, setExporting] = useState(false);
   /** A Go live, Stop, Clear or Delete in flight: their buttons wait for it. */
   const [busy, setBusy] = useState(false);
   /** The question whose "Add results to rundown" is asking where results go (S5). */
@@ -1022,9 +1027,11 @@ export default function ProductionAudienceWorkspace({
   useEffect(() => {
     preview.current?.refresh();
   }, [localBrand]);
+  // The composer's phone shows a draft in the page phones get: the production's own look and words.
+  const composerPhone = useMemo<ComposerPhone>(() => ({ productionName: show.name, brand: localBrand }), [show.name, localBrand]);
   const previewClient = useMemo<JoinSurfaceClient>(() => {
     const viewer = live && show.joinSlug ? createSupabaseAudience({ joinSlug: show.joinSlug }) : backend;
-    const refuse = async () => ({ ok: false, error: 'This is your preview. Send from a phone to test it.' });
+    const refuse = async () => ({ ok: false, error: PREVIEW_REFUSAL });
     return {
       load: async () => {
         const view = await viewer.joinView('preview-operator-device');
@@ -1188,6 +1195,12 @@ export default function ProductionAudienceWorkspace({
   const liveQuestion = liveRound?.questionId ? questions.find((q) => q.id === liveRound.questionId) ?? null : null;
   const selected = questions.find((q) => q.id === selectedId) ?? null;
   const selectedRound = selected ? roundOf.get(selected.id) : undefined;
+  /** The selected vote's earlier counts, newest first (0127). */
+  const earlierCounts = useMemo(
+    () => (selected ? rounds.filter((r) => r.earlierOf === selected.id).sort((a, b) => (b.closedAt ?? '').localeCompare(a.closedAt ?? '')) : []),
+    [rounds, selected],
+  );
+  const runQuestion = runChoice ? questions.find((q) => q.id === runChoice.id) ?? null : null;
 
   /** Write the list through one of model/questions.ts's edits; said only once it has landed. */
   const editList = async (edit: (list: ShowQuestion[]) => ShowQuestion[] | string, failed: string): Promise<boolean> => {
@@ -1198,17 +1211,17 @@ export default function ProductionAudienceWorkspace({
     return !failure;
   };
 
-  const saveComposer = (type: QuestionType, text: string, options: string[]) => {
+  const saveComposer = (type: QuestionType, text: string, options: string[], allowChange: boolean) => {
     const editing = composer?.editing ?? null;
     if (editing) {
       const state = rowStates[editing.id];
       void editList((list) => {
-        const done = editQuestion(list, editing.id, { text, options }, state?.locked ?? false);
+        const done = editQuestion(list, editing.id, { text, options, allowChange }, state?.locked ?? false);
         return 'error' in done ? done.error : done.list;
       }, 'The question was not saved').then((ok) => ok && setComposer(null));
       return;
     }
-    const made = makeQuestion(uuid(), type, text, options);
+    const made = makeQuestion(uuid(), type, text, options, allowChange);
     if ('error' in made) {
       setNote(made.error);
       return;
@@ -1274,24 +1287,42 @@ export default function ProductionAudienceWorkspace({
     return unread ? `${words} The final counts could not be read; press Add results to rundown to write them.` : words;
   };
 
-  /** Put a question in front of every phone (R3). Nothing airs: a vote reaches Program only as a
-   *  cue the operator stages and takes. Any round the press closed is finalised by the sweep (S14). */
-  const goLive = async (q: ShowQuestion) => {
+  /**
+   * Put a question in front of every phone (R3). Nothing airs: a vote reaches Program only as a
+   * cue the operator stages and takes. Any round the press closed is finalised by the sweep (S14).
+   *
+   * RUN AGAIN ASKS (owner, 2026-11-23): a stopped vote that already has votes goes live only once
+   * the operator has chosen to continue its count or start a new one (`run`). A new count keeps the
+   * earlier one, readable under the question (0127). A run that took a second count for a fresh
+   * one read as votes going missing in the studio, so it is never assumed either way.
+   */
+  const goLive = async (q: ShowQuestion, run?: 'continue' | 'new') => {
     if (!isKnownType(q.type) || !takeTurn()) return;
     setArmedClear(null);
+    setRunChoice(null);
     try {
       const before = await backend.rounds().catch(() => null);
-      const opened = await backend.goLive(toLive({ ...q, type: q.type }));
+      const was = q.type === 'choice' ? before?.find((r) => r.questionId === q.id && r.closedAt) : undefined;
+      const tally = was ? await backend.tally(was.id).catch(() => null) : null;
+      // Whether to ask is never guessed: a vote whose count cannot be read now does not go live.
+      if (!run && q.type === 'choice' && (!before || (was && !tally))) {
+        setNote('The question did not go live: its count could not be read. Try again.');
+        return;
+      }
+      const counted = tally?.total ?? 0;
+      if (!run && counted > 0) {
+        setSelectedId(q.id);
+        setRunChoice({ id: q.id, votes: counted });
+        return;
+      }
+      const opened = await backend.goLive(toLive({ ...q, type: q.type }), { newCount: run === 'new' });
       chatIntakeFor(show.id).liveChanged(); // chat sorts its next line against this question
       setSelectedId(q.id);
       const swept = await finaliseClosed(before, await backend.rounds().catch(() => null), opened.id);
-      // Going live again continues the question's one result (O1), and a phone that voted before
-      // still holds that vote. Said at the press, with the number, because a second run that the
-      // operator took for a fresh count read as votes going missing (studio session, 2026-11-23).
-      const reopened = opened.kind === 'poll' && (before ?? []).some((r) => r.id === opened.id);
-      const carried = reopened ? (await backend.tally(opened.id).catch(() => null))?.total ?? 0 : 0;
-      const continues = carried > 0 ? ` Its earlier ${carried} ${carried === 1 ? 'vote still counts' : 'votes still count'}. For a fresh count, Stop and Clear results, or Duplicate it.` : '';
-      setNote(`✓ Phones now show “${q.text}”.${continues}${sweepWords(swept)} Nothing is on air.`);
+      const votes = `${counted} ${counted === 1 ? 'vote' : 'votes'}`;
+      const how =
+        counted === 0 ? '' : opened.id === was?.id ? ` Its earlier ${votes} still count.` : ` A new count starts from zero; the earlier ${votes} are kept under Earlier counts.`;
+      setNote(`✓ Phones now show “${q.text}”.${how}${sweepWords(swept)} Nothing is on air.`);
     } catch (err) {
       const message = (err as Error).message;
       // R8: another tab changed the words of a question that already has answers.
@@ -1358,6 +1389,21 @@ export default function ProductionAudienceWorkspace({
       setNote(`The results were not cleared: ${(err as Error).message}`);
     } finally {
       setBusy(false);
+    }
+  };
+
+  /** Download one count's votes as a CSV, read now from the provider (P1 AC-3): every vote with its
+   *  time, option, source and a voter key that is not the device. */
+  const exportVotes = async (round: AudienceRound) => {
+    setExporting(true);
+    try {
+      const votes = await backend.votes(round.id);
+      saveFile(new Blob([votesCsv(round, votes)], { type: 'text/csv;charset=utf-8' }), votesFileName(round));
+      setNote(`✓ Downloaded ${votes.length} ${votes.length === 1 ? 'vote' : 'votes'} of “${round.question}”.`);
+    } catch (err) {
+      setNote(`The votes were not downloaded: ${(err as Error).message}`);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -1598,7 +1644,7 @@ export default function ProductionAudienceWorkspace({
   /** Rounds whose question has left the list: their messages are "Earlier questions" (R10). */
   const earlierRounds = useMemo(() => {
     const listed = new Set(questions.map((q) => q.id));
-    return new Set(rounds.filter((r) => !r.questionId || !listed.has(r.questionId)).map((r) => r.id));
+    return new Set(rounds.filter((r) => r.kind === 'open' && (!r.questionId || !listed.has(r.questionId))).map((r) => r.id));
   }, [questions, rounds]);
 
   const byQuestion = useMemo(() => {
@@ -1829,7 +1875,7 @@ export default function ProductionAudienceWorkspace({
               </div>
             )}
             {composer && !composer.editing && (
-              <QuestionComposer editing={null} onSave={saveComposer} onCancel={() => setComposer(null)} />
+              <QuestionComposer editing={null} phone={composerPhone} onSave={saveComposer} onCancel={() => setComposer(null)} />
             )}
             <QuestionList
               questions={questions}
@@ -1850,6 +1896,23 @@ export default function ProductionAudienceWorkspace({
               onDelete={(q) => void remove(q)}
               onDisarm={() => setArmedClear(null)}
             />
+            {/* RUN AGAIN ASKS (owner, 2026-11-23): continue the count, or a new one that keeps it. */}
+            {runChoice && runQuestion && (
+              <div className="pd-aud-round-actions" data-testid="question-run-choice">
+                <span className="hint">
+                  “{runQuestion.text}” has {runChoice.votes} {runChoice.votes === 1 ? 'vote' : 'votes'}.
+                </span>
+                <button className="primary" disabled={busy} onClick={() => void goLive(runQuestion, 'continue')} data-testid="question-run-continue">
+                  Continue the count
+                </button>
+                <button className="primary" disabled={busy} onClick={() => void goLive(runQuestion, 'new')} data-testid="question-run-new">
+                  Start a new count
+                </button>
+                <button onClick={() => setRunChoice(null)} data-testid="question-run-cancel">
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 2. THE SELECTED QUESTION: looked at, never sent anywhere by being looked at. */}
@@ -1866,11 +1929,13 @@ export default function ProductionAudienceWorkspace({
                 <QuestionComposer
                   key={selected.id}
                   editing={selected}
+                  locked={rowStates[selected.id]?.locked ?? false}
+                  phone={composerPhone}
                   onSave={saveComposer}
                   onCancel={() => setComposer(null)}
                 />
               )}
-              {rowStates[selected.id]?.locked && composer?.editing?.id !== selected.id && (
+              {rowStates[selected.id]?.locked && (
                 <p className="hint" data-testid="question-locked">
                   Its words stay as they were asked while it is live or has answers. Duplicate it to change them.
                 </p>
@@ -1937,7 +2002,42 @@ export default function ProductionAudienceWorkspace({
                       {selectedTally?.total ?? 0} {(selectedTally?.total ?? 0) === 1 ? 'vote' : 'votes'}
                       {chatVoted && ` (${sum(selectedTally?.phone)} phone, ${sum(selectedTally?.chat)} chat)`}. Nothing is on air until you Take the cue.
                     </span>
+                    {selectedRound && (
+                      <button disabled={exporting} onClick={() => void exportVotes(selectedRound)} data-testid="audience-export-votes">
+                        Export votes (CSV)
+                      </button>
+                    )}
                   </div>
+                  {selected.allowChange === false && (
+                    <p className="hint" data-testid="question-final">
+                      A phone&apos;s first vote is final.
+                    </p>
+                  )}
+                  {/* EARLIER COUNTS (0127): what a new count kept, each readable and downloadable. */}
+                  {earlierCounts.length > 0 && (
+                    <div data-testid="earlier-counts">
+                      <span className="hint">Earlier counts</span>
+                      <ul className="pd-aud-earlier">
+                        {earlierCounts.map((r) => {
+                          const t = tallies[r.id];
+                          return (
+                            <li key={r.id} data-testid="earlier-count">
+                              <span className="hint">{new Date(r.closedAt ?? r.openedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>{' '}
+                              <span data-testid="earlier-count-total">
+                                {t ? `${t.total} ${t.total === 1 ? 'vote' : 'votes'}` : '…'}
+                              </span>
+                              {t && t.total > 0 && (
+                                <span className="hint"> · {r.options.map((o, i) => `${o} ${t.counts[i] ?? 0}`).join(', ')}</span>
+                              )}{' '}
+                              <button disabled={exporting} onClick={() => void exportVotes(r)} data-testid="earlier-count-export">
+                                CSV
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
                   {choosingResult === selected.id && selectedRound && (
                     <DesignPicker
                       kind="results"

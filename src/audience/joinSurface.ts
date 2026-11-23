@@ -100,6 +100,7 @@ const CSS = `
   border:1px solid var(--nj-edge); font-size:13px; font-weight:700; }
 .nj-opt[aria-pressed=true] .nj-key { background:var(--nj-accent); color:var(--nj-on-accent); border-color:var(--nj-accent-line); }
 .nj-voted { margin:12px 0 0; font-size:15px; font-weight:700; }
+.nj-final { margin:8px 0 0; font-size:14px; line-height:1.45; color:var(--nj-card-muted); }
 .nj-note { margin:10px 0 0; font-size:14px; line-height:1.45; }
 .nj-card .nj-note { color:var(--nj-card-muted); }
 .nj-note.bad { color:var(--nj-accent-text); }
@@ -421,14 +422,18 @@ export function mountJoinSurface(
     // What the SERVER holds for this phone (the join resolve's `my_vote`), never what was tapped:
     // the line under the options is the read-back that says a vote is in.
     const counted = view?.myVote ?? null;
-    const chosen = pick ? pick.option : counted;
+    // A round that does not allow changing a vote (0127): once this phone's vote is in, it stands,
+    // so the options and the button stop offering a change.
+    const final = round.allowChange === false;
+    const locked = final && counted !== null;
+    const chosen = pick && !locked ? pick.option : counted;
     const list = el('div', 'nj-opts');
     round.options.forEach((option, index) => {
       const button = el('button', 'nj-opt');
       button.type = 'button';
       // The COUNTS are never here: the reveal belongs to the graphic on air.
       button.setAttribute('aria-pressed', String(chosen === index));
-      button.disabled = busy;
+      button.disabled = busy || locked;
       const key = el('span', 'nj-key', optionKey(index));
       const label = el('span', undefined, option);
       button.append(key, label);
@@ -439,13 +444,21 @@ export function mountJoinSurface(
       list.appendChild(button);
     });
     card.appendChild(list);
-    const send = el('button', 'nj-send', counted === null ? 'Vote' : 'Change vote');
-    send.type = 'button';
-    send.disabled = busy || chosen === null || chosen === counted;
-    send.addEventListener('click', () => {
-      if (chosen !== null && chosen !== counted) void voteNow(round.id, chosen, round.revision);
-    });
-    card.appendChild(send);
+    if (!locked) {
+      const send = el('button', 'nj-send', counted === null ? 'Vote' : 'Change vote');
+      send.type = 'button';
+      send.disabled = busy || chosen === null || chosen === counted;
+      send.addEventListener('click', () => {
+        if (chosen !== null && chosen !== counted) void voteNow(round.id, chosen, round.revision, final);
+      });
+      card.appendChild(send);
+      // Said before the vote is sent, so nobody learns it by trying to change their mind.
+      if (final) {
+        const warn = el('p', 'nj-final', "Your vote can't be changed after you send it.");
+        warn.setAttribute('data-testid', 'nj-final');
+        card.appendChild(warn);
+      }
+    }
     if (counted !== null && round.options[counted] !== undefined) {
       const mine = el('p', 'nj-voted', `Your vote: ${optionKey(counted)} ${round.options[counted]}`);
       mine.setAttribute('data-testid', 'nj-voted');
@@ -511,7 +524,7 @@ export function mountJoinSurface(
     render();
   };
 
-  const voteNow = async (roundId: string, option: number, revision: number) => {
+  const voteNow = async (roundId: string, option: number, revision: number, final = false) => {
     if (busy) return;
     busy = true;
     note = null;
@@ -532,7 +545,7 @@ export function mountJoinSurface(
       if (view && view.state.round?.id === roundId) view = { ...view, myVote: option };
     }
     note = result.ok
-      ? { text: 'Your vote is in. You can change it until voting closes.', bad: false, round: roundId }
+      ? { text: final ? 'Your vote is in.' : 'Your vote is in. You can change it until voting closes.', bad: false, round: roundId }
       : { text: result.error ?? 'That vote could not be counted.', bad: true };
     await load();
     render();
