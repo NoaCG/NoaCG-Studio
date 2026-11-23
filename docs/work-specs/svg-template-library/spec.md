@@ -907,6 +907,18 @@ Group 1: Rotation (ticker rotate, sponsor rotation, two-language notice) and Que
 
 Group 2 (Risky): Crawl (ticker crawl, end-credits crawl) and Word cloud.
 
+- Previous verified `main`: `d69fa42ee96e4d16c9b1f2c9578958b411e3991b` (group 1, #2711, merged). Revert: `git revert -m 1 <the TL6 group 2 merge commit>`.
+- Built: the Crawl recipe (`behaviours/crawl.ts`, no machine; an entrance call `noacgCrawlRestart`)
+  and the Word cloud recipe (`behaviours/wordcloud.ts`); the runtime's crawl rule, `lines` and
+  `word-counts` kinds and the write's `size`; templates Ticker crawl, End credits crawl, Word cloud
+  (studio) and Crawl, Word cloud, navy. The ticker, end-credits-crawl, word-cloud and
+  word-cloud-target rows are covered (104 rows, 102 covered; speaking timer and
+  event-notification left).
+- Trap: a crawl's window is a `clip-path` group; the air check (`airProblems`) compares a text
+  under such a group as clipped, as it does a credits roll's inner svg.
+- Trap: the runtime text moved, so the `emit` `js` pins of the corpus and two `appearance.js`
+  pins of `jev-svg-baseline` were re-recorded by hand (only those; the other corpus records that
+  differ on a cloud machine differ on untouched `main` too).
 - Row class: Risky (new runtime words). Rules written before any code, for the Rules-first `/so`.
 - Rules:
   - K1. A graphic imported with the Crawl recipe draws one text layer `Crawl` and owns two fields
@@ -974,8 +986,9 @@ Group 2 (Risky): Crawl (ticker crawl, end-credits crawl) and Word cloud.
     every export target, and staged Words as data reach it in every target that sends data.
   - G1 (amended). The words are a new field kind `word-counts` (facts `listed`, derivations
     `label`, `weight`), not the `list` kind (so a long list is not reported), the paint rule key
-    `size`, and for the crawl the rule keys `crawl`, `speed`, `window` and the `list` derivation
-    `joined`.
+    `size`, and for the crawl the rule keys `crawl`, `speed`, `window` and a new field kind
+    `lines` with the derivation `joined` (not the `text` kind, whose derive three other kinds
+    share).
   - G2 (amended). Reimport of a crawl or a word cloud keeps every matched field id and cue value.
 
 Group 3 (Risky): Speaking timer (two clocks, one floor) and Notification queue.

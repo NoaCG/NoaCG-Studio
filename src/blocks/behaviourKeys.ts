@@ -104,7 +104,8 @@ function roleLayers(table: BehaviourData, role: string, key: string | null): str
  * Containment (K5) is wider than a gauge needs (it is measured in its own frame, `getBBox`) and
  * exactly what rows and slot anchors need (measured through every transform above them); one
  * rule is kept for all three.
- * A readout (`write`) claims nothing a key writes: the runtime sets only its text and ink.
+ * A readout (`write`) claims nothing a key writes: the runtime sets only its text and ink, unless
+ * it is sized (`size`), when its geometry is claimed.
  */
 export function recipeClaims(table: BehaviourData, drawn: (token: string) => boolean): RecipeClaim[] {
   const claims: RecipeClaim[] = [];
@@ -127,6 +128,13 @@ export function recipeClaims(table: BehaviourData, drawn: (token: string) => boo
       for (const key of keysOf(table, rule)) {
         for (const selector of [...roleLayers(table, rule.place, key), ...roleLayers(table, rule.anchor, key)]) claims.push({ selector, kind: 'geometry' });
       }
+    } else if ('write' in rule && rule.size) {
+      // A sized readout (a word cloud's words): the runtime sets its font size as well as its text.
+      for (const key of keysOf(table, rule)) claims.push({ selector: stamped(roleToken(rule.write, key)), kind: 'geometry' });
+    } else if ('crawl' in rule) {
+      // A crawl moves its layer and clips it to the window measured at rest.
+      claims.push({ selector: stamped(roleToken(rule.crawl, null)), kind: 'geometry' });
+      if (rule.window) claims.push({ selector: stamped(roleToken(rule.window, null)), kind: 'geometry' });
     }
   }
   return claims;

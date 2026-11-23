@@ -461,6 +461,24 @@ async function runExample(page: Page, testInfo: TestInfo, example: Example): Pro
       await expect(slide(1)).not.toHaveClass(/imported-design-on/);
       break;
     }
+    case 'crawl': {
+      // CRAWL (TL6): the items run as one line and travel right to left.
+      await fill(page, air, 'Items', 'Doors open at 18:00\nParking at the east gate');
+      await page.getByTestId('verb-update').click();
+      await expect(role(air, 'crawl')).toContainText('Parking at the east gate');
+      const at = () => role(air, 'crawl').evaluate((el) => el.getBoundingClientRect().left);
+      const a = await at();
+      await expect.poll(at, { message: 'it travels right to left' }).toBeLessThan(a - 3);
+      break;
+    }
+    case 'wordcloud':
+      // WORD CLOUD (TL6): the staged words fill the first slots; the rest hide.
+      await fill(page, air, 'Words', 'Pizza | 9\nTacos | 4');
+      await page.getByTestId('verb-update').click();
+      await expect(role(air, 'word/1')).toHaveText('Pizza');
+      await expect(role(air, 'word/2')).toHaveClass(/imported-design-on/);
+      await expect(role(air, 'word/3')).not.toHaveClass(/imported-design-on/);
+      break;
     case 'puzzle':
       await fill(page, air, 'Puzzle', 'BROADCAST');
       await fill(page, air, 'Guess', 'B');

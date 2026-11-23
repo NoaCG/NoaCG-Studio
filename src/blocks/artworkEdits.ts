@@ -59,7 +59,7 @@ export function artworkText(template: SpxTemplate, selector: string) {
   if (/(?:^|\s)[\w-]+-(?:clock|credits)(?:\s|$)/.test(node.getAttribute('class') ?? '')) return null;
   const behavior = parseBehaviourData(template.js);
   const roles = (node.getAttribute(BEHAVIOUR_ROLE_ATTR) ?? '').split(/\s+/).map(role => role.split('/')[0]);
-  if (behavior?.paint.some(rule => 'write' in rule && roles.includes(rule.write))) return null;
+  if (behavior?.paint.some(rule => ('write' in rule && roles.includes(rule.write)) || ('crawl' in rule && roles.includes(rule.crawl)))) return null;
   return { text: field ? String(field.value ?? '') : (node.textContent ?? '').trim(), field: field?.field ?? null };
 }
 

@@ -24,6 +24,8 @@ import { bingoRecipe } from './bingo';
 import { creditsRecipe } from './credits';
 import { clockRecipe } from './clock';
 import { rotationRecipe } from './rotation';
+import { crawlRecipe } from './crawl';
+import { wordCloudRecipe } from './wordcloud';
 
 export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [
   quizRecipe,
@@ -41,6 +43,8 @@ export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [
   bingoRecipe,
   creditsRecipe,
   rotationRecipe,
+  crawlRecipe,
+  wordCloudRecipe,
   switchRecipe,
   choiceRecipe,
   clockRecipe,

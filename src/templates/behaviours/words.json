@@ -1140,5 +1140,75 @@
         "what": "one turn of the rotation, shown while it is that slide's turn, with every text and picture named with its number (Story 1, Sponsor 1)"
       }
     ]
+  },
+  "crawl": {
+    "name": "The crawl",
+    "verbs": "one line that travels across its window",
+    "buttons": "nothing extra: the Items box (one item per line) and Scroll speed (%), a percentage of the built-in pace",
+    "roles": [
+      {
+        "id": "crawl",
+        "label": "Crawl",
+        "kind": "layer",
+        "paint": [
+          "crawl"
+        ],
+        "required": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "^(?:crawl|crawler|marquee)$",
+        "teach": "Crawl",
+        "also": [
+          "Marquee"
+        ],
+        "what": "the text that travels: drawn where the run starts, in the type it travels in"
+      },
+      {
+        "id": "crawl.window",
+        "label": "Crawl window",
+        "kind": "layer",
+        "pool": "drawn",
+        "words": "^(?:crawl window|crawl box)$",
+        "teach": "Crawl box",
+        "also": [
+          "Crawl window"
+        ],
+        "what": "where the text shows (optional): without one, the plate the text sits on"
+      }
+    ]
+  },
+  "wordcloud": {
+    "name": "The word cloud",
+    "verbs": "the words a Word question gathered, sized by how many sent each",
+    "buttons": "nothing extra: Interaction stages the Words box (one word and its count per line) and the Question",
+    "rows": {
+      "role": "word",
+      "keys": "numbers",
+      "min": 1,
+      "max": 30,
+      "teach": "One to thirty slots, the most-sent word's first, each drawn at the largest size its word should have with a sample as wide as the slot. Name the question Question."
+    },
+    "roles": [
+      {
+        "id": "word",
+        "label": "Word",
+        "kind": "layer",
+        "paint": [
+          "look",
+          "write"
+        ],
+        "perRow": true,
+        "required": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "^(?:word|sana|wort|palabra)$",
+        "teach": "Word 1",
+        "also": [
+          "Sana 1",
+          "Wort 1"
+        ],
+        "what": "one slot: written with the word staged for it, sized by its count, hidden when no word is staged for it"
+      }
+    ]
   }
 }

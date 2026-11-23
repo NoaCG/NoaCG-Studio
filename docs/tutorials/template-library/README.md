@@ -190,6 +190,8 @@ Moments items except the timer bar and a choice's starting option are hidden gro
 | **Milestone track** | `Title`, `Percent`, `Tier 1`, `Threshold 1` to 4 | `Segment 1` to 4 (visible bars), `Reached 1` to 4 | `Panel`, `Rail`, `Milestone 1` to 4 (visible nodes), `static:Of the goal` |
 | **Quiz show** | `Question`, `Answer A` to `Answer D` | `Selected A`, `Correct A`, `Wrong A` to D, `Locked in` | `Question box`, `Answer row A` to D (visible: `Letter box A`, `Answer box A`, `static:Letter A`) |
 
+---
+
 ## Slides that take turns, and a question queue
 
 | Template | What it does in NoaCG |
@@ -205,6 +207,21 @@ Moments items except the timer bar and a choice's starting option are hidden gro
 | **Question queue** | `Title`, `Guest 1` to `Guest 4` | `Now 1` to 4, `Done 1` to 4 | `Panel`, `Guest box 1` to 4 |
 
 A slide's texts and pictures sit on top of each other, one set per slide, and each shows only with its slide. To edit one slide, hide the others' texts in the Layers panel; show everything again before you save, or the hidden texts arrive as fixed words instead of fields.
+
+## Crawls and a word cloud
+
+| Template | What it does in NoaCG |
+|---|---|
+| **Ticker crawl, End credits crawl** | Type the items in Items, one per line. They run as one line with a bullet between items and travel right to left inside the Crawl box without a seam. Scroll speed (%) sets the pace; a new list keeps moving from where it is. |
+| **Word cloud** | Interaction stages the words: choose it in the Word cloud picker. Each word takes a slot, Word 1 for the most-sent, drawn between half and all of its size by how many sent it and never wider than its slot. A slot with no word hides. |
+
+| Template | Text | Moments | Board |
+|---|---|---|---|
+| **Ticker crawl** | `Label`, `Crawl` | none | `Panel`, `Label box`, `Crawl box` |
+| **End credits crawl** | `Title`, `Crawl` | none | `Panel`, `Title box`, `Crawl box` |
+| **Word cloud** | `Question`, `Word 1` to `Word 12` | none | `Panel`, `Accent` |
+
+Draw `Crawl` where the run starts, and each `Word n` at the largest size its word should have, with a sample as wide as the slot may get.
 
 ---
 
