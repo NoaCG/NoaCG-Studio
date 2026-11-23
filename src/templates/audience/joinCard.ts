@@ -1,7 +1,9 @@
 // JOIN CARD: how viewers join, on air: a QR code and the short link (interaction spec D8, AC-11).
 // Two designs: the house card (`jc01`, the code with a label, a call to action and the link) and
-// the code alone (`jc02`, nothing to write or design). They are two forms, so they live in two
-// types, but one file: the plate and the painter are the same.
+// the code alone (`jc02`, nothing to write or design). They are two forms in one file, since the
+// plate and the painter are the same. `jc02` is a hand-written variant, not a second design of the
+// join-card type: a type declares one field list, and this one has only the Join link
+// (src/templates/types/AGENTS.md); the coverage matrix lists it as a look of the join-card row.
 //
 // The QR is drawn INSIDE the graphic from its Join link field, by the encoder the graphic carries
 // in its own script (shared/qrEncoder.min.js, qrcode-generator, MIT). Nothing is fetched: an

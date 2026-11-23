@@ -19,11 +19,10 @@ import { qa01, qa02, qa03, qa04 } from '../audience/qaCard';
 import { ch01, ch02, ch03, ch04 } from '../audience/chatHighlight';
 import { qq01, qq02, qq03, qq04 } from '../audience/questionQueue';
 import { rq01, rq02, rq03, rq04 } from '../audience/communityRequest';
-import { jc01, jc02 } from '../audience/joinCard';
+import { jc01 } from '../audience/joinCard';
 import { wc01 } from '../audience/wordCloud';
 import {
   CHAT_FORM,
-  JOIN_CODE_FORM,
   JOIN_FORM,
   WORDS_FORM,
   QA_FORM,
@@ -336,28 +335,6 @@ export const joinCardType: GraphicType = {
   },
   designs: designs([
     { id: 'jc01', name: 'House Join Card', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'How viewers join: a QR code drawn from the production link, a call to action, and the short link beside it.', create: (_t, o) => jc01.create(o) },
-  ]),
-};
-
-/** JOIN CODE: the Join card as the QR code alone. Its own type because a type declares one field
- *  list, and this one has only the Join link: no label or call to action left empty in the cue
- *  editor. NO MACHINE, like the house card. */
-export const joinCodeType: GraphicType = {
-  id: 'join-code',
-  name: 'Join code',
-  description: 'How viewers join: only the QR code, drawn from the production link.',
-  structure: structure([{ id: 'code', selector: '.audience-join-qr', kind: 'block', required: true }]),
-  fields: fieldsOf(JOIN_CODE_FORM.lines),
-  machine: {},
-  controls: [],
-  capabilities: {
-    maxLines: JOIN_CODE_FORM.lines.length,
-    logo: 'none',
-    animationPresets: ['audience-rise', 'audience-slide'],
-    defaultZone: 'bottom-right',
-  },
-  designs: designs([
-    { id: 'jc02', name: 'Join QR Code', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'How viewers join: only the QR code, drawn from the production link.', create: (_t, o) => jc02.create(o) },
   ]),
 };
 
