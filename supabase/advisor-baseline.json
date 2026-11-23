@@ -293,6 +293,11 @@
       "level": "WARN",
       "detail": "Function `public.panel_revoke(p_slug text, p_key_id uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_revoke`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "anon_security_definer_function_executable_public_panel_seen_p_key text, p_version text, p_status text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.panel_seen(p_key text, p_version text, p_status text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_seen`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "anon_security_definer_function_executable_public_public_system_notice_": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
@@ -697,6 +702,11 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.panel_revoke(p_slug text, p_key_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_revoke`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_panel_seen_p_key text, p_version text, p_status text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.panel_seen(p_key text, p_version text, p_status text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_seen`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_partial_writes_state_": {
       "name": "authenticated_security_definer_function_executable",

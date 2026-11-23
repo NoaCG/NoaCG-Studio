@@ -130,6 +130,10 @@ const ACCEPTED_CLASSES = {
     'write only that production\'s panel_rooms row (who answers the panel, and until when). Like ' +
     'panel_claim they have no burst cap: a slug holder can move the panel between pages in a loop, ' +
     'which is less than the same slug already allows (operating the production). ' +
+    'panel_seen (0128, Companion connection health) is a panel-key door of the same kind: it stamps ' +
+    'only that key\'s own panel_keys row with when it was seen and the version and status the ' +
+    'module sent (each checked against a fixed shape, else stored as unknown), at most once per key ' +
+    'in 2 s, and answers only ok or the refusal hello would. It reaches no page, topic or log. ' +
     'control_cue_arm and control_cue_arms_for (0075, timed cues) are the same slug door again: the ' +
     'read answers only that production\'s countdowns, and the write moves only its arm row, its head ' +
     'and its log, under the head lock and the burst cap of control_send_seq. ' +
@@ -174,7 +178,7 @@ const ACCEPTED_CLASSES = {
     'are what let a policy read a table the caller cannot. The community_pack_* functions (0079, ' +
     '0080, 0086) are the only door to community_packs and community_pack_reports: each checks ' +
     'auth.uid() or is_moderator() inside. ' +
-    'The panel_* RPCs (0073, 0081) are the anon slug and panel-key doors reached by a signed-in caller. ' +
+    'The panel_* RPCs (0073, 0081, 0128) are the anon slug and panel-key doors reached by a signed-in caller. ' +
     'audience_operator_add (0095) and audience_operator_settle (0098) are the anon control-slug ' +
     'doors above, reached by a signed-in operator, and so is control_data_pause_by_slug (0100). ' +
     'control_data_owner_patch (0100, the owner\'s Data view on a published production) is granted to ' +
