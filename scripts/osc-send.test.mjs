@@ -79,6 +79,17 @@ test('a held Take key fires an OSC cue once; a graphic keeps its own rule', () =
   assert.deepEqual(decideVerb('take-cue', { repeat: false, cue: 'L' }, { ...v, directBlocked: () => 'L has no OSC address.' }), { do: 'note', text: 'Take was not sent: L has no OSC address.' });
 });
 
+test('Out on a selected OSC cue goes only while it owes its On Out (owner request 2026-11-23)', () => {
+  const L = osc('L');
+  const base = { spaceMode: 'take', published: false, cues: [L], selectedCue: L, selectedGraphic: null, liveCue: {}, selectedPlayoutLive: false, selectedItemKind: null, editTarget: 'preview', previewCueId: null, casparOn: false, bridgeDown: false, takeBlocked: null, advances: false, folder: null, clearing: false, anyUp: false, unnamedUp: () => false };
+  assert.equal(verbView(base).allowed.out, false);
+  const owes = verbView({ ...base, selectedOwesOut: true });
+  assert.equal(owes.allowed.out, true);
+  const v = { ...owes, cues: [L], items: [], rows: [], rowOf: new Map(), folderId: null, step: null, onAirNow: () => false, stepBlocked: () => null, directBlocked: () => null };
+  assert.equal(decideVerb('out', { repeat: false }, v).do, 'out');
+  assert.equal(decideVerb('take', { repeat: false }, v).do, 'take', 'Take still sends the Take message again');
+});
+
 test('a Take of an OSC cue is refused with the cue\'s own reason, never as a graphic', () => {
   const L = osc('L');
   const ctx = { cues: [L], members: new Map(), graphicOf: () => null, itemOf: () => null, controlBlocker: (c) => oscBlocker(c, [], true) };

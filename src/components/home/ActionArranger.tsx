@@ -128,6 +128,7 @@ export default function ActionArranger({
           size={Math.max(4, value.length + 1)}
           aria-label={`Name for ${b.label}`}
           placeholder={b.label}
+          data-suggest={b.label}
           onChange={(e) => setDrafts((d) => ({ ...d, [b.event]: e.target.value }))}
           onBlur={() => commitName(b.event, b.label)}
           onKeyDown={(e) => {

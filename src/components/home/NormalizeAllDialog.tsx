@@ -149,7 +149,7 @@ export default function NormalizeAllDialog({
                 <option value="other">Other…</option>
               </select>
               {choice === 'other' && (
-                <input type="number" step={0.5} min={MIN_TARGET} max={MAX_TARGET} value={typed} placeholder="−23" disabled={running || !!summary} onChange={(e) => setTyped(e.target.value)} aria-label="Target in LUFS" data-testid="normalize-target-other" />
+                <input type="number" step={0.5} min={MIN_TARGET} max={MAX_TARGET} value={typed} placeholder="−23" data-suggest="-23" disabled={running || !!summary} onChange={(e) => setTyped(e.target.value)} aria-label="Target in LUFS" data-testid="normalize-target-other" />
               )}
             </div>
           </div>

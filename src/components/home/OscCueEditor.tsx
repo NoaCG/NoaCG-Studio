@@ -125,7 +125,8 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
           value={edits.text(`${prefix}address`, message.address)}
           onChange={(e) => edits.type(`${prefix}address`, e.target.value)}
           onBlur={edits.flush}
-          placeholder={prefix ? 'Optional: sent when the folder goes out' : '/zeros/cue/go'}
+          placeholder={prefix ? 'Optional: sent at Out' : '/zeros/cue/go'}
+          data-suggest={prefix ? undefined : '/zeros/cue/go'}
           spellCheck={false}
           data-testid={`osc-${prefix}address`}
         />
@@ -181,7 +182,7 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
             <br /><strong>Destination</strong>: the device's IP address and its OSC port, from its settings or manual.
             <br /><strong>OSC address</strong>: the command, starting with /, exactly as the device lists it.
             <br /><strong>Arguments</strong>: values after the address. Text, Whole number or Decimal, as the device asks: &quot;5&quot; and 5 differ.
-            <br /><strong>On Out</strong>: optional. Sent when the folder that sent this cue goes out, for example lights back to normal.
+            <br /><strong>On Out</strong>: optional. Sent at Out on this cue, or when the folder that sent it goes out, for example lights back to normal.
             <br />Graphic and lights together: put both in an All together folder. Each can have a Delay there.
             <br /><a href="/docs#osc" target="_blank" rel="noreferrer">Full guide</a>
           </span>
@@ -229,9 +230,9 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
         )}
         {destDraft && (
           <div className="pd-osc-dest" data-testid="osc-destination-form">
-            <label className="pd-field"><span>Name</span><input value={destDraft.name} onChange={(e) => setDestDraft({ ...destDraft, name: e.target.value })} data-testid="osc-dest-name" placeholder="Lighting desk" /></label>
+            <label className="pd-field"><span>Name</span><input value={destDraft.name} onChange={(e) => setDestDraft({ ...destDraft, name: e.target.value })} data-testid="osc-dest-name" placeholder="Lighting desk" data-suggest="Lighting desk" /></label>
             <label className="pd-field"><span>Address</span><input value={destDraft.host} onChange={(e) => setDestDraft({ ...destDraft, host: e.target.value })} data-testid="osc-dest-host" placeholder="192.168.1.40" /></label>
-            <label className="pd-field"><span>Port</span><input inputMode="numeric" value={destDraft.port} onChange={(e) => setDestDraft({ ...destDraft, port: e.target.value })} data-testid="osc-dest-port" placeholder="8830" /></label>
+            <label className="pd-field"><span>Port</span><input inputMode="numeric" value={destDraft.port} onChange={(e) => setDestDraft({ ...destDraft, port: e.target.value })} data-testid="osc-dest-port" placeholder="8830" data-suggest="8830" /></label>
             <button type="button" className="btn-small" onClick={() => void saveDestination()} data-testid="osc-dest-save">Save</button>
             <button type="button" className="btn-small" onClick={() => setDestDraft(null)}>Cancel</button>
             {destinations.some((d) => d.id === destDraft.id) && (

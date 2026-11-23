@@ -55,7 +55,7 @@ export default function ProjectPanel({ beforeAction = () => {} }: { beforeAction
         <button data-document={d.id} aria-current={d.id === currentId ? 'page' : undefined} disabled={locked} onClick={() => void run(async () => { if (!await openProjectDocument(d.id)) throw new Error(useAuthoringProjects.getState().error); })}>{d.template.name}<small>{d.saved.dirty ? 'Draft' : 'Saved'}</small></button>
       </div>)}</div>
       {!project.documents.includes(currentId) && <button disabled={locked} onClick={() => void run(async () => { if (!await keepCurrentInProject(project.id)) throw new Error(useAuthoringProjects.getState().error); })}>Keep current graphic</button>}
-      <details><summary>Project settings</summary><label>Project name<input aria-label="Rename project" placeholder={project.name} value={name} onChange={e => setName(e.target.value)} /></label>
+      <details><summary>Project settings</summary><label>Project name<input aria-label="Rename project" placeholder={project.name} data-suggest={project.name} value={name} onChange={e => setName(e.target.value)} /></label>
         <button disabled={locked || !name.trim()} onClick={() => void run(async () => { if (await renameAuthoringProject(project.id, name)) setName(''); })}>Rename project</button>
         <button disabled={locked} onClick={() => void run(async () => { await removeAuthoringProject(project.id); setSelected([]); })}>Remove project</button>
       </details>

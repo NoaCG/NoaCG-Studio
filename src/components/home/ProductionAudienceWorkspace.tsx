@@ -2037,6 +2037,7 @@ export default function ProductionAudienceWorkspace({
                         type="text"
                         value={joinName.draft}
                         placeholder={show.joinSlug ?? 'friday-night-live'}
+                        data-suggest={show.joinSlug ?? undefined}
                         aria-label="Link name"
                         title="Changing the name stops the old link"
                         onChange={(e) => joinName.onDraft(e.target.value)}
@@ -2093,6 +2094,7 @@ export default function ProductionAudienceWorkspace({
                   type="text"
                   maxLength={JOIN_PAGE_LIMITS.title}
                   placeholder={show.name}
+                  data-suggest={show.name}
                   value={pageEdits.text('title', show.joinPage?.title ?? '')}
                   data-dirty={pageEdits.dirty('title') || undefined}
                   onChange={(e) => pageEdits.type('title', e.target.value)}
@@ -2109,6 +2111,7 @@ export default function ProductionAudienceWorkspace({
                   type="text"
                   maxLength={JOIN_PAGE_LIMITS.waiting}
                   placeholder={JOIN_WAITING_DEFAULT}
+                  data-suggest={JOIN_WAITING_DEFAULT}
                   value={pageEdits.text('waiting', show.joinPage?.waiting ?? '')}
                   data-dirty={pageEdits.dirty('waiting') || undefined}
                   onChange={(e) => pageEdits.type('waiting', e.target.value)}

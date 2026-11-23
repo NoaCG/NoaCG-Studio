@@ -320,3 +320,19 @@ Follow-up (owner request of 2026-11-21): an On Out message.
 - A standalone OSC cue has no Out; an OSC cue taken on its own inside an All together folder owes
   nothing.
 - The editor has On Out address and arguments under the Take message, and Send On Out test.
+
+Follow-up (owner request of 2026-11-23, after the first studio try): feedback, a lone cue's Out, Tab.
+
+- D9's row status is built: every send of an OSC cue, by any route, goes through the page's
+  `controlTake`, which marks it in `control/oscMarks.ts`. The row reads SENDING, then
+  `SENT 14:02:31`, NOT SENT or UNCERTAIN (reason in the title), with `OUT ` before an On Out send,
+  and flashes once as the answer lands. OUT WAITING shows while an On Out message is owed. Marks
+  live for the page load only; what is owed survives a reload as before.
+- An OSC cue taken on its own (Take, Play now, Companion) now owes its On Out to itself, kept
+  under `cue:<id>` beside the folders' ids in `spx-gfx-osc-sent:<production>`. Out with the cue
+  selected sends it (`verbView` `selectedOwesOut`, `graphicVerbs.out` -> `folderPlayout.outCue`),
+  All out sends it, its folder's Out does not. A One-by-one member still owes its folder. SPACE
+  and Take on the cue still send the Take message again.
+- Tab in an empty box types its suggestion in where the box carries `data-suggest`
+  (`components/tabSuggest.ts`, installed in `main.tsx`). Opt-in: most placeholders are
+  instructions, and the OSC destination's example IP address is deliberately not offered.

@@ -9,7 +9,7 @@
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // covers: src/control/bridgeWatch.ts
 // covers: src/components/home/useRundownAuthoring.ts
-// covers: src/control/folderPlayout.ts
+// covers: src/control/folderPlayout.ts, src/control/oscMarks.ts, src/components/tabSuggest.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
@@ -2097,9 +2097,23 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await expect(editor.getByTestId('osc-take-blocked')).toContainText('no destination');
 
   await editor.getByTestId('osc-destination').selectOption('+new');
-  await editor.getByTestId('osc-dest-name').fill('Lighting desk');
+  // Tab types a box's suggestion in (components/tabSuggest.ts), where the suggestion is a value:
+  // the name and the port take theirs, an example IP address offers none, and a filled box moves on.
+  await editor.getByTestId('osc-dest-name').focus();
+  await page.keyboard.press('Tab');
+  await expect(editor.getByTestId('osc-dest-name')).toHaveValue('Lighting desk');
+  await expect(editor.getByTestId('osc-dest-name')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(editor.getByTestId('osc-dest-host')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(editor.getByTestId('osc-dest-host'), 'no address is typed in for the operator').toHaveValue('');
   await editor.getByTestId('osc-dest-host').fill('192.168.1.40');
-  await editor.getByTestId('osc-dest-port').fill('8830');
+  await editor.getByTestId('osc-dest-port').focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(editor.getByTestId('osc-dest-port'), 'Shift+Tab never types').toHaveValue('');
+  await editor.getByTestId('osc-dest-port').focus();
+  await page.keyboard.press('Tab');
+  await expect(editor.getByTestId('osc-dest-port')).toHaveValue('8830');
   await editor.getByTestId('osc-dest-save').click();
   await editor.getByTestId('osc-address').fill('/zeros/cue/go');
   await editor.getByTestId('osc-address').press('Tab');
@@ -2127,6 +2141,10 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await expect.poll(() => fake.osc.length).toBe(1);
   expect(fake.osc[0]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/go', args: [{ type: 's', value: '0' }, { type: 's', value: '5' }] });
   await expect(row).not.toContainText('ON AIR');
+  // Nothing goes on air, so the row answers the press: it flashes and reads SENT with the time.
+  await expect(row.getByTestId('cue-osc-sent')).toHaveText(/^SENT \d\d:\d\d:\d\d$/);
+  await expect(row.getByTestId('cue-osc-owed'), 'no On Out message, so nothing waits').toHaveCount(0);
+  await expect(page.getByTestId('verb-out')).toBeDisabled();
 
   await editor.getByTestId('osc-send-test').click();
   await expect.poll(() => fake.osc.length).toBe(2);
@@ -2139,6 +2157,20 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await editor.getByTestId('osc-send-out-test').click();
   await expect.poll(() => fake.osc.length).toBe(3);
   expect(fake.osc[2]).toMatchObject({ host: '192.168.1.40', port: 8830, address: '/zeros/cue/release', args: [] });
+  await expect(row.getByTestId('cue-osc-sent')).toHaveText(/^OUT SENT /);
+
+  // One cue holds the lights' go and their return (owner request 2026-11-23): Take sends the Take
+  // message and the row waits for Out; Out sends the On Out message, once.
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => fake.osc.length).toBe(4);
+  await expect(row.getByTestId('cue-osc-owed')).toHaveText('OUT WAITING');
+  await expect(row.getByTestId('cue-osc-sent'), 'one tag says both').toHaveCount(0);
+  await page.getByTestId('verb-out').click();
+  await expect.poll(() => fake.osc.length).toBe(5);
+  expect(fake.osc[4]).toMatchObject({ address: '/zeros/cue/release' });
+  await expect(row.getByTestId('cue-osc-owed')).toHaveCount(0);
+  await expect(row.getByTestId('cue-osc-sent')).toHaveText(/^OUT SENT /);
+  await expect(page.getByTestId('verb-out')).toBeDisabled();
 
   // Selecting, reloading and selecting again send nothing.
   await selectCue(page, 'Hairline');
@@ -2147,7 +2179,7 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await expect(cue(page, 'Lights: winner')).toContainText('/zeros/cue/go');
   await selectCue(page, 'Lights: winner');
   await page.waitForTimeout(300);
-  expect(fake.osc).toHaveLength(3);
+  expect(fake.osc).toHaveLength(5);
 });
 
 test('a winner graphic and a lighting cue go together on one folder Take, with no playout server', async ({ page }) => {
@@ -2190,6 +2222,12 @@ test('a winner graphic and a lighting cue go together on one folder Take, with n
   await page.waitForTimeout(300);
   expect(fake.osc, 'one Take, one datagram').toHaveLength(1);
   expect(sent(fake), 'nothing went to a playout server').toEqual([]);
+  // The folder owes the lights' On Out: its row says so, and the cue's own Out stays grey, since
+  // the folder's Out is what sends it.
+  await expect(cue(page, 'Lights').getByTestId('cue-osc-owed')).toHaveText('OUT WAITING');
+  await selectCue(page, 'Lights');
+  await expect(page.getByTestId('verb-out')).toBeDisabled();
+  await holdFolder(page, 'Result');
 
   // Out takes the winner off and sends the lights' On Out message, once.
   await page.getByTestId('verb-out').click();
