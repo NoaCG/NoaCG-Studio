@@ -335,14 +335,16 @@ export function collectLeaves(win: Window): Element[] {
   const all = win.document.body.querySelectorAll<Element>('*');
   const leaves: Element[] = [];
   for (const el of all) {
-    if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue;
-    const ownsText = [...el.childNodes].some(
-      (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim().length > 0,
-    );
-    const isImage = el.tagName === 'IMG';
-    if ((ownsText || isImage) && isVisible(el, win)) leaves.push(el);
+    if (isTextOrImage(el) && isVisible(el, win)) leaves.push(el);
   }
   return leaves;
+}
+
+/** An element that owns text (a non-empty direct text node) or is a content image. */
+function isTextOrImage(el: Element): boolean {
+  if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return false;
+  if (el.tagName === 'IMG') return true;
+  return [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim().length > 0);
 }
 
 /**
@@ -377,12 +379,7 @@ function drawsNoTextOrImage(win: Window): boolean {
     }
     return true;
   };
-  for (const el of win.document.body.querySelectorAll<Element>('*')) {
-    if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue;
-    const ownsText = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim().length > 0);
-    if ((ownsText || el.tagName === 'IMG') && laidOut(el)) return false;
-  }
-  return true;
+  return ![...win.document.body.querySelectorAll<Element>('*')].some((el) => isTextOrImage(el) && laidOut(el));
 }
 
 /** Roots of measured motion (NOACG_ANIM dynamics targets): they and their subtrees travel
