@@ -1382,20 +1382,18 @@ function noacgCrawlRun(item, text, rule) {
   item.dir = rel ? { x: rel.a / scale, y: rel.b / scale } : { x: 1, y: 0 };
   var dist = step * scale;                               // one run, in the move group's own units
   if (!(dist > 0) || typeof gsap === 'undefined') return;
-  // Copies before the start: enough to reach the window's leading edge from where the text was
-  // drawn, plus one, so a short run drawn well inside its window leaves no gap at the wrap.
+  // Copies before the start: at least one, and enough to reach the window's leading edge from
+  // where the text was drawn, so a short run drawn well inside its window leaves no gap at the
+  // wrap. Measured at the run's zero offset, whatever offset it has now (a new list resumes from
+  // it): the move group's frame at zero offset IS the parent's, the window's frame (item.poly), so
+  // the start is mapped through the text's own transform alone, which carries no offset.
   var before = 1;
   if (item.poly && item.move.getCTM && item.move.getCTM()) {
-    var toMove = item.move.getCTM().inverse().multiply(parent.getCTM());   // the parent frame, less the run's offset
     var local = item.move.getCTM().inverse().multiply(el.getCTM());
     var sy = parseFloat(item.start.y) || 0;
     var sx = local.a * item.start.x + local.c * sy + local.e, syM = local.b * item.start.x + local.d * sy + local.f;
     var lead = Infinity;
-    for (var q = 0; q < item.poly.length; q++) {
-      var px = toMove.a * item.poly[q][0] + toMove.c * item.poly[q][1] + toMove.e;
-      var py = toMove.b * item.poly[q][0] + toMove.d * item.poly[q][1] + toMove.f;
-      lead = Math.min(lead, px * item.dir.x + py * item.dir.y);
-    }
+    for (var q = 0; q < item.poly.length; q++) lead = Math.min(lead, item.poly[q][0] * item.dir.x + item.poly[q][1] * item.dir.y);
     var inset = sx * item.dir.x + syM * item.dir.y - lead;
     if (inset > 0) before = Math.max(1, Math.ceil(inset / dist));
   }
@@ -1414,10 +1412,12 @@ function noacgCrawlRun(item, text, rule) {
     x: -dist, duration: dist / (perSecond * item.built), ease: 'none', repeat: -1,
     onUpdate: function () {
       gsap.set(item.move, { x: item.pos.x * item.dir.x, y: item.pos.x * item.dir.y });
-      // Measured again once the layers have come to rest, the first time they do.
+      // Measured again once the layers have come to rest, the first time they do, and the copies
+      // laid again for that window, from where the run is (out of this tween's own update).
       if (item.rested || !noacgCrawlAtRest(item)) return;
       item.rested = true;
       noacgCrawlWindow(item);
+      setTimeout(function () { item.text = null; noacgRepaintData(); }, 0);
     }
   });
   item.tween.progress(((from % dist) + dist) % dist / dist);

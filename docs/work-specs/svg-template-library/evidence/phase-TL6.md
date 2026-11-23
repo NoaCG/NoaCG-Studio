@@ -241,16 +241,18 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   (automated: the crawl froze under the exit, against K6; a window turned with its text clipped
   to a larger rectangle), of 9bba32d (automated: a text turned itself drifted off its baseline at
   each wrap) and of 034a597 (automated: a short run drawn far inside its window left a gap, with
-  one copy before its start): the crawl and word cloud walks and the export case, 3 passed
+  one copy before its start; then the delta second opinion on 00e7cb5: a new list late in a run
+  counted those copies from the run's current offset, one short): the crawl and word cloud walks and the export case, 3 passed
   (j-0021, j-0028, j-0031, and again on the final runtime, below), with Scroll speed back to 100
   between 0.7 and 1.3 times the first pace, Out leaving the run at its pace, and a 45-letter word
   reported too long then cleared. `crawl-window` (new, on the Ticker crawl template): plain, the
   strip turned three degrees, the text itself turned three degrees, and a short run drawn 900
-  units inside its window; in each the clip is the drawn Crawl box, the run fills it from its
+  units inside its window, its list changed three quarters of a copy into a run; in each the clip is the drawn Crawl box, the run fills it from its
   leading edge, keeps its pace after the stop every exit runs, travels along its baseline (slope
   0.0524 for the turned text) and rests where drawn when the list is emptied. Each defect was
   checked against the code before its fix: a probe measured the turned clip at 1615.5 by 240.1
   and the run standing still; the turned-text case fails with the x-only move (slope 0); the inset
-  case fails with one copy before the start (the run's left edge at 1116.6). `pre-plan-graphics`
+  case fails with one copy before the start (the run's left edge at 1116.6), and its list change
+  fails with the copies counted from the current offset (the left edge at 277.6, against 252). `pre-plan-graphics`
   8 passed (j-0023), its G2 case included. The same three runtime pins re-taken for the runtime
   text alone, each time.

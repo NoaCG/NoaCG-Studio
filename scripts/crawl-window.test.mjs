@@ -37,7 +37,7 @@ const BOX = [[252, 960], [1860, 960], [1860, 1032], [252, 1032]];
 
 const RUN = async (files) => {
   const out = {};
-  for (const [name, { markup, items: list }] of Object.entries(files)) {
+  for (const [name, { markup, items: list, relist }] of Object.entries(files)) {
     const t = window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(window.__importDraft(window.NOACG_SVG.importSvgMarkup(markup))) });
     const items = t.fields.find((f) => f.title === 'Items').field;
     const w = await window.__mountDesign(t);
@@ -62,6 +62,15 @@ const RUN = async (files) => {
     const c = x();
     w.__advance(100);
     const d = x();
+    // K3: a new list of the same length keeps the run where it is, mid-run, and the copies before
+    // the start are counted as from the run's zero offset, so the window stays filled loop after loop.
+    if (relist) {
+      // Late in a run: three quarters of a copy past the start, past the slack one copy leaves.
+      const run = runEl.getStartPositionOfChar(runEl.textContent.indexOf('Hi', 1)).x - runEl.getStartPositionOfChar(0).x;
+      for (let i = 0; i < 200 && offset().e > -0.75 * run; i++) w.__advance(10);
+      w.update(JSON.stringify({ [items]: relist }));
+      for (let i = 0; i < 30; i++) { lead = Math.max(lead, runEl.getBBox().x + offset().e); w.__advance(100); }
+    }
     // An empty list puts the text back where it was drawn, on both axes (K5).
     w.update(JSON.stringify({ [items]: '' }));
     w.__advance(100);
@@ -79,7 +88,7 @@ const out = await withBundledPage(SPECS, async (page) => {
     plain: { markup: PLAIN, items: two },
     turned: { markup: TURNED, items: two },
     textTurned: { markup: TEXT_TURNED, items: two },
-    inset: { markup: INSET, items: 'Hi' },
+    inset: { markup: INSET, items: 'Hi', relist: 'iH' },
   });
 });
 
