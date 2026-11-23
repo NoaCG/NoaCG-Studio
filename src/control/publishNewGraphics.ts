@@ -14,7 +14,7 @@ import { obsScenesOf } from '../model/obsScenes';
 import type { Show } from '../model/shows';
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
 import { buildPanelSpec, copyDigest, graphicSpec, outputCuesOf, readPublishedWhole, writeControlShow, type CuePublished, type OutputGraphicSpec, type OutputPayload } from './hostedControl';
-import { newGraphicNames, planAdditive, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
+import { newGraphicNames, OTHER_OWNER_SOUNDS, planAdditive, soundsStayFetchable, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
 import { readPayloadVersion, type PayloadVersion } from './payloadVersion';
 import { forgetOwnPublish, notePublishedBoxes } from './publishParts';
 import { classifyFailure } from './autoPublish';
@@ -61,7 +61,14 @@ export async function publishNewGraphics(
   }
   const scenes = obsScenesOf(show);
   const panels = buildPanelSpec({ ...show, graphics: fresh }, library);
-  const specs = built.some((s) => s.assets.some((a) => a.audio)) ? (await publishAudio({ graphics: built })).graphics : built;
+  // Sounds: a publication whose stored sounds another account uploaded is left to Publish changes
+  // (this write would make this account their owner). New ones are uploaded under this account's
+  // key, and the manifest carries the keys as a full publish's does.
+  const uploader = (await sb.auth.getSession()).data.session?.user.id ?? null;
+  if (!soundsStayFetchable(row.output, uploader)) return { kind: 'refused', reason: OTHER_OWNER_SOUNDS };
+  const refs = [...new Map(built.flatMap((s) => s.assets.flatMap((a) => (a.audio ? [a.audio] : []))).map((a) => [a.hash, a] as const)).values()];
+  const uploaded = refs.length ? await publishAudio({ graphics: built, soundAssets: refs }) : { graphics: built, soundAssets: [] };
+  const specs = uploaded.graphics;
   const added: AddedGraphic[] = [];
   for (const [k, g] of fresh.entries()) {
     added.push({
@@ -74,7 +81,7 @@ export async function publishNewGraphics(
     });
   }
   const publishedOf = measure ? await measure(stored) : undefined;
-  const plan = await planAdditive({ output: row.output, panel: row.panel, added, cues: outputCuesOf(show, publishedOf) });
+  const plan = await planAdditive({ output: row.output, panel: row.panel, added, cues: outputCuesOf(show, publishedOf), sounds: uploaded.soundAssets, uploader });
   if (plan.kind === 'nothing') return { kind: 'current', ...(stored ? { ver: stored } : {}) };
   if (plan.kind === 'refused') return plan;
   let error: Awaited<ReturnType<typeof writeControlShow>>;

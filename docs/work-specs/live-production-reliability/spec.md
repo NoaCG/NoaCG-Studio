@@ -115,7 +115,9 @@ publish of the page runs, and writes nothing again once the stored stamp names t
 It writes nothing, and the status stays amber with the reason, when the stored payload does not
 read back to its own stamp digests, when a new graphic would change a published one (the look's
 imported face would move to it), needs a bigger stage, sits in an OBS scene, or fails the publish
-gate. One new graphic that cannot be added holds back the others added with it, so nothing goes
+gate, and when the stored sounds were uploaded by another account (a write moves the audio owner to
+the writer, migration 0121, and an output fetches a sound only by its owner's key). New sounds are
+uploaded first and the manifest carries their keys, as a full publish's does. One new graphic that cannot be added holds back the others added with it, so nothing goes
 out half and the reason is said once. A cue added to or edited on a graphic already published, and
 every design edit of one, still waits for Publish changes. The new cues carry the appearance and
 Adjust records a press's publish would measure for them.

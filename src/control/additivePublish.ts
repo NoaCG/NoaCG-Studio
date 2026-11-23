@@ -11,7 +11,9 @@
 //   Not additive, so nothing is written      the stored payload does not read back to its own stamp;
 //                                            a new graphic would change a published one (the look's
 //                                            face moving to it), needs a bigger stage, or sits in an
-//                                            OBS scene. The status stays amber and says why.
+//                                            OBS scene, or the stored sounds are another account's
+//                                            (a write makes the writer their owner). The status
+//                                            stays amber and says why.
 //   Left for Publish changes                 a cue on a graphic already published (new or edited),
 //                                            and every design edit of a published graphic.
 //
@@ -23,6 +25,7 @@
 // browser half.
 
 import type { OutputCue, OutputGraphicSpec, OutputPayload, PanelGraphicSpec } from './hostedControl';
+import type { SoundAssetRef } from '../model/types';
 import { graphicDigest, readPayloadVersion, stampFromDigests, type PayloadVersion } from './payloadVersion';
 import { retryDelay } from './autoPublish';
 
@@ -63,6 +66,21 @@ export const UNREADABLE ='the published version could not be read back exactly';
 export const TOUCHES_PUBLISHED = 'adding it would change a graphic already on the outputs';
 export const BIGGER_STAGE = 'it is larger than the published stage';
 export const IN_SCENE = 'it is in an OBS scene';
+export const OTHER_OWNER_SOUNDS = 'the sounds on the outputs were published from another account';
+export const SOUND_NOT_UPLOADED = 'its sound has not been uploaded';
+
+/** The storage key an output may fetch a published sound by: the publication's audio owner's
+ *  (api/_lib/outputAudio.ts). Every write of `output` makes the writer that owner (migration 0121). */
+export const soundKey = (owner: string, hash: string): string => `${owner}/audio-${hash}`;
+
+/** Whether every sound the stored publication names stays fetchable once `uploader` writes it: each
+ *  is stored under that account's key. A write by another account moves the audio owner to it, and
+ *  the outputs would refuse the sounds a teammate uploaded. */
+export function soundsStayFetchable(output: unknown, uploader: string | null): boolean {
+  const stored = (output as { soundAssets?: unknown } | null)?.soundAssets;
+  if (!Array.isArray(stored) || !stored.length) return true;
+  return !!uploader && stored.every((s: { hash?: unknown; storageKey?: unknown }) => typeof s?.hash === 'string' && s.storageKey === soundKey(uploader, s.hash));
+}
 export const GONE = 'this page cannot reach the published production';
 
 /** The cues of `cues` (the saved rundown, in order) on the graphics `added`, placed among the stored
@@ -93,6 +111,10 @@ export async function planAdditive(input: {
   panel: unknown;
   added: readonly AddedGraphic[];
   cues: readonly OutputCue[];
+  /** The new graphics' sounds as uploaded (`publishAudio`'s manifest, storage keys included). */
+  sounds?: readonly SoundAssetRef[];
+  /** The account that writes: the publication's audio owner after the write. */
+  uploader: string | null;
   now?: Date;
 }): Promise<AdditivePlan> {
   const raw = input.output as (OutputPayload & Record<string, unknown>) | null;
@@ -115,9 +137,19 @@ export async function planAdditive(input: {
     if (!stage || a.spec.resolution.width > stage.width || a.spec.resolution.height > stage.height) return { kind: 'refused', reason: BIGGER_STAGE };
     if (a.inScene) return { kind: 'refused', reason: IN_SCENE };
   }
-  const names = new Set(added.map((a) => a.name));
+  // THE SOUND MANIFEST (api/_lib/outputAudio.ts): an output fetches a sound only by the key of the
+  // publication's audio owner, which this write makes the uploader. The stored sounds must already be
+  // under that key, and each new one must come with its uploaded key, as a full publish's do.
+  if (!soundsStayFetchable(raw, input.uploader)) return { kind: 'refused', reason: OTHER_OWNER_SOUNDS };
   const sounds = new Map((Array.isArray(raw.soundAssets) ? raw.soundAssets : []).map((s) => [s.hash, s] as const));
-  for (const a of added) for (const asset of a.spec.assets) if (asset.audio && !sounds.has(asset.audio.hash)) sounds.set(asset.audio.hash, asset.audio);
+  for (const s of input.sounds ?? []) if (!sounds.has(s.hash)) sounds.set(s.hash, s);
+  for (const a of added) {
+    for (const asset of a.spec.assets) {
+      const listed = asset.audio ? sounds.get(asset.audio.hash) : undefined;
+      if (asset.audio && (!input.uploader || listed?.storageKey !== soundKey(input.uploader, asset.audio.hash))) return { kind: 'refused', reason: SOUND_NOT_UPLOADED };
+    }
+  }
+  const names = new Set(added.map((a) => a.name));
   const g = { ...base.g, ...Object.fromEntries(added.map((a) => [a.name, a.digest])) };
   const editedNew = Object.fromEntries(added.flatMap((a) => (a.edited ? [[a.name, a.edited] as const] : [])));
   const t = base.t || Object.keys(editedNew).length ? { ...(base.t ?? {}), ...editedNew } : undefined;
