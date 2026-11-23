@@ -1095,9 +1095,22 @@ Group 3 (Risky): Speaking timer (two clocks, one floor); Event notification on t
   - C5. `node scripts/template-coverage.mjs` checks in complete mode by default, as the gate does;
     `--complete` stays accepted.
   - C6. Nothing else in the check changes: the floor, the landed-matrix ratchet, staleness and the
-    evidence rules are as they were; no test, case or limit is removed.
-- Names (AC-8): the carried nits are fixed or accounted for in `evidence/phase-TL7.md`. Dated
-  release notes in `docs/whats-new/` keep their wording as historical records.
+    evidence rules are as they were; no test, case or limit is removed. Only its wording (header
+    comment, `docs/template-library/README.md`) changes to say a new id lands covered.
+  - C7. Consequence of C1 and C3, intended: a proof spec cannot be quarantined while its rows are
+    covered (the quarantine PR runs the build and fails), so a flaky proof is fixed, not set
+    aside. This binds later plans too: a type, recipe or contract they register lands with its
+    template and proof in the same PR (for example the notification inbox, #2713).
+  - N1. AC-8's check is `scripts/concept-names.test.mjs` passing on the final head. TL7 fixes or
+    accounts for the nits carried to it: #2680 comment 7070472364 (`docs/GRAPHIC_TYPES.md`,
+    `docs/COMPETITION_PACK.md` "Standings / result table"; `docs/whats-new/2026-11-19.md` "Credits
+    roll"; `src/ai/stubProvider.ts` "game timer"), #2682 comment 7075910783 (three nits) and
+    #2697 comment 7081162959 (`docs/whats-new/2026-11-05.md` "SVG examples"). Dated release notes
+    in `docs/whats-new/` keep their wording as historical records.
+  - N2. Counts: the current-state pages (library page, its README, the maintainer README, the
+    internal docs that state a recipe count) state no stale number. The counts in this spec's
+    "What exists" and D9 ("17 recipes") are the planning-time inventory, kept as written; the
+    matrix is the current count (72 types, 8 untyped kinds, 21 recipes, 4 contracts).
 
 ## Test maintenance
 
