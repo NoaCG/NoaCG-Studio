@@ -304,6 +304,8 @@ import { clockWords, unwatchedOutputs, type HeldVersion, type ReadyStamp } from 
 import { commandPathsOf, requestId, type PrepRequest } from '../../control/prepareLive';
 import { oldOutputNames } from '../../control/autoPublish';
 import { useAutoPublish } from './useAutoPublish';
+import { usePublishNewGraphics } from './usePublishNewGraphics';
+import { newGraphicNames, notOnOutputsWhy } from '../../control/additivePublish';
 import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type StatusFacts } from '../../control/playoutStatus';
 import { confirmLines, newerRun, pruneOwed, type ConfirmLink, type ConfirmOutput, type Owed } from '../../control/runConfirm';
 import { keptReport, noteMark, noteRun as trackRun, type OutputTrack } from '../../control/runTrack';
@@ -1302,6 +1304,29 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
     },
   });
+  // NEW GRAPHICS WITHOUT A PUBLISH (live-production-reliability P2, AC-2): with automatic updates
+  // off, a graphic added to the published production goes out by itself, alone, with its cues;
+  // everything already published stays as it is. Then the outputs are asked to take it in.
+  const newGraphics = usePublishNewGraphics({
+    show,
+    enabled: !!hostedSlug && !autoPublish.active && backendConfigured && authStatus === 'signed-in' && authoringAllowed,
+    publishedG: publishedStamp?.g ?? null,
+    busy: () => publishing || prepareFlow.phase === 'publishing' || !!autoPublish.view?.running,
+    onStamp: (ver, output) => {
+      // Never back over a newer stamp a press's publish set meanwhile.
+      setPublishedStamp((cur) => (cur && cur.n > ver.n ? cur : ver));
+      if (!output) return;
+      fastEventGraphicsRef.current = fastEventGraphics(output.graphics);
+      setPublishedReaders(new Set(output.graphics.filter((g) => hasLiveData(g.js)).map((g) => g.key)));
+      setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
+    },
+  });
+  /** Graphics the published payload does not carry, so the outputs cannot play them yet (studio
+   *  session, 2026-11-23): the status names them and their cues are marked in the rundown. */
+  const notOnOutputs = show && publishedStamp?.g && !autoPublish.active ? newGraphicNames(show.graphics.map((g) => g.name), publishedStamp.g) : null;
+  /** Whether this page adds them by itself, and why it will not when it will not. */
+  const newGraphicsAdds = newGraphics.enabled ? { refusal: newGraphics.refusal } : null;
+  const offOutputs = hostedSlug && notOnOutputs?.length ? { graphics: new Set(notOnOutputs), why: notOnOutputsWhy(newGraphicsAdds) } : null;
   const relevanceSettings = loadPlayoutSettings();
   const casparTarget = casparOutputTarget(relevanceSettings);
   const onAirChanged = (what: 'air' | 'stop', result: PlayoutResult, target: string) => {
@@ -3053,6 +3078,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     owed: setSendOwed,
     loggedAt: setLoggedAt,
     noOutput: () => setNoOutputTake(true),
+    offOutputs: (graphic) => (offOutputs?.graphics.has(graphic) ? offOutputs.why : null),
     note: setNote,
   };
   const verbPage = useRef<GraphicPage | null>(null);
@@ -4507,7 +4533,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     autoPublish: autoPublish.view && autoPublish.view.tone !== 'idle' ? { tone: autoPublish.view.tone, line: autoPublish.view.line } : null,
     oldOutputs: autoPublish.active ? oldOutputNames(livePresence.peers, expectedOutputs) : null,
     // Graphics added since the publish: the outputs cannot play them yet (studio session, 2026-11-23).
-    unpublished: publishedStamp?.g && !autoPublish.active ? show.graphics.map((g) => g.name).filter((name) => !(name in publishedStamp.g!)) : null,
+    unpublished: notOnOutputs,
+    addsNew: newGraphicsAdds,
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
   const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing';
@@ -5375,6 +5402,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
 
       <CueRundown
         loadingGraphics={loadingGraphics}
+        offOutputs={offOutputs}
         pinnedGraphics={pinned}
         onPin={writePin}
         candidateValues={(cue) => (cue.selection === undefined ? null : candidateOverlay(cue))}

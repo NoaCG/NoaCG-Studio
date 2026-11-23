@@ -230,6 +230,20 @@ test('a graphic added since the publish reads amber by name, never green "Ready"
   assert.equal(status({ unpublished: ['Join'], publishing: true }).tone, 'idle');
 });
 
+test('a graphic this page adds to the outputs by itself reads amber "Adding", and its refusal says why (live-production-reliability P2)', () => {
+  const adding = status({ unpublished: ['House Join Card'], addsNew: { refusal: null } });
+  assert.equal(adding.tone, 'warn', 'never green while the outputs lack it');
+  assert.equal(adding.text, 'Adding House Join Card');
+  assert.equal(adding.checks[0].label, 'Adding House Join Card to the outputs. Nothing else changes there.');
+  assert.equal(status({ unpublished: ['Join', 'Results'], addsNew: { refusal: null } }).text, 'Adding 2 graphics');
+  const refused = status({ unpublished: ['House Join Card'], addsNew: { refusal: 'it is in an OBS scene' } });
+  assert.equal(refused.tone, 'warn');
+  assert.equal(refused.text, 'Publish to play House Join Card');
+  assert.equal(refused.checks[0].label, 'House Join Card is not on the outputs yet: it is in an OBS scene.');
+  assert.match(refused.checks[0].advice, /^Publish changes\./);
+  assert.equal(status({ unpublished: [], addsNew: { refusal: null } }).tone, 'ok');
+});
+
 test('PROGRAM counts the bound presses not yet landed ahead of every other published state, and says nothing of them at 0 (#2617 R7)', async () => {
   const { programAir } = await import('../src/control/playoutStatus.ts');
   const at = Date.UTC(2026, 10, 20, 21, 0, 0);

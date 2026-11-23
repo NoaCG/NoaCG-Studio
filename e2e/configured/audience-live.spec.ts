@@ -4,6 +4,7 @@
 // covers: src/join/**, join.html, scripts/app-clean-url.mjs, src/control/joinLogo.ts
 // covers: supabase/migrations/0112_join_logos.sql
 // covers: supabase/migrations/0113_audience_chat_votes.sql
+// covers: src/control/additivePublish.ts, src/control/publishNewGraphics.ts, src/components/home/usePublishNewGraphics.ts
 
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,7 +15,7 @@ import { qrReader } from '../_qr';
 import { publishProduction } from '../_publish';
 import { test, expect, type Browser } from '@playwright/test';
 import { openProductionWithCurrent } from '../_create';
-import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
+import { createGraphicInEditor, haveCreds, readyOf, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 import { openWorkspace } from '../_workspace';
 import { settleDurableWrites } from '../_durable';
 import { addQuestion, addResults, goLive, moreWaysIn, stopLive } from '../_interaction';
@@ -67,12 +68,12 @@ async function coldLoad(browser: Browser, url: string, question: string): Promis
 test.describe(() => {
   test.skip(!haveCreds, 'set E2E_EMAIL / E2E_PASSWORD to run the live audience walk');
 
-  test('publishing derives a short readable link: Interaction shows its QR and downloads, all three doors open the page, the name and page settings reach phones, and Add Join card adds one cue (interaction AC-5, AC-6, AC-11)', async ({
+  test('publishing derives a short readable link: Interaction shows its QR and downloads, all three doors open the page, the name and page settings reach phones, and Add Join card adds one cue that plays on an open output with no Publish (interaction AC-5, AC-6, AC-11; live-production-reliability P2)', async ({
     page,
     context,
     browser,
   }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(300_000);
     await signIn(page);
     await settleSync(page);
     await wipeMyGraphics(page);
@@ -199,6 +200,44 @@ test.describe(() => {
           return (show.cues ?? []).filter((c) => linkField.get(c.sourceId)).map((c) => c.values?.[linkField.get(c.sourceId)!] ?? null);
         }, showId);
       expect(await joinCues()).toEqual([]);
+
+      // NEW GRAPHICS WITHOUT A PUBLISH (live-production-reliability P2, AC-2, AC-3): an output is
+      // open, and the published Hairline has a saved design edit that waits for Publish changes.
+      // The Join card added below must reach that output by itself, and the edit must not.
+      const outputSlug = await page.evaluate(async (id) => {
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        return loadShows().find((x) => x.id === id)?.outputSlug ?? '';
+      }, showId);
+      expect(outputSlug).toBeTruthy();
+      const anon = await browser.newContext();
+      await installDoor(anon);
+      const air = await anon.newPage();
+      await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&name=Desk&debug=1`);
+      await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
+      const storedStamp = () =>
+        page.evaluate(async (id) => {
+          const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+          const sb = await getSupabase();
+          const { data } = await sb!.from('control_shows').select('published_ver').eq('id', id).maybeSingle();
+          return ((data as { published_ver?: { n: number; g: Record<string, string> } } | null)?.published_ver ?? null);
+        }, showId);
+      const before = await storedStamp();
+      expect(before).not.toBeNull();
+      const edited = await page.evaluate(async (id) => {
+        const { loadShows, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+        const g = loadShows().find((x) => x.id === id)!.graphics[0];
+        // A design update of the published graphic, as the editor's save into the copy writes it.
+        const { error } = addGraphicToShow(id, { ...g.template, name: g.name, css: `${g.template.css}\n/* pending edit */` });
+        if (error) throw new Error(error);
+        const failure = await commitDurableWrites();
+        if (failure) throw new Error(failure);
+        window.dispatchEvent(new Event('spx-data-changed'));
+        await new Promise((resolve) => setTimeout(resolve));
+        return g.name;
+      }, showId);
+      await expect(page.getByTestId('production-publish-changes'), 'the design edit waits for Publish changes').toBeVisible({ timeout: 20_000 });
+
       await join.getByTestId('join-card-add').click();
       const builtIns = join.getByTestId('join-choose-board');
       await expect(builtIns).toHaveText(['House Join Card', 'Join QR Code']);
@@ -209,6 +248,32 @@ test.describe(() => {
       await expect(join.getByTestId('join-choose')).toHaveCount(0);
       await settleDurableWrites(ws);
       expect(await joinCues()).toEqual([joinUrl]);
+
+      // Nobody presses Publish: the Join card goes out by itself, alone.
+      const joinCue = await page.evaluate(async (id) => {
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        const show = loadShows().find((x) => x.id === id)!;
+        const joinIds = new Set(show.graphics.filter((g) => (g.template.fields ?? []).some((f) => f.title === 'Join link')).map((g) => g.id));
+        const cue = (show.cues ?? []).find((c) => joinIds.has(c.sourceId));
+        return cue ? { label: cue.label, graphic: show.graphics.find((g) => g.id === cue.sourceId)!.name } : null;
+      }, showId);
+      expect(joinCue, 'the playout page holds the Join card cue').not.toBeNull();
+      await expect.poll(async () => Object.keys((await storedStamp())?.g ?? {}).sort(), { timeout: 60_000 }).toEqual([edited, joinCue!.graphic].sort());
+      const after = (await storedStamp())!;
+      expect(after.g[edited], 'the pending design edit did not go out').toBe(before!.g[edited]);
+      expect(after.n).toBe(before!.n + 1);
+      // AC-4: the rundown's mark leaves once the outputs have it; the edit still waits.
+      await expect(page.getByTestId('cue-off-outputs')).toHaveCount(0, { timeout: 30_000 });
+      await expect(page.getByTestId('production-publish-changes')).toBeVisible();
+      // Take it: it plays on the output that was open before it existed, with no reload.
+      await expect.poll(async () => (await readyOf(air))?.v?.n ?? 0, { timeout: 60_000 }).toBe(after.n);
+      await page.getByTestId('select-cue').filter({ hasText: joinCue!.label }).first().click();
+      await page.getByTestId('verb-take').click();
+      await expect(air.locator(`iframe[title="${joinCue!.graphic}"]:not([data-prepared])`)).toHaveCount(1, { timeout: 30_000 });
+      await expect.poll(() => air.locator('body').getAttribute('data-plays'), { timeout: 30_000 }).toBe('1');
+      await expect(page.getByTestId('production-note').filter({ hasText: 'not on the outputs' })).toHaveCount(0);
+      await page.getByTestId('verb-out').click();
+      await anon.close();
 
       // A hand-picked name still wins, claimed here beside the code; the code follows it.
       const claim = join.getByTestId('join-name-claim');

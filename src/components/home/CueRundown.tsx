@@ -145,6 +145,7 @@ export default function CueRundown({
   playoutSettings,
   liveCue,
   loadingGraphics,
+  offOutputs,
   started,
   casparOn,
   vmixOn,
@@ -217,6 +218,9 @@ export default function CueRundown({
   /** Graphics an output is still loading for a Take (live-publishing O7): the cue on air wears a
    *  Loading mark until every output has run it. */
   loadingGraphics?: ReadonlySet<string>;
+  /** Graphics the published payload does not carry (live-production-reliability P2, AC-4): their
+   *  cues are marked, with what they wait for in the tooltip. Null: none, or not known. */
+  offOutputs?: { graphics: ReadonlySet<string>; why: string } | null;
   /** The production is started, so a graphic's Take reaches air. Not started, a graphic that is up
    *  plays on this page only and its row says UP, never ON AIR (the program monitor's rule). */
   started: boolean;
@@ -925,6 +929,11 @@ export default function CueRundown({
               {cueAirs && !!cueGraphic && loadingGraphics?.has(cueGraphic) && (
                 <span className="pd-tag unsent" title="An output is still loading this graphic: it plays there once loaded." data-testid="cue-loading-mark">
                   LOADING
+                </span>
+              )}
+              {started && !!cueGraphic && offOutputs?.graphics.has(cueGraphic) && (
+                <span className="pd-tag unsent" title={`Not on the outputs yet. ${offOutputs.why}`} data-testid="cue-off-outputs">
+                  NOT ON OUTPUTS
                 </span>
               )}
               {cueAirs ? (

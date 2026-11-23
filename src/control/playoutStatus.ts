@@ -97,13 +97,33 @@ export interface StatusFacts {
   /** Graphics in this production that the published payload does not carry, so the outputs
    *  cannot play them until the next publish. Null or empty: none, or not known. */
   unpublished?: readonly string[] | null;
+  /** This page adds those graphics to the outputs by itself (control/additivePublish.ts), with the
+   *  reason it will not when it will not. Null: it does not here (no permission, or not known). */
+  addsNew?: { refusal: string | null } | null;
 }
 
 /** The check for graphics the outputs do not have yet, or null when there are none. */
-export function unpublishedCheck(names: readonly string[] | null | undefined): StatusCheck | null {
+export function unpublishedCheck(names: readonly string[] | null | undefined, adds?: { refusal: string | null } | null): StatusCheck | null {
   if (!names?.length) return null;
   const one = names.length === 1;
   const list = one ? names[0] : names.slice(0, 3).join(', ') + (names.length > 3 ? ` and ${names.length - 3} more` : '');
+  if (adds && !adds.refusal) {
+    return {
+      key: 'publish',
+      tone: 'warn',
+      label: `Adding ${list} to the outputs. Nothing else changes there.`,
+      short: one ? `Adding ${names[0]}` : `Adding ${names.length} graphics`,
+    };
+  }
+  if (adds?.refusal) {
+    return {
+      key: 'publish',
+      tone: 'warn',
+      label: `${list} ${one ? 'is' : 'are'} not on the outputs yet: ${adds.refusal}.`,
+      short: one ? `Publish to play ${names[0]}` : `${names.length} graphics not published`,
+      advice: 'Publish changes. What is on air stays on air.',
+    };
+  }
   return {
     key: 'publish',
     tone: 'warn',
@@ -206,7 +226,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
       ? { key: 'publish', tone: 'bad', label: f.autoPublish.line ?? 'The newest save is not on the outputs yet.', short: 'Saved, not on the outputs' }
       : { key: 'publish', tone: 'warn', label: f.autoPublish.line ?? 'Publishing your changes', short: 'Updating outputs' });
   }
-  const notOut = f.started && !f.publishing && !f.autoPublish ? unpublishedCheck(f.unpublished) : null;
+  const notOut = f.started && !f.publishing && !f.autoPublish ? unpublishedCheck(f.unpublished, f.addsNew) : null;
   if (notOut) checks.push(notOut);
   if (f.started) {
     for (const name of f.oldOutputs ?? []) {

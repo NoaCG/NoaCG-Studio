@@ -1,0 +1,62 @@
+// NEW GRAPHICS REACH THE OUTPUTS BY THEMSELVES while automatic updates are off
+// (live-production-reliability P2, AC-2). The rules and the scheduler are control/additivePublish.ts,
+// one attempt is control/publishNewGraphics.ts; this hook hands them the page: which graphics the
+// published stamp does not name, whether another publish runs, and what to do once one landed.
+// Decides nothing about air.
+
+import { useEffect, useRef, useState } from 'react';
+import { loadShows, type Show } from '../../model/shows';
+import { createAdditivePublisher, newGraphicNames, type AdditivePublisher, type AdditiveView } from '../../control/additivePublish';
+import { publishNewGraphics } from '../../control/publishNewGraphics';
+import type { OutputPayload } from '../../control/hostedControl';
+import type { PayloadVersion } from '../../control/payloadVersion';
+
+export function usePublishNewGraphics(o: {
+  show: Show | null;
+  /** Published, signed in with an account that may author, and automatic updates not running. */
+  enabled: boolean;
+  /** The published stamp's graphics as this page knows them, or null: not known. */
+  publishedG: Record<string, string> | null;
+  /** Another publish of this page is running. */
+  busy: () => boolean;
+  /** The stamp stored now: written by this page (`output` given), or read. */
+  onStamp: (ver: PayloadVersion, output?: OutputPayload) => void;
+}): AdditiveView & { enabled: boolean } {
+  const { show, enabled, publishedG } = o;
+  const names = enabled && show && publishedG ? newGraphicNames(show.graphics.map((g) => g.name), publishedG) : [];
+  // A new graphic saved again (a gate fix, a design change) is a new attempt; nothing else is.
+  const key = names.length && show ? show.graphics.filter((g) => names.includes(g.name)).map((g) => `${g.name}@${g.savedAt}`).join('\n') : null;
+  const [view, setView] = useState<AdditiveView>({ running: false, refusal: null });
+  const latest = useRef(o);
+  latest.current = o;
+  const publisher = useRef<AdditivePublisher | null>(null);
+  const showId = show?.id ?? null;
+  useEffect(() => {
+    if (!showId || !enabled) return;
+    const p = createAdditivePublisher({
+      setTimer: (ms, run) => {
+        const t = setTimeout(run, ms);
+        return () => clearTimeout(t);
+      },
+      busy: () => latest.current.busy(),
+      attempt: async () => {
+        const record = loadShows().find((s) => s.id === showId);
+        if (!record) return { kind: 'gone' };
+        const result = await publishNewGraphics(record);
+        if (result.ver) latest.current.onStamp(result.ver, result.output);
+        return result;
+      },
+      changed: setView,
+    });
+    publisher.current = p;
+    return () => {
+      p.stop();
+      publisher.current = null;
+      setView({ running: false, refusal: null });
+    };
+  }, [showId, enabled]);
+  useEffect(() => {
+    publisher.current?.want(key);
+  }, [key, showId, enabled]);
+  return { ...view, enabled };
+}

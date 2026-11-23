@@ -134,6 +134,10 @@ export interface VerbSender {
   owed: (owed: boolean) => void;
   loggedAt: (at: number) => void;
   noOutput: () => void;
+  /** A graphic the published payload does not carry: what its Take waits for, said on the page
+   *  instead of failing quietly on the outputs (live-production-reliability P2, AC-4). Null: the
+   *  outputs have it, or it is not known. */
+  offOutputs?: (graphic: string) => string | null;
   /** The note line: a sentence, or a fold over the one shown (a landed send settling a debt). */
   note: (next: string | ((shown: string | null) => string | null)) => void;
   /** The stop generation the press was made in (hostedControl.ts `sendStopGeneration`), stamped
@@ -849,6 +853,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
     if (place && appearance && reachedOutput(sent, graphic)) p.placeTaken?.(cue, graphic, appearance, values, place, () => looksSent.get(graphic) === mark);
     p.clearMisses([cue.id]);
     const named = namedOnce(label, cue.label);
+    const off = s.published ? s.offOutputs?.(graphic) : null;
+    if (off) s.note(`${cue.label} is not on the outputs yet. ${off}`);
     if (p.answersOnOutput?.(graphic)) return { ok: true, unconfirmed: true, note: `${named} sent to the outputs` };
     return { ok: true, note: `✓ ${named}` };
   };

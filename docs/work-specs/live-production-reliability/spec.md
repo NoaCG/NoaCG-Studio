@@ -98,6 +98,40 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
   without pressing Publish (`e2e/configured/audience-live.spec.ts`).
 - AC-4: The rundown marks each cue whose graphic is not on the outputs yet.
 
+**Landed (AC-2 to AC-4, branch `local/publish-new`).** With automatic updates off, the production
+page adds new graphics to the outputs by itself (`src/control/additivePublish.ts`, the rules and
+the scheduler; `src/control/publishNewGraphics.ts`, one attempt; `usePublishNewGraphics.ts`, the
+page wiring). About 1.5 s after a graphic the published stamp does not name is saved, the page
+confirms its record is a stored revision, reads the stored publication whole, and writes it back
+with only the new graphics, their sounds, their panel entries and the cues on them added, through
+the same guarded update a press uses (`writeControlShow`, conditioned on the stamp number read).
+Every published graphic is written back as read, so its digest cannot change; cues already
+published, settings, server cues, OBS scenes and the stage stay as stored. The stamp keeps the
+stored `r` and drops `c`, so a later automatic publish never mistakes it for a whole revision. Then
+the outputs are asked to prepare, as after Publish changes; an output takes new graphics in beside
+what is on air. It runs only for an account that may author, never while a press or automatic
+publish of the page runs, and writes nothing again once the stored stamp names the graphics.
+
+It writes nothing, and the status stays amber with the reason, when the stored payload does not
+read back to its own stamp digests, when a new graphic would change a published one (the look's
+imported face would move to it), needs a bigger stage, sits in an OBS scene, or fails the publish
+gate. A cue added to or edited on a graphic already published, and every design edit of one, still
+waits for Publish changes.
+
+AC-4: such a cue wears NOT ON OUTPUTS in the rundown, its tooltip saying what it waits for, and a
+Take of it says so in the page's note line ("Join is not on the outputs yet. It is being added to
+the outputs now."). The status reads amber "Adding Join" meanwhile.
+
+AC-3: `e2e/configured/audience-live.spec.ts` adds the Join card with an output open and a design
+edit of the published Hairline pending, waits for the stored stamp to name the card with Hairline's
+digest unchanged, then Takes it and asserts it plays on the output with no reload and no Publish.
+Not yet run: it needs the configured suite's local Supabase stack.
+
+Left: published appearance and Adjust records are not measured for the new cues (the production
+page's Take carries its own; only the hosted control page's Take of a new cue goes without them
+until the next Publish). Partial writes on: the write is whole, as a press's fallback is, and the
+stored head and maps are left for the next publish in parts to replace.
+
 ### P3. Shared interaction model and question builder (next; after P1)
 
 - One lifecycle for every kind: draft, live, stopped, revealed, and resolved for kinds with an
@@ -146,7 +180,8 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
 - Use a team production with one account per person. Do not share one account across devices.
 - One playout operator owns Take and the Stream Deck; one person publishes; one runs audience
   questions; at most two people edit the rundown, never the same cue.
-- Publish after adding any graphic, sound or card, and wait for the status to leave amber.
+- After adding any graphic, sound or card, wait for the status to leave amber: the page adds new
+  graphics to the outputs by itself, or says why not. Publish after any other change.
 - For a fresh vote on the same question, Stop and Clear results, or Duplicate it.
 - Ask the audience to press Vote and check "Your vote" on their phone.
 - If Companion's buttons show errors while NoaCG is green, open Setup, Panel and pair again; a new
