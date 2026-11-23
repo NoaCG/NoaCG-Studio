@@ -59,6 +59,10 @@ export interface RecipeRole {
   /** Evidence of THIS behaviour rather than any: a bar for the vote, a numeric team figure for
    *  the score board. The offer preselects a recipe only on distinctive evidence. */
   distinctive?: boolean;
+  /** A per-row LOOK that also covers every artwork field (a text or a picture) named with its
+   *  row's key, `Story 2` and `Sponsor 2` with `Slide 2`: those fields stay operator fields in
+   *  the Text layer and show only while their row's look does (the rotation's slides). */
+  rowFields?: boolean;
 }
 
 /** One recipe's entry in words.json. */
@@ -77,6 +81,7 @@ interface WordsEntry {
     numeric?: boolean;
     countdown?: boolean;
     distinctive?: boolean;
+    rowFields?: boolean;
     pool?: 'text' | 'drawn';
     words: string;
     weak?: string;
@@ -108,6 +113,7 @@ export function rolesOf(recipeId: string): RecipeRole[] {
     ...(r.numeric ? { numeric: true } : {}),
     ...(r.countdown ? { countdown: true } : {}),
     ...(r.distinctive ? { distinctive: true } : {}),
+    ...(r.rowFields ? { rowFields: true } : {}),
     ...(r.pool ? { pool: r.pool } : {}),
     words: new RegExp(r.words, 'i'),
     ...(r.weak ? { weak: new RegExp(r.weak, 'i') } : {}),

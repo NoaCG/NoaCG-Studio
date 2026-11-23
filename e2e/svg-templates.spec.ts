@@ -763,6 +763,81 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await expect(design).toHaveCSS('opacity', '0', { timeout: 20_000 });
       break;
     }
+    case 'rotation': {
+      // ROTATION (TL6, Rules T1 to T4): the slides take turns, one at a time. Every field named
+      // with a slide's number shows with that slide only. Hold keeps the slide, Next slide moves
+      // on (held or counting), Resume moves on and counts again. The six-second timer itself is
+      // the export case's, where every host waits it out together.
+      const slides = [...readFileSync(file(t.slug), 'utf8').matchAll(/inkscape:label="Slide (\d+)"/g)].map((m) => m[1]).sort();
+      const ownFields = async (k: string) => Promise.all([...namedTexts(t.slug), ...pictureSlots(t.slug)].filter((n) => n.endsWith(` ${k}`)).map((n) => fieldFor(air, n)));
+      const showing = async (k: string) => {
+        for (const other of slides) {
+          const lit = other === k;
+          await expect(air.locator(`g[data-noacg-role~="slide/${other}"]`).first(), `Slide ${other} ${lit ? 'shows' : 'is hidden'}`).toHaveClass(lit ? /imported-design-on/ : /^(?!.*imported-design-on)/);
+          for (const id of await ownFields(other)) await expect(air.locator(`[id="${id}"]`).locator('xpath=..'), `${id}'s wrapper follows Slide ${other}`).toHaveClass(lit ? /imported-design-on/ : /^(?!.*imported-design-on)/);
+        }
+      };
+      const press = (event: string) => page.getByTestId(`cue-action-${event}`);
+      await showing('1');
+      await expect(press('resume'), 'nothing to resume while it counts').toBeDisabled();
+      await press('skip').click();
+      await showing('2');
+      await checkAir(page, air, `${t.slug}-2-slide-2`);
+      await press('hold').click();
+      await showing('2');
+      await expect(press('hold'), 'Hold is greyed while held').toBeDisabled();
+      await press('skip').click();
+      await showing(slides[2 % slides.length]);
+      await expect(press('resume'), 'still held after Next slide').toBeEnabled();
+      await press('resume').click();
+      await showing(slides[3 % slides.length]);
+      await expect(press('hold')).toBeEnabled();
+      // A long first story or headline is a field like any other: it fits its slide when that
+      // slide shows.
+      const first = namedTexts(t.slug).find((n) => /^(Story|Headline) 1$/.test(n));
+      if (first) {
+        await page.getByTestId(`cue-field-${await fieldFor(air, first)}`).fill('Harbour Street and the old market square reopen to traffic after three weeks of repairs');
+        await page.getByTestId('verb-update').click();
+        while (!(await air.locator('g[data-noacg-role~="slide/1"]').first().getAttribute('class'))?.includes('imported-design-on')) await press('skip').click();
+        await checkAir(page, air, `${t.slug}-3-long`);
+      }
+      // Out and a new take start again at slide 1.
+      await page.getByTestId('verb-out').click();
+      await page.getByTestId('verb-take').click();
+      await showing('1');
+      break;
+    }
+    case 'lineup': {
+      // QUESTION QUEUE (TL6, the Lineup as it is): Next guest lights each question in turn and
+      // greys the ones answered, Previous guest goes back, a row's own button jumps to it, and
+      // Nobody on clears it.
+      const rows = namedTexts(t.slug).filter((n) => /^Guest \d+$/.test(n)).length;
+      const state = async (now: number) => {
+        for (let k = 1; k <= rows; k++) {
+          await expect(role(air, `guest.now/${k}`), `row ${k} ${k === now ? 'is on' : 'is not on'}`).toHaveClass(k === now ? /imported-design-on/ : /^(?!.*imported-design-on)/);
+          await expect(role(air, `guest.done/${k}`), `row ${k} ${k < now ? 'is done' : 'is not done'}`).toHaveClass(k < now ? /imported-design-on/ : /^(?!.*imported-design-on)/);
+        }
+      };
+      const press = (event: string) => page.getByTestId(`cue-action-${event}`);
+      await state(0);
+      await press('nextGuest').click();
+      await state(1);
+      await press('nextGuest').click();
+      await state(2);
+      await checkAir(page, air, `${t.slug}-2-second`);
+      await press('previousGuest').click();
+      await state(1);
+      await press(`guest${rows}`).click();
+      await state(rows);
+      await expect(press('nextGuest'), 'Next guest is greyed on the last row').toBeDisabled();
+      await press('nobodyOn').click();
+      await state(0);
+      // The list edits like any field: a question retyped long fits its row.
+      await page.getByTestId(`cue-field-${await fieldFor(air, 'Guest 2')}`).fill('Which of the songs you play tonight did you write first, and where were you?');
+      await page.getByTestId('verb-update').click();
+      await checkAir(page, air, `${t.slug}-3-long`);
+      break;
+    }
     case 'credits': {
       // The first line is the show title, in the drawn title's look; the title is no field of its own.
       expect(await air.locator('svg').first().evaluate(() => (window as unknown as { SPXGCTemplateDefinition: { DataFields: { title: string }[] } }).SPXGCTemplateDefinition.DataFields.map((f) => f.title))).not.toContain('Heading');
@@ -1452,6 +1527,51 @@ test('Milestone track and Quiz show: tiers and rows in use play in every export 
     if (id !== 'html-overlay') {
       await h.update({ [quiz.ids['Answer D']]: 'Mercury' });
       await expect.poll(() => h.lit(rows), { message: `${id}: Answer D typed, its row is in use` }).toEqual(rows);
+    }
+    await h.close();
+  }
+});
+
+test('Rotating ticker and Question queue: the slides take turns, Hold keeps one, and the questions move, in every export target', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  // ROTATION (Rules T1 to T4): in every host slide 1 is up at the take and slide 2 six seconds
+  // later, by the graphic's own timer. Held where the host sends events (every host but the
+  // overlay, which only plays), it outlasts the next six seconds; Resume moves on to slide 3.
+  const ticker = await prepareExport(page, 'ticker-rotate', []);
+  const tickerPackages = await exportPackages(page, ticker.production, {});
+  const slides = ['slide/1', 'slide/2', 'slide/3'];
+  // One host at a time, each read at once: slide 1 lasts six seconds from its own take. Then every
+  // host is held the moment it reaches slide 2, so none can run on to slide 3 before its Hold.
+  const hosts: (readonly [string, Host])[] = [];
+  for (const id of EXPORT_IDS) {
+    const h = await packageHost(page, context, id, tickerPackages[id], {});
+    await expect.poll(() => h.lit(slides), { message: `${id}: slide 1 at the take` }).toEqual(['slide/1']);
+    hosts.push([id, h] as const);
+  }
+  await Promise.all(hosts.map(async ([id, h]) => {
+    await expect.poll(() => h.lit(slides), { message: `${id}: slide 2 after six seconds`, timeout: 15_000, intervals: [100] }).toEqual(['slide/2']);
+    if (id === 'html-overlay') return;
+    await h.event('hold');
+    await page.waitForTimeout(7_000);
+    expect(await h.lit(slides), `${id}: held on slide 2`).toEqual(['slide/2']);
+    await h.event('resume');
+    await expect.poll(() => h.lit(slides), { message: `${id}: Resume moves on` }).toEqual(['slide/3']);
+  }));
+  for (const [, h] of hosts) await h.close();
+
+  // QUESTION QUEUE (the Lineup): who is on is the On now field, so every host that sends data
+  // moves it; On now 2 puts the second question on and the first done. Next guest and Previous
+  // guest are the cue editor's presses on that field (the batch walk).
+  const queue = await prepareExport(page, 'question-queue', ['On now']);
+  const second = { [queue.ids['On now']]: '2' };
+  const queuePackages = await exportPackages(page, queue.production, second);
+  const marks = ['guest.now/1', 'guest.now/2', 'guest.done/1'];
+  for (const id of EXPORT_IDS) {
+    const h = await packageHost(page, context, id, queuePackages[id], second);
+    await expect.poll(() => h.lit(marks), { message: `${id}: the second on, the first done` }).toEqual(['guest.now/2', 'guest.done/1']);
+    if (id !== 'html-overlay') {
+      await h.update({ [queue.ids['On now']]: '1' });
+      await expect.poll(() => h.lit(marks), { message: `${id}: back to the first` }).toEqual(['guest.now/1']);
     }
     await h.close();
   }

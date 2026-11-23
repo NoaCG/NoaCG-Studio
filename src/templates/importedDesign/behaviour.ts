@@ -527,19 +527,26 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
         for (const key of keys) {
           const candidateId = at(binding.layers, role.id, key);
           if (!candidateId) continue;
-          const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
-          if (!el) continue;
-          // A SPACE-SEPARATED list of tokens, like the growth stamp: one layer may play two
-          // roles, and a plain setAttribute would let the second erase the first.
-          const tokens = (el.getAttribute(BEHAVIOUR_ROLE_ATTR) ?? '').split(/\s+/).filter(Boolean);
-          const token = roleToken(ns(role.id), key);
-          if (!tokens.includes(token)) tokens.push(token);
-          el.setAttribute(BEHAVIOUR_ROLE_ATTR, tokens.join(' '));
-          if (lookRoles.has(role.id)) {
-            const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-            if (!own.includes(LOOK_CLASS)) own.push(LOOK_CLASS);
-            el.setAttribute('class', own.join(' '));
-            clearDrawnHiding(el);
+          const drawn = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
+          if (!drawn) continue;
+          // A row look that covers its row's own fields (the rotation's slide: `Story 2` and
+          // `Sponsor 2` belong to `Slide 2`): see `rowFieldTargets`. Each field stays the
+          // operator's, already bound to its fN; what is stamped is a group wrapped around it.
+          const covered = role.rowFields && key ? rowFieldTargets(root, artworkFields, rows, key) : [];
+          for (const el of [drawn, ...covered]) {
+            if (!el) continue;
+            // A SPACE-SEPARATED list of tokens, like the growth stamp: one layer may play two
+            // roles, and a plain setAttribute would let the second erase the first.
+            const tokens = (el.getAttribute(BEHAVIOUR_ROLE_ATTR) ?? '').split(/\s+/).filter(Boolean);
+            const token = roleToken(ns(role.id), key);
+            if (!tokens.includes(token)) tokens.push(token);
+            el.setAttribute(BEHAVIOUR_ROLE_ATTR, tokens.join(' '));
+            if (lookRoles.has(role.id)) {
+              const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+              if (!own.includes(LOOK_CLASS)) own.push(LOOK_CLASS);
+              el.setAttribute('class', own.join(' '));
+              clearDrawnHiding(el);
+            }
           }
         }
       }
@@ -549,6 +556,80 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
     controls: recipe.controls(ctx),
     path: recipe.path?.(ctx),
   };
+}
+
+/** The importer's own names for a layer the designer did not name (assets/svgImport.ts): never
+ *  read as a set of slide fields, since every unnamed layer of a file carries one. */
+const UNNAMED_STEMS = new Set(['text', 'picture']);
+
+/** Which row each artwork field belongs to under `rowFieldTargets`' rule (field id -> row key);
+ *  pure, so the rule is tested in Node (scripts/rotation-slides.test.mjs). */
+export function rowFieldOwners(artworkFields: Pick<SpxField, 'field' | 'title'>[], rows: string[]): Map<string, string> {
+  const stemOf = (title: string, k: string): string | null => {
+    const m = new RegExp(`^(.*\\S)\\s+${k}$`, 'i').exec((title ?? '').trim());
+    return m ? m[1].toLowerCase() : null;
+  };
+  const stemsFor = (k: string) => new Set(artworkFields.map((f) => stemOf(f.title, k)).filter((x): x is string => !!x && !UNNAMED_STEMS.has(x)));
+  const first = rows.length > 0 ? stemsFor(rows[0]) : new Set<string>();
+  const sets = new Set([...first].filter((stem) => rows.slice(1).some((k) => stemsFor(k).has(stem))));
+  const owners = new Map<string, string>();
+  for (const f of artworkFields) {
+    for (const k of rows) {
+      const stem = stemOf(f.title, k);
+      if (stem && sets.has(stem)) owners.set(f.field, k);
+    }
+  }
+  return owners;
+}
+
+/**
+ * THE FIELDS A ROW LOOK COVERS, wrapped for its stamp (`RecipeRole.rowFields`, the rotation's slide).
+ *
+ * A field belongs to row `key` when it is named `<stem> <key>` and the SAME stem is also named for
+ * row 1 and for another row: a set drawn once per slide (`Story 1`, `Story 2`). A lone number is
+ * not a set - the importer numbers a repeated name from its second copy (`Kicker 2`, never
+ * `Kicker 1`), and names an unnamed layer `Text 3` - so neither is ever taken off another slide.
+ *
+ * What gets the look is a group wrapped around the field, never the field itself: the fit reads a
+ * field as laid out by its parent's box, so a field hidden by its own class would be fitted at
+ * zero width and air unfitted when its slide came round. A field that is a run inside a text (a
+ * `<tspan>`, a `<textPath>`) wraps its whole `<text>`, and only when that text holds no other
+ * field: SVG draws no `<g>` inside text. A picture painted through a pattern (Figma's placed
+ * raster) is bound on the `<image>` in `<defs>`, which hiding cannot reach, so the shapes that
+ * pattern paints are wrapped instead.
+ */
+function rowFieldTargets(root: Element, artworkFields: SpxField[], rows: string[], key: string): Element[] {
+  const owners = rowFieldOwners(artworkFields, rows);
+  const out: Element[] = [];
+  for (const f of artworkFields) {
+    if (owners.get(f.field) !== key) continue;
+    const bound = root.querySelector(`[id="${f.field}"]`);
+    if (!bound) continue;
+    let targets: Element[] = [bound];
+    if (bound.closest('defs')) targets = patternPainted(root, bound);
+    else if (bound.tagName.toLowerCase() !== 'text' && bound.parentElement?.closest('text')) {
+      const text = bound.parentElement.closest('text')!;
+      const others = Array.from(text.querySelectorAll('[id]')).filter((el) => el !== bound && /^f\d+$/.test(el.id));
+      targets = others.length === 0 ? [text] : [];
+    }
+    for (const target of targets) {
+      if (!target.parentNode) continue;
+      const wrap = root.ownerDocument.createElementNS(target.namespaceURI, 'g');
+      target.parentNode.insertBefore(wrap, target);
+      wrap.appendChild(target);
+      out.push(wrap);
+    }
+  }
+  return out;
+}
+
+/** The drawn shapes a pattern holding `image` paints (`fill="url(#p)"`, in an attribute or a style). */
+function patternPainted(root: Element, image: Element): Element[] {
+  const pattern = image.closest('pattern')
+    ?? Array.from(root.querySelectorAll('pattern')).find((p) => Array.from(p.querySelectorAll('use')).some((u) => (u.getAttribute('href') ?? u.getAttribute('xlink:href')) === `#${image.id}`));
+  if (!pattern?.id) return [];
+  const ref = `url(#${pattern.id})`;
+  return Array.from(root.querySelectorAll('*')).filter((el) => !el.closest('defs') && ((el.getAttribute('fill') ?? '').includes(ref) || (el.getAttribute('style') ?? '').includes(ref)));
 }
 
 /** Compile one binding on its own - the shape the specs and the validator reason about. */

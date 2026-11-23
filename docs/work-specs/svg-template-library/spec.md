@@ -796,7 +796,7 @@ Group 7: Milestone track (tiers on the goal meter) and Quiz show (two to four an
   - M6. Tiers are data only: Milestones and Current are fields, so every host plays them by
     data. No event, state, button or machine arrow is added; looks and segments follow a data
     write at once, as the meter's bar does, and none of them pops.
-  - Q1. A quiz may draw a ROW layer per answer (`Row A`, a drawn group such as the row's plate
+  - Q1. A quiz may draw a ROW layer per answer (`Answer row A`, a drawn group such as the row's plate
     and letter). On a board with any row layer, a row is IN USE while its Answer field holds
     text (after trimming spaces); `Row X` shows while row X is in use and hides while it is not.
   - Q2. On such a board, Selected, Correct and Wrong light only on rows in use: a pick or an
@@ -818,10 +818,10 @@ Group 7: Milestone track (tiers on the goal meter) and Quiz show (two to four an
     (the role whose figure the rows are compared with), its fact `reached` and its derivations
     `span` and `amount`. A table asking any of them under a runtime that does not read it is
     refused at export, upgradable by importing again.
-  - S3. Recognition: `Row A` names bind the quiz's row layer but are not evidence of a quiz;
-    `Reached n` is evidence of a goal meter. `docs/svg-samples/quiz-board.svg` and the talk-show
-    set's `quiz.svg` already draw `Row A` to `Row D` plates, so importing them again now binds
-    them (S1 applies).
+  - S3. Recognition: `Answer row A` names bind the quiz's row layer but are not evidence of a
+    quiz; `Reached n` is evidence of a goal meter. A plain `Row A` plate (drawn by
+    `docs/svg-samples/quiz-board.svg` and the talk-show set's `quiz.svg`) binds nothing, so
+    importing them again changes nothing (S3a).
 - Decisions (coordinator on #2678, reversible by the owner): 3a, Target stays on every meter,
   so ids never depend on what is drawn; the Milestone track template draws a Percent toward the
   final goal so Target is a working control there. 3b, the box starts with the drawn tiers (the
@@ -846,13 +846,155 @@ Group 7: Milestone track (tiers on the goal meter) and Quiz show (two to four an
     The `text` fact `filled` now serves only the Row look.
 - Traps: the layer check maps a name to the FIRST role in `words.json` with that head, so the
   quiz's row is taught as `Answer row A` (a bare `Row` would shadow the standings' visible
-  `Row n` plates); the importer still reads `Row A`. A write rule never restores drawn text once
+  `Row n` plates), and the importer reads only `Answer row A` (S3a). A write rule never restores drawn text once
   it has written, which is why the box starts with the drawn tiers instead of an "empty shows as
   drawn" fact. The library previews are drawn in the system face, not Manrope: a new preview
   matches only from the same renderer.
 - Q1 to Q4 stand as written. A Row look never pops (nit from the Rules-first `/so`). The pin
   for S1's bytes is the corpus emit record (`scripts/svg-corpus-passes.json`) plus the Node
   case that a meter with no tiers compiles to its old table.
+
+### TL6 (new runtime kinds)
+
+TL6 lands as several PRs; each adds its group here. Rows: word cloud, ticker (crawl and rotate),
+notification queue, speaking timer, sponsor rotator, and, moved here from TL4 and TL5 under the
+owner's standing permission (#2678 comments 7082339903 and 7085774509), the end-credits crawl,
+public-notice language cycle and question queue. Evidence: `evidence/phase-TL6.md`.
+
+Mechanisms (D7, one per behaviour, the simplest that works):
+
+- **Rotation** (ticker rotate, sponsor rotation, two-language notice): a new full recipe made of a
+  machine only, the built-in ticker's and sponsor rotation's shape, so no runtime word is added.
+  The sponsor rotator's planned "image writes" is not needed: each partner is its own `f:` picture
+  slot inside its slide, a field like any picture slot.
+- **Question queue**: the Lineup recipe as it is (rows, Next, Previous, straight to a row).
+- **Crawl** (ticker crawl, end-credits crawl) and **word sizes** (word cloud): new runtime words,
+  group 2, Risky.
+- **Speaking timer** (two clocks, one floor) and **notification queue**: group 3, Risky.
+
+Rules for groups 2 and 3 are written here before their code, for their Rules-first `/so`.
+
+Group 1: Rotation (ticker rotate, sponsor rotation, two-language notice) and Question queue.
+
+- Previous verified `main`: `62dc34aa28ba33af9f938f10d42497180776a7fa`. Revert: `git revert -m 1 <the TL6 group 1 merge commit>`.
+- Templates: Rotating ticker, Sponsor rotation, Two-language notice (Rotation), Question queue
+  (the Lineup as it is). Coverage gains a `rotation` recipe row: 102 rows, 96 covered.
+- A slide's own fields: a role with `rowFields` (only the slide) covers every artwork field named
+  with its row's key; each is wrapped in a group stamped with the look. Trap: never stamp a look on
+  a FIELD itself: the fit reads a field as laid out by its parent's box, so a field hidden by its
+  own class is fitted at zero width and airs unfitted when shown.
+- Trap: slides and their texts are drawn visible and stacked. A hidden layer's text is never a
+  field, so the templates' texts overlap in the source file; the README says so.
+- Row class: not Ordinary (a new recipe's machine), not Risky (no runtime word, no persisted key,
+  no ownership or recovery rule). The final `/so` challenges the rules below.
+- Rules (state rules this group sets):
+  - T1. A graphic imported with the Rotation recipe draws two to eight `Slide n` groups. While it
+    is on air exactly one slide shows: slide 1 from the take, then the next slide every six
+    seconds (speed-relative, as the built-in rotations), the first again after the last.
+  - T2. Hold keeps the showing slide and stops the count; Resume moves to the next slide and
+    counts again; Next slide moves to the next slide at once, from the take or a counting slide
+    (counting on), or from a held slide (still held). A press that cannot apply is greyed.
+  - T3. Which slide shows is machine state, as in the built-in ticker, sponsor rotation and
+    two-language notice; no timer writes a field. A slide is its drawn `Slide n` group in Board
+    plus every text or picture in the Text layer named with its number (`Story 2`, `Sponsor 2`):
+    those stay the artwork's own fields, edited and sent as data like any other, and show only
+    with their slide.
+  - T4. Out from any slide plays the exit over the slide that was showing; the next take starts
+    again at slide 1.
+  - T5. No runtime word, persisted key or existing recipe changes: every saved graphic and every
+    other recipe compiles to the bytes it did. `Slide n` is distinctive evidence of the Rotation
+    recipe; the import sweep shows which existing files that changes.
+
+Group 2 (Risky): Crawl (ticker crawl, end-credits crawl) and Word cloud.
+
+- Row class: Risky (new runtime words). Rules written before any code, for the Rules-first `/so`.
+- Rules:
+  - K1. A graphic imported with the Crawl recipe draws one text layer `Crawl` and owns two fields
+    made after the artwork's: `Items` (lines) and `Scroll speed (%)` (a number, 100 by default,
+    the built-in marquee's field). The text prints every non-empty line of Items, trimmed and in
+    order, joined by a spaced bullet, and the whole run twice over so the loop has no seam.
+  - K2. On air the text travels right to left at a constant, unchanging speed: 140 artwork units
+    a second for an artwork 1920 units wide (scaled with the artwork's width), times the graphic's
+    motion speed, times Scroll speed over 100 clamped to 10 to 400, as the built-in marquee. It
+    starts at the take from where it was drawn and, after one run, starts that run again without
+    a jump.
+  - K3. A data write that changes Items starts the run again from where the text was drawn; one
+    that changes only the speed changes the rate of the run in progress without moving the text;
+    one that changes neither, a state entry other than the take, and a clock tick leave it moving.
+  - K4. The text shows only inside its window: a drawn `Crawl window` layer where one is bound,
+    else the panel the fit ladder finds for the text, else the artwork's frame. Nothing paints
+    outside it. The text is never fitted, wrapped or shrunk.
+  - K5. With no line in Items the drawn text stays where it was drawn and does not move.
+  - K6. Reduced motion does not stop a crawl: the motion is the content, and a still crawl hides
+    every item past the window. Out leaves it moving under the exit; snap recovery starts the run
+    again from where the text was drawn.
+  - K7. The end-credits crawl is the Crawl recipe with one credit per line, as typed; the coverage
+    row's recipe becomes `crawl`.
+  - W1. A graphic imported with the Word cloud recipe draws one to thirty `Word n` text layers, the
+    most-sent word's slot first, and a `Question` text field; it owns a `Words` lines field (the
+    feature contract's title, so the Word cloud picker and staging find it).
+  - W2. Line n of Words (`word | count`, most first, as staging writes it) fills slot n; slot n
+    shows only while line n exists, so a round with fewer words than slots hides the rest and an
+    empty Words hides every slot. Lines past the last slot are reported as too long, as every
+    list is.
+  - W3. Slot n's word is drawn at its drawn size times 0.5 + 0.5 x s, where s is the square root
+    of (count - least) / (most - least) over the listed lines (1 when they are all equal, a line
+    with no readable count counting 1). The size is written fresh on every repaint, never
+    compounded.
+  - W4. A word wider than the slot's drawn sample at that size is drawn smaller until it fits,
+    never below 0.3 of the drawn size; a word that still does not fit is reported too long. A
+    word keeps the alignment its slot was drawn with (#2691's readout rule), so a centred slot
+    grows both ways.
+  - W5. Imported unchanged and saved, the template appears in the Word cloud picker; choosing it
+    stages a cue whose Question and Words the staging fills, and a repeated stage of the same
+    round updates that one cue (the TL1 picker and the interaction spec's W rules, unchanged).
+  - G1. The words the runtime newly reads are one `READS_ADDED` entry each, in the commit that
+    teaches it: the paint rule keys `crawl` (a crawl rule: the role it moves) and `speed` (the
+    field it reads its rate from), the `list` derivation `joined` (K1's text), and the paint rule
+    key `size` with the `list` derivation `weight` (W3's s). A table asking for any of them under
+    a runtime that does not read it is refused at export, upgradable by importing again.
+  - G2. Every existing recipe compiles to the table, words and bytes it did; saved graphics keep
+    their own runtime and table (TL2 C7). Neither recipe is proposed on the old, ambiguous and
+    plain SVGs of the import sweep unless their layers are named for it (`Crawl`, `Word n`).
+
+Group 3 (Risky): Speaking timer (two clocks, one floor) and Notification queue.
+
+- Row class: Risky (a new kind, the engine it reads, and a queue a template keeps). Rules written
+  before any code, for the Rules-first `/so`.
+- Rules:
+  - P1. A graphic imported with the Speaking timer recipe binds two text fields `Clock A` and
+    `Clock B` (required), and optionally `Speaking time` (the allowance both clocks reset to);
+    it owns a hidden `Penalty (seconds)` number field (10 by default) made after the artwork's.
+    It may draw looks `Speaking A`, `Speaking B` (shown while that side holds the floor) and
+    `Penalty` (shown while a penalty is marked).
+  - P2. Its machine and controls are the built-in speaking timer's, unchanged: the floor is
+    Armed, A or B; Switch speaker passes it (Armed opens with A); Reset clocks re-arms both to the
+    allowance; Penalty docks the running side and its mark clears after 3.2 seconds. At most one
+    clock runs, and starting one stops the other.
+  - P3. The clocks are run by the built-in debate engine's code, unchanged in behaviour, pointed
+    at this graphic's own fields: the bound clocks are stamped `data-speaking="a"` and `"b"` (and
+    `"allowance"`, `"penalty"`), the attribute the control wire already reads
+    (`speakingClocksFromHtml`), so an output rebuilt mid-speech resumes from the clock's stamped
+    origin exactly as the built-in board does. A clock counts down, never past 00:00, and a time
+    the chair types re-anchors it.
+  - P4. A graphic carries one clock engine: the Speaking timer recipe and a countdown or clock
+    `Clock` on the same graphic are refused at import, as a second clock is today.
+  - P5. The table names each clock's field with the new kind `speaking` (spec key `side`), so a
+    runtime without the engine refuses the table at export, upgradable by importing again.
+  - N1. A Pop-up alert imported with Queue ticked (`options.queue`, default off) gives its
+    template `queueNotification(payload)`, the built-in event notification's seam: the payload
+    names fields by id (`f2`) or by title, and a SNAPSHOT of every artwork field is taken at the
+    call (the payload over the current values).
+  - N2. Off air, the snapshot is written and the alert plays. On air or while a snapshot waits,
+    it joins the end of the queue and nothing on air changes; the call returns its place.
+  - N3. When an alert's exit finishes (its own self-clear, Next, Take it off or Out), the first
+    waiting snapshot is written and played at once. A replay or a snap never takes one from the
+    queue. Without Queue the alert is the machine and template it was.
+  - N4. A host's ordinary `update()` and `play()` are unchanged; only `queueNotification`
+    queues. Nothing new is read from the table, so there is no `READS_ADDED` entry: the queue
+    exists only in a template built with the box.
+  - G3. Every existing recipe compiles to the table, words and bytes it did; saved graphics keep
+    their own runtime and table (TL2 C7); reimport keeps field ids and cue values.
 
 ## Test maintenance
 

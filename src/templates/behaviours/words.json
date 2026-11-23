@@ -1106,5 +1106,39 @@
         "what": "a window used only by credits saved by an earlier version; new imports use the whole frame and need no box"
       }
     ]
+  },
+  "rotation": {
+    "name": "The rotation",
+    "verbs": "slides that take turns on their own",
+    "buttons": "Hold, Resume and Next slide",
+    "rows": {
+      "role": "slide",
+      "keys": "numbers",
+      "min": 2,
+      "max": 8,
+      "teach": "Two to eight slides, drawn visible and stacked in one place. A set of texts or pictures named for every slide (Story 1, Story 2) shows each with its slide."
+    },
+    "roles": [
+      {
+        "id": "slide",
+        "label": "Slide",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "required": true,
+        "distinctive": true,
+        "rowFields": true,
+        "pool": "drawn",
+        "words": "^(?:slide|folie|diapositiva)$",
+        "teach": "Slide 1",
+        "also": [
+          "Folie 1",
+          "Diapositiva 1"
+        ],
+        "what": "one turn of the rotation, shown while it is that slide's turn, with every text and picture named with its number (Story 1, Sponsor 1)"
+      }
+    ]
   }
 }

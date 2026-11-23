@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Rotation</title>
+  <desc>Editable NoaCG SVG source. A news bar whose two stories take turns: Slide 1 and Slide 2 are drawn stacked in one place, and Story 1 and Story 2 show with their slide. Every six seconds the other story takes over; Hold keeps one up.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="0" y="960" width="1920" height="80" fill="#1d2b53"/>
+    <rect id="Kicker_box" inkscape:label="Kicker box" x="0" y="960" width="220" height="80" fill="#ffcc00"/>
+    <g id="Slide_2" inkscape:label="Slide 2">
+      <rect x="220" y="960" width="1700" height="80" fill="#1d2b53"/>
+      <rect x="220" y="1034" width="1700" height="6" fill="#ffcc00"/>
+    </g>
+    <g id="Slide_1" inkscape:label="Slide 1">
+      <rect x="220" y="960" width="1700" height="80" fill="#1d2b53"/>
+      <rect x="220" y="1034" width="850" height="6" fill="#ffcc00"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Oswald, sans-serif">
+    <text id="Kicker" x="110" y="1016" text-anchor="middle" font-size="40" font-weight="700" fill="#1d2b53">NEWS</text>
+    <text id="Story_2" inkscape:label="Story 2" x="260" y="1015" text-anchor="start" font-size="38" font-weight="500" fill="#ffffff">Parking opens at the east gate</text>
+    <text id="Story_1" inkscape:label="Story 1" x="260" y="1015" text-anchor="start" font-size="38" font-weight="500" fill="#ffffff">Doors open at 18:00 in the main hall</text>
+  </g>
+</svg>

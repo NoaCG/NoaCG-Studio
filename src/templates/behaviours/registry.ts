@@ -23,6 +23,7 @@ import { revealRecipe } from './reveal';
 import { bingoRecipe } from './bingo';
 import { creditsRecipe } from './credits';
 import { clockRecipe } from './clock';
+import { rotationRecipe } from './rotation';
 
 export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [
   quizRecipe,
@@ -39,6 +40,7 @@ export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [
   revealRecipe,
   bingoRecipe,
   creditsRecipe,
+  rotationRecipe,
   switchRecipe,
   choiceRecipe,
   clockRecipe,

@@ -452,6 +452,15 @@ async function runExample(page: Page, testInfo: TestInfo, example: Example): Pro
       await expect(role(air, 'guest.done/1')).toHaveClass(/imported-design-on/);
       await expect(role(air, 'guest.now/2')).toHaveClass(/imported-design-on/);
       break;
+    case 'rotation': {
+      // ROTATION (TL6): story 1's slide at the take; Next slide shows story 2's and hides the first.
+      const slide = (k: number) => air.locator(`g[data-noacg-role~="slide/${k}"]`).first();
+      await expect(slide(1)).toHaveClass(/imported-design-on/);
+      await page.getByTestId('cue-action-skip').click();
+      await expect(slide(2)).toHaveClass(/imported-design-on/);
+      await expect(slide(1)).not.toHaveClass(/imported-design-on/);
+      break;
+    }
     case 'puzzle':
       await fill(page, air, 'Puzzle', 'BROADCAST');
       await fill(page, air, 'Guess', 'B');
