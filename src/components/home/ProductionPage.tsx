@@ -11,6 +11,7 @@ import {
   graphicLayer,
   loadShows,
   setShowOutputSetup,
+  setShowOutputSlug,
   setShowProfile,
   setGraphicCopyScript,
   setOwnReaderStops,
@@ -306,7 +307,7 @@ import { commandPathsOf, requestId, type PrepRequest } from '../../control/prepa
 import { oldOutputNames } from '../../control/autoPublish';
 import { useAutoPublish } from './useAutoPublish';
 import { usePublishNewGraphics } from './usePublishNewGraphics';
-import { newGraphicNames, notOnOutputsWhy } from '../../control/additivePublish';
+import { newGraphicNames, notOnOutputsWhy, publishChangesDue } from '../../control/additivePublish';
 import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type StatusFacts } from '../../control/playoutStatus';
 import { confirmLines, newerRun, pruneOwed, type ConfirmLink, type ConfirmOutput, type Owed } from '../../control/runConfirm';
 import { keptReport, noteMark, noteRun as trackRun, type OutputTrack } from '../../control/runTrack';
@@ -1253,7 +1254,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const authoringAllowed = useAccountAuthoring();
   // ADOPTION (live-publishing O5, designs/G1.md section 5): once the production-copies switch is on.
   useCopyAdoption(show, authoringAllowed, setShows);
-  const { unpublished: unpublishedChanges, requiresPreparation, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
+  const { unpublished: unpublishedChanges, due: publishDue, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
   // EXPECTED FOR THIS SESSION ONLY (playout-workflow-simplification D4): an output seen since this
   // page opened and then gone is lost, in red; yesterday's OBS is never expected today, so a page
   // opened before the studio is up stays quiet.
@@ -1319,22 +1320,34 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   // everything already published stays as it is. Then the outputs are asked to take it in.
   const newGraphics = usePublishNewGraphics({
     show,
-    enabled: !!hostedSlug && !autoPublish.active && backendConfigured && authStatus === 'signed-in' && authoringAllowed,
+    // Only while automatic updates are switched off: with the switch on they are the designed path,
+    // and a page whose publisher does not run yet keeps Publish changes (live-publishing G3 section 8).
+    enabled: !!hostedSlug && autoPublish.switchOn === false && backendConfigured && authStatus === 'signed-in' && authoringAllowed,
     names: notOnOutputs,
-    busy: () => publishing || prepareFlow.phase === 'publishing' || !!autoPublish.view?.running,
+    // A readiness run waits for the outputs to settle on the version it read: a publish in between
+    // would move them off it and the run would wait out its time, so the add waits for the run.
+    busy: () => publishing || prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing' || !!autoPublish.view?.running,
     appearanceFor: appearanceForRef,
-    onStamp: (ver, output) => {
+    onStamp: (ver, output, record) => {
       // Never back over a newer stamp a press's publish set meanwhile, nor its readers and request.
       if (publishedStamp && publishedStamp.n > ver.n) return;
       setPublishedStamp((cur) => (cur && cur.n > ver.n ? cur : ver));
       if (!output) return;
+      // Adding was the record's only change: it is the published record now, so nothing is left due.
+      const at = show ? loadShows().find((s) => s.id === show.id) : undefined;
+      if (record && at?.outputSlug) setShows(setShowOutputSlug(at.id, at.outputSlug, record));
       fastEventGraphicsRef.current = fastEventGraphics(output.graphics);
       setPublishedReaders(new Set(output.graphics.filter((g) => hasLiveData(g.js)).map((g) => g.key)));
       setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
     },
   });
-  /** Whether this page adds them by itself, and why it will not when it will not. */
-  const newGraphicsAdds = newGraphics.enabled ? { refusal: newGraphics.refusal } : null;
+  /** Whether this page adds them by itself, and why it will not when it will not. While only the
+   *  account or the automatic updates switch is still being read, it will as far as anything else
+   *  says: the status, the cue and the header agree on that, so no press appears and then goes. */
+  const addsWhileSigningIn = !!hostedSlug && autoPublish.switchOn !== true && backendConfigured && authoringAllowed && (authStatus === 'loading' || (authStatus === 'signed-in' && autoPublish.switchOn === null));
+  const newGraphicsAdds = newGraphics.enabled ? { refusal: newGraphics.refusal } : addsWhileSigningIn ? { refusal: null } : null;
+  /** Publish changes is due for what only it can send: never for graphics this page adds itself. */
+  const requiresPreparation = publishChangesDue(publishDue, !!newGraphicsAdds && !newGraphicsAdds.refusal);
   const offOutputs = hostedSlug && notOnOutputs?.length ? { graphics: new Set(notOnOutputs), why: notOnOutputsWhy(newGraphicsAdds) } : null;
   const relevanceSettings = loadPlayoutSettings();
   const casparTarget = casparOutputTarget(relevanceSettings);
@@ -4683,6 +4696,10 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
                 onDismiss={forgetOutput}
                 onCheck={() => void prepareFlow.run({ publish: false })}
                 checking={flowBusy}
+                // Check now waits while new graphics are being added: a check started under the add
+                // would wait for a version the add then moves the outputs off. A press's publish
+                // needs no wait: it writes over the add's version and prepares its own.
+                waiting={newGraphics.running}
                 checked={readiness.newestStamp ? `Checked ${clockWords(readiness.newestStamp.at)}` : undefined}
                 paths={commandPathsOf(prepareFlow.shown ?? [])}
               />

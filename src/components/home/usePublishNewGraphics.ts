@@ -21,11 +21,13 @@ export function usePublishNewGraphics(o: {
   busy: () => boolean;
   /** Each cue's appearance and adjust records for the payload, as a press's publish measures them. */
   appearanceFor: { readonly current: ((show: Show, base?: PayloadVersion | null) => Promise<CuePublished | undefined>) | undefined };
-  /** The stamp stored now: written by this page (`output` given), or read. */
-  onStamp: (ver: PayloadVersion, output?: OutputPayload) => void;
+  /** The stamp stored now: written by this page (`output` given, with the record digest it now
+   *  matches when adding was the record's only change), or read. */
+  onStamp: (ver: PayloadVersion, output?: OutputPayload, record?: string | null) => void;
 }): AdditiveView & { enabled: boolean } {
   const { show, enabled, names } = o;
   // A new graphic saved again (a gate fix, a design change) is a new attempt; nothing else is.
+  const group = enabled && names?.length ? names.join('\n') : undefined;
   const key = enabled && names?.length && show ? show.graphics.filter((g) => names.includes(g.name)).map((g) => `${g.name}@${g.savedAt}`).join('\n') : null;
   const [view, setView] = useState<AdditiveView>({ running: false, refusal: null });
   const latest = useRef(o);
@@ -45,7 +47,7 @@ export function usePublishNewGraphics(o: {
         if (!record) return { kind: 'gone' };
         const measure = latest.current.appearanceFor.current;
         const result = await publishNewGraphics(record, measure ? (base) => measure(record, base) : undefined);
-        if (result.ver) latest.current.onStamp(result.ver, result.output);
+        if (result.ver) latest.current.onStamp(result.ver, result.output, result.record);
         return result;
       },
       changed: setView,
@@ -58,7 +60,7 @@ export function usePublishNewGraphics(o: {
     };
   }, [showId, enabled]);
   useEffect(() => {
-    publisher.current?.want(key);
-  }, [key, showId, enabled]);
+    publisher.current?.want(key, group);
+  }, [key, group, showId, enabled]);
   return { ...view, enabled };
 }

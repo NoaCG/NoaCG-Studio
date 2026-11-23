@@ -266,9 +266,16 @@ test('a Take of a graphic still loading plays once loaded, a cancelled one never
     const failure = await commitDurableWrites();
     if (failure) throw new Error(failure);
   }, [showId, [STRAP, LOWER]] as [string, string[]]);
-  await expect(page.getByTestId('production-publish-changes')).toBeVisible({ timeout: 15_000 });
-  await page.getByTestId('production-publish-changes').click();
-  await expect(status).not.toContainText('Publishing', { timeout: 30_000 });
+  // Added graphics go out by themselves (live-production-reliability P2): the stored stamp names both.
+  const storedNames = () =>
+    page.evaluate(async (id) => {
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+      const { data } = await (await getSupabase())!.from('control_shows').select('published_ver').eq('id', id).maybeSingle();
+      return Object.keys((data as { published_ver?: { g?: Record<string, string> } } | null)?.published_ver?.g ?? {}).sort();
+    }, showId);
+  await expect.poll(storedNames, { timeout: 60_000 }).toEqual([SCOREBUG, STRAP, LOWER].sort());
+  await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
+  await expect(status).not.toContainText('Adding', { timeout: 30_000 });
 
   // A Take of the strap, then the second strap taken and taken out, while both outputs load them.
   const tookAt = Date.now();

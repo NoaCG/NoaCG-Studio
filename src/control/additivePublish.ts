@@ -26,6 +26,8 @@
 
 import type { OutputCue, OutputGraphicSpec, OutputPayload, PanelGraphicSpec } from './hostedControl';
 import type { SoundAssetRef } from '../model/types';
+import type { Show } from '../model/shows';
+import { publishedRecordDigest } from '../model/publishedRecord';
 import { graphicDigest, readPayloadVersion, stampFromDigests, type PayloadVersion } from './payloadVersion';
 import { retryDelay } from './autoPublish';
 
@@ -54,11 +56,45 @@ export function newGraphicNames(pool: readonly string[], published: Record<strin
   return pool.filter((name) => !(name in published));
 }
 
+/** The record digest to keep as published once the new graphics `names` are on the outputs, or
+ *  null: only when the record, without them and their cues, is the one last published, so adding
+ *  them was its only change and nothing is left for Publish changes (model/publishedRecord.ts). */
+export function recordAfterAdd(show: Show, names: ReadonlySet<string>): string | null {
+  if (!show.publishedRecord) return null;
+  const ids = new Set(show.graphics.filter((g) => names.has(g.name)).map((g) => g.id));
+  // A record with no cues key keeps none (the digest tells an absent list from an empty one). A
+  // digest stored before live-publishing W2 (no format tag) never matches: Publish changes stays due.
+  const before: Show = { ...show, graphics: show.graphics.filter((g) => !ids.has(g.id)), ...(show.cues ? { cues: show.cues.filter((c) => !ids.has(c.sourceId)) } : {}) };
+  return publishedRecordDigest(before) === show.publishedRecord ? publishedRecordDigest(show) : null;
+}
+
+/** Why a publish would change what the outputs render (components/home/usePublishDrift.ts). */
+export interface PublishDue {
+  /** A published graphic renders differently now (a design edit). */
+  drift: boolean;
+  /** The pool has a graphic the published stamp does not name. */
+  added: boolean;
+  /** The published stamp names a graphic the pool no longer has. */
+  removed: boolean;
+  /** The record changed and the published digests are not known. */
+  unstamped: boolean;
+}
+
+/** Whether Publish changes is due: something only it can send. Added graphics are not, while this
+ *  page adds them by itself (`addsByItself`: it runs here and has not refused them); offering the
+ *  press for them too showed a button that the add then took away under the operator's pointer. */
+export function publishChangesDue(due: PublishDue, addsByItself: boolean): boolean {
+  return due.drift || due.removed || due.unstamped || (due.added && !addsByItself);
+}
+
 /** What a graphic the outputs do not have yet waits for, said on its cue and at its Take. `adds`:
  *  this page adds new graphics by itself, and why it will not when it will not (null: it does not). */
 export function notOnOutputsWhy(adds: { refusal: string | null } | null): string {
   if (adds && !adds.refusal) return 'It is being added to the outputs now.';
-  if (adds?.refusal) return `It is not added by itself: ${adds.refusal}. Publish changes to play it.`;
+  if (adds?.refusal) {
+    const reason = adds.refusal.replace(/[.\s]+$/, '');
+    return `${reason.charAt(0).toUpperCase()}${reason.slice(1)}. Publish changes to play it.`;
+  }
   return 'Publish changes to play it.';
 }
 
@@ -241,8 +277,9 @@ export type AdditiveOutcome =
 
 export interface AdditiveView {
   running: boolean;
-  /** Why nothing is written for these graphics: a refusal, held until they change, or the reason
-   *  of a third failure in a row, while it is still tried again. */
+  /** Why nothing is written for these graphics: a refusal, held until they change and the next
+   *  attempt answers, or the reason of a third failure or tenth wait for a save in a row, while it
+   *  is still tried again. */
   refusal: string | null;
 }
 
@@ -258,20 +295,28 @@ export interface AdditiveIo {
 export const SETTLE_MS = 1_500;
 /** How long an attempt waits for a save on its way, or for another publish. */
 export const WAIT_MS = 2_000;
+/** Waits for a save in a row after which the status says why the graphic has not gone (still
+ *  tried again): about 20 s. */
+export const WAITS_SAID = 10;
+export const SAVE_WAITING = 'its save has not reached the server yet';
 
 export interface AdditivePublisher {
-  /** What is new now (a key over the new graphics and their saves), or null: nothing. */
-  want(key: string | null): void;
+  /** What is new now (a key over the new graphics and their saves), or null: nothing. `names`: which
+   *  graphics those are; a reason said for them stands through a new save of the same ones, and goes
+   *  when they change. */
+  want(key: string | null, names?: string): void;
   view(): AdditiveView;
   stop(): void;
 }
 
 export function createAdditivePublisher(io: AdditiveIo): AdditivePublisher {
   let wanted: string | null = null;
+  let wantedNames: string | undefined;
   let running = false;
   let owed = false;
   let stopped = false;
   let failures = 0;
+  let waits = 0;
   let refusal: string | null = null;
   let cancel: (() => void) | null = null;
   let current: AdditiveView = { running: false, refusal: null };
@@ -315,13 +360,18 @@ export function createAdditivePublisher(io: AdditiveIo): AdditivePublisher {
           if (wanted !== null) schedule(SETTLE_MS);
           return;
         }
+        // A reason said before stands through waits and the first failures (the press stays offered
+        // meanwhile); a write, or a newer reason, replaces it.
         switch (outcome.kind) {
           case 'published':
           case 'current':
             failures = 0;
+            waits = 0;
             refusal = null;
             break;
           case 'wait':
+            waits += 1;
+            if (waits >= WAITS_SAID) refusal = SAVE_WAITING;
             schedule(WAIT_MS);
             break;
           case 'transient':
@@ -344,11 +394,16 @@ export function createAdditivePublisher(io: AdditiveIo): AdditivePublisher {
   };
 
   return {
-    want(key) {
+    want(key, names) {
       if (stopped || key === wanted) return;
       wanted = key;
-      refusal = null;
+      // A reason said for the same graphics stays until the next attempt answers, so the page never
+      // takes its Publish changes away for the few seconds a new attempt takes. Other graphics have
+      // no reason yet.
+      if (key === null || names !== wantedNames) refusal = null;
+      wantedNames = names;
       failures = 0;
+      waits = 0;
       if (cancel) cancel();
       cancel = null;
       if (key !== null) schedule(SETTLE_MS);

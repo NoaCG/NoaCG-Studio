@@ -229,7 +229,7 @@ test.describe(() => {
         const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
         const g = loadShows().find((x) => x.id === id)!.graphics[0];
         // A design update of the published graphic, as the editor's save into the copy writes it.
-        const { error } = addGraphicToShow(id, { ...g.template, name: g.name, css: `${g.template.css}\n/* pending edit */` });
+        const { error } = addGraphicToShow(id, { ...g.template, name: g.name, css: `${g.template.css}\n/* pending edit */` }, { graphicId: g.graphicId ?? null });
         if (error) throw new Error(error);
         const failure = await commitDurableWrites();
         if (failure) throw new Error(failure);
