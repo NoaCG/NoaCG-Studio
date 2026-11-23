@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0, .st5 {
+        fill: #0b1f24;
+      }
+
+      .st1 {
+        fill: #1e3a40;
+      }
+
+      .st2 {
+        fill: #00c2a8;
+      }
+
+      .st3 {
+        display: none;
+      }
+
+      .st4 {
+        fill: none;
+        stroke: #ff4d6d;
+        stroke-miterlimit: 10;
+        stroke-width: 6px;
+      }
+
+      .st5, .st7, .st8, .st9 {
+        font-family: Outfit-ExtraBold, Outfit;
+        font-weight: 800;
+      }
+
+      .st5, .st7, .st8 {
+        font-size: 20px;
+        letter-spacing: 0.1em;
+      }
+
+      .st6 {
+        fill: #ff4d6d;
+      }
+
+      .st7, .st9 {
+        fill: #fff;
+      }
+
+      .st8 {
+        fill: #9fc7c0;
+      }
+
+      .st9 {
+        font-size: 64px;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Panel" class="st0" x="48" y="48" width="340" height="160"/>
+    <rect id="Track" class="st1" x="76" y="178" width="284" height="8" rx="4" ry="4"/>
+  </g>
+  <g id="Moments">
+    <rect id="Timer_x5F_bar" data-name="Timer_bar" class="st2" x="76" y="178" width="284" height="8" rx="4" ry="4"/>
+    <g id="Warning" class="st3">
+      <rect class="st4" x="51" y="51" width="334" height="154"/>
+    </g>
+    <g id="Paused" class="st3">
+      <rect class="st2" x="138" y="218" width="160" height="40"/>
+      <text class="st5" transform="translate(172.03 245)"><tspan x="0" y="0">PAUSED</tspan></text>
+    </g>
+    <g id="Time_x5F_up" data-name="Time_up" class="st3">
+      <rect class="st6" x="118" y="218" width="200" height="40"/>
+      <text class="st7" transform="translate(160.93 245)"><tspan x="0" y="0">TIME’S UP</tspan></text>
+    </g>
+  </g>
+  <g id="Text">
+    <text id="Title" class="st8" transform="translate(147.84 96)"><tspan x="0" y="0">QUESTION 4</tspan></text>
+    <text id="Clock" class="st9" transform="translate(151.77 160)"><tspan x="0" y="0">1:00</tspan></text>
+  </g>
+</svg>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #0b1f24;
+      }
+
+      .st1 {
+        fill: #00c2a8;
+      }
+
+      .st2, .st3 {
+        fill: #fff;
+      }
+
+      .st3 {
+        font-family: Outfit-ExtraBold, Outfit;
+        font-size: 56px;
+        font-weight: 800;
+      }
+
+      .st4 {
+        fill: #9fc7c0;
+        font-family: Outfit-SemiBold, Outfit;
+        font-size: 28px;
+        font-weight: 600;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Panel" class="st0" x="760" y="640" width="1040" height="360"/>
+    <rect id="Accent" class="st1" x="760" y="640" width="1040" height="10"/>
+    <rect id="QR_x5F_plate" data-name="QR_plate" class="st2" x="1480" y="672" width="296" height="296"/>
+    <g id="QR">
+      <rect class="st0" x="1498" y="690" width="260" height="260"/>
+    </g>
+  </g>
+  <g id="Text">
+    <text id="Label" class="st3" transform="translate(800 760)"><tspan x="0" y="0">Join the lab</tspan></text>
+    <text id="Call_x5F_to_x5F_action" data-name="Call_to_action" class="st4" transform="translate(800 828)"><tspan x="0" y="0">Scan with your phone to take part</tspan></text>
+  </g>
+</svg>

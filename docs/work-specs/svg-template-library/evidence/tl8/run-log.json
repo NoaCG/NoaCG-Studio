@@ -1,0 +1,388 @@
+{
+  "lowerThirdImport": {
+    "kind": "none",
+    "missing": 0,
+    "fonts": [
+      "Typefaces2 of 2 embedded in the templateⓘOutfit-ExtraBold✓ Bundled with NoaCG (Outfit)Outfit-SemiBold✓ Bundled with NoaCG (Outfit)",
+      "Outfit-ExtraBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-SemiBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)"
+    ]
+  },
+  "lowerThirdLook": {
+    "text": "Dana Kowalski",
+    "font": "Outfit-ExtraBold, Outfit",
+    "outfitLoaded": true,
+    "plate": "rgb(11, 31, 36)"
+  },
+  "lowerThirdOut": {
+    "opacityAfterOut": 0
+  },
+  "lowerThirdCues": {
+    "production": "TL8 titles",
+    "graphics": [
+      {
+        "name": "Teal Lower third",
+        "cues": 1
+      }
+    ]
+  },
+  "crawlImport": {
+    "kind": "crawl",
+    "missing": 0,
+    "fonts": [
+      "Typefaces2 of 2 embedded in the templateⓘOutfit-ExtraBold✓ Bundled with NoaCG (Outfit)Outfit-Bold✓ Bundled with NoaCG (Outfit)",
+      "Outfit-ExtraBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-Bold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)"
+    ]
+  },
+  "crawlLook": {
+    "text": "Next up",
+    "font": "Outfit-Bold, Outfit",
+    "outfitLoaded": true,
+    "plate": "rgb(11, 31, 36)"
+  },
+  "crawlPace": 190.39993286132812,
+  "crawlListChange": {
+    "offsetBefore": -463.82000732421875,
+    "offsetAfter": -524.5800170898438,
+    "paceAfter": 184.8004150390625
+  },
+  "crawlHebrew": {
+    "pace": 186.2000274658203,
+    "samples": [
+      {
+        "t": 0,
+        "offset": -145.2418975830078,
+        "firstItemLeft": -417.82000732421875,
+        "firstItemRight": 2838.6799926757812
+      },
+      {
+        "t": 500,
+        "offset": -220.0019073486328,
+        "firstItemLeft": -492.58001708984375,
+        "firstItemRight": 2763.9199829101562
+      },
+      {
+        "t": 1000,
+        "offset": -292.38189697265625,
+        "firstItemLeft": -564.9600219726562,
+        "firstItemRight": 2691.5399780273438
+      },
+      {
+        "t": 1500,
+        "offset": -387.44189453125,
+        "firstItemLeft": -660.02001953125,
+        "firstItemRight": 2596.47998046875
+      },
+      {
+        "t": 2000,
+        "offset": -462.62188720703125,
+        "firstItemLeft": -735.2000122070312,
+        "firstItemRight": 2521.2999877929688
+      },
+      {
+        "t": 2500,
+        "offset": -537.2418823242188,
+        "firstItemLeft": -809.8200073242188,
+        "firstItemRight": 2446.6799926757812
+      }
+    ],
+    "direction": "ltr",
+    "unicodeBidi": "normal",
+    "text": "החדשות הערב בשמונה  •  מזג האוויר: גשם קל  •  החדשות הערב בשמונה  •  מזג האוויר: גשם קל  •  החדשות הערב בשמונה  •  מזג האוויר: גשם קל  •  החדשות הערב בשמונה  •  מזג האוויר: גשם קל  •  החדשות הערב בשמונה  •  מזג האוויר: גשם קל  •  החדשות הערב בשמונה  •  מזג האוויר: גשם קל  •  "
+  },
+  "crawlCues": {
+    "production": "TL8 titles",
+    "graphics": [
+      {
+        "name": "Teal Lower third",
+        "cues": 1
+      },
+      {
+        "name": "Teal Ticker crawl",
+        "cues": 1
+      }
+    ]
+  },
+  "pageErrors2a": [],
+  "airProblems": {
+    "lower-third-1-in": [],
+    "lower-third-2-long-name": [],
+    "ticker-crawl-1-crawling": [],
+    "ticker-crawl-2-list-changed": [],
+    "ticker-crawl-3-hebrew": [],
+    "countdown-1-running": [],
+    "countdown-2-paused": [],
+    "countdown-3-last-ten-seconds": [],
+    "countdown-4-time-up": [],
+    "countdown-5-reset": [],
+    "show-clock-1-running": [],
+    "end-credits-1-rolling": [],
+    "end-credits-roll": [],
+    "live-vote-1-take": [],
+    "live-vote-2-voting": [],
+    "live-vote-3-result": [],
+    "live-vote-4-winner": [],
+    "join-card-1-typed-link": [],
+    "vote-results-1-take": [],
+    "vote-results-2-result": [],
+    "vote-results-3-winner": [],
+    "message-1-take": []
+  },
+  "countdownImport": {
+    "kind": "timer",
+    "missing": 0,
+    "fonts": [
+      "Typefaces1 of 1 embedded in the templateⓘOutfit-ExtraBold✓ Bundled with NoaCG (Outfit)",
+      "Outfit-ExtraBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)"
+    ]
+  },
+  "countdownMinutesField": "cue-field-f1",
+  "countdownLook": {
+    "text": "QUESTION 4",
+    "font": "Outfit-ExtraBold, Outfit",
+    "outfitLoaded": true,
+    "plate": "rgb(11, 31, 36)"
+  },
+  "countdownPulse": {
+    "minOpacityOverOneSecond": 0.3775,
+    "clock": "0:09"
+  },
+  "countdownFlash": {
+    "flashStarts": 1,
+    "last": {
+      "move": "flash",
+      "active": false,
+      "opacity": 1,
+      "scale": 1
+    },
+    "warningAfterZero": {
+      "move": null,
+      "active": false,
+      "opacity": 1,
+      "scale": 1
+    },
+    "clock": "0:00"
+  },
+  "countdownReset": {
+    "clock": "0:15",
+    "expired": {
+      "move": null,
+      "active": false,
+      "opacity": 1,
+      "scale": 1
+    }
+  },
+  "countdownCues": {
+    "production": "TL8 games",
+    "graphics": [
+      {
+        "name": "Teal Countdown",
+        "cues": 1
+      }
+    ]
+  },
+  "showClockImport": {
+    "kind": "none",
+    "missing": 0,
+    "clockModeOffered": "none",
+    "fonts": [
+      "Typefaces3 of 3 embedded in the templateⓘOutfit-Bold✓ Bundled with NoaCG (Outfit)Outfit-ExtraBold✓ Bundled with NoaCG (Outfit)Outfit-SemiBold✓ Bundled with NoaCG (Outfit)",
+      "Outfit-Bold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-ExtraBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-SemiBold✓ Bundled with NoaCG (Outfit)"
+    ]
+  },
+  "showClockRuns": {
+    "first": "4:59",
+    "twoSecondsLater": "4:57"
+  },
+  "showClockLook": {
+    "text": "We go live",
+    "font": "Outfit-Bold, Outfit",
+    "outfitLoaded": true,
+    "plate": "rgb(11, 31, 36)"
+  },
+  "showClockCues": {
+    "production": "TL8 clocks",
+    "graphics": [
+      {
+        "name": "Teal Show clock",
+        "cues": 1
+      }
+    ]
+  },
+  "pageErrors2b": [],
+  "creditsImport": {
+    "creditsEngine": "editable",
+    "creditsLayout": "role-above",
+    "creditsList": "Late Night LabDirectorNoor HaddadProducerTomas LindCameraInes RochaOla Berg",
+    "fonts": [
+      "Typefaces3 of 3 embedded in the templateⓘOutfit-ExtraBold✓ Bundled with NoaCG (Outfit)Outfit-Bold✓ Bundled with NoaCG (Outfit)Outfit-SemiBold✓ Bundled with NoaCG (Outfit)",
+      "Outfit-ExtraBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-Bold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-SemiBold✓ Bundled with NoaCG (Outfit)"
+    ]
+  },
+  "creditsLook": {
+    "font": "Outfit-ExtraBold, Outfit",
+    "size": "66px",
+    "fill": "rgb(255, 255, 255)"
+  },
+  "creditsRolls": {
+    "titleTopAtStart": 1047.659912109375,
+    "titleTopTwoSecondsLater": 834.1950073242188
+  },
+  "creditsRollProblems": {
+    "20%": [],
+    "40%": [],
+    "60%": [],
+    "80%": []
+  },
+  "creditsCues": {
+    "production": "TL8 credits",
+    "graphics": [
+      {
+        "name": "Teal End credits",
+        "cues": 1
+      }
+    ]
+  },
+  "pageErrors2c": [],
+  "liveVoteImport": {
+    "kind": "poll",
+    "missing": 0,
+    "fonts": [
+      "Typefaces3 of 3 embedded in the templateⓘOutfit-ExtraBold✓ Bundled with NoaCG (Outfit)Outfit-Bold✓ Bundled with NoaCG (Outfit)Outfit-SemiBold✓ Bundled with NoaCG (Outfit)",
+      "Outfit-ExtraBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-Bold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-SemiBold✓ Bundled with NoaCG (Outfit)"
+    ]
+  },
+  "liveVoteLook": {
+    "text": "Which track",
+    "font": "Outfit-ExtraBold, Outfit",
+    "outfitLoaded": true,
+    "plate": "rgb(11, 31, 36)"
+  },
+  "liveVoteOpen": {
+    "badgeOn": true,
+    "bar1Width": 381.88232421875
+  },
+  "liveVoteCues": {
+    "production": "TL8 live vote",
+    "graphics": [
+      {
+        "name": "Teal Live vote",
+        "cues": 1
+      }
+    ]
+  },
+  "joinImport": {
+    "kind": "none",
+    "missing": 0,
+    "fonts": [
+      "Typefaces2 of 2 embedded in the templateⓘOutfit-ExtraBold✓ Bundled with NoaCG (Outfit)Outfit-SemiBold✓ Bundled with NoaCG (Outfit)",
+      "Outfit-ExtraBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-SemiBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)"
+    ]
+  },
+  "joinTypedLink": "https://noacg.studio/j/late-night-lab",
+  "joinLook": {
+    "text": "Join the lab",
+    "font": "Outfit-ExtraBold, Outfit",
+    "outfitLoaded": true,
+    "plate": "rgb(11, 31, 36)"
+  },
+  "voteResultsImport": {
+    "kind": "poll",
+    "missing": 0,
+    "fonts": [
+      "Typefaces3 of 3 embedded in the templateⓘOutfit-ExtraBold✓ Bundled with NoaCG (Outfit)Outfit-Bold✓ Bundled with NoaCG (Outfit)Outfit-SemiBold✓ Bundled with NoaCG (Outfit)",
+      "Outfit-ExtraBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-Bold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-SemiBold✓ Bundled with NoaCG (Outfit)"
+    ]
+  },
+  "messageImport": {
+    "kind": "none",
+    "missing": 0,
+    "fonts": [
+      "Typefaces2 of 2 embedded in the templateⓘOutfit-ExtraBold✓ Bundled with NoaCG (Outfit)Outfit-SemiBold✓ Bundled with NoaCG (Outfit)",
+      "Outfit-ExtraBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)",
+      "Outfit-SemiBold✓ Bundled with NoaCG (Outfit)",
+      "✓ Bundled with NoaCG (Outfit)"
+    ]
+  },
+  "library": [
+    "Teal Live vote",
+    "Teal Join card",
+    "Teal Vote results",
+    "Teal Message"
+  ],
+  "joinAddOffline": 0,
+  "voteResultsLook": {
+    "text": "Encore",
+    "font": "Outfit-ExtraBold, Outfit",
+    "outfitLoaded": true,
+    "plate": "rgb(11, 31, 36)"
+  },
+  "voteResultsCues": [
+    {
+      "f0": "Encore tonight?",
+      "f1": "Yes | 2\nNo | 1",
+      "f2": "3 votes · voting closed",
+      "f3": "closed",
+      "f4": ""
+    }
+  ],
+  "messageOffered": [
+    "Teal Message"
+  ],
+  "messageLook": {
+    "text": "playlist",
+    "font": "Outfit-SemiBold, Outfit",
+    "outfitLoaded": true,
+    "plate": "rgb(0, 194, 168)"
+  },
+  "messageCues": [
+    {
+      "f0": "Robin",
+      "f1": "Will you post the playlist?"
+    }
+  ],
+  "pool": [
+    {
+      "name": "Hairline",
+      "savedAs": null,
+      "cues": 1
+    },
+    {
+      "name": "Teal Vote results",
+      "savedAs": "Teal Vote results",
+      "cues": 1
+    },
+    {
+      "name": "Teal Message",
+      "savedAs": "Teal Message",
+      "cues": 1
+    }
+  ],
+  "pageErrors3": []
+}

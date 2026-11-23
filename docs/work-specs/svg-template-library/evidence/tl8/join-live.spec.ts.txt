@@ -1,0 +1,97 @@
+// covers: none - TL8 evidence run (svg-template-library), copied into e2e/configured/ for the run only
+// The restyled Join card, saved, picked from "Add a saved design" in a published production on the
+// local Supabase stack; the QR on air decodes to that production's join link. TL8_DIR as in
+// round-trip.spec.ts.txt.
+import { test, expect } from '@playwright/test';
+import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { qrReader } from '../_qr';
+import { publishProduction } from '../_publish';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { dropSvg, intoProduction } from '../_svg-import';
+import { haveCreds, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
+import { openWorkspace } from '../_workspace';
+import { settleDurableWrites } from '../_durable';
+import { installDoor } from '../_door';
+
+const DIR = process.env.TL8_DIR ?? '';
+test.use({ deviceScaleFactor: 2 });
+test.beforeEach(({ context }) => installDoor(context));
+
+test('TL8: the restyled Join card from "Add a saved design" airs the production join link', async ({ page, browser }) => {
+  test.skip(!haveCreds, 'needs the local stack');
+  test.setTimeout(240_000);
+  const log: Record<string, unknown> = {};
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await signIn(page);
+  await settleSync(page);
+  await wipeMyGraphics(page);
+
+  // Import and save the restyled Join card (put in a production).
+  await page.goto('/app');
+  await dropSvg(page, path.join(DIR, 'restyled', 'join-card.svg'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await intoProduction(page, 'Teal Join card', 'TL8 join designs');
+  await settleDurableWrites(page);
+
+  // Another production, published.
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const name = `Lab Night ${Date.now()}`;
+  const showId = await openProductionWithCurrent(page, name);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status-panel')).toBeVisible({ timeout: 30_000 });
+  await page.keyboard.press('Escape');
+  const ws = await openWorkspace(page, 'audience');
+  const join = ws.getByTestId('join-published');
+  const joinUrl = (await join.getByTestId('join-link').textContent()) ?? '';
+  log.joinUrl = joinUrl;
+  expect(joinUrl).toMatch(/\/j\/lab-night-/);
+
+  // Add Join card to rundown: the picker offers the saved design.
+  await join.getByTestId('join-card-add').click();
+  const picker = ws.getByTestId('join-choose');
+  await expect(picker).toBeVisible();
+  log.pickerGroups = await picker.locator('[data-testid^="join-group-"]').evaluateAll((gs) => gs.map((g) => ({ group: g.getAttribute('data-testid'), items: [...g.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? b.textContent) })));
+  const saved = picker.getByTestId('join-group-saved').getByRole('button', { name: /Teal Join card/ });
+  await expect(saved).toBeVisible();
+  await saved.click();
+  await expect(ws.getByTestId('audience-note')).toContainText(/Join card/, { timeout: 20_000 });
+  log.note = await ws.getByTestId('audience-note').textContent();
+  await settleDurableWrites(ws);
+  const cues = () => ws.evaluate(async (id) => {
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.id === id)!;
+    return show.graphics.map((g) => ({ name: g.name, cues: (show.cues ?? []).filter((c) => c.sourceId === g.id).map((c) => c.values) }));
+  }, showId);
+  log.poolAfterPick = await cues();
+
+  // Take it: the QR on air decodes to the production's join link.
+  await page.bringToFront();
+  await page.locator('.pd-cue', { hasText: /Join card/ }).first().click();
+  await page.getByTestId('verb-take').click();
+  const air = page.frameLocator('[data-testid="program-stage"] iframe[title="Teal Join card"]');
+  const code = air.locator('[class$="-qr-code"]');
+  await expect(code).toBeVisible({ timeout: 15_000 });
+  const reader = await qrReader(browser);
+  let decoded = '';
+  await expect.poll(async () => (decoded = await reader.read(await code.screenshot())), { message: 'the QR on air decodes to the join link', timeout: 15_000 }).toBe(joinUrl);
+  log.decoded = decoded;
+  await reader.close();
+  await page.waitForTimeout(1_200);
+  await page.getByTestId('program-stage').screenshot({ path: path.join(DIR, 'shots', 'join-card-2-saved-design-published.png') });
+  // A second press updates the same cue, never a second one.
+  await ws.bringToFront();
+  await join.getByTestId('join-card-add').click();
+  await page.waitForTimeout(2_000);
+  await settleDurableWrites(ws);
+  log.poolAfterSecondPress = await cues();
+  log.pageErrors = errors;
+  const file = path.join(DIR, 'run-log-join.json');
+  writeFileSync(file, JSON.stringify(log, null, 2));
+  await page.getByTestId('verb-out').click();
+  await ws.close().catch(() => undefined);
+  await unpublishForCleanup(page);
+  await wipeMyGraphics(page);
+  void readFileSync;
+});

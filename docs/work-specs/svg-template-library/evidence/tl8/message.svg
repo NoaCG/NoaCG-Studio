@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #00c2a8;
+      }
+
+      .st1, .st2 {
+        fill: #0b1f24;
+      }
+
+      .st2 {
+        font-family: Outfit-ExtraBold, Outfit;
+        font-size: 26px;
+        font-weight: 800;
+      }
+
+      .st3 {
+        fill: #fff;
+        font-family: Outfit-SemiBold, Outfit;
+        font-size: 34px;
+        font-weight: 600;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="From_x5F_box" data-name="From_box" class="st0" x="620" y="712" width="460" height="58"/>
+    <rect id="Message_x5F_box" data-name="Message_box" class="st1" x="620" y="780" width="1180" height="210"/>
+  </g>
+  <g id="Text">
+    <text id="From" class="st2" transform="translate(648 751)"><tspan x="0" y="0">Robin from Porto</tspan></text>
+    <text id="Message" class="st3" transform="translate(660 862)"><tspan x="0" y="0">Will you post the playlist after the show?</tspan></text>
+  </g>
+</svg>
