@@ -1,0 +1,570 @@
+// TL8 evidence run (svg-template-library), not a maintained spec: the nine TL8 templates
+// downloaded as a user gets them, restyled and written the Illustrator way (illustrate.mjs), then
+// imported, saved, taken and driven through their controls in the real app. TL8_DIR holds the
+// downloads, the restyles and the screenshots. Copied into e2e/ for the run only.
+import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { dropSvg, intoExistingProduction, intoProduction } from './_svg-import';
+import { settleDurableWrites } from './_durable';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
+import { openWorkspace } from './_workspace';
+import { addQuestion, goLive, stopLive } from './_interaction';
+import { installDoor } from './_door';
+import { qrReader } from './_qr';
+
+const DIR = process.env.TL8_DIR ?? '';
+const SHOTS = path.join(DIR, 'shots');
+const ALL = [
+  { slug: 'lower-third', name: 'Lower third', pkg: 'titles', kind: 'none' },
+  { slug: 'game-timer', name: 'Countdown', pkg: 'games', kind: 'timer' },
+  { slug: 'show-countdown', name: 'Show clock', pkg: 'clocks', kind: 'none' },
+  { slug: 'end-credits', name: 'End credits', pkg: 'credits', kind: 'credits' },
+  { slug: 'ticker-crawl', name: 'Ticker crawl', pkg: 'titles', kind: 'crawl' },
+  { slug: 'join-card', name: 'Join card', pkg: 'audience', kind: 'none' },
+  { slug: 'live-vote', name: 'Live vote', pkg: 'audience', kind: 'poll' },
+  { slug: 'vote-results', name: 'Vote results', pkg: 'audience', kind: 'poll' },
+  { slug: 'message', name: 'Message', pkg: 'audience', kind: 'none' },
+];
+const source = (slug: string) => readFileSync(new URL(`../docs/tutorials/template-library/SVG/${slug}.svg`, import.meta.url));
+const restyled = (slug: string) => path.join(DIR, 'restyled', `${slug}.svg`);
+const log: Record<string, unknown> = {};
+const problems: Record<string, string[]> = {};
+const saveLog = () => {
+  const prev = (() => { try { return JSON.parse(readFileSync(path.join(DIR, 'run-log.json'), 'utf8')); } catch { return {}; } })();
+  writeFileSync(path.join(DIR, 'run-log.json'), JSON.stringify({ ...prev, ...log, airProblems: { ...(prev.airProblems ?? {}), ...problems } }, null, 2));
+};
+
+test.use({ deviceScaleFactor: 2 });
+test.beforeEach(({ context }) => installDoor(context));
+
+/** Copied from e2e/svg-templates.spec.ts (at fac5edc): every visible text that overlaps another,
+ *  is cut by a shape it is not inside, or is cut off by the frame edge; clipping windows (a credits
+ *  roll, a crawl) count as clipped, not broken. */
+async function airProblems(air: FrameLocator): Promise<string[]> {
+  return air.locator('svg').first().evaluate((root) => {
+    type Box = { l: number; t: number; r: number; b: number };
+    const art = root.closest('svg') as SVGSVGElement;
+    const frame = art.getBoundingClientRect();
+    const shown = (el: Element): boolean => {
+      for (let e: Element | null = el; e && e !== document.documentElement; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return false;
+      }
+      return true;
+    };
+    const windowOf = (el: Element): Box | null => {
+      for (let e = el.parentElement; e && e !== art; e = e.parentElement) {
+        const clipRef = /url\(#(noacg-crawl-[^)]+)\)/.exec(e.getAttribute('clip-path') ?? '')?.[1];
+        const clipShape = clipRef ? art.querySelector(`[id="${clipRef}"] polygon`) as SVGPolygonElement | null : null;
+        if (clipShape && e instanceof SVGGraphicsElement) {
+          const m = e.getScreenCTM();
+          if (!m || !clipShape.points.numberOfItems) return null;
+          const p = Array.from({ length: clipShape.points.numberOfItems }, (_, i) => new DOMPoint(clipShape.points.getItem(i).x, clipShape.points.getItem(i).y).matrixTransform(m));
+          return { l: Math.min(...p.map((q) => q.x)), t: Math.min(...p.map((q) => q.y)), r: Math.max(...p.map((q) => q.x)), b: Math.max(...p.map((q) => q.y)) };
+        }
+        if (e instanceof SVGSVGElement && e.parentElement instanceof SVGGraphicsElement) {
+          const m = (e.parentElement as SVGGraphicsElement).getScreenCTM();
+          if (!m) return null;
+          const x = e.x.baseVal.value, y = e.y.baseVal.value, w = e.width.baseVal.value, h = e.height.baseVal.value;
+          const p = [new DOMPoint(x, y).matrixTransform(m), new DOMPoint(x + w, y + h).matrixTransform(m)];
+          return { l: Math.min(p[0].x, p[1].x), t: Math.min(p[0].y, p[1].y), r: Math.max(p[0].x, p[1].x), b: Math.max(p[0].y, p[1].y) };
+        }
+      }
+      return null;
+    };
+    const cut = (r: Box, w: Box): Box | null => {
+      const c = { l: Math.max(r.l, w.l), t: Math.max(r.t, w.t), r: Math.min(r.r, w.r), b: Math.min(r.b, w.b) };
+      return c.r - c.l > 1 && c.b - c.t > 1 ? c : null;
+    };
+    const clip = (el: Element, r: Box): Box | null => {
+      const w = windowOf(el);
+      return w ? cut(r, w) : r;
+    };
+    const boxOf = (el: Element, inset = 0): Box | null => {
+      const g = el.getBoundingClientRect();
+      if (!(g.width > 0 && g.height > 0) || !shown(el)) return null;
+      const c = g.height * inset;
+      return clip(el, { l: g.left, t: g.top + c, r: g.right, b: g.bottom - c });
+    };
+    const cross = (a: Box, b: Box) => Math.min(a.r, b.r) - Math.max(a.l, b.l) > 2 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 2;
+    const holds = (o: Box, i: Box) => o.l <= i.l + 2 && o.t <= i.t + 2 && o.r >= i.r - 2 && o.b >= i.b - 2;
+    const name = (el: Element) => `"${(el.textContent ?? '').trim().slice(0, 30)}"`;
+    const texts = [...art.querySelectorAll('text')]
+      .filter((t) => (t.textContent ?? '').trim() && !t.closest('[class$="-credits"]'))
+      .map((el) => ({ el, box: boxOf(el, 1 / 6), rolled: !!windowOf(el) }))
+      .filter((t): t is { el: SVGTextElement; box: Box; rolled: boolean } => !!t.box);
+    const shapes = [...art.querySelectorAll('rect, path, polygon, polyline, line, ellipse, circle')]
+      .map((el) => ({ el, box: boxOf(el) }))
+      .filter((s): s is { el: Element; box: Box } => !!s.box);
+    const out: string[] = [];
+    texts.forEach((a, i) => {
+      const fr = { l: frame.left, t: frame.top, r: frame.right, b: frame.bottom };
+      const seen = cut(a.box, fr);
+      if (seen && !a.rolled && !holds(fr, a.box)) out.push(`${name(a.el)} is cut off by the frame edge`);
+      for (const b of texts.slice(i + 1)) if (cross(a.box, b.box)) out.push(`${name(a.el)} overlaps ${name(b.el)}`);
+      const covered = (s: Element) => shapes.some((h) => h.el !== s && holds(h.box, a.box) && !!(s.compareDocumentPosition(h.el) & Node.DOCUMENT_POSITION_FOLLOWING));
+      for (const s of shapes) if (cross(a.box, s.box) && !holds(s.box, a.box) && !covered(s.el)) out.push(`${name(a.el)} is cut by a <${s.el.tagName}>${s.el.id ? ' #' + s.el.id : ''}`);
+    });
+    return out;
+  });
+}
+
+async function onAir(page: Page, air: FrameLocator, label: string, settle = 1_200): Promise<void> {
+  // Recorded, not thrown: a finding is reported and the walk goes on to the remaining steps.
+  let found: string[] = [];
+  await expect.poll(async () => (found = await airProblems(air)), { timeout: 6_000 }).toEqual([]).catch(() => undefined);
+  problems[label] = found;
+  if (settle) await page.waitForTimeout(settle); // the entrance finishes before the picture
+  await page.getByTestId('program-stage').screenshot({ path: `${SHOTS}/${label}.png` });
+}
+
+/** What the restyle put on air: the font a text is set in (and whether that face is loaded in the
+ *  output frame), and the first plate's fill. */
+async function looks(air: FrameLocator, text: string) {
+  return air.locator('svg').first().evaluate(async (root, t) => {
+    const el = [...root.querySelectorAll('text')].find((e) => (e.textContent ?? '').includes(t));
+    const plate = root.querySelector('rect');
+    await document.fonts.ready;
+    const font = el ? getComputedStyle(el).fontFamily : null;
+    return { text: t, font, outfitLoaded: document.fonts.check("800 40px 'Outfit'") || document.fonts.check('800 40px Outfit'), plate: plate ? getComputedStyle(plate).fill : null };
+  }, text);
+}
+
+async function fieldFor(air: FrameLocator, title: string): Promise<string> {
+  const field = await air.locator('svg').first().evaluate((_, n) => {
+    const d = (window as unknown as { SPXGCTemplateDefinition: { DataFields: { field: string; title: string }[] } }).SPXGCTemplateDefinition;
+    return d.DataFields.find((e) => e.title === n)?.field;
+  }, title);
+  expect(field, `the operator has a ${title} field`).toBeTruthy();
+  return field!;
+}
+
+/** Every graphic of the production open on the page, with its cues' values: one cue each, never
+ *  a blank or a second one. */
+async function cuesOf(page: Page) {
+  return page.evaluate(async () => {
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const id = new URL(location.href).searchParams.get('show') ?? location.pathname.split('/').pop();
+    const shows = loadShows();
+    const show = shows.find((s) => s.id === id) ?? shows[shows.length - 1];
+    return { production: show.name, graphics: show.graphics.map((g) => ({ name: g.name, cues: (show.cues ?? []).filter((c) => c.sourceId === g.id).length })) };
+  });
+}
+
+async function importInto(page: Page, slug: string, graphic: string, production: string, kind: string, opts: { existing?: boolean; clock?: boolean; credits?: boolean } = {}) {
+  await page.goto('/app');
+  await dropSvg(page, restyled(slug));
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+  const proposed: Record<string, unknown> = {};
+  if (opts.credits) {
+    proposed.creditsEngine = await page.getByTestId('map-svg-credits-engine').inputValue();
+    proposed.creditsLayout = await page.getByTestId('map-svg-credits-preview').getAttribute('data-layout');
+    proposed.creditsList = (await page.getByTestId('map-svg-credits-list').textContent())?.slice(0, 120);
+    expect(proposed.creditsEngine).toBe('editable');
+  } else {
+    proposed.kind = await page.getByTestId('map-svg-behaviour-kind').inputValue();
+    proposed.missing = await page.getByTestId('map-svg-behaviour-missing').count();
+    expect(proposed.kind, `${slug}: proposed behaviour`).toBe(kind);
+    expect(proposed.missing, `${slug}: no missing-layer warning`).toBe(0);
+  }
+  if (opts.clock) {
+    proposed.clockModeOffered = await page.getByTestId('map-svg-clock-mode').inputValue();
+    await page.getByTestId('map-svg-clock-mode').selectOption('duration');
+  }
+  // The fonts the import found, as the Fonts section reads them.
+  proposed.fonts = await page.locator('body').evaluate(() => [...document.querySelectorAll('[data-testid^="map-svg-font"]')].map((e) => (e.textContent ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 6));
+  if (opts.existing) await intoExistingProduction(page, graphic, production);
+  else await intoProduction(page, graphic, production);
+  await settleDurableWrites(page);
+  return proposed;
+}
+
+test('1. download the nine TL8 templates as a user does', async ({ page }) => {
+  test.setTimeout(300_000);
+  mkdirSync(path.join(DIR, 'downloaded'), { recursive: true });
+  await page.goto('/svg-templates');
+  const report: string[] = [];
+  for (const t of ALL) {
+    const tile = page.getByTestId(`svg-package-${t.pkg}-${t.slug}`);
+    await tile.scrollIntoViewIfNeeded();
+    const [dl] = await Promise.all([page.waitForEvent('download'), tile.locator('a[download]').first().click()]);
+    const to = path.join(DIR, 'downloaded', `${t.slug}.svg`);
+    await dl.saveAs(to);
+    expect(readFileSync(to).equals(source(t.slug)), `${t.name}: the download is the source file`).toBe(true);
+    report.push(`${t.slug}.svg per-file download from the ${t.pkg} package tile (${dl.url().replace(/^https?:\/\/[^/]+/, '')}) = source`);
+  }
+  for (const pkg of [...new Set(ALL.map((t) => t.pkg))]) {
+    // A fresh page per zip: after ten downloads from one page Chromium holds further ones for a
+    // multiple-downloads permission (a browser rule, not the site).
+    await page.goto('/svg-templates');
+    const [zip] = await Promise.all([page.waitForEvent('download'), page.getByTestId(`svg-package-${pkg}-zip`).click()]);
+    const zipTo = path.join(DIR, `package-${pkg}.zip`);
+    await zip.saveAs(zipTo);
+    const unz = path.join(DIR, 'zip', pkg);
+    mkdirSync(unz, { recursive: true });
+    execFileSync('unzip', ['-o', '-q', zipTo, '-d', unz]);
+    const files = execFileSync('find', [unz, '-name', '*.svg']).toString().trim().split('\n');
+    for (const t of ALL.filter((x) => x.pkg === pkg)) {
+      const hit = files.find((f) => path.basename(f) === `${t.slug}.svg`);
+      expect(hit, `${t.slug}.svg is in the ${pkg} zip`).toBeTruthy();
+      expect(readFileSync(hit!).equals(source(t.slug)), `${t.name}: the ${pkg} zip copy is the source file`).toBe(true);
+      report.push(`${path.relative(path.join(DIR, 'zip'), hit!)} in ${zip.url().replace(/^https?:\/\/[^/]+/, '')} = source`);
+    }
+  }
+  writeFileSync(path.join(DIR, 'download-report.txt'), report.join('\n') + '\n');
+});
+
+test('2a. titles: Lower third and Ticker crawl', async ({ page }) => {
+  test.setTimeout(280_000);
+  mkdirSync(SHOTS, { recursive: true });
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const role = (name: string) => air.locator(`[data-noacg-role~="${name}"]`);
+  const opacity = () => air.locator('.imported-design').first().evaluate((el) => Number(getComputedStyle(el).opacity));
+
+  // ── Lower third (titles): in, an update, out ──
+  log.lowerThirdImport = await importInto(page, 'lower-third', 'Teal Lower third', 'TL8 titles', 'none');
+  await page.getByTestId('verb-take').click();
+  await expect(air.locator('svg').first()).toBeVisible();
+  await expect(air.locator('text', { hasText: 'Dana Kowalski' })).toBeVisible();
+  log.lowerThirdLook = await looks(air, 'Dana Kowalski');
+  await onAir(page, air, 'lower-third-1-in');
+  await page.getByTestId(`cue-field-${await fieldFor(air, 'Name')}`).fill('Marguerite Okonkwo-Hallström');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('text', { hasText: 'Marguerite Okonkwo-Hallström' })).toBeVisible();
+  await onAir(page, air, 'lower-third-2-long-name');
+  await page.getByTestId('verb-out').click();
+  await expect.poll(opacity, { message: 'Out takes it off air', timeout: 5_000 }).toBeLessThan(0.05);
+  log.lowerThirdOut = { opacityAfterOut: await opacity() };
+  await page.getByTestId('program-stage').screenshot({ path: `${SHOTS}/lower-third-3-out.png` });
+  log.lowerThirdCues = await cuesOf(page);
+
+  // ── Ticker crawl (titles): crawls, a list change mid-run, Scroll speed, a Hebrew list ──
+  log.crawlImport = await importInto(page, 'ticker-crawl', 'Teal Ticker crawl', 'TL8 titles', 'crawl', { existing: true });
+  await page.locator('.pd-cue', { hasText: 'Teal Ticker crawl' }).first().click().catch(() => undefined);
+  const cair = page.frameLocator('[data-testid="program-stage"] iframe[title="Teal Ticker crawl"]');
+  await page.getByTestId('verb-take').click();
+  await expect(cair.locator('svg').first()).toBeVisible();
+  const crawl = cair.locator('[data-noacg-role~="crawl"]');
+  const left = () => crawl.evaluate((el) => (el.parentNode as SVGGElement).transform.baseVal.consolidate()?.matrix.e ?? 0);
+  const pace = async () => {
+    const steps: number[] = [];
+    let at = await left();
+    for (let i = 0; i < 5; i++) {
+      await page.waitForTimeout(100);
+      const now = await left();
+      steps.push((at - now) * 10);
+      at = now;
+    }
+    return steps.sort((x, y) => x - y)[2];
+  };
+  const items = await fieldFor(cair, 'Items');
+  await page.getByTestId(`cue-field-${items}`).fill('Next up: the late show at 22:00\nDoors close at midnight');
+  await page.getByTestId('verb-update').click();
+  await expect(crawl).toHaveText(/Next up: the late show at 22:00.*Doors close at midnight/);
+  log.crawlLook = await looks(cair, 'Next up');
+  const normal = await pace();
+  log.crawlPace = normal;
+  expect(normal, 'it travels right to left').toBeGreaterThan(5);
+  await onAir(page, cair, 'ticker-crawl-1-crawling', 0);
+  await page.waitForTimeout(2_000);
+  const before = await left();
+  await page.getByTestId(`cue-field-${items}`).fill('Next up: the late show at 22:00\nDoors close at midnight\nThe bar stays open late');
+  await page.getByTestId('verb-update').click();
+  await expect(crawl).toHaveText(/The bar stays open late/);
+  const after = await left();
+  log.crawlListChange = { offsetBefore: before, offsetAfter: after, paceAfter: await pace() };
+  await onAir(page, cair, 'ticker-crawl-2-list-changed', 0);
+  // A Hebrew list: which way does it travel, and how does each item read?
+  const hebrew = 'החדשות הערב בשמונה\nמזג האוויר: גשם קל';
+  await page.getByTestId(`cue-field-${items}`).fill(hebrew);
+  await page.getByTestId('verb-update').click();
+  await expect(crawl).toHaveText(/החדשות הערב בשמונה/);
+  const samples: { t: number; offset: number; firstItemLeft: number; firstItemRight: number }[] = [];
+  for (let i = 0; i < 6; i++) {
+    const s = await crawl.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { offset: (el.parentNode as SVGGElement).transform.baseVal.consolidate()?.matrix.e ?? 0, firstItemLeft: r.left, firstItemRight: r.right };
+    });
+    samples.push({ t: i * 500, ...s });
+    if (i === 2) await onAir(page, cair, 'ticker-crawl-3-hebrew', 0);
+    await page.waitForTimeout(500);
+  }
+  log.crawlHebrew = {
+    pace: await pace(),
+    samples,
+    direction: await crawl.evaluate((el) => getComputedStyle(el).direction),
+    unicodeBidi: await crawl.evaluate((el) => getComputedStyle(el).unicodeBidi),
+    text: await crawl.textContent(),
+  };
+  log.crawlCues = await cuesOf(page);
+  await page.getByTestId('verb-out').click();
+  log.pageErrors2a = errors;
+  saveLog();
+});
+
+test('2b. games and clocks: Countdown and Show clock', async ({ page }) => {
+  test.setTimeout(280_000);
+  mkdirSync(SHOTS, { recursive: true });
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const role = (name: string) => air.locator(`[data-noacg-role~="${name}"]`);
+  const opacity = () => air.locator('.imported-design').first().evaluate((el) => Number(getComputedStyle(el).opacity));
+
+  // ── Countdown (games): start, the last ten seconds pulse, one flash at zero, Pause, Reset ──
+  log.countdownImport = await importInto(page, 'game-timer', 'Teal Countdown', 'TL8 games', 'timer');
+  const motion = (name: string) => role(name).evaluate((el) => {
+    const w = window as unknown as { gsap: { getProperty(el: Element, p: string): number } };
+    const move = (el as Element & { noacgMove?: { name: string; tween: { isActive(): boolean } } | null }).noacgMove;
+    return { move: move ? move.name : null, active: move ? move.tween.isActive() : false, opacity: Number(w.gsap.getProperty(el, 'opacity')), scale: Number(w.gsap.getProperty(el, 'scale')) };
+  });
+  // Clock is minutes, read off the drawn 1:00: the box that holds 1.
+  const boxes = page.locator('input[data-testid^="cue-field-"]');
+  let minutes = '';
+  for (let i = 0; i < await boxes.count(); i++) if ((await boxes.nth(i).inputValue()) === '1') minutes = (await boxes.nth(i).getAttribute('data-testid'))!;
+  log.countdownMinutesField = minutes;
+  expect(minutes, 'a Clock minutes box holding 1').toBeTruthy();
+  await page.getByTestId(minutes).fill('0.25'); // fifteen seconds
+  await page.getByTestId('verb-take').click();
+  await expect(air.locator('svg').first()).toBeVisible();
+  log.countdownLook = await looks(air, 'QUESTION 4');
+  await expect(air.locator('.imported-design-clock')).not.toHaveText('0:15', { timeout: 4_000 });
+  await onAir(page, air, 'countdown-1-running', 0);
+  await page.getByTestId('cue-action-pause').click();
+  await expect(role('paused')).toHaveClass(/imported-design-on/);
+  const held = await air.locator('.imported-design-clock').textContent();
+  await page.waitForTimeout(1_200);
+  await expect(air.locator('.imported-design-clock')).toHaveText(held!);
+  await onAir(page, air, 'countdown-2-paused', 300);
+  await page.getByTestId('cue-action-start').click();
+  await expect(role('paused')).not.toHaveClass(/imported-design-on/);
+  await expect(role('warning')).toHaveClass(/imported-design-on/, { timeout: 10_000 });
+  await expect.poll(async () => (await motion('warning')).move).toBe('pulse');
+  const dims: number[] = [];
+  for (let i = 0; i < 10; i++) { dims.push((await motion('warning')).opacity); await page.waitForTimeout(100); }
+  log.countdownPulse = { minOpacityOverOneSecond: Math.min(...dims), clock: await air.locator('.imported-design-clock').textContent() };
+  expect(Math.min(...dims), 'the warning really pulses').toBeLessThan(0.9);
+  await onAir(page, air, 'countdown-3-last-ten-seconds', 0);
+  await expect(role('expired')).toHaveClass(/imported-design-on/, { timeout: 15_000 });
+  // One flash: watch the Time up look for three seconds and count the starts of its motion.
+  const seen: { move: string | null; active: boolean; opacity: number }[] = [];
+  for (let i = 0; i < 30; i++) { seen.push(await motion('expired')); await page.waitForTimeout(100); }
+  const starts = seen.filter((s, i) => s.active && (i === 0 || !seen[i - 1].active)).length;
+  log.countdownFlash = { flashStarts: starts, last: seen[seen.length - 1], warningAfterZero: await motion('warning'), clock: await air.locator('.imported-design-clock').textContent() };
+  expect(seen[seen.length - 1]).toMatchObject({ move: 'flash', active: false, opacity: 1 });
+  expect(starts, 'one flash at zero').toBeLessThanOrEqual(1);
+  await expect(air.locator('.imported-design-clock')).toHaveText('0:00');
+  await onAir(page, air, 'countdown-4-time-up', 300);
+  await page.getByTestId('cue-action-reset').click();
+  await expect(air.locator('.imported-design-clock')).toHaveText('0:15');
+  await expect(role('expired')).not.toHaveClass(/imported-design-on/);
+  await page.waitForTimeout(1_200);
+  log.countdownReset = { clock: await air.locator('.imported-design-clock').textContent(), expired: await motion('expired') };
+  await expect(air.locator('.imported-design-clock')).toHaveText('0:15'); // Reset holds
+  await onAir(page, air, 'countdown-5-reset', 0);
+  await page.getByTestId('cue-action-start').click();
+  await expect(air.locator('.imported-design-clock')).not.toHaveText('0:15', { timeout: 4_000 });
+  log.countdownCues = await cuesOf(page);
+  await page.getByTestId('verb-out').click();
+
+  // ── Show clock (clocks): Clock counts down from the drawn 5:00 and runs, Pause, Reset ──
+  log.showClockImport = await importInto(page, 'show-countdown', 'Teal Show clock', 'TL8 clocks', 'none', { clock: true });
+  await page.getByTestId('verb-take').click();
+  await expect(air.locator('svg').first()).toBeVisible();
+  const readout = air.locator('.imported-design-clock');
+  await expect(readout).toHaveAttribute('data-count', 'down');
+  await expect(readout).not.toHaveText('5:00', { timeout: 4_000 });
+  const t1 = await readout.textContent();
+  await page.waitForTimeout(2_100);
+  const t2 = await readout.textContent();
+  log.showClockRuns = { first: t1, twoSecondsLater: t2 };
+  expect(t2).not.toBe(t1);
+  log.showClockLook = await looks(air, 'We go live');
+  await onAir(page, air, 'show-clock-1-running', 300);
+  await page.getByTestId('cue-action-clock_pause').click();
+  const heldAt = await readout.textContent();
+  await page.waitForTimeout(1_100);
+  await expect(readout).toHaveText(heldAt!);
+  await page.getByTestId('cue-action-clock_reset').click();
+  await expect(readout).toHaveText('5:00');
+  log.showClockCues = await cuesOf(page);
+  await page.getByTestId('verb-out').click();
+  log.pageErrors2b = errors;
+  saveLog();
+});
+
+test('2c. credits: End credits', async ({ page }) => {
+  test.setTimeout(280_000);
+  mkdirSync(SHOTS, { recursive: true });
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const role = (name: string) => air.locator(`[data-noacg-role~="${name}"]`);
+  const opacity = () => air.locator('.imported-design').first().evaluate((el) => Number(getComputedStyle(el).opacity));
+
+  // ── End credits (credits): the pasted list rolls, the title travels with it ──
+  log.creditsImport = await importInto(page, 'end-credits', 'Teal End credits', 'TL8 credits', '', { credits: true });
+  await page.locator('textarea[data-testid^="cue-field-"]').first().fill('Late Night Lab\nDirector: Noor Haddad\nProducer: Tomas Lind\nCamera: Ines Rocha, Ola Berg\nSound: Kai Moreno');
+  await page.getByTestId('verb-take').click();
+  await expect(air.locator('svg').first()).toBeVisible();
+  const rowsOnAir = air.locator('.imported-design-credits-row');
+  await expect(rowsOnAir).toHaveText(['Late Night Lab', 'Director', 'Noor Haddad', 'Producer', 'Tomas Lind', 'Camera', 'Ines Rocha', 'Ola Berg', 'Sound', 'Kai Moreno']);
+  log.creditsLook = await rowsOnAir.first().evaluate((el) => ({ font: getComputedStyle(el).fontFamily, size: getComputedStyle(el).fontSize, fill: getComputedStyle(el).fill }));
+  await expect.poll(() => air.locator('svg').first().evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+  const heading = air.locator('.imported-design-credits-row[data-noacg-credits="title"]');
+  const y0 = await heading.evaluate((el) => el.getBoundingClientRect().top);
+  await page.waitForTimeout(2_000);
+  const y1 = await heading.evaluate((el) => el.getBoundingClientRect().top);
+  log.creditsRolls = { titleTopAtStart: y0, titleTopTwoSecondsLater: y1 };
+  expect(y1, 'it rolls up by itself').toBeLessThan(y0);
+  await onAir(page, air, 'end-credits-1-rolling', 0);
+  const at = (share: number) => air.locator('svg').first().evaluate((_, p) => {
+    const tween = (window as unknown as { noacgCreditsTween: { pause(): void; progress(v: number): void } }).noacgCreditsTween;
+    tween.pause();
+    tween.progress(p);
+  }, share);
+  const rollProblems: Record<string, string[]> = {};
+  for (const k of [2, 4, 6, 8]) {
+    await at(k / 10);
+    rollProblems[`${k * 10}%`] = await airProblems(air);
+    if (k === 4) await page.getByTestId('program-stage').screenshot({ path: `${SHOTS}/end-credits-2-roll-40.png` });
+  }
+  problems['end-credits-roll'] = Object.values(rollProblems).flat();
+  log.creditsRollProblems = rollProblems;
+  log.creditsCues = await cuesOf(page);
+  await page.getByTestId('verb-out').click();
+
+  log.pageErrors2c = errors;
+  saveLog();
+});
+
+test('3. audience: Live vote in its own production; Vote results and Message picked in another production', async ({ page, browser }) => {
+  test.setTimeout(300_000);
+  mkdirSync(SHOTS, { recursive: true });
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const role = (name: string) => air.locator(`[data-noacg-role~="${name}"]`);
+
+  // ── Live vote: its own production; the live vote shows while open ──
+  log.liveVoteImport = await importInto(page, 'live-vote', 'Teal Live vote', 'TL8 live vote', 'poll');
+  await page.getByTestId('verb-take').click();
+  await expect(air.locator('svg').first()).toBeVisible();
+  log.liveVoteLook = await looks(air, 'Which track');
+  await onAir(page, air, 'live-vote-1-take');
+  await page.getByTestId(`cue-field-${await fieldFor(air, 'Options')}`).fill('Neon | 5\nStatic | 2\nGlow | 1\nDrift | 0');
+  await page.getByTestId('verb-update').click();
+  await expect(role('option/1')).toHaveText('Neon');
+  await expect(role('badge')).toHaveClass(/imported-design-on/);
+  log.liveVoteOpen = { badgeOn: true, bar1Width: await air.locator('[data-noacg-role~="bar/1"]').evaluate((el) => el.getBoundingClientRect().width).catch(() => null) };
+  await onAir(page, air, 'live-vote-2-voting');
+  await page.getByTestId('cue-action-close').click();
+  await expect(role('badge')).not.toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-result').click();
+  await expect(role('percent/1')).toHaveText('62.5%');
+  await onAir(page, air, 'live-vote-3-result');
+  await page.getByTestId('cue-action-call').click();
+  await expect(role('winner/1')).toHaveClass(/imported-design-on/);
+  await expect(role('winner/2')).not.toHaveClass(/imported-design-on/);
+  await onAir(page, air, 'live-vote-4-winner');
+  log.liveVoteCues = await cuesOf(page);
+  await page.getByTestId('verb-out').click();
+
+  // ── Join card, Vote results, Message: imported and put in a production (saved) ──
+  log.joinImport = await importInto(page, 'join-card', 'Teal Join card', 'TL8 designs', 'none');
+  // Offline the saved Join card is taken in its own production with a typed Join link.
+  await page.getByTestId('verb-take').click();
+  await expect(air.locator('svg').first()).toBeVisible();
+  const link = 'https://noacg.studio/j/late-night-lab';
+  await page.getByTestId(`cue-field-${await fieldFor(air, 'Join link')}`).fill(link);
+  await page.getByTestId('verb-update').click();
+  const code = air.locator('[class$="-qr-code"]');
+  await expect(code).toBeVisible();
+  const reader = await qrReader(browser);
+  await expect.poll(async () => reader.read(await code.screenshot()), { message: 'the QR on air decodes to the Join link' }).toBe(link);
+  log.joinTypedLink = link;
+  log.joinLook = await looks(air, 'Join the lab');
+  await onAir(page, air, 'join-card-1-typed-link');
+  await page.getByTestId('verb-out').click();
+  log.voteResultsImport = await importInto(page, 'vote-results', 'Teal Vote results', 'TL8 designs', 'poll', { existing: true });
+  log.messageImport = await importInto(page, 'message', 'Teal Message', 'TL8 designs', 'none', { existing: true });
+  log.library = await page.evaluate(async () => {
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    return loadGraphics().map((g) => g.name).filter((n) => n.startsWith('Teal'));
+  });
+
+  // ── A different production's Interaction tab ──
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await openProductionWithCurrent(page, 'Lab Night');
+  const audience = await openWorkspace(page, 'audience');
+  const note = audience.getByTestId('audience-note');
+  const program = (g: string) => page.frameLocator(`[data-testid="program-stage"] iframe[title="${g}"]`);
+  const vr = (n: string) => program('Teal Vote results').locator(`[data-noacg-role~="${n}"]`);
+  const pool = () =>
+    audience.evaluate(async (id) => {
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+      const show = loadShows().find((s) => s.id === id)!;
+      const saved = Object.fromEntries(loadGraphics().map((g) => [g.id, g.name]));
+      return show.graphics.map((g) => ({ name: g.name, savedAs: g.graphicId ? saved[g.graphicId] ?? null : null, cues: (show.cues ?? []).filter((c) => c.sourceId === g.id).map((c) => c.values) }));
+    }, showId);
+  log.joinAddOffline = await audience.getByTestId('join-card-add').count();
+
+  await addQuestion(audience, 'choice', 'Encore tonight?', ['Yes', 'No']);
+  await goLive(audience, 'Encore tonight?');
+  await audience.getByTestId('audience-simulate-votes').click();
+  await expect(audience.getByTestId('audience-tally-0')).toHaveText('2', { timeout: 10_000 });
+  await audience.getByTestId('audience-round-stage').click();
+  await audience.getByTestId('result-choose').getByRole('button', { name: 'Results on Teal Vote results, saved design' }).click();
+  await expect(note).toContainText('✓ Added a result cue on “Teal Vote results”');
+  await settleDurableWrites(audience);
+  await page.locator('.pd-cue', { hasText: 'Vote — Encore tonight?' }).first().click();
+  await page.getByTestId('verb-take').click();
+  await expect(vr('option/1')).toHaveText('Yes');
+  await expect(vr('badge')).toHaveClass(/imported-design-on/);
+  log.voteResultsLook = await looks(program('Teal Vote results'), 'Encore');
+  await onAir(page, program('Teal Vote results'), 'vote-results-1-take');
+  await stopLive(audience, 'Encore tonight?');
+  await expect(note).toContainText('The result cue on “Teal Vote results” now carries the final counts');
+  await page.getByTestId('cue-action-close').click();
+  await expect(vr('badge')).not.toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-action-result').click();
+  await expect(vr('percent/1')).toHaveText('66.7%');
+  await onAir(page, program('Teal Vote results'), 'vote-results-2-result');
+  await page.getByTestId('cue-action-call').click();
+  await expect(vr('winner/1')).toHaveClass(/imported-design-on/);
+  await expect(vr('winner/2')).not.toHaveClass(/imported-design-on/);
+  await onAir(page, program('Teal Vote results'), 'vote-results-3-winner');
+  await page.getByTestId('verb-out').click();
+  const copy = (await pool()).find((g) => g.savedAs === 'Teal Vote results')!;
+  expect(copy.cues, 'one result cue on the copy, no blank seed beside it').toHaveLength(1);
+  log.voteResultsCues = copy.cues;
+
+  await audience.getByTestId('message-paste-name').fill('Robin');
+  await audience.getByTestId('message-paste-body').fill('Will you post the playlist?');
+  await audience.getByTestId('message-paste-add').click();
+  const row = audience.locator('.pd-aud-row').first();
+  await row.getByTestId('audience-prepare').click();
+  const messages = row.getByTestId('audience-choose');
+  log.messageOffered = await messages.getByTestId('audience-choose-saved').allTextContents();
+  await messages.getByRole('button', { name: 'Prepare on Teal Message, saved design' }).click();
+  await expect(note).toContainText('✓ Cue “Will you post the playlist?” is ready on Teal Message');
+  await settleDurableWrites(audience);
+  await page.locator('.pd-cue', { hasText: 'Will you post the playlist?' }).first().click();
+  await page.getByTestId('verb-take').click();
+  await expect(program('Teal Message').locator('text', { hasText: 'Will you post the playlist?' })).toBeVisible();
+  await expect(program('Teal Message').locator('text', { hasText: 'Robin' })).toBeVisible();
+  log.messageLook = await looks(program('Teal Message'), 'playlist');
+  await onAir(page, program('Teal Message'), 'message-1-take');
+  const card = (await pool()).find((g) => g.savedAs === 'Teal Message')!;
+  expect(card.cues, 'one message cue on the copy').toHaveLength(1);
+  log.messageCues = card.cues;
+  log.pool = (await pool()).map((g) => ({ name: g.name, savedAs: g.savedAs, cues: g.cues.length }));
+  log.pageErrors3 = errors;
+  await reader.close();
+  saveLog();
+});

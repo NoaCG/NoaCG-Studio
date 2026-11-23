@@ -1114,6 +1114,15 @@ Group 3 (Risky): Speaking timer (two clocks, one floor); Event notification on t
     "What exists" and D9 ("17 recipes") are the planning-time inventory, kept as written; the
     matrix is the current count (72 types, 8 untyped kinds, 21 recipes, 4 contracts).
 
+### TL8 (owner confirmation)
+
+- TL8 was run by an agent at the owner's request (2026-11-23); a real Illustrator round trip has not been run by a person.
+- Evidence: `evidence/phase-TL8.md`. Everything an agent can run passes for all nine templates;
+  the real Illustrator step was not run. A Hebrew list crawls right to left like every other list
+  (K2 as built, the keep answer to the owner's question on #2678), each item entering last word
+  first. One P3 found, #2725: Vote
+  results keeps "voting open" in its count line after Stop and Close voting until Update.
+
 ## Test maintenance
 
 - 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22

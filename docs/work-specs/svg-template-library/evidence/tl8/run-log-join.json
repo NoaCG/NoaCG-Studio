@@ -1,0 +1,62 @@
+{
+  "joinUrl": "http://127.0.0.1:5217/j/lab-night-1795422796700",
+  "pickerGroups": [
+    {
+      "group": "join-group-saved",
+      "items": [
+        "Join card on Teal Join card, saved design"
+      ]
+    },
+    {
+      "group": "join-group-built-in",
+      "items": [
+        "Join card on House Join Card, built-in"
+      ]
+    }
+  ],
+  "note": "✓ The Join card cue on “Teal Join card” has the current link. Take it when you want it on air.",
+  "poolAfterPick": [
+    {
+      "name": "Hairline",
+      "cues": [
+        {
+          "f0": "Alexandra Riva",
+          "f1": "Chief Correspondent"
+        }
+      ]
+    },
+    {
+      "name": "Teal Join card",
+      "cues": [
+        {
+          "f0": "Join the lab",
+          "f1": "Scan with your phone to take part",
+          "f2": "http://127.0.0.1:5217/j/lab-night-1795422796700"
+        }
+      ]
+    }
+  ],
+  "decoded": "http://127.0.0.1:5217/j/lab-night-1795422796700",
+  "poolAfterSecondPress": [
+    {
+      "name": "Hairline",
+      "cues": [
+        {
+          "f0": "Alexandra Riva",
+          "f1": "Chief Correspondent"
+        }
+      ]
+    },
+    {
+      "name": "Teal Join card",
+      "cues": [
+        {
+          "f0": "Join the lab",
+          "f1": "Scan with your phone to take part",
+          "f2": "http://127.0.0.1:5217/j/lab-night-1795422796700"
+        }
+      ]
+    }
+  ],
+  "pageErrors": []
+}

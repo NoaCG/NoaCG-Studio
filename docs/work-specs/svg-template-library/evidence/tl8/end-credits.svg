@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #0b1f24;
+      }
+
+      .st1 {
+        fill: #00c2a8;
+      }
+
+      .st2, .st4 {
+        fill: #fff;
+      }
+
+      .st2 {
+        font-family: Outfit-ExtraBold, Outfit;
+        font-size: 66px;
+        font-weight: 800;
+      }
+
+      .st3 {
+        fill: #7ff0dd;
+        font-family: Outfit-Bold, Outfit;
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+
+      .st4 {
+        font-family: Outfit-SemiBold, Outfit;
+        font-size: 44px;
+        font-weight: 600;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Panel" class="st0" x="0" y="0" width="1920" height="1080"/>
+    <rect id="Accent" class="st1" x="900" y="236" width="120" height="6"/>
+  </g>
+  <g id="Text">
+    <text id="Heading" class="st2" transform="translate(733.72 186)"><tspan x="0" y="0">Late Night Lab</tspan></text>
+    <text id="Credits" class="st3" transform="translate(901.8 330)"><tspan x="0" y="0">Director</tspan></text>
+    <text id="Credits_x5F_2" data-name="Credits_2" class="st4" transform="translate(824.64 386)"><tspan x="0" y="0">Noor Haddad</tspan></text>
+    <text id="Credits_x5F_3" data-name="Credits_3" class="st3" transform="translate(896.86 506)"><tspan x="0" y="0">Producer</tspan></text>
+    <text id="Credits_x5F_4" data-name="Credits_4" class="st4" transform="translate(847.27 562)"><tspan x="0" y="0">Tomas Lind</tspan></text>
+    <text id="Credits_x5F_5" data-name="Credits_5" class="st3" transform="translate(905.2 682)"><tspan x="0" y="0">Camera</tspan></text>
+    <text id="Credits_x5F_6" data-name="Credits_6" class="st4" transform="translate(853.43 738)"><tspan x="0" y="0">Ines Rocha</tspan></text>
+    <text id="Credits_x5F_7" data-name="Credits_7" class="st4" transform="translate(872.4 798)"><tspan x="0" y="0">Ola Berg</tspan></text>
+  </g>
+</svg>
