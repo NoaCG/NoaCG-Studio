@@ -12,6 +12,11 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43583442187"
     },
+    "e2e/configured/teams.spec.ts": {
+      "since": "2026-11-23",
+      "count": 2,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/45118041464"
+    },
     "e2e/editor-foundation.spec.ts": {
       "since": "2026-11-23",
       "count": 4,
@@ -121,10 +126,6 @@
     "e2e/configured/take-behind-out.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
-    },
-    "e2e/configured/teams.spec.ts": {
-      "count": 1,
-      "last": "2026-11-22"
     },
     "e2e/cross-tab.spec.ts": {
       "count": 1,
