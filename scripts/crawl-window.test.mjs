@@ -9,6 +9,8 @@
 //   * a text drawn turned itself (Illustrator writes the turn on the text) travels along its own
 //     baseline, so each copy lands where the last one was (moved along x alone, it drifted off
 //     its line by sin 3 degrees of the run's length, 52 units for a 1000-unit run);
+//   * a text anchored at its end by a style (Inkscape writes it inline; the import moves it into
+//     a class, which outranks the attribute) is laid as one anchored at its start would be;
 //   * a short run drawn far inside its window is laid back to the window's leading edge, so no
 //     part of the window is ever left empty (one copy before the start left 900 units blank);
 //   * the stop that every exit runs (it kills every tween of the page's elements) leaves the run
@@ -30,6 +32,7 @@ const SPECS = [
 ];
 const PLAIN = readFileSync(at('docs/tutorials/template-library/SVG/ticker-crawl.svg'), 'utf8');
 const TEXT_TURNED = PLAIN.replace('<text id="Crawl"', '<text id="Crawl" transform="rotate(3 284 1007)"');
+const END_ANCHORED = PLAIN.replace(/<text id="Crawl" x="284" y="1007" text-anchor="start"/, '<text id="Crawl" x="1840" y="1007" style="text-anchor:end"');
 const INSET = PLAIN.replace(/<text id="Crawl" x="284"/, '<text id="Crawl" x="1200"');
 const TURNED = PLAIN.replace(/(<g id="Board")/, '<g id="Turn" transform="rotate(3 960 540)">\n$1').replace(/<\/svg>\s*$/, '</g>\n</svg>');
 /** The drawn Crawl box, in the frame of the layer the run moves in. */
@@ -55,8 +58,8 @@ const RUN = async (files) => {
     const travel = offset();
     // The run's left edge in the window's frame, at tenth-second steps: never inside the box.
     const runEl = doc.querySelector('[data-noacg-role~="crawl"]');
-    let lead = -Infinity;
-    for (let i = 0; i < 12; i++) { lead = Math.max(lead, runEl.getBBox().x + offset().e); w.__advance(100); }
+    let lead = -Infinity, trail = Infinity;
+    for (let i = 0; i < 12; i++) { { const b = runEl.getBBox(); lead = Math.max(lead, b.x + offset().e); trail = Math.min(trail, b.x + b.width + offset().e); } w.__advance(100); }
     w.stop();
     w.__advance(10);
     const c = x();
@@ -64,18 +67,21 @@ const RUN = async (files) => {
     const d = x();
     // K3: a new list of the same length keeps the run where it is, mid-run, and the copies before
     // the start are counted as from the run's zero offset, so the window stays filled loop after loop.
+    // It runs under the exit, where the run keeps moving (K6), as it would on air.
+    let relistAt = null;
     if (relist) {
       // Late in a run: three quarters of a copy past the start, past the slack one copy leaves.
       const run = runEl.getStartPositionOfChar(runEl.textContent.indexOf('Hi', 1)).x - runEl.getStartPositionOfChar(0).x;
       for (let i = 0; i < 200 && offset().e > -0.75 * run; i++) w.__advance(10);
+      relistAt = offset().e / run;
       w.update(JSON.stringify({ [items]: relist }));
-      for (let i = 0; i < 30; i++) { lead = Math.max(lead, runEl.getBBox().x + offset().e); w.__advance(100); }
+      for (let i = 0; i < 30; i++) { { const b = runEl.getBBox(); lead = Math.max(lead, b.x + offset().e); trail = Math.min(trail, b.x + b.width + offset().e); } w.__advance(100); }
     }
     // An empty list puts the text back where it was drawn, on both axes (K5).
     w.update(JSON.stringify({ [items]: '' }));
     w.__advance(100);
     const rest = offset();
-    out[name] = { rest: [rest.e, rest.f], lead, slope: travel.e ? travel.f / travel.e : null, points: clip ? clip.getAttribute('points').split(' ').map((p) => p.split(',').map(Number)) : null, moving: b - a, underExit: d - c };
+    out[name] = { relistAt, rest: [rest.e, rest.f], lead, trail, slope: travel.e ? travel.f / travel.e : null, points: clip ? clip.getAttribute('points').split(' ').map((p) => p.split(',').map(Number)) : null, moving: b - a, underExit: d - c };
     document.getElementById('fx')?.remove();
   }
   return out;
@@ -88,13 +94,14 @@ const out = await withBundledPage(SPECS, async (page) => {
     plain: { markup: PLAIN, items: two },
     turned: { markup: TURNED, items: two },
     textTurned: { markup: TEXT_TURNED, items: two },
+    endAnchored: { markup: END_ANCHORED, items: two },
     inset: { markup: INSET, items: 'Hi', relist: 'iH' },
   });
 });
 
 measured(Object.keys(out).length, 'crawl builds');
 
-for (const name of ['plain', 'turned', 'textTurned', 'inset']) {
+for (const name of ['plain', 'turned', 'textTurned', 'endAnchored', 'inset']) {
   test(`${name}: the clip is the drawn Crawl box; the run fills it, keeps moving under the exit along its baseline, and rests where drawn`, () => {
     const r = out[name];
     assert.ok(r.points, 'a clip');
@@ -109,6 +116,10 @@ for (const name of ['plain', 'turned', 'textTurned', 'inset']) {
     assert.ok(Math.abs(r.slope - slope) < 0.002, `it travels along its baseline: slope ${r.slope}, drawn ${slope}`);
     // The run always reaches the box's left edge (in the text's own frame for the level cases).
     assert.deepEqual(r.rest, [0, 0], 'an empty list puts it back where it was drawn');
-    if (name !== 'textTurned') assert.ok(r.lead <= BOX[0][0] + 0.5, `the run reaches the window's leading edge: its left at ${r.lead}`);
+    if (r.relistAt !== null) assert.ok(r.relistAt <= -0.75, `the list changed late in a run: ${r.relistAt} of a copy`);
+    if (name !== 'textTurned') {
+      assert.ok(r.lead <= BOX[0][0] + 0.5, `the run reaches the window's leading edge: its left at ${r.lead}`);
+      assert.ok(r.trail >= BOX[1][0] - 0.5, `the run reaches the window's far edge: its right at ${r.trail}`);
+    }
   });
 }

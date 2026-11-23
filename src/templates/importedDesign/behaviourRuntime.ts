@@ -1401,7 +1401,14 @@ function noacgCrawlRun(item, text, rule) {
   var all = '';
   for (var c = 0; c < copies; c++) all += once;
   el.textContent = all;
-  el.setAttribute('x', item.start.x - before * step);
+  // The run's first character goes where the copies before the start begin, whatever anchor the
+  // text computes to: a stylesheet's text-anchor (Inkscape's inline one becomes a class at import)
+  // outranks the attribute set above, so the anchor is measured, not assumed.
+  var head = item.start.x - before * step;
+  el.setAttribute('x', head);
+  var at;
+  try { at = el.getStartPositionOfChar(0).x; } catch (e) { at = head; }
+  if (Math.abs(at - head) > 0.01) el.setAttribute('x', head + (head - at));
   var perSecond = 140 * (item.frameW / 1920) * item.perUnit;
   var from = item.tween && !item.restart ? -item.pos.x : 0;
   if (item.tween) item.tween.kill();
