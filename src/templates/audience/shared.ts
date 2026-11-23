@@ -62,7 +62,7 @@ import { stageFitRuntimeJs } from '../shared/stageFit';
 import type { AnimData, AnimStep } from '../../blocks/animData';
 import type { PresetConfig } from '../lowerThirds/animPresets';
 import { audiencePresetById } from './audiencePresets';
-import { AUDIENCE_ATTRIBUTION_JS, AUDIENCE_JOIN_JS, AUDIENCE_QUEUE_JS, AUDIENCE_WORDS_JS } from './audienceRuntime';
+import { AUDIENCE_ATTRIBUTION_JS, AUDIENCE_JOIN_JS, AUDIENCE_QUEUE_JS, AUDIENCE_WORDS_JS, audienceJoinJs } from './audienceRuntime';
 import { resolveTokens, type ThemeTokens, type TokenOverrides } from '../../model/themeTokens';
 
 // ── Forms ────────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ export interface AudienceLine {
 }
 
 export interface AudienceForm {
-  id: 'question' | 'qa' | 'chat' | 'queue' | 'request' | 'join' | 'words';
+  id: 'question' | 'qa' | 'chat' | 'queue' | 'request' | 'join' | 'join-code' | 'words';
   /** The fields, in emission order — they compile to f0…fN positionally. */
   lines: AudienceLine[];
   /** One-line comment describing the root in the generated HTML. */
@@ -213,6 +213,19 @@ export const JOIN_FORM: AudienceForm = {
     // scheme; Add Join card to rundown writes the real link into the cue, not the graphic.
     { title: 'Join link', sample: 'noacg.studio/j/your-show' },
   ],
+};
+
+/** JOIN CODE: the Join card as the QR code alone, with no words to write or translate
+ *  (templates/audience/joinCard.ts `jc02`). Its one field is the Join link. */
+export const JOIN_CODE_FORM: AudienceForm = {
+  id: 'join-code',
+  rootComment: 'Join code: the QR code drawn from the Join link, and nothing else.',
+  hiddenSourceField: 'f0',
+  hiddenSourceComment: 'Hidden join source: SPX writes field f0 here; the runtime draws it as a QR code. Empty draws nothing.',
+  repaint: 'audienceJoinPaint();',
+  repaintNote: '                  // what the form draws from its fields',
+  runtimeJs: audienceJoinJs('f0'),
+  lines: [JOIN_FORM.lines[2]],
 };
 
 /** WORD CLOUD: the words a Word question gathered, sized by how many phones sent each

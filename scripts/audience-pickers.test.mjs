@@ -6,15 +6,16 @@
 // phase TL1, AC-4, AC-9, AC-10), in Node. Pinned: the order (production, saved, built-in); a saved
 // design offered only where staging would take it, and once (its production copy stands for it);
 // every accessible name distinct; a saved design copied in under a free name and reused by
-// identity; the seeded cue a pick fills; the Join card choice (none, one, several, remembered,
-// deleted, replaced, synced) with one Join cue per card holding the current link; and the message
-// rule that leaves quiz boards out while a remembered choice keeps working.
+// identity; the seeded cue a pick fills; the Join card choice (none: the picker with both built-ins;
+// one, several, remembered, deleted, replaced, synced) with one Join cue per card holding the
+// current link; and the message rule that leaves quiz boards out while a remembered choice keeps
+// working.
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { pickerItems, fitsPicker, savedCopyPlan, seededCue, linkedCopy, copySeededCue } = await import('../src/control/audiencePickers.ts');
+const { pickerItems, fitsPicker, savedCopyPlan, seededCue, linkedCopy, copySeededCue, joinPress } = await import('../src/control/audiencePickers.ts');
 const { planResultCue } = await import('../src/model/resultCues.ts');
 const { pollFieldMap } = await import('../src/control/resultStaging.ts');
 const { planJoinCue, joinCardOf, joinLinkField } = await import('../src/model/joinCues.ts');
@@ -37,7 +38,7 @@ test('each picker lists the production first, then saved designs, then built-ins
   assert.deepEqual(results.slice(0, 3).map((i) => [i.group, i.id]), [['production', 'p1'], ['saved', 's1'], ['built-in', 'pl01']]);
   assert.deepEqual(new Set(results.map((i) => i.group)), new Set(['production', 'saved', 'built-in']));
   assert.deepEqual(pickerItems(show, library, 'message').filter((i) => i.group !== 'built-in').map((i) => i.id), ['s2']);
-  assert.deepEqual(pickerItems(show, library, 'join').map((i) => [i.group, i.id]), [['saved', 's3'], ['built-in', 'jc01']]);
+  assert.deepEqual(pickerItems(show, library, 'join').map((i) => [i.group, i.id]), [['saved', 's3'], ['built-in', 'jc01'], ['built-in', 'jc02']]);
   assert.deepEqual(pickerItems(show, [saved('w', 'Cloud', WORDS)], 'words').map((i) => i.group), ['saved', 'built-in']);
 });
 
@@ -100,6 +101,23 @@ test('Join: none offers the picker, one is used, several ask once and the pick i
   assert.deepEqual(planJoinCue({ ...several, joinTarget: 'j2' }), { kind: 'update', cueId: 'c2', graphicId: 'j2' });
   // A just-copied design's seeded cue is the one filled.
   assert.deepEqual(planJoinCue({ graphics: [card('j1')], cues: [{ id: 'a', sourceId: 'j1' }, { id: 'b', sourceId: 'j1' }] }, 'j1', 'b'), { kind: 'update', cueId: 'b', graphicId: 'j1' });
+});
+
+test('Join: with no Join card the press opens the picker, both built-ins in it; with one card it stages there', () => {
+  const none = { graphics: [graphic('v', 'Vote', VOTE)] };
+  const items = pickerItems(none, [], 'join');
+  assert.deepEqual(items.map((i) => [i.group, i.id, i.name]), [['built-in', 'jc01', 'House Join Card'], ['built-in', 'jc02', 'Join QR Code']]);
+  assert.equal(joinPress(joinCardOf(none), items), 'choose', 'two designs to add: the operator picks, nothing is added unasked');
+  assert.equal(joinPress(joinCardOf(none), pickerItems(none, [saved('s3', 'Join card', JOIN)], 'join')), 'choose');
+  // One design to add is added straight away: one press, one card, one cue.
+  assert.deepEqual(joinPress(null, items.slice(0, 1)), { board: 'jc01' });
+  assert.deepEqual(joinPress(null, pickerItems(none, [saved('s3', 'Join card', JOIN)], 'join').slice(0, 1)), { saved: 's3' });
+  // A card already in the production is the target, and several still ask once.
+  const one = { graphics: [graphic('j1', 'Join QR Code', JOIN)] };
+  assert.equal(joinPress(joinCardOf(one), pickerItems(one, [], 'join')), null);
+  const several = { graphics: [graphic('j1', 'a', JOIN), graphic('j2', 'b', JOIN)] };
+  assert.equal(joinPress(joinCardOf(several), pickerItems(several, [], 'join')), 'choose');
+  assert.equal(joinPress(joinCardOf({ ...several, joinTarget: 'j2' }), pickerItems(several, [], 'join')), null);
 });
 
 test('Join: the Join cue is the one this press made or one with no link yet; other cues keep their values', () => {

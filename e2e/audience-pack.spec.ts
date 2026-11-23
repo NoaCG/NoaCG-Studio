@@ -640,15 +640,22 @@ async function phonePage(page: Page): Promise<void> {
   await page.goto('/join-card-probe');
 }
 
-test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
+// Both built-in Join cards: the house card (its link in f2, shown beside the code) and the code
+// alone (its link in f0, its only field).
+const JOIN_CARDS = [
+  { id: 'jc01', field: 'f2', titles: ['Label', 'Call to action', 'Join link'] },
+  { id: 'jc02', field: 'f0', titles: ['Join link'] },
+] as const;
+
+for (const join of JOIN_CARDS) test.describe(`the Join card ${join.id} draws its QR from its Join link (AC-11)`, () => {
   /** Build the Join card with this link, as Add Join card to rundown does. */
   const template = (page: Page, link: string) =>
-    page.evaluate(async (l) => {
+    page.evaluate(async ({ l, id }) => {
       const { variantById } = await __noacgImport('/src/templates/catalog.ts');
-      const variant = variantById('jc01')!;
+      const variant = variantById(id)!;
       const lines = variant.suggestedLines.map((line) => (line.title === 'Join link' ? { ...line, sample: l } : line));
       return variant.create({ lines });
-    }, link);
+    }, { l: link, id: join.id });
 
   /** Play the card in this document and wait for its entrance to land. Play is queued in the
    *  graphic's own event queue, so the wait is on what the page shows, not on a timeline handle. */
@@ -669,6 +676,7 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
       await phonePage(page);
       await page.setViewportSize({ width: 1920, height: 1080 });
       const tpl = await template(page, LINK);
+      expect(tpl.fields.map((f) => f.title), 'its fields, and nothing an operator has to fill but the link').toEqual([...join.titles]);
       // As the studio's monitors load it: the preview document in an iframe on the app's origin.
       await page.evaluate(async (t) => {
         const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
@@ -687,17 +695,26 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
       const qr = page.frameLocator('#card').locator('#audience-join-qr');
       await expect(qr.locator('path')).toHaveAttribute('d', /^M/);
       expect(await reader.read(await qr.screenshot())).toBe(LINK);
-      await expect(page.frameLocator('#card').locator('.audience-join-url')).toHaveText('noacg.studio/j/friday-night-live');
+      const url = page.frameLocator('#card').locator('.audience-join-url');
+      if (join.id === 'jc01') await expect(url).toHaveText('noacg.studio/j/friday-night-live');
+      else {
+        // The code alone: no words anywhere on it, and the card is the plate, no panel around it.
+        await expect(url).toHaveCount(0);
+        expect(await card.evaluate(() => (document.querySelector('.audience') as HTMLElement).innerText.trim())).toBe('');
+        const [plate, box] = await Promise.all([qr.boundingBox(), page.frameLocator('#card').locator('.audience-box').boundingBox()]);
+        expect(box, 'the box is the plate').toEqual(plate);
+        expect(plate!.width, 'big enough to scan from across a room at 1080p').toBeGreaterThanOrEqual(232);
+      }
 
       // A new link is data: update() redraws the code, nothing else moves.
       const other = 'https://noacg.studio/j/quiz-2026';
-      await card.evaluate((l) => (window as unknown as { update(d: unknown): void }).update({ f2: l }), other);
+      await card.evaluate(({ f, l }) => (window as unknown as { update(d: unknown): void }).update({ [f]: l }), { f: join.field, l: other });
       expect(await reader.read(await qr.screenshot())).toBe(other);
 
-      await card.evaluate(() => (window as unknown as { update(d: unknown): void }).update({ f2: '' }));
+      await card.evaluate((f) => (window as unknown as { update(d: unknown): void }).update({ [f]: '' }), join.field);
       await expect(qr).toBeHidden();
       await expect(qr.locator('path')).toHaveAttribute('d', '');
-      await expect(page.frameLocator('#card').locator('.audience-join-url')).toBeHidden();
+      await expect(url).toBeHidden();
     } finally {
       await reader.close();
     }

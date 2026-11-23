@@ -71,7 +71,7 @@ import {
 } from '../../model/questions';
 import { countWordTallies, type WordCount, type WordTally } from '../../model/wordCloud';
 import { stageWords, wordDestinationOf } from '../../control/wordStaging';
-import { copySeededCue, JOIN_CARDS, linkedCopy, pickerItems, savedCopyPlan, seededCue, type PickerGroup, type PickerItem, type PickerKind, type SavedDesign } from '../../control/audiencePickers';
+import { copySeededCue, joinPress, linkedCopy, pickerItems, savedCopyPlan, seededCue, type PickerGroup, type PickerItem, type PickerKind, type SavedDesign } from '../../control/audiencePickers';
 import { joinCardOf } from '../../model/joinCues';
 import {
   chatIntakeFor,
@@ -246,7 +246,7 @@ const PICKER_WORDS: Record<PickerKind, { here: string; empty: string; builtIn: s
   results: { here: 'Results on:', empty: 'No graphic here can show results.', builtIn: 'Add a vote board:', prefix: 'result', builtInTestid: 'result-choose-board' },
   message: { here: 'Prepare on:', empty: 'No graphic here can show a message.', builtIn: 'Add a card for it:', prefix: 'audience', builtInTestid: 'audience-choose-card' },
   words: { here: 'Word cloud on:', empty: 'No graphic here can show words.', builtIn: 'Add a word cloud:', prefix: 'word', builtInTestid: 'word-choose-board' },
-  join: { here: 'Join card on:', empty: 'No Join card here yet.', builtIn: 'Add the built-in Join card:', prefix: 'join', builtInTestid: 'join-choose-board' },
+  join: { here: 'Join card on:', empty: 'No Join card here yet.', builtIn: 'Add a Join card:', prefix: 'join', builtInTestid: 'join-choose-board' },
 };
 const GROUP_ORDER: PickerGroup[] = ['production', 'saved', 'built-in'];
 
@@ -1722,8 +1722,8 @@ export default function ProductionAudienceWorkspace({
 
   const joinUrl = live && show.joinSlug ? joinPageUrl(show.joinSlug) : null;
   const joinQrSvg = useMemo(() => (joinUrl ? qrSvg(joinUrl) : null), [joinUrl]);
-  /** The Join picker is open: several Join cards and none remembered, saved designs to choose
-   *  from, or Change. */
+  /** The Join picker is open: several Join cards and none remembered, no Join card yet (a design
+   *  to choose), or Change. */
   const [choosingJoin, setChoosingJoin] = useState(false);
   const joinItems = useMemo(() => pickerItems(show, library, 'join'), [show, library]);
   const joinCard = joinCardOf(show);
@@ -1733,20 +1733,19 @@ export default function ProductionAudienceWorkspace({
    * "Add Join card to rundown" (svg-template-library "Pickers and targets"): the production's
    * current link goes into its Join card's one Join cue (model/joinCues.ts). With one Join card
    * that card; with several, the operator picks once and it is remembered (`joinTarget`); with
-   * none, the Join picker offers saved designs and the built-in, or the built-in is added straight
-   * away when nothing is saved, as before. Nothing airs.
+   * none, the Join picker offers saved designs and the built-ins (the house card and the code
+   * alone), and the pick adds one card with its one cue (`joinPress`). Nothing airs.
    */
   const addJoin = async (on: PickOn = {}) => {
     if (!joinUrl || qrBusy) return;
     let chosen = on.graphicId ?? null;
     if (!chosen && !on.saved && !on.board) {
-      const card = joinCardOf(show);
-      const saved = joinItems.some((i) => i.group === 'saved');
-      if (card === 'choose' || (card === null && saved)) {
+      const press = joinPress(joinCardOf(show), joinItems);
+      if (press === 'choose') {
         setChoosingJoin(true);
         return;
       }
-      if (card === null) on = { board: JOIN_CARDS[0].id };
+      if (press) on = press;
     }
     setQrBusy(true);
     try {

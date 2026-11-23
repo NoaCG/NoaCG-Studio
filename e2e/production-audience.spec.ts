@@ -274,6 +274,34 @@ test('a Join card cue takes its place and size from the cue editor', async ({ pa
   await expect(page.frameLocator('[data-testid="production-preview"] iframe').first().locator('#audience-join-qr path')).toHaveAttribute('d', /^M/);
 });
 
+test('the Join QR Code is a cue with only its Join link to fill, and PREVIEW draws its code', async ({ page }) => {
+  // The code alone (jc02): what the Join picker adds for an operator who wants nothing designed.
+  // Added here the way that pick adds it (the picker itself needs a published link: the configured
+  // walk presses it), it brings one cue whose only field is the link.
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Join Code Night');
+  await page.evaluate(async (id) => {
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { buildDraftTemplate, initialDraft, mergeDraft } = await __noacgImport('/src/components/wizard/draft.ts');
+    const { addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+    const variant = variantById('jc02')!;
+    const lines = variant.suggestedLines.map((l) => (l.title === 'Join link' ? { ...l, sample: 'https://noacg.studio/j/join-code-night' } : { ...l }));
+    addGraphicToShow(id, buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines })), {});
+    window.dispatchEvent(new Event('spx-data-changed'));
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  const cue = page.locator('.pd-cue', { hasText: 'Join QR Code' }).first();
+  await expect(cue).toBeVisible();
+  await cue.click();
+  const fields = page.getByTestId('cue-editor').locator('input[data-testid^="cue-field-"], textarea[data-testid^="cue-field-"]');
+  await expect(fields).toHaveCount(1);
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('https://noacg.studio/j/join-code-night');
+  const card = page.frameLocator('[data-testid="production-preview"] iframe').first();
+  await expect(card.locator('#audience-join-qr path')).toHaveAttribute('d', /^M/);
+  expect(await card.locator('.audience').evaluate((el: HTMLElement) => el.innerText.trim()), 'no words on the card').toBe('');
+});
+
 test('the public join page answers honestly on an offline build', async ({ page }) => {
   // The page is a capability URL, so every "nothing here" answer is the SAME answer — but an
   // offline build is not a capability question at all, and saying so beats showing a form that
