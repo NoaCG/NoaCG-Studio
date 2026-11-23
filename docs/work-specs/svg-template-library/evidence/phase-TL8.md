@@ -8,13 +8,16 @@ real Illustrator round trip has not been run by a person.
 **Verdict: ALL PASS.** Nine templates downloaded, restyled, written the Illustrator way,
 imported, saved, taken and driven through their controls. `airProblems` found nothing in any of
 the 22 frames it checked or at four points of the credits roll; the published Join card frame
-was checked by eye. No page error, one cue per graphic. One on-air wording problem that TL1o also saw is filed as
-#2725 (P3); it is not a TL8 check failure (see Findings).
+was checked by eye. No page error, one cue per graphic. One on-air wording problem that TL1o
+also saw is filed as #2725 (P3); it is not a TL8 check failure (see Findings).
 
-Files in `tl8/`: the nine restyled SVGs, `shots/` (24 on-air screenshots, deviceScaleFactor 2,
-colour-reduced), `illustrate.mjs` (restyle and Illustrator-style writer), `round-trip.spec.ts.txt`
-and `join-live.spec.ts.txt` (the Playwright runs, kept out of `e2e/`), `download-report.txt`,
-`run-log.json` and `run-log-join.json` (what the runs read back).
+Files in `tl8/`: the nine restyled SVGs, `illustrate.mjs` (restyle and Illustrator-style writer),
+`round-trip.spec.ts.txt` and `join-live.spec.ts.txt` (the Playwright runs, kept out of `e2e/`),
+`download-report.txt`, `run-log.json` and `run-log-join.json` (what the runs read back). The 24
+on-air screenshots (deviceScaleFactor 2) named below are not committed: the repository keeps no
+pictures under `docs/` (`.gitignore`, `scripts/check-tree-shape.mjs`), as with TL1o's. A contact
+sheet of all 24 was sent to the owner in the run's session; the checks each picture backs are in
+`run-log.json`.
 
 ## The templates
 
