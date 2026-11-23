@@ -34,18 +34,17 @@
  },
  "waitingOn": [
   {
-   "what": "TL8 agent receipt",
-   "eta": "2026-11-23T11:00:00Z"
+   "what": "TL8 checker verdict",
+   "eta": "2026-11-23T11:30:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL8",
-  "step": "build",
-  "session": "session_017SdbwN53VV7D2sDnc9uct2",
-  "nonce": "tl8-a-7c31",
-  "source": "fac5edc08cafd0b205d4f456a489751c2c4c96ab",
-  "note": "agent stands in for the owner at his request 2026-11-23",
-  "asOf": "2026-11-23T08:12:22Z"
+  "step": "check",
+  "session": "session_017SdbwLdeVdfrij71jjV7Ty",
+  "nonce": "tl8-c-b644",
+  "merge": "68d3977148b4f196fe9590565d0dec435e822974",
+  "asOf": "2026-11-23T09:44:50Z"
  },
  "owner": [
   {
@@ -216,5 +215,10 @@
    "what": "one sample per package in Illustrator and on air, the four audience pilots round trip, RTL crawl direction A or B",
    "handover": "#2678 comment 7095099105"
   }
- ]
+ ],
+ "tl8": {
+  "pr": 2727,
+  "merge": "68d3977148b4f196fe9590565d0dec435e822974",
+  "agent": "session_017SdbwN53VV7D2sDnc9uct2"
+ }
 }
