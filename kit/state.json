@@ -34,17 +34,21 @@
  },
  "waitingOn": [
   {
-   "what": "TL6 checker verdict",
-   "eta": "2026-11-23T07:00:00Z"
+   "what": "TL7 builder PR",
+   "eta": "2026-11-23T10:00:00Z"
+  },
+  {
+   "what": "quarantine PR",
+   "eta": "2026-11-23T08:00:00Z"
   }
  ],
  "inFlight": {
-  "phase": "TL6",
-  "step": "check",
-  "session": "session_017SdbwR28gz6H4fGFCkZSbV",
-  "nonce": "tl6-c-ab55",
-  "merge": "0f2a2eeb69c7ce1b6bbeb10e786aaf1543f285bf",
-  "asOf": "2026-11-23T05:29:52Z"
+  "phase": "TL7",
+  "step": "build",
+  "session": "session_017SdbwNbFvuBHVuM4ryeyPd",
+  "nonce": "tl7-b-f259",
+  "source": "0f2a2eeb69c7ce1b6bbeb10e786aaf1543f285bf",
+  "asOf": "2026-11-23T06:25:34Z"
  },
  "owner": [
   {
@@ -202,5 +206,12 @@
   ],
   "merge": "0f2a2eeb69c7ce1b6bbeb10e786aaf1543f285bf",
   "builder": "session_017SdbwNDgPe1fcZ7vmJmuVN"
- }
+ },
+ "sideRows": [
+  {
+   "what": "quarantine editor-foundation and teams flakes from 0f2a2ee",
+   "session": "session_017SdbwLsf6w9nyADWJ5gTjE",
+   "branch": "claude/quarantine-flakes-0f2a2ee"
+  }
+ ]
 }
