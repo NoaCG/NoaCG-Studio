@@ -88,6 +88,9 @@ export interface AutoPublished {
 export interface AutoPublishState {
   /** The publisher runs for this production: no Publish changes. */
   active: boolean;
+  /** The server's automatic updates switch is on (with its guard), whether or not the publisher
+   *  runs here yet (a revision not known keeps Publish changes, G3 section 8). */
+  switchOn: boolean;
   view: AutoPublishView | null;
 }
 
@@ -352,7 +355,7 @@ export function useAutoPublish(o: {
     };
   }, [watchesOnly, showId, teamId]);
 
-  if (watchesOnly && elsewhere) return { active: false, view: { tone: 'red', line: ELSEWHERE_LINE, running: false, published: null } };
-  return { active, view: active ? view : null };
+  if (watchesOnly && elsewhere) return { active: false, switchOn, view: { tone: 'red', line: ELSEWHERE_LINE, running: false, published: null } };
+  return { active, switchOn, view: active ? view : null };
 }
 
