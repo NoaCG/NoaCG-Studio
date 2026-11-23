@@ -90,6 +90,7 @@ export const READS_ADDED: Array<{ since: string; what: string; reads: Partial<Om
   { since: 'TL5', what: "a milestone track: a list read against a figure, its tiers reached, the segment between two, the figure as typed", reads: { kinds: { list: { spec: ['of'], facts: ['reached', 'has-label', 'has-amount'], derive: ['span', 'amount'] } } } },
   { since: 'TL5', what: "a quiz drawing its answer rows: a pick or a key naming a row not in use names nothing", reads: { kinds: { 'row-pick': { spec: ['inUse'] } } } },
   { since: 'TL6', what: "a crawl: a text layer that travels inside its window at the operator's pace, the lines it prints joined into one run", reads: { rule: ['crawl', 'speed', 'window'], kinds: { lines: { spec: ['kind'], facts: [], derive: ['joined', 'text'] } } } },
+  { since: 'TL6', what: "a speaking timer: each side's clock run by the debate engine, and whether it has run out", reads: { kinds: { speaking: { spec: ['kind', 'side'], facts: ['expired'], derive: ['text'] } } } },
   { since: 'TL6', what: "a word cloud: each slot's word from staged counts, sized by its weight and kept inside its drawn sample", reads: { rule: ['size'], kinds: { 'word-counts': { spec: ['kind', 'rows'], facts: ['listed'], derive: ['label', 'weight', 'text'] } } } },
 ];
 

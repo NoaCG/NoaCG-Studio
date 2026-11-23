@@ -769,9 +769,18 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await page.getByTestId('verb-next').click();
       await expect(design).toHaveCSS('opacity', '0', { timeout: 5_000 });
       await page.getByTestId('verb-out').click();
+      // The next event: a new value and a take play it through its whole life (Event notification's
+      // row, N5): it is on air with the new words, still up five seconds in, and gone by the hold's
+      // end, eight seconds after the entrance.
+      const first = namedTexts(t.slug)[0];
+      const firstId = await fieldFor(air, first);
+      await page.getByTestId(`cue-field-${firstId}`).fill('Next');
       await page.getByTestId('verb-take').click();
       await expect(design).not.toHaveCSS('opacity', '0');
-      await expect(design).toHaveCSS('opacity', '0', { timeout: 20_000 });
+      await expect(air.locator(`[id="${firstId}"]`), 'the new event is the one on air').toContainText('Next');
+      await page.waitForTimeout(5_000);
+      await expect(design, 'it holds').not.toHaveCSS('opacity', '0');
+      await expect(design, 'and clears itself after the hold').toHaveCSS('opacity', '0', { timeout: 10_000 });
       break;
     }
     case 'rotation': {
@@ -911,6 +920,87 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await page.getByTestId(`cue-field-${words}`).fill('');
       await page.getByTestId('verb-update').click();
       for (let n = 1; n <= slots; n++) await expect(slot(n)).not.toHaveClass(/imported-design-on/);
+      break;
+    }
+    case 'speaking': {
+      // SPEAKING TIMER (TL6, Rules P1 to P6): the built-in's floor and engine on the artwork. The
+      // clocks carry the wire's `data-speaking`; Switch speaker runs one clock at a time; Penalty
+      // docks the running side; Reset clocks puts both back; a stamped running value as data
+      // resumes the speech from its origin.
+      const timeA = air.locator(`[id="${await fieldFor(air, 'Time A')}"]`);
+      const timeB = air.locator(`[id="${await fieldFor(air, 'Time B')}"]`);
+      await expect(timeA).toHaveAttribute('data-speaking', 'a');
+      await expect(timeB).toHaveAttribute('data-speaking', 'b');
+      // The control wire reads this graphic's clocks exactly as it reads the built-in board's.
+      const pair = await page.evaluate(async (name) => {
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        const { speakingClocksFromHtml } = await __noacgImport('/src/control/matchClockWire.ts');
+        const graphic = loadShows().flatMap((show) => show.graphics).find((g) => g.name === name);
+        return graphic ? speakingClocksFromHtml(graphic.template.html) : null;
+      }, t.name);
+      expect(pair, 'the wire finds both clocks, the allowance and the penalty').toMatchObject({
+        fieldA: await fieldFor(air, 'Time A'), fieldB: await fieldFor(air, 'Time B'),
+        allowanceField: await fieldFor(air, 'Speaking time each'), penaltyField: await fieldFor(air, 'Penalty (seconds)'),
+      });
+      const secs = async (l: typeof timeA) => {
+        const [m, sec] = ((await l.textContent()) ?? '').trim().split(':').map(Number);
+        return m * 60 + sec;
+      };
+      const lit = (name: string) => air.locator(`[data-noacg-role~="${name}"]`);
+      await expect(timeA).toHaveText('05:00');
+      const press = (event: string) => page.getByTestId(`cue-action-${event}`);
+      await press('switch').click();
+      await expect(lit('time.speaking/A')).toHaveClass(/imported-design-on/);
+      await expect.poll(() => secs(timeA), { message: 'A counts down' }).toBeLessThan(300);
+      await expect(timeB).toHaveText('05:00');
+      await press('switch').click();
+      await expect(lit('time.speaking/B')).toHaveClass(/imported-design-on/);
+      await expect(lit('time.speaking/A')).not.toHaveClass(/imported-design-on/);
+      const heldA = await secs(timeA);
+      await expect.poll(() => secs(timeB), { message: 'B counts down' }).toBeLessThan(300);
+      await page.waitForTimeout(1_100);
+      expect(await secs(timeA), 'A holds while B speaks').toBe(heldA);
+      await checkAir(page, air, `${t.slug}-2-b-speaking`);
+      const beforePenalty = await secs(timeB);
+      await press('penalty').click();
+      await expect(lit('penalty')).toHaveClass(/imported-design-on/);
+      expect(await secs(timeB), 'ten seconds docked from B').toBeLessThanOrEqual(beforePenalty - 9);
+      await press('reset').click();
+      await expect(timeA).toHaveText('05:00');
+      await expect(timeB).toHaveText('05:00');
+      await expect(lit('time.speaking/B')).not.toHaveClass(/imported-design-on/);
+      // The allowance is the operator's: Reset puts both clocks back to it.
+      await page.getByTestId(`cue-field-${await fieldFor(air, 'Speaking time each')}`).fill('02:00');
+      await page.getByTestId('verb-update').click();
+      await press('reset').click();
+      await expect(timeA).toHaveText('02:00');
+      // A RUNNING clock as the wire stamps it: read 03:00 ten seconds ago, so it shows about 02:50
+      // and counts on from there.
+      const id = await fieldFor(air, 'Time A');
+      await air.locator('svg').first().evaluate((_, v) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [v]: `03:00@${Date.now() - 10_000}` })), id);
+      await expect.poll(() => secs(timeA), { message: 'resumed from the stamped origin' }).toBeLessThanOrEqual(171);
+      expect(await secs(timeA)).toBeGreaterThan(160);
+      // Run out: A at one second runs to 00:00 and its Out of time look lights.
+      await air.locator('svg').first().evaluate((_, v) => (window as unknown as { update(raw: string): void }).update(JSON.stringify({ [v]: `00:01@${Date.now()}` })), id);
+      await expect(timeA).toHaveText('00:00', { timeout: 4_000 });
+      await expect(lit('time.out/A')).toHaveClass(/imported-design-on/);
+      await checkAir(page, air, `${t.slug}-3-out`);
+      // Out stops the clocks (the exit's holdClocks): B running when taken off holds where it was.
+      await press('reset').click();
+      await press('switch').click();
+      await press('switch').click();
+      await expect.poll(() => secs(timeB), { message: 'B runs' }).toBeLessThan(120);
+      await page.getByTestId('verb-out').click();
+      await page.waitForTimeout(600);
+      const offAir = await secs(timeB);
+      await page.waitForTimeout(1_200);
+      expect(await secs(timeB), 'off air, nobody\'s clock runs').toBe(offAir);
+      // Taken again, the floor works as before: Switch speaker opens with A, and A runs.
+      await page.getByTestId('verb-take').click();
+      await press('switch').click();
+      await expect(lit('time.speaking/A')).toHaveClass(/imported-design-on/);
+      const atA = await secs(timeA);
+      await expect.poll(() => secs(timeA), { message: 'A runs after a new take' }).toBeLessThan(atA);
       break;
     }
     case 'lineup': {
@@ -1508,8 +1598,10 @@ type Host = {
   shown(): Promise<boolean>;
   /** A role's text and its drawn width (getBBox), or null where the package draws no such role. */
   read(name: string): Promise<{ text: string; width: number } | null>;
-  /** Where a role's layer starts on screen (its left edge), or null where none is drawn. */
+  /** How far a role's layer has been moved along x (the offset of the group that moves it, a crawl's run), or null where none is drawn. */
   left(name: string): Promise<number | null>;
+  /** The text of the first element a selector finds, or null. */
+  textOf(selector: string): Promise<string | null>;
   update(d: Record<string, string>): Promise<void>;
   event(name: string): Promise<void>;
   close(): Promise<void>;
@@ -1539,7 +1631,11 @@ async function packageHost(page: Page, context: BrowserContext, id: string, file
         const el = graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${name}"]`) as SVGGraphicsElement | null;
         return el ? { text: (el.textContent ?? '').trim(), width: el.getBBox().width } : null;
       }, { tag, name }),
-      left: (name) => page.evaluate(({ tag, name }) => graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${name}"]`)?.getBoundingClientRect().left ?? null, { tag, name }),
+      left: (name) => page.evaluate(({ tag, name }) => {
+        const el = graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${name}"]`);
+        return el ? ((el.parentNode as SVGGElement).transform?.baseVal.consolidate()?.matrix.e ?? 0) : null;
+      }, { tag, name }),
+      textOf: (selector) => page.evaluate(({ tag, selector }) => graphicBody(document.getElementById(tag)!).querySelector(selector)?.textContent?.trim() ?? null, { tag, selector }),
       update: (d) => page.evaluate(({ tag, d }) => (document.getElementById(tag) as El).updateAction({ data: d }).then(() => undefined), { tag, d }),
       event: (name) => page.evaluate(({ tag, name }) => (document.getElementById(tag) as El).customAction({ id: name, payload: {} }).then(() => undefined), { tag, name }),
       close: () => page.evaluate((tag) => (document.getElementById(tag) as El).dispose().then(() => undefined), tag),
@@ -1559,7 +1655,11 @@ async function packageHost(page: Page, context: BrowserContext, id: string, file
       const el = document.querySelector(`[data-noacg-role~="${name}"]`) as SVGGraphicsElement | null;
       return el ? { text: (el.textContent ?? '').trim(), width: el.getBBox().width } : null;
     }, name),
-    left: (name) => view.evaluate((name) => document.querySelector(`[data-noacg-role~="${name}"]`)?.getBoundingClientRect().left ?? null, name),
+    left: (name) => view.evaluate((name) => {
+      const el = document.querySelector(`[data-noacg-role~="${name}"]`);
+      return el ? ((el.parentNode as SVGGElement).transform?.baseVal.consolidate()?.matrix.e ?? 0) : null;
+    }, name),
+    textOf: (selector) => view.evaluate((selector) => document.querySelector(selector)?.textContent?.trim() ?? null, selector),
     update: (d) => w('update', JSON.stringify(d)),
     event: (name) => w('noacgDispatch', name),
     close: () => view.close(),
@@ -1696,23 +1796,25 @@ test('Ticker crawl and Word cloud: the crawl travels and the staged words fill t
   for (const id of EXPORT_IDS) {
     const h = await packageHost(page, context, id, crawlPackages[id], first);
     await expect.poll(async () => (await h.read('crawl'))?.text ?? '', { message: `${id}: the items as one run` }).toContain('Parking at the east gate');
-    const a = (await h.left('crawl')) ?? 0;
-    await expect.poll(async () => a - ((await h.left('crawl')) ?? 0), { message: `${id}: it travels right to left` }).toBeGreaterThan(3);
+    // The pace, in the moving group's units a second: the median of five tenths, so a wrap of the
+    // loop inside one of them does not count (the text's own box is not a measure: the copies
+    // before the start are laid again once the layers rest, which moves it and not the picture).
+    const pace = async () => {
+      const steps: number[] = [];
+      let at = (await h.left('crawl')) ?? 0;
+      for (let i = 0; i < 5; i++) {
+        await page.waitForTimeout(100);
+        const now = (await h.left('crawl')) ?? 0;
+        steps.push((at - now) * 10);
+        at = now;
+      }
+      return steps.sort((x, y) => x - y)[2];
+    };
+    await expect.poll(pace, { message: `${id}: it travels right to left` }).toBeGreaterThan(5);
     if (id !== 'html-overlay') {
       await h.update({ [crawl.ids.Items]: 'The bar closes at midnight' });
       await expect.poll(async () => (await h.read('crawl'))?.text ?? '', { message: `${id}: a new list as data` }).toContain('The bar closes at midnight');
       // Scroll speed as data re-times the run: 400% is well past twice the pace.
-      const pace = async () => {
-        const steps: number[] = [];
-        let at = (await h.left('crawl')) ?? 0;
-        for (let i = 0; i < 5; i++) {
-          await page.waitForTimeout(100);
-          const now = (await h.left('crawl')) ?? 0;
-          steps.push((at - now) * 10);
-          at = now;
-        }
-        return steps.sort((x, y) => x - y)[2];
-      };
       const slow = await pace();
       await h.update({ [crawl.ids.Items]: 'The bar closes at midnight', [crawl.ids['Scroll speed (%)']]: '400' });
       await expect.poll(pace, { message: `${id}: Scroll speed as data` }).toBeGreaterThan(slow * 2);
@@ -1732,6 +1834,33 @@ test('Ticker crawl and Word cloud: the crawl travels and the staged words fill t
     if (id !== 'html-overlay') {
       await h.update({ [cloud.ids.Words]: 'Calm | 1' });
       await expect.poll(() => h.lit(slots), { message: `${id}: one word as data` }).toEqual(['word/1']);
+    }
+    await h.close();
+  }
+});
+
+test('Speaking timer: the floor passes and the clocks run in every export target', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  // P6: Switch speaker as an event gives A the floor and A's clock runs; a time sent as data for
+  // B is B's; Reset clocks puts both back, in every host that sends events and data.
+  const timer = await prepareExport(page, 'speaking-timer', ['Time B']);
+  const packages = await exportPackages(page, timer.production, {});
+  const clock = (h: Host, side: string) => h.textOf(`[data-speaking="${side}"]`);
+  for (const id of EXPORT_IDS) {
+    const h = await packageHost(page, context, id, packages[id], {});
+    await expect.poll(() => clock(h, 'a'), { message: `${id}: A at the allowance` }).toBe('05:00');
+    if (id !== 'html-overlay') {
+      await h.event('switch');
+      await expect.poll(() => h.lit(['time.speaking/A', 'time.speaking/B']), { message: `${id}: A has the floor` }).toEqual(['time.speaking/A']);
+      await expect.poll(() => clock(h, 'a'), { message: `${id}: A's clock runs`, timeout: 4_000 }).not.toBe('05:00');
+      expect(await clock(h, 'b'), `${id}: B's clock waits`).toBe('05:00');
+      await h.event('penalty');
+      await expect.poll(() => h.lit(['penalty']), { message: `${id}: Penalty lights` }).toEqual(['penalty']);
+      await h.update({ [timer.ids['Time B']]: '01:30' });
+      await expect.poll(() => clock(h, 'b'), { message: `${id}: a time for B as data` }).toBe('01:30');
+      await h.event('reset');
+      await expect.poll(() => h.lit(['time.speaking/A', 'time.speaking/B']), { message: `${id}: Reset clears the floor` }).toEqual([]);
+      await expect.poll(() => clock(h, 'b'), { message: `${id}: Reset puts B back` }).toBe('05:00');
     }
     await h.close();
   }

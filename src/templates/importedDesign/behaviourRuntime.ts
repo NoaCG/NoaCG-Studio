@@ -396,6 +396,17 @@ noacgKinds['word-counts'] = {
   }
 };
 
+// speaking: one side's clock of a speaking timer (svg-template-library TL6), run by the built-in
+// debate engine emitted beside this runtime (spec.side "a" or "b"). "expired" holds while that
+// side has run out of time, as the engine says it; the engine repaints when that changes.
+noacgKinds.speaking = {
+  fact: function (id, spec, name) {
+    if (name === 'expired') return typeof debateExpired !== 'undefined' && !!debateExpired[spec.side === 'b' ? 'b' : 'a'];
+    return false;
+  },
+  derive: noacgKinds.text.derive
+};
+
 // puzzle: a phrase laid over tiles, one character per row in row order, with the letters the
 // operator has revealed in a companion field (spec.revealed). Derives each tile's "letter";
 // facts per tile: "used" where the phrase has a character other than a space, "shown" where that

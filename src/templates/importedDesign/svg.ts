@@ -499,7 +499,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PRE
   const js =
     runtimeJs(name, preset.emit(cfg)).replace(
       PLACED_TEXT_HOOK,
-      `${matchClock ? `${IMPORTED_CLOCK_HOOK}\n` : ''}${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}${creditsField ? `\n${creditsHook}` : ''}${qrAt !== -1 ? `\n${QR_HOOK}` : ''}`,
+      `${matchClock ? `${IMPORTED_CLOCK_HOOK}\n` : ''}${behaviour?.preFitHook ? `${behaviour.preFitHook}\n` : ''}${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}${creditsField ? `\n${creditsHook}` : ''}${qrAt !== -1 ? `\n${QR_HOOK}` : ''}`,
     ) +
     SVG_FIT_JS +
     // The relationship TABLE rides only for a design that declares something in it - a growth

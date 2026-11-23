@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Speaking timer</title>
+  <desc>NoaCG Clean Studio template. A debate board: a Stage over two sides, each with a Label, a Debater and a Time on its own plate. Speaking A or B lights the side holding the floor, Out of time A or B a side that has run out, and Penalty shows when time is docked. Switch speaker passes the floor; one clock runs at a time.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="300" y="800" width="1320" height="220" rx="20" fill="#FFFFFF"/>
+    <rect id="Time_box_A" inkscape:label="Time box A" x="700" y="884" width="236" height="104" rx="14" fill="#F3F5F9"/>
+    <rect id="Time_box_B" inkscape:label="Time box B" x="984" y="884" width="236" height="104" rx="14" fill="#F3F5F9"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Speaking_A" inkscape:label="Speaking A" style="display:none">
+      <rect x="700" y="884" width="236" height="104" rx="14" fill="#E8EEFF"/>
+      <rect x="700" y="980" width="236" height="8" rx="4" fill="#2E5BFF"/>
+    </g>
+    <g id="Out_of_time_A" inkscape:label="Out of time A" style="display:none">
+      <rect x="700" y="884" width="236" height="104" rx="14" fill="#FDE8E8"/>
+      <rect x="700" y="980" width="236" height="8" rx="4" fill="#E5484D"/>
+    </g>
+    <g id="Speaking_B" inkscape:label="Speaking B" style="display:none">
+      <rect x="984" y="884" width="236" height="104" rx="14" fill="#E8EEFF"/>
+      <rect x="984" y="980" width="236" height="8" rx="4" fill="#2E5BFF"/>
+    </g>
+    <g id="Out_of_time_B" inkscape:label="Out of time B" style="display:none">
+      <rect x="984" y="884" width="236" height="104" rx="14" fill="#FDE8E8"/>
+      <rect x="984" y="980" width="236" height="8" rx="4" fill="#E5484D"/>
+    </g>
+    <g id="Penalty" style="display:none">
+      <rect x="876" y="814" width="168" height="44" rx="10" fill="#E5484D"/>
+      <text x="960" y="845" text-anchor="middle" font-size="22" font-weight="800" fill="#FFFFFF" font-family="Manrope, sans-serif" letter-spacing="3">PENALTY</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Stage" x="340" y="852" text-anchor="start" font-size="22" font-weight="800" fill="#5B6478" letter-spacing="3">OPENING STATEMENTS</text>
+    <text id="Label_A" inkscape:label="Label A" x="340" y="912" text-anchor="start" font-size="20" font-weight="800" fill="#2E5BFF" letter-spacing="3">FOR</text>
+    <text id="Debater_A" inkscape:label="Debater A" x="340" y="962" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">Maya Okonkwo</text>
+    <text id="Time_A" inkscape:label="Time A" x="818" y="954" text-anchor="middle" font-size="52" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">05:00</text>
+    <text id="Time_B" inkscape:label="Time B" x="1102" y="954" text-anchor="middle" font-size="52" font-weight="800" fill="#0F1729" style="font-variant-numeric: tabular-nums">05:00</text>
+    <text id="Label_B" inkscape:label="Label B" x="1580" y="912" text-anchor="end" font-size="20" font-weight="800" fill="#2E5BFF" letter-spacing="3">AGAINST</text>
+    <text id="Debater_B" inkscape:label="Debater B" x="1580" y="962" text-anchor="end" font-size="34" font-weight="800" fill="#0F1729">Lucas Berg</text>
+  </g>
+</svg>

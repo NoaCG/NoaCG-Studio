@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Speaking timer</title>
+  <desc>Editable NoaCG SVG source. Two debaters, each with a Time: Speaking A or B lights the side holding the floor and Penalty shows when time is docked. Switch speaker passes the floor; one clock runs at a time.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="360" y="840" width="1200" height="180" rx="12" fill="#1d2b53"/>
+    <rect id="Accent" x="360" y="840" width="1200" height="8" fill="#ffcc00"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Speaking_A" inkscape:label="Speaking A" style="display:none">
+      <rect x="740" y="990" width="200" height="10" fill="#ffcc00"/>
+    </g>
+    <g id="Speaking_B" inkscape:label="Speaking B" style="display:none">
+      <rect x="980" y="990" width="200" height="10" fill="#ffcc00"/>
+    </g>
+    <g id="Penalty" style="display:none">
+      <rect x="880" y="852" width="160" height="40" fill="#e5484d"/>
+      <text x="960" y="882" text-anchor="middle" font-size="26" font-weight="700" fill="#ffffff" font-family="Oswald, sans-serif">PENALTY</text>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Oswald, sans-serif">
+    <text id="Debater_A" inkscape:label="Debater A" x="400" y="950" text-anchor="start" font-size="40" font-weight="700" fill="#ffffff">MAYA OKONKWO</text>
+    <text id="Time_A" inkscape:label="Time A" x="840" y="975" text-anchor="middle" font-size="64" font-weight="600" fill="#ffcc00">05:00</text>
+    <text id="Time_B" inkscape:label="Time B" x="1080" y="975" text-anchor="middle" font-size="64" font-weight="600" fill="#ffcc00">05:00</text>
+    <text id="Debater_B" inkscape:label="Debater B" x="1520" y="950" text-anchor="end" font-size="40" font-weight="700" fill="#ffffff">LUCAS BERG</text>
+  </g>
+</svg>

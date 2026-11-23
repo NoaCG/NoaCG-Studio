@@ -479,6 +479,12 @@ async function runExample(page: Page, testInfo: TestInfo, example: Example): Pro
       await expect(role(air, 'word/2')).toHaveClass(/imported-design-on/);
       await expect(role(air, 'word/3')).not.toHaveClass(/imported-design-on/);
       break;
+    case 'speaking':
+      // SPEAKING TIMER (TL6): Switch speaker gives A the floor and A's clock runs.
+      await page.getByTestId('cue-action-switch').click();
+      await expect(role(air, 'time.speaking/A')).toHaveClass(/imported-design-on/);
+      await expect(air.locator('[data-speaking="a"]')).not.toHaveText('05:00', { timeout: 4_000 });
+      break;
     case 'puzzle':
       await fill(page, air, 'Puzzle', 'BROADCAST');
       await fill(page, air, 'Guess', 'B');

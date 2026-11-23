@@ -931,8 +931,10 @@ Group 2 (Risky): Crawl (ticker crawl, end-credits crawl) and Word cloud.
     a second for an artwork 1920 units wide (scaled with the artwork's width), times the graphic's
     motion speed, times Scroll speed over 100 clamped to 10 to 400, as the built-in marquee. It
     starts at the take from where it was drawn and, after one run, starts that run again without
-    a jump. A list in a right-to-left script (Hebrew, Arabic) travels right to left as well, as the
-    built-in marquee's does (decided at build, reversible; reported to the coordinator).
+    a jump. A list in a right-to-left script (Hebrew, Arabic) travels right to left as well: parity
+    with the built-in marquee, which has no right-to-left handling, decided at build and reversible.
+    Each such item then enters end-first, against its reading order (broadcast tickers in those
+    scripts usually scroll left to right); the choice is the owner's, raised by the coordinator.
   - K3. A data write that changes Items starts the run again from where the text was drawn; one
     that changes only the speed changes the rate of the run in progress without moving the text;
     one that changes neither, a state entry other than the take, and a clock tick leave it moving.
@@ -994,9 +996,19 @@ Group 2 (Risky): Crawl (ticker crawl, end-credits crawl) and Word cloud.
     share).
   - G2 (amended). Reimport of a crawl or a word cloud keeps every matched field id and cue value.
 
-Group 3 (Risky): Speaking timer (two clocks, one floor) and Notification queue.
+Group 3 (Risky): Speaking timer (two clocks, one floor); Event notification on the Pop-up alert (N5).
 
-- Row class: Risky (a new kind, the engine it reads, and a queue a template keeps). Rules written
+- Previous verified `main`: `b787c77d6622f3e44179ce9821ffa41693010949` (group 2, #2712, merged). Revert: `git revert -m 1 <the TL6 group 3 merge commit>`.
+- Built: the Speaking timer recipe (`behaviours/speaking.ts`): the built-in's machine and
+  controls through `withRepaint`, its engine (`debateFloorRuntimeJs`, now given the parts it
+  drives; the built-in board's bytes are unchanged) with two adjustments for artwork, the runtime
+  kind `speaking`, `data-speaking` on the clocks and the allowance and penalty holders, the
+  engine's update hook before the fit, and `holdClocks` on the exit (`RecipePath.exitCalls`).
+  Templates Speaking timer (studio) and Speaking timer, navy, and Event notification on the
+  Pop-up alert (coordinator decision below). 105 rows, 105 covered.
+- Trap: a speaking timer's clock is a field, so its text is the operator's correction channel and
+  the engine paints over it; the fit's single tspan is kept on every paint, as the match clock's.
+- Row class: Risky (a new kind and the engine it reads; the queue was withdrawn, N5). Rules written
   before any code, for the Rules-first `/so`.
 - Rules:
   - P1. A graphic imported with the Speaking timer recipe binds two text fields `Clock A` and
@@ -1035,8 +1047,13 @@ Group 3 (Risky): Speaking timer (two clocks, one floor) and Notification queue.
 - Corrections from the Rules-first `/so` (same session), each replacing or amending its rule:
   - N1 to N4 (withdrawn). `queueNotification` has no caller in the app or any export target: they
     all call `update()` and `play()`. The queue is the notification inbox the TL6 phase line says
-    is specified separately before it is built, so it is reported to the coordinator, and the
-    event-notification row stays planned.
+    is specified separately before it is built, so it was reported to the coordinator.
+  - N5 (coordinator decision on #2678, reversible). The event-notification row is covered by what
+    the built-in does in every host today: an update and a take play one complete event through
+    its lifecycle (enter, hold, a self-exit after eight seconds; Next clears it sooner). The
+    template Event notification is drawn for the Pop-up alert recipe, which does exactly that.
+    The FIFO seam (`queueNotification`) is the future inbox, specified separately in #2713 and
+    not built.
   - P2 (amended). The control wire reads exact names, which stay the built-in's: events `switch`,
     `penalty` and `reset`; the state group `floor` with states `armed`, `speakerA`, `speakerB`;
     and each stamped clock element's id is its field id (`matchClockWire.ts` reads `a.id`).
@@ -1045,6 +1062,21 @@ Group 3 (Risky): Speaking timer (two clocks, one floor) and Notification queue.
   - P6 (added, AC-7). The speaking timer plays in real time in every export target; the floor,
     the penalty and Reset are events, the clocks and the allowance data. OGraf non-real time does
     not seek it: the clocks run on the wall clock, as the built-in debate board's do.
+- Corrections from group 3's `/check` (written with the code):
+  - P1 (amended). The clocks are `Time A` and `Time B` (a `Clock` layer is the match clock's
+    word). Evidence of the recipe is a drawn `Speaking A`/`B` look, not the clocks: `Time 1` to
+    `Time 4` already name the Fixtures template's kick-off times, and the import proposed a speaking
+    timer there (caught by the browser sweep). Without a Speaking look the author chooses it. The
+    owned allowance starts at the drawn clock's time.
+  - P4 (amended). Refused at import beside a layer counted as a countdown or a match clock.
+  - G2 and G3 (amended): "bytes" means each recipe's table, words and fields. The runtime's text
+    grows by the new kinds' functions, as with every runtime word since TL2, so the corpus `emit.js`,
+    `jev-svg-baseline` `appearance.js` and credits build pins are re-recorded; a saved graphic
+    keeps the runtime it has (C7).
+  - Limit: a clock drawn as outlines is not a text layer, so it cannot be bound as a clock (a
+    placed line standing in for it is not one of the artwork's fields); keep the clocks live text
+    (SVG_AUTHORING). The final second opinion's concern that such a clock would bind and then go
+    unread by the wire does not arise.
 
 ## Test maintenance
 

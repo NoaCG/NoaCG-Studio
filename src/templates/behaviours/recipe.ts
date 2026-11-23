@@ -63,6 +63,9 @@ export interface RecipeRole {
    *  row's key, `Story 2` and `Sponsor 2` with `Slide 2`: those fields stay operator fields in
    *  the Text layer and show only while their row's look does (the rotation's slides). */
   rowFields?: boolean;
+  /** An attribute stamped on the bound FIELD's element, for a reader outside the table (the
+   *  speaking timer's `data-speaking`); `{row}` stands for the row key in lower case. */
+  attr?: { name: string; value: string };
 }
 
 /** One recipe's entry in words.json. */
@@ -82,6 +85,7 @@ interface WordsEntry {
     countdown?: boolean;
     distinctive?: boolean;
     rowFields?: boolean;
+    attr?: { name: string; value: string };
     pool?: 'text' | 'drawn';
     words: string;
     weak?: string;
@@ -114,6 +118,7 @@ export function rolesOf(recipeId: string): RecipeRole[] {
     ...(r.countdown ? { countdown: true } : {}),
     ...(r.distinctive ? { distinctive: true } : {}),
     ...(r.rowFields ? { rowFields: true } : {}),
+    ...(r.attr ? { attr: r.attr } : {}),
     ...(r.pool ? { pool: r.pool } : {}),
     words: new RegExp(r.words, 'i'),
     ...(r.weak ? { weak: new RegExp(r.weak, 'i') } : {}),
@@ -144,6 +149,9 @@ export interface RecipeField {
    *  asked of the row the look belongs to; `key` stays unique across the recipe (`revealed-1`),
    *  and is what a control's `set` names. */
   row?: { role: string; key: string };
+  /** Attributes on the field's hidden holder, for a reader outside the table (the speaking
+   *  timer's `data-speaking`, which the control wire reads). */
+  attrs?: Record<string, string>;
 }
 
 /** One extra step on the DEFAULT PATH (a quiz's Reveal, a vote's Result): a lifecycle beat that
@@ -160,6 +168,8 @@ export interface RecipePath {
   entranceCalls?: string[];
   /** Steps spliced in front of the exit, in order. */
   steps?: RecipePathStep[];
+  /** Calls the exit runs at time 0 (the speaking timer's engine stops its clocks off air). */
+  exitCalls?: string[];
 }
 
 /** What a recipe's declaration functions are handed. */
@@ -189,6 +199,9 @@ export interface RecipeContext {
   /** The text a bound TEXT layer draws in the artwork (per row when `key` is given), or '' -
    *  what a recipe-owned field may start from, so a take with nothing typed shows the drawing. */
   drawn(role: string, key?: string): string;
+  /** The value a bound artwork FIELD starts with (per row when `key` is given), or '' - what a
+   *  recipe-owned field may follow (the speaking timer's allowance, from its drawn clock). */
+  value(role: string, key?: string): string;
   /** The recipe's options as chosen, with the declaration's defaults filled in. */
   options: Record<string, string | number | boolean>;
   /** Credits only: the styled binding where the design builds it (`styledCredits`), so a still

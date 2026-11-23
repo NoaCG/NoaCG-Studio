@@ -274,3 +274,100 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   checks every entry of every zip carries it (the old builder fails that at once). `pre-plan-graphics`
   8 passed (j-0023), its G2 case included. The same three runtime pins re-taken for the runtime
   text alone, each time.
+
+## Group 3: Speaking timer, and Event notification on the Pop-up alert
+
+Row class: Risky (a new kind and the engine it reads). Rules P1 to P5 and G3 were written before
+any code and challenged by the same Rules-first `/so`; its corrections P2, P4 and P6 are in the
+phase notes. N1 to N4 are withdrawn: `queueNotification` has no caller in the app or any export
+target, so the queue is the notification inbox the phase line reserves for its own specification.
+It was reported to the coordinator, who decided (N5) that the row is covered by what the
+built-in does in every host today: one event per update and take, through enter, hold and its own
+exit. The new template Event notification does that on the Pop-up alert recipe; the inbox is #2713.
+
+### What was built
+
+- **The Speaking timer recipe** (`behaviours/speaking.ts`): rows A and B, a `Time` field per side
+  (the clock), an optional `Speaking time` field, looks `Speaking A`/`B`, `Out of time A`/`B` and
+  `Penalty`. Machine and controls are the built-in speaking timer's (groups `floor` and `penalty`,
+  events `switch`, `penalty`, `reset`), filtered through `withRepaint` with the engine's calls
+  kept. It owns `Speaking time each` (when none is drawn) and `Penalty (seconds)`.
+- **The engine** (`scoreboards/debateFloor.ts`): `debateFloorRuntimeJs` takes the ids it drives
+  and the penalty badge; with no argument it emits the built-in board's exact bytes (sha256 the
+  same before and after). On artwork it is emitted beside the behaviour runtime, wrapped so a
+  clock keeps the fit's one tspan and a side running out repaints. Its update hook runs before the
+  fit; `holdClocks` runs on the exit.
+- **The wire**: the clock fields carry `data-speaking="a"`/`"b"` and the holders `"allowance"`,
+  `"penalty"`; `speakingClocksFromHtml` reads the imported graphic's markup as it reads the
+  built-in board's (browser walk), with no control-side change.
+- `READS_ADDED`: kind `speaking` (spec `side`, fact `expired`). One clock engine per graphic:
+  `CLOCK_RECIPES` gains `speaking`.
+
+### AC-3
+
+| Template | Recognition | Controls asserted |
+| --- | --- | --- |
+| Speaking timer | automatic (`Speaking A`, `Speaking B`; the clocks are `Time A`, `Time B`) | clocks stamped for the wire, which reads both, the allowance and the penalty; Switch speaker lights Speaking A and A counts while B waits; again, B counts and A holds; Penalty lights and docks ten seconds from B; Reset clocks puts both at 05:00 and clears the floor; Speaking time each 02:00 then Reset gives 02:00; a stamped `03:00@<ten seconds ago>` as data shows 02:50 and runs; run out, 00:00 lights Out of time A |
+| Speaking timer, navy | automatic | Switch speaker lights Speaking A and its clock runs |
+| Event notification | author choice (Pop-up alert) | Next clears it; taken again, it holds and clears itself after eight seconds (the alert route's walk, as Match event) |
+
+### AC-7
+
+"Speaking timer: the floor passes and the clocks run in every export target".
+
+| Target | Mode | Asserted |
+| --- | --- | --- |
+| SPX | play, custom events, update | A at 05:00; Switch speaker gives A the floor and A's clock runs while B waits; a time for B as data shows; Reset clocks clears the floor and puts B back |
+| CasparCG | same (JSON) | same |
+| H2R | same | same |
+| HTML overlay | autoplay | the allowance; no event channel |
+| OGraf | real time: load, playAction, customAction, updateAction | same as SPX |
+| LiveOS | real time | same as SPX |
+
+OGraf non-real time does not seek the clocks: they run on the wall clock, as the built-in board's.
+
+Event notification is the Pop-up alert recipe, whose export case ("Verdict card and Chat
+highlight: Clear and Hold on air play in every export target") already plays it in every target;
+the new template adds no runtime word and changes no table.
+
+### AC-9
+
+- The built-in Debate Floor emits the bytes it did (the engine's hash is unchanged).
+- Saved graphics keep their own runtime and table; a table naming the `speaking` kind under a
+  runtime without it is refused at export, upgradable by importing again.
+- Recognition: of the repository's SVG files only the new templates carry a distinctive name of
+  the four new recipes (`Slide n`, `Crawl`, `Word n`, `Speaking A`), checked by a scan that strips
+  the row token as the proposal does. The first cut made `Time A` the evidence; the browser sweep
+  showed the Fixtures template (`Time 1` to `Time 4`) proposed as a speaking timer, so the
+  evidence is now the Speaking look.
+
+### Verification
+
+- Browser (job queue, this cloud worker): `svg-templates`, `svg-examples`, `import-svg-behaviour`
+  and `production-audience` whole on this group's commit over b787c77: 122 passed (j-0043); after
+  the final second opinion's fixes, 121 passed and one failed (j-0047): the crawl's export case
+  read the crawl text's box edge, which moves when the copies before the start are laid again at
+  rest, and OGraf saw it move right. The case now reads the moving group's offset at a pace that
+  ignores the wrap: on 24038cc it passed three times running (j-0049, 15 to 17 s each); the
+  alert batch, four templates with the new last take, took 1.1 min of its 120 s limit (j-0047). An attempt to refuse an unread clock at import
+  broke the speaking templates' import (j-0046) and was withdrawn (finding 2 below). The first
+  whole run (j-0024) failed the new Event notification once: its blue band
+  was drawn as two shapes, and the air check read the square-cornered half as a shape cutting the
+  event word; drawn as one shape, the alert batch passed (j-0027).
+- Node: `speaking-timer` (4: the built-in engine's bytes, the table, holders, machine and exit,
+  the drawn allowance, the wire attribute on each bound clock), `behaviour-reads`, `template-coverage` (105 rows, 105 covered),
+  `check-example-layers`, `check-svg-example-coverage`, `concept-names`, `svg-files`,
+  `crawl-window`, `jev-svg-baseline`, `imported-credits-model`: pass. `svg-import-passes`: only
+  the four environment records that fail the same way on `origin/main`.
+  `npm run gates -- run --changed origin/main`: 217 passed (j-0048).
+- `tsc`; `check-e2e-protection --changed origin/main` (`svg-templates` 36 -> 38, `svg-examples`
+  7 -> 7): pass. README.pdf reprinted (16 pages).
+- Final second opinion on 424f670 (A-, AGREE WITH CORRECTIONS), fixed in the next commit: the
+  alert walk now sends a new value before its last take and checks that event is on air, still up
+  five seconds in and gone by the end of the hold (what the Event notification row claims); the
+  speaking timer's export case presses Penalty in every host that takes events; a data holder's
+  attribute values are quoted for an attribute (code scanning). Its second finding, an outlined
+  clock bound and then unread by the wire, was traced and cannot arise: a placed line is not one of
+  the artwork's fields, so the clock role never binds to one (spec Limit, SVG_AUTHORING reworded).
+- The `svg-files` intermittent failure recorded earlier was found and fixed in #2712 (folder
+  entries dated at build time).

@@ -51,6 +51,25 @@ export const debateFloorSpxFields = (): SpxField[] => typeFieldsToSpx(DEBATE_FLO
  *  its own elements without the design repeating the field order a third time. */
 const idOf = (key: string): string => `f${DEBATE_FLOOR_FIELDS.findIndex((f) => f.key === key)}`;
 
+/** Where the engine finds its parts. The built-in board's are its own fixed ids and penalty badge;
+ *  an imported speaking timer (templates/behaviours/speaking.ts) names its own fields. */
+export interface DebateFloorParts {
+  clockA: string;
+  clockB: string;
+  allowance: string;
+  penalty: string;
+  /** Where "-10" is written when a penalty is docked, or '' for nowhere. */
+  penaltyBadge: string;
+}
+
+const BUILT_IN_PARTS: DebateFloorParts = {
+  clockA: idOf('clockA'),
+  clockB: idOf('clockB'),
+  allowance: idOf('allowance'),
+  penalty: idOf('penalty'),
+  penaltyBadge: '.scoreboard-penalty',
+};
+
 /**
  * THE TWO-CLOCK ENGINE — playout, not motion, so the design emits it OUTSIDE the marked
  * ANIMATION region and the timeline can never rewrite it (the shared/clock.ts rule).
@@ -84,7 +103,7 @@ const idOf = (key: string): string => `f${DEBATE_FLOOR_FIELDS.findIndex((f) => f
  * the same way. `data-speaking="a" | "b" | "allowance" | "penalty"` on the design's own markup
  * is the whole contract between them.
  */
-export function debateFloorRuntimeJs(): string {
+export function debateFloorRuntimeJs(parts: DebateFloorParts = BUILT_IN_PARTS): string {
   return `// ---- The debate floor's two clocks (playout, not motion — the machine calls into this) ----
 // One clock runs at a time: whoever holds the floor. The truth about how much time a speaker
 // has left is the number ON SCREEN, which is also the field the chair can retype mid-debate.
@@ -97,7 +116,7 @@ var debateExpired = { a: false, b: false };
 var debateDocked = null;         // the side wearing a just-taken penalty, or null
 var debateOffAir = false;        // the board has gone down, and no Take or snap has brought it back
 
-function debateClockEl(side) { return document.getElementById(side === 'a' ? '${idOf('clockA')}' : '${idOf('clockB')}'); }
+function debateClockEl(side) { return document.getElementById(side === 'a' ? '${parts.clockA}' : '${parts.clockB}'); }
 
 // WHEN the thing that is happening happened. Inside an operator event forwarded by a renderer
 // this is the log row's own server time — the same instant every renderer of the production
@@ -176,13 +195,13 @@ function debateRemaining(side) {
 
 // The allowance each speaker gets, and the size of one penalty.
 function debateAllowance() {
-  var el = document.getElementById('${idOf('allowance')}');
+  var el = document.getElementById('${parts.allowance}');
   var seconds = debateParseTime(el ? el.textContent : '');
   return seconds > 0 ? seconds : 300;
 }
 
 function debatePenaltySeconds() {
-  var el = document.getElementById('${idOf('penalty')}');
+  var el = document.getElementById('${parts.penalty}');
   var seconds = parseInt(el ? String(el.textContent).replace(/\\s+/g, '') : '', 10);
   return seconds > 0 ? seconds : 10;
 }
@@ -320,7 +339,7 @@ function resetClocks() {
 // Dock the penalty from whoever is speaking. The running clock keeps running, just shorter —
 // a penalty is a deduction, not a stoppage.
 function applyPenalty() {
-  var badge = document.querySelector('.scoreboard-penalty');
+  var badge = ${parts.penaltyBadge ? `document.querySelector('${parts.penaltyBadge}')` : 'null'};
   var cost = debatePenaltySeconds();
   if (badge) badge.textContent = '-' + cost;
   if (!debateActive) return;
@@ -368,8 +387,8 @@ function clearPenaltyMark() {
 var debateSent = { a: null, b: null };   // the last value the WIRE delivered, not the painted time
 
 function debateSideOfField(key) {
-  if (key === '${idOf('clockA')}') return 'a';
-  if (key === '${idOf('clockB')}') return 'b';
+  if (key === '${parts.clockA}') return 'a';
+  if (key === '${parts.clockB}') return 'b';
   return null;
 }
 
