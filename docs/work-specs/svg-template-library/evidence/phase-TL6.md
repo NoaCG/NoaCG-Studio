@@ -236,3 +236,14 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   is skipped; the air check reads only the runtime's own crawl clips; the K3 check now fails a
   restart (mutation-tested); Scroll speed as data is proven in every export target; a sized
   readout claims its geometry. Simplify and verify inline.
+- After the reviews of b7a9526 (automated: the pace back at 100, the too-long report; final
+  second opinion: the same report, the copy count, the K3 margin, G2's reimport) and of ca55736
+  (automated: the crawl froze under the exit, against K6; a window turned with its text clipped
+  to a larger rectangle): the crawl and word cloud walks and the export case, 3 passed (j-0021,
+  then j-0028 with the last two fixes), with Scroll speed back to 100 between 0.7 and 1.3 times
+  the first pace, Out leaving the run at its pace, and a 45-letter word reported too long then
+  cleared. `crawl-window` (new, the Ticker crawl plain and turned three degrees): the clip is the
+  drawn Crawl box and the run keeps its pace after the stop every exit runs; on the code before
+  the fix the turned clip was 1615.5 by 240.1 and the run stood still. `pre-plan-graphics` 8
+  passed (j-0023), its G2 case included. `npm run gates -- run --changed origin/main`: 161 passed
+  (j-0026). The same three runtime pins re-taken for the runtime text alone, each time.
