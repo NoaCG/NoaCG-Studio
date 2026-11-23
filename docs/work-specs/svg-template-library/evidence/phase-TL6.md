@@ -244,19 +244,25 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   one copy before its start; then the delta second opinion on 00e7cb5: a new list late in a run
   counted those copies from the run's current offset, one short) and of c875b51 (automated: a
   text anchored at its end by a style, which outranks the attribute the run set, laid its run off
-  the window): the crawl and word cloud walks and the export case, 3 passed
+  the window) and of f40315a (automated: a window and text turned steeply together were covered
+  only across the frame, short along their line): the crawl and word cloud walks and the export case, 3 passed
   (j-0021, j-0028, j-0031, and again on the final runtime, below), with Scroll speed back to 100
   between 0.7 and 1.3 times the first pace, Out leaving the run at its pace, and a 45-letter word
   reported too long then cleared. `crawl-window` (new, on the Ticker crawl template): plain, the
-  strip turned three degrees, the text itself turned three degrees, a text end-anchored by an
+  strip turned three degrees, the text itself turned three degrees, the box and the text turned
+  30 degrees together with a short run, a text end-anchored by an
   inline style the import turns into a class, and a short run drawn 900
-  units inside its window, its list changed three quarters of a copy into a run; in each the clip is the drawn Crawl box, the run fills it from its
-  leading edge to its far edge, keeps its pace after the stop every exit runs, travels along its baseline (slope
+  units inside its window, its list changed three quarters of a copy into a run. In each the clip
+  is the drawn Crawl box; the run fills it along its own baseline, from its leading edge to its
+  far edge; it keeps its pace after the stop every exit runs, travels along its baseline (slope
   0.0524 for the turned text) and rests where drawn when the list is emptied. Each defect was
   checked against the code before its fix: a probe measured the turned clip at 1615.5 by 240.1
   and the run standing still; the turned-text case fails with the x-only move (slope 0); the inset
   case fails with one copy before the start (the run's left edge at 1116.6), and its list change
   fails with the copies counted from the current offset (the left edge at 277.6, against 252),
-  and the end-anchored case fails with the anchor assumed (the run's right edge at -431.4). `pre-plan-graphics`
+  the end-anchored case fails with the anchor assumed (the run's right edge at -431.4), and the
+  30-degree case fails with the copies after the start counted across the frame (24.7 units
+  short of the far edge). A drawn textLength was checked too: the import already drops it, so
+  the run needs nothing for it. `pre-plan-graphics`
   8 passed (j-0023), its G2 case included. The same three runtime pins re-taken for the runtime
   text alone, each time.

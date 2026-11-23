@@ -1387,17 +1387,24 @@ function noacgCrawlRun(item, text, rule) {
   // wrap. Measured at the run's zero offset, whatever offset it has now (a new list resumes from
   // it): the move group's frame at zero offset IS the parent's, the window's frame (item.poly), so
   // the start is mapped through the text's own transform alone, which carries no offset.
-  var before = 1;
+  // Copies after it reach the window's far edge along the same line, plus one run's travel: the
+  // window's length along the baseline, not its width across the frame, which a steep turn shortens.
+  var before = 1, tail = item.winW;
   if (item.poly && item.move.getCTM && item.move.getCTM()) {
     var local = item.move.getCTM().inverse().multiply(el.getCTM());
     var sy = parseFloat(item.start.y) || 0;
     var sx = local.a * item.start.x + local.c * sy + local.e, syM = local.b * item.start.x + local.d * sy + local.f;
-    var lead = Infinity;
-    for (var q = 0; q < item.poly.length; q++) lead = Math.min(lead, item.poly[q][0] * item.dir.x + item.poly[q][1] * item.dir.y);
-    var inset = sx * item.dir.x + syM * item.dir.y - lead;
-    if (inset > 0) before = Math.max(1, Math.ceil(inset / dist));
+    var lead = Infinity, far = -Infinity;
+    for (var q = 0; q < item.poly.length; q++) {
+      var along = item.poly[q][0] * item.dir.x + item.poly[q][1] * item.dir.y;
+      lead = Math.min(lead, along);
+      far = Math.max(far, along);
+    }
+    var startAlong = sx * item.dir.x + syM * item.dir.y;
+    if (startAlong - lead > 0) before = Math.max(1, Math.ceil((startAlong - lead) / dist));
+    tail = far - startAlong;
   }
-  var copies = before + 2 + Math.ceil(item.winW / dist);
+  var copies = before + 2 + Math.ceil(Math.max(0, tail) / dist);
   var all = '';
   for (var c = 0; c < copies; c++) all += once;
   el.textContent = all;
