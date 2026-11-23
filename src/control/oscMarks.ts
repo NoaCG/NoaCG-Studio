@@ -50,10 +50,8 @@ export function createOscMarks(now: () => number = Date.now, later: (run: () => 
   /** Mark an answer fresh, and stale again once its flash is over. */
   const land = (cueId: string, n: number, mark: OscMark) => {
     part.set((marks) => settle(marks, cueId, n, { ...mark, fresh: true }));
-    later(() => part.set((marks) => {
-      const { fresh: _, ...stale } = marks[cueId] ?? {};
-      return marks[cueId]?.seq === n && marks[cueId]?.fresh ? { ...marks, [cueId]: stale as OscMark } : marks;
-    }), OSC_FLASH_MS);
+    // Only this send's flash ends: a newer send's mark carries its own timer.
+    later(() => part.set((marks) => (marks[cueId]?.seq === n && marks[cueId].fresh ? { ...marks, [cueId]: mark } : marks)), OSC_FLASH_MS);
   };
   return {
     part,

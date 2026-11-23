@@ -202,11 +202,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     if (key === own && Object.entries(owed).some(([k, ids]) => k !== own && ids.includes(cue.id))) return;
     if (key !== own) delete owed[own];
     const ids = owed[key] ?? [];
-    if (ids.includes(cue.id)) {
-      keepOwed();
-      return;
-    }
-    owed[key] = [...ids, cue.id];
+    if (!ids.includes(cue.id)) owed[key] = [...ids, cue.id];
     keepOwed();
   };
   /** Send what a folder owes, in the order its cues were sent; the failures' sentences, and every
