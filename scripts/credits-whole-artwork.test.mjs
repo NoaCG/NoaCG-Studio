@@ -3,6 +3,7 @@
 // guards: src/templates/importedDesign/creditsRoll.ts
 // guards: src/templates/importedDesign/svg.ts
 // guards: docs/tutorials/template-library/SVG/end-credits-full-roll.svg
+// guards: src/components/wizard/import/stageMeasure.ts
 //
 // END CREDITS THAT ROLL THE WHOLE ARTWORK (`wholeArtwork`; the Rules are
 // docs/work-specs/svg-template-library/evidence/full-roll.md). The owner's ask: a logo, a plate or
@@ -10,7 +11,9 @@
 // "End credits, full roll" is built with and without the flag and played on a blank page: every
 // drawn element keeps its distance to every other one through the roll (R1), the extent is what
 // paints (R7), Out freezes rather than hides (R5), a re-fit mid-roll measures at rest (R11), a
-// picture swap keeps rolling (R6), and the flag means nothing to any other engine (R3).
+// picture swap keeps rolling (R6), a staggered In is waited out layer by layer (R6), and the flag
+// means nothing to any other engine (R3). The import step's evidence for the Rolls default (R8) is
+// measured on drawings laid out as the step lays them out.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { withBundledPage } from './catalog-emit.mjs';
 
 const SRC = fileURLToPath(new URL('../src/', import.meta.url));
+const ARTWORK = readFileSync(fileURLToPath(new URL('../e2e/fixtures/credits-artwork.svg', import.meta.url)), 'utf8');
 const TEMPLATE = readFileSync(fileURLToPath(new URL('../docs/tutorials/template-library/SVG/end-credits-full-roll.svg', import.meta.url)), 'utf8');
 // The same file with what must NOT count towards the extent (R7) - an artboard rectangle with no
 // fill, a transparent plate, a hidden one and a transparent hit area, each reaching far beyond the
@@ -30,7 +34,7 @@ const PADDED = TEMPLATE.replace(
 ).replace('</g>\n</svg>', '<text id="Tagline" x="960" y="1990" text-anchor="middle" font-size="24" fill="#8FA8FF">A NoaCG production</text>\n  </g>\n</svg>');
 
 /** Runs in the browser: each build, and the answers that need no document of their own. */
-function inPage({ template, padded }) {
+function inPage({ template, padded, artwork: artworkSvg }) {
   const { NOACG_SVG: R, NOACG_IMPORTED: I, NOACG_ROLL: C, NOACG_COMPOSE: P } = window;
   const designOf = (markup, behaviour) => {
     const imp = R.importSvgMarkup(markup);
@@ -40,8 +44,8 @@ function inPage({ template, padded }) {
     return { markup: imp.markup, width: imp.width, height: imp.height, fields, images, outlines: [], fonts: [], behaviour: behaviour(credits) };
   };
   const artwork = (whole) => (credits) => ({ kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits }, options: { artwork: true }, ...(whole ? { wholeArtwork: true } : {}) });
-  const build = (design) => {
-    const tpl = I.IMPORTED_SVG.create({ designSvg: design });
+  const build = (design, presetId) => {
+    const tpl = I.IMPORTED_SVG.create({ designSvg: design, ...(presetId ? { animation: { presetId } } : {}) });
     return { js: tpl.js, css: tpl.css, fields: tpl.fields, doc: P.composeDocument(tpl) };
   };
   const whole = designOf(template, artwork(true));
@@ -49,7 +53,35 @@ function inPage({ template, padded }) {
   // The flag on a binding that does not build the artwork engine (the editable roll) changes nothing.
   const editable = designOf(template, (credits) => ({ kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits }, wholeArtwork: true }));
   const editablePlain = designOf(template, (credits) => ({ kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits } }));
+  // R8's drawn-outside evidence, as the import step reads it off its own render of each drawing.
+  const outside = (markup, creditsLabel) => {
+    const imp = R.importSvgMarkup(markup);
+    const stage = document.createElement('div');
+    stage.style.cssText = 'position:absolute;left:0;top:0;width:960px';
+    stage.innerHTML = imp.markup;
+    stage.querySelector('svg').setAttribute('width', '960');
+    stage.querySelector('svg').removeAttribute('height');
+    document.body.appendChild(stage);
+    try {
+      return window.NOACG_STAGE.drawnOutsideArtboard(stage, [imp.candidates.find((c) => c.label === creditsLabel).id]);
+    } finally {
+      stage.remove();
+    }
+  };
+  const below = (markup, extra) => markup.replace('</svg>', `${extra}</svg>`);
+  const backdrop = '<rect x="-20" y="-20" width="1960" height="1120" fill="#0F1729"/>';
+  const unseen = '<rect y="1500" width="400" height="400" fill="none"/><rect y="1500" width="400" height="400" fill="#fff" opacity="0"/><rect y="1500" width="400" height="400" fill="#fff" fill-opacity="0"/><rect y="1500" width="400" height="400" fill="#fff" style="display:none"/>';
+  const logo = '<path d="M900 1300h120v80H900z" fill="#2E5BFF"/>';
+  const evidence = {
+    template: outside(template, 'Credits'),
+    textOnly: outside(artworkSvg, 'Programme text'),
+    bledBackdrop: outside(below(artworkSvg, backdrop), 'Programme text'),
+    unseen: outside(below(artworkSvg, backdrop + unseen), 'Programme text'),
+    logoBelow: outside(below(artworkSvg, backdrop + logo), 'Programme text'),
+  };
   return {
+    evidence,
+    staggered: build({ ...whole }, 'design-stagger'),
     whole: build(whole),
     text: build(text),
     padded: build(designOf(padded, artwork(true))),
@@ -147,19 +179,51 @@ async function play(context, built) {
   }
 }
 
+/** R6: a staggered In, with one wrapped layer still moving past the In's own length, holds the roll
+ *  back, hidden, until that layer lands. */
+async function playStaggered(context, built) {
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  try {
+    await page.setContent(built.doc);
+    await page.evaluate(() => document.fonts.ready);
+    const layers = await page.evaluate(() => {
+      window.play();
+      // A wrapped layer's own In, still running well after the box's: the plate.
+      const plate = document.querySelector('svg.imported-design-art [id="Panel"]');
+      window.noacgHeldIn = window.gsap.to(plate, { opacity: 1, duration: 30 });
+      return (window.NOACG_ANIM.steps[0].duration);
+    });
+    await page.waitForTimeout(layers * 1000 + 1200);
+    const held = await page.evaluate(() => ({
+      tween: window.noacgCreditsTween,
+      hidden: document.querySelector('.imported-design-credits-travel').hasAttribute('data-noacg-stopped'),
+    }));
+    await page.evaluate(() => window.noacgHeldIn.progress(1));
+    await page.waitForFunction(() => !!window.noacgCreditsTween, null, { timeout: 15000, polling: 100 });
+    const rolled = await page.evaluate(() => !document.querySelector('.imported-design-credits-travel').hasAttribute('data-noacg-stopped'));
+    return { errors, held, rolled };
+  } finally {
+    await page.close();
+  }
+}
+
 const R = await withBundledPage(
   [
     ['assets/svgImport.ts', 'NOACG_SVG'],
     ['templates/importedDesign/svg.ts', 'NOACG_IMPORTED'],
     ['templates/importedDesign/creditsRoll.ts', 'NOACG_ROLL'],
     ['preview/composeDocument.ts', 'NOACG_COMPOSE'],
+    ['components/wizard/import/stageMeasure.ts', 'NOACG_STAGE'],
   ].map(([rel, globalName]) => ({ entry: `${SRC}${rel}`, globalName })),
   async (page) => {
-    const out = await page.evaluate(inPage, { template: TEMPLATE, padded: PADDED });
+    const out = await page.evaluate(inPage, { template: TEMPLATE, padded: PADDED, artwork: ARTWORK });
     const context = await page.context().browser().newContext({ viewport: { width: 1920, height: 1080 } });
     try {
       out.played = await play(context, out.whole);
       out.paddedPlayed = await play(context, out.padded);
+      out.staggeredPlayed = await playStaggered(context, out.staggered);
     } finally {
       await context.close();
     }
@@ -222,4 +286,21 @@ test('a picture swapped mid-roll rides it; Out freezes; Take hides then rolls ag
   assert.deepEqual(P.out.frozen, { tween: null, pose: true, hidden: false });
   assert.equal(P.out.retakeHidden, true);
   assert.deepEqual(P.out.snapped, { pose: null, hidden: false, tween: null, start: null });
+});
+
+test('a staggered In holds the roll back, hidden, until every wrapped layer has landed (R6)', () => {
+  const S = R.staggeredPlayed;
+  assert.deepEqual(S.errors, []);
+  assert.deepEqual(S.held, { tween: null, hidden: true }, 'a layer still coming in: no roll yet, nothing shown');
+  assert.equal(S.rolled, true, 'once it lands, the roll starts');
+});
+
+test('the Rolls default reads what is drawn off the artboard, as the roll reads it (R8)', () => {
+  assert.deepEqual(R.evidence, {
+    template: true, // the end logo and the plate run below the artboard
+    textOnly: false, // only the credits text runs past it
+    bledBackdrop: false, // a backdrop bled past every edge stays put
+    unseen: false, // nothing that paints nothing counts
+    logoBelow: true, // an unnamed logo drawn below: the owner's case
+  });
 });
