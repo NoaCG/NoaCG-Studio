@@ -7,8 +7,8 @@
 //
 //  - The card is the one the operator just picked (`chosen`), else the remembered `joinTarget`
 //    while it is still a Join card, else the production's only Join card. With none, the caller
-//    offers the Join picker (saved designs and the built-in); with several, it asks once and the
-//    pick is remembered.
+//    offers the Join picker (saved designs and the two built-ins, control/audiencePickers.ts
+//    `joinPress`); with several, it asks once and the pick is remembered.
 //  - One Join cue per card: the cue this press made before (labelled Join card), else a cue with
 //    no link yet (a seeded cue), is updated, so a second press, a renamed link or a reload never
 //    adds a blank or second cue. Another cue the operator prepared on the card keeps its values;
@@ -41,7 +41,7 @@ export type JoinPlan =
   | { kind: 'update'; cueId: string; graphicId: string }
   /** The card has no cue: add one holding the link. */
   | { kind: 'add'; graphicId: string }
-  /** No Join card in the production: offer the picker (or the built-in when nothing is saved). */
+  /** No Join card in the production: offer the picker of designs to add (`joinPress`). */
   | { kind: 'none' }
   /** Several Join cards and none remembered: the operator picks once. */
   | { kind: 'choose' };

@@ -335,14 +335,51 @@ export function collectLeaves(win: Window): Element[] {
   const all = win.document.body.querySelectorAll<Element>('*');
   const leaves: Element[] = [];
   for (const el of all) {
-    if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue;
-    const ownsText = [...el.childNodes].some(
-      (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim().length > 0,
-    );
-    const isImage = el.tagName === 'IMG';
-    if ((ownsText || isImage) && isVisible(el, win)) leaves.push(el);
+    if (isTextOrImage(el) && isVisible(el, win)) leaves.push(el);
   }
   return leaves;
+}
+
+/** An element that owns text (a non-empty direct text node) or is a content image. */
+function isTextOrImage(el: Element): boolean {
+  if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return false;
+  if (el.tagName === 'IMG') return true;
+  return [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim().length > 0);
+}
+
+/**
+ * The visible DRAWINGS: an inline <svg> (outermost only) with drawn geometry. A graphic can be on
+ * air with no text or image at all - the Join QR Code is only its code - so for such a graphic
+ * "what a viewer can see" is its drawings. They are not leaves: the layout checks measure text,
+ * and a drawing is not text.
+ */
+function visibleDrawings(win: Window): Element[] {
+  return [...win.document.body.querySelectorAll('svg')].filter((svg) => {
+    if (svg.parentElement?.closest('svg') || !isVisible(svg, win)) return false;
+    try {
+      const box = (svg as SVGGraphicsElement).getBBox();
+      return box.width > 0 && box.height > 0;
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * Whether the graphic lays out no text and no image at all (an input-only data holder is
+ * `display: none`, so it does not count). Judged by layout, not opacity, so it reads the same
+ * before the entrance as after. Only such a graphic is judged on air by its drawings: one with
+ * words is still judged by its words, so a decorative icon can never stand in for text that
+ * failed to reveal.
+ */
+function drawsNoTextOrImage(win: Window): boolean {
+  const laidOut = (el: Element) => {
+    for (let node: Element | null = el; node && node !== win.document.body; node = node.parentElement) {
+      if (win.getComputedStyle(node).display === 'none') return false;
+    }
+    return true;
+  };
+  return ![...win.document.body.querySelectorAll<Element>('*')].some((el) => isTextOrImage(el) && laidOut(el));
 }
 
 /** Roots of measured motion (NOACG_ANIM dynamics targets): they and their subtrees travel
@@ -1208,11 +1245,13 @@ export async function benchTemplateRuntime(
     const parsedData = parseAnimData(template.js);
 
     // "On air" is measured by what a viewer can see: at least one visible text/image leaf
-    // intersecting the canvas. (A root box can legitimately have zero height when all its
-    // children are absolutely positioned, so the root's own rect proves nothing.)
+    // intersecting the canvas, or for a graphic with no text or image at all, a visible drawing.
+    // (A root box can legitimately have zero height when all its children are absolutely
+    // positioned, so the root's own rect proves nothing.)
     const canvasRect = new DOMRect(0, 0, width, height);
+    const drawingsOnly = drawsNoTextOrImage(win);
     const onAir = () =>
-      collectLeaves(win).some((el) => intersection(el.getBoundingClientRect(), canvasRect) > 0);
+      [...collectLeaves(win), ...(drawingsOnly ? visibleDrawings(win) : [])].some((el) => intersection(el.getBoundingClientRect(), canvasRect) > 0);
 
     // ── Cleared before the cue ───────────────────────────────────────────────────────
     // A keyed graphic must render NOTHING until it is cued: the template loads in

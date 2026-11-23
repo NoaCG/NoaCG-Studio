@@ -1,4 +1,9 @@
 // JOIN CARD: how viewers join, on air: a QR code and the short link (interaction spec D8, AC-11).
+// Two designs: the house card (`jc01`, the code with a label, a call to action and the link) and
+// the code alone (`jc02`, nothing to write or design). They are two forms in one file, since the
+// plate and the painter are the same. `jc02` is a hand-written variant, not a second design of the
+// join-card type: a type declares one field list, and this one has only the Join link
+// (src/templates/types/AGENTS.md); the coverage matrix lists it as a look of the join-card row.
 //
 // The QR is drawn INSIDE the graphic from its Join link field, by the encoder the graphic carries
 // in its own script (shared/qrEncoder.min.js, qrcode-generator, MIT). Nothing is fetched: an
@@ -11,7 +16,7 @@
 
 import { paletteById, type ResolvedOptions, type TemplateVariant } from '../../model/wizard';
 import { kickerCss, labelFace, panelCss } from './familyCss';
-import { defineAudienceVariant, formLines, JOIN_FORM } from './shared';
+import { defineAudienceVariant, formLines, JOIN_CODE_FORM, JOIN_FORM } from './shared';
 
 const FORM = JOIN_FORM;
 const S = FORM.lines;
@@ -122,4 +127,59 @@ ${JOIN_CSS}`,
     hasAccent: true,
     stageWidth: 820,
   }),
+);
+
+// ── The code alone ───────────────────────────────────────────────────────────
+
+const CODE_HTML = `    <!-- Join code: the QR code alone, no panel and no words. -->
+    <div class="audience-box">
+      <!-- The QR code, drawn here from the Join link by the card's own encoder. Dark modules on a
+           white plate with its quiet zone, because that is what a phone camera reads. -->
+      <div class="audience-join-qr" id="audience-join-qr" aria-hidden="true"><svg viewBox="0 0 1 1" shape-rendering="crispEdges"><path fill="#000000" d=""/></svg></div>
+    </div>`;
+
+const CODE_CSS = `/* The QR plate, and nothing around it. White, square and never tinted: a code drawn in the
+   look's colours scans badly or not at all. */
+.audience-join-qr {
+  width: calc(280px * var(--scale));   /* alone on screen, a little bigger than the house card's */
+  height: calc(280px * var(--scale));
+  background: #ffffff;             /* the plate behind the code's own quiet zone */
+  border-radius: calc(6px * var(--scale));  /* a soft corner, outside the quiet zone */
+}
+.audience-join-qr svg {
+  display: block;                  /* no inline gap under the code */
+  width: 100%;
+  height: 100%;
+}
+/* An empty Join link draws nothing. */
+.audience-join-empty .audience-join-qr {
+  display: none;
+}`;
+
+const CODE_SPEC = {
+  id: 'jc02',
+  name: 'Join QR Code',
+  blurb: 'How viewers join: only the QR code, drawn from the production link.',
+};
+
+export const jc02: TemplateVariant = defineAudienceVariant(
+  {
+    id: CODE_SPEC.id,
+    category: 'audience',
+    name: CODE_SPEC.name,
+    styleTag: 'noacg',
+    description: CODE_SPEC.blurb,
+    maxLines: JOIN_CODE_FORM.lines.length,
+    suggestedLines: formLines(JOIN_CODE_FORM),
+    logo: 'none',
+    animationPresets: ['audience-rise', 'audience-slide'],
+    defaultPalette: paletteById('noacg'),
+    defaultFontId: 'space-grotesk',
+    defaultZone: 'bottom-right',
+  },
+  { name: CODE_SPEC.name, description: CODE_SPEC.blurb, uicolor: '6' },
+  JOIN_CODE_FORM,
+  // No stageWidth: the card is the plate, a fixed square with no text in it, so it already holds
+  // one footprint whatever its link is. A stage would only add room around the code.
+  () => ({ html: CODE_HTML, css: CODE_CSS, hasAccent: false }),
 );

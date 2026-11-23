@@ -187,9 +187,10 @@ test.describe(() => {
       await expect(async () => expect(await phoneLogo()).toBeNull()).toPass({ timeout: 40_000 });
       await viewer.close();
 
-      // ADD JOIN CARD TO RUNDOWN: one press, one Join card cue whose Join link is this link; a
-      // second press, after the link is renamed below, updates that cue to the current link rather
-      // than adding a duplicate (svg-template-library AC-4).
+      // ADD JOIN CARD TO RUNDOWN: with no Join card yet the press offers both built-ins (the house
+      // card and the code alone); the pick adds one Join card cue whose Join link is this link; a
+      // second press, after the link is renamed below, goes straight to that card and updates its
+      // cue to the current link rather than adding a duplicate (svg-template-library AC-4).
       const joinCues = () =>
         ws.evaluate(async (id) => {
           const { loadShows } = await __noacgImport('/src/model/shows.ts');
@@ -199,7 +200,13 @@ test.describe(() => {
         }, showId);
       expect(await joinCues()).toEqual([]);
       await join.getByTestId('join-card-add').click();
+      const builtIns = join.getByTestId('join-choose-board');
+      await expect(builtIns).toHaveText(['House Join Card', 'Join QR Code']);
+      expect(await joinCues(), 'opening the picker adds nothing').toEqual([]);
+      await builtIns.filter({ hasText: 'Join QR Code' }).click();
       await expect(ws.getByTestId('audience-note')).toContainText('has the current link', { timeout: 20_000 });
+      await expect(ws.getByTestId('audience-note')).toContainText('on “Join QR Code”');
+      await expect(join.getByTestId('join-choose')).toHaveCount(0);
       await settleDurableWrites(ws);
       expect(await joinCues()).toEqual([joinUrl]);
 

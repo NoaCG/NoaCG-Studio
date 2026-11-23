@@ -532,6 +532,8 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   ss18: { category: 'holding', subtype: 'starting', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'description', 'headline', 'duration', 'time'], extraCapabilities: ['countdown', 'loop'] },
   ss19: { category: 'holding', subtype: 'break', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'topic', 'description', 'duration'], extraCapabilities: ['countdown', 'loop'] },
   ss20: { category: 'holding', subtype: 'starting', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['topic', 'headline', 'description', 'location', 'duration'], extraCapabilities: ['countdown', 'loop'] },
+  // The Join card as the code alone: a call to action like the house card, with no words.
+  jc02: { category: 'cta', subtype: 'qr', structures: ['corner-chip'], positionalSemantics: ['qr-content'] },
 };
 
 // ── Per-assembler fallback (single-valued, proposal §4) ─────────────────────

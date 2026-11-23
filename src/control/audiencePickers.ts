@@ -27,8 +27,11 @@ type Field = { field: string; title?: string };
 
 export type PickerKind = 'join' | 'results' | 'message' | 'words';
 
-/** The catalog Join card (templates/audience/joinCard.ts). */
-export const JOIN_CARDS: readonly { id: string; name: string }[] = [{ id: 'jc01', name: 'House Join Card' }];
+/** The catalog Join cards (templates/audience/joinCard.ts): the house card, and the code alone. */
+export const JOIN_CARDS: readonly { id: string; name: string }[] = [
+  { id: 'jc01', name: 'House Join Card' },
+  { id: 'jc02', name: 'Join QR Code' },
+];
 
 /** A saved library design, as much of it as a picker reads (model/graphicDoc.ts). */
 export interface SavedDesign {
@@ -75,6 +78,20 @@ function builtIns(kind: PickerKind): { id: string; name: string }[] {
   if (kind === 'results') return [...RESULT_BOARDS];
   if (kind === 'message') return MESSAGE_CARDS.map((name) => ({ id: name, name }));
   return [...WORD_CLOUDS];
+}
+
+/**
+ * What "Add Join card to rundown" does when the operator has not picked: open the picker while
+ * there is a choice to make (several Join cards and none remembered, or none and more than one
+ * design to add), else stage onto the one card (`null`) or add the one design there is. Either way
+ * a press ends in at most one cue.
+ */
+export function joinPress(card: string | null | 'choose', items: readonly PickerItem[]): 'choose' | { board: string } | { saved: string } | null {
+  if (card === 'choose') return 'choose';
+  if (card !== null) return null;
+  if (items.length !== 1) return 'choose';
+  const [only] = items;
+  return only.group === 'saved' ? { saved: only.id } : { board: only.id };
 }
 
 /** Whether a saved design already has its copy in the production (linked by identity). */

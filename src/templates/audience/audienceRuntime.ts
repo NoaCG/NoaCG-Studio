@@ -139,16 +139,18 @@ function audienceQueuePrev() { audienceQueueStep(-1); }`;
  * The Join card runtime: the QR encoder the card carries, and the painter that draws the Join link
  * as a code (interaction spec, Graphics ▸ Join card). Data, never state: a new link redraws the
  * code on update() and changes nothing else (docs/STATE_MACHINE_SCHEMA.md §3).
+ *
+ * `field` is the hidden source the link is in: `f2` on the house card, `f0` on the code alone.
  */
-export const AUDIENCE_JOIN_JS = `// ---- The Join card's QR code ----
+export const audienceJoinJs = (field: string): string => `// ---- The Join card's QR code ----
 
 // The encoder: qrcode-generator (MIT), carried in this file so the card needs no network.
 ${QR_ENCODER_JS.trim()}
 
-// audienceJoinPaint(): draw the Join link (the hidden #f2) as a QR code, error correction M, and
+// audienceJoinPaint(): draw the Join link (the hidden #${field}) as a QR code, error correction M, and
 // show the link without its scheme. An empty link draws nothing.
 function audienceJoinPaint() {
-  var source = document.getElementById('f2');
+  var source = document.getElementById('${field}');
   var host = document.getElementById('audience-join-qr');
   var shown = document.querySelector('.audience-join-url');
   var root = document.querySelector('.audience');
@@ -182,6 +184,9 @@ function audienceJoinPaint() {
   svg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
   modules.setAttribute('d', d);
 }`;
+
+/** The house Join card's runtime: its link is the hidden #f2. */
+export const AUDIENCE_JOIN_JS = audienceJoinJs('f2');
 
 /**
  * The word cloud runtime: draws the Words field (one `word | count` line each, most first) as words
