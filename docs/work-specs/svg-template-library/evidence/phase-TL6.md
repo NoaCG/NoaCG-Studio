@@ -344,18 +344,23 @@ the new template adds no runtime word and changes no table.
 ### Verification
 
 - Browser (job queue, this cloud worker): `svg-templates`, `svg-examples`, `import-svg-behaviour`
-  and `production-audience` whole, 122 passed (j-0030, 10.0 min), on group 3 merged with group 2's
-  final state. The first whole run (j-0024) failed the new Event notification once: its blue band
+  and `production-audience` whole on this group's commit over b787c77: 122 passed (j-0043); after
+  the final second opinion's fixes, 121 passed and one failed (j-0047): the crawl's export case
+  read the crawl text's box edge, which moves when the copies before the start are laid again at
+  rest, and OGraf saw it move right. The case now reads the moving group's offset at a pace that
+  ignores the wrap (repeated three times, below). An attempt to refuse an unread clock at import
+  broke the speaking templates' import (j-0046) and was withdrawn (finding 2 below). The first
+  whole run (j-0024) failed the new Event notification once: its blue band
   was drawn as two shapes, and the air check read the square-cornered half as a shape cutting the
   event word; drawn as one shape, the alert batch passed (j-0027).
-- Node: `speaking-timer` (3: the built-in engine's bytes, the table, holders, machine and exit,
-  the drawn allowance), `behaviour-reads`, `template-coverage` (105 rows, 105 covered),
+- Node: `speaking-timer` (4: the built-in engine's bytes, the table, holders, machine and exit,
+  the drawn allowance, the wire attribute on each bound clock), `behaviour-reads`, `template-coverage` (105 rows, 105 covered),
   `check-example-layers`, `check-svg-example-coverage`, `concept-names`, `svg-files`,
   `crawl-window`, `jev-svg-baseline`, `imported-credits-model`: pass. `svg-import-passes`: only
   the four environment records that fail the same way on `origin/main`.
-  `npm run gates -- run --changed origin/main`: 216 passed (j-0029).
-- `tsc`; `check-e2e-protection --changed origin/main` (`svg-templates` 33 -> 38, `svg-examples`
-  6 -> 7, `production-audience` 32 -> 33): pass. README.pdf reprinted (16 pages).
+  `npm run gates -- run --changed origin/main`: 217 passed (j-0048).
+- `tsc`; `check-e2e-protection --changed origin/main` (`svg-templates` 36 -> 38, `svg-examples`
+  7 -> 7): pass. README.pdf reprinted (16 pages).
 - Final second opinion on 424f670 (A-, AGREE WITH CORRECTIONS), fixed in the next commit: the
   alert walk now sends a new value before its last take and checks that event is on air, still up
   five seconds in and gone by the end of the hold (what the Event notification row claims); the
