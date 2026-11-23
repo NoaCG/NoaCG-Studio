@@ -975,6 +975,19 @@ export function titleOfCandidate(c: { id: string; label: string; sample: string;
   return words;
 }
 
+/** Every candidate's seeded title, UNIQUE: a title taken from a text's words that another row
+ *  would also carry keeps the numbered fallback, because two operator inputs with one label is a
+ *  control page nobody can read. */
+export function seededTitles(candidates: readonly Parameters<typeof titleOfCandidate>[0][]): Map<string, string> {
+  const words = new Map(candidates.map((c) => [c.id, titleOfCandidate(c)]));
+  const count = new Map<string, number>();
+  for (const t of words.values()) count.set(t, (count.get(t) ?? 0) + 1);
+  return new Map(candidates.map((c) => {
+    const t = words.get(c.id)!;
+    return [c.id, t !== c.label && (count.get(t) ?? 0) > 1 ? c.label : t];
+  }));
+}
+
 function seedTitle(index: number): string {
   return index === 0 ? 'Name' : index === 1 ? 'Title' : `Text ${index + 1}`;
 }
@@ -1803,6 +1816,7 @@ function svgDropAnswers(result: SvgImportResult): Pick<SvgImportDraft, 'svgField
   const proposed = proposeSvgBehaviour({ ...result, candidates: result.candidates.filter(c => !c.outsideCanvas) });
   const written = pollDrivenLayers(proposed);
   const furniture = (c: { id: string; drawing: boolean }) => c.drawing && !written.has(c.id);
+  const titles = seededTitles(result.candidates);
   return {
     // EVERY detected text starts ON (plan §2, zero clicks). The `f:` prefix
     // says "this is definitely a field" and names it — it never says "and
@@ -1823,7 +1837,7 @@ function svgDropAnswers(result: SvgImportResult): Pick<SvgImportDraft, 'svgField
         candidateId: c.id,
         on: !furniture(c) && !c.outsideCanvas,
         ...(c.outsideCanvas ? { whenOff: 'keep' as const } : {}),
-        title: titleOfCandidate(c),
+        title: titles.get(c.id) ?? c.label,
         sample: c.sample,
         numeric: c.numeric,
         clock: c.clock,
@@ -1890,6 +1904,8 @@ export function svgDraftFromImport(
     // proposeBannerGrowth). The measurement needs layout, which a drop handler
     // does not have, so the decision lives there rather than here.
     svgStretch: { on: false, shapeId: result.shapes[0]?.id ?? null },
+    // Boxes drawn on the previous file belong to it.
+    svgAreas: undefined,
     // Bundled faces auto-match by family name; the mapping step offers the
     // Google fetch or an upload for the rest (plan §4).
     svgFonts: result.fonts.map((f) => ({

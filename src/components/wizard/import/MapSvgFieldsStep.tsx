@@ -253,6 +253,11 @@ export default function MapSvgFieldsStep({
   });
   // While a box is being set the preview outlines THE BOX, and lights the lines in it.
   const editingBox = boxFor ? draft.svgFields.find((f) => f.candidateId === boxFor)?.box ?? null : null;
+  // The mode ends with its row: unticked, or gone with a new file.
+  const boxRowLive = !!boxFor && !!draft.svgFields.find((f) => f.candidateId === boxFor)?.on;
+  useEffect(() => {
+    if (boxFor && !boxRowLive) setBoxFor(null);
+  }, [boxFor, boxRowLive]);
   useEffect(() => {
     onHover(boxFor ? editingBox ?? boxFor : pointedId);
   }, [pointedId, onHover, boxFor, editingBox]);
@@ -1883,6 +1888,8 @@ export default function MapSvgFieldsStep({
               control that could only ever add a mistake. It renders when there is something the
               growth would actually carry, or a set the author already declared. */}
           {draft.svgStretch.on &&
+            // A CUT decides what travels (everything past it), so the list would change nothing.
+            draft.svgStretch.cuts?.[draft.svgStretch.shapeId ?? ''] == null &&
             (declaredFollowers.length > 0 || draft.svgStretch.followers != null) && (
             <div className="map-svg-followers" data-testid="map-svg-followers">
               {/* NAMED BY WHAT HAPPENS ON SCREEN (owner walk, 2026-09-01: "What travels with it

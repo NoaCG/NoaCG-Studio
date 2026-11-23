@@ -562,7 +562,8 @@ function svgRestOneRule(rule, index) {
       rest.textBase.push({ el: rest.texts[ct], base: rest.texts[ct].getAttribute('transform') });
     }
     var found = [];
-    svgCutCollect(svgArtRoot(art0), cutX, rest.texts, found);
+    // The panel is the box's own, like its lines: it widens by itself and is never split.
+    svgCutCollect(svgArtRoot(art0), cutX, rest.texts.concat([panel]), found);
     // WHICH WAY: a composition drawn CENTRED in the frame stays centred - both halves move apart
     // from the line - and one drawn against a side keeps that side and widens away from it.
     var frame0 = art0.getBoundingClientRect();
@@ -847,7 +848,8 @@ function svgCutArtWidth(root) {
 
 /** What the cut moves, read at rest: layers wholly right of the line travel right (side 1), those
  *  wholly left of it travel left when both halves move apart (side -1), and layers drawn across it
- *  are split ('cut'). The box's own lines move with their box, and text is never cut. */
+ *  are split ('cut'). The box itself and its own lines (`mine`) are never collected, and text is
+ *  never cut. */
 function svgCutCollect(node, cutX, mine, out) {
   var kids = node.children;
   for (var i = 0; i < kids.length; i++) {
