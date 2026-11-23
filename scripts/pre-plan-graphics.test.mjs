@@ -389,7 +389,8 @@ const RUN_TL6 = async ({ crawl, cloud }) => {
     const old = build(markup);
     const cue = cueOf(old);
     const before = await paint(old, cue);
-    const done = window.NOACG_DRAFT.svgReimported({ template: old, baseline: old }, build(name === 'crawl' ? crawl.edited : cloud.edited));
+    const built = build(name === 'crawl' ? crawl.edited : cloud.edited);
+    const done = window.NOACG_DRAFT.svgReimported({ template: old, baseline: old }, built);
     if (!done) { out[name] = { error: 'not a reimport' }; continue; }
     const t = done.template;
     out[name] = {
@@ -397,6 +398,7 @@ const RUN_TL6 = async ({ crawl, cloud }) => {
       unresolved: done.unresolved,
       before: old.fields.map((f) => `${f.field}:${f.title}`),
       after: t.fields.map((f) => `${f.field}:${f.title}`),
+      builtIds: built.fields.map((f) => `${f.field}:${f.title}`),
       verdict: window.NOACG_READS.behaviourReadsVerdict(t.js),
       errors: check(t),
       paintedBefore: before,
@@ -416,6 +418,7 @@ test('G2: a crawl and a word cloud imported again keep every field id, and an ol
     const r = tl6Out[name];
     assert.equal(r.error, undefined, name);
     assert.deepEqual(r.unresolved, [], name);
+    assert.notDeepEqual(r.builtIds.filter((x) => !/Badge/.test(x)), r.before, `${name}: the edit moved the built ids`);
     for (const field of r.before) assert.ok(r.after.includes(field), `${name}: ${field} kept`);
     for (const key of r.cueKeys) assert.ok(r.before.some((f) => f.startsWith(`${key}:`)), `${name}: the cue names a field of the old build`);
     assert.deepEqual(r.verdict, { status: 'ok' }, name);

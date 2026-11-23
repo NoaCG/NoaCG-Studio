@@ -223,6 +223,12 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   `imported-credits-model` (eight credits build pins re-recorded: those builds carry the runtime;
   plain imports did not move), `svg-figure-fit`: pass. `svg-import-passes`: seven `emit.js`
   re-recorded; then only the four environment records that fail the same way on `origin/main`.
+- After the review of b7a9526 (automated review: the pace back at 100, the too-long report; final
+  second opinion: the same report, the copy count, the K3 margin, G2's reimport): the crawl and
+  word cloud walks and the export case, 3 passed (j-0021), with Scroll speed back to 100 under 1.3
+  times the first pace and a 46-letter word reported too long then cleared; `pre-plan-graphics`
+  8 passed (j-0023), its G2 case included; the same three runtime pins re-taken for the runtime
+  text alone.
   `npm run gates -- run --changed origin/main`: pass.
 - `tsc`, `eslint` on the changed files, `check-e2e-protection --changed origin/main`
   (`svg-templates` 30 -> 36, `svg-examples` 6 -> 7, `production-audience` 32 -> 33): pass.
