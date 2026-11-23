@@ -2164,6 +2164,7 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await page.getByTestId('verb-take').click();
   await expect.poll(() => fake.osc.length).toBe(4);
   await expect(row.getByTestId('cue-osc-owed')).toHaveText('OUT WAITING');
+  await expect(row.getByTestId('cue-osc-sent'), 'one tag says both').toHaveCount(0);
   await page.getByTestId('verb-out').click();
   await expect.poll(() => fake.osc.length).toBe(5);
   expect(fake.osc[4]).toMatchObject({ address: '/zeros/cue/release' });

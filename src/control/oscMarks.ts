@@ -10,7 +10,7 @@
 //   SENT 14:02:31    the Bridge handed the datagram to the network (UDP has no receipt)
 //   NOT SENT         refused before or by the Bridge; the reason is the tag's title
 //   UNCERTAIN        no answer came after the request left; check the desk
-//   OUT WAITING      its On Out message goes at Out or All out
+//   OUT WAITING      sent, and its On Out message goes at Out or All out
 //
 // Marks live for the page's lifetime only: a reload starts clean, as the send ids do. No React, so
 // a Node test imports it (scripts/osc-marks.test.mjs).
@@ -95,9 +95,14 @@ export interface OscTag {
 /** How long after an answer its row flashes. */
 export const OSC_FLASH_MS = 1500;
 
-/** The row's tags: the last send's outcome, then OUT WAITING when its On Out is owed. */
+/** The row's tags: the last send's outcome, or OUT WAITING when its On Out is owed. A sent Take
+ *  that owes its On Out says so in one tag, its time in the title, since the rundown is narrow. */
 export function oscTags(mark: OscMark | undefined, owesOut: boolean): OscTag[] {
   const tags: OscTag[] = [];
+  if (owesOut && (!mark || (mark.which === 'take' && mark.state === 'sent'))) {
+    const sent = mark ? `Sent at ${clockText(mark.at)}. ` : '';
+    return [{ text: 'OUT WAITING', tone: 'owed', title: `${sent}Its On Out message is sent at Out or All out.`, testid: 'cue-osc-owed' }];
+  }
   if (mark) {
     const out = mark.which === 'out' ? 'OUT ' : '';
     const time = clockText(mark.at);

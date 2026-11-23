@@ -55,11 +55,14 @@ test('a send that throws is marked not sent and still throws', async () => {
   assert.equal(marks.part.get().L.state, 'refused');
 });
 
-test('the row\'s tags: the outcome with its time, then OUT WAITING', () => {
+test('the row\'s tags: the outcome with its time, or OUT WAITING', () => {
   const at = new Date(2026, 10, 23, 14, 2, 31).getTime();
   assert.equal(clockText(at), '14:02:31');
   assert.deepEqual(oscTags(undefined, false), []);
-  assert.deepEqual(oscTags({ which: 'take', state: 'sent', at, seq: 1 }, true).map((t) => t.text), ['SENT 14:02:31', 'OUT WAITING']);
+  const owed = oscTags({ which: 'take', state: 'sent', at, seq: 1 }, true);
+  assert.deepEqual(owed.map((t) => t.text), ['OUT WAITING'], 'one tag in a narrow rundown');
+  assert.match(owed[0].title, /^Sent at 14:02:31\./);
+  assert.deepEqual(oscTags({ which: 'take', state: 'uncertain', at, seq: 1 }, true).map((t) => t.text), ['UNCERTAIN', 'OUT WAITING'], 'a doubt is never hidden');
   assert.deepEqual(oscTags({ which: 'out', state: 'sent', at, seq: 1 }, false).map((t) => t.text), ['OUT SENT 14:02:31']);
   const refused = oscTags({ which: 'take', state: 'refused', at, seq: 1, note: 'Connect NoaCG Bridge' }, false)[0];
   assert.equal(refused.text, 'NOT SENT');
