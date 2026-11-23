@@ -85,6 +85,46 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
 - AC-6: A configured journey runs one question twice from three phones and asserts the totals the
   operator, the phones and the result cue each show.
 
+#### P1 progress (2026-11-23, branch `local/voting`, migration 0127)
+
+Owner decisions of 2026-11-23, binding: going live again on a vote with votes asks each time
+(continue, or a new count that keeps the earlier one); a per-question "Allow changing a vote",
+default on, enforced by the database; one checkbox in the composer for Multiple choice only. The
+interaction spec records them as O1 revised, O3 and O4.
+
+- AC-1 built: `audience_rounds.allow_change`, sent with Go live and part of the round's snapshot.
+  `audience_vote` refuses a second vote from a device when it is off ("your vote is already in"),
+  the vote guard refuses an update of such a vote from any writer, and the chat door counts each
+  chat voter's first vote only. The join resolve carries `allowChange`; the phone says the vote is
+  final before sending and offers no Change vote after.
+- AC-3 built: `audience_votes_export(slug, round)` (one jsonb value, so a big room is never cut at
+  PostgREST's page) and Export votes (CSV) on the selected vote and on each earlier count.
+- AC-4, the cap half: 3000 phone votes per round in ten seconds, counted over a new partial index
+  `(round_id, updated_at) where source = 'phone'` with `limit 3000`, so a vote reads at most the
+  last ten seconds' votes. Its refusal has its own words on the phone. Measured on a scratch
+  Postgres 16 with every migration applied (Supabase stubs): 0127's self-check, which casts 3000
+  phone votes into one round inside one window and sees the next refused, ran in 1.2 s, the
+  whole file again from the top in 1.5 s. Not built: the operator does not yet SEE refused votes
+  (a refusal rolls back its own transaction, so counting them needs a separate writer); and the
+  cap is sized by arithmetic on the largest room asked about, not measured in a hall.
+- AC-5 built: Continue the count or Start a new count, asked at the press. A new count moves the
+  counted round aside (`question_id` cleared, `earlier_of` kept) under Go live's production lock;
+  the earlier counts are listed under the question with date, totals and a CSV.
+- AC-6, in part: `e2e/configured/audience-live.spec.ts` runs one vote three times from three
+  phone browsers (count, continue with a changed vote, a new count) and asserts the panel's
+  counts, each phone's read-back and both CSV files agree, then a final vote refused in the
+  phone's words. The result cue's figures are not asserted in that journey.
+- AC-2 not built: Stop does not yet freeze a separate snapshot. Votes cannot reach a closed round
+  (the guard and every door check it is open), and an earlier count can never reopen, so its
+  counts are already fixed; a stopped current count can still be continued or cleared.
+- Rehearsal: the local provider follows the same rules (new count, final vote, export with a local
+  voter key); `scripts/interaction-lifecycle.test.mjs`, `scripts/interaction-questions.test.mjs`
+  and `scripts/vote-export.test.mjs` pin them, and `e2e/production-audience.spec.ts` walks them.
+- Trap: an earlier count is an `audience_rounds` row with no `question_id`. Code that maps rounds
+  by question (`roundOf`, `roundsToFinalise`, the result cues) skips it by that alone; the
+  messages' "Earlier questions" filter now counts Open rounds only, so a moved vote round does not
+  offer an empty filter.
+
 ### P2. Playout readiness without republishing (now; independent of P1)
 
 - AC-1: Decide and run step 10 of `docs/work-specs/live-publishing/phase-9-checklist.md`: switch
@@ -133,7 +173,8 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
 
 1. Three phones vote, the question stops, goes live again, two phones change their vote: totals
    on the operator panel, the phones' read-back and the result cue agree.
-2. Duplicate the question and run it: it starts at zero.
+2. Run the question again: Go live asks; Start a new count starts at zero and lists the earlier
+   count with its CSV. Run a question with "Allow changing a vote" off: a phone cannot change it.
 3. Deploy during the session (or reload one phone after a deploy) and vote from a phone opened
    before it.
 4. Add a Join card to the published rundown: the status names it in amber until published.
@@ -147,7 +188,8 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
 - One playout operator owns Take and the Stream Deck; one person publishes; one runs audience
   questions; at most two people edit the rundown, never the same cue.
 - Publish after adding any graphic, sound or card, and wait for the status to leave amber.
-- For a fresh vote on the same question, Stop and Clear results, or Duplicate it.
+- For a fresh vote on the same question, press Go live and choose Start a new count (after P1
+  lands; before it, Stop and Clear results, or Duplicate it).
 - Ask the audience to press Vote and check "Your vote" on their phone.
 - If Companion's buttons show errors while NoaCG is green, open Setup, Panel and pair again; a new
   module download is needed only when Companion says to update it.

@@ -13,8 +13,9 @@
 // see the same inbox.
 //
 // THE ROOM is kept too (interaction spec R15): each question's round, what is live, the votes and
-// what a rehearsal phone tab or a chat source sent. A question's result is one round for the life
-// of the production (O1), a pasted message files under a round by id, and the production's other
+// what a rehearsal phone tab or a chat source sent. A question's current result is one round (O1),
+// a vote's earlier counts are kept rounds of their own (O1 revised, 0127), a pasted message files
+// under a round by id, and the production's other
 // tabs and a rehearsal phone (`/join?rehearse=<id>`) have to see the same live question, so none of
 // that can live in one tab's memory. Clear results is how a rehearsal's answers are removed.
 // SIMULATED rows stay in memory, as before: invented questions must never accumulate.

@@ -109,20 +109,23 @@ live: the waiting text.
   an `audience_rounds` row extended with `question_id` (unique per production) and the kinds
   `open` and `word`, holding a snapshot of the text and options. Answers carry its `round_id`;
   votes already do. A viewer has one vote per question and can change it while the question is
-  live.
+  live, unless the question does not allow changing a vote (O3). A vote may also hold EARLIER
+  COUNTS: going live on a stopped vote that has votes asks each time (O1, revised 2026-11-23), and
+  a new count keeps the earlier round as an earlier count of that question.
 - **Go live** is one server function, `audience_go_live(slug, question)`: in one transaction it
   closes any other open round, opens this question's round (creating it the first time,
   reopening it after), and sets the state's mode, prompt and `question_id`. **Stop** is
   `audience_stop(slug)`: closes the round and sets waiting. Both bump `rev`. Concurrent presses
   end with exactly one open round: the later transaction wins. Going live again continues the
-  same count. The local provider does the same in memory.
+  same count, unless the operator chose Start a new count (O1, revised). The local provider does
+  the same in memory.
 - **Server checks**: `audience_submit` and `audience_vote` take the round id and the round's
   **revision** the phone read, and refuse a round that is not open or a revision that is not
   current; `question_id` is never taken from the client. The revision changes whenever the
   round's snapshot can change (an edit going live, Clear results), never on a plain reopen, so a
   phone that read the same question earlier still counts into the same result.
-- **Editing**: text and options are locked while the question is live, and locked once it has
-  answers, so the result always matches what was asked; Duplicate makes a new question that
+- **Editing**: text, options and the change policy are locked while the question is live, and
+  locked once it has answers, so the result always matches what was asked; Duplicate makes a new question that
   starts from zero. Type never changes after creation.
 - **Clear results**: in the question's menu, two presses, only while the question is not live.
   It removes that question's answers and votes (server function `audience_clear_results`) so a
@@ -328,6 +331,36 @@ notes".
   for a question, you can just make a new question."
 - **O2. Clear results** for testing, as above. Owner: "Yes, let's add the Clear Results button.
   It can be very useful when testing."
+
+## Owner decisions after the studio session (2026-11-23)
+
+From the studio session of 2026-11-23 (docs/work-specs/live-production-reliability/spec.md, P1).
+
+- **O1, revised: going live again asks each time.** Go live on a Multiple choice question that is
+  stopped and whose result has votes offers Continue the count (O1 as it was) or Start a new
+  count. A new count starts from zero and keeps the earlier result: its round is moved aside
+  (`question_id` cleared, `earlier_of` naming the question) in the same transaction and under the
+  same production row lock as every Go live, and it never goes live again, so a phone holding it
+  is refused as "That question has closed" and never counted into the new one. The selected
+  question lists its earlier counts with their date, totals and a CSV each. Clear results clears
+  the current count only. Open and Word questions keep one result: their answers are messages
+  filed by round, and a moved round would take them out of the question's message filter.
+  Migration 0127.
+- **O3. The change policy.** Each Multiple choice question has one setting, "Allow changing a
+  vote", on by default (as before). Off, a device's first vote is final: the database refuses a
+  second one ("your vote is already in"), the vote guard refuses an update of such a vote from any
+  writer, and a chat voter's first counted vote is final too. The phone is told before it votes
+  ("Your vote can't be changed after you send it.") and offers no Change vote after. The setting
+  is part of what was asked: it is sent with Go live, locked while live and once the question has
+  votes, and a change moves the round's revision.
+- **O4. Votes export.** "Export votes (CSV)" on the selected vote, and a CSV beside each earlier
+  count: each vote's time (when the server last took it), option letter and words, source (phone
+  or chat) and a voter key that is not the device token (ten hex digits of md5 of the round id and
+  the token, so one device is one voter within a count and cannot be followed across counts).
+  Read by the control slug, like the tally (`audience_votes_export`).
+- **The burst cap** on phone votes is 3000 per round in any ten seconds (was 300), counted with a
+  bound over its own index, and its refusal says "Too many votes at once. Try again in a few
+  seconds." on the phone. The reasoning is in migration 0127's header.
 
 ## Review revisions (2026-11-09)
 
