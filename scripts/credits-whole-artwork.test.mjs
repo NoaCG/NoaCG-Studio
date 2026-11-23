@@ -1,0 +1,215 @@
+// needs: browser
+// guards: src/templates/importedDesign/creditsArtwork.ts
+// guards: src/templates/importedDesign/creditsRoll.ts
+// guards: src/templates/importedDesign/svg.ts
+// guards: docs/tutorials/template-library/SVG/end-credits-full-roll.svg
+//
+// END CREDITS THAT ROLL THE WHOLE ARTWORK (`wholeArtwork`; the Rules are
+// docs/work-specs/svg-template-library/evidence/full-roll.md). The owner's ask: a logo, a plate or
+// anything else drawn in the file rolls with the credits as one picture. The library's
+// "End credits, full roll" is built with and without the flag and played on a blank page: every
+// drawn element keeps its distance to every other one through the roll (R1), the extent is what
+// paints (R7), Out freezes rather than hides (R5), a re-fit mid-roll measures at rest (R11), a
+// picture swap keeps rolling (R6), and the flag means nothing to any other engine (R3).
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { withBundledPage } from './catalog-emit.mjs';
+
+const SRC = fileURLToPath(new URL('../src/', import.meta.url));
+const TEMPLATE = readFileSync(fileURLToPath(new URL('../docs/tutorials/template-library/SVG/end-credits-full-roll.svg', import.meta.url)), 'utf8');
+// The same file with what must NOT count towards the extent (R7) - an artboard rectangle with no
+// fill, a transparent plate and a hidden one, each reaching far below the drawing - and a second
+// live text the fit ladder owns (R11).
+const PADDED = TEMPLATE.replace(
+  '<g id="Board"',
+  '<rect id="Artboard" width="1920" height="6000" fill="none"/><rect id="Ghost" y="-3000" width="10" height="9000" opacity="0"/><rect id="Hidden" y="-3000" width="10" height="9000" visibility="hidden"/><g id="Board"',
+).replace('</g>\n</svg>', '<text id="Tagline" x="960" y="1990" text-anchor="middle" font-size="24" fill="#8FA8FF">A NoaCG production</text>\n  </g>\n</svg>');
+
+/** Runs in the browser: each build, and the answers that need no document of their own. */
+function inPage({ template, padded }) {
+  const { NOACG_SVG: R, NOACG_IMPORTED: I, NOACG_ROLL: C, NOACG_COMPOSE: P } = window;
+  const designOf = (markup, behaviour) => {
+    const imp = R.importSvgMarkup(markup);
+    const fields = imp.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
+    const images = imp.images.map((c) => ({ candidateId: c.id, title: c.label }));
+    const credits = fields.findIndex((f) => f.title === 'Credits');
+    return { markup: imp.markup, width: imp.width, height: imp.height, fields, images, outlines: [], fonts: [], behaviour: behaviour(credits) };
+  };
+  const artwork = (whole) => (credits) => ({ kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits }, options: { artwork: true }, ...(whole ? { wholeArtwork: true } : {}) });
+  const build = (design) => {
+    const tpl = I.IMPORTED_SVG.create({ designSvg: design });
+    return { js: tpl.js, css: tpl.css, fields: tpl.fields, doc: P.composeDocument(tpl) };
+  };
+  const whole = designOf(template, artwork(true));
+  const text = designOf(template, artwork(false));
+  // The flag on a binding that does not build the artwork engine (the editable roll) changes nothing.
+  const editable = designOf(template, (credits) => ({ kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits }, wholeArtwork: true }));
+  const editablePlain = designOf(template, (credits) => ({ kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits } }));
+  return {
+    whole: build(whole),
+    text: build(text),
+    padded: build(designOf(padded, artwork(true))),
+    engines: { whole: C.isWholeArtworkCredits(whole), text: C.isWholeArtworkCredits(text), editable: C.isWholeArtworkCredits(editable) },
+    editableSame: JSON.stringify(build(editable).js) === JSON.stringify(build(editablePlain).js),
+  };
+}
+
+/** Plays one build: rest, take, three poses, a re-fit, a picture swap, Out and a second take. */
+async function play(context, built) {
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  try {
+    await page.setContent(built.doc);
+    await page.evaluate(() => document.fonts.ready);
+    const boxes = () => {
+      const art = document.querySelector('svg.imported-design-art');
+      const box = (el) => {
+        const b = el.getBoundingClientRect();
+        return { top: b.top, bottom: b.bottom };
+      };
+      return {
+        frame: box(document.body),
+        logo: box(art.querySelectorAll('image')[0]),
+        endLogo: box(art.querySelectorAll('image')[1]),
+        panel: box(art.querySelector('[id="Panel"]')),
+        credits: box(art.querySelector('.imported-design-credits')),
+      };
+    };
+    const rest = await page.evaluate(() => {
+      const art = document.querySelector('svg.imported-design-art');
+      const tagline = [...art.querySelectorAll('text')].find((t) => t.textContent === 'A NoaCG production');
+      return {
+        wrapper: !!art.querySelector(':scope > .imported-design-credits-travel[data-noacg-whole]'),
+        rootKids: [...art.children].map((k) => k.localName),
+        tagline: tagline ? tagline.outerHTML : null,
+      };
+    });
+    await page.evaluate(() => window.play());
+    // Polled on a timer: a page in the background gets no animation frames to poll on.
+    await page.waitForFunction(() => !!(window.noacgCreditsLast && window.noacgCreditsTween), null, { timeout: 15000, polling: 100 });
+    const pose = (at) => page.evaluate(([at, read]) => {
+      window.noacgCreditsTween.pause();
+      window.noacgCreditsTween.progress(at);
+      return new Function(`return (${read})();`)();
+    }, [at, boxes.toString()]);
+    const start = await pose(0);
+    const mid = await pose(0.5);
+    const end = await pose(1);
+    const last = await page.evaluate(() => ({ ...window.noacgCreditsLast }));
+    // R11: a re-fit with everything rolled out of the frame measures the artwork at rest.
+    const refit = await page.evaluate(() => {
+      const art = document.querySelector('svg.imported-design-art');
+      const travel = art.querySelector('.imported-design-credits-travel');
+      const before = travel.getAttribute('transform');
+      let seen = 'unset';
+      const measured = window.measureSvgBudgets;
+      window.measureSvgBudgets = function () {
+        seen = travel.getAttribute('transform');
+        return measured.apply(this, arguments);
+      };
+      window.refitSvgText();
+      window.measureSvgBudgets = measured;
+      const tagline = [...art.querySelectorAll('text')].find((t) => t.textContent === 'A NoaCG production');
+      return { before, after: travel.getAttribute('transform'), seen, tagline: tagline ? tagline.outerHTML : null };
+    });
+    // R6: the operator replaces a picture mid-roll; the roll keeps going and the picture rides it.
+    const swap = await page.evaluate(() => {
+      window.noacgCreditsTween.progress(0.5);
+      const field = (window.SPXGCTemplateDefinition.DataFields ?? []).find((f) => f.ftype === 'filelist');
+      const tween = window.noacgCreditsTween;
+      window.update(JSON.stringify({ [field.field]: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' }));
+      const image = document.getElementById(field.field);
+      return { sameTween: window.noacgCreditsTween === tween, inside: !!image.closest('.imported-design-credits-travel') };
+    });
+    // R5: Out freezes the pose and lets the graphic's Out play; Take hides first, then rolls again.
+    const out = await page.evaluate(() => {
+      const travel = document.querySelector('.imported-design-credits-travel');
+      const pose = travel.getAttribute('transform');
+      window.stopCreditsRoll();
+      const frozen = { tween: window.noacgCreditsTween, pose: travel.getAttribute('transform') === pose, hidden: travel.hasAttribute('data-noacg-stopped') };
+      window.noacgCreditsRoll();
+      return { frozen, retakeHidden: travel.hasAttribute('data-noacg-stopped') };
+    });
+    return { errors, rest, start, mid, end, last, refit, swap, out };
+  } finally {
+    await page.close();
+  }
+}
+
+const R = await withBundledPage(
+  [
+    ['assets/svgImport.ts', 'NOACG_SVG'],
+    ['templates/importedDesign/svg.ts', 'NOACG_IMPORTED'],
+    ['templates/importedDesign/creditsRoll.ts', 'NOACG_ROLL'],
+    ['preview/composeDocument.ts', 'NOACG_COMPOSE'],
+  ].map(([rel, globalName]) => ({ entry: `${SRC}${rel}`, globalName })),
+  async (page) => {
+    const out = await page.evaluate(inPage, { template: TEMPLATE, padded: PADDED });
+    const context = await page.context().browser().newContext({ viewport: { width: 1920, height: 1080 } });
+    try {
+      out.played = await play(context, out.whole);
+      out.paddedPlayed = await play(context, out.padded);
+    } finally {
+      await context.close();
+    }
+    return out;
+  },
+);
+
+const near = (a, b, what) => assert.ok(Math.abs(a - b) < 0.75, `${what}: ${a} vs ${b}`);
+
+test('the flag builds the whole roll only on the fixed-artwork engine (R3), and the text roll stays its own', () => {
+  assert.deepEqual(R.engines, { whole: true, text: false, editable: false });
+  assert.ok(R.whole.js.includes("travel.setAttribute('data-noacg-whole', '');"));
+  assert.ok(!R.text.js.includes('data-noacg-whole') && R.text.js.includes('function creditsArtwork()'));
+  assert.ok(R.editableSame, 'an editable binding with the flag builds what it built without it');
+  // No table word: the roll is design-owned JS, outside NOACG_BEHAVIOUR (R9).
+  assert.equal(R.whole.js.match(/var NOACG_BEHAVIOUR_READS = .*$/m)?.[0], R.text.js.match(/var NOACG_BEHAVIOUR_READS = .*$/m)?.[0]);
+  // The operator still gets the two pictures and Scroll speed; the credits text stays artwork.
+  assert.deepEqual(R.whole.fields.map((f) => [f.title, f.ftype]), [['Credits', 'hidden'], ['Logo', 'filelist'], ['End logo', 'filelist'], ['Scroll speed (%)', 'number']]);
+});
+
+test('everything drawn rolls as one picture, from below the frame to above it (R1)', () => {
+  const P = R.played;
+  assert.deepEqual(P.errors, []);
+  assert.ok(P.rest.wrapper, 'one wrapper holds the drawing');
+  assert.ok(!P.rest.rootKids.includes('g') || P.rest.rootKids.filter((k) => k === 'g').length === 1, `only the wrapper is a group at the root: ${P.rest.rootKids}`);
+  assert.equal(P.last.whole, true);
+  // The plate is the top and the bottom of what paints.
+  near(P.start.panel.top, P.start.frame.bottom, 'starts just below the frame');
+  near(P.end.panel.bottom, P.end.frame.top, 'ends just above the frame');
+  for (const at of [P.start, P.mid, P.end]) {
+    near(at.logo.top - at.credits.top, P.start.logo.top - P.start.credits.top, 'the logo keeps its distance to the text');
+    near(at.endLogo.top - at.credits.top, P.start.endLogo.top - P.start.credits.top, 'so does the end logo');
+    near(at.panel.top - at.credits.top, P.start.panel.top - P.start.credits.top, 'so does the plate');
+  }
+  near(P.mid.panel.top, (P.start.panel.top + P.end.panel.top) / 2, 'a constant pace');
+  // The pace is the text roll's: 90 px a second in a 1080 frame at Scroll speed 100 (R4).
+  near(P.last.duration, P.last.distance / 90, 'the authored pace');
+});
+
+test('only what paints sets the extent (R7)', () => {
+  const Q = R.paddedPlayed;
+  assert.deepEqual(Q.errors, []);
+  near(Q.last.distance, R.played.last.distance + (Q.start.panel.bottom - Q.start.panel.top) - (R.played.start.panel.bottom - R.played.start.panel.top), 'same plate, same distance');
+  near(Q.start.panel.top, Q.start.frame.bottom, 'an empty artboard, a transparent plate and a hidden one add nothing at the start');
+  near(Q.end.panel.bottom, Q.end.frame.top, 'nor at the end');
+});
+
+test('a re-fit while rolled measures at rest and puts the roll back (R11)', () => {
+  const F = R.paddedPlayed.refit;
+  assert.equal(F.seen, null, 'measured with no roll offset');
+  assert.equal(F.after, F.before, 'the pose is restored');
+  assert.equal(F.tagline, R.paddedPlayed.rest.tagline, 'the live text fits as it did at rest');
+});
+
+test('a picture swapped mid-roll rides it; Out freezes; Take hides then rolls again (R5, R6)', () => {
+  const P = R.played;
+  assert.deepEqual(P.swap, { sameTween: true, inside: true });
+  assert.deepEqual(P.out.frozen, { tween: null, pose: true, hidden: false });
+  assert.equal(P.out.retakeHidden, true);
+});

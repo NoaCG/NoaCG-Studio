@@ -75,6 +75,13 @@ export function isArtworkCredits(svg: DesignSvg): boolean {
   return creditsEngine(svg) === 'artwork';
 }
 
+/** Fixed-artwork credits whose WHOLE artwork rolls (`DesignSvgRecipeBehaviour.wholeArtwork`):
+ *  every drawn element moves with the Credits text. False for any other engine (R3). */
+export function isWholeArtworkCredits(svg: DesignSvg): boolean {
+  const behaviour = svg.behaviour;
+  return isArtworkCredits(svg) && behaviour?.kind === 'recipe' && behaviour.wholeArtwork === true;
+}
+
 /** A composed text can expose several field candidates. Protect its entire original subtree,
  *  not just the candidate chosen as Credits, from field writes and automatic text fitting. */
 export function creditsArtworkFields(svg: DesignSvg, root?: Element): Set<number> {

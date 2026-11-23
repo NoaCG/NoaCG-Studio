@@ -26,6 +26,7 @@ import {
   svgClockTarget,
   svgCountdownDrawn,
   styledCreditsOf,
+  creditsRollsAll,
 } from './draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
@@ -53,7 +54,7 @@ import { ClockFoldPick, targetFormat } from './ClockFold';
 import { CREDITS_CARD_SECONDS } from '../../../templates/behaviours/credits';
 import { CREDITS_RENDERED, creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
 import type { DesignSvgCredits } from '../../../model/wizard';
-import type { SvgImportResult } from '../../../assets/svgImport';
+import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
 
 /** The two empty choices every behaviour picker offers, written once. One string rather than
@@ -133,7 +134,7 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * author answers which column holds the roles. The answer changes the preview and the saved
  * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, onPatch }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, whole, outside, pictures, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
@@ -151,7 +152,12 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   /** The author chose cards, and the seconds each holds where stated. */
   cards: boolean;
   advance: number | undefined;
-  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork' | 'creditsStill' | 'creditsCards' | 'creditsAdvance'>) => void;
+  /** Fixed artwork only: the author's Rolls answer, the evidence found outside the artboard, and
+   *  whether a picture layer is a field (Rules R8). */
+  whole: boolean | undefined;
+  outside: boolean;
+  pictures: boolean;
+  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork' | 'creditsStill' | 'creditsCards' | 'creditsAdvance' | 'creditsWhole' | 'creditsOutside'>) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
@@ -169,6 +175,31 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const key = (p: CreditsPreview) => (p.styled ? JSON.stringify(p.anchors) : '');
   const asks = !!readings?.swapped && (readings.read.styled || readings.swapped.styled) && key(readings.read) !== key(readings.swapped);
   const shown = readings ? (swap && asks && readings.swapped ? readings.swapped : readings.read) : null;
+  // Whether anything other than the credits text is drawn outside the artboard: only a whole roll
+  // can bring it on screen, so it is the drawing's case for rolling everything (Rules R8).
+  const anchorKey = shown?.styled ? shown.anchors.map((a) => a.candidateId).join('\n') : '';
+  const drawnOutside = useMemo(() => {
+    const root = stage.current?.querySelector('svg');
+    if (!root) return false;
+    const textOf = (id: string) => root.querySelector(`[${SVG_CANDIDATE_ATTR}="${id}"]`)?.closest('text') ?? null;
+    const block = new Set([creditsId, ...anchorKey.split('\n').filter(Boolean)].map(textOf));
+    const frame = root.getBoundingClientRect();
+    for (const el of Array.from(root.querySelectorAll('text, image, rect, path, circle, ellipse, line, polyline, polygon, use'))) {
+      if (el.closest('defs, clipPath, mask, pattern, marker, symbol')) continue;
+      if (block.has(el.closest('text'))) continue;
+      const box = el.getBoundingClientRect();
+      if (!(box.width > 0 || box.height > 0)) continue;
+      if (box.bottom > frame.bottom + 1 || box.top < frame.top - 1) return true;
+    }
+    return false;
+    // `measured` stands for the stage's render, as above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, creditsId, anchorKey, measured]);
+  useEffect(() => {
+    if (drawnOutside !== outside) onPatch({ creditsOutside: drawnOutside ? true : undefined });
+    // The callback is the parent's patch of this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawnOutside, outside]);
   const reading = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll') ? shown : null;
   const stills = !!reading && CREDITS_RENDERED[reading.layout].includes('static');
   const decks = !!reading && CREDITS_RENDERED[reading.layout].includes('cards');
@@ -193,6 +224,9 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const rtl = readings?.read.rtl ?? false;
   // Only credits that can be styled offer the choice; the one that cannot is fixed artwork anyway.
   const artwork = !!reading && fixed;
+  // Fixed artwork either way - by the author's choice or because the drawing cannot be styled.
+  const fixedArtwork = !reading || fixed;
+  const rollsAll = creditsRollsAll({ creditsWhole: whole, creditsOutside: outside ? true : undefined }, pictures);
   return (
     <>
       {reading && (
@@ -205,6 +239,15 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
           >
             <option value="editable">Editable, in this design&apos;s styling</option>
             <option value="artwork">Fixed artwork</option>
+          </select>
+        </label>
+      )}
+      {fixedArtwork && (
+        <label className="save-field">
+          <span>Rolls</span>
+          <select value={rollsAll ? 'all' : 'text'} onChange={(e) => onPatch({ creditsWhole: e.target.value === 'all' })} data-testid="map-svg-credits-rolls">
+            <option value="text">The credits text</option>
+            <option value="all">Everything in the file</option>
           </select>
         </label>
       )}
@@ -1475,6 +1518,9 @@ export default function BehaviourSection({
                   still={!!generic.creditsStill}
                   cards={!!generic.creditsCards}
                   advance={generic.creditsAdvance}
+                  whole={generic.creditsWhole}
+                  outside={!!generic.creditsOutside}
+                  pictures={draft.svgImages.some((f) => f.on)}
                   onPatch={patchGeneric}
                 />
               )}
