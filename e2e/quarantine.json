@@ -36,6 +36,11 @@
       "since": "2026-11-20",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/44832908349"
+    },
+    "e2e/sync-dot.spec.ts": {
+      "since": "2026-11-23",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/45126641322"
     }
   },
   "released": {
