@@ -81,7 +81,7 @@ export function publicTextDefaults(template: SpxTemplate): PublicTextDefaults {
           /(?:^|\s)[\w-]+-(?:clock|credits)(?:\s|$)/.test(parent.getAttribute('class') ?? '') ||
           (parent as HTMLElement).style?.display === 'none' || (parent as HTMLElement).style?.visibility === 'hidden') return [];
         const roles = (parent.getAttribute(BEHAVIOUR_ROLE_ATTR) ?? '').split(/\s+/).map(role => role.split('/')[0]);
-        if (behavior?.paint.some(rule => 'write' in rule && roles.includes(rule.write))) return [];
+        if (behavior?.paint.some(rule => ('write' in rule && roles.includes(rule.write)) || ('crawl' in rule && roles.includes(rule.crawl)))) return [];
       }
       nodes.set(field.field, node);
       return [{ id: field.field, label: field.title, value: field.value }];

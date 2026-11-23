@@ -98,6 +98,25 @@ export interface WriteRule {
   rows?: string;
   /** `field:derivation` (`f7:label`, `f7:percent`, `f6:text`). */
   from: string;
+  /** `field:derivation` giving a 0..1 weight: the readout is drawn at its drawn size times
+   *  0.5 + 0.5 x weight, then no wider than its drawn sample (the word cloud's words,
+   *  svg-template-library TL6). ADDITIVE OPTIONAL: a word a runtime must read. */
+  size?: string;
+}
+
+/**
+ * A text layer that TRAVELS (a ticker crawl, an end-credits crawl, svg-template-library TL6): the
+ * runtime writes what `from` derives into the `crawl` layer, repeated
+ * enough times to fill the window, copies before its start included, and moves it right to left
+ * at a constant speed inside its window, looping without a seam. `speed` derives the operator's
+ * percentage of the built-in marquee's pace; `window` names a drawn layer the text is clipped to.
+ * ADDITIVE OPTIONAL: every key is a word a runtime must read (behaviourReads.ts).
+ */
+export interface CrawlRule {
+  crawl: string;
+  from: string;
+  speed?: string;
+  window?: string;
 }
 
 /**
@@ -117,7 +136,7 @@ export interface PlaceRule {
   anchor: string;
 }
 
-export type PaintRule = LookRule | GaugeRule | WriteRule | PlaceRule;
+export type PaintRule = LookRule | GaugeRule | WriteRule | PlaceRule | CrawlRule;
 
 /** What KIND a field is, to the runtime - the thing that owns every comparison. `kind` names one
  *  of the runtime's field kinds; the other keys are that kind's parameters (`rows` for a row
@@ -238,10 +257,16 @@ function isRule(v: unknown): v is PaintRule {
     if (typeof v.anchor !== 'string' || !ROLE_RE.test(v.anchor)) return false;
     return typeof v.from === 'string' && TOKEN_RE.test(v.from);
   }
+  if (typeof v.crawl === 'string') {
+    if (!ROLE_RE.test(v.crawl) || typeof v.from !== 'string' || !TOKEN_RE.test(v.from)) return false;
+    if (v.speed !== undefined && (typeof v.speed !== 'string' || !TOKEN_RE.test(v.speed))) return false;
+    return v.window === undefined || (typeof v.window === 'string' && ROLE_RE.test(v.window));
+  }
   const target = typeof v.gauge === 'string' ? v.gauge : typeof v.write === 'string' ? v.write : null;
   if (target === null || !ROLE_RE.test(target)) return false;
   if (typeof v.from !== 'string' || !TOKEN_RE.test(v.from)) return false;
   if (v.axis !== undefined && v.axis !== 'x' && v.axis !== 'y') return false;
+  if (v.size !== undefined && (typeof v.size !== 'string' || !TOKEN_RE.test(v.size))) return false;
   return true;
 }
 
@@ -313,6 +338,8 @@ export function behaviourFieldsNamed(data: BehaviourData): { ids: string[]; unre
     else fromToken(rule.from);
     // A place rule's anchor is a bare field role - a head without a fact.
     if ('place' in rule) fromToken(`${rule.anchor}:anchor`);
+    if ('crawl' in rule && rule.speed) fromToken(rule.speed);
+    if ('write' in rule && rule.size) fromToken(rule.size);
   }
   for (const value of Object.values(data.fields ?? {})) {
     if (typeof value === 'string') ids.add(value);

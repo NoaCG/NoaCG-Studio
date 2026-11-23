@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Word cloud</title>
+  <desc>Editable NoaCG SVG source. A Question over six word slots, Word 1 the largest in the middle: each staged word takes its slot, sized by how many sent it; a slot with no word hides.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="400" y="260" width="1120" height="560" rx="16" fill="#101923"/>
+    <rect id="Accent" x="400" y="260" width="1120" height="8" fill="#ffcc00"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Oswald, sans-serif">
+    <text id="Question" x="450" y="340" text-anchor="start" font-size="40" font-weight="700" fill="#ffcc00">ONE WORD FOR TONIGHT?</text>
+    <text id="Word_1" inkscape:label="Word 1" x="960" y="560" text-anchor="middle" font-size="96" font-weight="700" fill="#ffcc00">TOGETHER</text>
+    <text id="Word_2" inkscape:label="Word 2" x="620" y="440" text-anchor="middle" font-size="56" font-weight="500" fill="#ffffff">MUSIC</text>
+    <text id="Word_3" inkscape:label="Word 3" x="1300" y="440" text-anchor="middle" font-size="56" font-weight="500" fill="#ffffff">FRIENDS</text>
+    <text id="Word_4" inkscape:label="Word 4" x="620" y="690" text-anchor="middle" font-size="48" font-weight="500" fill="#ffffff">SUMMER</text>
+    <text id="Word_5" inkscape:label="Word 5" x="1300" y="690" text-anchor="middle" font-size="48" font-weight="500" fill="#ffffff">FAMILY</text>
+    <text id="Word_6" inkscape:label="Word 6" x="960" y="700" text-anchor="middle" font-size="40" font-weight="500" fill="#ffffff">HOPE</text>
+  </g>
+</svg>

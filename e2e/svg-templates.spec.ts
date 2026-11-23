@@ -68,6 +68,15 @@ async function airProblems(air: FrameLocator): Promise<string[]> {
     // broken, so it is compared as clipped and never reported for leaving the frame.
     const windowOf = (el: Element): Box | null => {
       for (let e = el.parentElement; e && e !== art; e = e.parentElement) {
+        // A crawl's window (TL6): the runtime's own clipping group, its clip polygon's box on screen.
+        const clipRef = /url\(#(noacg-crawl-[^)]+)\)/.exec(e.getAttribute('clip-path') ?? '')?.[1];
+        const clipShape = clipRef ? art.querySelector(`[id="${clipRef}"] polygon`) as SVGPolygonElement | null : null;
+        if (clipShape && e instanceof SVGGraphicsElement) {
+          const m = e.getScreenCTM();
+          if (!m || !clipShape.points.numberOfItems) return null;
+          const p = Array.from({ length: clipShape.points.numberOfItems }, (_, i) => new DOMPoint(clipShape.points.getItem(i).x, clipShape.points.getItem(i).y).matrixTransform(m));
+          return { l: Math.min(...p.map((q) => q.x)), t: Math.min(...p.map((q) => q.y)), r: Math.max(...p.map((q) => q.x)), b: Math.max(...p.map((q) => q.y)) };
+        }
         if (e instanceof SVGSVGElement && e.parentElement instanceof SVGGraphicsElement) {
           const m = (e.parentElement as SVGGraphicsElement).getScreenCTM();
           if (!m) return null;
@@ -343,7 +352,9 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       || (t.recipe === 'list' && /^Item \d/.test(n))
       || (t.recipe === 'reveal' && n === 'Price')
       || (t.recipe === 'ranking' && /^Position \d/.test(n))
-      || (t.recipe === 'meter' && (n === 'Percent' || /^(Tier|Threshold) \d/.test(n)));
+      || (t.recipe === 'meter' && (n === 'Percent' || /^(Tier|Threshold) \d/.test(n)))
+      || (t.recipe === 'crawl' && n === 'Crawl')
+      || (t.recipe === 'wordcloud' && /^Word \d+$/.test(n));
     for (const name of namedTexts(t.slug).filter((n) => !driven(n))) await fieldFor(air, name);
     await checkAir(page, air, `${t.slug}-1-take`);
   }
@@ -782,9 +793,10 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await expect(press('resume'), 'nothing to resume while it counts').toBeDisabled();
       await press('skip').click();
       await showing('2');
-      await checkAir(page, air, `${t.slug}-2-slide-2`);
+      // Held at once, so a slow machine cannot reach the six seconds before the picture is checked.
       await press('hold').click();
       await showing('2');
+      await checkAir(page, air, `${t.slug}-2-slide-2`);
       await expect(press('hold'), 'Hold is greyed while held').toBeDisabled();
       await press('skip').click();
       await showing(slides[2 % slides.length]);
@@ -801,10 +813,104 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
         while (!(await air.locator('g[data-noacg-role~="slide/1"]').first().getAttribute('class'))?.includes('imported-design-on')) await press('skip').click();
         await checkAir(page, air, `${t.slug}-3-long`);
       }
-      // Out and a new take start again at slide 1.
+      // Out plays the exit over the slide that was showing (T4), and a new take starts at slide 1.
+      const onAir = [];
+      for (const k of slides) if ((await air.locator(`g[data-noacg-role~="slide/${k}"]`).first().getAttribute('class'))?.includes('imported-design-on')) onAir.push(k);
+      expect(onAir, 'one slide on air before Out').toHaveLength(1);
       await page.getByTestId('verb-out').click();
+      await expect(air.locator(`g[data-noacg-role~="slide/${onAir[0]}"]`).first(), 'the slide stays up under the exit').toHaveClass(/imported-design-on/);
       await page.getByTestId('verb-take').click();
       await showing('1');
+      break;
+    }
+    case 'crawl': {
+      // CRAWL (TL6, Rules K1 to K6): the items print as one run, repeated to fill the window, and travel right to
+      // left inside the window; Scroll speed sets the pace; a new list keeps moving from where it
+      // is; an empty list leaves the drawn text where it was drawn.
+      const crawl = role(air, 'crawl');
+      // How far the run has travelled: the offset of the group that moves it (the text's own box
+      // also holds the copy laid before its start, which a new list lengthens).
+      const left = () => crawl.evaluate((el) => (el.parentNode as SVGGElement).transform.baseVal.consolidate()?.matrix.e ?? 0);
+      const items = await fieldFor(air, 'Items');
+      await page.getByTestId(`cue-field-${items}`).fill('Doors open at 18:00 in the main hall\nParking opens at the east gate');
+      await page.getByTestId('verb-update').click();
+      await expect(crawl).toHaveText(/Doors open at 18:00 in the main hall.*Parking opens at the east gate.*Doors open/);
+      await expect(crawl.locator('xpath=../..'), 'clipped to its window').toHaveAttribute('clip-path', /url\(#noacg-crawl-/);
+      // Units a second, as the median of five tenths: one of them may straddle the loop's wrap.
+      const pace = async () => {
+        const steps: number[] = [];
+        let at = await left();
+        for (let i = 0; i < 5; i++) {
+          await page.waitForTimeout(100);
+          const now = await left();
+          steps.push((at - now) * 10);
+          at = now;
+        }
+        return steps.sort((x, y) => x - y)[2];
+      };
+      const normal = await pace();
+      expect(normal, 'it travels right to left').toBeGreaterThan(5);
+      // K3: a few seconds into the run, a longer list keeps moving from where it is, so the run
+      // is further left after the update than before it; started again from where it was drawn,
+      // it would jump back right. No wrap can fall between the reads: the first loop of these
+      // lines takes over eight seconds, and the longer list only lengthens it.
+      await page.waitForTimeout(2_000);
+      const before = await left();
+      await page.getByTestId(`cue-field-${items}`).fill('Doors open at 18:00 in the main hall\nParking opens at the east gate\nThe bar closes at midnight');
+      await page.getByTestId('verb-update').click();
+      await expect(crawl).toHaveText(/The bar closes at midnight/);
+      expect(await left(), 'a new list keeps moving from where it is').toBeLessThan(before);
+      const speed = await fieldFor(air, 'Scroll speed (%)');
+      await page.getByTestId(`cue-field-${speed}`).fill('200');
+      await page.getByTestId('verb-update').click();
+      await expect.poll(pace, { message: 'Scroll speed 200 doubles the pace' }).toBeGreaterThan(normal * 1.5);
+      await page.getByTestId(`cue-field-${speed}`).fill('100');
+      await page.getByTestId('verb-update').click();
+      await expect.poll(pace, { message: 'back to 100, back to the pace it started at' }).toBeLessThan(normal * 1.3);
+      expect(await pace(), 'and still moving').toBeGreaterThan(normal * 0.7);
+      await checkAir(page, air, `${t.slug}-2-crawling`);
+      // K6: Out leaves it moving under the exit (the exit kills every tween of the page's elements).
+      await page.getByTestId('verb-out').click();
+      expect(await pace(), 'it keeps moving under the exit').toBeGreaterThan(normal * 0.7);
+      await page.getByTestId('verb-take').click();
+      await expect(air.locator('.imported-design')).not.toHaveCSS('opacity', '0');
+      await page.getByTestId(`cue-field-${items}`).fill('');
+      await page.getByTestId('verb-update').click();
+      await expect.poll(async () => Math.abs(await pace()), { message: 'an empty list stands still' }).toBeLessThan(1);
+      break;
+    }
+    case 'wordcloud': {
+      // WORD CLOUD (TL6, Rules W1 to W4): each staged word takes its slot, the most-sent larger,
+      // the rest hide; a long word stays inside its slot; an empty list hides every slot.
+      const slots = namedTexts(t.slug).filter((n) => /^Word \d+$/.test(n)).length;
+      const slot = (n: number) => role(air, `word/${n}`);
+      const size = (n: number) => slot(n).evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+      const words = await fieldFor(air, 'Words');
+      await fieldFor(air, 'Question');
+      await page.getByTestId(`cue-field-${words}`).fill('Pizza | 9\nTacos | 4\nSushi | 2');
+      await page.getByTestId('verb-update').click();
+      await expect(slot(1)).toHaveText('Pizza');
+      await expect(slot(3)).toHaveText('Sushi');
+      for (let n = 1; n <= slots; n++) await expect(slot(n), `slot ${n}`).toHaveClass(n <= 3 ? /imported-design-on/ : /^(?!.*imported-design-on)/);
+      const [s1, s2, s3] = [await size(1), await size(2), await size(3)];
+      expect(s1 / s3, 'Sushi, the least sent, is drawn at half its slot').toBeGreaterThan(1.4);
+      expect(s2, 'Tacos sits between').toBeLessThan(s1);
+      await checkAir(page, air, `${t.slug}-2-fewer`);
+      await page.getByTestId(`cue-field-${words}`).fill('Extraordinarily | 3\nTacos | 2\nSushi | 1');
+      await page.getByTestId('verb-update').click();
+      await expect(slot(1)).toHaveText('Extraordinarily');
+      await checkAir(page, air, `${t.slug}-3-long`);
+      // W4: a word no size down to the floor can fit into its slot is reported on Words.
+      const over = () => air.locator('svg').first().evaluate(() => (window as unknown as { noacgTextOverflow(): string[] }).noacgTextOverflow());
+      await page.getByTestId(`cue-field-${words}`).fill('Pizza | 3\nTacos | 2\nPneumonoultramicroscopicsilicovolcanoconiosis | 1');
+      await page.getByTestId('verb-update').click();
+      await expect.poll(over, { message: 'the long word is reported' }).toContain(words);
+      await page.getByTestId(`cue-field-${words}`).fill('Pizza | 3\nTacos | 2\nSushi | 1');
+      await page.getByTestId('verb-update').click();
+      await expect.poll(over, { message: 'and no longer once it is gone' }).not.toContain(words);
+      await page.getByTestId(`cue-field-${words}`).fill('');
+      await page.getByTestId('verb-update').click();
+      for (let n = 1; n <= slots; n++) await expect(slot(n)).not.toHaveClass(/imported-design-on/);
       break;
     }
     case 'lineup': {
@@ -1402,6 +1508,8 @@ type Host = {
   shown(): Promise<boolean>;
   /** A role's text and its drawn width (getBBox), or null where the package draws no such role. */
   read(name: string): Promise<{ text: string; width: number } | null>;
+  /** Where a role's layer starts on screen (its left edge), or null where none is drawn. */
+  left(name: string): Promise<number | null>;
   update(d: Record<string, string>): Promise<void>;
   event(name: string): Promise<void>;
   close(): Promise<void>;
@@ -1431,6 +1539,7 @@ async function packageHost(page: Page, context: BrowserContext, id: string, file
         const el = graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${name}"]`) as SVGGraphicsElement | null;
         return el ? { text: (el.textContent ?? '').trim(), width: el.getBBox().width } : null;
       }, { tag, name }),
+      left: (name) => page.evaluate(({ tag, name }) => graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${name}"]`)?.getBoundingClientRect().left ?? null, { tag, name }),
       update: (d) => page.evaluate(({ tag, d }) => (document.getElementById(tag) as El).updateAction({ data: d }).then(() => undefined), { tag, d }),
       event: (name) => page.evaluate(({ tag, name }) => (document.getElementById(tag) as El).customAction({ id: name, payload: {} }).then(() => undefined), { tag, name }),
       close: () => page.evaluate((tag) => (document.getElementById(tag) as El).dispose().then(() => undefined), tag),
@@ -1450,6 +1559,7 @@ async function packageHost(page: Page, context: BrowserContext, id: string, file
       const el = document.querySelector(`[data-noacg-role~="${name}"]`) as SVGGraphicsElement | null;
       return el ? { text: (el.textContent ?? '').trim(), width: el.getBBox().width } : null;
     }, name),
+    left: (name) => view.evaluate((name) => document.querySelector(`[data-noacg-role~="${name}"]`)?.getBoundingClientRect().left ?? null, name),
     update: (d) => w('update', JSON.stringify(d)),
     event: (name) => w('noacgDispatch', name),
     close: () => view.close(),
@@ -1572,6 +1682,56 @@ test('Rotating ticker and Question queue: the slides take turns, Hold keeps one,
     if (id !== 'html-overlay') {
       await h.update({ [queue.ids['On now']]: '1' });
       await expect.poll(() => h.lit(marks), { message: `${id}: back to the first` }).toEqual(['guest.now/1']);
+    }
+    await h.close();
+  }
+});
+
+test('Ticker crawl and Word cloud: the crawl travels and the staged words fill their slots in every export target', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  // CRAWL (K8): the run travels in every host, and a new Items list sent as data reaches it.
+  const crawl = await prepareExport(page, 'ticker-crawl', ['Items', 'Scroll speed (%)']);
+  const first = { [crawl.ids.Items]: 'Doors open at 18:00\nParking at the east gate' };
+  const crawlPackages = await exportPackages(page, crawl.production, first);
+  for (const id of EXPORT_IDS) {
+    const h = await packageHost(page, context, id, crawlPackages[id], first);
+    await expect.poll(async () => (await h.read('crawl'))?.text ?? '', { message: `${id}: the items as one run` }).toContain('Parking at the east gate');
+    const a = (await h.left('crawl')) ?? 0;
+    await expect.poll(async () => a - ((await h.left('crawl')) ?? 0), { message: `${id}: it travels right to left` }).toBeGreaterThan(3);
+    if (id !== 'html-overlay') {
+      await h.update({ [crawl.ids.Items]: 'The bar closes at midnight' });
+      await expect.poll(async () => (await h.read('crawl'))?.text ?? '', { message: `${id}: a new list as data` }).toContain('The bar closes at midnight');
+      // Scroll speed as data re-times the run: 400% is well past twice the pace.
+      const pace = async () => {
+        const steps: number[] = [];
+        let at = (await h.left('crawl')) ?? 0;
+        for (let i = 0; i < 5; i++) {
+          await page.waitForTimeout(100);
+          const now = (await h.left('crawl')) ?? 0;
+          steps.push((at - now) * 10);
+          at = now;
+        }
+        return steps.sort((x, y) => x - y)[2];
+      };
+      const slow = await pace();
+      await h.update({ [crawl.ids.Items]: 'The bar closes at midnight', [crawl.ids['Scroll speed (%)']]: '400' });
+      await expect.poll(pace, { message: `${id}: Scroll speed as data` }).toBeGreaterThan(slow * 2);
+    }
+    await h.close();
+  }
+
+  // WORD CLOUD (W6): staged Words as data fill the first slots and hide the rest in every host.
+  const cloud = await prepareExport(page, 'word-cloud', ['Words']);
+  const staged = { [cloud.ids.Words]: 'Pizza | 9\nTacos | 4\nSushi | 2' };
+  const cloudPackages = await exportPackages(page, cloud.production, staged);
+  const slots = ['word/1', 'word/2', 'word/3', 'word/4'];
+  for (const id of EXPORT_IDS) {
+    const h = await packageHost(page, context, id, cloudPackages[id], staged);
+    await expect.poll(() => h.lit(slots), { message: `${id}: three words staged` }).toEqual(slots.slice(0, 3));
+    expect((await h.read('word/1'))?.text, `${id}: the most-sent first`).toBe('Pizza');
+    if (id !== 'html-overlay') {
+      await h.update({ [cloud.ids.Words]: 'Calm | 1' });
+      await expect.poll(() => h.lit(slots), { message: `${id}: one word as data` }).toEqual(['word/1']);
     }
     await h.close();
   }

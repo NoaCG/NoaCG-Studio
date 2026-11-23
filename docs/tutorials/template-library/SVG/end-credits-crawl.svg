@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>End credits crawl</title>
+  <desc>NoaCG Clean Studio template. End credits as a crawl along the bottom: a Credits Title and a Crawl that runs every credit typed one per line right to left inside the Crawl box, looping without a seam.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="0" y="968" width="1920" height="72" fill="#0F1729"/>
+    <rect id="Title_box" inkscape:label="Title box" x="60" y="980" width="200" height="48" rx="10" fill="#2E5BFF"/>
+    <rect id="Crawl_box" inkscape:label="Crawl box" x="284" y="972" width="1576" height="64" fill="#0F1729"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" x="88" y="1013" text-anchor="start" font-size="22" font-weight="800" fill="#FFFFFF" letter-spacing="3">CREDITS</text>
+    <text id="Crawl" x="308" y="1013" text-anchor="start" font-size="26" font-weight="600" fill="#FFFFFF">Director Casey Hill</text>
+  </g>
+</svg>

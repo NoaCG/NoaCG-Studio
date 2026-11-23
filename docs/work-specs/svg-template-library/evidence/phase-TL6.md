@@ -79,8 +79,13 @@ move, in every export target".
 | OGraf | real time: load, playAction, customAction, updateAction | same as SPX | same as SPX |
 | LiveOS | real time | same as SPX | same as SPX |
 
-OGraf non-real time: the rotation's timer is the machine's, and seek parity for imported designs
-other than the countdown stays issue #2699.
+OGraf non-real time does not seek the rotation: its turns are machine timers, which a seek does
+not replay; seek parity for imported designs other than the countdown stays issue #2699.
+
+Final `/so` on 54677f1 (session_017SdbwQrr6NMWLgiDCivVBm): grade A, AGREE, nothing blocking. Its
+two test nits are taken in group 2's PR: the walk now checks the slide stays up under the exit
+(T4's first half) and holds before checking the picture, so a slow machine cannot reach the timer
+first; this paragraph states the OGraf non-real-time limit.
 
 ### AC-9
 
@@ -114,3 +119,158 @@ other than the countdown stays issue #2699.
   words; no new `blocks/` import. Not changed, with the reason in the code: the machine is
   written out (the catalog rotations keep their item as runtime data). Documented limit: a text
   drawn as outlines and replaced by a placed line is not part of a slide (SVG_AUTHORING).
+
+## Group 2: Crawl (ticker crawl, end-credits crawl) and Word cloud
+
+Row class: Risky (new runtime words). Rules K1 to K7, W1 to W5 and G1, G2 were written before
+any code and challenged by a Rules-first `/so` (session_017SdbwMK6JqdV6rzz3BUmxx on 9a2735c, B+,
+AGREE WITH CORRECTIONS); its corrections (K3, K8, W2, W3, W6, G1, G2) are in the phase notes and
+were made before the code. Its finding on the notification queue went to the coordinator: the
+queue has no caller in the app or any export target (it is the inbox the phase line reserves), so
+the event-notification row stays planned.
+
+Its read-only look at 20e3034 (#2710, after that PR's last delta): "Plain `Row A` layers no
+longer count as quiz answer rows, so existing quiz artwork imports as before. No defect."
+
+### What was built
+
+- **The crawl rule** (`behaviourRuntime.ts`, `CrawlRule` in `behaviourData.ts`): the `crawl` layer
+  prints the `lines` kind's `joined` run, repeated to fill the window, copies before its start included, and travels right to left at 140 artwork units
+  a second per 1920 of frame width, times the motion speed, times Scroll speed (%) clamped to 10
+  to 400. It moves inside a group clipped to its window (a `Crawl box` layer, else the fit's
+  panel, else the frame), measured once at rest. A new run keeps its offset; a new speed re-times
+  the tween; the take (`noacgCrawlRestart`, the recipe's entrance call) starts it from where it
+  was drawn; an empty list puts the drawn text back, still.
+- **The word sizes** (`word-counts` kind, the write rule's `size`): slot n takes line n; its weight
+  is the built-in word cloud's square-root scale over the lines that fill a slot; the word is drawn
+  at 0.5 + 0.5 x weight of its drawn size, measured off the drawn sample at rest, then no wider
+  than that sample, never below 0.3 of the size (then reported too long on Words). Lines past the
+  last slot are left out without a report, as the built-in drops what does not fit.
+- `READS_ADDED`: two entries (TL6 crawl: rule keys `crawl`, `speed`, `window`, kind `lines` with
+  `joined`; TL6 word cloud: rule key `size`, kind `word-counts`). Editing guards treat a crawl
+  layer like a readout (`publicTextDefaults`, `artworkEdits`), and its geometry is claimed
+  (`recipeClaims`).
+- Templates: Ticker crawl and End credits crawl (studio, Crawl), Word cloud (studio, Word cloud,
+  contract `word-cloud-target`), and the navy examples Crawl and Word cloud, navy. README section
+  "Crawls and a word cloud" on its own page; README.pdf 15 pages.
+
+### AC-3
+
+| Template | Recognition | Controls asserted |
+| --- | --- | --- |
+| Ticker crawl, End credits crawl | automatic (`Crawl`, `Crawl box`) | Items fill one run, repeated to fill the window; the layer sits in a clipped group; it travels right to left; Scroll speed 200 more than half again as fast; a longer list keeps moving from where it was; the frame clean while it crawls; an empty list stands still |
+| Word cloud | automatic (`Word n`) | three staged words fill slots 1 to 3, the rest hide; Pizza (9) drawn more than 1.4 times Sushi (2), Tacos between; Extraordinarily in slot 1 keeps the frame clean; an empty list hides every slot |
+| Crawl, Word cloud, navy | automatic | the run travels; two staged words fill two slots, the third hides |
+
+Cases: the `crawl` and `wordcloud` batches of `e2e/svg-templates.spec.ts`, and the navy batch of
+`e2e/svg-examples.spec.ts`. One visual family: same renderer for the five new previews, the word
+cloud's Fewer words state drawn with three words at their weighted sizes.
+
+### AC-4, Word cloud
+
+`e2e/production-audience.spec.ts` "a saved Word cloud template is offered in the Word cloud
+picker, and staging fills one cue whose words it draws": the template, imported unchanged and
+saved, is offered in the saved group before the built-ins and picked by keyboard; staging adds
+one cue on it with the question and the three shown words; a second stage of the same round
+updates that cue (one cue on the copy, no blank seed); taken, the words fill slots 1 to 3, the
+most-sent larger, slots 4 and 12 hidden, the question on air.
+
+### AC-7
+
+"Ticker crawl and Word cloud: the crawl travels and the staged words fill their slots in every
+export target".
+
+| Target | Mode | Crawl | Word cloud |
+| --- | --- | --- | --- |
+| SPX | update, play | the run prints both items and travels; a new Items list as data reaches it | three staged words fill three slots; one word as data leaves one |
+| CasparCG | update (JSON), play | same | same |
+| H2R | update, play | same | same |
+| HTML overlay | autoplay with baked data | the run travels | the baked words |
+| OGraf | real time: load, playAction, updateAction | same as SPX | same as SPX |
+| LiveOS | real time | same as SPX | same as SPX |
+
+OGraf non-real time does not seek the crawl (a repeating tween, as the built-in marquee's);
+#2699.
+
+### AC-9
+
+- Saved graphics keep their own runtime and table (TL2 C7); a table asking for a crawl or a size
+  under a runtime without them is refused at export, upgradable by importing again
+  (`behaviour-reads` drift and C5 cases pass with the two entries).
+- Every existing recipe compiles to the table it did: the corpus records moved only by the
+  runtime's text (`emit.js` of seven files, and two `appearance.js` pins in `jev-svg-baseline`,
+  re-recorded by hand). The text kind's code is unchanged.
+- Reimport: the recipes' owned fields come after the artwork's, so a reimport keeps every matched
+  field id; nothing in the order of existing graphics' fields moves. `pre-plan-graphics` (G2 case)
+  builds Ticker crawl and Word cloud, records a cue, imports them again with a text drawn in front
+  of every field, and checks every field id is kept and the old cue paints the same run and top word.
+- E2E capacity (known traps): `e2e-capacity --changed origin/main` lists the two edited specs as
+  edits to existing specs, never refused; the tiers WARN on stale evidence, as on main.
+- Recognition: of the repository's SVG files only the five new templates carry `Crawl`,
+  `Marquee` or `Word n` names.
+
+### Verification
+
+- Browser (job queue, this cloud worker): `svg-templates`, `svg-examples` and
+  `import-svg-behaviour` whole, 87 passed (j-0015, 8.2 min); then the rotation batch, the crawl
+  and word cloud export case and the Word cloud picker journey, 3 passed (j-0016). Mutation: with
+  the crawl forced to restart on a new list, the walk's "a new list keeps moving from where it is"
+  fails (j-0014), and passes without it.
+- Node: `behaviour-reads` (22), `rotation-slides`, `template-coverage` (104 rows, 102 covered),
+  `svg-files`, `concept-names`, `check-svg-example-coverage` (25 example sets, 20 behaviours),
+  `check-example-layers`, `behaviour-look`, `behaviour-keys`, `behaviour-removed-layer`,
+  `jev-svg-contract`, `jev-svg-baseline` (two `appearance.js` re-recorded),
+  `imported-credits-model` (eight credits build pins re-recorded: those builds carry the runtime;
+  plain imports did not move), `svg-figure-fit`: pass. `svg-import-passes`: seven `emit.js`
+  re-recorded; then only the four environment records that fail the same way on `origin/main`.
+  `npm run gates -- run --changed origin/main`: pass.
+- `tsc`, `eslint` on the changed files, `check-e2e-protection --changed origin/main`
+  (`svg-templates` 30 -> 36, `svg-examples` 6 -> 7, `production-audience` 32 -> 33): pass.
+  README.pdf reprinted (15 pages).
+- `/check` review (delegated, high), ten findings, all fixed: the loop now lays one copy before
+  the start and enough after it to cover the window, so it has no seam at any length; an unstaged
+  word cloud seeds equal counts (drawn sizes) and keeps slots aligned; sizes and the crawl measured
+  in a loading face are used, not kept, and measured again when fonts settle, and the readout's
+  anchor is measured at the drawn size; the window is measured again once nothing above it is
+  tweening; a frame without a viewBox uses its width and height; a line with a count and no word
+  is skipped; the air check reads only the runtime's own crawl clips; the K3 check now fails a
+  restart (mutation-tested); Scroll speed as data is proven in every export target; a sized
+  readout claims its geometry. Simplify and verify inline.
+- After the reviews of b7a9526 (automated: the pace back at 100, the too-long report; final
+  second opinion: the same report, the copy count, the K3 margin, G2's reimport), of ca55736
+  (automated: the crawl froze under the exit, against K6; a window turned with its text clipped
+  to a larger rectangle), of 9bba32d (automated: a text turned itself drifted off its baseline at
+  each wrap) and of 034a597 (automated: a short run drawn far inside its window left a gap, with
+  one copy before its start; then the delta second opinion on 00e7cb5: a new list late in a run
+  counted those copies from the run's current offset, one short) and of c875b51 (automated: a
+  text anchored at its end by a style, which outranks the attribute the run set, laid its run off
+  the window) and of f40315a (automated: a window and text turned steeply together were covered
+  only across the frame, short along their line), and the wider delta second opinion on 28bbda3
+  (a list in a right-to-left script measured a negative run and never moved): the crawl and word cloud walks and the export case, 3 passed
+  (j-0021, j-0028, j-0031, and again on the final runtime, below), with Scroll speed back to 100
+  between 0.7 and 1.3 times the first pace, Out leaving the run at its pace, and a 45-letter word
+  reported too long then cleared. `crawl-window` (new, on the Ticker crawl template): plain, the
+  strip turned three degrees, the text itself turned three degrees, the box and the text turned
+  30 degrees together with a short run, a Hebrew list, a text end-anchored by an
+  inline style the import turns into a class, and a short run drawn 900
+  units inside its window, its list changed three quarters of a copy into a run. In each the clip
+  is the drawn Crawl box; the run fills it along its own baseline, from its leading edge to its
+  far edge; it keeps its pace after the stop every exit runs, travels along its baseline (slope
+  0.0524 for the turned text) and rests where drawn when the list is emptied. Each defect was
+  checked against the code before its fix: a probe measured the turned clip at 1615.5 by 240.1
+  and the run standing still; the turned-text case fails with the x-only move (slope 0); the inset
+  case fails with one copy before the start (the run's left edge at 1116.6), and its list change
+  fails with the copies counted from the current offset (the left edge at 277.6, against 252),
+  the end-anchored case fails with the anchor assumed (the run's right edge at -431.4), and the
+  30-degree case fails with the copies after the start counted across the frame (24.7 units
+  short of the far edge), and the Hebrew case fails with the run measured by character positions
+  (it does not move). Every case now samples a whole travel, the moment before the wrap
+  included. A drawn textLength was checked too: the import already drops it, so
+  the run needs nothing for it.
+- The intermittent `svg-files` failure ("every download is the source file itself", the audience
+  package zip built twice compared unequal), seen on this worker and then in CI on 28bbda3: JSZip
+  dated the folder entries it adds by itself with the time of the build, so two builds that
+  straddled a two-second tick differed. Each folder is now added with the fixed date, and the test
+  checks every entry of every zip carries it (the old builder fails that at once). `pre-plan-graphics`
+  8 passed (j-0023), its G2 case included. The same three runtime pins re-taken for the runtime
+  text alone, each time.

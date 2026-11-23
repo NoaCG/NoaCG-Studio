@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Word cloud</title>
+  <desc>NoaCG Clean Studio template. The words a Word question gathered: the Question over twelve slots, Word 1 in the middle and largest. Each staged word takes its slot, sized by how many sent it and kept inside the slot; a slot with no word hides.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="360" y="250" width="1200" height="600" rx="24" fill="#FFFFFF"/>
+    <rect id="Accent" x="360" y="250" width="1200" height="12" rx="6" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Question" x="420" y="334" text-anchor="start" font-size="38" font-weight="800" fill="#0F1729">One word for tonight?</text>
+    <text id="Word_1" inkscape:label="Word 1" x="960" y="575" text-anchor="middle" font-size="80" font-weight="800" fill="#2E5BFF">Together</text>
+    <text id="Word_2" inkscape:label="Word 2" x="660" y="445" text-anchor="middle" font-size="52" font-weight="800" fill="#0F1729">Community</text>
+    <text id="Word_3" inkscape:label="Word 3" x="1260" y="445" text-anchor="middle" font-size="52" font-weight="800" fill="#0F1729">Sunshine</text>
+    <text id="Word_4" inkscape:label="Word 4" x="680" y="700" text-anchor="middle" font-size="44" font-weight="800" fill="#0F1729">Family</text>
+    <text id="Word_5" inkscape:label="Word 5" x="1240" y="700" text-anchor="middle" font-size="44" font-weight="800" fill="#0F1729">Summer</text>
+    <text id="Word_6" inkscape:label="Word 6" x="960" y="435" text-anchor="middle" font-size="40" font-weight="700" fill="#5B6478">Friends</text>
+    <text id="Word_7" inkscape:label="Word 7" x="960" y="700" text-anchor="middle" font-size="44" font-weight="700" fill="#5B6478">Music</text>
+    <text id="Word_8" inkscape:label="Word 8" x="530" y="575" text-anchor="middle" font-size="40" font-weight="700" fill="#5B6478">Kindness</text>
+    <text id="Word_9" inkscape:label="Word 9" x="1390" y="575" text-anchor="middle" font-size="40" font-weight="700" fill="#5B6478">Laughter</text>
+    <text id="Word_10" inkscape:label="Word 10" x="800" y="790" text-anchor="middle" font-size="32" font-weight="700" fill="#5B6478">Calm</text>
+    <text id="Word_11" inkscape:label="Word 11" x="1120" y="790" text-anchor="middle" font-size="32" font-weight="700" fill="#5B6478">Dance</text>
+    <text id="Word_12" inkscape:label="Word 12" x="960" y="800" text-anchor="middle" font-size="32" font-weight="700" fill="#5B6478">Light</text>
+  </g>
+</svg>

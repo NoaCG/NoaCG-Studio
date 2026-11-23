@@ -38,7 +38,7 @@ export interface RecipeRole {
   /** Layer roles: which paint mechanisms the recipe applies to it. A role painted as a `look`
    *  starts hidden and is shown by its rules; a `gauge` or `write` layer stays as drawn; a
    *  `place` layer travels with its row when the rows trade places. */
-  paint?: ('look' | 'gauge' | 'write' | 'place')[];
+  paint?: ('look' | 'gauge' | 'write' | 'place' | 'crawl')[];
   /** One per row of the recipe's row set. */
   perRow?: boolean;
   /** A binding without it is not usable, and the mapping step says so. */
@@ -75,7 +75,7 @@ interface WordsEntry {
     id: string;
     label: string;
     kind: 'field' | 'layer';
-    paint?: ('look' | 'gauge' | 'write' | 'place')[];
+    paint?: ('look' | 'gauge' | 'write' | 'place' | 'crawl')[];
     perRow?: boolean;
     required?: boolean;
     numeric?: boolean;

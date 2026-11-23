@@ -98,6 +98,13 @@ test('the library zip holds every file, and each package zip exactly its templat
     for (const picture of previewsOf(entry)) assert.ok(names.includes(`${LIBRARY_ZIP}/Previews/${picture}.png`), picture);
   }
   for (const file of ['README.md', 'README.pdf', 'library.json', 'CLOCKS.md', 'EDITABLE-CREDITS.md']) assert.ok(names.includes(`${LIBRARY_ZIP}/${file}`), file);
+  // Every entry, its folders too, carries the fixed date, so a zip's bytes never depend on when
+  // it was built (a folder dated at build time made two builds a second apart differ).
+  for (const [url, bytes] of all) {
+    if (!url.endsWith('.zip')) continue;
+    const dated = await JSZip.loadAsync(bytes);
+    for (const [name, file] of Object.entries(dated.files)) assert.equal(file.date.toISOString(), '2026-09-25T00:00:00.000Z', `${url}: ${name}`);
+  }
   for (const pkg of SVG_PACKAGES) {
     const zip = await JSZip.loadAsync(all.get(packageZipUrl(pkg)));
     const entries = library.filter((entry) => entry.packages.includes(pkg.id));

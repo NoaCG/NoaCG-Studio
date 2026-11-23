@@ -349,3 +349,82 @@ test('S1: reimporting artwork that adds answer rows or tiers keeps every field i
   assert.equal(m.painted.percent, '50%');
   assert.deepEqual(m.painted.lit.filter((r) => /tier\.reached/.test(r)), ['tier.reached/1', 'tier.reached/2']);
 });
+
+// ── TL6 group 2 (Rule G2, AC-9): a crawl and a word cloud imported again ─────────────────────
+// Each library template is built as the wizard builds it, a cue is recorded on that build, and
+// edited artwork with a text drawn in front of every field is imported again over it: every
+// field id is kept, the owned fields (Items and Scroll speed, Words) keep their ids, and the old
+// cue still paints the same run and the same top word.
+
+const CRAWL_SVG = readFileSync(at('docs/tutorials/template-library/SVG/ticker-crawl.svg'), 'utf8');
+const CLOUD_SVG = readFileSync(at('docs/tutorials/template-library/SVG/word-cloud.svg'), 'utf8');
+const TEXT_LAYER = '<g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">';
+const withBadge = (svg) => {
+  assert.ok(svg.includes(TEXT_LAYER), 'the template\'s Text layer');
+  return svg.replace(TEXT_LAYER, (m) => m + BADGE);
+};
+
+const RUN_TL6 = async ({ crawl, cloud }) => {
+  const check = (t) => window.NOACG_VALIDATE.validateTemplate(t).errors.filter((e) => e.rule === 'behaviour').map((e) => e.message);
+  const byTitle = (t, title) => t.fields.find((f) => f.title === title)?.field;
+  const build = (markup) => window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(window.__importDraft(window.NOACG_SVG.importSvgMarkup(markup))) });
+  const paint = async (template, values) => {
+    const w = await window.__mountDesign(template);
+    w.update(JSON.stringify(values));
+    w.play();
+    w.__advance(3000);
+    const doc = w.document;
+    const res = {
+      crawl: doc.querySelector('[data-noacg-role~="crawl"]')?.textContent ?? null,
+      word1: doc.querySelector('[data-noacg-role~="word/1"]')?.textContent?.trim() ?? null,
+    };
+    document.getElementById('fx')?.remove();
+    return res;
+  };
+  const out = {};
+  for (const [name, markup, cueOf] of [
+    ['crawl', crawl.markup, (t) => ({ [byTitle(t, 'Items')]: 'Gates open at noon\nLast train 23:40', [byTitle(t, 'Scroll speed (%)')]: '150' })],
+    ['cloud', cloud.markup, (t) => ({ [byTitle(t, 'Words')]: 'Lively | 9\nWarm | 4\nLoud | 2' })],
+  ]) {
+    const old = build(markup);
+    const cue = cueOf(old);
+    const before = await paint(old, cue);
+    const built = build(name === 'crawl' ? crawl.edited : cloud.edited);
+    const done = window.NOACG_DRAFT.svgReimported({ template: old, baseline: old }, built);
+    if (!done) { out[name] = { error: 'not a reimport' }; continue; }
+    const t = done.template;
+    out[name] = {
+      cueKeys: Object.keys(cue),
+      unresolved: done.unresolved,
+      before: old.fields.map((f) => `${f.field}:${f.title}`),
+      after: t.fields.map((f) => `${f.field}:${f.title}`),
+      builtIds: built.fields.map((f) => `${f.field}:${f.title}`),
+      verdict: window.NOACG_READS.behaviourReadsVerdict(t.js),
+      errors: check(t),
+      paintedBefore: before,
+      paintedAfter: await paint(t, cue),
+    };
+  }
+  return out;
+};
+
+const tl6Out = await withBundledPage(SPECS, async (page) => {
+  await installDrivenPage(page);
+  return page.evaluate(RUN_TL6, { crawl: { markup: CRAWL_SVG, edited: withBadge(CRAWL_SVG) }, cloud: { markup: CLOUD_SVG, edited: withBadge(CLOUD_SVG) } });
+});
+
+test('G2: a crawl and a word cloud imported again keep every field id, and an old cue paints the same', () => {
+  for (const name of ['crawl', 'cloud']) {
+    const r = tl6Out[name];
+    assert.equal(r.error, undefined, name);
+    assert.deepEqual(r.unresolved, [], name);
+    assert.notDeepEqual(r.builtIds.filter((x) => !/Badge/.test(x)), r.before, `${name}: the edit moved the built ids`);
+    for (const field of r.before) assert.ok(r.after.includes(field), `${name}: ${field} kept`);
+    for (const key of r.cueKeys) assert.ok(r.before.some((f) => f.startsWith(`${key}:`)), `${name}: the cue names a field of the old build`);
+    assert.deepEqual(r.verdict, { status: 'ok' }, name);
+    assert.deepEqual(r.errors, [], name);
+    assert.deepEqual(r.paintedAfter, r.paintedBefore, `${name}: the old cue paints the same`);
+  }
+  assert.match(tl6Out.crawl.paintedBefore.crawl, /Gates open at noon.*Last train 23:40/);
+  assert.equal(tl6Out.cloud.paintedBefore.word1, 'Lively');
+});

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Ticker crawl</title>
+  <desc>NoaCG Clean Studio template. A strip along the bottom with a Live Label and a Crawl: the items typed one per line travel right to left inside the Crawl box, looping without a seam, at the pace Scroll speed sets.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="0" y="952" width="1920" height="88" fill="#FFFFFF"/>
+    <rect id="Label_box" inkscape:label="Label box" x="60" y="968" width="168" height="56" rx="10" fill="#2E5BFF"/>
+    <rect id="Crawl_box" inkscape:label="Crawl box" x="252" y="960" width="1608" height="72" fill="#FFFFFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Label" x="92" y="1007" text-anchor="start" font-size="26" font-weight="800" fill="#FFFFFF" letter-spacing="3">LIVE</text>
+    <text id="Crawl" x="284" y="1007" text-anchor="start" font-size="30" font-weight="700" fill="#0F1729">Doors open at 18:00 in the main hall</text>
+  </g>
+</svg>

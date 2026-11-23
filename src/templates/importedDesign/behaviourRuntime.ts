@@ -157,6 +157,22 @@ noacgKinds.text = {
   derive: function (id, spec, name) { return name === 'text' ? noacgFieldText(id) : null; }
 };
 
+// lines: a box of lines read as one run (svg-template-library TL6, a crawl). "joined" is every
+// non-empty line, trimmed and in order, with a spaced bullet between them: what a ticker or a
+// credits crawl travels.
+var NOACG_CRAWL_SEP = '\\u00a0\\u00a0\\u2022\\u00a0\\u00a0';
+noacgKinds.lines = {
+  fact: function () { return false; },
+  derive: function (id, spec, name) {
+    if (name === 'joined') {
+      var lines = noacgFieldText(id).split('\\n'), out = [];
+      for (var i = 0; i < lines.length; i++) if (lines[i].trim() !== '') out.push(lines[i].trim());
+      return out.join(NOACG_CRAWL_SEP);
+    }
+    return name === 'text' ? noacgFieldText(id) : null;
+  }
+};
+
 // select: a dropdown. The one fact is "is:<value>".
 noacgKinds.select = {
   fact: function (id, spec, name) {
@@ -335,6 +351,47 @@ noacgKinds['row-set'] = {
     if (name === 'count') return String(listed.length);
     if (name === 'last') return listed.length > 0 ? listed[listed.length - 1] : '';
     if (name === 'key') return rowKey || '';
+    return name === 'text' ? noacgFieldText(id) : null;
+  }
+};
+
+// word-counts: a word cloud's "word | count" lines, most first, one per slot (svg-template-library
+// TL6). "listed" holds on a slot the list has a line for; derives each slot's "label" and its
+// "weight", the square root of (count - least) / (most - least) read over the lines that fill a
+// slot (1 when they are all equal; a line with no readable count counts 1), the built-in word
+// cloud's scale. Lines past the last slot are left out without a report: staging writes up to
+// thirty words whatever a design draws, as the built-in drops the least-sent that do not fit.
+function noacgWordRows(id, spec) {
+  var keys = noacgRowsOf(spec.rows), out = [];
+  var lines = noacgFieldText(id).split('\\n');
+  for (var i = 0; i < lines.length && out.length < keys.length; i++) {
+    var raw = lines[i].trim();
+    if (raw === '') continue;
+    var at = raw.lastIndexOf('|');
+    var count = at === -1 ? NaN : parseFloat(raw.slice(at + 1).replace(/[^0-9.\\-]/g, ''));
+    var label = at === -1 ? raw : raw.slice(0, at).trim();
+    if (label === '') continue;                          // a count with no word is no word
+    out.push({ label: label, count: count > 0 ? count : 1 });
+  }
+  return out;
+}
+noacgKinds['word-counts'] = {
+  fact: function (id, spec, name, rowKey) {
+    var at = noacgRowsOf(spec.rows).indexOf(rowKey);
+    if (name === 'listed') return at !== -1 && at < noacgWordRows(id, spec).length;
+    return false;
+  },
+  derive: function (id, spec, name, rowKey) {
+    var rows = noacgWordRows(id, spec);
+    var at = noacgRowsOf(spec.rows).indexOf(rowKey);
+    var row = at === -1 ? null : rows[at];
+    if (name === 'label') return row ? row.label : '';
+    if (name === 'weight') {
+      if (!row) return 0;
+      var most = -Infinity, least = Infinity;
+      for (var i = 0; i < rows.length; i++) { if (rows[i].count > most) most = rows[i].count; if (rows[i].count < least) least = rows[i].count; }
+      return most === least ? 1 : Math.sqrt((row.count - least) / (most - least));
+    }
     return name === 'text' ? noacgFieldText(id) : null;
   }
 };
@@ -1116,6 +1173,7 @@ ${withAwards ? `  // The entries this repaint answered are spent: the next state
           // A readout with nothing to say is left as drawn - an empty round must not blank a
           // board the designer filled in.
           if (value !== null && value !== undefined && value !== '') noacgReadoutWrite(targets[g], String(value));
+          if (rule.size) noacgReadoutSize(targets[g], noacgDerive(rule.size, keys[k]), rule);
           noacgReadoutInk(targets[g], plates[keys[k] === null ? '' : String(keys[k])] || []);
         }
       }
@@ -1123,6 +1181,313 @@ ${withAwards ? `  // The entries this repaint answered are spent: the next state
   }
   // Places last: the readouts above are already written, and a row moves as a whole.
   noacgPlaceAll(rules, reason);
+  noacgCrawlAll(rules);
+}
+
+// noacgAfterFonts(fn): while a face is still loading, run fn once the fonts settle (once per fn)
+// and answer true, so a measurement taken now is used and not kept; false when nothing is loading.
+var noacgFontsWaiting = null;
+function noacgAfterFonts(fn) {
+  if (!document.fonts || document.fonts.status !== 'loading') return false;
+  if (!noacgFontsWaiting) {
+    noacgFontsWaiting = [];
+    document.fonts.ready.then(function () {
+      var waiting = noacgFontsWaiting;
+      noacgFontsWaiting = null;
+      for (var i = 0; i < waiting.length; i++) waiting[i]();
+    });
+  }
+  if (noacgFontsWaiting.indexOf(fn) === -1) noacgFontsWaiting.push(fn);
+  return true;
+}
+
+// ── A readout sized by a weight (a word cloud's words, svg-template-library TL6) ─────────────
+// The size is an inline font-size, written fresh from the data on every repaint (a look is a class,
+// so a snap cannot drop it; a size is data, and the snap's own repaint writes it again).
+// Drawn at its drawn size times 0.5 + 0.5 x weight, written fresh on every repaint from the size
+// measured at rest, then made smaller until it is no wider than its drawn sample at the drawn
+// size, never below 0.3 of it; a word that still does not fit is reported too long on the field
+// it came from, through the fit ladder's own channel.
+function noacgReadoutSize(el, weight, rule) {
+  var measured = null;
+  if (el.noacgSize === undefined) {
+    // Measured off the DRAWN sample at its drawn size, never off a word already written into it.
+    var now = [], i;
+    for (i = 0; i < el.childNodes.length; i++) now.push(el.childNodes[i]);
+    if (el.noacgDrawn) {
+      while (el.firstChild) el.removeChild(el.firstChild);
+      for (i = 0; i < el.noacgDrawn.nodes.length; i++) el.appendChild(el.noacgDrawn.nodes[i].cloneNode(true));
+    }
+    el.style.fontSize = '';
+    var size = parseFloat(getComputedStyle(el).fontSize);
+    var room;
+    try { room = el.getBBox().width; } catch (e) { room = 0; }
+    if (el.noacgDrawn) {
+      while (el.firstChild) el.removeChild(el.firstChild);
+      for (i = 0; i < now.length; i++) el.appendChild(now[i]);
+    }
+    if (!(size > 0) || !(room > 0)) return;            // not laid out yet: asked again next repaint
+    measured = { size: size, room: room };
+    // Measured in a face still loading: used now, measured again once the fonts settle.
+    if (!noacgAfterFonts(noacgRepaintData)) el.noacgSize = measured;
+  }
+  var drawn = el.noacgSize || measured;
+  var w = typeof weight === 'number' && weight >= 0 ? Math.min(1, weight) : 1;
+  var at = drawn.size * (0.5 + 0.5 * w);
+  el.style.fontSize = at + 'px';
+  var wide;
+  try { wide = el.getBBox().width; } catch (e) { wide = 0; }
+  el.noacgSizeOver = false;
+  if (wide > drawn.room) {
+    var fitted = at * (drawn.room / wide);
+    if (fitted < drawn.size * 0.3) { fitted = drawn.size * 0.3; el.noacgSizeOver = true; }
+    el.style.fontSize = fitted + 'px';
+  }
+  // Too long is said on the field the words come from, if any of its words does not fit.
+  var id = noacgFieldFor(String(rule.from).split(':')[0], null);
+  if (id && typeof svgFitOver !== 'undefined') {
+    // Every slot's layers: the role is stamped per row (word/1, word/2), never bare.
+    var keys = rule.rows ? noacgRowsOf(rule.rows) : [null], any = false;
+    for (var k = 0; k < keys.length; k++) {
+      var all = noacgRoleEls(rule.write, keys[k]);
+      for (var j = 0; j < all.length; j++) if (all[j].noacgSizeOver && all[j].classList.contains('${LOOK_ON_CLASS}')) any = true;
+    }
+    svgFitOver[id] = any;
+  }
+}
+
+// ── Crawls (a ticker crawl, an end-credits crawl, svg-template-library TL6) ──────────────────
+// The crawl layer prints the run, repeated to fill its window, copies before the start included,
+// and travels right to left at a constant speed: 140 artwork units a second for a frame 1920
+// wide (the built-in marquee's pace), times the motion
+// speed, times the operator's percentage clamped to 10..400. It moves inside a group, clipped to
+// its window (a drawn window layer, else the panel the fit finds, else the frame), measured once
+// at rest. A changed run keeps moving from where it is; a changed percentage only re-times it;
+// the take starts it again from where it was drawn. It is the content, so reduced motion keeps it.
+var noacgCrawls = [];
+function noacgCrawlPct(rule) {
+  var raw = rule.speed ? parseFloat(String(noacgDerive(rule.speed, null) || '').replace(/[^0-9.\\-]/g, '')) : NaN;
+  if (!(raw > 0)) raw = 100;
+  return Math.max(10, Math.min(400, raw)) / 100;
+}
+// noacgCrawlAtRest(item): nothing above the window or the text is tweening, so their boxes are the
+// drawn ones: an entrance that moves the layers apart would otherwise fix the clip off its plate.
+function noacgCrawlAtRest(item) {
+  if (typeof gsap === 'undefined' || typeof gsap.isTweening !== 'function') return true;
+  var art = noacgArt(), from = [item.outer.parentNode, item.win || item.panel];
+  for (var i = 0; i < from.length; i++) {
+    for (var n = from[i]; n && n !== art && n.nodeType === 1; n = n.parentNode) if (gsap.isTweening(n)) return false;
+  }
+  return true;
+}
+// noacgCrawlWindow(item): the window in the parent's own units (the clip and the move live there):
+// the drawn window layer, else the panel the fit finds for the text, else the artwork's frame. Its
+// own corners are mapped straight into the parent's frame, never through a box in the artwork's
+// units: a window turned with its text would otherwise clip to a rectangle larger than the plate.
+function noacgCrawlWindow(item) {
+  var art = noacgArt(), parent = item.outer.parentNode;
+  if (!art || !parent || !parent.getScreenCTM || !art.getScreenCTM() || !parent.getScreenCTM()) return false;
+  var inParent = parent.getScreenCTM().inverse();
+  var src = item.win || item.panel, box = null, m = null;
+  if (src) {
+    try { box = src.getBBox(); } catch (e) { box = null; }
+    var srcCtm = src.getScreenCTM && src.getScreenCTM();
+    if (box && box.width > 0 && box.height > 0 && srcCtm) m = inParent.multiply(srcCtm); else box = null;
+  }
+  if (!box) {
+    var vb = art.viewBox && art.viewBox.baseVal;
+    box = vb && vb.width > 0 ? { x: vb.x, y: vb.y, width: vb.width, height: vb.height } : { x: 0, y: 0, width: art.width.baseVal.value, height: art.height.baseVal.value };
+    m = inParent.multiply(art.getScreenCTM());
+  }
+  if (!(box.width > 0) || !(box.height > 0)) return false;
+  var xs = [], ys = [], points = [], corners = [[box.x, box.y], [box.x + box.width, box.y], [box.x + box.width, box.y + box.height], [box.x, box.y + box.height]];
+  for (var c = 0; c < 4; c++) {
+    xs.push(m.a * corners[c][0] + m.c * corners[c][1] + m.e);
+    ys.push(m.b * corners[c][0] + m.d * corners[c][1] + m.f);
+    points.push(xs[c] + ',' + ys[c]);
+  }
+  item.rect.setAttribute('points', points.join(' '));
+  item.poly = [[xs[0], ys[0]], [xs[1], ys[1]], [xs[2], ys[2]], [xs[3], ys[3]]];
+  // Artwork units to the parent's: the scale alone, whatever turn sits between them.
+  var toParent = inParent.multiply(art.getScreenCTM());
+  item.perUnit = Math.sqrt(toParent.a * toParent.a + toParent.b * toParent.b);
+  item.winW = Math.max.apply(null, xs) - Math.min.apply(null, xs);
+  item.frameW = art.viewBox && art.viewBox.baseVal && art.viewBox.baseVal.width > 0 ? art.viewBox.baseVal.width : art.width.baseVal.value || 1920;
+  return true;
+}
+function noacgCrawlOf(el, rule) {
+  for (var i = 0; i < noacgCrawls.length; i++) if (noacgCrawls[i].el === el) return noacgCrawls[i];
+  var art = noacgArt(), parent = el.parentNode;
+  if (!art || !parent) return null;
+  var win = rule.window ? noacgRoleEls(rule.window)[0] || null : null;
+  var panel = !win && typeof svgFitPanel === 'function' ? svgFitPanel(el) : null;
+  // Where the run starts: the drawn left edge, whatever anchor the file states.
+  var own;
+  try { own = el.getBBox(); } catch (e) { return null; }
+  if (!(own.width > 0)) return null;                  // not laid out yet: asked again next repaint
+  var defs = art.querySelector('defs') || art.insertBefore(noacgSvgEl('defs', {}), art.firstChild);
+  var clipId = 'noacg-crawl-' + noacgCrawls.length;
+  var clip = noacgSvgEl('clipPath', { id: clipId, clipPathUnits: 'userSpaceOnUse' });
+  var rect = noacgSvgEl('polygon', {});
+  clip.appendChild(rect);
+  defs.appendChild(clip);
+  var outer = noacgSvgEl('g', { 'clip-path': 'url(#' + clipId + ')' });
+  var move = noacgSvgEl('g', {});
+  parent.insertBefore(outer, el);
+  outer.appendChild(move);
+  move.appendChild(el);
+  var first = el.firstElementChild;
+  var made = {
+    el: el, outer: outer, move: move, pos: { x: 0 }, dir: { x: 1, y: 0 }, poly: null, rect: rect, win: win, panel: panel, tween: null, text: null, built: 1, restart: false,
+    perUnit: 1, winW: 0, frameW: 1920, rested: false,
+    drawn: { nodes: [], anchor: el.getAttribute('text-anchor'), x: el.getAttribute('x'), y: el.getAttribute('y') },
+    start: { x: own.x, y: el.getAttribute('y') !== null ? el.getAttribute('y') : first && first.getAttribute('y') !== null ? first.getAttribute('y') : '0' }
+  };
+  for (var n = 0; n < el.childNodes.length; n++) made.drawn.nodes.push(el.childNodes[n].cloneNode(true));
+  noacgCrawlWindow(made);
+  made.rested = noacgCrawlAtRest(made);
+  noacgCrawls.push(made);
+  return made;
+}
+function noacgCrawlRest(item) {
+  if (item.tween) item.tween.kill();
+  item.tween = null;
+  item.pos.x = 0;
+  if (typeof gsap !== 'undefined') gsap.set(item.move, { x: 0, y: 0 });
+  var el = item.el, d = item.drawn;
+  while (el.firstChild) el.removeChild(el.firstChild);
+  for (var i = 0; i < d.nodes.length; i++) el.appendChild(d.nodes[i].cloneNode(true));
+  var attrs = { 'text-anchor': d.anchor, x: d.x, y: d.y };
+  for (var k in attrs) if (attrs[k] === null) el.removeAttribute(k); else el.setAttribute(k, attrs[k]);
+}
+// noacgCrawlRun(item, text, rule): the run, laid out so its loop has no seam. Copies are laid
+// BEFORE the drawn start back to the window's leading edge, and enough after it to cover the window
+// past one run's travel, so the frame at the end of a run is the frame at its start, whatever the
+// run's length, the window's, and where in the window the text was drawn.
+function noacgCrawlRun(item, text, rule) {
+  var el = item.el;
+  var once = text + NOACG_CRAWL_SEP;
+  el.setAttribute('text-anchor', 'start');
+  el.setAttribute('x', item.start.x);
+  el.setAttribute('y', item.start.y);
+  // One run's length, measured as advance: two copies less one. A position of a character would
+  // be wrong for a right-to-left line, whose first character stands at its right.
+  var step;
+  try {
+    el.textContent = once;
+    var single = el.getComputedTextLength();
+    el.textContent = once + once;
+    step = el.getComputedTextLength() - single;
+  } catch (e) { step = 0; }
+  var parent = item.outer.parentNode;
+  // The run travels along the text's own baseline, in the move group's units: a text drawn turned
+  // (Illustrator writes the turn on the text itself) repeats along that line, not along x.
+  var rel = el.getCTM && parent.getCTM && el.getCTM() && parent.getCTM() ? parent.getCTM().inverse().multiply(el.getCTM()) : null;
+  var scale = rel ? Math.sqrt(rel.a * rel.a + rel.b * rel.b) : 1;
+  if (!(scale > 0)) scale = 1;
+  item.dir = rel ? { x: rel.a / scale, y: rel.b / scale } : { x: 1, y: 0 };
+  var dist = step * scale;                               // one run, in the move group's own units
+  if (!(dist > 0) || typeof gsap === 'undefined') {
+    // Not laid out: no run of the old text keeps moving over this one (asked again next repaint).
+    if (item.tween) item.tween.kill();
+    item.tween = null;
+    return;
+  }
+  // Copies before the start: at least one, and enough to reach the window's leading edge from
+  // where the text was drawn, so a short run drawn well inside its window leaves no gap at the
+  // wrap. Measured at the run's zero offset, whatever offset it has now (a new list resumes from
+  // it): the move group's frame at zero offset IS the parent's, the window's frame (item.poly), so
+  // the start is mapped through the text's own transform alone, which carries no offset.
+  // Copies after it reach the window's far edge along the same line, plus one run's travel: the
+  // window's length along the baseline, not its width across the frame, which a steep turn shortens.
+  var before = 1, tail = item.winW;
+  if (item.poly && item.move.getCTM && item.move.getCTM()) {
+    var local = item.move.getCTM().inverse().multiply(el.getCTM());
+    var sy = parseFloat(item.start.y) || 0;
+    var sx = local.a * item.start.x + local.c * sy + local.e, syM = local.b * item.start.x + local.d * sy + local.f;
+    var lead = Infinity, far = -Infinity;
+    for (var q = 0; q < item.poly.length; q++) {
+      var along = item.poly[q][0] * item.dir.x + item.poly[q][1] * item.dir.y;
+      lead = Math.min(lead, along);
+      far = Math.max(far, along);
+    }
+    var startAlong = sx * item.dir.x + syM * item.dir.y;
+    if (startAlong - lead > 0) before = Math.max(1, Math.ceil((startAlong - lead) / dist));
+    tail = far - startAlong;
+  }
+  var copies = before + 2 + Math.ceil(Math.max(0, tail) / dist);
+  var all = '';
+  for (var c = 0; c < copies; c++) all += once;
+  el.textContent = all;
+  // The run's left edge goes where the copies before the start begin, as the drawn text's left
+  // edge (item.start.x) was measured: by its box, whatever anchor the text computes to (a
+  // stylesheet's text-anchor, Inkscape's inline one made a class at import, outranks the
+  // attribute set above) and whichever way its letters run.
+  var head = item.start.x - before * step;
+  el.setAttribute('x', head);
+  var at;
+  try { at = el.getBBox().x; } catch (e) { at = head; }
+  if (Math.abs(at - head) > 0.01) el.setAttribute('x', head + (head - at));
+  var perSecond = 140 * (item.frameW / 1920) * item.perUnit;
+  var from = item.tween && !item.restart ? -item.pos.x : 0;
+  if (item.tween) item.tween.kill();
+  item.built = motionSpeed() * noacgCrawlPct(rule);
+  // An object target, as the exit's own motion: the stop and the exit kill every tween of the
+  // page's elements (killTweensOf('*')), and the crawl keeps moving under the exit (K6).
+  item.tween = gsap.fromTo(item.pos, { x: 0 }, {
+    x: -dist, duration: dist / (perSecond * item.built), ease: 'none', repeat: -1,
+    onUpdate: function () {
+      gsap.set(item.move, { x: item.pos.x * item.dir.x, y: item.pos.x * item.dir.y });
+      // Measured again once the layers have come to rest, the first time they do, and the copies
+      // laid again for that window, from where the run is (out of this tween's own update).
+      if (item.rested || !noacgCrawlAtRest(item)) return;
+      item.rested = true;
+      noacgCrawlWindow(item);
+      setTimeout(function () { item.text = null; noacgRepaintData(); }, 0);
+    }
+  });
+  item.tween.progress(((from % dist) + dist) % dist / dist);
+  item.restart = false;
+  // Measured in a face still loading: run again, from where it is, once the fonts settle.
+  noacgAfterFonts(noacgCrawlRefit);
+}
+function noacgCrawlRefit() {
+  for (var i = 0; i < noacgCrawls.length; i++) {
+    noacgCrawls[i].text = null;
+    if (noacgCrawlAtRest(noacgCrawls[i])) noacgCrawlWindow(noacgCrawls[i]);
+  }
+  noacgRepaintData();
+}
+function noacgCrawlAll(rules) {
+  for (var r = 0; r < rules.length; r++) {
+    var rule = rules[r];
+    if (!rule.crawl) continue;
+    var els = noacgRoleEls(rule.crawl);
+    var text = noacgDerive(rule.from, null);
+    text = text === null || text === undefined ? '' : String(text);
+    for (var e = 0; e < els.length; e++) {
+      var item = noacgCrawlOf(els[e], rule);
+      if (!item) continue;
+      if (text === '') {
+        if (item.text !== '') noacgCrawlRest(item);
+        item.text = '';
+        continue;
+      }
+      var killed = item.tween && typeof gsap !== 'undefined' && gsap.getTweensOf(item.pos).indexOf(item.tween) === -1;
+      if (item.text !== text || item.restart || !item.tween || killed) {
+        noacgCrawlRun(item, text, rule);
+        item.text = text;
+      } else if (item.tween) {
+        var now = motionSpeed() * noacgCrawlPct(rule);
+        // Always against the speed it was built at, so going back to that speed goes back to 1.
+        if (item.tween.timeScale() !== now / item.built) item.tween.timeScale(now / item.built);
+      }
+    }
+  }
+}
+// noacgCrawlRestart(): the take - every crawl starts its run again from where it was drawn.
+function noacgCrawlRestart() {
+  for (var i = 0; i < noacgCrawls.length; i++) noacgCrawls[i].restart = true;
 }
 
 // ── A readout keeps the alignment it was drawn with (#2691) ──────────────────────────
@@ -1171,7 +1536,11 @@ function noacgReadoutWrite(el, text) {
     for (i = 0; i < d.nodes.length; i++) el.appendChild(d.nodes[i].cloneNode(true));
     if (d.anchor === null) el.removeAttribute('text-anchor'); else el.setAttribute('text-anchor', d.anchor);
     if (d.x === null) el.removeAttribute('x'); else el.setAttribute('x', d.x);
+    // At its drawn size: a word cloud sizes its words inline, and the anchor is the drawing's.
+    var sized = el.style.fontSize;
+    el.style.fontSize = '';
     var a0 = noacgDrawnAnchor(el);
+    el.style.fontSize = sized;
     // MEASURED IN A FACE THAT HAS NOT LANDED is used for this write and not kept: the fallback
     // face has other widths, so the anchor is taken again off the drawing once fonts settle.
     if (a0 !== undefined && document.fonts && document.fonts.status === 'loading') noacgReadoutLater(el);

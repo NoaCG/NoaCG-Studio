@@ -1756,3 +1756,57 @@ test('saved Vote results and Message templates are offered in their pickers and 
   await expect(program('Message').locator('text', { hasText: 'Is there an encore tonight?' })).toBeVisible();
   await expect(program('Message').locator('text', { hasText: 'Sam' })).toBeVisible();
 });
+
+test('a saved Word cloud template is offered in the Word cloud picker, and staging fills one cue whose words it draws (svg-template-library AC-4)', async ({ page }) => {
+  test.setTimeout(120_000);
+  // Imported unchanged and saved; a new production has no word cloud of its own.
+  await page.goto('/app');
+  await dropSvg(page, fileURLToPath(new URL('../docs/tutorials/template-library/SVG/word-cloud.svg', import.meta.url)));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('wordcloud');
+  await intoProduction(page, 'Word cloud', 'Template shelf');
+  await settleDurableWrites(page);
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Pilot Night');
+  const ws = await openWorkspace(page, 'audience');
+  const note = ws.getByTestId('audience-note');
+
+  await addQuestion(ws, 'word', 'Sum up tonight in one word');
+  await goLive(ws, 'Sum up tonight in one word');
+  await ws.getByTestId('word-simulate').click(); // Exciting, Tense, Exciting, Loud
+  await expect(ws.getByTestId('word-text')).toHaveText(['Exciting', 'Loud', 'Tense']);
+
+  // The saved design is offered before the built-in, each with its own name, and picked by keyboard.
+  await ws.getByTestId('word-stage').click();
+  const choose = ws.getByTestId('word-choose');
+  expect(await choose.locator('.pd-aud-choose-group').evaluateAll((gs) => gs.map((g) => g.getAttribute('data-testid')))).toEqual(['word-group-saved', 'word-group-built-in']);
+  await choose.getByRole('button', { name: /Word cloud.*saved design/ }).focus();
+  await ws.keyboard.press('Enter');
+  await expect(note).toContainText('✓ Added a word cloud cue on “Word cloud” with 3 words');
+
+  // A second stage of the same round updates the one cue: no blank seed and no second cue.
+  await ws.getByTestId('word-stage').click();
+  await expect(note).toContainText('✓ Updated the word cloud cue on “Word cloud”');
+  await settleDurableWrites(ws);
+  const cues = await ws.evaluate(async (id) => {
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.id === id)!;
+    const copy = show.graphics.find((g) => g.name === 'Word cloud')!;
+    return (show.cues ?? []).filter((c) => c.sourceId === copy.id).map((c) => Object.values(c.values));
+  }, showId);
+  expect(cues, 'one cue on the copy').toHaveLength(1);
+  expect(cues[0]).toEqual(expect.arrayContaining(['Sum up tonight in one word', 'Exciting | 2\nLoud | 1\nTense | 1']));
+
+  // Taken, the staged words fill the first slots, the most-sent largest; the other slots hide.
+  await page.locator('.pd-cue', { hasText: 'Words:' }).first().click();
+  await page.getByTestId('verb-take').click();
+  const air = page.frameLocator('[data-testid="program-stage"] iframe[title="Word cloud"]');
+  const slot = (n: number) => air.locator(`[data-noacg-role~="word/${n}"]`);
+  await expect(slot(1)).toHaveText('Exciting');
+  await expect(slot(2)).toHaveText('Loud');
+  await expect(slot(3)).toHaveText('Tense');
+  for (const n of [1, 2, 3]) await expect(slot(n)).toHaveClass(/imported-design-on/);
+  for (const n of [4, 12]) await expect(slot(n)).not.toHaveClass(/imported-design-on/);
+  await expect(air.locator('text', { hasText: 'Sum up tonight in one word' })).toBeVisible();
+  const size = (n: number) => slot(n).evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(await size(1), 'the most-sent word is drawn larger than the least-sent').toBeGreaterThan(await size(3));
+});
