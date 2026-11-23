@@ -348,7 +348,8 @@ the new template adds no runtime word and changes no table.
   the final second opinion's fixes, 121 passed and one failed (j-0047): the crawl's export case
   read the crawl text's box edge, which moves when the copies before the start are laid again at
   rest, and OGraf saw it move right. The case now reads the moving group's offset at a pace that
-  ignores the wrap (repeated three times, below). An attempt to refuse an unread clock at import
+  ignores the wrap: on 24038cc it passed three times running (j-0049, 15 to 17 s each); the
+  alert batch, four templates with the new last take, took 1.1 min of its 120 s limit (j-0047). An attempt to refuse an unread clock at import
   broke the speaking templates' import (j-0046) and was withdrawn (finding 2 below). The first
   whole run (j-0024) failed the new Event notification once: its blue band
   was drawn as two shapes, and the air check read the square-cornered half as a shape cutting the
