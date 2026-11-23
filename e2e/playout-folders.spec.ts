@@ -2222,6 +2222,12 @@ test('a winner graphic and a lighting cue go together on one folder Take, with n
   await page.waitForTimeout(300);
   expect(fake.osc, 'one Take, one datagram').toHaveLength(1);
   expect(sent(fake), 'nothing went to a playout server').toEqual([]);
+  // The folder owes the lights' On Out: its row says so, and the cue's own Out stays grey, since
+  // the folder's Out is what sends it.
+  await expect(cue(page, 'Lights').getByTestId('cue-osc-owed')).toHaveText('OUT WAITING');
+  await selectCue(page, 'Lights');
+  await expect(page.getByTestId('verb-out')).toBeDisabled();
+  await holdFolder(page, 'Result');
 
   // Out takes the winner off and sends the lights' On Out message, once.
   await page.getByTestId('verb-out').click();

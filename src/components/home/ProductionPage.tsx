@@ -3432,8 +3432,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         }
       : null,
     clearing,
-    anyUp: liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || oscOwed.size > 0,
-    selectedOwesOut: !!selectedCue && oscOwed.has(selectedCue.id),
+    anyUp: liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || cues.some((c) => oscOwed.has(c.id)),
+    selectedOwesOut: !!selectedCue && oscOwed.get(selectedCue.id) === true,
     unnamedUp: () => unnamedSlots(serverOwnership).size > 0,
   });
   const { selectedLayerLive, airCue, editingCue, editingIsLive, selectedCueStaged, nextMoves } = view;

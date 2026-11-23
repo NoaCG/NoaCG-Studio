@@ -1119,7 +1119,7 @@ test('On Out: an OSC cue taken on its own owes its On Out to itself, sent by Out
   r.fp.oweOut(lights);
   r.fp.oweOut(plain);
   r.fp.oweOut(member);
-  assert.deepEqual([...r.fp.owedOuts.get()].sort(), ['lights', 'member'], 'a cue with no On Out message owes nothing');
+  assert.deepEqual([...r.fp.owedOuts.get()].sort(), [['lights', true], ['member', true]], 'a cue with no On Out message owes nothing');
   assert.deepEqual(kept, { 'cue:lights': ['lights'], 'cue:member': ['member'] }, 'kept for the tab under the cue, not its All-together folder');
   assert.equal(await r.fp.outCue(lights), '✓ LIGHTS: On Out OSC sent');
   assert.deepEqual(oscLog(r), ['osc out lights']);
@@ -1139,4 +1139,19 @@ test('On Out: a One-by-one member taken on its own still owes its folder', async
   assert.equal(await r.fp.outCue(r.page.cues[0]), null);
   await r.fp.out(M);
   assert.deepEqual(oscLog(r), ['osc out lights']);
+});
+
+test('On Out: a cue owes it once, to its folder rather than itself', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: [osc('lights', 'A')] });
+  const [lights] = r.page.cues;
+  r.fp.oweOut(lights);
+  assert.equal(r.fp.owedOuts.get().get('lights'), true);
+  await r.fp.take(TOGETHER);
+  assert.equal(r.fp.owedOuts.get().get('lights'), false, 'the folder\'s Take takes the debt over');
+  r.fp.oweOut(lights);
+  assert.equal(r.fp.owedOuts.get().get('lights'), false, 'taken alone again, it still owes its folder');
+  assert.equal(await r.fp.outCue(lights), null);
+  await r.fp.out(TOGETHER);
+  assert.deepEqual(oscLog(r).filter((l) => l.startsWith('osc out')), ['osc out lights'], 'sent once');
+  assert.equal(r.fp.owedOuts.get().size, 0);
 });

@@ -256,7 +256,7 @@ export default function CueRundown({
   takeMisses: Readonly<Record<string, string>>;
   /** Each OSC cue's last send, and the OSC cues whose On Out is owed (control/oscMarks.ts). */
   oscMarks: Readonly<Record<string, OscMark>>;
-  oscOwed: ReadonlySet<string>;
+  oscOwed: ReadonlyMap<string, boolean>;
   /** Each graphic layer's timed-cue countdown (control/cueAuto.ts), or null where timed cues do not
    *  run (a published production, until the wire lands), and then no row wears timing words. */
   cueArms: CueArms | null;

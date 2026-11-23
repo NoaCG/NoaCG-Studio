@@ -138,8 +138,9 @@ export interface FolderPlayout {
   /** Out on one OSC cue: send the On Out message it owes; the sentence to say, or null when it
    *  owed none. */
   outCue: (cue: ShowCue) => Promise<string | null>;
-  /** The OSC cues whose On Out message is owed, by a folder or by themselves. */
-  owedOuts: StorePart<ReadonlySet<string>>;
+  /** The OSC cues whose On Out message is owed: true for one that owes it itself (Out on the cue
+   *  sends it), false for one a folder owes. */
+  owedOuts: StorePart<ReadonlyMap<string, boolean>>;
   /** After a reload, put back the One-by-one steps this tab kept for folders holding an OSC cue (`io.oscSteps`). */
   restoreOscSteps: () => void;
   /** A failed send landed after all: each member's failure it settled is no miss any more.
@@ -185,18 +186,27 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
   // Out, All out, or a One-by-one folder's last press. An OSC cue taken on its own owes it to
   // itself, under its own key (`ownKey`), sent at Out on that cue or at All out (owner request of
   // 2026-11-23: one cue holds the lights' go and their return). Only a cue whose Take message was
-  // sent is owed one, and each is sent once.
+  // sent is owed one, each is sent once, and a cue owes it once: a folder's debt replaces the
+  // cue's own, and a cue its folder already owes for takes on none of its own.
   const owed: Record<string, string[]> = { ...(io.oscSent?.load() ?? {}) };
-  const owedOuts = storePart<ReadonlySet<string>>(new Set(Object.values(owed).flat()));
+  /** Each owed cue: true when it owes its On Out itself, false when a folder owes it. */
+  const owedNow = () => new Map(Object.entries(owed).flatMap(([key, ids]) => ids.map((id) => [id, key === ownKey(id)] as const)));
+  const owedOuts = storePart<ReadonlyMap<string, boolean>>(owedNow());
   const keepOwed = () => {
     io.oscSent?.save(Object.fromEntries(Object.entries(owed).filter(([, ids]) => ids.length)));
-    owedOuts.set(new Set(Object.values(owed).flat()));
+    owedOuts.set(owedNow());
   };
-  const owe = (folderId: string, cue: ShowCue) => {
+  const owe = (key: string, cue: ShowCue) => {
     if (!hasOscOut(cue)) return;
-    const ids = owed[folderId] ?? [];
-    if (ids.includes(cue.id)) return;
-    owed[folderId] = [...ids, cue.id];
+    const own = ownKey(cue.id);
+    if (key === own && Object.entries(owed).some(([k, ids]) => k !== own && ids.includes(cue.id))) return;
+    if (key !== own) delete owed[own];
+    const ids = owed[key] ?? [];
+    if (ids.includes(cue.id)) {
+      keepOwed();
+      return;
+    }
+    owed[key] = [...ids, cue.id];
     keepOwed();
   };
   /** Send what a folder owes, in the order its cues were sent; the failures' sentences, and every
