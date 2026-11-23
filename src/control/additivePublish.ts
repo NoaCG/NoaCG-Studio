@@ -54,6 +54,25 @@ export function newGraphicNames(pool: readonly string[], published: Record<strin
   return pool.filter((name) => !(name in published));
 }
 
+/** Why a publish would change what the outputs render (components/home/usePublishDrift.ts). */
+export interface PublishDue {
+  /** A published graphic renders differently now (a design edit). */
+  drift: boolean;
+  /** The pool has a graphic the published stamp does not name. */
+  added: boolean;
+  /** The published stamp names a graphic the pool no longer has. */
+  removed: boolean;
+  /** The record changed and the published digests are not known. */
+  unstamped: boolean;
+}
+
+/** Whether Publish changes is due: something only it can send. Added graphics are not, while this
+ *  page adds them by itself (`addsByItself`: it runs here and has not refused them); offering the
+ *  press for them too showed a button that the add then took away under the operator's pointer. */
+export function publishChangesDue(due: PublishDue, addsByItself: boolean): boolean {
+  return due.drift || due.removed || due.unstamped || (due.added && !addsByItself);
+}
+
 /** What a graphic the outputs do not have yet waits for, said on its cue and at its Take. `adds`:
  *  this page adds new graphics by itself, and why it will not when it will not (null: it does not). */
 export function notOnOutputsWhy(adds: { refusal: string | null } | null): string {

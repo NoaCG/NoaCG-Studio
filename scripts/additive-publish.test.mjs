@@ -14,6 +14,7 @@ const {
   newGraphicNames, planAdditive, mergeCues, notOnOutputsWhy, createAdditivePublisher,
   UNREADABLE, TOUCHES_PUBLISHED, BIGGER_STAGE, IN_SCENE, GONE, SETTLE_MS, WAIT_MS,
   OTHER_OWNER_SOUNDS, SOUND_NOT_UPLOADED, SOUND_REFUSED, SOUND_NOT_SENT, soundsStayFetchable, uploadSounds, additiveRefusal,
+  publishChangesDue,
 } = await import('../src/control/additivePublish.ts');
 const { graphicDigest, stampPayload } = await import('../src/control/payloadVersion.ts');
 
@@ -199,6 +200,20 @@ test('new cues go after the nearest earlier published cue, or first', () => {
   const saved = [cue('n0', 'N'), cue('a', 'X'), cue('n1', 'N'), cue('n2', 'N'), cue('e', 'X'), cue('b', 'Y'), cue('n3', 'N')];
   assert.deepEqual(mergeCues(stored, saved, new Set(['N'])).map((c) => c.id), ['n0', 'a', 'n1', 'n2', 'b', 'n3']);
   assert.deepEqual(mergeCues(stored, [cue('a', 'X', { label: 'new' })], new Set(['N']))[0].label, 'a', 'a published cue is never rewritten');
+});
+
+test('Publish changes is due only for what the add cannot send: never for graphics the page adds itself (configured playout-status AC-5, PR #2741)', () => {
+  const none = { drift: false, added: false, removed: false, unstamped: false };
+  // A graphic added, and this page adds it: no press offered, so none is left disabled and then
+  // taken away when the add lands.
+  assert.equal(publishChangesDue({ ...none, added: true }, true), false);
+  // It does not add it here (no permission, automatic updates, a refusal): the press is due.
+  assert.equal(publishChangesDue({ ...none, added: true }, false), true);
+  // What only Publish changes sends stays due whatever the add does.
+  assert.equal(publishChangesDue({ ...none, added: true, drift: true }, true), true);
+  assert.equal(publishChangesDue({ ...none, removed: true }, true), true);
+  assert.equal(publishChangesDue({ ...none, unstamped: true }, true), true);
+  assert.equal(publishChangesDue(none, false), false);
 });
 
 test('the words on a cue and at its Take say what the graphic waits for', () => {

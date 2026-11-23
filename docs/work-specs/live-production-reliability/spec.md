@@ -111,6 +111,8 @@ stored `r` and drops `c`, so a later automatic publish never mistakes it for a w
 the outputs are asked to prepare, as after Publish changes; an output takes new graphics in beside
 what is on air. It runs only for an account that may author, never while a press or automatic
 publish of the page runs, and writes nothing again once the stored stamp names the graphics.
+Publish changes is not offered for graphics the page adds itself, only for what the add cannot
+send, and the add waits while a readiness run (Publish or Check now) is still settling the outputs.
 
 It writes nothing, and the status stays amber with the reason, when the stored payload does not
 read back to its own stamp digests, when a new graphic would change a published one (the look's

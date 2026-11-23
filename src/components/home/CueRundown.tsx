@@ -878,6 +878,14 @@ export default function CueRundown({
                     ⚠
                   </span>
                 )}
+                {/* NOT ON OUTPUTS (live-production-reliability P2, AC-4): inside the row's button,
+                    as NEXT ON SERVER is, so a press on it selects the cue like the rest of the
+                    row (beside the button it took the press and selected nothing). */}
+                {started && !!cueGraphic && offOutputs?.graphics.has(cueGraphic) && (
+                  <span className="pd-tag unsent" title={`Not on the outputs yet. ${offOutputs.why}`} data-testid="cue-off-outputs">
+                    NOT ON OUTPUTS
+                  </span>
+                )}
                 {/* NEXT ON SERVER, after the name (plan §6.2): this clip waits behind whatever
                     plays on its slot, and plays by itself at the end when the server says AUTO. */}
                 {nextHere && (
@@ -929,11 +937,6 @@ export default function CueRundown({
               {cueAirs && !!cueGraphic && loadingGraphics?.has(cueGraphic) && (
                 <span className="pd-tag unsent" title="An output is still loading this graphic: it plays there once loaded." data-testid="cue-loading-mark">
                   LOADING
-                </span>
-              )}
-              {started && !!cueGraphic && offOutputs?.graphics.has(cueGraphic) && (
-                <span className="pd-tag unsent" title={`Not on the outputs yet. ${offOutputs.why}`} data-testid="cue-off-outputs">
-                  NOT ON OUTPUTS
                 </span>
               )}
               {cueAirs ? (

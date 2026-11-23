@@ -12,7 +12,7 @@
 // NoaCG Bridge and CasparCG are FAKED at the network layer (e2e/_fakeBridge.ts), because what the
 // status reads from them is one `/state` answer: what the output's slot holds.
 // covers: src/control/{playoutStatus,prepareBridge}.ts, src/model/{readyMemory,outputSetup}.ts, src/components/home/{PlayoutStatusControl,PlayoutPanel,PlayoutMonitors}.tsx
-// covers: src/components/home/useProductionPublish.ts
+// covers: src/components/home/useProductionPublish.ts, src/components/home/usePublishDrift.ts
 
 import { publishProduction, setCasparSwitch } from '../_publish';
 import { test, expect } from '@playwright/test';
@@ -158,19 +158,41 @@ test('the playout status: quiet until something reports, green when it does, red
   await page.keyboard.press('Escape');
   await setCasparSwitch(page, false);
 
-  // ── AC-5: a change the outputs draw puts Publish changes in the header, and the publish moves the
-  //    open output onto the new version BY ITSELF: this spec never reloads it. ──
+  // ── AC-5: a graphic added to the published production reaches the outputs BY ITSELF, alone, and
+  //    is never offered to Publish changes (live-production-reliability P2): the stored stamp names
+  //    it and the open output moves onto that version with no press and no reload. ──
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+  const stored = async () => {
+    const { data } = await admin.from('control_shows').select('output').eq('id', showId).single();
+    return (data?.output as { ver?: { n: number; g: Record<string, string> } }).ver;
+  };
+  const scorebugBefore = (await stored())!.g['House Scorebug'];
   await addCatalogGraphic(page, showId, 'Hairline');
+  // The add waits for a readiness run still settling (Check now, above), then goes.
+  await expect.poll(async () => Object.keys((await stored())?.g ?? {}).sort(), { timeout: 120_000 }).toEqual(['Hairline', 'House Scorebug']);
+  expect((await stored())!.n).toBe(2);
+  expect((await stored())!.g['House Scorebug'], 'the published graphic is as it was').toBe(scorebugBefore);
+  await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 90_000, message: 'the output moved onto v2 by itself' }).toBe(2);
+  await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
+  await expect(status).toHaveAttribute('data-tone', settled, { timeout: 30_000 });
+
+  // ── AC-5: a change only Publish changes sends (a design edit of a published graphic) puts it in
+  //    the header, and the publish moves the open output onto the new version BY ITSELF. ──
+  await page.evaluate(async (id) => {
+    const { loadShows, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const g = loadShows().find((x) => x.id === id)!.graphics.find((x) => x.name === 'House Scorebug')!;
+    const { error } = addGraphicToShow(id, { ...g.template, name: g.name, css: `${g.template.css}\n/* a design edit */` });
+    const failure = error ?? (await commitDurableWrites());
+    if (failure) throw new Error(failure);
+    window.dispatchEvent(new Event('spx-data-changed'));
+    await new Promise((resolve) => setTimeout(resolve));
+  }, showId);
   await expect(page.getByTestId('production-publish-changes')).toBeVisible({ timeout: 30_000 });
   await page.getByTestId('production-publish-changes').click();
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  await expect
-    .poll(async () => {
-      const { data } = await admin.from('control_shows').select('output').eq('id', showId).single();
-      return (data?.output as { ver?: { n: number } }).ver?.n;
-    }, { timeout: 30_000 })
-    .toBe(2);
-  await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 90_000, message: 'the output moved onto v2 by itself' }).toBe(2);
+  await expect.poll(async () => (await stored())?.n, { timeout: 30_000 }).toBe(3);
+  expect((await stored())!.g['House Scorebug'], 'the design edit went out').not.toBe(scorebugBefore);
+  await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 90_000, message: 'the output moved onto v3 by itself' }).toBe(3);
   await expect(page.getByTestId('production-publish-changes')).toHaveCount(0, { timeout: 30_000 });
   await expect(status).toHaveAttribute('data-tone', settled, { timeout: 30_000 });
 

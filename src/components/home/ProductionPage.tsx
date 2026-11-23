@@ -305,7 +305,7 @@ import { commandPathsOf, requestId, type PrepRequest } from '../../control/prepa
 import { oldOutputNames } from '../../control/autoPublish';
 import { useAutoPublish } from './useAutoPublish';
 import { usePublishNewGraphics } from './usePublishNewGraphics';
-import { newGraphicNames, notOnOutputsWhy } from '../../control/additivePublish';
+import { newGraphicNames, notOnOutputsWhy, publishChangesDue } from '../../control/additivePublish';
 import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type StatusFacts } from '../../control/playoutStatus';
 import { confirmLines, newerRun, pruneOwed, type ConfirmLink, type ConfirmOutput, type Owed } from '../../control/runConfirm';
 import { keptReport, noteMark, noteRun as trackRun, type OutputTrack } from '../../control/runTrack';
@@ -1246,7 +1246,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const authoringAllowed = useAccountAuthoring();
   // ADOPTION (live-publishing O5, designs/G1.md section 5): once the production-copies switch is on.
   useCopyAdoption(show, authoringAllowed, setShows);
-  const { unpublished: unpublishedChanges, requiresPreparation, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
+  const { unpublished: unpublishedChanges, due: publishDue, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
   // EXPECTED FOR THIS SESSION ONLY (playout-workflow-simplification D4): an output seen since this
   // page opened and then gone is lost, in red; yesterday's OBS is never expected today, so a page
   // opened before the studio is up stays quiet.
@@ -1314,7 +1314,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     show,
     enabled: !!hostedSlug && !autoPublish.active && backendConfigured && authStatus === 'signed-in' && authoringAllowed,
     names: notOnOutputs,
-    busy: () => publishing || prepareFlow.phase === 'publishing' || !!autoPublish.view?.running,
+    // A readiness run waits for the outputs to settle on the version it read: a publish in between
+    // would move them off it and the run would wait out its time, so the add waits for the run.
+    busy: () => publishing || prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing' || !!autoPublish.view?.running,
     appearanceFor: appearanceForRef,
     onStamp: (ver, output) => {
       // Never back over a newer stamp a press's publish set meanwhile, nor its readers and request.
@@ -1328,6 +1330,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   });
   /** Whether this page adds them by itself, and why it will not when it will not. */
   const newGraphicsAdds = newGraphics.enabled ? { refusal: newGraphics.refusal } : null;
+  /** Publish changes is due for what only it can send: never for graphics this page adds itself. */
+  const requiresPreparation = publishChangesDue(publishDue, !!newGraphicsAdds && !newGraphicsAdds.refusal);
   const offOutputs = hostedSlug && notOnOutputs?.length ? { graphics: new Set(notOnOutputs), why: notOnOutputsWhy(newGraphicsAdds) } : null;
   const relevanceSettings = loadPlayoutSettings();
   const casparTarget = casparOutputTarget(relevanceSettings);
