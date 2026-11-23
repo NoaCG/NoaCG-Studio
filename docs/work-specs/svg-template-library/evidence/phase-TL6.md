@@ -243,7 +243,9 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   then j-0028 with the last two fixes), with Scroll speed back to 100 between 0.7 and 1.3 times
   the first pace, Out leaving the run at its pace, and a 45-letter word reported too long then
   cleared. `crawl-window` (new, the Ticker crawl plain and turned three degrees): the clip is the
-  drawn Crawl box and the run keeps its pace after the stop every exit runs; on the code before
-  the fix the turned clip was 1615.5 by 240.1 and the run stood still. `pre-plan-graphics` 8
+  drawn Crawl box and the run keeps its pace after the stop every exit runs; a probe on the code
+  before the fix measured the turned clip at 1615.5 by 240.1 and the run standing still. Its third
+  case (from the automated review of 9bba32d) turns the Crawl text itself three degrees: the run
+  now travels along that baseline (slope 0.0524); moved along x alone, as before, it fails. `pre-plan-graphics` 8
   passed (j-0023), its G2 case included. `npm run gates -- run --changed origin/main`: 161 passed
   (j-0026). The same three runtime pins re-taken for the runtime text alone, each time.

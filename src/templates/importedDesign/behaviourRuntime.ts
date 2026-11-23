@@ -1337,7 +1337,7 @@ function noacgCrawlOf(el, rule) {
   move.appendChild(el);
   var first = el.firstElementChild;
   var made = {
-    el: el, outer: outer, move: move, pos: { x: 0 }, rect: rect, win: win, panel: panel, tween: null, text: null, built: 1, restart: false,
+    el: el, outer: outer, move: move, pos: { x: 0 }, dir: { x: 1, y: 0 }, rect: rect, win: win, panel: panel, tween: null, text: null, built: 1, restart: false,
     perUnit: 1, winW: 0, frameW: 1920, rested: false,
     drawn: { nodes: [], anchor: el.getAttribute('text-anchor'), x: el.getAttribute('x'), y: el.getAttribute('y') },
     start: { x: own.x, y: el.getAttribute('y') !== null ? el.getAttribute('y') : first && first.getAttribute('y') !== null ? first.getAttribute('y') : '0' }
@@ -1352,7 +1352,7 @@ function noacgCrawlRest(item) {
   if (item.tween) item.tween.kill();
   item.tween = null;
   item.pos.x = 0;
-  if (typeof gsap !== 'undefined') gsap.set(item.move, { x: 0 });
+  if (typeof gsap !== 'undefined') gsap.set(item.move, { x: 0, y: 0 });
   var el = item.el, d = item.drawn;
   while (el.firstChild) el.removeChild(el.firstChild);
   for (var i = 0; i < d.nodes.length; i++) el.appendChild(d.nodes[i].cloneNode(true));
@@ -1372,7 +1372,12 @@ function noacgCrawlRun(item, text, rule) {
   var step;
   try { step = el.getStartPositionOfChar(once.length).x - el.getStartPositionOfChar(0).x; } catch (e) { step = 0; }
   var parent = item.outer.parentNode;
-  var scale = el.getCTM && parent.getCTM && el.getCTM() && parent.getCTM() ? parent.getCTM().inverse().multiply(el.getCTM()).a : 1;
+  // The run travels along the text's own baseline, in the move group's units: a text drawn turned
+  // (Illustrator writes the turn on the text itself) repeats along that line, not along x.
+  var rel = el.getCTM && parent.getCTM && el.getCTM() && parent.getCTM() ? parent.getCTM().inverse().multiply(el.getCTM()) : null;
+  var scale = rel ? Math.sqrt(rel.a * rel.a + rel.b * rel.b) : 1;
+  if (!(scale > 0)) scale = 1;
+  item.dir = rel ? { x: rel.a / scale, y: rel.b / scale } : { x: 1, y: 0 };
   var dist = step * scale;                               // one run, in the move group's own units
   if (!(dist > 0) || typeof gsap === 'undefined') return;
   var copies = 3 + Math.ceil(item.winW / dist);
@@ -1389,7 +1394,7 @@ function noacgCrawlRun(item, text, rule) {
   item.tween = gsap.fromTo(item.pos, { x: 0 }, {
     x: -dist, duration: dist / (perSecond * item.built), ease: 'none', repeat: -1,
     onUpdate: function () {
-      gsap.set(item.move, { x: item.pos.x });
+      gsap.set(item.move, { x: item.pos.x * item.dir.x, y: item.pos.x * item.dir.y });
       // Measured again once the layers have come to rest, the first time they do.
       if (item.rested || !noacgCrawlAtRest(item)) return;
       item.rested = true;
