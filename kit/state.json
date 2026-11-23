@@ -34,8 +34,8 @@
  },
  "waitingOn": [
   {
-   "what": "TL6 group 2 PR (crawl, word cloud)",
-   "eta": "2026-11-23T03:00:00Z"
+   "what": "TL6 group 3 PR (speaking timer, event notification)",
+   "eta": "2026-11-23T06:00:00Z"
   }
  ],
  "inFlight": {
@@ -129,6 +129,10 @@
    "what": "TL5 group 7 product decisions (coordinator): meter keeps Target; empty Milestones shows drawn tiers; quiz row in use while Answer has text",
    "where": "#2678 (coordinator decisions comment)",
    "reversible": true
+  },
+  {
+   "what": "TL6 spec K2: a right-to-left list crawls right to left like every other, as the built-in marquee (builder default, reversible); show the owner at TL8",
+   "pr": 2712
   }
  ],
  "carry": {
@@ -195,6 +199,10 @@
    {
     "pr": 2711,
     "merge": "d69fa42ee96e4d16c9b1f2c9578958b411e3991b"
+   },
+   {
+    "pr": 2712,
+    "merge": "b787c77d6622f3e44179ce9821ffa41693010949"
    }
   ]
  }
