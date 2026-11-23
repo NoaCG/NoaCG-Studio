@@ -11,8 +11,8 @@
 //   Not additive, so nothing is written      the stored payload does not read back to its own stamp;
 //                                            a new graphic would change a published one (the look's
 //                                            face moving to it), needs a bigger stage, or sits in an
-//                                            OBS scene, or the stored sounds are another account's
-//                                            (a write makes the writer their owner). The status
+//                                            OBS scene, or the stored sounds are not under this
+//                                            account's key (a write makes the writer their owner). The status
 //                                            stays amber and says why.
 //   Left for Publish changes                 a cue on a graphic already published (new or edited),
 //                                            and every design edit of a published graphic.
@@ -66,7 +66,7 @@ export const UNREADABLE ='the published version could not be read back exactly';
 export const TOUCHES_PUBLISHED = 'adding it would change a graphic already on the outputs';
 export const BIGGER_STAGE = 'it is larger than the published stage';
 export const IN_SCENE = 'it is in an OBS scene';
-export const OTHER_OWNER_SOUNDS = 'the sounds on the outputs were published from another account';
+export const OTHER_OWNER_SOUNDS = 'the sounds already on the outputs would stop playing';
 export const SOUND_NOT_UPLOADED = 'its sound has not been uploaded';
 
 /** The storage key an output may fetch a published sound by: the publication's audio owner's
@@ -101,23 +101,15 @@ export function mergeCues(stored: readonly OutputCue[], cues: readonly OutputCue
   return result.map((cue) => (cue.next && !ids.has(cue.next) ? (({ next: _gone, ...rest }) => rest)(cue) : cue));
 }
 
-/**
- * The additive publication over the stored row (`output` and `panel` as read), or why there is none.
- * `added` are the saved pool's graphics the stored stamp does not name; `cues` the saved rundown's
- * graphic cues as a full publish would write them.
- */
-export async function planAdditive(input: {
-  output: unknown;
-  panel: unknown;
-  added: readonly AddedGraphic[];
-  cues: readonly OutputCue[];
-  /** The new graphics' sounds as uploaded (`publishAudio`'s manifest, storage keys included). */
-  sounds?: readonly SoundAssetRef[];
-  /** The account that writes: the publication's audio owner after the write. */
-  uploader: string | null;
-  now?: Date;
-}): Promise<AdditivePlan> {
-  const raw = input.output as (OutputPayload & Record<string, unknown>) | null;
+type Checked =
+  | { kind: 'refused'; reason: string }
+  | { kind: 'nothing' }
+  | { kind: 'ok'; raw: OutputPayload & Record<string, unknown>; base: PayloadVersion; added: AddedGraphic[] };
+
+/** Every refusal that does not need the new sounds uploaded, so nothing is uploaded for an add that
+ *  is refused anyway. */
+async function check(output: unknown, candidates: readonly AddedGraphic[], uploader: string | null): Promise<Checked> {
+  const raw = output as (OutputPayload & Record<string, unknown>) | null;
   const base = readPayloadVersion(raw?.ver);
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.graphics) || !base) return { kind: 'refused', reason: UNREADABLE };
   // What is stored IS what its stamp says: every graphic reads back to its digest, and the stamp
@@ -129,7 +121,7 @@ export async function planAdditive(input: {
     keys.add(spec.key);
   }
   if (Object.keys(base.g).some((key) => !keys.has(key))) return { kind: 'refused', reason: UNREADABLE };
-  const added = input.added.filter((a) => !(a.name in base.g) && !keys.has(a.name));
+  const added = candidates.filter((a) => !(a.name in base.g) && !keys.has(a.name));
   if (!added.length) return { kind: 'nothing' };
   const stage = raw.resolution;
   for (const a of added) {
@@ -137,10 +129,59 @@ export async function planAdditive(input: {
     if (!stage || a.spec.resolution.width > stage.width || a.spec.resolution.height > stage.height) return { kind: 'refused', reason: BIGGER_STAGE };
     if (a.inScene) return { kind: 'refused', reason: IN_SCENE };
   }
-  // THE SOUND MANIFEST (api/_lib/outputAudio.ts): an output fetches a sound only by the key of the
-  // publication's audio owner, which this write makes the uploader. The stored sounds must already be
-  // under that key, and each new one must come with its uploaded key, as a full publish's do.
-  if (!soundsStayFetchable(raw, input.uploader)) return { kind: 'refused', reason: OTHER_OWNER_SOUNDS };
+  // An output fetches a sound only by the key of the publication's audio owner (api/_lib/outputAudio.ts),
+  // which this write makes the uploader (migration 0121): the stored sounds must be under its key.
+  if (!soundsStayFetchable(raw, uploader)) return { kind: 'refused', reason: OTHER_OWNER_SOUNDS };
+  return { kind: 'ok', raw, base, added };
+}
+
+/** Why nothing would be written for `added` over the stored `output`, before any sound is uploaded;
+ *  null: the add can go on. */
+export async function additiveRefusal(output: unknown, added: readonly AddedGraphic[], uploader: string | null): Promise<{ kind: 'refused'; reason: string } | { kind: 'nothing' } | null> {
+  const checked = await check(output, added, uploader);
+  return checked.kind === 'ok' ? null : checked;
+}
+
+/** The new graphics' sounds uploaded through `upload` (`publishAudio`), which takes the manifest with
+ *  them and answers it with each sound's storage key, while it strips the key from the graphics' own
+ *  references; or why not. A refusal of the sound itself (storage, a changed or missing file) holds
+ *  until the graphics change; a sign-in or a failed send is tried again. */
+export async function uploadSounds<G extends { assets: { audio?: SoundAssetRef }[] }>(
+  specs: G[],
+  upload: (body: { graphics: G[]; soundAssets: SoundAssetRef[] }) => Promise<{ graphics: G[]; soundAssets: SoundAssetRef[] }>,
+): Promise<{ graphics: G[]; sounds: SoundAssetRef[] } | { kind: 'refused' | 'transient'; reason: string }> {
+  const refs = [...new Map(specs.flatMap((s) => s.assets.flatMap((a) => (a.audio ? [a.audio] : []))).map((a) => [a.hash, a] as const)).values()];
+  if (!refs.length) return { graphics: specs, sounds: [] };
+  try {
+    const uploaded = await upload({ graphics: specs, soundAssets: refs });
+    return { graphics: uploaded.graphics, sounds: uploaded.soundAssets };
+  } catch (e) {
+    const message = String((e as Error)?.message ?? e).replace(/\.$/, '');
+    return /^(Sign in|Sound upload failed)/.test(message) ? { kind: 'transient', reason: message } : { kind: 'refused', reason: message };
+  }
+}
+
+/**
+ * The additive publication over the stored row (`output` and `panel` as read), or why there is none.
+ * `added` are the saved pool's graphics the stored stamp does not name; `cues` the saved rundown's
+ * graphic cues as a full publish would write them.
+ */
+export async function planAdditive(input: {
+  output: unknown;
+  panel: unknown;
+  added: readonly AddedGraphic[];
+  cues: readonly OutputCue[];
+  /** The new graphics' sounds as uploaded (`uploadSounds`, storage keys included). */
+  sounds?: readonly SoundAssetRef[];
+  /** The account that writes: the publication's audio owner after the write. */
+  uploader: string | null;
+  now?: Date;
+}): Promise<AdditivePlan> {
+  const checked = await check(input.output, input.added, input.uploader);
+  if (checked.kind !== 'ok') return checked;
+  const { raw, base, added } = checked;
+  const stage = raw.resolution;
+  // THE SOUND MANIFEST: each new sound comes with its uploaded key, as a full publish's do.
   const sounds = new Map((Array.isArray(raw.soundAssets) ? raw.soundAssets : []).map((s) => [s.hash, s] as const));
   for (const s of input.sounds ?? []) if (!sounds.has(s.hash)) sounds.set(s.hash, s);
   for (const a of added) {

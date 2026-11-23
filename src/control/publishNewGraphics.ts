@@ -14,7 +14,7 @@ import { obsScenesOf } from '../model/obsScenes';
 import type { Show } from '../model/shows';
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
 import { buildPanelSpec, copyDigest, graphicSpec, outputCuesOf, readPublishedWhole, writeControlShow, type CuePublished, type OutputGraphicSpec, type OutputPayload } from './hostedControl';
-import { newGraphicNames, OTHER_OWNER_SOUNDS, planAdditive, soundsStayFetchable, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
+import { additiveRefusal, newGraphicNames, planAdditive, uploadSounds, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
 import { readPayloadVersion, type PayloadVersion } from './payloadVersion';
 import { forgetOwnPublish, notePublishedBoxes } from './publishParts';
 import { classifyFailure } from './autoPublish';
@@ -61,27 +61,31 @@ export async function publishNewGraphics(
   }
   const scenes = obsScenesOf(show);
   const panels = buildPanelSpec({ ...show, graphics: fresh }, library);
-  // Sounds: a publication whose stored sounds another account uploaded is left to Publish changes
-  // (this write would make this account their owner). New ones are uploaded under this account's
-  // key, and the manifest carries the keys as a full publish's does.
-  const uploader = (await sb.auth.getSession()).data.session?.user.id ?? null;
-  if (!soundsStayFetchable(row.output, uploader)) return { kind: 'refused', reason: OTHER_OWNER_SOUNDS };
-  const refs = [...new Map(built.flatMap((s) => s.assets.flatMap((a) => (a.audio ? [a.audio] : []))).map((a) => [a.hash, a] as const)).values()];
-  const uploaded = refs.length ? await publishAudio({ graphics: built, soundAssets: refs }) : { graphics: built, soundAssets: [] };
-  const specs = uploaded.graphics;
   const added: AddedGraphic[] = [];
   for (const [k, g] of fresh.entries()) {
     added.push({
       name: g.name,
-      spec: specs[k],
+      spec: built[k],
       digest: await copyDigest(show, show.graphics.indexOf(g), g.template),
       edited: designEditedAt(g, library),
       panel: panels[k],
       inScene: scenes.some((s) => s.graphics.includes(g.name)),
     });
   }
+  // Every refusal that needs no upload first: a refused add uploads nothing. The stored sounds must be
+  // under this account's key, since this write makes it their owner (migration 0121).
+  const session = (await sb.auth.getSession()).data.session;
+  if (!session) return { kind: 'transient', reason: 'this page is not signed in' };
+  const uploader = session.user.id;
+  const early = await additiveRefusal(row.output, added, uploader);
+  if (early?.kind === 'nothing') return { kind: 'current', ...(stored ? { ver: stored } : {}) };
+  if (early) return early;
+  // New sounds uploaded under this account's key; the manifest carries the keys, as a full publish's.
+  const uploaded = await uploadSounds(added.map((a) => a.spec), publishAudio);
+  if ('kind' in uploaded) return uploaded;
+  for (const [k, a] of added.entries()) a.spec = uploaded.graphics[k];
   const publishedOf = measure ? await measure(stored) : undefined;
-  const plan = await planAdditive({ output: row.output, panel: row.panel, added, cues: outputCuesOf(show, publishedOf), sounds: uploaded.soundAssets, uploader });
+  const plan = await planAdditive({ output: row.output, panel: row.panel, added, cues: outputCuesOf(show, publishedOf), sounds: uploaded.sounds, uploader });
   if (plan.kind === 'nothing') return { kind: 'current', ...(stored ? { ver: stored } : {}) };
   if (plan.kind === 'refused') return plan;
   let error: Awaited<ReturnType<typeof writeControlShow>>;

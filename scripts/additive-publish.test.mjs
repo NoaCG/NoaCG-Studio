@@ -13,7 +13,7 @@ import './lib/tsResolve.mjs';
 const {
   newGraphicNames, planAdditive, mergeCues, notOnOutputsWhy, createAdditivePublisher,
   UNREADABLE, TOUCHES_PUBLISHED, BIGGER_STAGE, IN_SCENE, GONE, SETTLE_MS, WAIT_MS,
-  OTHER_OWNER_SOUNDS, SOUND_NOT_UPLOADED, soundsStayFetchable,
+  OTHER_OWNER_SOUNDS, SOUND_NOT_UPLOADED, soundsStayFetchable, uploadSounds, additiveRefusal,
 } = await import('../src/control/additivePublish.ts');
 const { graphicDigest, stampPayload } = await import('../src/control/payloadVersion.ts');
 
@@ -109,6 +109,39 @@ test('the sound manifest stays fetchable: new sounds carry their uploaded key, a
   assert.equal(soundsStayFetchable(before.output, null), true);
   assert.equal(soundsStayFetchable(teammate.output, null), false);
   assert.equal(soundsStayFetchable({ soundAssets: [{ hash: 'h0', name: 'bed' }] }, 'u0'), false, 'a sound with no key is not fetchable either');
+});
+
+test('new sounds are uploaded with the manifest, whose keys the plan carries; a refused add uploads nothing; a refused sound holds, a failed send retries', async () => {
+  // As publishAudio does: every reference keyed, the graphics' own keys then stripped.
+  const calls = [];
+  const publishAudio = async (body) => {
+    calls.push(body);
+    const clone = JSON.parse(JSON.stringify(body));
+    for (const s of clone.soundAssets ?? []) s.storageKey = `u1/audio-${s.hash}`;
+    for (const g of clone.graphics) for (const a of g.assets) if (a.audio) delete a.audio.storageKey;
+    return clone;
+  };
+  const sfx = { path: 'sfx.mp3', data: 'x', audio: { hash: 'h1', name: 'sfx' } };
+  const join = await added('Join', { spec: { assets: [sfx, { ...sfx, path: 'again.mp3' }] } });
+  const up = await uploadSounds([join.spec], publishAudio);
+  assert.deepEqual(calls[0].soundAssets, [sfx.audio], 'the manifest goes with the graphics, once per sound');
+  assert.deepEqual(up.sounds, [{ hash: 'h1', name: 'sfx', storageKey: 'u1/audio-h1' }]);
+  const before = await stored();
+  const plan = await planAdditive({ ...before, added: [{ ...join, spec: up.graphics[0] }], cues: [], sounds: up.sounds, uploader: 'u1' });
+  assert.equal(plan.output.soundAssets[0].storageKey, 'u1/audio-h1', 'a cold output can fetch it');
+  // Silent graphics upload nothing.
+  calls.length = 0;
+  assert.deepEqual(await uploadSounds([spec('Quiet')], publishAudio), { graphics: [spec('Quiet')], sounds: [] });
+  assert.equal(calls.length, 0);
+  // Refusals that need no upload are known before it.
+  assert.deepEqual(await additiveRefusal(before.output, [await added('Join', { inScene: true })], 'u1'), { kind: 'refused', reason: IN_SCENE });
+  assert.equal(await additiveRefusal(before.output, [join], 'u1'), null);
+  assert.deepEqual(await additiveRefusal(before.output, [], 'u1'), { kind: 'nothing' });
+  // A sound the store refuses, or this browser cannot read, holds; a sign-in or a lost send retries.
+  const failing = (message) => async () => { throw new Error(message); };
+  assert.deepEqual(await uploadSounds([join.spec], failing('Sound unavailable: sfx. Prepare while connected.')), { kind: 'refused', reason: 'Sound unavailable: sfx. Prepare while connected' });
+  assert.equal((await uploadSounds([join.spec], failing('Sign in to publish sounds.'))).kind, 'transient');
+  assert.equal((await uploadSounds([join.spec], failing('Sound upload failed: timeout'))).kind, 'transient');
 });
 
 test('it is idempotent: the publication it wrote, read again, has nothing to add', async () => {
