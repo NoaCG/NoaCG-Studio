@@ -8,7 +8,9 @@
 //     drawn turned three degrees (a box taken in the artwork's units first grew it to 240 units tall);
 //   * a text drawn turned itself (Illustrator writes the turn on the text) travels along its own
 //     baseline, so each copy lands where the last one was (moved along x alone, it drifted off
-//     its line by 52 units a run);
+//     its line by sin 3 degrees of the run's length, 52 units for a 1000-unit run);
+//   * a short run drawn far inside its window is laid back to the window's leading edge, so no
+//     part of the window is ever left empty (one copy before the start left 900 units blank);
 //   * the stop that every exit runs (it kills every tween of the page's elements) leaves the run
 //     moving, so the text keeps travelling under the exit.
 import test from 'node:test';
@@ -28,33 +30,43 @@ const SPECS = [
 ];
 const PLAIN = readFileSync(at('docs/tutorials/template-library/SVG/ticker-crawl.svg'), 'utf8');
 const TEXT_TURNED = PLAIN.replace('<text id="Crawl"', '<text id="Crawl" transform="rotate(3 284 1007)"');
+const INSET = PLAIN.replace(/<text id="Crawl" x="284"/, '<text id="Crawl" x="1200"');
 const TURNED = PLAIN.replace(/(<g id="Board")/, '<g id="Turn" transform="rotate(3 960 540)">\n$1').replace(/<\/svg>\s*$/, '</g>\n</svg>');
 /** The drawn Crawl box, in the frame of the layer the run moves in. */
 const BOX = [[252, 960], [1860, 960], [1860, 1032], [252, 1032]];
 
 const RUN = async (files) => {
   const out = {};
-  for (const [name, markup] of Object.entries(files)) {
+  for (const [name, { markup, items: list }] of Object.entries(files)) {
     const t = window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(window.__importDraft(window.NOACG_SVG.importSvgMarkup(markup))) });
     const items = t.fields.find((f) => f.title === 'Items').field;
     const w = await window.__mountDesign(t);
-    w.update(JSON.stringify({ [items]: 'Gates open at noon\nLast train 23:40' }));
+    w.update(JSON.stringify({ [items]: list }));
     w.play();
     w.__advance(3000);
     const doc = w.document;
     const clip = doc.querySelector('clipPath[id^="noacg-crawl-"] polygon');
     const offset = () => doc.querySelector('[data-noacg-role~="crawl"]').parentNode.transform.baseVal.consolidate()?.matrix ?? { e: 0, f: 0 };
     const x = () => offset().e;
+    // A tenth of a second: shorter than any run here takes, so no wrap falls inside it.
     const a = x();
-    w.__advance(500);
+    w.__advance(100);
     const b = x();
     const travel = offset();
+    // The run's left edge in the window's frame, at tenth-second steps: never inside the box.
+    const runEl = doc.querySelector('[data-noacg-role~="crawl"]');
+    let lead = -Infinity;
+    for (let i = 0; i < 12; i++) { lead = Math.max(lead, runEl.getBBox().x + offset().e); w.__advance(100); }
     w.stop();
-    w.__advance(50);
+    w.__advance(10);
     const c = x();
-    w.__advance(500);
+    w.__advance(100);
     const d = x();
-    out[name] = { slope: travel.e ? travel.f / travel.e : null, points: clip ? clip.getAttribute('points').split(' ').map((p) => p.split(',').map(Number)) : null, moving: b - a, underExit: d - c };
+    // An empty list puts the text back where it was drawn, on both axes (K5).
+    w.update(JSON.stringify({ [items]: '' }));
+    w.__advance(100);
+    const rest = offset();
+    out[name] = { rest: [rest.e, rest.f], lead, slope: travel.e ? travel.f / travel.e : null, points: clip ? clip.getAttribute('points').split(' ').map((p) => p.split(',').map(Number)) : null, moving: b - a, underExit: d - c };
     document.getElementById('fx')?.remove();
   }
   return out;
@@ -62,23 +74,32 @@ const RUN = async (files) => {
 
 const out = await withBundledPage(SPECS, async (page) => {
   await installDrivenPage(page);
-  return page.evaluate(RUN, { plain: PLAIN, turned: TURNED, textTurned: TEXT_TURNED });
+  const two = 'Gates open at noon\nLast train 23:40';
+  return page.evaluate(RUN, {
+    plain: { markup: PLAIN, items: two },
+    turned: { markup: TURNED, items: two },
+    textTurned: { markup: TEXT_TURNED, items: two },
+    inset: { markup: INSET, items: 'Hi' },
+  });
 });
 
 measured(Object.keys(out).length, 'crawl builds');
 
-for (const name of ['plain', 'turned', 'textTurned']) {
-  test(`${name}: the clip is the drawn Crawl box, and the run keeps moving under the exit, along its baseline`, () => {
+for (const name of ['plain', 'turned', 'textTurned', 'inset']) {
+  test(`${name}: the clip is the drawn Crawl box; the run fills it, keeps moving under the exit along its baseline, and rests where drawn`, () => {
     const r = out[name];
     assert.ok(r.points, 'a clip');
     assert.equal(r.points.length, 4);
     r.points.forEach(([px, py], i) => {
       assert.ok(Math.abs(px - BOX[i][0]) < 0.5 && Math.abs(py - BOX[i][1]) < 0.5, `corner ${i}: ${px},${py}`);
     });
-    assert.ok(r.moving < -10, `it travels left: ${r.moving}`);
+    assert.ok(r.moving < -5, `it travels left: ${r.moving}`);
     assert.ok(Math.abs(r.underExit - r.moving) < 1, `the same pace after the stop: ${r.underExit} against ${r.moving}`);
     // Along the text's own baseline: level for a level text, three degrees for a turned one.
     const slope = name === 'textTurned' ? Math.tan((3 * Math.PI) / 180) : 0;
     assert.ok(Math.abs(r.slope - slope) < 0.002, `it travels along its baseline: slope ${r.slope}, drawn ${slope}`);
+    // The run always reaches the box's left edge (in the text's own frame for the level cases).
+    assert.deepEqual(r.rest, [0, 0], 'an empty list puts it back where it was drawn');
+    if (name !== 'textTurned') assert.ok(r.lead <= BOX[0][0] + 0.5, `the run reaches the window's leading edge: its left at ${r.lead}`);
   });
 }

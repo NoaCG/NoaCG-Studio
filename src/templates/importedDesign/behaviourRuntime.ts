@@ -1257,7 +1257,7 @@ function noacgReadoutSize(el, weight, rule) {
 }
 
 // ── Crawls (a ticker crawl, an end-credits crawl, svg-template-library TL6) ──────────────────
-// The crawl layer prints the run, repeated to fill its window with one copy before the start,
+// The crawl layer prints the run, repeated to fill its window, copies before the start included,
 // and travels right to left at a constant speed: 140 artwork units a second for a frame 1920
 // wide (the built-in marquee's pace), times the motion
 // speed, times the operator's percentage clamped to 10..400. It moves inside a group, clipped to
@@ -1307,6 +1307,7 @@ function noacgCrawlWindow(item) {
     points.push(xs[c] + ',' + ys[c]);
   }
   item.rect.setAttribute('points', points.join(' '));
+  item.poly = [[xs[0], ys[0]], [xs[1], ys[1]], [xs[2], ys[2]], [xs[3], ys[3]]];
   // Artwork units to the parent's: the scale alone, whatever turn sits between them.
   var toParent = inParent.multiply(art.getScreenCTM());
   item.perUnit = Math.sqrt(toParent.a * toParent.a + toParent.b * toParent.b);
@@ -1337,7 +1338,7 @@ function noacgCrawlOf(el, rule) {
   move.appendChild(el);
   var first = el.firstElementChild;
   var made = {
-    el: el, outer: outer, move: move, pos: { x: 0 }, dir: { x: 1, y: 0 }, rect: rect, win: win, panel: panel, tween: null, text: null, built: 1, restart: false,
+    el: el, outer: outer, move: move, pos: { x: 0 }, dir: { x: 1, y: 0 }, poly: null, rect: rect, win: win, panel: panel, tween: null, text: null, built: 1, restart: false,
     perUnit: 1, winW: 0, frameW: 1920, rested: false,
     drawn: { nodes: [], anchor: el.getAttribute('text-anchor'), x: el.getAttribute('x'), y: el.getAttribute('y') },
     start: { x: own.x, y: el.getAttribute('y') !== null ? el.getAttribute('y') : first && first.getAttribute('y') !== null ? first.getAttribute('y') : '0' }
@@ -1359,9 +1360,10 @@ function noacgCrawlRest(item) {
   var attrs = { 'text-anchor': d.anchor, x: d.x, y: d.y };
   for (var k in attrs) if (attrs[k] === null) el.removeAttribute(k); else el.setAttribute(k, attrs[k]);
 }
-// noacgCrawlRun(item, text, rule): the run, laid out so its loop has no seam. One copy is laid
-// BEFORE the drawn start and enough after it to cover the window past one run's travel, so the
-// frame at the end of a run is the frame at its start, whatever the run's length and the window's.
+// noacgCrawlRun(item, text, rule): the run, laid out so its loop has no seam. Copies are laid
+// BEFORE the drawn start back to the window's leading edge, and enough after it to cover the window
+// past one run's travel, so the frame at the end of a run is the frame at its start, whatever the
+// run's length, the window's, and where in the window the text was drawn.
 function noacgCrawlRun(item, text, rule) {
   var el = item.el;
   var once = text + NOACG_CRAWL_SEP;
@@ -1380,11 +1382,28 @@ function noacgCrawlRun(item, text, rule) {
   item.dir = rel ? { x: rel.a / scale, y: rel.b / scale } : { x: 1, y: 0 };
   var dist = step * scale;                               // one run, in the move group's own units
   if (!(dist > 0) || typeof gsap === 'undefined') return;
-  var copies = 3 + Math.ceil(item.winW / dist);
+  // Copies before the start: enough to reach the window's leading edge from where the text was
+  // drawn, plus one, so a short run drawn well inside its window leaves no gap at the wrap.
+  var before = 1;
+  if (item.poly && item.move.getCTM && item.move.getCTM()) {
+    var toMove = item.move.getCTM().inverse().multiply(parent.getCTM());   // the parent frame, less the run's offset
+    var local = item.move.getCTM().inverse().multiply(el.getCTM());
+    var sy = parseFloat(item.start.y) || 0;
+    var sx = local.a * item.start.x + local.c * sy + local.e, syM = local.b * item.start.x + local.d * sy + local.f;
+    var lead = Infinity;
+    for (var q = 0; q < item.poly.length; q++) {
+      var px = toMove.a * item.poly[q][0] + toMove.c * item.poly[q][1] + toMove.e;
+      var py = toMove.b * item.poly[q][0] + toMove.d * item.poly[q][1] + toMove.f;
+      lead = Math.min(lead, px * item.dir.x + py * item.dir.y);
+    }
+    var inset = sx * item.dir.x + syM * item.dir.y - lead;
+    if (inset > 0) before = Math.max(1, Math.ceil(inset / dist));
+  }
+  var copies = before + 2 + Math.ceil(item.winW / dist);
   var all = '';
   for (var c = 0; c < copies; c++) all += once;
   el.textContent = all;
-  el.setAttribute('x', item.start.x - step);
+  el.setAttribute('x', item.start.x - before * step);
   var perSecond = 140 * (item.frameW / 1920) * item.perUnit;
   var from = item.tween && !item.restart ? -item.pos.x : 0;
   if (item.tween) item.tween.kill();

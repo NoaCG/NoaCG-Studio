@@ -135,7 +135,7 @@ longer count as quiz answer rows, so existing quiz artwork imports as before. No
 ### What was built
 
 - **The crawl rule** (`behaviourRuntime.ts`, `CrawlRule` in `behaviourData.ts`): the `crawl` layer
-  prints the `lines` kind's `joined` run, repeated to fill the window with one copy before its start, and travels right to left at 140 artwork units
+  prints the `lines` kind's `joined` run, repeated to fill the window, copies before its start included, and travels right to left at 140 artwork units
   a second per 1920 of frame width, times the motion speed, times Scroll speed (%) clamped to 10
   to 400. It moves inside a group clipped to its window (a `Crawl box` layer, else the fit's
   panel, else the frame), measured once at rest. A new run keeps its offset; a new speed re-times
@@ -237,15 +237,20 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   restart (mutation-tested); Scroll speed as data is proven in every export target; a sized
   readout claims its geometry. Simplify and verify inline.
 - After the reviews of b7a9526 (automated: the pace back at 100, the too-long report; final
-  second opinion: the same report, the copy count, the K3 margin, G2's reimport) and of ca55736
+  second opinion: the same report, the copy count, the K3 margin, G2's reimport), of ca55736
   (automated: the crawl froze under the exit, against K6; a window turned with its text clipped
-  to a larger rectangle): the crawl and word cloud walks and the export case, 3 passed (j-0021,
-  then j-0028 with the last two fixes), with Scroll speed back to 100 between 0.7 and 1.3 times
-  the first pace, Out leaving the run at its pace, and a 45-letter word reported too long then
-  cleared. `crawl-window` (new, the Ticker crawl plain and turned three degrees): the clip is the
-  drawn Crawl box and the run keeps its pace after the stop every exit runs; a probe on the code
-  before the fix measured the turned clip at 1615.5 by 240.1 and the run standing still. Its third
-  case (from the automated review of 9bba32d) turns the Crawl text itself three degrees: the run
-  now travels along that baseline (slope 0.0524); moved along x alone, as before, it fails. `pre-plan-graphics` 8
-  passed (j-0023), its G2 case included. `npm run gates -- run --changed origin/main`: 161 passed
-  (j-0026). The same three runtime pins re-taken for the runtime text alone, each time.
+  to a larger rectangle), of 9bba32d (automated: a text turned itself drifted off its baseline at
+  each wrap) and of 034a597 (automated: a short run drawn far inside its window left a gap, with
+  one copy before its start): the crawl and word cloud walks and the export case, 3 passed
+  (j-0021, j-0028, j-0031, and again on the final runtime, below), with Scroll speed back to 100
+  between 0.7 and 1.3 times the first pace, Out leaving the run at its pace, and a 45-letter word
+  reported too long then cleared. `crawl-window` (new, on the Ticker crawl template): plain, the
+  strip turned three degrees, the text itself turned three degrees, and a short run drawn 900
+  units inside its window; in each the clip is the drawn Crawl box, the run fills it from its
+  leading edge, keeps its pace after the stop every exit runs, travels along its baseline (slope
+  0.0524 for the turned text) and rests where drawn when the list is emptied. Each defect was
+  checked against the code before its fix: a probe measured the turned clip at 1615.5 by 240.1
+  and the run standing still; the turned-text case fails with the x-only move (slope 0); the inset
+  case fails with one copy before the start (the run's left edge at 1116.6). `pre-plan-graphics`
+  8 passed (j-0023), its G2 case included. The same three runtime pins re-taken for the runtime
+  text alone, each time.
