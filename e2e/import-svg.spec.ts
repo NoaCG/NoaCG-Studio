@@ -3429,15 +3429,16 @@ const PICK_BOX_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 
 test('svg import: Set text box answers a click: a plate becomes the box, another text joins it', async ({ page }) => {
   await dropSvgMarkup(page, PICK_BOX_SVG, 'pick-box.svg');
   await page.locator('.wz-next').click();
-  // Neither text sits on the plate, so both start on the bare artwork.
-  await expect(page.getByTestId('map-svg-box-head-t0')).toContainText('On the artwork');
+  // Neither text sits on the plate, so there is no box to head the list with.
+  await expect(page.getByTestId('map-svg-box-head-t0')).toHaveCount(0);
   await page.getByTestId('map-svg-set-box-t0').click();
   const surface = page.getByTestId('wz-preview-draw');
   const b = (await surface.boundingBox())!;
   const click = (fx: number, fy: number) => page.mouse.click(b.x + b.width * fx, b.y + b.height * fy);
   // The plate's middle: (1360, 310) of 1920x1080.
   await click(1360 / 1920, 310 / 1080);
-  await expect(page.getByTestId('map-svg-box-head-t0'), 'the clicked plate is the headline box').not.toContainText('On the artwork');
+  await expect(page.getByTestId('map-svg-box-head-t0'), 'the clicked plate is the headline box').toBeVisible();
+  await expect(page.getByTestId('map-svg-box-head-t0')).not.toContainText('On the artwork');
   // The kicker's words: (220, 845).
   await click(220 / 1920, 845 / 1080);
   await expect(page.getByTestId('map-svg-box-t0').getByTestId('map-svg-row-t1'), 'the clicked text joins the same box').toBeVisible();
