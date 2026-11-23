@@ -715,9 +715,9 @@ test('questions are written, browsed and changed safely, and the list survives a
   await expect.poll(values).toEqual(['Crisps', 'Popcorn', 'Nuts', 'Fruit', 'Cake', 'Cheese']);
   await expect(composer.getByTestId('question-option-dropped')).toHaveCount(0);
   // The handle moves its row by the arrow keys, and by a drag.
-  await composer.getByRole('button', { name: 'Move option A' }).press('ArrowDown');
+  await composer.getByRole('button', { name: 'Move option A', exact: true }).press('ArrowDown');
   await expect.poll(values).toEqual(['Popcorn', 'Crisps', 'Nuts', 'Fruit', 'Cake', 'Cheese']);
-  await expect(composer.getByRole('button', { name: 'Move option B' })).toBeFocused();
+  await expect(composer.getByRole('button', { name: 'Move option B', exact: true })).toBeFocused();
   await composer.getByTestId('question-option-grip').nth(5).dragTo(composer.getByTestId('question-option-row').nth(0));
   await expect.poll(values).toEqual(['Cheese', 'Popcorn', 'Crisps', 'Nuts', 'Fruit', 'Cake']);
   // The phone follows every change, the vote rule included.
@@ -877,6 +877,10 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await phone.clock.install();
   await phone.goto(`/join?rehearse=${showId}`);
   await expect(phone.locator('#join .nj-prompt')).toHaveText('First question');
+  // An installed clock still runs on its own; pausing it is what holds the poll, so the phone can
+  // only re-read when it sends or the test runs its clock. Without it, a vote edit that takes the
+  // operator over five seconds let the poll show the new options before the stale send below.
+  await phone.clock.pauseAt(Date.now() + 1_000);
   await phone.locator('#nj-body').fill('Typed for the first');
 
   await goLive(ws, 'Second question');
