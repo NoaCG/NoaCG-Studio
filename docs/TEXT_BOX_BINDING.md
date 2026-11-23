@@ -270,6 +270,16 @@ text, plus "None. The text sits on the artwork.", and a "point at it on the artw
 arms the existing pick mode. Dragging a row between groups was rejected - undiscoverable, and
 awful to drive from a spec.
 
+**Built 2026-11-23, as "Set text box", without the dropdown.** The owner's ticket (paper and stub
+one picture, the name on nothing smaller than the paper) had no shape to choose, so pointing came
+first: the row's button arms the preview, a click on a shape makes it the box, a DRAG draws one
+(`DesignSvg.areas`, an unpainted rect every search for drawn things skips), and a click on another
+text adds it to the box or takes it out. "Use the found box" is the "None" of the design above.
+A box the author set is grouped and measured like a found one, so the box heading's growth answer
+and "what else moves" work on it unchanged. A drawn box that widens gets a CUT LINE
+(`DesignSvgGrowth.cut`): what is right of it slides, artwork across it is split and the gap filled
+with mirrored copies of the strip beside it, and a composition drawn centred widens from its middle.
+
 ### Alignment
 
 A nine-dot reference-point grid, the widget every Illustrator user has already used, in the fit

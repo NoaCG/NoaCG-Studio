@@ -3382,6 +3382,7 @@ test('wizard exits: "Open as code" on the AI card goes to Finish in the default 
 const GOLD_TICKET = fileURLToPath(new URL('fixtures/gold-ticket.svg', import.meta.url));
 
 test('svg import: a text box drawn on the ticket widens it at the drawn size, cuts the picture, and flags what still cannot fit', async ({ page }) => {
+  await page.goto('/app');
   await dropSvg2(page, GOLD_TICKET);
   const row = 't0';
   // Named after its words, and offered as the lower third it is.
