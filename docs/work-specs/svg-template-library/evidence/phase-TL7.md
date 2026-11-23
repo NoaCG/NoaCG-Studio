@@ -55,7 +55,7 @@ Carried nits:
 Also found and fixed by a repository-wide scan for the retired labels outside the checked
 surfaces: the OGraf export refusal "An imported credits roll ..." now says "Imported end credits
 ..." (its e2e assertion moved with it), `docs/OGRAF.md`, `docs/CONTROL_PANEL_ANY_GRAPHIC.md`
-(also its stale "14 recipes"), `docs/SVG_BEHAVIOUR_SHOWS.md` and `docs/PACK_TAXONOMY.md`.
+(also its stale "14 recipes"), `docs/SVG_BEHAVIOUR_SHOWS.md` and `docs/PACK_TAXONOMY.md` ("a council vote = poll (Poll result)": the `poll` type is Poll result, not Vote results; corrected after the final `/so`).
 
 Left as they are, with the reason: research notes, dated audits, plans, contract records and
 benchmarks (historical); fixtures (frozen inputs); `taxonomy.ts` `'name tag'` (a search synonym
