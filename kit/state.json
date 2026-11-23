@@ -34,15 +34,18 @@
  },
  "waitingOn": [
   {
-   "what": "owner TL8 report on #2678",
-   "eta": null
+   "what": "TL8 agent receipt",
+   "eta": "2026-11-23T11:00:00Z"
   }
  ],
  "inFlight": {
   "phase": "TL8",
-  "step": "owner",
-  "handover": "https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7095099105",
-  "asOf": "2026-11-23T08:10:00Z"
+  "step": "build",
+  "session": "session_017SdbwN53VV7D2sDnc9uct2",
+  "nonce": "tl8-a-7c31",
+  "source": "fac5edc08cafd0b205d4f456a489751c2c4c96ab",
+  "note": "agent stands in for the owner at his request 2026-11-23",
+  "asOf": "2026-11-23T08:12:22Z"
  },
  "owner": [
   {
