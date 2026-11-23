@@ -1285,7 +1285,13 @@ export default function ProductionAudienceWorkspace({
       chatIntakeFor(show.id).liveChanged(); // chat sorts its next line against this question
       setSelectedId(q.id);
       const swept = await finaliseClosed(before, await backend.rounds().catch(() => null), opened.id);
-      setNote(`✓ Phones now show “${q.text}”.${sweepWords(swept)} Nothing is on air.`);
+      // Going live again continues the question's one result (O1), and a phone that voted before
+      // still holds that vote. Said at the press, with the number, because a second run that the
+      // operator took for a fresh count read as votes going missing (studio session, 2026-11-23).
+      const reopened = opened.kind === 'poll' && (before ?? []).some((r) => r.id === opened.id);
+      const carried = reopened ? (await backend.tally(opened.id).catch(() => null))?.total ?? 0 : 0;
+      const continues = carried > 0 ? ` Its earlier ${carried} ${carried === 1 ? 'vote still counts' : 'votes still count'}. For a fresh count, Stop and Clear results, or Duplicate it.` : '';
+      setNote(`✓ Phones now show “${q.text}”.${continues}${sweepWords(swept)} Nothing is on air.`);
     } catch (err) {
       const message = (err as Error).message;
       // R8: another tab changed the words of a question that already has answers.
@@ -1888,6 +1894,11 @@ export default function ProductionAudienceWorkspace({
                           </span>
                           <span className="pd-aud-tally-count" data-testid={`audience-tally-${i}`}>
                             {count}
+                          </span>
+                          {/* The share beside the count it is made from, so the figure on air can
+                              be checked against the votes behind it. */}
+                          <span className="pd-aud-tally-share hint" data-testid={`audience-tally-share-${i}`}>
+                            {share}%
                           </span>
                           {/* Phone and chat apart, once chat has voted; the count above is their sum. */}
                           {chatVoted && (

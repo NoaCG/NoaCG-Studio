@@ -785,6 +785,10 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await phone.locator('#join .nj-opt').nth(1).click();
   await expect(phone.locator('#join .nj-opt').nth(1)).toHaveAttribute('aria-pressed', 'true');
   const pick = questionRow(ws, 'Pick one');
+  // A tap only picks: nothing is counted until the viewer presses Vote.
+  await expect(pick.getByTestId('question-count')).toHaveText('0');
+  await phone.locator('#join .nj-send').click();
+  await expect(phone.getByTestId('nj-voted')).toHaveText('Your vote: B Blue');
   await expect(pick.getByTestId('question-count')).toHaveText('1', { timeout: 10_000 });
   await stopLive(ws, 'Pick one');
   await pick.getByTestId('question-more').click();
@@ -797,14 +801,16 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await ws.getByTestId('question-save').click();
   await goLive(ws, 'Pick one');
   await phone.locator('#join .nj-opt').nth(0).click(); // still the old "Red"
+  await phone.locator('#join .nj-send').click();
   await expect(phone.locator('#join .nj-note')).toHaveText('That question has closed.');
   await expect(phone.locator('#join .nj-opt')).toHaveCount(3);
   await expect(pick.getByTestId('question-count')).toHaveText('0');
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
   // A thanks belongs to the question it was for (found on the phase 3 rehearsal walk): once the
-  // room moves on, the phone does not keep saying "Counted ... while the vote is open".
+  // room moves on, the phone does not keep saying "Your vote is in ... until voting closes".
   await phone.locator('#join .nj-opt').nth(2).click();
-  await expect(phone.locator('#join .nj-note')).toHaveText(/^Counted\./);
+  await phone.locator('#join .nj-send').click();
+  await expect(phone.locator('#join .nj-note')).toHaveText(/^Your vote is in\./);
   await stopLive(ws, 'Pick one');
   await phone.clock.runFor(7_000);
   await expect(phone.locator('#join .nj-waiting')).toBeVisible();
@@ -1425,12 +1431,17 @@ async function mount(page: Page, view: Record<string, unknown>, round: 'none' | 
                 options: round === 'open' ? [] : ['The home side', 'The visitors', 'A draw after extra time'],
               },
             };
-      const w = window as unknown as { __view: Record<string, unknown>; __join: { refresh(): void } };
+      const w = window as unknown as {
+        __view: Record<string, unknown>;
+        __join: { refresh(): void };
+        __vote?: (round: string, option: number, revision: number) => Promise<{ ok: boolean; error: string | null }>;
+      };
       w.__view = { productionName: 'Friday Night Live', state, mine: [], myVote: null, ...view };
       w.__join = mountJoinSurface(document.getElementById('join')!, {
         load: async () => w.__view as never,
         submit: async () => ({ ok: true, error: null }),
-        vote: async () => ({ ok: true, error: null }),
+        // A test can stand its own server in (`window.__vote`); by default every vote counts.
+        vote: async (round, option, revision) => (w.__vote ? w.__vote(round, option, revision) : { ok: true, error: null }),
       }, { poll: false });
     },
     { view, round },
@@ -1665,6 +1676,66 @@ test.describe('the phone page carries the production look (AC-6)', () => {
     await expect(page.locator('img')).toHaveCount(0);
     await expect(page.locator('.nj-title')).toHaveText('Friday Night Live');
   });
+});
+
+// Studio session, 2026-11-23: a vote has to be a deliberate act the viewer can see land, and no
+// failure may leave the phone unable to vote again. Before the fix a client that threw (the
+// lazily loaded library 404ing after a deploy) left every option greyed out with nothing said.
+test('a tap only picks, Vote sends once and reads back, and a failed send leaves the phone able to vote', async ({ page }) => {
+  await phonePage(page);
+  await mount(page, {}, 'choice');
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      __view: { myVote: number | null };
+      __sent: number[];
+      __fail: boolean;
+      __vote: (round: string, option: number) => Promise<{ ok: boolean; error: string | null }>;
+    };
+    w.__sent = [];
+    w.__fail = true;
+    w.__vote = async (_round, option) => {
+      if (w.__fail) throw new Error('Failed to fetch dynamically imported module');
+      w.__sent.push(option);
+      w.__view.myVote = option; // what the server would read back
+      return { ok: true, error: null };
+    };
+  });
+  const options = page.locator('.nj-opt');
+  const vote = page.locator('.nj-send');
+  const sent = () => page.evaluate(() => (window as unknown as { __sent: number[] }).__sent);
+
+  // Nothing picked: nothing to send.
+  await expect(vote).toHaveText('Vote');
+  await expect(vote).toBeDisabled();
+  await options.nth(1).click();
+  await expect(options.nth(1)).toHaveAttribute('aria-pressed', 'true');
+  await expect(vote).toBeEnabled();
+  expect(await sent(), 'a tap sends nothing').toEqual([]);
+
+  // The send fails: the phone says so and can vote again.
+  await vote.click();
+  await expect(page.locator('.nj-note.bad')).toHaveText('Not sent. Check your connection and try again.');
+  await expect(options.nth(0)).toBeEnabled();
+  await expect(vote).toBeEnabled();
+  await expect(page.getByTestId('nj-voted')).toHaveCount(0);
+
+  // It goes through: one send, the read-back names the option, and Vote stands down.
+  await page.evaluate(() => {
+    (window as unknown as { __fail: boolean }).__fail = false;
+  });
+  await vote.click();
+  await expect(page.locator('.nj-note')).toHaveText('Your vote is in. You can change it until voting closes.');
+  await expect(page.getByTestId('nj-voted')).toHaveText('Your vote: B The visitors');
+  await expect(vote).toHaveText('Change vote');
+  await expect(vote).toBeDisabled();
+  expect(await sent()).toEqual([1]);
+
+  // Changing it is the same deliberate act.
+  await options.nth(2).click();
+  await expect(page.getByTestId('nj-voted')).toHaveText('Your vote: B The visitors');
+  await vote.click();
+  await expect(page.getByTestId('nj-voted')).toHaveText('Your vote: C A draw after extra time');
+  expect(await sent()).toEqual([1, 2]);
 });
 
 test('the studio QR code decodes to the short link, as SVG and as PNG (AC-5)', async ({ page, browser }) => {

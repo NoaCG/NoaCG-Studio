@@ -28,6 +28,7 @@ import {
   AUDIENCE_LIMITS,
   OPERATOR_ADD_MAX,
   OPERATOR_SETTLE_MAX,
+  NOT_SENT,
   QUESTION_CLOSED,
   WORD_ALREADY_SENT,
   clampProvenance,
@@ -188,6 +189,47 @@ async function joinRead(slug: string, device: string): Promise<JoinRow | null> {
   }
 }
 
+/** A refusal's words for a viewer: the two that say what they are, otherwise the generic one. */
+function refusalOf(message: string): SubmitResult {
+  // The one refusal that says what it is (0111): the round closed or changed under the phone.
+  if (/question has closed/.test(message)) return { ok: false, error: QUESTION_CLOSED, closed: true };
+  // A Word question takes one word per phone (0114, W3); a phone that already sent one is told.
+  if (/already sent your word/.test(message)) return { ok: false, error: WORD_ALREADY_SENT };
+  return { ok: false, error: REFUSED };
+}
+
+/**
+ * A phone's send (a vote, an answer, a word), as a plain request like `joinRead`, never through
+ * the Supabase client.
+ *
+ * The client library is a code-split file the phone fetched only on its first send. A page opened
+ * before a deploy asks for the OLD file name, which then answers 404 for good (app/deploySkew.ts),
+ * so every first vote from such a phone threw, the page never cleared its busy state, and the
+ * option buttons stayed greyed with no message: the vote was simply lost (studio session,
+ * 2026-11-23). A plain request has no file to fetch, and every outcome is an answer, never a throw.
+ */
+async function joinWrite(fn: 'audience_vote' | 'audience_submit', args: Record<string, unknown>): Promise<SubmitResult> {
+  const cfg = loadBackendConfig();
+  if (!isBackendConfigured(cfg)) return { ok: false, error: REFUSED };
+  let res: Response;
+  try {
+    res = await fetch(`${cfg.url.replace(/\/+$/, '')}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: { apikey: cfg.anonKey, Authorization: `Bearer ${cfg.anonKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+    });
+  } catch {
+    return { ok: false, error: NOT_SENT };
+  }
+  if (res.ok) return { ok: true, error: null };
+  if (res.status >= 500) return { ok: false, error: NOT_SENT };
+  const message = await res.json().then(
+    (body: { message?: unknown } | null) => String(body?.message ?? ''),
+    () => '',
+  );
+  return refusalOf(message);
+}
+
 /** The state the join page starts from and falls back to: a closed door, honestly described. */
 const CLOSED: AudienceState = {
   open: false,
@@ -217,25 +259,6 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
     // every surface picks the local provider when `isBackendConfigured()` is false.
     if (!sb) throw new Error('This build has no cloud backend.');
     return sb;
-  };
-
-  /** A viewer-facing write: one boolean, one generic message, never a server string.
-   *  `PromiseLike`, not `Promise` — a Supabase query builder is thenable, not a real promise. */
-  const attempt = async (run: () => PromiseLike<{ error: unknown }>): Promise<SubmitResult> => {
-    try {
-      const { error } = await run();
-      // The one refusal that says what it is (0111): the round closed or changed under the phone.
-      if (error && /question has closed/.test(String((error as { message?: unknown }).message ?? ''))) {
-        return { ok: false, error: QUESTION_CLOSED, closed: true };
-      }
-      // A Word question takes one word per phone (0114, W3); a phone that already sent one is told.
-      if (error && /already sent your word/.test(String((error as { message?: unknown }).message ?? ''))) {
-        return { ok: false, error: WORD_ALREADY_SENT };
-      }
-      return error ? { ok: false, error: REFUSED } : { ok: true, error: null };
-    } catch {
-      return { ok: false, error: REFUSED };
-    }
   };
 
   /** An operator-facing read/write: the surface shows what went wrong, because the operator
@@ -315,37 +338,31 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
 
     async submit(deviceToken, author, body, target): Promise<SubmitResult> {
       if (!body.trim()) return { ok: false, error: 'Nothing to send.' };
-      const sb = await client();
-      const result = await attempt(() =>
-        sb.rpc('audience_submit', {
-          p_join_slug: join(),
-          p_device: deviceToken,
-          // Clamped here as well as in the trigger: a phone should not send 200 kB to be told
-          // no, and the counter under the box has to agree with what actually lands.
-          p_author: author.trim().slice(0, AUDIENCE_LIMITS.author),
-          p_body: body.trim().slice(0, AUDIENCE_LIMITS.body),
-          // The round and revision the phone READ (0111, R6): never a question id it could choose.
-          p_round: target.roundId,
-          p_revision: target.revision,
-        }),
-      );
+      const result = await joinWrite('audience_submit', {
+        p_join_slug: join(),
+        p_device: deviceToken,
+        // Clamped here as well as in the trigger: a phone should not send 200 kB to be told
+        // no, and the counter under the box has to agree with what actually lands.
+        p_author: author.trim().slice(0, AUDIENCE_LIMITS.author),
+        p_body: body.trim().slice(0, AUDIENCE_LIMITS.body),
+        // The round and revision the phone READ (0111, R6): never a question id it could choose.
+        p_round: target.roundId,
+        p_revision: target.revision,
+      });
       if (result.ok) changed();
       return result;
     },
 
     async vote(deviceToken, roundId, option, revision): Promise<SubmitResult> {
-      const sb = await client();
-      const result = await attempt(() =>
-        sb.rpc('audience_vote', {
-          p_join_slug: join(),
-          p_device: deviceToken,
-          p_round: roundId,
-          p_option: option,
-          p_revision: revision,
-        }),
-      );
+      const result = await joinWrite('audience_vote', {
+        p_join_slug: join(),
+        p_device: deviceToken,
+        p_round: roundId,
+        p_option: option,
+        p_revision: revision,
+      });
       if (result.ok) changed();
-      return result.ok || result.closed ? result : { ok: false, error: 'That vote could not be counted.' };
+      return result.ok || result.closed || result.error === NOT_SENT ? result : { ok: false, error: 'That vote could not be counted.' };
     },
 
     // ── The operator's half ─────────────────────────────────────────────────────────────────
