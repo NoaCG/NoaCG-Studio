@@ -3416,3 +3416,29 @@ test('svg import: a text box drawn on the ticket widens it at the drawn size, cu
   await page.getByTestId(`map-svg-sample-${row}`).fill('Konstantinopoulou'.repeat(6));
   await expect.poll(overflow).toEqual(['f0']);
 });
+
+// SET TEXT BOX BY POINTING: while a row's box is being set, the draw surface
+// covers the preview, so a CLICK has to reach the layer under it. A click on a plate makes it the
+// row's box, and a click on another text puts that text in the same box.
+const PICK_BOX_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect id="Plate" x="960" y="160" width="800" height="300" fill="#1d4ed8"/>
+  <text id="Headline" x="160" y="700" font-size="64" fill="#ffffff">Headline</text>
+  <text id="Kicker" x="160" y="860" font-size="48" fill="#ffffff">Kicker</text>
+</svg>`;
+
+test('svg import: Set text box answers a click: a plate becomes the box, another text joins it', async ({ page }) => {
+  await dropSvgMarkup(page, PICK_BOX_SVG, 'pick-box.svg');
+  await page.locator('.wz-next').click();
+  // Neither text sits on the plate, so both start on the bare artwork.
+  await expect(page.getByTestId('map-svg-box-head-t0')).toContainText('On the artwork');
+  await page.getByTestId('map-svg-set-box-t0').click();
+  const surface = page.getByTestId('wz-preview-draw');
+  const b = (await surface.boundingBox())!;
+  const click = (fx: number, fy: number) => page.mouse.click(b.x + b.width * fx, b.y + b.height * fy);
+  // The plate's middle: (1360, 310) of 1920x1080.
+  await click(1360 / 1920, 310 / 1080);
+  await expect(page.getByTestId('map-svg-box-head-t0'), 'the clicked plate is the headline box').not.toContainText('On the artwork');
+  // The kicker's words: (220, 845).
+  await click(220 / 1920, 845 / 1080);
+  await expect(page.getByTestId('map-svg-box-t0').getByTestId('map-svg-row-t1'), 'the clicked text joins the same box').toBeVisible();
+});

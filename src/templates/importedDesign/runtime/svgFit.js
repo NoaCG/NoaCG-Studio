@@ -388,6 +388,25 @@ function svgFitContainer(el) {
   return best;
 }
 
+/** `svgFitContainer`'s search with drawn boxes left out. That function stays word for word for
+ *  assets/svgFitUpgrade.ts, so the artwork that carries a drawn box asks this one instead. */
+function svgFitHolder(el) {
+  var art = document.querySelector('.__PREFIX__-art');
+  var box = el.getBoundingClientRect();
+  var trim = svgEmTrim(el);
+  var shapes = art.querySelectorAll(SVG_DRAWN_RECT + ', path, polygon, ellipse, circle');
+  var best = null;
+  var bestArea = 0;
+  for (var i = 0; i < shapes.length; i++) {
+    var r = shapes[i].getBoundingClientRect();
+    if (r.left > box.left + 1 || r.right < box.right - 1) continue;
+    if (r.top > box.top + trim + 1 || r.bottom < box.bottom - trim - 1) continue;
+    if (r.width * r.height <= box.width * box.height) continue;
+    if (!best || r.width * r.height < bestArea) { best = shapes[i]; bestArea = r.width * r.height; }
+  }
+  return best;
+}
+
 /** How far, in screen px, a line's box overhangs its EM box at each of its top and bottom: half
  *  of what the font's ascent plus descent adds to the type size. Zero where it cannot be read. */
 function svgEmTrim(el) {
@@ -429,9 +448,9 @@ function svgFitPanel(el) {
   // THE BOX THE AUTHOR SET is the answer, before any search: they pointed at it.
   var set = svgSaidBox(el.id);
   if (set) return set;
-  var held = svgFitContainer(el);
-  // A drawn box belongs to the lines it was set for; to any other line it is not there.
-  if (held && held.hasAttribute('data-noacg-area')) held = null;
+  // A drawn box belongs to the lines it was set for; to any other line it is not there, so the
+  // search runs without it - dropping it after it won would lose the plate it beat.
+  var held = art.querySelector('[data-noacg-area]') ? svgFitHolder(el) : svgFitContainer(el);
   if (held) {
     var hr = held.getBoundingClientRect();
     // The smallest outright holder: frame-sized only where nothing smaller holds the line.

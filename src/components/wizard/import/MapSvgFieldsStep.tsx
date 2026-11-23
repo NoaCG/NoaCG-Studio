@@ -333,11 +333,41 @@ export default function MapSvgFieldsStep({
 
   // Arming IS reporting the handler; disarming is reporting null, and so is leaving the step —
   // a canvas still armed for a graphic nobody is mapping any more would swallow the next drag.
+  /** The text or shape under a point of the artwork (fractions), measured on the step's own
+   *  render: a text before a shape, then the smallest shape - what someone pointing at it means. */
+  const layerAt = useCallback(
+    (fx: number, fy: number): string | null => {
+      const stage = stageRef.current;
+      const root = stage?.querySelector('svg')?.getBoundingClientRect();
+      if (!svg || !stage || !root || !(root.width > 0)) return null;
+      const x = root.left + fx * root.width;
+      const y = root.top + fy * root.height;
+      let best: { id: string; text: boolean; area: number } | null = null;
+      for (const id of [...draft.svgFields.map((f) => f.candidateId), ...svg.shapes.map((sh) => sh.id)]) {
+        const r = stage.querySelector(`[${SVG_CANDIDATE_ATTR}="${id}"]`)?.getBoundingClientRect();
+        if (!r || x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+        const text = draft.svgFields.some((f) => f.candidateId === id);
+        const area = r.width * r.height;
+        if (!best || (text && !best.text) || (text === best.text && area < best.area)) best = { id, text, area };
+      }
+      return best?.id ?? null;
+    },
+    [svg, draft.svgFields],
+  );
+  // The pick handler as it stands, for a click the draw surface caught (declared further down).
+  const pickRef = useRef<((candidateId: string, drag: 'x' | 'y' | null) => void) | null>(null);
   // A BOX DRAWN on the preview for the row being set: the row's own drawn area moves to the new
   // rectangle, or a new area is made. A click is not a box.
   const drawTextBox = useCallback(
     (box: { x: number; y: number; w: number; h: number }) => {
-      if (!boxFor || !(box.w > 0.01) || !(box.h > 0.01)) return;
+      if (!boxFor) return;
+      // A CLICK, not a drag: the draw surface covers the preview while a box is being set, so a
+      // click on a shape or a text arrives here and is answered as the pick it is.
+      if (!(box.w > 0.01) || !(box.h > 0.01)) {
+        const hit = layerAt(box.x, box.y);
+        if (hit) pickRef.current?.(hit, null);
+        return;
+      }
       const areas = draft.svgAreas ?? [];
       const own = editingBox ? areas.find((a) => a.id === editingBox) : undefined;
       let id = own?.id;
@@ -352,7 +382,7 @@ export default function MapSvgFieldsStep({
         svgFields: draft.svgFields.map((f) => (f.candidateId === boxFor ? { ...f, box: id } : f)),
       });
     },
-    [boxFor, editingBox, draft.svgAreas, draft.svgFields, onDraft],
+    [boxFor, editingBox, draft.svgAreas, draft.svgFields, onDraft, layerAt],
   );
   useEffect(() => {
     onArmDraw(boxFor ? drawTextBox : drawArmed ? placeDrawnField : null);
@@ -1132,6 +1162,7 @@ export default function MapSvgFieldsStep({
     ],
   );
 
+  pickRef.current = pickLayer;
   useEffect(() => {
     onArmPick(pickLayer);
   }, [pickLayer, onArmPick]);
