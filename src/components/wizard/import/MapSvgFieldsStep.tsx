@@ -625,22 +625,19 @@ export default function MapSvgFieldsStep({
     (draft.svgStretch.on && draft.svgStretch.shapeId === boxId
       ? modeOfAxis(draft.svgStretch.axis)
       : 'shrink');
-  /** Give one box its answer. Touching this is AUTHORING, like every other growth control: the
-   *  measured default stops re-deriving from that moment on.
-   *
-   *  THE CARRIER FOLLOWS THE READER. A box told to grow while no box is growing takes the
-   *  carrier slot, so its travellers are the ones the "What else moves" list shows and emits;
-   *  a second box growing beside it is an ordinary per-box row and derives its own at play time,
-   *  which is what the runtime has always done for a rule with no declared list. */
-  /** Where a box sits across the artwork, as fractions - measured on the step's own render. */
-  const spanOf = (boxId: string): { left: number; right: number } | null => {
+  /** Where a box's middle sits across the artwork, as a fraction rounded to a tenth of a percent -
+   *  the default place for its cut line. Measured on the step's own render. */
+  const middleOf = (boxId: string): number | null => {
     const area = draft.svgAreas?.find((a) => a.id === boxId);
-    if (area) return { left: area.x, right: area.x + area.w };
     const stage = stageRef.current;
     const root = stage?.querySelector('svg')?.getBoundingClientRect();
     const el = stage?.querySelector(`[${SVG_CANDIDATE_ATTR}="${boxId}"]`)?.getBoundingClientRect();
-    if (!root || !el || !(root.width > 0)) return null;
-    return { left: (el.left - root.left) / root.width, right: (el.right - root.left) / root.width };
+    const mid = area
+      ? area.x + area.w / 2
+      : root && el && root.width > 0
+        ? ((el.left + el.right) / 2 - root.left) / root.width
+        : null;
+    return mid == null ? null : Math.round(mid * 1000) / 1000;
   };
   /** The cut a box gets when it starts to widen: a DRAWN box is cut through its middle, because
    *  it was drawn on artwork that has no shape to move; a drawn shape keeps its followers. */
@@ -648,8 +645,8 @@ export default function MapSvgFieldsStep({
     const cuts = { ...(draft.svgStretch.cuts ?? {}) };
     if (mode === 'shrink' || mode === 'grow-y') delete cuts[boxId];
     else if (cuts[boxId] == null && draft.svgAreas?.some((a) => a.id === boxId)) {
-      const span = spanOf(boxId);
-      if (span) cuts[boxId] = Math.round(((span.left + span.right) / 2) * 1000) / 1000;
+      const mid = middleOf(boxId);
+      if (mid != null) cuts[boxId] = mid;
     }
     return Object.keys(cuts).length ? cuts : undefined;
   };
@@ -657,12 +654,19 @@ export default function MapSvgFieldsStep({
     const cuts = { ...(draft.svgStretch.cuts ?? {}) };
     if (cuts[boxId] != null) delete cuts[boxId];
     else {
-      const span = spanOf(boxId);
-      if (!span) return;
-      cuts[boxId] = Math.round(((span.left + span.right) / 2) * 1000) / 1000;
+      const mid = middleOf(boxId);
+      if (mid == null) return;
+      cuts[boxId] = mid;
     }
     onDraft({ svgStretch: { ...draft.svgStretch, authored: true, cuts: Object.keys(cuts).length ? cuts : undefined } });
   };
+  /** Give one box its answer. Touching this is AUTHORING, like every other growth control: the
+   *  measured default stops re-deriving from that moment on.
+   *
+   *  THE CARRIER FOLLOWS THE READER. A box told to grow while no box is growing takes the
+   *  carrier slot, so its travellers are the ones the "What else moves" list shows and emits;
+   *  a second box growing beside it is an ordinary per-box row and derives its own at play time,
+   *  which is what the runtime has always done for a rule with no declared list. */
   const setBoxMode = (boxId: string, mode: StretchMode) => {
     const cur = { ...draft.svgStretch, cuts: cutsFor(boxId, mode) };
     const carrier = cur.on ? cur.shapeId : null;
