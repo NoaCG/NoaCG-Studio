@@ -179,5 +179,7 @@ export const jc02: TemplateVariant = defineAudienceVariant(
   },
   { name: CODE_SPEC.name, description: CODE_SPEC.blurb, uicolor: '6' },
   JOIN_CODE_FORM,
+  // No stageWidth: the card is the plate, a fixed square with no text in it, so it already holds
+  // one footprint whatever its link is. A stage would only add room around the code.
   () => ({ html: CODE_HTML, css: CODE_CSS, hasAccent: false }),
 );
