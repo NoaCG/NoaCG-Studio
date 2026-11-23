@@ -413,7 +413,9 @@ Actions. OW: the owner, with Illustrator on their own computer.
     asks again. One Join cue per card: the cue labelled Join card, else one with no link yet
     (which is then labelled Join card); another cue holding a link is never overwritten.
     `joinTarget` is written by an explicit pick, or when the press adds the built-in Join card to
-    a production that has none. It is not published.
+    a production that has none. It is not published. With no Join card the press opens the
+    picker whenever there is more than one design to add (the two built-ins, `jc01` and the
+    code-only `jc02`, make that every time).
   - R4. Messages: a graphic with a Correct answer or Selected answer field is not offered; a
     remembered `messageTarget` on one keeps working.
   - R5. Nothing airs from a pick: every path writes cues only.

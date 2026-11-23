@@ -543,6 +543,11 @@ and the quota row and deletes the bucket once empty.
   `src/templates/shared/qrEncoder.min.js` by `scripts/qr-vendor.mjs` and checked against the
   installed package; the studio panel uses the package itself. "Add Join card to rundown" adds a
   cue to the production's Join card if it has one, else adds the card with its one cue.
+- A second built-in, `jc02` Join QR Code, is the code alone: the white plate and its quiet zone,
+  no panel and no words, with Join link as its only field. With no Join card yet, "Add Join card
+  to rundown" opens the Join picker with both built-ins (and any saved Join designs); the pick
+  adds that card with its one cue. The runtime bench counts a visible inline drawing as on air,
+  since this card has no text or image for it to see.
 - The link name moved from Links to Interaction's Join area. It shows only on a published
   production (where the link exists), so its offline test became a check that Links has no name
   control, and the claim, the empty-name refusal and the stale note are pinned against the real
