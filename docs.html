@@ -142,6 +142,8 @@
             <li><strong>CasparCG</strong>: the playout dashboard loads it there through
               <a href="/downloads#bridge">NoaCG Bridge</a>.</li>
           </ul>
+          <p>Where an empty box shows a grey suggestion you can use, such as a name or a port,
+            press <strong>Tab</strong> to type it in.</p>
         </section>
 
         <!-- ═══════════════════════ GRAPHICS ═══════════════════════ -->
@@ -1613,7 +1615,7 @@ CG 1-20 STOP</code></pre>
         <section id="osc">
           <h2>Send lighting cues with OSC</h2>
           <p>An OSC cue sends one message to a lighting desk, show controller or any other device that
-            listens for OSC (Open Sound Control) over the network. It never goes on air and has no Out.
+            listens for OSC (Open Sound Control) over the network. It never goes on air.
             It works with every output: browser, OBS, vMix and CasparCG.</p>
           <p>It needs NoaCG Bridge 0.13.0 or later running on the computer you operate from, and this
             browser paired with it. When the pairing page asks for a CasparCG server, you can skip it and
@@ -1648,8 +1650,8 @@ CG 1-20 STOP</code></pre>
               type the device asks for: the text <code>"5"</code> and the number <code>5</code> are
               different messages.</dd>
             <dt>On Out</dt>
-            <dd>Optional. A second message to the same device, sent when the folder that sent this
-              cue goes out, for example to bring the lights back to normal. It has its own address
+            <dd>Optional. A second message to the same device, sent at <strong>Out</strong>, for
+              example to bring the lights back to normal. It has its own address
               and arguments, and <strong>Send On Out test</strong> checks it.</dd>
           </dl>
           <p>Many devices accept a command both ways. A desk that lists
@@ -1668,13 +1670,18 @@ CG 1-20 STOP</code></pre>
               In a <strong>One by one</strong> folder an OSC cue is one step,
               and the graphic before it stays up. A <strong>Play through</strong> folder does not take
               OSC cues.</li>
-            <li>An OSC cue with an <strong>On Out</strong> message sends it once when its folder goes
-              out: <strong>Out</strong>, <strong>All out</strong>, or the press that takes a
-              <strong>One by one</strong> folder back to its first cue. Stepping on to the next cue
-              sends nothing, and a cue whose Take was not sent sends no On Out.</li>
+            <li>An OSC cue with an <strong>On Out</strong> message sends it once at
+              <strong>Out</strong>. Taken on its own, the cue's row reads <em>OUT WAITING</em> after
+              the Take until you select it and press <strong>Out</strong>. In a folder, it goes when the folder goes
+              out: <strong>Out</strong> on the folder, or the press that takes a <strong>One by
+              one</strong> folder back to its first cue. <strong>All out</strong> sends every one
+              still waiting. Stepping on to the next cue sends nothing, and a cue whose Take was not
+              sent sends no On Out.</li>
             <li>Stream Deck keys from <a href="#companion">Companion</a> fire OSC cues like any cue.</li>
-            <li><em>Sent</em> means the message left this computer. OSC has no receipt, so a device that
-              is switched off still reads as sent. Use <strong>Send test</strong> to check.</li>
+            <li>After each send the cue's row flashes and reads <em>SENT</em> with the time,
+              <em>NOT SENT</em> or <em>UNCERTAIN</em>; hover the tag for the reason. <em>Sent</em> means
+              the message left this computer. OSC has no receipt, so a device that is switched off
+              still reads as sent. Use <strong>Send test</strong> to check.</li>
             <li>The Bridge sends to this computer, your studio network and VPN addresses. It refuses
               broadcast and multicast addresses, and public internet addresses unless the Bridge is
               started with <code>--allow-public-osc</code>.</li>

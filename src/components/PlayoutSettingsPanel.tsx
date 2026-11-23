@@ -301,6 +301,7 @@ export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onO
               value={settings.agentUrl}
               onChange={(e) => set({ agentUrl: e.target.value })}
               placeholder="http://127.0.0.1:8899"
+              data-suggest="http://127.0.0.1:8899"
               spellCheck={false}
               data-testid="bridge-url"
             />
@@ -344,6 +345,7 @@ export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onO
               value={settings.host}
               onChange={(e) => set({ host: e.target.value })}
               placeholder="127.0.0.1"
+              data-suggest="127.0.0.1"
               spellCheck={false}
               data-testid="caspar-host"
             />

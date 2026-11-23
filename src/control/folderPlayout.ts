@@ -40,6 +40,7 @@ import { leftAlone, pressOuts, withLiveCue } from './liveCue.ts';
 import { clockRank, runTogether, togetherNote, togetherPlan } from './serverPlayout.ts';
 import { isControlCue, isGraphicCue, isServerCue } from '../model/controlCue.ts';
 import { hasOscOut } from './oscSend.ts';
+import { storePart, type StorePart } from './storePart.ts';
 
 /** Why a run stopped: Out on its folder, All out (what lands after is cut), or the session's end
  *  (nothing more is sent at all). */
@@ -131,14 +132,28 @@ export interface FolderPlayout {
   clearMisses: (ids: readonly string[]) => void;
   /** A cue of a One-by-one folder went on air, by whatever route: the folder's step stands on it. */
   noteStep: (cue: ShowCue) => void;
-  /** An OSC cue of a One-by-one folder whose Take may have left: the folder owes its On Out. */
-  oweOut: (cue: ShowCue) => void;
+  /** An OSC cue whose Take may have left: a One-by-one folder member's On Out is owed by its
+   *  folder, any other's by the cue itself, sent at its own Out or at All out. `since` is
+   *  `allOuts()` read at the press: when an All out came while the Take was on its way, the cue's
+   *  own On Out goes now, as a folder's does. */
+  oweOut: (cue: ShowCue, since?: number) => void;
+  /** How many All outs (and session ends) this session has had: a press reads it as it starts. */
+  allOuts: () => number;
+  /** Out on one OSC cue: send the On Out message it owes; the sentence to say, or null when it
+   *  owed none. */
+  outCue: (cue: ShowCue) => Promise<string | null>;
+  /** The OSC cues whose On Out message is owed: true for one that owes it itself (Out on the cue
+   *  sends it), false for one a folder owes. */
+  owedOuts: StorePart<ReadonlyMap<string, boolean>>;
   /** After a reload, put back the One-by-one steps this tab kept for folders holding an OSC cue (`io.oscSteps`). */
   restoreOscSteps: () => void;
   /** A failed send landed after all: each member's failure it settled is no miss any more.
    *  `settle` answers null for a sentence it settled (./failedSends.ts `heard`). */
   settleMisses: (settle: (shown: string) => string | null) => void;
 }
+
+/** The key an OSC cue taken on its own owes its On Out under, beside the folders' ids. */
+const ownKey = (cueId: string) => `cue:${cueId}`;
 
 /** Move the `folders` part. */
 function writeFolders(session: PlayoutSession, fold: (folders: FoldersPart) => FoldersPart) {
@@ -172,19 +187,31 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
   const misses = field('takeMisses');
 
   // ON OUT MESSAGES. An OSC cue a folder sent is owed its On Out message when that folder goes out:
-  // Out, All out, or a One-by-one folder's last press. Only a cue whose Take message was sent is
-  // owed one, and each is sent once.
+  // Out, All out, or a One-by-one folder's last press. An OSC cue taken on its own owes it to
+  // itself, under its own key (`ownKey`), sent at Out on that cue or at All out (owner request of
+  // 2026-11-23: one cue holds the lights' go and their return). Only a cue whose Take message was
+  // sent is owed one, each is sent once, and a cue owes it once: a folder's debt replaces the
+  // cue's own, and a cue its folder already owes for takes on none of its own.
   const owed: Record<string, string[]> = { ...(io.oscSent?.load() ?? {}) };
-  const keepOwed = () => io.oscSent?.save(Object.fromEntries(Object.entries(owed).filter(([, ids]) => ids.length)));
-  const owe = (folderId: string, cue: ShowCue) => {
+  /** Each owed cue: true when it owes its On Out itself, false when a folder owes it. */
+  const owedNow = () => new Map(Object.entries(owed).flatMap(([key, ids]) => ids.map((id) => [id, key === ownKey(id)] as const)));
+  const owedOuts = storePart<ReadonlyMap<string, boolean>>(owedNow());
+  const keepOwed = () => {
+    io.oscSent?.save(Object.fromEntries(Object.entries(owed).filter(([, ids]) => ids.length)));
+    owedOuts.set(owedNow());
+  };
+  const owe = (key: string, cue: ShowCue) => {
     if (!hasOscOut(cue)) return;
-    const ids = owed[folderId] ?? [];
-    if (ids.includes(cue.id)) return;
-    owed[folderId] = [...ids, cue.id];
+    const own = ownKey(cue.id);
+    if (key === own && Object.entries(owed).some(([k, ids]) => k !== own && ids.includes(cue.id))) return;
+    if (key !== own) delete owed[own];
+    const ids = owed[key] ?? [];
+    if (!ids.includes(cue.id)) owed[key] = [...ids, cue.id];
     keepOwed();
   };
-  /** Send what a folder owes, in the order its cues were sent; the failures' sentences. */
-  const sendOuts = async (p: FolderPage, folderId: string): Promise<string[]> => {
+  /** Send what a folder owes, in the order its cues were sent; the failures' sentences, and every
+   *  sentence into `said` when given. */
+  const sendOuts = async (p: FolderPage, folderId: string, said?: string[]): Promise<string[]> => {
     const ids = owed[folderId] ?? [];
     if (!ids.length) return [];
     delete owed[folderId];
@@ -194,6 +221,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
       const cue = p.cues.find((c) => c.id === id);
       if (!cue || !hasOscOut(cue) || !p.controlOut || !session.alive()) continue;
       const r = await p.controlOut(cue);
+      said?.push(r.note);
       if (!r.ok) failed.push(r.note);
     }
     return failed;
@@ -219,9 +247,26 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     steps((m) => (m[folder.id] === cue.id ? m : { ...m, [folder.id]: cue.id }));
     if (isControlCue(cue)) owe(folder.id, cue);
   };
-  const oweOut = (cue: ShowCue) => {
+  /** Bumped by every All out and the session's end, so a Take that was on its way can tell. */
+  let stops = 0;
+  const oweOut = (cue: ShowCue, since?: number) => {
+    if (!isControlCue(cue)) return;
     const folder = cue.folderId ? page().folders.get(cue.folderId) : undefined;
-    if (folder && folderMode(folder) === 'manual' && isControlCue(cue)) owe(folder.id, cue);
+    // A One-by-one member's late Take is its folder's step to settle (`step` sends what it owes).
+    if (folder && folderMode(folder) === 'manual') return owe(folder.id, cue);
+    if (since === undefined || since === stops) return owe(ownKey(cue.id), cue);
+    // All out came while this Take was on its way and found nothing owed: its On Out goes now.
+    const p = page();
+    if (!hasOscOut(cue) || !p.controlOut || !session.alive()) return;
+    void p.controlOut(cue).then((r) => {
+      if (!r.ok) p.note(r.note);
+    });
+  };
+  const outCue = async (cue: ShowCue): Promise<string | null> => {
+    if (!owed[ownKey(cue.id)]?.length) return null;
+    const said: string[] = [];
+    await sendOuts(page(), ownKey(cue.id), said);
+    return said.join(' ') || null;
   };
 
   /** Whether a cue is on air now, from the store as it stands and liveCue as last set. */
@@ -439,6 +484,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     // nothing airs after the panic control. A scene's too: what had not landed was not on air, so
     // cutting it leaves "out" out, and its server cues must never start after All out.
     for (const run of runs.values()) run.stop = reason;
+    stops += 1;
     if (reason === 'ended') {
       runs.clear();
       return [];
@@ -463,6 +509,9 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     clearMisses,
     noteStep,
     oweOut,
+    allOuts: () => stops,
+    outCue,
+    owedOuts,
     restoreOscSteps,
     settleMisses: (settle) =>
       misses((m) => {

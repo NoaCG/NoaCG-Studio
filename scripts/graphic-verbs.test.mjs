@@ -796,16 +796,46 @@ test('All out clears the graphics without waiting for the On Out messages, then 
   assert.ok(r.notes.some((n) => n.includes('Lights, On Out was not sent: refused')));
 });
 
-test('an OSC cue\'s Take that may have left owes its On Out without moving the step', async () => {
+test('an OSC cue\'s Take that left or may have left owes its On Out; only a sent one moves the step', async () => {
   const r = rig();
   const lights = { id: 'l1', label: 'Lights', source: 'control', sourceId: '', values: {}, control: { v: 1, kind: 'osc', destinationId: 'd', address: '/go', args: [] } };
+  const marks = () => r.log.filter(([k]) => k === 'noteStep' || k === 'oweOut');
   r.page.controlSend = async () => 'uncertain';
   r.page.oweOut = (cue) => r.log.push(['oweOut', cue.id]);
   await r.verbs.take(lights);
-  assert.deepEqual(r.log.filter(([k]) => k === 'noteStep' || k === 'oweOut'), [['oweOut', 'l1']]);
+  assert.deepEqual(marks(), [['oweOut', 'l1']]);
   r.page.controlSend = async () => true;
   await r.verbs.take(lights);
-  assert.deepEqual(r.log.filter(([k]) => k === 'noteStep' || k === 'oweOut'), [['oweOut', 'l1'], ['noteStep', 'l1']]);
+  assert.deepEqual(marks(), [['oweOut', 'l1'], ['noteStep', 'l1'], ['oweOut', 'l1']]);
+  r.page.controlSend = async () => false;
+  await r.verbs.take(lights);
+  assert.equal(marks().length, 3, 'a refused Take owes nothing');
+});
+
+test('an OSC cue\'s Take reads the All out count before it sends, so a late answer can tell', async () => {
+  const r = rig();
+  const lights = { id: 'l1', label: 'Lights', source: 'control', sourceId: '', values: {}, control: { v: 1, kind: 'osc', destinationId: 'd', address: '/go', args: [] } };
+  let outs = 3;
+  const owed = [];
+  r.page.allOuts = () => outs;
+  r.page.oweOut = (cue, since) => owed.push([cue.id, since]);
+  r.page.controlSend = async () => {
+    outs += 1; // All out pressed while the send was on its way
+    return true;
+  };
+  await r.verbs.take(lights);
+  assert.deepEqual(owed, [['l1', 3]]);
+});
+
+test('Out on a selected OSC cue sends the On Out it owes, and touches no layer (owner request 2026-11-23)', async () => {
+  const r = rig();
+  const lights = { id: 'l1', label: 'Lights', source: 'control', sourceId: '', values: {}, control: { v: 1, kind: 'osc', destinationId: 'd', address: '/go', args: [] } };
+  const outs = [];
+  r.page.outControl = async (cue) => void outs.push(cue.id);
+  const before = r.sends.length;
+  await r.verbs.out({ selectedCue: lights, selectedGraphic: null, selectedLayerLive: false, selectedPlayoutLive: false, editingCue: lights, editingIsLive: false, airCue: null });
+  assert.deepEqual(outs, ['l1']);
+  assert.equal(r.sends.length, before, 'nothing goes to the outputs');
 });
 
 test('All out names an On Out message that did not go (osc-control-cues follow-up)', async () => {

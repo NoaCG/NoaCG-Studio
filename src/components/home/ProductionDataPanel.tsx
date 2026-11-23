@@ -778,6 +778,7 @@ function BindingTable({
                     readOnly={refused || ownReader}
                     data-dirty={bindEdits.dirty(key) || undefined}
                     placeholder={suggestion ? `suggested: ${suggestion}` : 'pick or type a path'}
+                    data-suggest={suggestion || undefined}
                     list="pd-data-paths"
                     onChange={(e) => bindEdits.type(key, e.target.value)}
                     onBlur={bindEdits.flush}

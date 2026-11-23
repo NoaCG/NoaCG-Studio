@@ -42,7 +42,7 @@ export default function ProjectStarter({ close }: { close: () => void }) {
     <header className="wz-header"><h2>New project</h2><button className="gallery-close" onClick={close} aria-label="Close new project">×</button></header>
     <div className="project-starter-body">
       {editingBrand ? <BrandEditor onCancel={() => setEditingBrand(false)} onSaved={look => { setLooks(loadLooks()); setBrand(look.id); setEditingBrand(false); }} /> : <>
-        <label className="dlg-row">Project name<input aria-label="Project name" placeholder={pack?.name ?? 'Untitled project'} value={name} onChange={e => setName(e.target.value)} /></label>
+        <label className="dlg-row">Project name<input aria-label="Project name" placeholder={pack?.name ?? 'Untitled project'} data-suggest={pack?.name ?? 'Untitled project'} value={name} onChange={e => setName(e.target.value)} /></label>
         <label className="dlg-row">Starter collection<select aria-label="Starter collection" value={packId} onChange={e => { const next = PACKS.find(p => p.id === e.target.value); setPackId(next?.id ?? ''); setSelected(next?.starter.slice(0, 3) ?? []); }}>
           <option value="">Blank project</option>{PACKS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select></label>
