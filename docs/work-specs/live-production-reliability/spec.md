@@ -136,9 +136,9 @@ What landed:
   refused, so the page can name it. `panel_list` answers `seen_s`, `module_version`,
   `module_status` per panel and `refused_s`. A module before 0.4.0 never reports and keeps working.
 - Page: the header chip and the live dock, while the page answers the panel, read the list every
-  8 s (`src/control/companionHealth.ts`): "Companion connected" (green, a report in the last 45 s),
-  "Companion not seen since 14:32" or "not seen yet" (amber), "Companion reconnecting" (amber, the
-  module reports it is offline), "Companion needs an update" (amber: a module that reports
+  8 s (`src/control/companionHealth.ts`): "Companion connected" (green, a report of `ok` in the
+  last 45 s), "Companion not seen since 14:32" or "not seen yet" (amber), "Companion connecting"
+  (amber, a recent report of any other status: its keys refuse presses), "Companion needs an update" (amber: a module that reports
   `outdated`, or one that has said hello and never reported), "Panel key refused, pair again"
   (red). The panel dialog shows the same line, each panel's own state, and a Pair again button
   beside a refused key. Node test: `scripts/companion-health.test.mjs`; configured walks:

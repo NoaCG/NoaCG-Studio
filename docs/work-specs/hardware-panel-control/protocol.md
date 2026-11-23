@@ -272,18 +272,19 @@ per-second message is needed. The variables tick every 250 ms while a clip runs.
 
 While it holds a key, whatever its status, the module calls `panel_seen` with its version and its
 status (§7.2): at once on connecting, every 15 s, and on a change of status no sooner than 5 s after
-the last report. A failed report changes nothing on the keys; a report refused `revoked` or
-`unknown-key` turns the status to `revoked` as hello would, and the reports go on, so the page can
-say a Companion still holds a refused key. A backend without `panel_seen` (`PGRST202`) is not asked
-again in that run. A module from before 0.4.0 never reports and works as before.
+the last report. A failed report changes nothing on the keys, but a gateway refusal counts toward
+the three that find the backend again (§7.1); a report refused `revoked` or `unknown-key` turns the
+status to `revoked` as hello would, and the reports go on, so the page can say a Companion still
+holds a refused key. A backend without `panel_seen` (`PGRST202`: an older server, or a schema cache
+not yet reloaded) is asked again after 5 minutes. A module from before 0.4.0 never reports and
+works as before.
 
 The page answering the panel reads `panel_list` every 8 s and is green only while a listed panel
-reported in the last 45 s with status `ok`, `no-page` or `connecting`
-(`src/control/companionHealth.ts`): "Companion connected". Otherwise, in this order: "Panel key
-refused, pair again" (red) for a revoked key that reported in the last 45 s; "Companion needs an
-update" for a report of `outdated`, or a key used by hello or a press and never reported; "Companion
-reconnecting" for a recent report of `offline`; "Companion not seen since <time>", or "not seen
-yet". A failed read leaves the last one ageing, so the chip never stays green on a list it cannot
+reported in the last 45 s with status `ok` (`src/control/companionHealth.ts`): "Companion
+connected". Otherwise, in this order: "Panel key refused, pair again" (red) for a revoked key that
+reported in the last 45 s; "Companion needs an update" for a report of `outdated`, or a key used by
+hello or a press and never reported; "Companion connecting" for a recent report of any other status
+(its keys refuse presses then); "Companion not seen since <time>", or "not seen yet". A failed read leaves the last one ageing, so the chip never stays green on a list it cannot
 refresh.
 
 ## 8. The feedback state (version 1)

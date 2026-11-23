@@ -26,7 +26,7 @@ The production page's header says whether Companion is connected. The module rep
 | The header says                 | What to do                                                                                                                                                      |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Companion connected             | Nothing: the keys work.                                                                                                                                         |
-| Companion reconnecting          | Wait. The module reconnects by itself after a network drop or a NoaCG update.                                                                                   |
+| Companion connecting            | Wait. The module connects by itself, also after a network drop or a NoaCG update; its keys work once this turns green.                                          |
 | Companion not seen since a time | Check that Companion is running and online. The module retries by itself, also when Companion started before the network was up.                                |
 | Panel key refused, pair again   | The panel was revoked on the page. Press **Pair again** in the page's panel dialog, clear **Panel key** in Companion and type the new code. No download needed. |
 | Companion needs an update       | Download the new module file from [noacg.studio/downloads](https://noacg.studio/downloads#companion) and import it. Your pairing and keys stay.                 |

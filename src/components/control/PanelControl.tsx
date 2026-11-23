@@ -276,7 +276,7 @@ export function panelToneWords(tone: PanelTone, holder: string | null = null): s
 
 const HEALTH_TITLES: Record<CompanionHealth['kind'], string> = {
   connected: 'Companion reported in the last 45 seconds',
-  reconnecting: 'Companion is reconnecting to NoaCG',
+  connecting: 'Companion is connecting to this production; its keys wait until it has',
   update: 'Update the NoaCG module in Companion',
   refused: 'Companion holds a revoked panel key: pair it again',
   unseen: 'No report from Companion for 45 seconds: check that it is running',

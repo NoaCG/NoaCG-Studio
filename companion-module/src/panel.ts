@@ -69,6 +69,8 @@ export const BEAT_GAP_MS = 5_000
 /** This many calls in a row refused by the backend's gateway (HTTP 401 or 403) mean the publishable
  *  key in hand is stale: the backend is found again from `<address>/panel.json`. */
 export const AUTH_FAILS_MAX = 3
+/** A backend without the liveness report is asked again after this long. */
+export const MISSING_RETRY_MS = 300_000
 
 /** What a graphic key's last press came to, as its key shows it: on its way (`running`), done, not
  *  known (`unknown`: it may have run, and is never sent again), or refused or failed. */
@@ -139,8 +141,10 @@ export class PanelClient {
 	/** When the next liveness report is due, and when the last one went. */
 	#beatAt = Infinity
 	#beatLast = -Infinity
-	/** The backend has no `panel_seen` (an older NoaCG server): no reports this run. */
-	#beatMissing = false
+	/** The backend had no `panel_seen` (an older NoaCG server): no report before this time. */
+	#beatQuietUntil = -Infinity
+	/** One search for the backend at a time (`#relayNow`). */
+	#connecting: Promise<Relay> | null = null
 	#status: Status = 'pairing'
 	#note = 'Pair in the connection settings with the code the production page shows'
 	#title = ''
@@ -266,6 +270,11 @@ export class PanelClient {
 		const changed = status !== this.#status
 		this.#status = status
 		this.#note = note
+		// A refused key hears nothing more: no silence may turn it into "No operator page".
+		if (status === 'revoked') {
+			this.#clock.clearTimeout(this.#silenceTimer)
+			this.#clock.clearTimeout(this.#retryTimer)
+		}
 		// The page learns a new status from the next liveness report: send it sooner than the beat.
 		if (changed && this.#key && !this.#stopped) this.#beatSoon()
 		this.#opts.onChange?.()
@@ -332,22 +341,25 @@ export class PanelClient {
 			this.#set('connecting', 'Connecting to NoaCG...')
 		}
 		if (!this.#key) return
-		if (this.#beatAt === Infinity) this.#beatSoon()
+		// The first report goes as soon as there is a relay to send it on.
+		this.#beatSoon()
 		await this.#hello()
 	}
 
-	/** The relay, found now if none is in hand; null (offline, retrying) when it cannot be. */
+	/** The relay, found now if none is in hand; null (offline, retrying) when it cannot be. One
+	 *  search at a time: a step that starts during one waits for it, so no client is made twice. */
 	async #relayNow(): Promise<Relay | null> {
 		if (this.#relay) return this.#relay
 		if (!this.#connect) return null
 		try {
-			const relay = await this.#connect()
+			this.#connecting ??= this.#connect().finally(() => (this.#connecting = null))
+			const relay = await this.#connecting
 			if (this.#stopped) {
 				await relay.close()
 				return null
 			}
-			this.#relay = relay
-			return relay
+			this.#relay ??= relay
+			return this.#relay
 		} catch (err) {
 			this.#set('offline', `NoaCG offline: ${(err as Error).message}. Retrying...`)
 			this.#retryLater()
@@ -368,15 +380,21 @@ export class PanelClient {
 		}
 	}
 
-	/** A call threw: offline, on the backoff. Repeated gateway refusals find the backend again. */
+	/** A call threw: offline, on the backoff. */
 	#failed(err: unknown): void {
-		if (err instanceof RelayError && err.auth && ++this.#authFails >= AUTH_FAILS_MAX) {
-			this.#authFails = 0
-			this.#opts.log?.('warn', 'NoaCG refused this module several times in a row: finding the backend again')
-			void this.#dropRelay()
-		}
+		this.#gatewayRefused(err)
 		this.#set('offline', `NoaCG offline: ${(err as Error).message}. Retrying...`)
 		this.#retryLater()
+	}
+
+	/** Count a gateway refusal of the access key; at AUTH_FAILS_MAX in a row, let the relay go so the
+	 *  next connect step finds the backend again. True when it was let go. */
+	#gatewayRefused(err: unknown): boolean {
+		if (!(err instanceof RelayError && err.auth) || ++this.#authFails < AUTH_FAILS_MAX) return false
+		this.#authFails = 0
+		this.#opts.log?.('warn', 'NoaCG refused this module several times in a row: finding the backend again')
+		void this.#dropRelay()
+		return true
 	}
 
 	/** Ask the cloud who we are and where to listen. One at a time; a request during one runs once after. */
@@ -401,7 +419,8 @@ export class PanelClient {
 				this.#failed(err)
 				return
 			}
-			if (this.#stopped) return
+			// Let go of while it was asked (stopped, or found again): the step after this one answers.
+			if (this.#stopped || relay !== this.#relay) return
 			this.#authFails = 0
 			if (!answer.ok) {
 				this.#leaveTopic()
@@ -424,7 +443,7 @@ export class PanelClient {
 			}
 			this.#attempt = 0
 			this.#title = answer.title
-			if (answer.feedback_topic !== this.#topic) this.#join(answer.feedback_topic)
+			if (answer.feedback_topic !== this.#topic) this.#join(relay, answer.feedback_topic)
 			if (!answer.answering) this.#noPage()
 			else if (this.#status !== 'ok') {
 				// The answering page republishes on our hello; until its state lands, wait for it.
@@ -450,7 +469,7 @@ export class PanelClient {
 
 	/** Report liveness soon: now, or BEAT_GAP_MS after the last report. */
 	#beatSoon(): void {
-		if (this.#beatMissing) return
+		if (this.#clock.now() < this.#beatQuietUntil) return
 		const at = Math.max(this.#clock.now(), this.#beatLast + BEAT_GAP_MS)
 		if (at < this.#beatAt) this.#armBeat(at)
 	}
@@ -465,27 +484,35 @@ export class PanelClient {
 	 * THE LIVENESS REPORT (protocol §7.5): every BEAT_MS while a key is held, whatever the status, with
 	 * this module's version and status, so the page can say Companion is connected, not seen, needs
 	 * an update, or holds a refused key. Hello and the channel own the status: a failed report changes
-	 * nothing here but the gateway count, and a refused key, which it reports as hello would.
+	 * nothing on the keys. It counts toward finding the backend again after gateway refusals, and a
+	 * refused key is reported as hello would.
 	 */
 	async #beat(): Promise<void> {
-		if (this.#stopped || !this.#key || this.#beatMissing) {
+		if (this.#stopped || !this.#key) {
 			this.#beatAt = Infinity
+			return
+		}
+		const relay = this.#relay
+		// No relay yet: nothing is sent, and the connect step reports once it has one.
+		if (!relay) {
+			this.#armBeat(this.#clock.now() + BEAT_MS)
 			return
 		}
 		this.#beatLast = this.#clock.now()
 		this.#armBeat(this.#beatLast + BEAT_MS)
-		const relay = this.#relay
-		if (!relay) return
 		let answer
 		try {
 			answer = await relay.seen(this.#key, this.#opts.version ?? '', this.#status)
 		} catch (err) {
 			if (err instanceof RelayError && err.missing) {
-				// An older NoaCG server: everything else works, it only cannot show liveness.
-				this.#beatMissing = true
-				this.#clock.clearTimeout(this.#beatTimer)
-				this.#beatAt = Infinity
-			} else if (err instanceof RelayError && err.auth && this.#status !== 'revoked') this.#failed(err)
+				// A NoaCG server without the report (older, or its schema cache not yet reloaded):
+				// everything else works. Asked again, rarely.
+				this.#beatQuietUntil = this.#clock.now() + MISSING_RETRY_MS
+				this.#armBeat(this.#beatQuietUntil)
+			} else if (this.#status !== 'revoked' && this.#gatewayRefused(err)) {
+				this.#set('offline', `NoaCG offline: ${(err as Error).message}. Retrying...`)
+				this.#retryLater()
+			}
 			return
 		}
 		if (this.#stopped) return
@@ -497,18 +524,17 @@ export class PanelClient {
 		) {
 			this.#state = null
 			this.#leaveTopic()
-			this.#clock.clearTimeout(this.#retryTimer)
 			this.#set('revoked', refusalSentence(answer.refused))
 		}
 	}
 
-	#join(topic: string): void {
+	#join(relay: Relay, topic: string): void {
 		this.#leaveTopic()
 		// A new topic's page says its own offer; the last topic's is not carried over.
 		this.#actions = null
 		this.#actionsNewer = false
 		this.#topic = topic
-		this.#leave = this.#relay!.listen(
+		this.#leave = relay.listen(
 			topic,
 			(event, payload) => this.#onEvent(topic, event, payload),
 			(s) => this.#onListen(topic, s),
@@ -778,7 +804,8 @@ export class PanelClient {
 			tell(PENDING_SENTENCE)
 			this.#opts.onChange?.()
 			let answer
-			const relay = this.#relay!
+			const relay = this.#relay
+			if (!relay) return refused(this.#note)
 			try {
 				answer = await relay.press(this.#key, press)
 			} catch {

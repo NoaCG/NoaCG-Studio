@@ -2,7 +2,7 @@
 //
 // IS A COMPANION CONNECTED? (docs/work-specs/live-production-reliability/spec.md P4 AC-2). The
 // panel chip is green only when a paired Companion reported in the last 45 s; amber when it has
-// not, when it is reconnecting or needs an update; red when a Companion holds a revoked key. Pure.
+// not, when it is still connecting or needs an update; red when a Companion holds a revoked key. Pure.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,15 +22,17 @@ const panel = (over = {}) => ({
 });
 const list = (panels, over = {}) => ({ claim: 1, answering: null, panels, refused_s: null, readAt: READ, ...over });
 
-test('a Companion that reported in the last 45 s is connected, and only that is green', () => {
-  for (const status of ['ok', 'no-page', 'connecting']) {
-    const h = companionHealth(list([panel({ module_status: status })]), READ);
-    assert.deepEqual(h, { kind: 'connected' });
-    assert.equal(healthWords(h, READ), 'Companion connected');
-    assert.equal(healthTone(h), 'ok');
+test('a Companion that reported ok in the last 45 s is connected, and only that is green', () => {
+  const h = companionHealth(list([panel()]), READ);
+  assert.deepEqual(h, { kind: 'connected' });
+  assert.equal(healthWords(h, READ), 'Companion connected');
+  assert.equal(healthTone(h), 'ok');
+  // Its keys refuse presses in these: amber, never green.
+  for (const status of ['no-page', 'connecting', 'offline', 'pairing', null]) {
+    assert.deepEqual(companionHealth(list([panel({ module_status: status })]), READ), { kind: 'connecting' }, String(status));
   }
   for (const h of [
-    { kind: 'reconnecting' },
+    { kind: 'connecting' },
     { kind: 'update' },
     { kind: 'unseen', since: null },
     { kind: 'none' },
@@ -65,9 +67,16 @@ test('a panel paired and never reported is not seen yet; a module from before th
   assert.deepEqual(panelHealth(bare, READ, READ), { kind: 'update' });
 });
 
-test('what the module reports: outdated needs an update, offline is reconnecting', () => {
+test('what the module reports: outdated needs an update, offline is connecting', () => {
   assert.equal(healthWords(companionHealth(list([panel({ module_status: 'outdated' })]), READ), READ), 'Companion needs an update');
-  assert.equal(healthWords(companionHealth(list([panel({ module_status: 'offline' })]), READ), READ), 'Companion reconnecting');
+  assert.equal(healthWords(companionHealth(list([panel({ module_status: 'offline' })]), READ), READ), 'Companion connecting');
+});
+
+test('a time from another day carries its date', () => {
+  const now = new Date(2026, 10, 23, 9, 0).getTime();
+  const yesterday = new Date(2026, 10, 22, 23, 10).getTime();
+  assert.ok(healthWords({ kind: 'unseen', since: yesterday }, now).includes(new Date(yesterday).toLocaleDateString()));
+  assert.ok(!healthWords({ kind: 'unseen', since: now - 60_000 }, now).includes(new Date(now).toLocaleDateString()));
 });
 
 test('a revoked key still reporting says pair again, unless another Companion is connected', () => {

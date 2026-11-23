@@ -11,10 +11,10 @@ import type { PanelKeyRow, PanelList } from './panelRelay';
 export const SEEN_FRESH_S = 45;
 
 export type CompanionHealth =
-  /** A paired Companion reported in the last 45 s and its keys work. */
+  /** A paired Companion reported in the last 45 s that its keys work (status `ok`). */
   | { kind: 'connected' }
-  /** It reported, and its own connection to the production is being made again. */
-  | { kind: 'reconnecting' }
+  /** It reported, and its keys do not work yet: connecting, no operator page heard, or offline. */
+  | { kind: 'connecting' }
   /** It runs a module too old to work with this production, or to report at all. */
   | { kind: 'update' }
   /** A Companion still holds a key this production revoked. */
@@ -34,17 +34,17 @@ function seenAt(p: PanelKeyRow, readAt: number): number | null {
 export function panelHealth(p: PanelKeyRow, readAt: number, now: number): CompanionHealth {
   const at = seenAt(p, readAt);
   if (at !== null && now - at < SEEN_FRESH_S * 1000) {
+    if (p.module_status === 'ok') return { kind: 'connected' };
     if (p.module_status === 'outdated') return { kind: 'update' };
     if (p.module_status === 'revoked') return { kind: 'refused' };
-    if (p.module_status === 'offline') return { kind: 'reconnecting' };
-    return { kind: 'connected' };
+    return { kind: 'connecting' };
   }
   // A module from before the report has said hello or pressed, and never reported.
   if (at === null && !p.module_version && p.last_used_at) return { kind: 'update' };
   return { kind: 'unseen', since: at };
 }
 
-const RANK: Record<CompanionHealth['kind'], number> = { connected: 0, refused: 1, update: 2, reconnecting: 3, unseen: 4, none: 5 };
+const RANK: Record<CompanionHealth['kind'], number> = { connected: 0, refused: 1, update: 2, connecting: 3, unseen: 4, none: 5 };
 
 /** The production's state: green when any paired Companion is connected; else what most needs doing. */
 export function companionHealth(list: PanelList | null, now: number): CompanionHealth | null {
@@ -61,10 +61,11 @@ export function companionHealth(list: PanelList | null, now: number): CompanionH
   return { kind: 'unseen', since: times.length ? Math.max(...times) : null };
 }
 
-/** A time of day, or the date for one more than a day back. */
+/** A time of day, with the date when it was another day. */
 export function seenTime(at: number, now: number): string {
   const d = new Date(at);
-  return now - at < 20 * 3_600_000 ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString();
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toDateString() === new Date(now).toDateString() ? time : `${d.toLocaleDateString()} ${time}`;
 }
 
 /** The header chip's words. */
@@ -72,8 +73,8 @@ export function healthWords(h: CompanionHealth, now: number): string {
   switch (h.kind) {
     case 'connected':
       return 'Companion connected';
-    case 'reconnecting':
-      return 'Companion reconnecting';
+    case 'connecting':
+      return 'Companion connecting';
     case 'update':
       return 'Companion needs an update';
     case 'refused':
@@ -90,8 +91,8 @@ export function panelWords(h: CompanionHealth, now: number): string {
   switch (h.kind) {
     case 'connected':
       return 'connected';
-    case 'reconnecting':
-      return 'reconnecting';
+    case 'connecting':
+      return 'connecting';
     case 'update':
       return 'needs an update';
     case 'refused':

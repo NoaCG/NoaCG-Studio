@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { AUTH_FAILS_MAX, BEAT_GAP_MS, BEAT_MS, PanelClient } from '../panel.js'
+import { AUTH_FAILS_MAX, BEAT_GAP_MS, BEAT_MS, MISSING_RETRY_MS, PanelClient, SILENCE_MS } from '../panel.js'
 import { RelayError } from '../relay.js'
 import { MODULE_VERSION } from '../version.js'
 import { FakeClock, FakeRelay, settle, state } from './fakes.js'
@@ -240,7 +240,7 @@ test('a report refused for a revoked key says pair again, and keeps reporting so
 	assert.equal(relay.calls.filter((c) => c.name === 'seen').at(-1)?.args[2], 'revoked')
 })
 
-test('an older NoaCG server without the report keeps working and is not asked again', async () => {
+test('a NoaCG server without the report keeps working, and is asked again only every few minutes', async () => {
 	const { clock, relays, panel } = supervised()
 	await panel.start({ key: 'ncpk_test', code: '', label: '' })
 	const relay = relays[0]
@@ -256,6 +256,12 @@ test('an older NoaCG server without the report keeps working and is not asked ag
 	assert.equal(panel.status, 'ok')
 	await clock.advance(BEAT_MS * 4)
 	assert.equal(relay.count('seen'), 1)
+	// Its schema reloaded, or the server updated: the report is asked again, and goes on.
+	relay.seenAnswer = { ok: true }
+	await clock.advance(MISSING_RETRY_MS - BEAT_MS * 4)
+	assert.equal(relay.count('seen'), 2)
+	await clock.advance(BEAT_MS)
+	assert.equal(relay.count('seen'), 3)
 })
 
 test('the version reported is the package version', () => {
@@ -268,4 +274,47 @@ test('a gateway refusal of the access key is told apart from a network error and
 	assert.equal(new RelayError('fetch failed', 0).auth, false)
 	assert.equal(new RelayError('x', 404, 'PGRST202').missing, true)
 	assert.equal(new RelayError('fetch failed').missing, false)
+})
+
+test('a key refused by a report stays refused: no silence turns it into no operator page', async () => {
+	const clock = new FakeClock()
+	const relay = new FakeRelay()
+	const shown: string[] = []
+	const panel = new PanelClient({ clock, relay, onChange: () => shown.push(panel.status) })
+	await panel.start({ key: 'ncpk_test', code: '', label: '' })
+	relay.live!.onStatus('joined')
+	await settle()
+	relay.emit('state', state())
+	relay.seenAnswer = { ok: false, refused: 'revoked' }
+	await clock.advance(1_000)
+	assert.equal(panel.status, 'revoked')
+	shown.length = 0
+	await clock.advance(SILENCE_MS * 3)
+	assert.deepEqual(shown, [])
+})
+
+test('one gateway refusal of a report leaves a working panel working', async () => {
+	const { clock, relays, panel } = supervised()
+	await panel.start({ key: 'ncpk_test', code: '', label: '' })
+	const relay = relays[0]
+	relay.live!.onStatus('joined')
+	await settle()
+	relay.emit('state', state())
+	relay.seenAnswer = gateway()
+	for (let i = 0; i < 4; i++) {
+		relay.emit('beat', { v: 1, page: 'page0000page0000', claim: 3, ver: 5, rowsVer: 1 })
+		await clock.advance(4_000)
+	}
+	assert.ok(relay.count('seen') >= 2)
+	assert.equal(panel.status, 'ok')
+	assert.equal(relays.length, 1)
+})
+
+test('with the backend found late, the first report goes as soon as it is found', async () => {
+	const { clock, relays, panel } = supervised(1)
+	await panel.start({ key: 'ncpk_test', code: '', label: '' })
+	await clock.advance(1_000)
+	assert.equal(relays.length, 1)
+	await clock.advance(0)
+	assert.equal(relays[0].count('seen'), 1)
 })
