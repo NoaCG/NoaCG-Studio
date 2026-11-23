@@ -1747,9 +1747,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-aud-live input { cursor: pointer; }
 .pd-aud-live .hint { flex: 1 1 100%; margin: 0; }
-/* A setting of one question, inside its composer: no rule above it, it belongs to the words. */
+/* A setting of one question, inside its composer: no rule above it, it belongs to the words. The
+   box drops the card's field margin, which lifted it off its label's line. */
 .pd-aud-check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
-.pd-aud-check input { cursor: pointer; }
+.pd-aud-check input { cursor: pointer; margin: 0; }
 /* A vote's earlier counts, one line each under its tally. */
 .pd-aud-earlier { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .pd-aud-tally { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
