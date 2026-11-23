@@ -1598,7 +1598,7 @@ type Host = {
   shown(): Promise<boolean>;
   /** A role's text and its drawn width (getBBox), or null where the package draws no such role. */
   read(name: string): Promise<{ text: string; width: number } | null>;
-  /** Where a role's layer starts on screen (its left edge), or null where none is drawn. */
+  /** How far a role's layer has been moved along x (the offset of the group that moves it, a crawl's run), or null where none is drawn. */
   left(name: string): Promise<number | null>;
   /** The text of the first element a selector finds, or null. */
   textOf(selector: string): Promise<string | null>;
@@ -1631,7 +1631,10 @@ async function packageHost(page: Page, context: BrowserContext, id: string, file
         const el = graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${name}"]`) as SVGGraphicsElement | null;
         return el ? { text: (el.textContent ?? '').trim(), width: el.getBBox().width } : null;
       }, { tag, name }),
-      left: (name) => page.evaluate(({ tag, name }) => graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${name}"]`)?.getBoundingClientRect().left ?? null, { tag, name }),
+      left: (name) => page.evaluate(({ tag, name }) => {
+        const el = graphicBody(document.getElementById(tag)!).querySelector(`[data-noacg-role~="${name}"]`);
+        return el ? ((el.parentNode as SVGGElement).transform?.baseVal.consolidate()?.matrix.e ?? 0) : null;
+      }, { tag, name }),
       textOf: (selector) => page.evaluate(({ tag, selector }) => graphicBody(document.getElementById(tag)!).querySelector(selector)?.textContent?.trim() ?? null, { tag, selector }),
       update: (d) => page.evaluate(({ tag, d }) => (document.getElementById(tag) as El).updateAction({ data: d }).then(() => undefined), { tag, d }),
       event: (name) => page.evaluate(({ tag, name }) => (document.getElementById(tag) as El).customAction({ id: name, payload: {} }).then(() => undefined), { tag, name }),
@@ -1652,7 +1655,10 @@ async function packageHost(page: Page, context: BrowserContext, id: string, file
       const el = document.querySelector(`[data-noacg-role~="${name}"]`) as SVGGraphicsElement | null;
       return el ? { text: (el.textContent ?? '').trim(), width: el.getBBox().width } : null;
     }, name),
-    left: (name) => view.evaluate((name) => document.querySelector(`[data-noacg-role~="${name}"]`)?.getBoundingClientRect().left ?? null, name),
+    left: (name) => view.evaluate((name) => {
+      const el = document.querySelector(`[data-noacg-role~="${name}"]`);
+      return el ? ((el.parentNode as SVGGElement).transform?.baseVal.consolidate()?.matrix.e ?? 0) : null;
+    }, name),
     textOf: (selector) => view.evaluate((selector) => document.querySelector(selector)?.textContent?.trim() ?? null, selector),
     update: (d) => w('update', JSON.stringify(d)),
     event: (name) => w('noacgDispatch', name),
@@ -1790,23 +1796,25 @@ test('Ticker crawl and Word cloud: the crawl travels and the staged words fill t
   for (const id of EXPORT_IDS) {
     const h = await packageHost(page, context, id, crawlPackages[id], first);
     await expect.poll(async () => (await h.read('crawl'))?.text ?? '', { message: `${id}: the items as one run` }).toContain('Parking at the east gate');
-    const a = (await h.left('crawl')) ?? 0;
-    await expect.poll(async () => a - ((await h.left('crawl')) ?? 0), { message: `${id}: it travels right to left` }).toBeGreaterThan(3);
+    // The pace, in the moving group's units a second: the median of five tenths, so a wrap of the
+    // loop inside one of them does not count (the text's own box is not a measure: the copies
+    // before the start are laid again once the layers rest, which moves it and not the picture).
+    const pace = async () => {
+      const steps: number[] = [];
+      let at = (await h.left('crawl')) ?? 0;
+      for (let i = 0; i < 5; i++) {
+        await page.waitForTimeout(100);
+        const now = (await h.left('crawl')) ?? 0;
+        steps.push((at - now) * 10);
+        at = now;
+      }
+      return steps.sort((x, y) => x - y)[2];
+    };
+    await expect.poll(pace, { message: `${id}: it travels right to left` }).toBeGreaterThan(5);
     if (id !== 'html-overlay') {
       await h.update({ [crawl.ids.Items]: 'The bar closes at midnight' });
       await expect.poll(async () => (await h.read('crawl'))?.text ?? '', { message: `${id}: a new list as data` }).toContain('The bar closes at midnight');
       // Scroll speed as data re-times the run: 400% is well past twice the pace.
-      const pace = async () => {
-        const steps: number[] = [];
-        let at = (await h.left('crawl')) ?? 0;
-        for (let i = 0; i < 5; i++) {
-          await page.waitForTimeout(100);
-          const now = (await h.left('crawl')) ?? 0;
-          steps.push((at - now) * 10);
-          at = now;
-        }
-        return steps.sort((x, y) => x - y)[2];
-      };
       const slow = await pace();
       await h.update({ [crawl.ids.Items]: 'The bar closes at midnight', [crawl.ids['Scroll speed (%)']]: '400' });
       await expect.poll(pace, { message: `${id}: Scroll speed as data` }).toBeGreaterThan(slow * 2);
