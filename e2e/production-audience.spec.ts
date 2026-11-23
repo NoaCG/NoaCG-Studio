@@ -31,6 +31,7 @@ import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 import { addQuestion, goLive, moreWaysIn, questionRow, simulateArrivals, stopLive } from './_interaction';
 import { qrReader } from './_qr';
 import { installDoor } from './_door';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg, intoExistingProduction, intoProduction } from './_svg-import';
 
@@ -563,20 +564,53 @@ test('questions are written, browsed and changed safely, and the list survives a
   await expect(ws.getByTestId('question-edit')).toBeDisabled();
   await ws.keyboard.press('Escape');
 
-  // Going live again continues the same count.
-  await goLive(ws, 'Who wins?');
+  // Going live again ASKS (owner, 2026-11-23), and nothing goes live until the operator chooses.
+  // Continue the count keeps it going.
+  const runAgain = ws.getByTestId('question-run-choice');
+  await vote.getByTestId('question-go-live').click();
+  await expect(runAgain).toContainText('“Who wins?” has 3 votes.');
+  await expect(vote.getByTestId('question-live')).toHaveCount(0);
+  await runAgain.getByTestId('question-run-cancel').click();
+  await expect(runAgain).toHaveCount(0);
+  await expect(vote.getByTestId('question-live')).toHaveCount(0);
+  await vote.getByTestId('question-go-live').click();
+  await runAgain.getByTestId('question-run-continue').click();
+  await expect(vote.getByTestId('question-live')).toBeVisible();
+  await expect(ws.getByTestId('audience-note')).toContainText('Its earlier 3 votes still count.');
   await expect(vote.getByTestId('question-count')).toHaveText('3');
   await ws.getByTestId('audience-simulate-votes').click();
   await expect(vote.getByTestId('question-count')).toHaveText('6', { timeout: 10_000 });
   await stopLive(ws, 'Who wins?');
 
-  // Clear results takes two presses and leaves nothing; the words may then change.
+  // Start a new count: it starts from zero, and the six are kept under Earlier counts, readable and
+  // downloadable as a CSV (P1 AC-3, AC-5).
+  await vote.getByTestId('question-go-live').click();
+  await runAgain.getByTestId('question-run-new').click();
+  await expect(vote.getByTestId('question-live')).toBeVisible();
+  await expect(ws.getByTestId('audience-note')).toContainText('A new count starts from zero; the earlier 6 votes are kept under Earlier counts.');
+  await expect(vote.getByTestId('question-count')).toHaveText('0');
+  await expect(ws.getByTestId('earlier-count')).toHaveCount(1);
+  await expect(ws.getByTestId('earlier-count-total')).toHaveText('6 votes');
+  const [earlierCsv] = await Promise.all([ws.waitForEvent('download'), ws.getByTestId('earlier-count-export').click()]);
+  expect(earlierCsv.suggestedFilename()).toMatch(/^votes-who-wins-\d{4}-\d{2}-\d{2}\.csv$/);
+  const earlierLines = readFileSync((await earlierCsv.path())!, 'utf8').trim().split('\r\n');
+  expect(earlierLines[0]).toBe('Time (UTC),Option,Answer,Source,Voter');
+  expect(earlierLines.slice(1).map((l) => l.split(',').slice(1, 4).join(',')).sort()).toEqual([
+    'A,Home,phone', 'A,Home,phone', 'A,Home,phone', 'A,Home,phone', 'B,Away,phone', 'B,Away,phone',
+  ]);
+  await ws.getByTestId('audience-simulate-votes').click();
+  await expect(vote.getByTestId('question-count')).toHaveText('3', { timeout: 10_000 });
+  await stopLive(ws, 'Who wins?');
+
+  // Clear results takes two presses and leaves nothing of the current count; the earlier one stays,
+  // and the words may then change.
   await vote.getByTestId('question-more').click();
   await ws.getByTestId('question-clear').click();
   await expect(ws.getByTestId('question-clear')).toHaveText('Press again to clear its results');
-  await expect(vote.getByTestId('question-count')).toHaveText('6');
+  await expect(vote.getByTestId('question-count')).toHaveText('3');
   await ws.getByTestId('question-clear').click();
   await expect(vote.getByTestId('question-count')).toHaveText('0');
+  await expect(ws.getByTestId('earlier-count-total')).toHaveText('6 votes');
   await vote.getByTestId('question-more').click();
   await expect(ws.getByTestId('question-edit')).toBeEnabled();
   await ws.keyboard.press('Escape');
@@ -815,6 +849,33 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await phone.clock.runFor(7_000);
   await expect(phone.locator('#join .nj-waiting')).toBeVisible();
   await expect(phone.locator('#join .nj-note')).toHaveCount(0);
+
+  // A vote that cannot be changed (owner, 2026-11-23): one checkbox in the composer, said on the
+  // phone before the vote is sent, no change offered after; the export names the vote under a key
+  // that is not the phone's token (P1 AC-1, AC-3).
+  await ws.getByTestId('question-add').click();
+  await ws.getByTestId('question-type-choice').click();
+  await ws.getByTestId('question-text').fill('Final answer');
+  await ws.getByTestId('question-options').fill('Yes\nNo');
+  await expect(ws.getByTestId('question-allow-change')).toBeChecked();
+  await ws.getByTestId('question-allow-change').uncheck();
+  await ws.getByTestId('question-save').click();
+  await goLive(ws, 'Final answer');
+  await expect(ws.getByTestId('question-final')).toHaveText("A phone's first vote is final.");
+  await phone.clock.runFor(7_000);
+  await expect(phone.getByTestId('nj-final')).toHaveText("Your vote can't be changed after you send it.");
+  await phone.locator('#join .nj-opt').nth(1).click();
+  await phone.locator('#join .nj-send').click();
+  await expect(phone.getByTestId('nj-voted')).toHaveText('Your vote: B No');
+  await expect(phone.locator('#join .nj-send')).toHaveCount(0);
+  await expect(phone.locator('#join .nj-opt').nth(0)).toBeDisabled();
+  await expect(questionRow(ws, 'Final answer').getByTestId('question-count')).toHaveText('1', { timeout: 10_000 });
+  const token = await phone.evaluate(() => localStorage.getItem('noacg-audience-device'));
+  expect(token).toBeTruthy();
+  const [csv] = await Promise.all([ws.waitForEvent('download'), ws.getByTestId('audience-export-votes').click()]);
+  const text = readFileSync((await csv.path())!, 'utf8');
+  expect(text.trim().split('\r\n').slice(1).map((l) => l.split(',').slice(1, 4).join(','))).toEqual(['B,No,phone']);
+  expect(text).not.toContain(token!);
 });
 
 test('unpublished, Interaction offers Publish where phones would join and publishes nothing by itself (AC-8)', async ({ page }) => {
@@ -1736,6 +1797,24 @@ test('a tap only picks, Vote sends once and reads back, and a failed send leaves
   await vote.click();
   await expect(page.getByTestId('nj-voted')).toHaveText('Your vote: C A draw after extra time');
   expect(await sent()).toEqual([1, 2]);
+
+  // A question that does not allow changing a vote (owner, 2026-11-23): the phone says so before
+  // the vote is sent, and once it is in, offers no change.
+  await page.evaluate(() => {
+    const w = window as unknown as { __view: { state: { round: Record<string, unknown> }; myVote: number | null }; __join: { refresh(): void } };
+    w.__view = { ...w.__view, myVote: null, state: { ...w.__view.state, round: { ...w.__view.state.round, id: 'r2', allowChange: false } } };
+    w.__join.refresh();
+  });
+  await expect(page.getByTestId('nj-final')).toHaveText("Your vote can't be changed after you send it.");
+  await expect(vote).toHaveText('Vote');
+  await options.nth(0).click();
+  await vote.click();
+  await expect(page.locator('.nj-note')).toHaveText('Your vote is in.');
+  await expect(page.getByTestId('nj-voted')).toHaveText('Your vote: A The home side');
+  await expect(vote).toHaveCount(0);
+  await expect(page.getByTestId('nj-final')).toHaveCount(0);
+  await expect(options.nth(1)).toBeDisabled();
+  expect(await sent()).toEqual([1, 2, 0]);
 });
 
 test('the studio QR code decodes to the short link, as SVG and as PNG (AC-5)', async ({ page, browser }) => {
