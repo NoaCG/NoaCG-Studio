@@ -235,7 +235,7 @@ export interface Room {
   /** roundId -> device -> option. The key IS the dedupe; an overwrite is "change your vote". */
   votes: Record<string, Record<string, number>>;
   /** roundId -> device -> when that vote was last taken, for the export (0127). Additive optional in
-   *  the store: a vote kept before it has no time and exports under the round's opening. */
+   *  the store: a vote kept before it has no time and exports with an empty one. */
   voteAt: Record<string, Record<string, string>>;
   /** roundId -> chat voter (`yt:...`, `tw:...`) -> the option and the platform time it was said
    *  (interaction spec, "Chat votes"). Additive optional in the store: an older build ignores it. */

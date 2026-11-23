@@ -972,8 +972,8 @@ export default function ProductionAudienceWorkspace({
   const [armedClear, setArmedClear] = useState<string | null>(null);
   /** A stopped vote with votes whose Go live is asking: continue its count, or start a new one. */
   const [runChoice, setRunChoice] = useState<{ id: string; votes: number } | null>(null);
-  /** A CSV of votes being read, by round id: its button waits for it. */
-  const [exporting, setExporting] = useState<string | null>(null);
+  /** A CSV of votes being read: the export buttons wait for it. */
+  const [exporting, setExporting] = useState(false);
   /** A Go live, Stop, Clear or Delete in flight: their buttons wait for it. */
   const [busy, setBusy] = useState(false);
   /** The question whose "Add results to rundown" is asking where results go (S5). */
@@ -1393,7 +1393,7 @@ export default function ProductionAudienceWorkspace({
   /** Download one count's votes as a CSV, read now from the provider (P1 AC-3): every vote with its
    *  time, option, source and a voter key that is not the device. */
   const exportVotes = async (round: AudienceRound) => {
-    setExporting(round.id);
+    setExporting(true);
     try {
       const votes = await backend.votes(round.id);
       saveFile(new Blob([votesCsv(round, votes)], { type: 'text/csv;charset=utf-8' }), votesFileName(round));
@@ -1401,7 +1401,7 @@ export default function ProductionAudienceWorkspace({
     } catch (err) {
       setNote(`The votes were not downloaded: ${(err as Error).message}`);
     } finally {
-      setExporting(null);
+      setExporting(false);
     }
   };
 
@@ -1999,7 +1999,7 @@ export default function ProductionAudienceWorkspace({
                       {chatVoted && ` (${sum(selectedTally?.phone)} phone, ${sum(selectedTally?.chat)} chat)`}. Nothing is on air until you Take the cue.
                     </span>
                     {selectedRound && (
-                      <button disabled={exporting !== null} onClick={() => void exportVotes(selectedRound)} data-testid="audience-export-votes">
+                      <button disabled={exporting} onClick={() => void exportVotes(selectedRound)} data-testid="audience-export-votes">
                         Export votes (CSV)
                       </button>
                     )}
@@ -2025,7 +2025,7 @@ export default function ProductionAudienceWorkspace({
                               {t && t.total > 0 && (
                                 <span className="hint"> · {r.options.map((o, i) => `${o} ${t.counts[i] ?? 0}`).join(', ')}</span>
                               )}{' '}
-                              <button disabled={exporting !== null} onClick={() => void exportVotes(r)} data-testid="earlier-count-export">
+                              <button disabled={exporting} onClick={() => void exportVotes(r)} data-testid="earlier-count-export">
                                 CSV
                               </button>
                             </li>
