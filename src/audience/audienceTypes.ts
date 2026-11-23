@@ -124,6 +124,18 @@ export interface AudienceRound {
   correctOption: number | null;
   openedAt: string;
   closedAt: string | null;
+  /** Whether a phone may change its vote while the round is live (owner, 2026-11-23). Absent reads
+   *  as true, as every round was before; false makes a device's first vote final (0127). */
+  allowChange?: boolean;
+  /** An EARLIER COUNT of a question: the id of the question it counted, set when a new count of
+   *  that question started (0127). Such a round has no `questionId`, stays closed for good, and its
+   *  votes are kept. Absent or null: a current count (or an older round). */
+  earlierOf?: string | null;
+}
+
+/** Whether a vote in `round` can be changed while it is live: only false when the round says so. */
+export function votesCanChange(round: Pick<AudienceRound, 'allowChange'> | null | undefined): boolean {
+  return round?.allowChange !== false;
 }
 
 /** The one open round among `rounds`, if any. What phones see follows it (R18). */
@@ -235,6 +247,14 @@ export const QUESTION_CLOSED = 'That question has closed.';
  *  and it names the one thing a viewer can do about it. */
 export const NOT_SENT = 'Not sent. Check your connection and try again.';
 
+/** What a phone page says when its vote is final and it sent another (0127: the round does not
+ *  allow changing a vote). */
+export const VOTE_FINAL = 'Your vote is already in.';
+
+/** What a phone page says when the round's burst cap refused its vote (0127): it is not the
+ *  viewer's fault, and trying again shortly works. */
+export const TOO_MANY_VOTES = 'Too many votes at once. Try again in a few seconds.';
+
 /** What a phone page says when it already sent its one word to this question (W3). */
 export const WORD_ALREADY_SENT = 'You have already sent your word.';
 
@@ -253,6 +273,18 @@ export interface QuestionLive {
   type: 'open' | 'choice' | 'word';
   text: string;
   options?: string[];
+  /** Multiple choice only: whether a phone may change its vote. Absent reads as true. */
+  allowChange?: boolean;
+}
+
+/** One vote as an export reads it (0127's `audience_votes_export`): when the server last took it,
+ *  the option's index, where it came from, and a short key for the voter that is not its device
+ *  token and differs from round to round. */
+export interface RoundVote {
+  at: string;
+  option: number;
+  source: 'phone' | 'chat';
+  voter: string;
 }
 
 /**
@@ -300,8 +332,10 @@ export interface AudienceBackend {
   readPage?(): Promise<AudienceBrand | null>;
   /** Put this question in front of every phone, in one step: any other open round closes, this
    *  question's round opens (made the first time, reopened after), and the state points at it
-   *  (R3). Refused when its words differ from a result that has answers, or its type changed. */
-  goLive(question: QuestionLive): Promise<AudienceRound>;
+   *  (R3). Refused when its words or change policy differ from a result that has answers, or its
+   *  type changed. `newCount` on a stopped Multiple choice question with votes keeps that result as
+   *  an earlier count and starts this one from zero (owner, 2026-11-23; 0127). */
+  goLive(question: QuestionLive, opts?: { newCount?: boolean }): Promise<AudienceRound>;
   /** Close `roundId` and show phones the waiting text, if that round is still the open one (R4). */
   stop(roundId: string): Promise<AudienceState>;
   /** Remove a question's answers and votes and move its revision on; refused while it is live
@@ -313,6 +347,8 @@ export interface AudienceBackend {
    *  page of rows. */
   wordCounts(roundId: string): Promise<WordTally[]>;
   rounds(): Promise<AudienceRound[]>;
+  /** Every vote of a round, oldest first, for an export the operator can check (0127). */
+  votes(roundId: string): Promise<RoundVote[]>;
   /** Chat votes into the open Multiple choice round `roundId` (interaction spec, "Chat votes";
    *  migration 0113): each voter's latest by platform time, only what was said after the round
    *  last went live. `closed` when the round is not the open one. At most CHAT_VOTES_MAX a call. */

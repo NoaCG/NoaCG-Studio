@@ -25,12 +25,13 @@ export function QuestionComposer({
   onCancel,
 }: {
   editing: ShowQuestion | null;
-  onSave: (type: QuestionType, text: string, options: string[]) => void;
+  onSave: (type: QuestionType, text: string, options: string[], allowChange: boolean) => void;
   onCancel: () => void;
 }) {
   const [type, setType] = useState<QuestionType | null>(editing && isKnownType(editing.type) ? editing.type : null);
   const [text, setText] = useState(editing?.text ?? '');
   const [optionsText, setOptionsText] = useState((editing?.options ?? []).join('\n'));
+  const [allowChange, setAllowChange] = useState(editing?.allowChange !== false);
   const options = optionsText.split('\n');
   const problem = type ? questionProblem(type, text, options) : null;
   if (!type) {
@@ -73,8 +74,14 @@ export function QuestionComposer({
           data-testid="question-options"
         />
       )}
+      {type === 'choice' && (
+        <label className="pd-aud-check" data-testid="question-allow-change-row">
+          <input type="checkbox" checked={allowChange} onChange={(e) => setAllowChange(e.currentTarget.checked)} data-testid="question-allow-change" />
+          Allow changing a vote
+        </label>
+      )}
       <div className="pd-aud-round-actions">
-        <button className="primary" disabled={problem !== null} onClick={() => onSave(type, text, cleanOptions(options))} data-testid="question-save">
+        <button className="primary" disabled={problem !== null} onClick={() => onSave(type, text, cleanOptions(options), allowChange)} data-testid="question-save">
           {editing ? 'Save' : 'Add question'}
         </button>
         <button onClick={onCancel} data-testid="question-cancel">

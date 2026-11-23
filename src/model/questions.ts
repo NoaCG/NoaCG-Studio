@@ -27,6 +27,10 @@ export interface ShowQuestion {
   text: string;
   /** Multiple choice only: 2 to 8, each at most 60 characters. */
   options?: string[];
+  /** Multiple choice only: false makes each phone's first vote final (owner, 2026-11-23). Absent
+   *  means a vote can be changed while the question is live, as before; true is never stored. Part
+   *  of what was asked, so locked with the words. */
+  allowChange?: false;
   /** Word only: the words the operator hid, by `wordKey` (model/wordCloud.ts). A hidden word stays
    *  in the count but never reaches a cue. Not part of what was asked, so never locked. */
   hidden?: string[];
@@ -44,8 +48,10 @@ export function isQuestionId(id: string): boolean {
 }
 
 /** What Go live sends for a question this build can ask (audienceTypes `QuestionLive`). */
-export function toLive(q: ShowQuestion & { type: QuestionType }): { id: string; type: QuestionType; text: string; options?: string[] } {
-  return q.type === 'choice' ? { id: q.id, type: 'choice', text: q.text, options: q.options ?? [] } : { id: q.id, type: q.type, text: q.text };
+export function toLive(q: ShowQuestion & { type: QuestionType }): { id: string; type: QuestionType; text: string; options?: string[]; allowChange?: boolean } {
+  return q.type === 'choice'
+    ? { id: q.id, type: 'choice', text: q.text, options: q.options ?? [], allowChange: q.allowChange !== false }
+    : { id: q.id, type: q.type, text: q.text };
 }
 
 export function isKnownType(type: string): type is QuestionType {
@@ -90,9 +96,9 @@ export function readQuestions(raw: unknown): ShowQuestion[] {
     // Additive optional fields a newer build stored stay on the question (the spread), so a list
     // edit here never drops them.
     const options = Array.isArray(q.options) ? q.options.filter((o): o is string => typeof o === 'string') : [];
-    const { options: _options, hidden: _hidden, ...rest } = q;
+    const { options: _options, hidden: _hidden, allowChange: _allowChange, ...rest } = q;
     const hidden = Array.isArray(q.hidden) ? [...new Set(q.hidden.filter((w): w is string => typeof w === 'string' && w.length > 0))] : [];
-    if (q.type === 'choice') out.push({ ...rest, options } as unknown as ShowQuestion);
+    if (q.type === 'choice') out.push({ ...rest, options, ...(q.allowChange === false ? { allowChange: false } : {}) } as unknown as ShowQuestion);
     else if (q.type === 'word' && hidden.length > 0) out.push({ ...rest, hidden } as unknown as ShowQuestion);
     else out.push({ ...rest } as unknown as ShowQuestion);
   }
@@ -105,12 +111,14 @@ export function makeQuestion(
   type: QuestionType,
   text: string,
   options: readonly string[] = [],
+  allowChange = true,
 ): { question: ShowQuestion } | { error: string } {
   if (!ID.test(id)) return { error: 'That question id cannot be used.' };
   const problem = questionProblem(type, text, options);
   if (problem) return { error: problem };
   const clean = text.trim().slice(0, QUESTION_LIMITS.text);
-  return { question: type === 'choice' ? { id, type, text: clean, options: cleanOptions(options) } : { id, type, text: clean } };
+  if (type !== 'choice') return { question: { id, type, text: clean } };
+  return { question: { id, type, text: clean, options: cleanOptions(options), ...(allowChange ? {} : { allowChange: false as const }) } };
 }
 
 /**
@@ -127,12 +135,12 @@ export function addQuestion(list: readonly ShowQuestion[], question: ShowQuestio
   return [...list, question];
 }
 
-/** Change the text or options of a question that is not locked. The type is not editable here
- *  or anywhere (R8): a changed type is a new question. */
+/** Change the text, options or change policy of a question that is not locked. The type is not
+ *  editable here or anywhere (R8): a changed type is a new question. */
 export function editQuestion(
   list: readonly ShowQuestion[],
   id: string,
-  patch: { text?: string; options?: readonly string[] },
+  patch: { text?: string; options?: readonly string[]; allowChange?: boolean },
   locked: boolean,
 ): { list: ShowQuestion[] } | { error: string } {
   const at = list.findIndex((q) => q.id === id);
@@ -140,10 +148,12 @@ export function editQuestion(
   if (locked) return { error: 'This question is live or has answers, so its words stay as they were asked. Duplicate it to ask a changed version.' };
   const was = list[at];
   if (!isKnownType(was.type)) return { error: 'This question was made by a newer version of NoaCG.' };
-  const made = makeQuestion(was.id, was.type, patch.text ?? was.text, patch.options ?? was.options ?? []);
+  const made = makeQuestion(was.id, was.type, patch.text ?? was.text, patch.options ?? was.options ?? [], patch.allowChange ?? was.allowChange !== false);
   if ('error' in made) return made;
   const next = [...list];
-  next[at] = { ...was, ...made.question };
+  // The policy is written whole by `made`: switching changes back on must not leave the old false.
+  const { allowChange: _allowChange, ...kept } = was;
+  next[at] = { ...kept, ...made.question };
   return { list: next };
 }
 

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 const { createLocalAudience, LOCAL_ROOM_KEY } = await import('../src/audience/localAudience.ts');
-const { QUESTION_CLOSED } = await import('../src/audience/audienceTypes.ts');
+const { QUESTION_CLOSED, VOTE_FINAL } = await import('../src/audience/audienceTypes.ts');
 
 /** A localStorage stand-in, shared by every provider made while it is installed (two tabs). */
 function storage() {
@@ -81,6 +81,105 @@ test('going live again continues the same count, and a phone that voted changes 
   assert.equal(tally.total, 2);
   const view = await b.joinView('device-1');
   assert.equal(view.myVote, 1, 'the phone sees its changed vote');
+});
+
+test('a new count starts from zero and keeps the earlier one, closed for good; a phone holding it is refused (owner, 2026-11-23)', async () => {
+  const s = storage();
+  try {
+    const b = createLocalAudience({ productionName: 'Show', showId: 'show-count' });
+    const first = await b.goLive(VOTE);
+    await b.vote('device-1', first.id, 0, first.revision);
+    await b.vote('device-2', first.id, 1, first.revision);
+    await assert.rejects(b.goLive(VOTE, { newCount: true }), /stop the question/, 'not while live');
+    await b.stop(first.id);
+    await assert.rejects(b.goLive(OPEN, { newCount: true }), /for a vote/);
+
+    const fresh = await b.goLive(VOTE, { newCount: true });
+    assert.notEqual(fresh.id, first.id);
+    assert.equal(fresh.questionId, 'q-vote');
+    assert.equal((await b.tally(fresh.id)).total, 0, 'the new count starts from zero');
+    const kept = (await b.rounds()).find((r) => r.id === first.id);
+    assert.equal(kept.questionId, null);
+    assert.equal(kept.earlierOf, 'q-vote');
+    assert.ok(kept.closedAt);
+    assert.deepEqual((await b.tally(first.id)).counts, [1, 1], 'the earlier count is kept as it was');
+    assert.equal((await b.joinView('device-1')).myVote, null, 'a phone that voted before votes again');
+
+    // A phone still on the earlier round is refused as closed and counts nowhere.
+    assert.deepEqual(await b.vote('device-3', first.id, 0, first.revision), { ok: false, error: QUESTION_CLOSED, closed: true });
+    assert.equal((await b.vote('device-1', fresh.id, 1, fresh.revision)).ok, true);
+    assert.deepEqual((await b.tally(fresh.id)).counts, [0, 1]);
+    assert.deepEqual((await b.tally(first.id)).counts, [1, 1]);
+
+    // Continue the count reopens the current round; the earlier one never goes live again.
+    await b.stop(fresh.id);
+    assert.equal((await b.goLive(VOTE)).id, fresh.id);
+    await b.stop(fresh.id);
+    // Clear results clears the current count only.
+    await b.clearResults('q-vote');
+    assert.equal((await b.tally(fresh.id)).total, 0);
+    assert.equal((await b.tally(first.id)).total, 2);
+    // A new count of a round with no votes uses that round.
+    assert.equal((await b.goLive(VOTE, { newCount: true })).id, fresh.id);
+    // The earlier count survives a reload.
+    const again = createLocalAudience({ productionName: 'Show', showId: 'show-count' });
+    assert.equal((await again.rounds()).find((r) => r.id === first.id).earlierOf, 'q-vote');
+  } finally {
+    s.restore();
+  }
+});
+
+test('with changes off, the first vote is final, for phones and chat; the policy is locked like the words (owner, 2026-11-23)', async () => {
+  const b = createLocalAudience({ productionName: 'Show' });
+  const final = await b.goLive({ ...VOTE, allowChange: false });
+  assert.equal(final.allowChange, false);
+  assert.equal((await b.joinView('device-1')).state.round.allowChange, false, 'the phone is told before it votes');
+  assert.equal((await b.vote('device-1', final.id, 0, final.revision)).ok, true);
+  assert.deepEqual(await b.vote('device-1', final.id, 1, final.revision), { ok: false, error: VOTE_FINAL });
+  assert.deepEqual((await b.tally(final.id)).counts, [1, 0]);
+
+  // Chat: each voter's first said counts, and a counted one stands.
+  const at = (s) => new Date(Date.parse(final.openedAt) + s * 1000).toISOString();
+  const first = await b.chatVotes(final.id, [
+    { voter: 'tw:1', option: 1, at: at(2) },
+    { voter: 'tw:1', option: 0, at: at(1) },
+  ]);
+  assert.equal(first.counted, 1);
+  assert.equal((await b.chatVotes(final.id, [{ voter: 'tw:1', option: 1, at: at(3) }])).counted, 0);
+  assert.deepEqual((await b.tally(final.id)).chat, [1, 0]);
+
+  // The policy cannot change while live, nor once voted; cleared, it may, and moves the revision.
+  await assert.rejects(b.goLive(VOTE), /live question cannot change/);
+  await b.stop(final.id);
+  await assert.rejects(b.goLive(VOTE), /has answers/);
+  await b.clearResults('q-vote');
+  const free = await b.goLive(VOTE);
+  assert.equal(free.allowChange, true);
+  assert.equal(free.revision, final.revision + 2);
+  await b.vote('device-1', free.id, 0, free.revision);
+  assert.equal((await b.vote('device-1', free.id, 1, free.revision)).ok, true, 'changes allowed again');
+});
+
+test('the export lists every vote with its time, option, source and a voter key that is not the device', async () => {
+  const b = createLocalAudience({ productionName: 'Show' });
+  const round = await b.goLive(VOTE);
+  await b.vote('device-secret-1', round.id, 1, round.revision);
+  await b.chatVotes(round.id, [{ voter: 'yt:UCone', option: 0, at: new Date(Date.parse(round.openedAt) + 500).toISOString() }]);
+  const votes = await b.votes(round.id);
+  assert.equal(votes.length, 2);
+  assert.deepEqual(votes.map((v) => v.source).sort(), ['chat', 'phone']);
+  for (const v of votes) {
+    assert.match(v.voter, /^[0-9a-f]{10}$/);
+    assert.ok(!Number.isNaN(Date.parse(v.at)));
+  }
+  assert.ok(!JSON.stringify(votes).includes('device-secret-1'), 'the device token never leaves');
+  assert.equal(votes.find((v) => v.source === 'phone').option, 1);
+  // The same phone has another key in another round.
+  await b.stop(round.id);
+  const other = await b.goLive({ ...VOTE, id: 'q-other' });
+  await b.vote('device-secret-1', other.id, 0, other.revision);
+  assert.notEqual((await b.votes(other.id))[0].voter, votes.find((v) => v.source === 'phone').voter);
+  await assert.rejects(b.votes('no-such-round'), /unknown round/);
 });
 
 test('a duplicate starts from zero, and Clear results needs the question stopped and leaves nothing (AC-2, R9, R11)', async () => {

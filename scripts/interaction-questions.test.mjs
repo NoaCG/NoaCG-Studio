@@ -103,3 +103,36 @@ test('the Interaction view keeps its persisted key and its inbox key (AC-1, R17)
   assert.deepEqual(parseRoute('#/production/p1/interaction'), { view: 'production', id: 'p1' }, 'no second key');
   assert.equal(LOCAL_INBOX_KEY, 'spx-gfx-audience-inbox');
 });
+
+test('a vote carries its change policy: on unless set off, stored only when off, locked with the words (owner, 2026-11-23)', () => {
+  const free = made('f', 'choice', 'Which?', ['A', 'B']);
+  assert.equal('allowChange' in free, false, 'the default is not stored');
+  assert.equal(q.toLive(free).allowChange, true, 'Go live sends it, as on');
+  const out = q.makeQuestion('x', 'choice', 'Which?', ['A', 'B'], false);
+  assert.equal(out.question.allowChange, false);
+  assert.equal(q.toLive(out.question).allowChange, false);
+  assert.equal('allowChange' in q.makeQuestion('o', 'open', 'Ask', [], false).question, false, 'only a vote has one');
+  assert.equal('allowChange' in q.toLive(made('o', 'open', 'Ask')), false);
+
+  // An edit turns it off and back on; on again stores nothing, so no stale false survives.
+  const off = q.editQuestion([free], 'f', { allowChange: false }, false).list[0];
+  assert.equal(off.allowChange, false);
+  const on = q.editQuestion([off], 'f', { allowChange: true }, false).list[0];
+  assert.equal('allowChange' in on, false);
+  // An edit of the words alone keeps it.
+  assert.equal(q.editQuestion([off], 'f', { text: 'Which now?' }, false).list[0].allowChange, false);
+  // Locked like the words: no edit while live or answered.
+  assert.match(q.editQuestion([off], 'f', { allowChange: true }, true).error, /Duplicate it/);
+  // A duplicate keeps the policy it was asked under.
+  assert.equal(q.duplicateQuestion([off], 'f', 'g')[1].allowChange, false);
+
+  // Read back: false is kept on a vote, anything else drops.
+  const read = q.readQuestions([
+    { id: 'a', type: 'choice', text: 'A?', options: ['1', '2'], allowChange: false },
+    { id: 'b', type: 'choice', text: 'B?', options: ['1', '2'], allowChange: 'no' },
+    { id: 'c', type: 'open', text: 'C?', allowChange: false },
+  ]);
+  assert.equal(read[0].allowChange, false);
+  assert.equal('allowChange' in read[1], false);
+  assert.equal('allowChange' in read[2], false);
+});
