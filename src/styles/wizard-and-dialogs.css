@@ -800,6 +800,22 @@
   cursor: ns-resize;
   touch-action: none;
 }
+/* A CUT LINE is the same dashed rule standing upright, dragged sideways. */
+.wz-stage-cut {
+  height: auto;
+  border-top-style: none;
+  border-left-style: dashed;
+  border-left-color: rgba(246, 166, 35, 0.9);
+}
+.wz-stage-cut.grabbed {
+  border-left-style: solid;
+}
+.wz-stage-cut .wz-stage-cap-grab {
+  top: 0;
+  bottom: 0;
+  right: auto;
+  cursor: ew-resize;
+}
 .wz-stage-cap-grab:focus-visible {
   outline: 2px solid var(--accent, #f6a623);
   outline-offset: 0;

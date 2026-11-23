@@ -191,6 +191,8 @@ export default function CreationWizard() {
   // the step because the highlight is drawn on the PREVIEW — the step's one canvas, and the
   // only one carrying the fit runtime (docs/SVG_IMPORT_PLAN.md §6a step 1).
   const [svgHoverId, setSvgHoverId] = useState<string | null>(null);
+  // The lines lit on the preview while a text box is being set (MapSvgFieldsStep `onMarks`).
+  const [svgMarks, setSvgMarks] = useState<string[]>([]);
   // And the BOX that layer lives in, with the room round it and the alignment the file drew -
   // what the preview's box overlay draws (docs/TEXT_BOX_BINDING.md). Held beside the hover for
   // the same reason and measured by the step, which is the one holding the artwork.
@@ -1185,6 +1187,7 @@ export default function CreationWizard() {
                 draft={draft}
                 onDraft={patch}
                 onHover={setSvgHoverId}
+                onMarks={setSvgMarks}
                 onBoxOverlay={setSvgBoxOverlay}
                 onGrowCaps={setSvgGrowCaps}
                 onArmCap={armSvgCap}
@@ -1353,6 +1356,7 @@ export default function CreationWizard() {
                   ? {
                       highlightSelector: svgHoverId ? `[${SVG_CANDIDATE_ATTR}="${svgHoverId}"]` : null,
                       boxOverlay: svgBoxOverlay,
+                      marks: svgMarks,
                       // The growth limits, and the artwork they are fractions OF. The rule's own
                       // cap is measured against the artwork's frame (`svgGrowCap`), so the line
                       // has to be drawn against exactly that element and no other.

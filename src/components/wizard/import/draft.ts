@@ -22,6 +22,7 @@ import type {
 import { FONTS, fontNameKey, type CustomFont } from '../../../model/fonts';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type { EraseRect, RegionInk } from '../../../assets/eraseRegion';
+import type { SvgArea } from '../../../assets/svgAreas';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
@@ -111,6 +112,9 @@ export interface SvgImportDraft {
    *  size (plan §3)? Off is the graphic that declares a STAGE, which is every board and
    *  every scorebug; on is the lower third whose banner is as wide as the name on it. */
   svgStretch: SvgStretchDraft;
+  /** TEXT BOXES THE AUTHOR DREW on the preview with "Set text box", in fractions of the artwork
+   *  (assets/svgAreas.ts). Only the ones a row or a growth rule still names reach the graphic. */
+  svgAreas?: SvgArea[];
   /** Per referenced font family: how it resolves. Bundled faces auto-match by name at drop;
    *  the mapping step offers the Google fetch or an upload for the rest. An entry with
    *  neither source is UNRESOLVED — created anyway, with a warning. */
@@ -251,6 +255,9 @@ export interface SvgFieldDraft {
   /** STAYS ON ONE LINE - the too-long answer of a row with no box of its own, where nothing can
    *  grow. Absent = wraps into the room the drawing has, which is every row's start. */
   oneLine?: boolean;
+  /** THE BOX THE AUTHOR SET for this line with "Set text box": a shape's or a drawn area's
+   *  candidate id. Absent = the box the geometry finds, as before. */
+  box?: string;
 }
 
 /**
@@ -675,6 +682,12 @@ export interface SvgStretchDraft {
    * limit in has said nothing about how wide the box may get.
    */
   caps?: Record<string, { x?: number; y?: number }>;
+  /**
+   * WHERE A WIDENING BOX CUTS THE ARTWORK, per box, as a fraction of the artwork's width
+   * (`DesignSvgGrowth.cut`): for artwork that cannot move as separate layers, such as a ticket
+   * whose paper and stub are one picture. Absent = what travels is the follower list, as before.
+   */
+  cuts?: Record<string, number>;
 }
 
 /** Does this marker still name something in the file? A follower the reader declared and then
@@ -682,9 +695,14 @@ export interface SvgStretchDraft {
 function svgCandidateExists(draft: SvgImportDraft, candidateId: string): boolean {
   const s = draft.designSvg;
   if (!s) return false;
-  return [...s.candidates, ...s.images, ...s.outlines, ...s.groups, ...s.shapes].some(
+  return [...s.candidates, ...s.images, ...s.outlines, ...s.groups, ...s.shapes, ...(draft.svgAreas ?? [])].some(
     (c) => c.id === candidateId,
   );
+}
+
+/** Can this id be a text BOX - a drawn shape, or an area the author drew? */
+export function svgBoxExists(draft: SvgImportDraft, boxId: string): boolean {
+  return !!draft.designSvg?.shapes.some((s) => s.id === boxId) || !!draft.svgAreas?.some((a) => a.id === boxId);
 }
 
 /** Is this text layer taken off the artwork? Off, answered 'remove', and not written by a
@@ -730,7 +748,8 @@ function hiddenSvgLayers(draft: SvgImportDraft, written: Set<string>): DesignSvg
  * scorebug, and every import from before any of this existed.
  */
 function svgGrowthOptions(draft: SvgImportDraft): DesignSvgGrowth[] | undefined {
-  const shapes = draft.designSvg?.shapes ?? [];
+  // A drawn area grows like any drawn plate, after the file's own shapes.
+  const shapes: { id: string }[] = [...(draft.designSvg?.shapes ?? []), ...(draft.svgAreas ?? [])];
   if (shapes.length === 0) return undefined;
   const graphicWide = draft.svgStretch.on ? draft.svgStretch.shapeId : null;
   // WHICH WAY EACH PLATE GROWS, one entry per plate. The graphic-wide answer writes first and a
@@ -778,11 +797,13 @@ function svgGrowthOptions(draft: SvgImportDraft): DesignSvgGrowth[] | undefined 
       // still the design's own margin mirrored emits no `cap` at all, and the runtime derives
       // the same number it always derived.
       const cap = draft.svgStretch.caps?.[shape.id]?.[axis];
+      // A CUT replaces the follower list on the sideways row: everything right of it travels.
+      const cut = axis === 'x' ? draft.svgStretch.cuts?.[shape.id] : undefined;
       rows.push({
         candidateId: shape.id,
         axis,
         ...(cap != null ? { cap } : {}),
-        ...(carries ? followers : {}),
+        ...(cut != null ? { cut } : carries ? followers : {}),
       });
     }
   }
@@ -1979,6 +2000,7 @@ export function svgDesignOptions(draft: SvgImportDraft): DesignSvg | undefined {
         ...(f.align ? { align: f.align } : {}),
         ...(f.keepNudge ? { nudge: true } : {}),
         ...(f.oneLine ? { oneLine: true } : {}),
+        ...(f.box && svgBoxExists(draft, f.box) ? { box: f.box } : {}),
       })),
     images: draft.svgImages
       .filter((f) => f.on)
@@ -1997,6 +2019,7 @@ export function svgDesignOptions(draft: SvgImportDraft): DesignSvg | undefined {
     // A growth rule travels only when it is both ON and pointed at a shape that still exists:
     // a half-answered picker must never become a graphic that resizes at random.
     growth: svgGrowthOptions(draft),
+    areas: svgAreasOptions(draft),
     fonts: draft.svgFonts.map((f) => ({
       family: f.family,
       fontId: f.fontId ?? undefined,
@@ -2004,6 +2027,15 @@ export function svgDesignOptions(draft: SvgImportDraft): DesignSvg | undefined {
       customFont: f.customFont ?? undefined,
     })),
   };
+}
+
+/** The drawn areas something still names - a ticked row's box or a growth rule - and no others,
+ *  so an area the reader drew and then left emits nothing. Absent where there are none. */
+function svgAreasOptions(draft: SvgImportDraft): SvgArea[] | undefined {
+  const named = new Set<string>(draft.svgFields.filter((f) => f.on && f.box).map((f) => f.box!));
+  for (const rule of svgGrowthOptions(draft) ?? []) named.add(rule.candidateId);
+  const areas = (draft.svgAreas ?? []).filter((a) => named.has(a.id));
+  return areas.length ? areas : undefined;
 }
 
 /**

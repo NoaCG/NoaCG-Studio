@@ -161,8 +161,7 @@ export function layoutTableJs(rows: string[], said: string[]): string {
   // Which edge each of these lines fills from and where its block sits in its box, as the author
   // set it on the Fields step. A line not listed is aligned the way it was drawn. \`nudge: true\`
   // keeps the offset the designer left between the block and its anchor. \`wrap: false\` keeps
-  // the line on one line: a longer value gets smaller instead of wrapping. \`box\` names the
-  // box the author set for the line (a data-noacg-el token): it is measured there, not searched.
+  // the line on one line: a longer value gets smaller instead of wrapping.
   lines: [
 ${said.join(',\n')}
   ]`

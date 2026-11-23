@@ -15,6 +15,7 @@ import {
   pollDrivenLayers,
   creditsSourceLayers,
   takenOff,
+  svgBoxExists,
   svgDesignOptions,
   svgClockTakes,
   svgCountdownDrawn,
@@ -29,6 +30,7 @@ import {
   type FillLayer,
 } from './fieldAutoMap';
 import { SVG_CANDIDATE_ATTR } from '../../../assets/svgImport';
+import { svgMarkupWithAreas, type SvgArea } from '../../../assets/svgAreas';
 import FontsSection from './FontsSection';
 import BehaviourSection from './BehaviourSection';
 import SectionHead from '../SectionHead';
@@ -99,6 +101,8 @@ interface Props {
    * is how a rectangle is told which way to grow without hunting for a second control.
    */
   onArmPick: (handler: ((candidateId: string, drag: 'x' | 'y' | null) => void) | null) => void;
+  /** The text rows to light up on the preview while a text box is being set: the lines in it. */
+  onMarks?: (selectors: string[]) => void;
 }
 
 /** The four rungs of the too-long ladder, as the select spells them (draft.ts owns the type -
@@ -193,8 +197,22 @@ export default function MapSvgFieldsStep({
   onArmCap,
   onArmDraw,
   onArmPick,
+  onMarks,
 }: Props) {
   const svg = draft.designSvg;
+  // The measuring render carries the drawn text boxes too, so a line set in one is measured in it.
+  const stageMarkup = useMemo(
+    () => (svg ? svgMarkupWithAreas(svg.markup, draft.svgAreas, SVG_CANDIDATE_ATTR) : ''),
+    [svg, draft.svgAreas],
+  );
+  // ── SET TEXT BOX (owner, 2026-11-23) ── the row whose box is being set, or null. While set, the
+  // preview answers this row: a click on a shape makes it the box, a drag draws one, and a click
+  // on another text adds it to the box or takes it out.
+  const [boxFor, setBoxFor] = useState<string | null>(null);
+  /** The boxes the author set, as [line, box] pairs - a key the measurement below re-runs on. */
+  const setBoxesKey = JSON.stringify(
+    draft.svgFields.filter((f) => f.box && svgBoxExists(draft, f.box)).map((f) => [f.candidateId, f.box]),
+  );
   const creditsLayers = useMemo(() => {
     const design = draft.svgBehaviour?.kind === 'recipe' && draft.svgBehaviour.recipe === 'credits' ? svgDesignOptions(draft) : undefined;
     return new Set(design ? [...creditsArtworkFields(design)].map((i) => design.fields[i].candidateId) : []);
@@ -233,9 +251,21 @@ export default function MapSvgFieldsStep({
       if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSelectedId((s) => (s === id ? null : s));
     },
   });
+  // While a box is being set the preview outlines THE BOX, and lights the lines in it.
+  const editingBox = boxFor ? draft.svgFields.find((f) => f.candidateId === boxFor)?.box ?? null : null;
   useEffect(() => {
-    onHover(pointedId);
-  }, [pointedId, onHover]);
+    onHover(boxFor ? editingBox ?? boxFor : pointedId);
+  }, [pointedId, onHover, boxFor, editingBox]);
+  const markKey = boxFor
+    ? draft.svgFields
+        .filter((f) => f.candidateId === boxFor || (editingBox && f.box === editingBox))
+        .map((f) => `[${SVG_CANDIDATE_ATTR}="${f.candidateId}"]`)
+        .join('|')
+    : '';
+  useEffect(() => {
+    onMarks?.(markKey ? markKey.split('|') : []);
+  }, [markKey, onMarks]);
+  useEffect(() => () => onMarks?.([]), [onMarks]);
   useEffect(() => () => onHover(null), [onHover]);
 
   // ── ADD A FIELD WHERE THE FILE DREW NOTHING (docs/SVG_IMPORT_PLAN.md §6a step 3) ──
@@ -298,9 +328,30 @@ export default function MapSvgFieldsStep({
 
   // Arming IS reporting the handler; disarming is reporting null, and so is leaving the step —
   // a canvas still armed for a graphic nobody is mapping any more would swallow the next drag.
+  // A BOX DRAWN on the preview for the row being set: the row's own drawn area moves to the new
+  // rectangle, or a new area is made. A click is not a box.
+  const drawTextBox = useCallback(
+    (box: { x: number; y: number; w: number; h: number }) => {
+      if (!boxFor || !(box.w > 0.01) || !(box.h > 0.01)) return;
+      const areas = draft.svgAreas ?? [];
+      const own = editingBox ? areas.find((a) => a.id === editingBox) : undefined;
+      let id = own?.id;
+      if (!id) {
+        let n = 0;
+        while (areas.some((a) => a.id === `a${n}`)) n += 1;
+        id = `a${n}`;
+      }
+      const area: SvgArea = { id, x: box.x, y: box.y, w: box.w, h: box.h };
+      onDraft({
+        svgAreas: own ? areas.map((a) => (a.id === id ? area : a)) : [...areas, area],
+        svgFields: draft.svgFields.map((f) => (f.candidateId === boxFor ? { ...f, box: id } : f)),
+      });
+    },
+    [boxFor, editingBox, draft.svgAreas, draft.svgFields, onDraft],
+  );
   useEffect(() => {
-    onArmDraw(drawArmed ? placeDrawnField : null);
-  }, [drawArmed, placeDrawnField, onArmDraw]);
+    onArmDraw(boxFor ? drawTextBox : drawArmed ? placeDrawnField : null);
+  }, [boxFor, drawTextBox, drawArmed, placeDrawnField, onArmDraw]);
   useEffect(() => () => onArmDraw(null), [onArmDraw]);
 
   // ── WHAT TRAVELS WITH THE GROWING ELEMENT (docs/SVG_IMPORT_PLAN.md §6c) ──
@@ -456,11 +507,21 @@ export default function MapSvgFieldsStep({
       setWrapRoom(new Set());
       return;
     }
-    setPanelIds(panelsHoldingText(stage, svg, boundMarkerIds, placedLines));
+    const said = new Map(JSON.parse(setBoxesKey) as [string, string][]);
+    setPanelIds([...new Set([...panelsHoldingText(stage, svg, boundMarkerIds, placedLines), ...said.values()])]);
     const holders = panelOfEachLine(stage, svg, allMarkerIds);
     const grouped = withoutBackplates(stage, holders);
+    // A BOX THE AUTHOR SET wins over the one the geometry found, for grouping and for the room.
+    for (const [lineId, boxId] of said) {
+      grouped[lineId] = boxId;
+      holders[lineId] = boxId;
+    }
     setBoxOfRow(grouped);
-    setBoxLooks(boxLooksOf(stage, svg, Object.values(grouped)));
+    const looks = boxLooksOf(stage, svg, Object.values(grouped));
+    for (const boxId of said.values()) {
+      if (!svg.shapes.some((sh) => sh.id === boxId)) looks[boxId] = { fill: 'transparent', name: 'Text box' };
+    }
+    setBoxLooks(looks);
     const fits: Record<string, BoxFit> = {};
     for (const [lineId, boxId] of Object.entries(grouped)) {
       const fit = boxFitOf(stage, lineId, boxId);
@@ -470,7 +531,7 @@ export default function MapSvgFieldsStep({
     // Asked with the line's HOLDER, a backplate included: that is the room the runtime wraps into,
     // even though the checklist does not group by a backplate.
     setWrapRoom(new Set(allMarkerIds.filter((id) => lineCanWrap(stage, id, holders[id] ?? null, boundMarkerIds))));
-  }, [svg, boundMarkerIds, allMarkerIds, placedLines, fontKey]);
+  }, [svg, boundMarkerIds, allMarkerIds, placedLines, fontKey, setBoxesKey, stageMarkup]);
 
   // ── WHERE EVERY LAYER SITS, FOR THE UNMATCHED COUNT (fieldAutoMap.ts, `isPlate`) ──
   // The notice says how many layers nothing is using, and without geometry it counts the board's
@@ -520,7 +581,7 @@ export default function MapSvgFieldsStep({
   // so the overlay is re-sent when the grid is clicked and not while the reader types.
   const hoveredAlign = pointedId ? draft.svgFields.find((f) => f.candidateId === pointedId)?.align : undefined;
   useEffect(() => {
-    const boxId = pointedId ? boxOfRow[pointedId] : undefined;
+    const boxId = pointedId && !boxFor ? boxOfRow[pointedId] : undefined;
     const fit = pointedId ? boxFits[pointedId] : undefined;
     onBoxOverlay(
       boxId && fit
@@ -533,7 +594,7 @@ export default function MapSvgFieldsStep({
           }
         : null,
     );
-  }, [pointedId, boxOfRow, boxFits, onBoxOverlay, hoveredAlign]);
+  }, [pointedId, boxOfRow, boxFits, onBoxOverlay, hoveredAlign, boxFor]);
   useEffect(() => () => onBoxOverlay(null), [onBoxOverlay]);
 
   // ── GROWTH IS CHOSEN PER BOX (docs/TEXT_BOX_BINDING.md, rung 4) ──
@@ -566,8 +627,39 @@ export default function MapSvgFieldsStep({
    *  carrier slot, so its travellers are the ones the "What else moves" list shows and emits;
    *  a second box growing beside it is an ordinary per-box row and derives its own at play time,
    *  which is what the runtime has always done for a rule with no declared list. */
+  /** Where a box sits across the artwork, as fractions - measured on the step's own render. */
+  const spanOf = (boxId: string): { left: number; right: number } | null => {
+    const area = draft.svgAreas?.find((a) => a.id === boxId);
+    if (area) return { left: area.x, right: area.x + area.w };
+    const stage = stageRef.current;
+    const root = stage?.querySelector('svg')?.getBoundingClientRect();
+    const el = stage?.querySelector(`[${SVG_CANDIDATE_ATTR}="${boxId}"]`)?.getBoundingClientRect();
+    if (!root || !el || !(root.width > 0)) return null;
+    return { left: (el.left - root.left) / root.width, right: (el.right - root.left) / root.width };
+  };
+  /** The cut a box gets when it starts to widen: a DRAWN box is cut through its middle, because
+   *  it was drawn on artwork that has no shape to move; a drawn shape keeps its followers. */
+  const cutsFor = (boxId: string, mode: StretchMode): Record<string, number> | undefined => {
+    const cuts = { ...(draft.svgStretch.cuts ?? {}) };
+    if (mode === 'shrink' || mode === 'grow-y') delete cuts[boxId];
+    else if (cuts[boxId] == null && draft.svgAreas?.some((a) => a.id === boxId)) {
+      const span = spanOf(boxId);
+      if (span) cuts[boxId] = Math.round(((span.left + span.right) / 2) * 1000) / 1000;
+    }
+    return Object.keys(cuts).length ? cuts : undefined;
+  };
+  const toggleCut = (boxId: string) => {
+    const cuts = { ...(draft.svgStretch.cuts ?? {}) };
+    if (cuts[boxId] != null) delete cuts[boxId];
+    else {
+      const span = spanOf(boxId);
+      if (!span) return;
+      cuts[boxId] = Math.round(((span.left + span.right) / 2) * 1000) / 1000;
+    }
+    onDraft({ svgStretch: { ...draft.svgStretch, authored: true, cuts: Object.keys(cuts).length ? cuts : undefined } });
+  };
   const setBoxMode = (boxId: string, mode: StretchMode) => {
-    const cur = draft.svgStretch;
+    const cur = { ...draft.svgStretch, cuts: cutsFor(boxId, mode) };
     const carrier = cur.on ? cur.shapeId : null;
     const rest = { ...perPanel };
     // The box's own answer is rewritten from scratch either way, so a box that used to be an
@@ -808,10 +900,17 @@ export default function MapSvgFieldsStep({
         note: `${label}: stops at ${w.where}${w.lines ? `, room for ${w.lines} line${w.lines === 1 ? '' : 's'}` : ''}`,
       });
     }
+    // A CUT LINE for every widening box that has one: dragged sideways, anywhere on the artwork.
+    for (const [boxId, at] of Object.entries(draft.svgStretch.cuts ?? {})) {
+      const mode = modeOfBox(boxId);
+      if (mode !== 'grow-x' && mode !== 'grow-xy') continue;
+      const label = labels.get(boxId) ?? 'This box';
+      out.push({ id: `cut:${boxId}`, label, axis: 'x', dir: 1, margin: at, min: 0.02, max: 0.98, note: `${label}: cut line` });
+    }
     return out;
     // `capWords` is a pure reading of `svg` and the fit, both of which are dependencies here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [capKey, capLabels, capFits, capsSet, svg]);
+  }, [capKey, capLabels, capFits, capsSet, svg, draft.svgStretch.cuts, draft.svgStretch.perPanel, draft.svgStretch.shapeId, draft.svgStretch.on, draft.svgStretch.axis]);
   useEffect(() => {
     onGrowCaps(growCaps);
   }, [growCaps, onGrowCaps]);
@@ -822,6 +921,12 @@ export default function MapSvgFieldsStep({
    *  the growth could not keep. */
   const setCap = useCallback(
     (boxId: string, margin: number) => {
+      if (boxId.startsWith('cut:')) {
+        const id = boxId.slice(4);
+        const at = Math.round(Math.min(0.98, Math.max(0.02, margin)) * 1000) / 1000;
+        onDraft({ svgStretch: { ...draft.svgStretch, authored: true, cuts: { ...(draft.svgStretch.cuts ?? {}), [id]: at } } });
+        return;
+      }
       const fit = capFits[boxId];
       if (!fit) return;
       const m = capClamped(fit, margin);
@@ -888,6 +993,24 @@ export default function MapSvgFieldsStep({
   // and this decides, exactly as it does for a drawn box.
   const pickLayer = useCallback(
     (candidateId: string, drag: 'x' | 'y' | null) => {
+      // SETTING A TEXT BOX takes the gesture: a shape becomes the row's box, and another text is
+      // added to the box or taken out of it. Anything else does nothing.
+      if (boxFor) {
+        if (candidateId === boxFor) return;
+        if (svg?.shapes.some((sh) => sh.id === candidateId)) {
+          onDraft({ svgFields: draft.svgFields.map((f) => (f.candidateId === boxFor ? { ...f, box: candidateId } : f)) });
+          return;
+        }
+        const other = draft.svgFields.find((f) => f.candidateId === candidateId);
+        if (!other || !editingBox) return;
+        const inIt = other.box === editingBox;
+        onDraft({
+          svgFields: draft.svgFields.map((f) =>
+            f.candidateId === candidateId ? { ...f, box: inIt ? undefined : editingBox, on: inIt ? f.on : true } : f,
+          ),
+        });
+        return;
+      }
       // DECLARING FOLLOWERS takes the gesture while it is armed: the same pick that would
       // otherwise bind a field instead says "this travels" (plan §6c). The growing element
       // itself is never its own follower, and NEITHER IS A TEXT LAYER (owner walk, 2026-09-01):
@@ -995,6 +1118,8 @@ export default function MapSvgFieldsStep({
       followArmed,
       declaredFollowers,
       proposedText,
+      boxFor,
+      editingBox,
     ],
   );
 
@@ -1125,7 +1250,7 @@ export default function MapSvgFieldsStep({
           style={{ width: svg.width }}
           // The markup is our own sanitizer's output (script/handlers/foreignObject already
           // removed at import — assets/svgImport.ts), never raw user input.
-          dangerouslySetInnerHTML={{ __html: svg.markup }}
+          dangerouslySetInnerHTML={{ __html: stageMarkup }}
         />
       </div>
       {/* ONE LINE PER THING (docs/GOALS.md NOW goal 4): what is automatically visible is one
@@ -1263,6 +1388,22 @@ export default function MapSvgFieldsStep({
                       </option>
                     ))}
                   </select>
+                )}
+                {/* THE CUT LINE, for a box that widens: what is right of it slides, and artwork
+                    drawn across it is split there. Dragged on the preview. */}
+                {group.boxId && ['grow-x', 'grow-xy'].includes(modeOfBox(group.boxId)) && (
+                  <label
+                    className="map-svg-box-cut"
+                    title="Split the artwork at a line you drag on the preview: what is right of it moves out as the box widens, and the gap is filled from the strip beside the line. For artwork that is one picture."
+                  >
+                    <input
+                      type="checkbox"
+                      checked={draft.svgStretch.cuts?.[group.boxId] != null}
+                      onChange={() => toggleCut(group.boxId!)}
+                      data-testid={`map-svg-box-cut-${group.fields[0].candidateId}`}
+                    />
+                    cut line
+                  </label>
                 )}
               </p>
             )}
@@ -1450,6 +1591,18 @@ export default function MapSvgFieldsStep({
                       </select>
                     </label>
                   )}
+                  {f.on && f.kind !== 'countdown' && !creditsSources.has(f.candidateId) && (
+                    <button
+                      type="button"
+                      className={`map-svg-set-box${boxFor === f.candidateId ? ' active' : ''}`}
+                      aria-pressed={boxFor === f.candidateId}
+                      title="Set text box: click a shape on the preview, or drag the area this text may use."
+                      onClick={() => setBoxFor((b) => (b === f.candidateId ? null : f.candidateId))}
+                      data-testid={`map-svg-set-box-${f.candidateId}`}
+                    >
+                      Set text box
+                    </button>
+                  )}
                 </>
               )}
               {f.clock && !driven && (countdownOffered || !svgClockTakes(f)) && (
@@ -1519,6 +1672,25 @@ export default function MapSvgFieldsStep({
                 </span>
               )}
             </div>
+            {boxFor === f.candidateId && (
+              <div className="map-svg-box-edit" data-testid={`map-svg-box-edit-${f.candidateId}`}>
+                <span className="hint">
+                  {editingBox ? 'Click text to add or remove it. Drag again to redraw.' : 'Click a shape or drag an area on the preview.'}
+                </span>
+                {f.box && (
+                  <button
+                    type="button"
+                    onClick={() => patchField(f.candidateId, { box: undefined })}
+                    data-testid={`map-svg-box-clear-${f.candidateId}`}
+                  >
+                    Use the found box
+                  </button>
+                )}
+                <button type="button" onClick={() => setBoxFor(null)} data-testid={`map-svg-box-done-${f.candidateId}`}>
+                  Done
+                </button>
+              </div>
+            )}
             {/* THE NUDGE THE FILE RECORDED, handed back on request (owner, 2026-09-02: "what if
                 you want to have the text a little bit to the right, and it would fit the
                 design?"). Snapping onto the anchor is the default he ruled for, so the line is on
