@@ -1304,13 +1304,16 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
     },
   });
+  /** Graphics the published payload does not carry, so the outputs cannot play them yet (studio
+   *  session, 2026-11-23): the status names them and their cues are marked in the rundown. */
+  const notOnOutputs = show && publishedStamp?.g && !autoPublish.active ? newGraphicNames(show.graphics.map((g) => g.name), publishedStamp.g) : null;
   // NEW GRAPHICS WITHOUT A PUBLISH (live-production-reliability P2, AC-2): with automatic updates
   // off, a graphic added to the published production goes out by itself, alone, with its cues;
   // everything already published stays as it is. Then the outputs are asked to take it in.
   const newGraphics = usePublishNewGraphics({
     show,
     enabled: !!hostedSlug && !autoPublish.active && backendConfigured && authStatus === 'signed-in' && authoringAllowed,
-    publishedG: publishedStamp?.g ?? null,
+    names: notOnOutputs,
     busy: () => publishing || prepareFlow.phase === 'publishing' || !!autoPublish.view?.running,
     appearanceFor: appearanceForRef,
     onStamp: (ver, output) => {
@@ -1323,9 +1326,6 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
     },
   });
-  /** Graphics the published payload does not carry, so the outputs cannot play them yet (studio
-   *  session, 2026-11-23): the status names them and their cues are marked in the rundown. */
-  const notOnOutputs = show && publishedStamp?.g && !autoPublish.active ? newGraphicNames(show.graphics.map((g) => g.name), publishedStamp.g) : null;
   /** Whether this page adds them by itself, and why it will not when it will not. */
   const newGraphicsAdds = newGraphics.enabled ? { refusal: newGraphics.refusal } : null;
   const offOutputs = hostedSlug && notOnOutputs?.length ? { graphics: new Set(notOnOutputs), why: notOnOutputsWhy(newGraphicsAdds) } : null;

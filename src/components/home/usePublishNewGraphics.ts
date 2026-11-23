@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { loadShows, type Show } from '../../model/shows';
-import { createAdditivePublisher, newGraphicNames, type AdditivePublisher, type AdditiveView } from '../../control/additivePublish';
+import { createAdditivePublisher, type AdditivePublisher, type AdditiveView } from '../../control/additivePublish';
 import { publishNewGraphics } from '../../control/publishNewGraphics';
 import type { CuePublished, OutputPayload } from '../../control/hostedControl';
 import type { PayloadVersion } from '../../control/payloadVersion';
@@ -15,8 +15,8 @@ export function usePublishNewGraphics(o: {
   show: Show | null;
   /** Published, signed in with an account that may author, and automatic updates not running. */
   enabled: boolean;
-  /** The published stamp's graphics as this page knows them, or null: not known. */
-  publishedG: Record<string, string> | null;
+  /** The pool's graphics the published stamp, as this page knows it, does not name. */
+  names: readonly string[] | null;
   /** Another publish of this page is running. */
   busy: () => boolean;
   /** Each cue's appearance and adjust records for the payload, as a press's publish measures them. */
@@ -24,10 +24,9 @@ export function usePublishNewGraphics(o: {
   /** The stamp stored now: written by this page (`output` given), or read. */
   onStamp: (ver: PayloadVersion, output?: OutputPayload) => void;
 }): AdditiveView & { enabled: boolean } {
-  const { show, enabled, publishedG } = o;
-  const names = enabled && show && publishedG ? newGraphicNames(show.graphics.map((g) => g.name), publishedG) : [];
+  const { show, enabled, names } = o;
   // A new graphic saved again (a gate fix, a design change) is a new attempt; nothing else is.
-  const key = names.length && show ? show.graphics.filter((g) => names.includes(g.name)).map((g) => `${g.name}@${g.savedAt}`).join('\n') : null;
+  const key = enabled && names?.length && show ? show.graphics.filter((g) => names.includes(g.name)).map((g) => `${g.name}@${g.savedAt}`).join('\n') : null;
   const [view, setView] = useState<AdditiveView>({ running: false, refusal: null });
   const latest = useRef(o);
   latest.current = o;
