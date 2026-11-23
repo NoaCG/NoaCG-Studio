@@ -2681,8 +2681,8 @@ test('svg import: the step says what a control does, in a few lines', async ({ p
   await page.getByTestId('map-svg-why-behaviour').click();
   const behaviour = page.getByTestId('map-svg-why-behaviour-body');
   await expect(behaviour.locator('p')).toHaveCount(2);
-  // The list below already spells each behaviour out, one line each, so the ⓘ must not read it
-  // back. Naming one of them here is how that regression shows up.
+  // The ⓘ explains the type that is chosen and no other: the dropdown holds names only, and a
+  // paragraph walking the whole list again is how that regression shows up.
   await expect(behaviour).not.toContainText('live vote');
 
   await page.getByTestId('map-svg-why-fields').click();

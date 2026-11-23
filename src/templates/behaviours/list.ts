@@ -32,7 +32,7 @@ const stateOf = (key: string): string => `main/${slugify(stepName(key))}`;
 
 export const listRecipe: BehaviourRecipe = {
   id: 'list',
-  name: 'Stepped list',
+  name: 'Top list',
   description: 'Entries revealed one per Next press, from the last number down to one.',
   category: 'infographic',
   defaultZone: 'mid-center',

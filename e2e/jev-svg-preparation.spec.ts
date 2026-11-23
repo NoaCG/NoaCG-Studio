@@ -162,7 +162,9 @@ test('a routine lower third reaches a working graphic with no mapping stop', asy
   await page.goto('/app');
   await dropSvg(page, LOWER_THIRD);
   // Nothing is asked (row 36): no behaviour, no clock question, nothing still to say.
-  await expect(page.getByTestId('map-svg-behaviour').locator('.wz-sec-head .muted')).toHaveText('it just comes on and off');
+  // It ships as a Lower third, and the dropdown is the only thing that says so.
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await expect(page.getByTestId('map-svg-behaviour').locator('.wz-sec-head .muted')).toHaveCount(0);
   await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
   // From the mapping step straight to Finish: nothing on the checklist has to be answered.
   await page.getByTestId('wz-skip-to-finish').click();
@@ -185,7 +187,7 @@ test('a routine lower third reaches a working graphic with no mapping stop', asy
 // The task rubric for AC-5, one walk per family on the development corpus: the clicks a
 // non-technical author makes and what the operator then has. Row 34's verdict was no go, so these
 // proposals are the drop's own; nothing asks the model route. A family the artwork settles asks
-// nothing; one whose behaviour the artwork cannot settle asks one question in the "What it does"
+// nothing; one whose behaviour the artwork cannot settle asks one question in the "Graphic type"
 // section, and the section's summary says what ships until it is answered.
 
 const dev = (name: string) => fileURLToPath(new URL(`./fixtures/jev-svg/dev/${name}.svg`, import.meta.url));
@@ -201,7 +203,7 @@ async function finishInto(page: Page, graphic: string): Promise<void> {
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
 }
 
-/** The "What it does" section's one line, which says what ships. */
+/** The "Graphic type" section's one line: what ships beyond the type the dropdown names. */
 const summary = (page: Page) => page.getByTestId('map-svg-behaviour').locator('.wz-sec-head .muted');
 
 test('a scoreboard asks nothing: its figures arrive as steppers', async ({ page }) => {
@@ -668,7 +670,8 @@ test('with every AI route failing, an SVG import is saved, taken to air and expo
   const before = aiAsked.length;
   await dropSvg(page, LOWER_THIRD);
   await expect(page.getByTestId('map-svg-fields')).toBeVisible();
-  await expect(summary(page)).toHaveText('it just comes on and off');
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await expect(summary(page)).toHaveCount(0);
   await finishInto(page, 'Fallback strap');
   expect(aiAsked.slice(before).filter((p) => p.includes('svg-interpretation')), 'the import asks the model route nothing').toEqual([]);
 
@@ -887,7 +890,8 @@ test('row 38 diagnostic: three notice zones, each zone\'s words operated alone; 
   await page.goto('/app');
   await dropSvg(page, NOTICE_ZONES);
   // The artwork settles nothing to ask: three plates, each a heading and a body.
-  await expect(summary(page)).toHaveText('it just comes on and off');
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await expect(summary(page)).toHaveCount(0);
   await finishInto(page, 'Notices');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const bodies = ['f1', 'f3', 'f5'];

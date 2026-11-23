@@ -17,7 +17,7 @@ const REVEAL_EVENT = 'reveal';
 
 export const revealRecipe: BehaviourRecipe = {
   id: 'reveal',
-  name: 'Reveal',
+  name: 'Hidden answer',
   description: 'Text you type stays sealed behind the cover you drew until one press reveals it.',
   category: 'reveal',
   defaultZone: 'mid-center',

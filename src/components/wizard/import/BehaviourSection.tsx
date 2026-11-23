@@ -69,6 +69,11 @@ const PICK_A_LAYER = 'Pick a text layer';
 /** The four recipes the wizard holds in shapes of their own (draft.ts); every other one is the
  *  generic draft and is listed from the registry. */
 const LEGACY_RECIPES = new Set(['quiz', 'score', 'countdown', 'vote']);
+/** The "More" group of the Graphic type dropdown: every registry recipe with no line of its own. */
+const MORE_TYPES = BEHAVIOUR_RECIPES.filter((r) => !r.instanced && !LEGACY_RECIPES.has(r.id));
+/** The draft kinds with their own dropdown line, by the recipe whose description explains them. */
+const KIND_RECIPE: Record<string, string> = { quiz: 'quiz', poll: 'vote', score: 'score', timer: 'countdown' };
+const LOWER_THIRD_LINE = 'Lower third: it comes on and off with the text you type.';
 
 /** How many answer rows a quiz board may carry, and the least it can carry. Written once
  *  because the SEED reads off the artwork now (one question, the rest answers) and a seed the
@@ -616,6 +621,9 @@ export default function BehaviourSection({
   const behaviourGaps = behaviourBindingGaps(draft);
   // A time layer says what it does even before anyone answers: unanswered, it stays as typed.
   const clockPart = clockRows.length === 0 ? '' : clock ? (CLOCK_PICKER_MODES.find((m) => m.mode === clock.mode)?.summary ?? '') : 'the time stays as typed';
+  const typeId = behaviour ? (behaviour.kind === 'recipe' ? behaviour.recipe : KIND_RECIPE[behaviour.kind] ?? behaviour.kind) : null;
+  const typeRecipe = typeId ? recipeById(typeId) : undefined;
+  const typeLine = typeRecipe ? `${typeRecipe.name}: ${typeRecipe.description}` : LOWER_THIRD_LINE;
 
   // ── THE STEP EXPLAINS ITSELF, AND OFFERS TO DO THE REST (fieldAutoMap.ts) ──
   // The inventories the fill may draw on are EXACTLY what the pickers below offer, for the same
@@ -763,8 +771,12 @@ export default function BehaviourSection({
     <>
       {(textLayers.length > 0 || (draft.designSvg?.groups.length ?? 0) > 0) && (
         <div className="panel-section" data-testid="map-svg-behaviour">
+          {/* ONE DROPDOWN, NAMES ONLY (owner, 2026-11-23: "no one is reading all that text"). The
+              drop already picks the type when the layer names give it away (`proposeSvgBehaviour`),
+              so the dropdown is the correction, not a question; what each type does sits behind
+              the info button, one line for the type that is chosen. */}
           <SectionHead
-            title="What it does"
+            title="Graphic type"
             summary={
               [
                 clockPart,
@@ -773,39 +785,24 @@ export default function BehaviourSection({
                     ? `${behaviourNoun(behaviour)}, once you say ${behaviourGaps[0]}`
                     : behaviourSummaryLine(behaviour)
                   : steppers,
-              ].filter(Boolean).join(' · ') || 'it just comes on and off'
+              ].filter(Boolean).join(' · ') || undefined
             }
             testid="map-svg-why-behaviour"
           >
-            {/* THE LIST BELOW ALREADY SAYS WHAT EACH ONE DOES, one line each, so a paragraph
-                naming all three again was the step reading itself out loud (owner walk,
-                2026-09-03: "it needs to be shorter and just what it does"). */}
-            <p>Pick one and the operator gets real buttons on the control page for it.</p>
-            <p>
-              Your artwork does not change. You say which drawn layer shows at each moment. Leave
-              a quiz moment undrawn and NoaCG paints its own neutral look for it; every other
-              behaviour shows nothing extra there, and still works.
-            </p>
-            {/* SAY WHAT THE ARTWORK ALREADY EARNED. A scoreboard is the case that made this
-                necessary: a layer holding a plain figure becomes a number field and every control
-                surface draws one as a ± stepper. The step offered "Nothing. It comes on and off.",
-                the reader read the whole list as "there is no scoreboard here", and nothing
-                anywhere said their scores were already drivable. It used to end "that is the whole
-                of a scoreboard", which stopped being true the day the score tracker shipped: the
-                steppers are still a real road, and they play nothing and reset nothing. */}
+            <p>{typeLine}</p>
+            <p>Your artwork does not change. The operator gets buttons on the control page for the type you pick.</p>
             {numberFields.length > 0 && (
               <p data-testid="map-svg-behaviour-steppers">
                 {numberFields.length === 1 ? 'One layer holds' : `${numberFields.length} layers hold`}{' '}
                 a plain figure ({numberFields.map((f) => f.title).join(', ')}), so the operator
-                already gets a + and a − for {numberFields.length === 1 ? 'it' : 'each'}, with no
-                behaviour chosen. Scoreboard adds the flash you drew and a reset between
-                games.
+                already gets a + and a − for {numberFields.length === 1 ? 'it' : 'each'}. Scoreboard
+                adds the flash you drew and a reset between games.
               </p>
             )}
           </SectionHead>
           <label className="save-field">
-            <span>Behaviour</span>
             <select
+              aria-label="Graphic type"
               value={behaviour ? (behaviour.kind === 'recipe' ? behaviour.recipe : behaviour.kind) : 'none'}
               onChange={(e) => {
                 const want = e.target.value;
@@ -888,22 +885,22 @@ export default function BehaviourSection({
               }}
               data-testid="map-svg-behaviour-kind"
             >
-              <option value="none">
-                {numberFields.length > 0
-                  ? 'Nothing extra. The number layers already get + and −.'
-                  : 'Nothing. It comes on and off.'}
-              </option>
-              <option value="quiz">Quiz. Select an answer, lock it in, reveal it.</option>
-              <option value="poll">Live vote. The room votes; the bars move; you show the result.</option>
-              <option value="score">Scoreboard. A point per press, per team, and a new game.</option>
-              {(timer || countdownDrawn) && <option value="timer">Countdown. It starts on air; you hold it, let it go, reset it.</option>}
+              <optgroup label="Common">
+                <option value="none">Lower third</option>
+                <option value="quiz">Quiz</option>
+                <option value="poll">Live vote</option>
+                <option value="score">Scoreboard</option>
+                {(timer || countdownDrawn) && <option value="timer">Countdown</option>}
+              </optgroup>
               {/* Every other recipe, from the registry: a recipe added tomorrow is offered here
-                  with no new line, in the words its declaration carries. */}
-              {BEHAVIOUR_RECIPES.filter((r) => !r.instanced && !LEGACY_RECIPES.has(r.id)).map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}. {r.description}
-                </option>
-              ))}
+                  with no new line, under the name its declaration carries. */}
+              <optgroup label="More">
+                {MORE_TYPES.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </label>
           {clockRows.length > 0 && (

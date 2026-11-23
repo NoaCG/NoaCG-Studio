@@ -941,6 +941,19 @@ function withEraseSeedFields(template: SpxTemplate, draft: SvgImportDraft): SpxT
 /** What a seeded field is called. The first two get the words a lower third actually uses —
  *  the overwhelmingly common shape is a name over a title — and anything past that is
  *  numbered. Every one is renamed in a click from the Inspector's Style tab. */
+/** A text with no usable layer name is named after its OWN WORDS when they are short and read as
+ *  a name ("Namn", "Title"), never as "Text 1": the reader recognises the field at once. A figure,
+ *  a clock or a sentence keeps the numbered fallback, which is the honest name for a value. Only
+ *  the row's title changes; the matcher still reads the layer name (`naming.ts`), so what the
+ *  words say never proposes a graphic type on its own. */
+export function titleOfCandidate(c: { id: string; label: string; sample: string; numeric: boolean; clock: boolean }): string {
+  const fallback = /^t(\d+)$/.exec(c.id);
+  if (!fallback || c.label !== `Text ${Number(fallback[1]) + 1}`) return c.label;
+  const words = c.sample.trim();
+  if (c.numeric || c.clock || !words || words.length > 24 || /\n/.test(words) || !/\p{L}/u.test(words)) return c.label;
+  return words;
+}
+
 function seedTitle(index: number): string {
   return index === 0 ? 'Name' : index === 1 ? 'Title' : `Text ${index + 1}`;
 }
@@ -1789,7 +1802,7 @@ function svgDropAnswers(result: SvgImportResult): Pick<SvgImportDraft, 'svgField
         candidateId: c.id,
         on: !furniture(c) && !c.outsideCanvas,
         ...(c.outsideCanvas ? { whenOff: 'keep' as const } : {}),
-        title: c.label,
+        title: titleOfCandidate(c),
         sample: c.sample,
         numeric: c.numeric,
         clock: c.clock,

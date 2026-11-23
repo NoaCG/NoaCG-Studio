@@ -6504,7 +6504,7 @@
      {
       "candidateId": "t0",
       "on": true,
-      "title": "Text 1",
+      "title": "Aino Virtanen",
       "sample": "Aino Virtanen",
       "numeric": false,
       "clock": false,
@@ -6513,7 +6513,7 @@
      {
       "candidateId": "t1",
       "on": true,
-      "title": "Text 2",
+      "title": "Meteorologist",
       "sample": "Meteorologist",
       "numeric": false,
       "clock": false,
@@ -6522,7 +6522,7 @@
      {
       "candidateId": "t2",
       "on": true,
-      "title": "Text 3",
+      "title": "HELSINKI",
       "sample": "HELSINKI",
       "numeric": false,
       "clock": false,
@@ -6578,19 +6578,19 @@
     {
      "field": "f0",
      "ftype": "textfield",
-     "title": "Text 1",
+     "title": "Aino Virtanen",
      "value": "Aino Virtanen"
     },
     {
      "field": "f1",
      "ftype": "textfield",
-     "title": "Text 2",
+     "title": "Meteorologist",
      "value": "Meteorologist"
     },
     {
      "field": "f2",
      "ftype": "textfield",
-     "title": "Text 3",
+     "title": "HELSINKI",
      "value": "HELSINKI"
     }
    ],
@@ -6601,7 +6601,7 @@
     "@font-face {\n  font-family: \"Inter\";\n  src: url(\"fonts/inter-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 400 800;  /* variable font: covers this weight range */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}"
    ],
    "emit": {
-    "html": "fde929e30ad0cfe44c8193099a365e6917a7251605538e2cd59465bf8524e16c",
+    "html": "c2d8bd5ad96fe8dc21393e9899b9f1adc8b7f39df6009707cef40e530cc5c0da",
     "css": "c106a554a172932f741cd225c78b53bfd961e0c2c00cda09aa261c05e3491361",
     "js": "41564908e2ae71fb62f0a3647c7fb1bb8cdc5ad83fa125ab1faaf5ea10f2bb78"
    },
@@ -11067,7 +11067,7 @@
      {
       "candidateId": "t1",
       "on": true,
-      "title": "Text 2",
+      "title": "2. Magnus Carlsen",
       "sample": "2. Magnus Carlsen",
       "numeric": false,
       "clock": false,
@@ -11076,7 +11076,7 @@
      {
       "candidateId": "t2",
       "on": true,
-      "title": "Text 3",
+      "title": "3. Elmo",
       "sample": "3. Elmo",
       "numeric": false,
       "clock": false,
@@ -11085,7 +11085,7 @@
      {
       "candidateId": "t3",
       "on": true,
-      "title": "Text 4",
+      "title": "4. Beth Harmon",
       "sample": "4. Beth Harmon",
       "numeric": false,
       "clock": false,
@@ -11094,7 +11094,7 @@
      {
       "candidateId": "t4",
       "on": true,
-      "title": "Text 5",
+      "title": "Lorem ipsum",
       "sample": "Lorem ipsum",
       "numeric": false,
       "clock": false,
@@ -11134,25 +11134,25 @@
     {
      "field": "f1",
      "ftype": "textfield",
-     "title": "Text 2",
+     "title": "2. Magnus Carlsen",
      "value": "2. Magnus Carlsen"
     },
     {
      "field": "f2",
      "ftype": "textfield",
-     "title": "Text 3",
+     "title": "3. Elmo",
      "value": "3. Elmo"
     },
     {
      "field": "f3",
      "ftype": "textfield",
-     "title": "Text 4",
+     "title": "4. Beth Harmon",
      "value": "4. Beth Harmon"
     },
     {
      "field": "f4",
      "ftype": "textfield",
-     "title": "Text 5",
+     "title": "Lorem ipsum",
      "value": "Lorem ipsum"
     }
    ],
@@ -11160,7 +11160,7 @@
     "/* UNRESOLVED FONT: MyriadPro-Regular - the SVG references this family but no file ships\n   with the template, so playout falls back to whatever the machine has installed. If the\n   playout machine has the font, this is fine; otherwise import the file in the Style panel. */"
    ],
    "emit": {
-    "html": "d68985ee0b75f58bcc002746b045f520d638f71b86e47cf02034bef6297163f1",
+    "html": "592028cfee57f5ba922c88b2d2a63b7fa22e7995f0609f9e42f3b2e7506f3db4",
     "css": "53547020eda81721672d350370a9db828d9e903827104c7fbc2e62519ff333fd",
     "js": "181b5b9a457045cd63e62ace57b1913342c43d014d6bcb98adddeacdbbed6b0d"
    },

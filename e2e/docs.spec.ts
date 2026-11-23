@@ -486,7 +486,7 @@ test('the import walk keeps its steps, its two surprises and its handoffs', asyn
   await page.goto('/docs');
   const walk = page.locator('#first-graphic');
   await expect(walk).toContainText('No account is needed until you publish');
-  for (const step of ['Import graphic', 'Project format', 'Fields', 'What it does', 'Animation', 'Finish']) {
+  for (const step of ['Import graphic', 'Project format', 'Fields', 'Graphic type', 'Animation', 'Finish']) {
     await expect(walk).toContainText(step);
   }
   // Quoted from the app verbatim, so a reader searching the sentence lands here.
