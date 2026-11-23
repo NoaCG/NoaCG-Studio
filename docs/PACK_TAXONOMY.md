@@ -310,7 +310,7 @@ names are the 2026-09-23 consolidation's; the merged kits' formats moved with th
 | 45 | Virtual event / metaverse event | Corporate Event | |
 | 46 | Medical / health livestream | Corporate Event | disclaimer/source labels ride lower-third + topic-card fields |
 | 47 | Legal / public information livestream | Corporate Event | |
-| 48 | Municipal council / public meeting | Election | agenda items, speaking timer, vote result = poll; the notices themselves are pi01/pi05 and the bilingual obligation is pi07 + the `public-notice` rotator |
+| 48 | Municipal council / public meeting | Election | agenda items, speaking timer, Vote results = poll; the notices themselves are pi01/pi05 and the bilingual obligation is pi07 + the `public-notice` rotator |
 | 49 | Press conference | Newsroom | |
 | 50 | Emergency information stream | Newsroom | the alert banner IS a type now (`alert-level`, four real severity states), and the multilingual card became one too (`public-notice`) - this row's original "cards are fields, not new types" was right until the graphics earned otherwise |
 | 51 | Behind-the-scenes production stream | Corporate Event | schedule/labels register |

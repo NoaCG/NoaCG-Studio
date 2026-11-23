@@ -578,7 +578,7 @@ export function validateOgrafOfflineCompatibility(template: SpxTemplate): OgrafO
   // An imported credits roll is built and restarted once its fonts load, which no seek clock
   // drives, so it is not offered for non-real time until its seeks are proven.
   if (/\bfunction noacgCreditsRoll\s*\(/.test(template.js)) {
-    errors.push('An imported credits roll starts once its fonts have loaded, which a seek cannot replay; export it for live use.');
+    errors.push('Imported end credits start once their fonts have loaded, which a seek cannot replay; export them for live use.');
   }
   if (/\bMath\.random\s*\(|\bcrypto\.(?:getRandomValues|randomUUID)\s*\(/.test(template.js)) {
     errors.push('Unseeded randomness is not deterministic.');

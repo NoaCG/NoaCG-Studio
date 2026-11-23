@@ -1,4 +1,4 @@
-// guards: scripts/svg-files.mjs, src/templates/behaviours/**, src/templates/types/**, src/model/types.ts, docs/template-library/names.json, docs/SVG_AUTHORING.md, docs/tutorials/**, public/docs/examples/**, src/components/**, src/landing/**, src/docs/**, *.html, cli/README.md, cli/skill/**, cli/plugin/skills/**, .claude/skills/noacg-graphic-local/**, .agents/skills/noacg-graphic-local/**
+// guards: scripts/svg-files.mjs, src/templates/behaviours/**, src/templates/types/**, src/model/types.ts, docs/template-library/names.json, docs/SVG_AUTHORING.md, docs/END_CREDITS.md, docs/GRAPHIC_TYPES.md, docs/COMPETITION_PACK.md, docs/OGRAF.md, src/export/**, src/ai/**, src/blocks/**, src/templates/endCredits/**, docs/tutorials/**, public/docs/examples/**, src/components/**, src/landing/**, src/docs/**, *.html, cli/README.md, cli/skill/**, cli/plugin/skills/**, .claude/skills/noacg-graphic-local/**, .agents/skills/noacg-graphic-local/**
 //
 // AC-8 of the SVG Template Library plan: one name per concept across the app, the docs, the
 // templates and their inventories, with ids unchanged (docs/template-library/names.json).

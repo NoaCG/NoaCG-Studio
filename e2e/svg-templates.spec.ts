@@ -1289,7 +1289,7 @@ test('Countdown: the pulse and the flash play in every export target, and OGraf 
   expect(gate.fetched).toContain('External network dependencies are not available during deterministic rendering.');
   expect(gate.lookalike).toContain('External network dependencies are not available during deterministic rendering.');
   expect(gate.inkscape, 'any namespace an editor declares is a name').toEqual([]);
-  expect(gate.credits).toContain('An imported credits roll starts once its fonts have loaded, which a seek cannot replay; export it for live use.');
+  expect(gate.credits).toContain('Imported end credits start once their fonts have loaded, which a seek cannot replay; export them for live use.');
 
   const serveOgraf = (origin: string, files: Record<string, string>) => serveOgrafFiles(page, origin, files);
 

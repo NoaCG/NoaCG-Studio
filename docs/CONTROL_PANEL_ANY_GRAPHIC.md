@@ -66,7 +66,7 @@ contract today, and each fills the same three slots:
 | Road | Who writes the contract | How it gets there | Panel today |
 |---|---|---|---|
 | Catalog type | an expert, in `src/templates/types/<id>.ts` | `attachMachine` at create | complete, proven on five types (`docs/CONTROL_PANEL_PARITY.md`) |
-| Imported SVG | a recipe compiled from the artwork's roles | the same `attachMachine`, through `importedDesign/behaviour.ts` | complete for the 14 recipes in the registry, switches and choices among them |
+| Imported SVG | a recipe compiled from the artwork's roles | the same `attachMachine`, through `importedDesign/behaviour.ts` | complete for every recipe in the registry, switches and choices among them |
 | Agent or hand-written | the author, directly in the template's code | the template IS the contract | complete for whatever is declared - the 2026-08-22 round's five novel briefs each authored a working machine from scratch, and the control layer rendered them |
 | Foreign OGraf package | the package's manifest | `control/ografContract.ts` reads `schema` + `customActions` + `stepCount` | complete minus what OGraf cannot say: every button live, no sections, no adjusts |
 
@@ -227,7 +227,7 @@ at:
    What the walk on paper did NOT find, recorded because the first draft of this plan claimed
    it: the cue editor's field bands. `control/cueFieldGroups.ts` already bands NUMBERED rows
    ("Panelist 3 / Pick 3", "Name 2 / Points 2") by the same mirror test the A/B sides use, the
-   alphabet that arrived with the score tracker. Both proof-case graphics band on their own
+   alphabet that arrived with the Scoreboard recipe. Both proof-case graphics band on their own
    titles; the lettered performers and the song fall into the shared band, as they should.
 2. **A control's section is a static word.** The totals board's buttons sit under "Panelist 3"
    while the field beside them says "Katri". An additive `sectionField` on a control, naming the

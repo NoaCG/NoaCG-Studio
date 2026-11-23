@@ -247,7 +247,7 @@ times.
 That mode is gated by a conservative compatibility check, and the export is refused with the
 reason if the graphic uses anything a virtual clock cannot own: wall-clock CSS animations,
 `Math.random()`, Web Animations API calls, `<video>`/`<audio>`, a live network dependency, an
-imported credits roll (it restarts once its fonts load, which no seek replays), or a timeline we
+imported end credits graphic (it restarts once its fonts load, which no seek replays), or a timeline we
 cannot read. Better a refusal at export than a render farm producing frames that disagree with
 each other.
 
