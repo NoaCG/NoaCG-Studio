@@ -201,7 +201,11 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   runtime's text (`emit.js` of seven files, and two `appearance.js` pins in `jev-svg-baseline`,
   re-recorded by hand). The text kind's code is unchanged.
 - Reimport: the recipes' owned fields come after the artwork's, so a reimport keeps every matched
-  field id; nothing in the order of existing graphics' fields moves.
+  field id; nothing in the order of existing graphics' fields moves. `pre-plan-graphics` (G2 case)
+  builds Ticker crawl and Word cloud, records a cue, imports them again with a text drawn in front
+  of every field, and checks every field id is kept and the old cue paints the same run and top word.
+- E2E capacity (known traps): `e2e-capacity --changed origin/main` lists the two edited specs as
+  edits to existing specs, never refused; the tiers WARN on stale evidence, as on main.
 - Recognition: of the repository's SVG files only the five new templates carry `Crawl`,
   `Marquee` or `Word n` names.
 
