@@ -135,7 +135,7 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * author answers which column holds the roles. The answer changes the preview and the saved
  * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, rollsAll, outside, onPatch }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, rollsAll, outside, placedLines, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
@@ -157,6 +157,9 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
    *  and the drawn-outside evidence the draft holds, which this step measures (Rules R8). */
   rollsAll: boolean;
   outside: boolean;
+  /** Texts drawn as outlines and given a live field: they stand in place over the artwork, outside
+   *  the SVG, so they do not roll with everything else (said where the choice is made). */
+  placedLines: boolean;
   onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork' | 'creditsStill' | 'creditsCards' | 'creditsAdvance' | 'creditsWhole' | 'creditsOutside'>) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
@@ -237,6 +240,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
             <option value="text">The credits text</option>
             <option value="all">Everything in the file</option>
           </select>
+          {rollsAll && placedLines && <span className="hint" data-testid="map-svg-credits-rolls-placed">Text drawn as outlines and made a field stays in place.</span>}
         </label>
       )}
       {stills && !artwork && (
@@ -1508,6 +1512,7 @@ export default function BehaviourSection({
                   advance={generic.creditsAdvance}
                   rollsAll={creditsRollsAll(generic, hasPictureField(draft))}
                   outside={!!generic.creditsOutside}
+                  placedLines={draft.svgOutlines.some((f) => f.on)}
                   onPatch={patchGeneric}
                 />
               )}

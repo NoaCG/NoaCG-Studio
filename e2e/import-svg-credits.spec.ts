@@ -347,8 +347,15 @@ test('fixed artwork with a logo drawn below the artboard rolls everything by def
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
   const rolls = page.getByTestId('map-svg-credits-rolls');
   await expect(rolls).toHaveValue('all');
+  // A word drawn as outlines, made a field, stands in place over the artwork, outside the SVG:
+  // the choice says so where it is made (#2734).
+  const placed = page.getByTestId('map-svg-credits-rolls-placed');
+  await expect(placed).toHaveCount(0);
+  await page.locator('[data-testid^="map-svg-outline-o"] input[type="checkbox"]').first().check();
+  await expect(placed).toHaveText('Text drawn as outlines and made a field stays in place.');
   await rolls.selectOption('text');
   await expect(rolls).toHaveValue('text');
+  await expect(placed).toHaveCount(0);
 });
 
 test('the Credits preview reads roles and names off a role-beside drawing', async ({ page }) => {
