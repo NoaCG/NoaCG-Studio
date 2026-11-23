@@ -9,7 +9,7 @@
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // covers: src/control/bridgeWatch.ts
 // covers: src/components/home/useRundownAuthoring.ts
-// covers: src/control/folderPlayout.ts, src/control/oscMarks.ts
+// covers: src/control/folderPlayout.ts, src/control/oscMarks.ts, src/components/tabSuggest.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
@@ -2097,9 +2097,23 @@ test('an OSC cue is made from + Add, sends once per Take and Send test, and noth
   await expect(editor.getByTestId('osc-take-blocked')).toContainText('no destination');
 
   await editor.getByTestId('osc-destination').selectOption('+new');
-  await editor.getByTestId('osc-dest-name').fill('Lighting desk');
+  // Tab types a box's suggestion in (components/tabSuggest.ts), where the suggestion is a value:
+  // the name and the port take theirs, an example IP address offers none, and a filled box moves on.
+  await editor.getByTestId('osc-dest-name').focus();
+  await page.keyboard.press('Tab');
+  await expect(editor.getByTestId('osc-dest-name')).toHaveValue('Lighting desk');
+  await expect(editor.getByTestId('osc-dest-name')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(editor.getByTestId('osc-dest-host')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(editor.getByTestId('osc-dest-host'), 'no address is typed in for the operator').toHaveValue('');
   await editor.getByTestId('osc-dest-host').fill('192.168.1.40');
-  await editor.getByTestId('osc-dest-port').fill('8830');
+  await editor.getByTestId('osc-dest-port').focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(editor.getByTestId('osc-dest-port'), 'Shift+Tab never types').toHaveValue('');
+  await editor.getByTestId('osc-dest-port').focus();
+  await page.keyboard.press('Tab');
+  await expect(editor.getByTestId('osc-dest-port')).toHaveValue('8830');
   await editor.getByTestId('osc-dest-save').click();
   await editor.getByTestId('osc-address').fill('/zeros/cue/go');
   await editor.getByTestId('osc-address').press('Tab');

@@ -6,6 +6,7 @@ import { commitDurableWrites, hydrateDurableStore } from './model/durableStore';
 import { installDeploySkewRecovery } from './app/deploySkew';
 import { LIVE_BUILD } from './control/livePath';
 import { installE2eModules } from './app/e2eModules';
+import { installTabSuggest } from './components/tabSuggest';
 
 // Boot stages for app.html's watchdog (its inline script owns the values): 'html' is set
 // inline before this module loads, 'js' proves the entry chunk executed, 'mounted' proves
@@ -19,6 +20,8 @@ declare global {
 window.__noacgBootStage = 'js';
 // Before any await: a spec may reach for the app's modules as soon as the page has loaded.
 installE2eModules();
+// Tab types a box's suggestion in (components/tabSuggest.ts).
+installTabSuggest();
 
 // /app?diag=1 is the CONNECTION CHECK, rendered entirely by app.html's inline script so it
 // works even when every JS chunk is blocked. The app must stand down on that URL - booting

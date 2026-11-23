@@ -369,6 +369,7 @@ export default function FinishStep({
           className="wz-finish-name"
           value={name}
           placeholder={namePlaceholder}
+          data-suggest={namePlaceholder}
           onChange={(e) => onName(e.target.value)}
           data-testid="wz-finish-name"
           aria-label="Graphic name"
@@ -498,6 +499,7 @@ export default function FinishStep({
                  name and the example both, in a string too long to finish reading in a `grow`
                  input; the example now sits in the line under this row, where it has room. */
               placeholder={resolveShowName('')}
+              data-suggest={resolveShowName('')}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               data-testid="wz-finish-production-name"

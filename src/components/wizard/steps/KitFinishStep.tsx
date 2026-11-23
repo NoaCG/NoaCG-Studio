@@ -165,6 +165,7 @@ export default function KitFinishStep({
               className="grow"
               value={name}
               placeholder={namePlaceholder}
+              data-suggest={namePlaceholder}
               onChange={(e) => onName(e.target.value)}
               data-testid="kit-finish-name"
               aria-label="Production name"

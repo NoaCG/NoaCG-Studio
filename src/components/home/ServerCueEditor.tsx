@@ -646,6 +646,7 @@ function ClipAdvanced({
               <input
                 value={start}
                 placeholder="0:00"
+                data-suggest="0:00"
                 disabled={!!trimOff}
                 onChange={(e) => {
                   edited.current.start = true;
@@ -663,6 +664,7 @@ function ClipAdvanced({
               <input
                 value={end}
                 placeholder={whole !== undefined ? trimClock(whole) : 'the end'}
+                data-suggest={whole !== undefined ? trimClock(whole) : undefined}
                 disabled={!!trimOff}
                 onChange={(e) => {
                   edited.current.end = true;

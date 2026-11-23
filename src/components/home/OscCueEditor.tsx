@@ -126,6 +126,7 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
           onChange={(e) => edits.type(`${prefix}address`, e.target.value)}
           onBlur={edits.flush}
           placeholder={prefix ? 'Optional: sent at Out' : '/zeros/cue/go'}
+          data-suggest={prefix ? undefined : '/zeros/cue/go'}
           spellCheck={false}
           data-testid={`osc-${prefix}address`}
         />
@@ -229,9 +230,9 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
         )}
         {destDraft && (
           <div className="pd-osc-dest" data-testid="osc-destination-form">
-            <label className="pd-field"><span>Name</span><input value={destDraft.name} onChange={(e) => setDestDraft({ ...destDraft, name: e.target.value })} data-testid="osc-dest-name" placeholder="Lighting desk" /></label>
+            <label className="pd-field"><span>Name</span><input value={destDraft.name} onChange={(e) => setDestDraft({ ...destDraft, name: e.target.value })} data-testid="osc-dest-name" placeholder="Lighting desk" data-suggest="Lighting desk" /></label>
             <label className="pd-field"><span>Address</span><input value={destDraft.host} onChange={(e) => setDestDraft({ ...destDraft, host: e.target.value })} data-testid="osc-dest-host" placeholder="192.168.1.40" /></label>
-            <label className="pd-field"><span>Port</span><input inputMode="numeric" value={destDraft.port} onChange={(e) => setDestDraft({ ...destDraft, port: e.target.value })} data-testid="osc-dest-port" placeholder="8830" /></label>
+            <label className="pd-field"><span>Port</span><input inputMode="numeric" value={destDraft.port} onChange={(e) => setDestDraft({ ...destDraft, port: e.target.value })} data-testid="osc-dest-port" placeholder="8830" data-suggest="8830" /></label>
             <button type="button" className="btn-small" onClick={() => void saveDestination()} data-testid="osc-dest-save">Save</button>
             <button type="button" className="btn-small" onClick={() => setDestDraft(null)}>Cancel</button>
             {destinations.some((d) => d.id === destDraft.id) && (
