@@ -1257,8 +1257,9 @@ function noacgReadoutSize(el, weight, rule) {
 }
 
 // ── Crawls (a ticker crawl, an end-credits crawl, svg-template-library TL6) ──────────────────
-// The crawl layer prints the run twice over and travels right to left at a constant speed: 140
-// artwork units a second for a frame 1920 wide (the built-in marquee's pace), times the motion
+// The crawl layer prints the run, repeated to fill its window with one copy before the start,
+// and travels right to left at a constant speed: 140 artwork units a second for a frame 1920
+// wide (the built-in marquee's pace), times the motion
 // speed, times the operator's percentage clamped to 10..400. It moves inside a group, clipped to
 // its window (a drawn window layer, else the panel the fit finds, else the frame), measured once
 // at rest. A changed run keeps moving from where it is; a changed percentage only re-times it;

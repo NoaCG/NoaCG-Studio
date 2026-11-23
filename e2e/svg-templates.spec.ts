@@ -825,7 +825,7 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       break;
     }
     case 'crawl': {
-      // CRAWL (TL6, Rules K1 to K6): the items print as one run, twice over, and travel right to
+      // CRAWL (TL6, Rules K1 to K6): the items print as one run, repeated to fill the window, and travel right to
       // left inside the window; Scroll speed sets the pace; a new list keeps moving from where it
       // is; an empty list leaves the drawn text where it was drawn.
       const crawl = role(air, 'crawl');
@@ -851,14 +851,16 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       };
       const normal = await pace();
       expect(normal, 'it travels right to left').toBeGreaterThan(5);
-      // K3: three seconds into the run, a longer list keeps moving from where it is; started
-      // again from where it was drawn, it would jump back about three seconds' travel.
+      // K3: a few seconds into the run, a longer list keeps moving from where it is, so the run
+      // is further left after the update than before it; started again from where it was drawn,
+      // it would jump back right. No wrap can fall between the reads: the first loop of these
+      // lines takes over ten seconds, and the longer list only lengthens it.
       await page.waitForTimeout(2_000);
       const before = await left();
       await page.getByTestId(`cue-field-${items}`).fill('Doors open at 18:00 in the main hall\nParking opens at the east gate\nThe bar closes at midnight');
       await page.getByTestId('verb-update').click();
       await expect(crawl).toHaveText(/The bar closes at midnight/);
-      expect(Math.abs((await left()) - before), 'a new list keeps moving from where it is').toBeLessThan(normal * 1.5);
+      expect(await left(), 'a new list keeps moving from where it is').toBeLessThan(before);
       const speed = await fieldFor(air, 'Scroll speed (%)');
       await page.getByTestId(`cue-field-${speed}`).fill('200');
       await page.getByTestId('verb-update').click();

@@ -924,7 +924,8 @@ Group 2 (Risky): Crawl (ticker crawl, end-credits crawl) and Word cloud.
   - K1. A graphic imported with the Crawl recipe draws one text layer `Crawl` and owns two fields
     made after the artwork's: `Items` (lines) and `Scroll speed (%)` (a number, 100 by default,
     the built-in marquee's field). The text prints every non-empty line of Items, trimmed and in
-    order, joined by a spaced bullet, and the whole run twice over so the loop has no seam.
+    order, joined by a spaced bullet, and the run repeated enough times to fill the window, with one
+    copy laid before its start, so the loop has no seam at any list length.
   - K2. On air the text travels right to left at a constant, unchanging speed: 140 artwork units
     a second for an artwork 1920 units wide (scaled with the artwork's width), times the graphic's
     motion speed, times Scroll speed over 100 clamped to 10 to 400, as the built-in marquee. It

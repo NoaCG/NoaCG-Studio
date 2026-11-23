@@ -106,7 +106,8 @@ export interface WriteRule {
 
 /**
  * A text layer that TRAVELS (a ticker crawl, an end-credits crawl, svg-template-library TL6): the
- * runtime writes what `from` derives into the `crawl` layer twice over and moves it right to left
+ * runtime writes what `from` derives into the `crawl` layer, repeated
+ * enough times to fill the window with one copy laid before its start, and moves it right to left
  * at a constant speed inside its window, looping without a seam. `speed` derives the operator's
  * percentage of the built-in marquee's pace; `window` names a drawn layer the text is clipped to.
  * ADDITIVE OPTIONAL: every key is a word a runtime must read (behaviourReads.ts).

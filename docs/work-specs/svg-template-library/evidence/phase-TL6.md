@@ -135,7 +135,7 @@ longer count as quiz answer rows, so existing quiz artwork imports as before. No
 ### What was built
 
 - **The crawl rule** (`behaviourRuntime.ts`, `CrawlRule` in `behaviourData.ts`): the `crawl` layer
-  prints the `lines` kind's `joined` run twice over and travels right to left at 140 artwork units
+  prints the `lines` kind's `joined` run, repeated to fill the window with one copy before its start, and travels right to left at 140 artwork units
   a second per 1920 of frame width, times the motion speed, times Scroll speed (%) clamped to 10
   to 400. It moves inside a group clipped to its window (a `Crawl box` layer, else the fit's
   panel, else the frame), measured once at rest. A new run keeps its offset; a new speed re-times
@@ -158,7 +158,7 @@ longer count as quiz answer rows, so existing quiz artwork imports as before. No
 
 | Template | Recognition | Controls asserted |
 | --- | --- | --- |
-| Ticker crawl, End credits crawl | automatic (`Crawl`, `Crawl box`) | Items fill one run, twice over; the layer sits in a clipped group; it travels right to left; Scroll speed 200 more than half again as fast; a longer list keeps moving from where it was; the frame clean while it crawls; an empty list stands still |
+| Ticker crawl, End credits crawl | automatic (`Crawl`, `Crawl box`) | Items fill one run, repeated to fill the window; the layer sits in a clipped group; it travels right to left; Scroll speed 200 more than half again as fast; a longer list keeps moving from where it was; the frame clean while it crawls; an empty list stands still |
 | Word cloud | automatic (`Word n`) | three staged words fill slots 1 to 3, the rest hide; Pizza (9) drawn more than 1.4 times Sushi (2), Tacos between; Extraordinarily in slot 1 keeps the frame clean; an empty list hides every slot |
 | Crawl, Word cloud, navy | automatic | the run travels; two staged words fill two slots, the third hides |
 
