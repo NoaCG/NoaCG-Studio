@@ -34,7 +34,7 @@
  },
  "waitingOn": [
   {
-   "what": "TL6 builder first PR",
+   "what": "TL6 group 2 PR (crawl, word cloud)",
    "eta": "2026-11-23T03:00:00Z"
   }
  ],
@@ -189,5 +189,13 @@
    2710
   ],
   "merge": "62dc34aa28ba33af9f938f10d42497180776a7fa"
+ },
+ "tl6": {
+  "prs": [
+   {
+    "pr": 2711,
+    "merge": "d69fa42ee96e4d16c9b1f2c9578958b411e3991b"
+   }
+  ]
  }
 }
