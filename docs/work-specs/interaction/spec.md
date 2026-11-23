@@ -96,8 +96,10 @@ window:
 ### Phone page (`/j/<name>`, `/join/<name>`, `/join?p=<slug>`)
 
 The look's colours, font and logo; the title; then the live question with one input (Open), large
-option buttons (Multiple choice) or a one-word input (Word). After sending: thanks, and for a
-vote the picked option, changeable while live. No question live: the waiting text.
+option buttons (Multiple choice) or a one-word input (Word). A tap on an option only picks it;
+**Vote** sends it (owner, studio session 2026-11-23). After sending: thanks, and for a vote "Your
+vote: <option>" read back from the server, changeable with **Change vote** while live. No question
+live: the waiting text.
 
 ## Question lifecycle
 
