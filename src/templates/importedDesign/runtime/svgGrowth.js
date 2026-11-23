@@ -247,7 +247,7 @@ function svgCapMargin(rule, span, mirrored) {
  *  settled list the apply moves - never a second opinion about who travels. */
 function svgMovingBox(rest, box) {
   var out = { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
-  var list = (rest && rest.followers) || [];
+  var list = ((rest && rest.followers) || []).concat((rest && rest.cuts) || []);
   for (var i = 0; i < list.length; i++) {
     var r = list[i].el.getBoundingClientRect();
     if (!(r.width > 0) || !(r.height > 0)) continue;
@@ -272,6 +272,8 @@ function svgMovingBox(rest, box) {
  *  rule has grown (growSvgLayout), and the apply live, so a rule running after another has moved
  *  these layers sees where they now are. */
 function svgGrowRoom(rule, el, frame, dir, rest) {
+  // A CUT rule measured its room once, at rest, off the whole artwork it moves (svgCutRoom).
+  if (rest && rest.cutRoom != null) return rest.cutRoom;
   var box = svgMovingBox(rest, el.getBoundingClientRect());
   if (dir === 0) {
     var nearer = Math.min(box.left - frame.left, frame.right - box.right);
@@ -295,7 +297,7 @@ function svgLayoutRest() {
     var rest = svgGrowRest[i];
     var el = svgLayoutEl(rule.el);
     if (!el) continue;
-    if (!rest) { rest = svgGrowRest[i] = { base: null, dir: 1, followers: [], texts: [], textBase: [] }; }
+    if (!rest) { rest = svgGrowRest[i] = { base: null, dir: 1, followers: [], cuts: [], texts: [], textBase: [] }; }
     if (rest.base === null) rest.base = svgGrowBase(rule, el, rest.dir);
     svgGrowSet(el, rest.base);
     for (var j = 0; j < rest.followers.length; j++) {
@@ -304,6 +306,7 @@ function svgLayoutRest() {
       else if (f.base === null) f.el.removeAttribute('transform');
       else f.el.setAttribute('transform', f.base);
     }
+    for (var c = 0; c < (rest.cuts || []).length; c++) svgCutRest(rest.cuts[c]);
     for (var t = 0; t < rest.textBase.length; t++) {
       var tb = rest.textBase[t];
       if (tb.base === null) tb.el.removeAttribute('transform');
@@ -374,7 +377,7 @@ function svgCollectFollowers(node, grower, edge, axis, dir, out) {
  *  its plate, so a plate that grew upward showed 67px of un-railed edge. A shape that spans the
  *  panel GROWS with it instead. Only a shape, and only one that really reaches both edges. */
 function svgCollectSpanners(art, rule, grower, panel, dir, out) {
-  var shapes = art.querySelectorAll('rect, path, polygon, ellipse, circle');
+  var shapes = art.querySelectorAll(SVG_DRAWN_RECT + ', path, polygon, ellipse, circle');
   var axis = rule.axis === 'y' ? 'y' : 'x';
   var tol = Math.max(2, (axis === 'y' ? panel.height : panel.width) * 0.02);
   for (var i = 0; i < shapes.length; i++) {
@@ -493,7 +496,16 @@ function svgLinesInside(el) {
   var box = el.getBoundingClientRect();
   var nodes = svgFitNodes();
   var out = [];
+  var drawnBox = el.hasAttribute('data-noacg-area');
   for (var i = 0; i < nodes.length; i++) {
+    // A line the author SET in a box is that box's and no other's; a drawn box holds only the
+    // lines it was set for.
+    var set = svgSaidBox(nodes[i].id);
+    if (set) {
+      if (set === el) out.push(nodes[i]);
+      continue;
+    }
+    if (drawnBox) continue;
     var r = nodes[i].getBoundingClientRect();
     // ON the panel's rows the way the fit's sitting-on test reads it (svgSitsOnOf): at least half
     // the line's height inside them, so a line that only grazes a panel is not its text.
@@ -537,6 +549,45 @@ function svgRestOneRule(rule, index) {
   if (!panel || !rest) return;
   var art0 = document.querySelector('.__PREFIX__-art');
   var box = panel.getBoundingClientRect();
+  rest.cuts = [];
+  // A CUT LINE answers who travels by itself: everything right of it, and what is drawn across it
+  // is split there. It always widens rightwards, from the line.
+  rest.cutRoom = null;
+  var cutX = svgCutX(rule);
+  if (cutX != null && art0) {
+    rest.cutX = cutX;
+    rest.texts = svgLinesInside(panel);
+    rest.textBase = [];
+    for (var ct = 0; ct < rest.texts.length; ct++) {
+      rest.textBase.push({ el: rest.texts[ct], base: rest.texts[ct].getAttribute('transform') });
+    }
+    var found = [];
+    svgCutCollect(svgArtRoot(art0), cutX, rest.texts, found);
+    // WHICH WAY: a composition drawn CENTRED in the frame stays centred - both halves move apart
+    // from the line - and one drawn against a side keeps that side and widens away from it.
+    var frame0 = art0.getBoundingClientRect();
+    var ext = { left: box.left, right: box.right };
+    for (var ce = 0; ce < found.length; ce++) {
+      var er = found[ce].el.getBoundingClientRect();
+      if (er.left < ext.left) ext.left = er.left;
+      if (er.right > ext.right) ext.right = er.right;
+    }
+    var gapL = ext.left - frame0.left;
+    var gapR = frame0.right - ext.right;
+    var safe = frame0.width * rule.safe;
+    rest.dir = Math.abs(gapL - gapR) <= frame0.width * 0.05 ? 0 : 1;
+    rest.cutRoom = rest.dir === 0
+      ? Math.max(0, 2 * (Math.min(gapL, gapR) - safe))
+      : Math.max(0, gapR - Math.max(gapL, safe));
+    rest.base = svgGrowBase(rule, panel, rest.dir);
+    rest.followers = [];
+    for (var cf = 0; cf < found.length; cf++) {
+      var u = found[cf];
+      if (u.mode === 'cut') rest.cuts.push(u);
+      else if (u.side > 0 || rest.dir === 0) rest.followers.push(u);
+    }
+    return;
+  }
   // WHICH WAY, decided once on the artwork AT REST and remembered. Read again after a pass had
   // already moved the panel, the answer could flip mid-fit and the layout would never come back
   // to the design.
@@ -569,7 +620,7 @@ function svgRestOneRule(rule, index) {
   // kept off of.
   if (art0) {
     var axis = rule.axis === 'y' ? 'y' : 'x';
-    var caps = art0.querySelectorAll('rect, path, polygon, ellipse, circle, image');
+    var caps = art0.querySelectorAll(SVG_DRAWN_RECT + ', path, polygon, ellipse, circle, image');
     for (var c = 0; c < caps.length; c++) {
       var el = caps[c];
       if (el === panel || el.contains(panel) || panel.contains(el)) continue;
@@ -728,6 +779,20 @@ function svgCanGrow(rule, el) {
 function svgApplyGrowth(rule, el, rest, grant) {
   var dir = rest.dir == null ? 1 : rest.dir;
   svgGrowElBy(rule, el, svgGrowBase(rule, el, dir), dir, grant / svgUserScale(el));
+  for (var c = 0; c < (rest.cuts || []).length; c++) svgCutApply(rest.cuts[c], rest.cutX, grant, dir);
+  // A CUT WIDENING FROM ITS MIDDLE moves the left half too, so the box's own lines go with the
+  // edge they fill from: a line set from the left travels left by half, one set from the right
+  // travels right. A line whose anchor the fit already places (svgApplyAnchor) is left to it.
+  if (rest.cuts && rest.cutX != null && dir === 0) {
+    for (var t = 0; t < rest.texts.length; t++) {
+      var line = rest.texts[t];
+      var a = svgFitAlign[line.id];
+      if (!a || a.anchor != null || a.h === 'middle') continue;
+      var base = null;
+      for (var b = 0; b < rest.textBase.length; b++) if (rest.textBase[b].el === line) base = rest.textBase[b].base;
+      svgTravel(line, 'x', ((a.h === 'end' ? 1 : -1) * grant) / 2 / svgUserScale(line), base);
+    }
+  }
   for (var j = 0; j < rest.followers.length; j++) {
     var f = rest.followers[j];
     // A panel widening from its MIDDLE spends half the grant on each side, so a layer past one
@@ -747,6 +812,194 @@ function svgApplyGrowth(rule, el, rest, grant) {
       svgTravel(f.el, rule.axis === 'y' ? 'y' : 'x', side * step, f.base);
     }
   }
+}
+
+// ── THE CUT LINE ──────────────────────────────────────────────────────────────
+// For artwork that cannot travel as separate layers - a ticket whose paper and stub are ONE
+// picture. A rule with `cut` splits the artwork at that line: what is drawn wholly right of it
+// travels, what is drawn across it is shown in two clipped halves with the right half sliding,
+// and the gap between them is filled with copies of the strip just left of the line, every
+// other copy mirrored so each seam meets its own pixels. Nothing is stretched, so ornaments,
+// corners and type keep their shape. Text is never cut: a line across the cut stays put, and a
+// group holding text is looked inside. The split is built once and left in place; at rest the
+// halves come off and the artwork is exactly as drawn.
+
+/** The cut line in screen px, or null for a rule without one. `cut` is a fraction of the
+ *  artwork's width, so the editor, an export and a playout page land it on the same pixel. */
+function svgCutX(rule) {
+  if (rule.cut == null || rule.axis === 'y') return null;
+  var root = svgArtRoot(document.querySelector('.__PREFIX__-art'));
+  var m = root && root.getScreenCTM ? root.getScreenCTM() : null;
+  if (!m) return null;
+  var w = svgCutArtWidth(root);
+  if (!(w > 0)) return null;
+  var vb = root.viewBox && root.viewBox.baseVal;
+  var x0 = vb && vb.width > 0 ? vb.x : 0;
+  return m.a * (x0 + rule.cut * w) + m.e;
+}
+
+/** The artwork's width in its own user units: its viewBox, else its declared width. */
+function svgCutArtWidth(root) {
+  var vb = root.viewBox && root.viewBox.baseVal;
+  if (vb && vb.width > 0) return vb.width;
+  return root.width && root.width.baseVal ? root.width.baseVal.value : 0;
+}
+
+/** What the cut moves, read at rest: layers wholly right of the line travel right (side 1), those
+ *  wholly left of it travel left when both halves move apart (side -1), and layers drawn across it
+ *  are split ('cut'). The box's own lines move with their box, and text is never cut. */
+function svgCutCollect(node, cutX, mine, out) {
+  var kids = node.children;
+  for (var i = 0; i < kids.length; i++) {
+    var el = kids[i];
+    var tag = (el.tagName || '').toLowerCase();
+    if (tag === 'defs' || tag === 'style' || tag === 'title' || tag === 'desc' || tag === 'metadata') continue;
+    if (el.hasAttribute('data-noacg-area')) continue;
+    // A layer an earlier pass already split stands inside its left half: the same split again,
+    // never a second one. The copies and the fill are ours and are never collected.
+    var made = el.getAttribute('data-noacg-cut');
+    if (made === 'left' && el.firstElementChild && el.firstElementChild.__noacgCut) {
+      out.push(el.firstElementChild.__noacgCut);
+      continue;
+    }
+    if (made != null) continue;
+    var ownLine = false;
+    var holdsOwn = false;
+    for (var j = 0; j < mine.length; j++) {
+      if (mine[j] === el) ownLine = true;
+      else if (el.contains(mine[j])) holdsOwn = true;
+    }
+    if (ownLine) continue;
+    var r = el.getBoundingClientRect();
+    if (!(r.width > 0) && !(r.height > 0)) continue;
+    var ctm = el.parentNode && el.parentNode.getScreenCTM ? el.parentNode.getScreenCTM() : null;
+    if (ctm && (ctm.b || ctm.c)) continue;      // rotated/skewed: not ours to move or cut
+    var text = tag === 'text' || tag === 'tspan' || !!el.querySelector('text');
+    if (r.right <= cutX + 0.5 && !holdsOwn) {
+      out.push({ el: el, base: el.getAttribute('transform'), mode: 'move', side: -1 });
+    } else if (r.left >= cutX - 0.5 && !holdsOwn) {
+      out.push({ el: el, base: el.getAttribute('transform'), mode: 'move', side: 1 });
+    } else if (holdsOwn || text) {
+      if (tag !== 'text' && el.children && el.children.length) svgCutCollect(el, cutX, mine, out);
+    } else {
+      // Kept on the layer, so the next pass finds the split this one builds.
+      if (!el.__noacgCut) el.__noacgCut = { el: el, mode: 'cut' };
+      out.push(el.__noacgCut);
+    }
+  }
+}
+
+var svgCutCount = 0;
+var SVG_CUT_NS = 'http://www.w3.org/2000/svg';
+var SVG_CUT_XLINK = 'http://www.w3.org/1999/xlink';
+
+function svgCutNode(tag, attrs) {
+  var n = document.createElementNS(SVG_CUT_NS, tag);
+  for (var k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+}
+
+/** A copy of a layer by reference, spelled both ways: an older playout Chromium reads xlink. */
+function svgCutUse(id) {
+  var use = svgCutNode('use', { href: '#' + id });
+  use.setAttributeNS(SVG_CUT_XLINK, 'xlink:href', '#' + id);
+  return use;
+}
+
+/** Split one layer at the line, once: the layer itself inside a left half, a copy of it in a
+ *  sliding right half, and a fill group between them. The clips are in the parent's space. */
+function svgCutBuild(u) {
+  if (u.left) return;
+  var el = u.el;
+  if (!el.id) el.id = 'noacg-cut-' + svgCutCount++;
+  var root = svgArtRoot(document.querySelector('.__PREFIX__-art'));
+  var defs = root.querySelector('defs[data-noacg-cut]');
+  if (!defs) {
+    defs = svgCutNode('defs', { 'data-noacg-cut': '' });
+    root.insertBefore(defs, root.firstChild);
+  }
+  var n = svgCutCount++;
+  var clip = function (name) {
+    var cp = svgCutNode('clipPath', { id: 'noacg-cut-' + name + '-' + n, clipPathUnits: 'userSpaceOnUse' });
+    var rect = svgCutNode('rect', { x: '0', y: '-100000', width: '0', height: '200000' });
+    cp.appendChild(rect);
+    defs.appendChild(cp);
+    return { id: cp.id, rect: rect };
+  };
+  u.clipLeft = clip('l');
+  u.clipRight = clip('r');
+  u.clipFill = clip('f');
+  u.clipStrip = clip('s');
+  u.left = svgCutNode('g', { 'data-noacg-cut': 'left' });
+  u.fill = svgCutNode('g', { 'data-noacg-cut': 'fill', 'clip-path': 'url(#' + u.clipFill.id + ')', display: 'none' });
+  u.right = svgCutNode('g', { 'data-noacg-cut': 'right', 'clip-path': 'url(#' + u.clipRight.id + ')', display: 'none' });
+  u.right.appendChild(svgCutUse(el.id));
+  el.parentNode.insertBefore(u.left, el);
+  u.left.appendChild(el);
+  u.left.parentNode.insertBefore(u.fill, u.left.nextSibling);
+  u.left.parentNode.insertBefore(u.right, u.fill.nextSibling);
+  u.copies = [];
+}
+
+/** Back to the artwork as drawn: no clip on the layer, no copies showing. */
+function svgCutRest(u) {
+  if (!u.left) return;
+  u.left.removeAttribute('clip-path');
+  u.left.removeAttribute('transform');
+  u.fill.setAttribute('display', 'none');
+  u.right.setAttribute('display', 'none');
+  u.right.removeAttribute('transform');
+}
+
+/** Spend `grant` screen px at the cut: the halves move apart by it - the right one alone, or each
+ *  by half where the composition widens from its middle (dir 0) - and the strip copies fill. */
+function svgCutApply(u, cutX, grant, dir) {
+  if (!(grant > 0)) return;
+  svgCutBuild(u);
+  var m = u.left.getScreenCTM ? u.left.getScreenCTM() : null;
+  if (!m || !m.a) return;
+  var root = svgArtRoot(document.querySelector('.__PREFIX__-art'));
+  var rm = root.getScreenCTM();
+  // Everything below in the PARENT's user units: the line, the grant, and a strip 4% of the
+  // artwork wide - a fixed share of the design, so every page that plays it fills it alike.
+  var xc = (cutX - m.e) / m.a;
+  var g = grant / m.a;
+  var s = (rm.a * svgCutArtWidth(root) * 0.04) / m.a;
+  var seam = 0.5 / m.a;
+  var o = dir === 0 ? -g / 2 : 0;
+  u.clipLeft.rect.setAttribute('x', String(xc - 1e5));
+  u.clipLeft.rect.setAttribute('width', String(1e5 + seam));
+  u.clipRight.rect.setAttribute('x', String(xc));
+  u.clipRight.rect.setAttribute('width', '100000');
+  u.clipFill.rect.setAttribute('x', String(xc + o - seam));
+  u.clipFill.rect.setAttribute('width', String(g + 2 * seam));
+  u.clipStrip.rect.setAttribute('x', String(xc - s));
+  u.clipStrip.rect.setAttribute('width', String(s));
+  var need = Math.ceil(g / s);
+  while (u.copies.length < need) {
+    var copy = svgCutUse(u.el.id);
+    copy.setAttribute('clip-path', 'url(#' + u.clipStrip.id + ')');
+    u.fill.appendChild(copy);
+    u.copies.push(copy);
+  }
+  for (var k = 1; k <= u.copies.length; k++) {
+    var c = u.copies[k - 1];
+    if (k > need) {
+      c.setAttribute('display', 'none');
+      continue;
+    }
+    c.removeAttribute('display');
+    // Odd copies mirrored about the strip, so the first meets the line with the line's own pixels.
+    c.setAttribute('transform', k % 2 === 1
+      ? 'matrix(-1 0 0 1 ' + (2 * xc + o + (k - 1) * s).toFixed(3) + ' 0)'
+      : 'translate(' + (o + k * s).toFixed(3) + ' 0)');
+  }
+  u.left.setAttribute('clip-path', 'url(#' + u.clipLeft.id + ')');
+  if (o) u.left.setAttribute('transform', 'translate(' + o.toFixed(3) + ' 0)');
+  else u.left.removeAttribute('transform');
+  u.fill.removeAttribute('display');
+  u.right.removeAttribute('display');
+  u.right.setAttribute('transform', 'translate(' + (o + g).toFixed(3) + ' 0)');
 }
 
 /** Move one layer along an axis by its transform ATTRIBUTE, keeping whatever transform the

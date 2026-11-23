@@ -6,6 +6,7 @@
 
 import type { CustomFont } from '../../model/fonts';
 import type { CREDITS_LAYOUTS, CREDITS_PLAYBACKS } from '../behaviours/credits';
+import type { SvgArea } from '../../assets/svgAreas';
 
 /**
  * An imported SVG graphic: the sanitized markup (candidates tagged with
@@ -61,6 +62,13 @@ export interface DesignSvg {
    * downstream sees the old one.
    */
   growth?: DesignSvgGrowth[];
+  /**
+   * TEXT BOXES THE AUTHOR DREW where the file has no shape to hold a line (owner, 2026-11-23: the
+   * name area of a ticket whose paper is one picture). Each becomes an unpainted rectangle in
+   * the artwork (`injectSvgAreas`) that the fit measures a line in and a growth rule can widen,
+   * and that every other measurement skips. Absent = none, the bytes every import emitted before.
+   */
+  areas?: SvgArea[];
   /** @deprecated The hug's original one-rectangle form; read through `layoutRules`. */
   stretch?: DesignSvgStretch;
 }
@@ -111,6 +119,14 @@ export interface DesignSvgGrowth {
    * derivation is only ever the proposal the author edited (plan §6c).
    */
   followers?: DesignSvgFollower[];
+  /**
+   * A CUT LINE, sideways rules only: where the artwork is split when the box widens, as a
+   * fraction of the artwork's width. Everything drawn right of it slides by the growth, artwork
+   * drawn across it is split there and the gap filled with copies of the strip beside the line,
+   * alternate copies mirrored so the seams meet. For artwork that cannot be moved as separate
+   * layers - a ticket whose paper and stub are one picture. Absent = followers as before.
+   */
+  cut?: number;
 }
 
 /** One declared follower of a growth rule. */
@@ -456,6 +472,12 @@ export interface DesignSvgField {
    * grow. Absent = wraps into whatever room the drawing has, as every import before it did.
    */
   oneLine?: boolean;
+  /**
+   * THE BOX THE AUTHOR SET for this line (the Fields step's "Set text box"): a shape's or a drawn
+   * area's candidate id. The fit measures the line in it before any search, and a growth rule on
+   * it counts this line and no other box's. Absent = found by geometry, as every import before.
+   */
+  box?: string;
 }
 
 /** A declared block alignment: which edge a longer value fills from, and where a wrapped block

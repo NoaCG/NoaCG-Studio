@@ -25,6 +25,14 @@ const LAYOUT_VERSION = 1;
 export const PANEL_SAFE = 0.04;
 
 export const growToken = (i: number) => `g${i}`;
+export const boxToken = (k: number) => `b${k}`;
+
+/** The boxes the author SET for their lines, each once, in field order: token `bK` is the K-th. */
+export function saidBoxes(svg: DesignSvg): string[] {
+  const out: string[] = [];
+  for (const f of svg.fields) if (f.box && !out.includes(f.box)) out.push(f.box);
+  return out;
+}
 export const followToken = (i: number, j: number) => `g${i}f${j}`;
 
 /**
@@ -48,7 +56,7 @@ export function layoutRules(svg: DesignSvg): DesignSvgGrowth[] {
 export function saidLines(svg: DesignSvg): { f: DesignSvgField; i: number }[] {
   const clock = countdownIndex(svg);
   const credits = creditsIndex(svg);
-  return svg.fields.map((f, i) => ({ f, i })).filter(({ f, i }) => i !== clock && i !== credits && (f.align || f.nudge || f.oneLine));
+  return svg.fields.map((f, i) => ({ f, i })).filter(({ f, i }) => i !== clock && i !== credits && (f.align || f.nudge || f.oneLine || f.box));
 }
 
 /**
@@ -80,16 +88,27 @@ export function layoutDataJs(svg: DesignSvg, labelOf: (candidateId: string) => s
     const stops = rule.cap != null
       ? ` It stops ${Math.round(rule.cap * 100)}% of the frame short of the edge it grows towards.`
       : '';
-    return `    // "${labelOf(rule.candidateId)}" grows ${way}; ${note}.${stops}
-    { el: '${growToken(i)}', axis: '${axis}', safe: ${PANEL_SAFE}${cap}${followers} }`;
+    const cut = axis === 'x' && rule.cut != null ? `, cut: ${Number(rule.cut.toFixed(4))}` : '';
+    const cutNote = cut
+      ? ` The artwork is cut ${Math.round(rule.cut! * 100)}% of the way across: what is right of the line slides, and the gap is filled from the strip beside it.`
+      : '';
+    return `    // "${labelOf(rule.candidateId)}" grows ${way}; ${cut ? 'everything right of its cut line travels with it' : note}.${stops}${cutNote}
+    { el: '${growToken(i)}', axis: '${axis}', safe: ${PANEL_SAFE}${cap}${cut}${cut ? '' : followers} }`;
   });
   // HOW A LINE SITS IN ITS BOX, for the lines the author SAID it about (docs/TEXT_BOX_BINDING.md,
   // "Alignment"). Every other line is read off the drawing at play time, so the list is left out
   // entirely where nobody touched the grid - an untouched import emits the bytes it always did.
   // ADDITIVE to version 1: a runtime from before this list existed simply never looks for it.
+  const boxes = saidBoxes(svg);
   const said = saidLines(svg).map(({ f, i }) =>
     layoutLineJs(
-      { el: `f${i}`, ...(f.align ? { h: f.align.h, v: f.align.v } : {}), ...(f.nudge ? { nudge: true } : {}), ...(f.oneLine ? { wrap: false as const } : {}) },
+      {
+        el: `f${i}`,
+        ...(f.align ? { h: f.align.h, v: f.align.v } : {}),
+        ...(f.nudge ? { nudge: true } : {}),
+        ...(f.oneLine ? { wrap: false as const } : {}),
+        ...(f.box ? { box: boxToken(boxes.indexOf(f.box)) } : {}),
+      },
       f.title,
     ),
   );
@@ -103,6 +122,8 @@ export interface LayoutLine {
   v?: 'top' | 'middle' | 'bottom';
   nudge?: boolean;
   wrap?: false;
+  /** The box the author set, by its stamp token (`bK`). */
+  box?: string;
 }
 
 /** A said line's entry, with the comment that names it - the one spelling, so a line the build
@@ -110,8 +131,9 @@ export interface LayoutLine {
 export function layoutLineJs(l: LayoutLine, title: string): string {
   const kept = l.nudge ? '; keeps the nudge it was drawn with' : '';
   const one = l.wrap === false ? '; stays on one line' : '';
-  return `    // "${title}" - ${l.h && l.v ? `${SVG_ALIGN_WORD[l.h]}, ${l.v}` : 'as drawn'}${kept}${one}.
-    { el: '${l.el}'${l.h && l.v ? `, h: '${l.h}', v: '${l.v}'` : ''}${l.nudge ? ', nudge: true' : ''}${l.wrap === false ? ', wrap: false' : ''} }`;
+  const inBox = l.box ? '; measured in the box you set' : '';
+  return `    // "${title}" - ${l.h && l.v ? `${SVG_ALIGN_WORD[l.h]}, ${l.v}` : 'as drawn'}${kept}${one}${inBox}.
+    { el: '${l.el}'${l.h && l.v ? `, h: '${l.h}', v: '${l.v}'` : ''}${l.nudge ? ', nudge: true' : ''}${l.wrap === false ? ', wrap: false' : ''}${l.box ? `, box: '${l.box}'` : ''} }`;
 }
 
 /** The said lines a built template's table carries, read back from its text. */
@@ -127,6 +149,7 @@ export function readLayoutLines(js: string): LayoutLine[] {
       ...(h && v ? { h, v } : {}),
       ...(/nudge:\s*true/.test(rest) ? { nudge: true } : {}),
       ...(/wrap:\s*false/.test(rest) ? { wrap: false as const } : {}),
+      ...(/box:\s*'(b\d+)'/.exec(rest) ? { box: /box:\s*'(b\d+)'/.exec(rest)![1] } : {}),
     };
   });
 }
@@ -138,7 +161,8 @@ export function layoutTableJs(rows: string[], said: string[]): string {
   // Which edge each of these lines fills from and where its block sits in its box, as the author
   // set it on the Fields step. A line not listed is aligned the way it was drawn. \`nudge: true\`
   // keeps the offset the designer left between the block and its anchor. \`wrap: false\` keeps
-  // the line on one line: a longer value gets smaller instead of wrapping.
+  // the line on one line: a longer value gets smaller instead of wrapping. \`box\` names the
+  // box the author set for the line (a data-noacg-el token): it is measured there, not searched.
   lines: [
 ${said.join(',\n')}
   ]`

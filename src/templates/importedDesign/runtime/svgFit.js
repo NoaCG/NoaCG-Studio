@@ -27,6 +27,9 @@ var svgFitShift = {};                           // id -> how far that panel's MI
 var svgFitExtraH = {};                          // id -> HEIGHT a growing panel may still give it
 var svgFitOver = {};                            // id -> true when even the floor could not fit
 var svgFitOwed = {};                            // id -> this line still needs measuring (below)
+// A TEXT BOX THE AUTHOR DREW is an unpainted rect (assets/svgAreas.ts): a line set in it is
+// measured there, and every search for what is DRAWN round a line skips it - nobody can see it.
+var SVG_DRAWN_RECT = 'rect:not([data-noacg-area])';
 var SVG_FIT_FLOOR = 0.55;                       // REPORTED as too long below 55% of the drawn size
 var SVG_FIT_HARD_FLOOR = 0.3;                   // …but it keeps shrinking to 30% rather than condensing
 var SVG_SQUEEZE_FLOOR = 0.7;                    // never narrower than 70% of the glyphs' own width
@@ -422,14 +425,19 @@ function svgFitPanel(el) {
   var art = document.querySelector('.__PREFIX__-art');
   if (!art) return null;
   var frameArea = svgFrameArea(art);
-  var held = svgFitContainer(el);
   svgFitLoose[el.id] = false;
+  // THE BOX THE AUTHOR SET is the answer, before any search: they pointed at it.
+  var set = svgSaidBox(el.id);
+  if (set) return set;
+  var held = svgFitContainer(el);
+  // A drawn box belongs to the lines it was set for; to any other line it is not there.
+  if (held && held.hasAttribute('data-noacg-area')) held = null;
   if (held) {
     var hr = held.getBoundingClientRect();
     // The smallest outright holder: frame-sized only where nothing smaller holds the line.
     if (!(frameArea > 0 && hr.width * hr.height >= frameArea * __SVG_BACKPLATE_SHARE__)) return held;
   }
-  var loose = svgSitsOnOf(el.getBoundingClientRect(), art.querySelectorAll('rect, path, polygon'), frameArea);
+  var loose = svgSitsOnOf(el.getBoundingClientRect(), art.querySelectorAll(SVG_DRAWN_RECT + ', path, polygon'), frameArea);
   if (loose) {
     svgFitLoose[el.id] = true;
     return loose;
@@ -598,7 +606,7 @@ function svgDrawnExtent(el, frame) {
   var art = document.querySelector('.__PREFIX__-art');
   var b = el.getBoundingClientRect();
   var ext = { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
-  var all = art ? art.querySelectorAll('rect, path, polygon, ellipse, circle, image, use, line, polyline, text') : [];
+  var all = art ? art.querySelectorAll(SVG_DRAWN_RECT + ', path, polygon, ellipse, circle, image, use, line, polyline, text') : [];
   for (var i = 0; i < all.length; i++) {
     var r = svgPaintBox(all[i]);
     if (!(r.width > 0) || !(r.height > 0)) continue;
@@ -650,7 +658,7 @@ function svgUnboxedBound(el, box, ext, dir, nodes) {
 function svgUnderOf(el, box) {
   var art = document.querySelector('.__PREFIX__-art');
   if (!art) return null;
-  var o = svgSitsOnOf(box, art.querySelectorAll('image, use, line, polyline, ellipse, circle, rect, path, polygon'), svgFrameArea(art));
+  var o = svgSitsOnOf(box, art.querySelectorAll('image, use, line, polyline, ellipse, circle, ' + SVG_DRAWN_RECT + ', path, polygon'), svgFrameArea(art));
   return o ? svgPaintBox(o) : null;
 }
 
@@ -737,6 +745,14 @@ function svgSaidAlign(id) {
   return null;
 }
 
+/** The box the author set for this line (NOACG_LAYOUT.lines `box`, the Fields step's "Set text
+ *  box"), or null: a drawn shape or a drawn area, found by the token the build stamped on it. */
+function svgSaidBox(id) {
+  var said = svgSaidAlign(id);
+  if (!said || !said.box) return null;
+  return document.querySelector('.__PREFIX__-art [data-noacg-el~="' + said.box + '"]');
+}
+
 /** The run a line gets when a margin of m is kept on both sides of its box: twice the shorter
  *  reach for a line that fills BOTH ways, the reach to the far margin for one that fills one
  *  way. Asked twice below, with two different margins. */
@@ -772,7 +788,7 @@ function svgOwnBand(el, panelEl, box, own, centred) {
   var art = document.querySelector('.__PREFIX__-art');
   if (!art || !panelEl) return band;
   var panel = panelEl.getBoundingClientRect();
-  var others = art.querySelectorAll('text, tspan, image, rect, path, polygon, ellipse, circle');
+  var others = art.querySelectorAll('text, tspan, image, ' + SVG_DRAWN_RECT + ', path, polygon, ellipse, circle');
   var above = null;
   var below = null;
   for (var i = 0; i < others.length; i++) {
@@ -1081,7 +1097,7 @@ function svgPanelTopPad(panel, nodes) {
 function svgFitCeiling(el, panel, pad) {
   var art = document.querySelector('.__PREFIX__-art');
   var box = el.getBoundingClientRect();
-  var others = art.querySelectorAll('text, tspan, image, rect, path, polygon, ellipse, circle');
+  var others = art.querySelectorAll('text, tspan, image, ' + SVG_DRAWN_RECT + ', path, polygon, ellipse, circle');
   var top = panel.bottom - (pad || 0);
   for (var i = 0; i < others.length; i++) {
     var o = others[i];
@@ -1138,7 +1154,7 @@ function svgIsEndCap(o, r, panel, axis, dir) {
 function svgFitNeighbour(el, panel, dir) {
   var art = document.querySelector('.__PREFIX__-art');
   var box = el.getBoundingClientRect();
-  var others = art.querySelectorAll('text, tspan, image, rect, path, polygon, ellipse, circle');
+  var others = art.querySelectorAll('text, tspan, image, ' + SVG_DRAWN_RECT + ', path, polygon, ellipse, circle');
   var left = dir < 0;
   var edge = left ? panel.left : panel.right;
   var near = null;
