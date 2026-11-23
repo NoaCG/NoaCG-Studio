@@ -3412,9 +3412,7 @@ test('svg import: a text box drawn on the ticket widens it at the drawn size, cu
   expect(await sizeOf()).toBe(drawn);
   expect(await overflow()).toEqual([]);
 
-  // Past every width the frame allows, wrapping and shrinking: still too long, and said so.
-  await page
-    .getByTestId(`map-svg-sample-${row}`)
-    .fill('Alexandra Konstantinopoulou-Vasquez von Habsburg Lothringen och Bernadotte af Wisborg Rasmussen-Lindqvist');
+  // A word no width the frame allows can hold, and no wrap can break: too long, and said so.
+  await page.getByTestId(`map-svg-sample-${row}`).fill('Konstantinopoulou'.repeat(6));
   await expect.poll(overflow).toEqual(['f0']);
 });
