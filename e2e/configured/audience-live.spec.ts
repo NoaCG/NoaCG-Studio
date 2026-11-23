@@ -18,7 +18,7 @@ import { openProductionWithCurrent } from '../_create';
 import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 import { openWorkspace } from '../_workspace';
 import { settleDurableWrites } from '../_durable';
-import { addQuestion, addResults, goLive, moreWaysIn, stopLive } from '../_interaction';
+import { addQuestion, addResults, fillOptions, goLive, moreWaysIn, stopLive } from '../_interaction';
 import { installDoor } from '../_door';
 
 // This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
@@ -834,7 +834,7 @@ test.describe(() => {
     await ws.getByTestId('question-add').click();
     await ws.getByTestId('question-type-choice').click();
     await ws.getByTestId('question-text').fill('Final call?');
-    await ws.getByTestId('question-options').fill('Yes\nNo');
+    await fillOptions(ws, ['Yes', 'No']);
     await ws.getByTestId('question-allow-change').uncheck();
     await ws.getByTestId('question-save').click();
     await goLive(ws, 'Final call?');

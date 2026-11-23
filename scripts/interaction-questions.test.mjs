@@ -136,3 +136,48 @@ test('a vote carries its change policy: on unless set off, stored only when off,
   assert.equal('allowChange' in read[1], false);
   assert.equal('allowChange' in read[2], false);
 });
+
+test('the option rows: two to start, add and remove inside the limits, move, and a paste of several lines makes rows (P3)', () => {
+  const { maxOptions, minOptions, option } = q.QUESTION_LIMITS;
+  assert.deepEqual(q.startOptionRows(), ['', '']);
+  assert.deepEqual(q.startOptionRows(['Yes']), ['Yes', '']);
+  assert.deepEqual(q.startOptionRows(['A', 'B', 'C']), ['A', 'B', 'C']);
+  assert.deepEqual([0, 1, 25].map(q.optionLetter), ['A', 'B', 'Z']);
+
+  // Add goes after the row it is asked from; the limits refuse rather than trim.
+  assert.deepEqual(q.addOptionRow(['A', 'B'], 0), ['A', '', 'B']);
+  assert.deepEqual(q.addOptionRow(['A', 'B'], 1), ['A', 'B', '']);
+  const full = Array.from({ length: maxOptions }, (_, i) => `o${i}`);
+  assert.equal(q.addOptionRow(full, 3), null);
+  assert.deepEqual(q.removeOptionRow(['A', 'B', 'C'], 1), ['A', 'C']);
+  assert.equal(q.removeOptionRow(['A', 'B'], 0), null);
+  assert.equal(minOptions, 2);
+
+  // Move, clamped at both ends, never changing the list it was given.
+  const rows = ['A', 'B', 'C'];
+  assert.deepEqual(q.moveItem(rows, 2, 0), ['C', 'A', 'B']);
+  assert.deepEqual(q.moveItem(rows, 0, 1), ['B', 'A', 'C']);
+  assert.deepEqual(q.moveItem(rows, 0, -1), ['A', 'B', 'C']);
+  assert.deepEqual(q.moveItem(rows, 2, 9), ['A', 'B', 'C']);
+  assert.deepEqual(rows, ['A', 'B', 'C']);
+
+  // A plain paste stays the field's own.
+  assert.equal(q.pasteOptionRows(['', ''], 0, 'Just one'), null);
+  // Several lines into the first of two empty rows: one row each, cleaned as cleanOptions cleans,
+  // and the empty row that was room to type goes.
+  assert.deepEqual(q.pasteOptionRows(['', ''], 0, ' Home \r\n\r\nAway\nDraw\n'), { rows: ['Home', 'Away', 'Draw'], focus: 2, dropped: 0 });
+  // At its place among the others, which keep theirs; a long line is capped like a typed one.
+  const long = 'x'.repeat(option + 5);
+  assert.deepEqual(q.pasteOptionRows(['Red', 'Bl', '', 'Green'], 1, `Blue\n${long}`), { rows: ['Red', 'Blue', 'x'.repeat(option), 'Green'], focus: 2, dropped: 0 });
+  // Past the most a vote takes, the options already written stay and the rest of the paste is dropped.
+  const twelve = Array.from({ length: 12 }, (_, i) => `p${i}`).join('\n');
+  const capped = q.pasteOptionRows(['First', '', 'Last'], 1, twelve);
+  assert.equal(capped.rows.length, maxOptions);
+  assert.deepEqual(capped.rows, ['First', 'p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'Last']);
+  assert.equal(capped.dropped, 6);
+  assert.equal(capped.focus, 6);
+  // Only blank lines: the rows go back to two empty ones.
+  assert.deepEqual(q.pasteOptionRows(['', ''], 0, '\n \n'), { rows: ['', ''], focus: 0, dropped: 0 });
+  // Saved through cleanOptions, the rows are exactly the options written.
+  assert.deepEqual(q.cleanOptions(capped.rows), capped.rows);
+});

@@ -56,7 +56,7 @@ import SignInPrompt from '../auth/SignInPrompt';
 import { joinPageUrl } from '../../control/hostedControl';
 import { copyLink } from './copyLink';
 import { useDeferredEdits } from './useDeferredEdits';
-import { QuestionComposer, QuestionList, type QuestionRowState } from './InteractionQuestions';
+import { PREVIEW_REFUSAL, QuestionComposer, QuestionList, type ComposerPhone, type QuestionRowState } from './InteractionQuestions';
 import {
   addQuestion,
   duplicateQuestion,
@@ -1027,9 +1027,11 @@ export default function ProductionAudienceWorkspace({
   useEffect(() => {
     preview.current?.refresh();
   }, [localBrand]);
+  // The composer's phone shows a draft in the page phones get: the production's own look and words.
+  const composerPhone = useMemo<ComposerPhone>(() => ({ productionName: show.name, brand: localBrand }), [show.name, localBrand]);
   const previewClient = useMemo<JoinSurfaceClient>(() => {
     const viewer = live && show.joinSlug ? createSupabaseAudience({ joinSlug: show.joinSlug }) : backend;
-    const refuse = async () => ({ ok: false, error: 'This is your preview. Send from a phone to test it.' });
+    const refuse = async () => ({ ok: false, error: PREVIEW_REFUSAL });
     return {
       load: async () => {
         const view = await viewer.joinView('preview-operator-device');
@@ -1873,7 +1875,7 @@ export default function ProductionAudienceWorkspace({
               </div>
             )}
             {composer && !composer.editing && (
-              <QuestionComposer editing={null} onSave={saveComposer} onCancel={() => setComposer(null)} />
+              <QuestionComposer editing={null} phone={composerPhone} onSave={saveComposer} onCancel={() => setComposer(null)} />
             )}
             <QuestionList
               questions={questions}
@@ -1927,11 +1929,13 @@ export default function ProductionAudienceWorkspace({
                 <QuestionComposer
                   key={selected.id}
                   editing={selected}
+                  locked={rowStates[selected.id]?.locked ?? false}
+                  phone={composerPhone}
                   onSave={saveComposer}
                   onCancel={() => setComposer(null)}
                 />
               )}
-              {rowStates[selected.id]?.locked && composer?.editing?.id !== selected.id && (
+              {rowStates[selected.id]?.locked && (
                 <p className="hint" data-testid="question-locked">
                   Its words stay as they were asked while it is live or has answers. Duplicate it to change them.
                 </p>

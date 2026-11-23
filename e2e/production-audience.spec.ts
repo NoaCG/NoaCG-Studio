@@ -28,7 +28,7 @@ import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { openWorkspace } from './_workspace';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
-import { addQuestion, goLive, moreWaysIn, questionRow, simulateArrivals, stopLive } from './_interaction';
+import { addQuestion, fillOptions, goLive, moreWaysIn, questionRow, simulateArrivals, stopLive } from './_interaction';
 import { qrReader } from './_qr';
 import { installDoor } from './_door';
 import { readFileSync } from 'node:fs';
@@ -653,6 +653,97 @@ test('questions are written, browsed and changed safely, and the list survives a
   await expect(orphan).toHaveCount(0);
   expect(((await room(ws, showId))?.rounds ?? []).filter((r) => !r.closedAt)).toHaveLength(0);
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+
+  // THE OPTION BUILDER (live-production-reliability P3, owner 2026-11-23): one row per option, two
+  // to start. Enter adds the next row, Backspace in an empty one removes it, Alt+Up, the handle's
+  // arrows and a drag reorder, a paste of several lines makes rows, eight is the most, and the draft
+  // shows on a phone, drawn by the join page's own renderer, while it is written.
+  await ws.getByTestId('question-add').click();
+  await ws.getByTestId('question-type-choice').click();
+  const composer = ws.getByTestId('question-composer');
+  const fields = composer.getByTestId('question-option');
+  const values = () => fields.evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value));
+  const phone = composer.getByTestId('question-preview');
+  const pasteInto = (field: Locator, text: string) =>
+    field.evaluate((el, clip) => {
+      const data = new DataTransfer();
+      data.setData('text/plain', clip);
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    }, text);
+  await expect(fields).toHaveCount(2);
+  await expect(composer.getByTestId('question-option-count')).toHaveCount(0);
+  await expect(composer.getByTestId('question-results')).toHaveText('Results: counts and shares per option, for a vote board.');
+  await ws.getByTestId('question-text').fill('Best snack?');
+  await expect(phone.locator('.nj-prompt')).toHaveText('Best snack?');
+  await fields.nth(0).fill('Crisps');
+  await fields.nth(0).press('Enter');
+  await expect(fields).toHaveCount(3);
+  await expect(fields.nth(1)).toBeFocused();
+  await ws.keyboard.type('Nuts');
+  await ws.keyboard.press('Enter');
+  await expect(fields).toHaveCount(4);
+  await ws.keyboard.press('Backspace');
+  await expect(fields).toHaveCount(3);
+  await expect(fields.nth(1)).toBeFocused();
+  await fields.nth(2).fill('Popcorn');
+  await fields.nth(2).press('Alt+ArrowUp');
+  await expect.poll(values).toEqual(['Crisps', 'Popcorn', 'Nuts']);
+  await expect(fields.nth(1)).toBeFocused();
+  // Each field is named by its letter, and so is each button on its row.
+  await expect(composer.getByLabel('Option B', { exact: true })).toHaveValue('Popcorn');
+  await expect(composer.getByRole('button', { name: 'Remove option C' })).toBeEnabled();
+  await expect(phone.locator('.nj-opt')).toHaveText(['ACrisps', 'BPopcorn', 'CNuts']);
+
+  // A paste of several lines into a new row: one row each, trimmed, blank lines dropped.
+  await composer.getByTestId('question-option-add').click();
+  await expect(fields.nth(3)).toBeFocused();
+  await pasteInto(fields.nth(3), 'Fruit\r\nCake\n\n  Cheese ');
+  await expect.poll(values).toEqual(['Crisps', 'Popcorn', 'Nuts', 'Fruit', 'Cake', 'Cheese']);
+  await expect(fields.nth(5)).toBeFocused();
+  await expect(composer.getByTestId('question-option-count')).toHaveText('6 of 8');
+  // Past the most a vote takes, the paste fills what is left and says what it left out.
+  await composer.getByTestId('question-option-add').click();
+  await pasteInto(fields.nth(6), 'One\nTwo\nThree\nFour');
+  await expect.poll(values).toEqual(['Crisps', 'Popcorn', 'Nuts', 'Fruit', 'Cake', 'Cheese', 'One', 'Two']);
+  await expect(composer.getByTestId('question-option-dropped')).toHaveText('Only 8 options fit; 2 left out.');
+  await expect(composer.getByTestId('question-option-count')).toHaveText('8 of 8');
+  await expect(composer.getByTestId('question-option-add')).toBeDisabled();
+  await fields.nth(7).press('Enter');
+  await expect(fields).toHaveCount(8);
+  await composer.getByRole('button', { name: 'Remove option H' }).click();
+  await composer.getByRole('button', { name: 'Remove option G' }).click();
+  await expect.poll(values).toEqual(['Crisps', 'Popcorn', 'Nuts', 'Fruit', 'Cake', 'Cheese']);
+  await expect(composer.getByTestId('question-option-dropped')).toHaveCount(0);
+  // The handle moves its row by the arrow keys, and by a drag.
+  await composer.getByRole('button', { name: 'Move option A' }).press('ArrowDown');
+  await expect.poll(values).toEqual(['Popcorn', 'Crisps', 'Nuts', 'Fruit', 'Cake', 'Cheese']);
+  await expect(composer.getByRole('button', { name: 'Move option B' })).toBeFocused();
+  await composer.getByTestId('question-option-grip').nth(5).dragTo(composer.getByTestId('question-option-row').nth(0));
+  await expect.poll(values).toEqual(['Cheese', 'Popcorn', 'Crisps', 'Nuts', 'Fruit', 'Cake']);
+  // The phone follows every change, the vote rule included.
+  await expect(phone.locator('.nj-opt')).toHaveText(['ACheese', 'BPopcorn', 'CCrisps', 'DNuts', 'EFruit', 'FCake']);
+  await composer.getByTestId('question-allow-change').uncheck();
+  await expect(phone.getByTestId('nj-final')).toBeVisible();
+  await composer.getByTestId('question-allow-change').check();
+  await expect(phone.getByTestId('nj-final')).toHaveCount(0);
+  await ws.getByTestId('question-save').click();
+  const snack = questionRow(ws, 'Best snack?');
+  await expect(snack).toHaveCount(1);
+  await expect(ws.locator('.pd-aud-tally-label')).toHaveText(['Cheese', 'Popcorn', 'Crisps', 'Nuts', 'Fruit', 'Cake']);
+
+  // Live, a question being edited shows its rows and changes none of them.
+  await snack.getByTestId('question-more').click();
+  await ws.getByTestId('question-edit').click();
+  await expect.poll(values).toEqual(['Cheese', 'Popcorn', 'Crisps', 'Nuts', 'Fruit', 'Cake']);
+  await goLive(ws, 'Best snack?');
+  await expect(fields.first()).toHaveAttribute('readonly', '');
+  await expect(composer.getByTestId('question-option-grip')).toHaveCount(0);
+  await expect(composer.getByTestId('question-option-remove')).toHaveCount(0);
+  await expect(composer.getByTestId('question-option-add')).toHaveCount(0);
+  await expect(ws.getByTestId('question-save')).toBeDisabled();
+  await expect(ws.getByTestId('question-locked')).toBeVisible();
+  await stopLive(ws, 'Best snack?');
+  await ws.getByTestId('question-cancel').click();
 });
 
 test('a Word question takes one word per phone, lists words by frequency, and airs only the shown words through Take (AC-14)', async ({ page, context }) => {
@@ -831,7 +922,7 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await expect(pick.getByTestId('question-count')).toHaveText('0');
   await pick.getByTestId('question-more').click();
   await ws.getByTestId('question-edit').click();
-  await ws.getByTestId('question-options').fill('Blue\nRed\nGreen');
+  await fillOptions(ws, ['Blue', 'Red', 'Green']);
   await ws.getByTestId('question-save').click();
   await goLive(ws, 'Pick one');
   await phone.locator('#join .nj-opt').nth(0).click(); // still the old "Red"
@@ -856,7 +947,7 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await ws.getByTestId('question-add').click();
   await ws.getByTestId('question-type-choice').click();
   await ws.getByTestId('question-text').fill('Final answer');
-  await ws.getByTestId('question-options').fill('Yes\nNo');
+  await fillOptions(ws, ['Yes', 'No']);
   await expect(ws.getByTestId('question-allow-change')).toBeChecked();
   await ws.getByTestId('question-allow-change').uncheck();
   await ws.getByTestId('question-save').click();

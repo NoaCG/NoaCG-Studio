@@ -152,6 +152,31 @@ interaction spec records them as O1 revised, O3 and O4.
   Rating scale (average on one big-number graphic); Q&A upvotes on the existing moderation;
   Multiple select. Ranking and points allocation are for workshops and come last.
 
+P3 builder, as built (2026-11-23; the shared model and the new kinds are not started):
+
+- Multiple choice options are one row each in `QuestionComposer`
+  (`src/components/home/InteractionQuestions.tsx`): the letter phones use, the words, a drag
+  handle and remove. Two empty rows to start, at most eight; "+ Option" and a count that shows
+  from six. Enter adds a row below and focuses it; Backspace in an empty row removes it and
+  focuses the one above; Alt+Up and Alt+Down in a field, or the arrow keys on its handle, move the
+  row, as the question list's Alt+arrows do. Each field is labelled "Option A" and so on, and each
+  button names its option.
+- A paste with line breaks into any row makes rows at that place (`pasteOptionRows` in
+  `src/model/questions.ts`, cleaned as `cleanOptions` cleans): the other options keep their
+  places, the empty rows go, and lines past eight are left out with a short note saying how many.
+- A question that is live or answered shows its rows read-only while its editor is open, with the
+  locked note; Save is off. Open and Word keep their single text field.
+- The draft shows beside the fields on a small phone drawn by the join page's own renderer
+  (`mountJoinSurface` with a client that only reads the draft and refuses every send), in the
+  production's look; "Allow changing a vote" stays, Multiple choice only, and the phone shows its
+  warning when it is off. Under the phone one line says what the question gives the show to air
+  (counts and shares for a vote board, messages for a message card, a word cloud).
+- Pinned by `scripts/interaction-questions.test.mjs` (rows, move, paste and the limits) and the
+  "questions are written, browsed and changed safely" journey in `e2e/production-audience.spec.ts`
+  (Enter, Backspace, Alt+Up, the handle by keyboard and by drag, a paste, a paste past the limit,
+  remove, the phone, the locked rows).
+- Not built: correct answer and points (no kind uses them yet).
+
 ### P4. Companion connection health (next; its own session)
 
 - AC-1: The module retries every start and transport failure with backoff and reads `panel.json`
