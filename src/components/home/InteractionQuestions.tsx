@@ -144,6 +144,8 @@ function OptionRows({ rows, locked, onChange }: { rows: string[]; locked: boolea
   };
 
   const onFieldKey = (e: KeyboardEvent<HTMLInputElement>, at: number) => {
+    // Enter and Backspace inside an input method's composition belong to the composition.
+    if (e.nativeEvent.isComposing) return;
     if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
       e.preventDefault();
       move(at, e.key === 'ArrowUp' ? at - 1 : at + 1, false);
