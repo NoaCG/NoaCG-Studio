@@ -68,15 +68,14 @@ async function airProblems(air: FrameLocator): Promise<string[]> {
     // broken, so it is compared as clipped and never reported for leaving the frame.
     const windowOf = (el: Element): Box | null => {
       for (let e = el.parentElement; e && e !== art; e = e.parentElement) {
-        // A crawl's window (TL6): the runtime's own clipping group, its clip rectangle on screen.
+        // A crawl's window (TL6): the runtime's own clipping group, its clip polygon's box on screen.
         const clipRef = /url\(#(noacg-crawl-[^)]+)\)/.exec(e.getAttribute('clip-path') ?? '')?.[1];
-        const clipRect = clipRef ? art.querySelector(`[id="${clipRef}"] rect`) as SVGRectElement | null : null;
-        if (clipRect && e instanceof SVGGraphicsElement) {
+        const clipShape = clipRef ? art.querySelector(`[id="${clipRef}"] polygon`) as SVGPolygonElement | null : null;
+        if (clipShape && e instanceof SVGGraphicsElement) {
           const m = e.getScreenCTM();
-          if (!m) return null;
-          const x = clipRect.x.baseVal.value, y = clipRect.y.baseVal.value, w = clipRect.width.baseVal.value, h = clipRect.height.baseVal.value;
-          const p = [new DOMPoint(x, y).matrixTransform(m), new DOMPoint(x + w, y + h).matrixTransform(m)];
-          return { l: Math.min(p[0].x, p[1].x), t: Math.min(p[0].y, p[1].y), r: Math.max(p[0].x, p[1].x), b: Math.max(p[0].y, p[1].y) };
+          if (!m || !clipShape.points.numberOfItems) return null;
+          const p = Array.from({ length: clipShape.points.numberOfItems }, (_, i) => new DOMPoint(clipShape.points.getItem(i).x, clipShape.points.getItem(i).y).matrixTransform(m));
+          return { l: Math.min(...p.map((q) => q.x)), t: Math.min(...p.map((q) => q.y)), r: Math.max(...p.map((q) => q.x)), b: Math.max(...p.map((q) => q.y)) };
         }
         if (e instanceof SVGSVGElement && e.parentElement instanceof SVGGraphicsElement) {
           const m = (e.parentElement as SVGGraphicsElement).getScreenCTM();
