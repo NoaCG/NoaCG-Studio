@@ -166,6 +166,9 @@ test('imported artwork credits preserve the complete design and roll off the who
   await expect(artworkRows.first()).toContainText('scrolls as artwork');
   await expect(artworkRows.filter({ hasText: 'sets the look' })).toHaveCount(0);
   expect(await artworkRows.count()).toBe(await artworkRows.filter({ hasText: /, scrolls as artwork$/ }).count());
+  // Only the credits text runs past the artboard and no picture is a field: the text rolls alone,
+  // as it always has (the whole artwork rolling is svg-templates' End credits, full roll).
+  await expect(page.getByTestId('map-svg-credits-rolls')).toHaveValue('text');
   await intoProduction(page, 'Night sky credits', 'Night sky');
   await settleDurableWrites(page);
   await page.getByTestId('verb-take').click();
@@ -521,7 +524,12 @@ test('credits that can be styled can be kept as fixed artwork, and then the whol
   // Editable credits stay the default.
   await expect(engine).toHaveValue('editable');
   await expect(fixedLine).toHaveCount(0);
+  // Rolls is a fixed-artwork question: editable credits do not ask it.
+  const rolls = page.getByTestId('map-svg-credits-rolls');
+  await expect(rolls).toHaveCount(0);
   await engine.selectOption('artwork');
+  // No picture field and nothing drawn off the artboard but the credits: the text rolls alone.
+  await expect(rolls).toHaveValue('text');
   await expect(fixedLine).toHaveText('The text stays part of the artwork and cannot be edited on the production page.');
   await expect(page.getByTestId('map-svg-credits-fallback')).toHaveCount(0);
   // Every role and name layer, the picked one included, scrolls as artwork.
