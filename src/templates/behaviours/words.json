@@ -1210,5 +1210,101 @@
         "what": "one slot: written with the word staged for it, sized by its count, hidden when no word is staged for it"
       }
     ]
+  },
+  "speaking": {
+    "name": "The speaking timer",
+    "verbs": "two speakers, a clock each, and the floor passing between them",
+    "buttons": "Switch speaker, Penalty and Reset clocks, plus Speaking time each (when you drew none) and Penalty (seconds)",
+    "rows": {
+      "role": "time",
+      "keys": "letters",
+      "min": 2,
+      "max": 2,
+      "teach": "Two sides, A and B. Switch speaker opens with A."
+    },
+    "roles": [
+      {
+        "id": "time",
+        "label": "Time",
+        "kind": "field",
+        "perRow": true,
+        "required": true,
+        "pool": "text",
+        "attr": {
+          "name": "data-speaking",
+          "value": "{row}"
+        },
+        "words": "^(?:time|clock time|aika|zeit|tiempo)$",
+        "teach": "Time A",
+        "also": [
+          "Aika A"
+        ],
+        "what": "the side's clock: the time it has left, which the chair can type to correct"
+      },
+      {
+        "id": "allowance",
+        "label": "Speaking time",
+        "kind": "field",
+        "pool": "text",
+        "attr": {
+          "name": "data-speaking",
+          "value": "allowance"
+        },
+        "words": "^(?:speaking time|allowance|time each|puheaika|redezeit)$",
+        "teach": "Speaking time",
+        "also": [
+          "Allowance"
+        ],
+        "what": "what both clocks reset to (optional): without it, the operator gets Speaking time each"
+      },
+      {
+        "id": "time.speaking",
+        "label": "Speaking",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "^(?:speaking|on the floor|puhuu|spricht)$",
+        "teach": "Speaking A",
+        "also": [
+          "On the floor A"
+        ],
+        "what": "shown while that side holds the floor"
+      },
+      {
+        "id": "time.out",
+        "label": "Out of time",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "^(?:out of time|overtime|yliaika)$",
+        "teach": "Out of time A",
+        "also": [
+          "Overtime A"
+        ],
+        "what": "shown while that side's clock has run out"
+      },
+      {
+        "id": "penalty",
+        "label": "Penalty",
+        "kind": "layer",
+        "paint": [
+          "look"
+        ],
+        "pool": "drawn",
+        "words": "^(?:penalty|docked|rangaistus|strafe)$",
+        "teach": "Penalty",
+        "also": [
+          "Docked"
+        ],
+        "what": "shown for a moment when a penalty is docked"
+      }
+    ]
   }
 }

@@ -23,7 +23,7 @@ Two free fonts, both under the SIL Open Font License: **Manrope** for most templ
 - Change words, fonts, colours and shapes freely. Keep the names in the Layers panel, such as `Team 1` and `Flash 1`: NoaCG uses them to know what each part does.
 - Keep text as live text. Do not outline it or turn it into a picture.
 - Save with File > Save a Copy > SVG. Tick **Use Artboards** and keep **Font: SVG**. In Inkscape, save as SVG and keep object labels and live text.
-- In NoaCG, choose New graphic > Import graphic and drop the SVG. Check **What it does**: most templates select their behaviour from layer names. For **Pop-up alert**, **Transition**, **Match event** and **Chat highlight**, choose Pop-up alert yourself.
+- In NoaCG, choose New graphic > Import graphic and drop the SVG. Check **What it does**: most templates select their behaviour from layer names. For **Pop-up alert**, **Transition**, **Match event**, **Chat highlight** and **Event notification**, choose Pop-up alert yourself.
 - Put the graphic in a production. Edit its fields, then Take. Out clears it.
 
 Names in these templates are made up.
@@ -167,11 +167,13 @@ Moments items except the timer bar and a choice's starting option are hidden gro
 | Template | What it does in NoaCG |
 |---|---|
 | **Chat highlight** | At import, choose Pop-up alert and tick Hold on air. It clears itself after eight seconds; Hold on air keeps it up and Take it off clears it. |
+| **Event notification** | At import, choose Pop-up alert. Type the event, the viewer, the detail and the message, then Take: it plays, clears itself after eight seconds, and Next clears it sooner. One event at a time: take the next when this one has cleared. |
 | **Head to head, Player card, Bracket, Fixtures, Agenda** | Every text is a field. Put a photo in `Photo`. In the bracket, type a team into the next round to move it on. |
 
 | Template | Text | Moments | Board |
 |---|---|---|---|
 | **Chat highlight** | `Viewer`, `Comment` | none | `Panel`, `Accent` |
+| **Event notification** | `Event`, `Viewer`, `Detail`, `Message` | none | `Panel`, `Event box` |
 | **Head to head** | `Left name`, `Stat 1`, `Left 1`, `Right 1` to 3 | none | `Panel`, `Stat box 1` |
 | **Player card** | `f:Photo`, `Player`, `Team`, `Number`, `Stat 1`, `Stat 2` | none | `Panel`, `Photo frame`, `Number box` |
 | **Bracket, Fixtures, Agenda** | `Stage`, `Semi 1`, `Final 1`, `Champion`; `Title`, `Time 1`, `Home 1`, `Away 1`; `Title`, `Time 1`, `Session 1` | none | `Panel` and a box per row |
@@ -208,7 +210,9 @@ Moments items except the timer bar and a choice's starting option are hidden gro
 
 A slide's texts and pictures sit on top of each other, one set per slide, and each shows only with its slide. To edit one slide, hide the others' texts in the Layers panel; show everything again before you save, or the hidden texts arrive as fixed words instead of fields.
 
-## Crawls and a word cloud
+---
+
+## Crawls, a word cloud and a speaking timer
 
 | Template | What it does in NoaCG |
 |---|---|
@@ -222,6 +226,14 @@ A slide's texts and pictures sit on top of each other, one set per slide, and ea
 | **Word cloud** | `Question`, `Word 1` to `Word 12` | none | `Panel`, `Accent` |
 
 Draw `Crawl` where the run starts, and each `Word n` at the largest size its word should have, with a sample as wide as the slot may get.
+
+| Template | What it does in NoaCG |
+|---|---|
+| **Speaking timer** | Switch speaker passes the floor, the first press to A; only the speaker's clock runs. Penalty docks ten seconds (Penalty (seconds)) from whoever speaks, Reset clocks puts both back to Speaking time each. Type a time into Time A or B to correct it. |
+
+| Template | Text | Moments | Board |
+|---|---|---|---|
+| **Speaking timer** | `Stage`, `Label A`, `Debater A`, `Time A`, and the same for B | `Speaking A`, `Out of time A`, the same for B, `Penalty` | `Panel`, `Time box A`, `Time box B` |
 
 ---
 

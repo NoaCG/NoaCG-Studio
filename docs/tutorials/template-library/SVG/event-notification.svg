@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Event notification</title>
+  <desc>NoaCG Clean Studio template. A card for one streaming event, a follower, a member, a donation, a gift or a raid: the Event word on a blue band, the Viewer, a Detail line such as the amount or the months, and their Message. Choose Pop-up alert at import: it plays, holds for eight seconds and clears itself; Next clears it sooner. Tick Hold on air to keep one up.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="1220" y="96" width="600" height="226" rx="20" fill="#FFFFFF"/>
+    <path id="Event_box" inkscape:label="Event box" d="M1240,96 H1800 A20,20 0 0 1 1820,116 V160 H1220 V116 A20,20 0 0 1 1240,96 Z" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Event" x="1256" y="140" text-anchor="start" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="3">NEW MEMBER</text>
+    <text id="Viewer" x="1256" y="214" text-anchor="start" font-size="44" font-weight="800" fill="#0F1729">NovaRider</text>
+    <text id="Detail" x="1784" y="214" text-anchor="end" font-size="28" font-weight="800" fill="#2E5BFF">12 MONTHS</text>
+    <text id="Message" x="1256" y="276" text-anchor="start" font-size="26" font-weight="600" fill="#5B6478">Back for another year, thank you!</text>
+  </g>
+</svg>

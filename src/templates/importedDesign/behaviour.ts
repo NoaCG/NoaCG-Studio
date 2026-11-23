@@ -40,9 +40,10 @@ import type { BehaviourRecipe, RecipeContext, RecipeField, RecipePath } from '..
 import { REPAINT_CALL } from '../behaviours/recipe';
 import { recipeById } from '../behaviours/registry';
 import { behaviourDataJs, behaviourRuntimeJs, LOOK_CLASS, lookCss } from './behaviourRuntime';
-import { countdownIndex } from './artworkFields';
+import { boundClock, countdownIndex } from './artworkFields';
 import { escapeHtml, PREFIX } from './shared';
 import { styledCredits } from './creditsRoll';
+import { debateFloorRuntimeJs } from '../scoreboards/debateFloor';
 
 // ── The module interface (the seam svg.ts speaks) ────────────────────────────────────────────
 
@@ -77,6 +78,9 @@ export interface BoundBehaviour {
   /** The line update() runs after writing the fields, so a data write never erases a look the
    *  machine still holds and a snap recovery repaints from the machine rather than the screen. */
   updateHook: string;
+  /** A line update() runs BEFORE the fit measures (the speaking timer's engine adopts its clocks'
+   *  values first, so the fit never measures a wire value), or '' for none. */
+  preFitHook: string;
   /** The extra steps the arc needs on the DEFAULT PATH - a lifecycle beat has to be authored as
    *  data, or SPX's `steps` would say one and stop sending Continue. */
   steps(data: AnimData): AnimData;
@@ -119,6 +123,11 @@ export interface BehaviourBinding {
  */
 export function boundBehaviour(svg: DesignSvg, artworkFields: SpxField[]): BoundBehaviour | null {
   const bindings = bindingsOf(svg);
+  // One clock engine per graphic (svg-template-library TL6, P4): the speaking timer's two clocks
+  // and a layer counted as a countdown or a match clock would be two engines on one board.
+  if (bindings.some((b) => b.recipe === 'speaking') && (countdownIndex(svg) !== -1 || boundClock(svg))) {
+    throw new Error('Behaviour: a graphic carries one clock at most (speaking timer, and a countdown or clock layer).');
+  }
   return bindings.length === 0 ? null : composeParts(artworkFields, bindings);
 }
 
@@ -474,6 +483,10 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
       const candidateId = at(binding.layers, role, key);
       return candidateId && binding.markup ? drawnTextOf(binding.markup, candidateId) : '';
     },
+    value: (role, key) => {
+      const index = at(binding.fields, role, key);
+      return index === undefined ? '' : String(artworkFields[index]?.value ?? '');
+    },
   };
   owned = recipe.fields(ctx);
   const ownedIds = owned.map((_, i) => `f${from + i}`);
@@ -522,6 +535,15 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
     ownedIds,
     hasLooks: lookRoles.size > 0,
     markLayers: (root) => {
+      // A field role's attribute for a reader outside the table (the speaking timer's clocks,
+      // `data-speaking`), on the element the field is bound to.
+      for (const role of recipe.roles.filter((r) => r.kind === 'field' && r.attr)) {
+        for (const key of role.perRow ? rows : [undefined]) {
+          const id = ctx.fieldId(role.id, key);
+          const el = id ? root.querySelector(`[id="${id}"]`) : null;
+          if (el && role.attr) el.setAttribute(role.attr.name, role.attr.value.replace('{row}', (key ?? '').toLowerCase()));
+        }
+      }
       for (const role of recipe.roles.filter((r) => r.kind === 'layer')) {
         const keys = role.perRow ? rows : [undefined];
         for (const key of keys) {
@@ -632,13 +654,60 @@ function patternPainted(root: Element, image: Element): Element[] {
   return Array.from(root.querySelectorAll('*')).filter((el) => !el.closest('defs') && ((el.getAttribute('fill') ?? '').includes(ref) || (el.getAttribute('style') ?? '').includes(ref)));
 }
 
+/**
+ * The speaking timer's engine on imported artwork: the built-in Debate Floor's two clocks
+ * (scoreboards/debateFloor.ts), pointed at the fields the table names, and two adjustments the
+ * artwork needs. A clock's text keeps the one line the fit centred it on (the match clock does the
+ * same, svg.ts), and a side running out repaints, so its time-up look lights with no state or write.
+ */
+function speakingEngineJs(table: BehaviourData): string {
+  const fields = table.fields ?? {};
+  const time = (fields.time ?? {}) as Record<string, string>;
+  const one = (key: string) => (typeof fields[key] === 'string' ? (fields[key] as string) : '');
+  return `
+${debateFloorRuntimeJs({ clockA: time.A ?? '', clockB: time.B ?? '', allowance: one('allowance'), penalty: one('penalty'), penaltyBadge: '' })}
+// ---- The engine on the artwork (svg-template-library TL6) ----
+// A time painted WIDER than the fit measured (a Reset to a longer allowance, a wider face's digits)
+// is fitted again, once; a narrower one already fits. The match clock does the same (svg.ts).
+var noacgDebateFitted = { a: -1, b: -1 };
+function noacgDebateWidth(el) {
+  try { return el.getBBox().width; } catch (e) { return -1; }
+}
+if (typeof fitSvgText === 'function') {
+  var noacgDebateFit = fitSvgText;
+  fitSvgText = function () {
+    noacgDebateFit.apply(this, arguments);
+    var sides = ['a', 'b'];
+    for (var i = 0; i < sides.length; i++) {
+      var clock = debateClockEl(sides[i]);
+      if (clock) noacgDebateFitted[sides[i]] = noacgDebateWidth(clock);
+    }
+  };
+}
+var noacgDebatePaint = debatePaint;
+debatePaint = function (side, seconds) {
+  var el = debateClockEl(side);
+  var line = el && el.children.length === 1 && el.firstElementChild.tagName.toLowerCase() === 'tspan' ? el.firstElementChild : null;
+  var was = debateExpired[side];
+  noacgDebatePaint(side, seconds);
+  if (line && el.firstElementChild !== line) {
+    line.textContent = el.textContent;
+    el.textContent = '';
+    el.appendChild(line);
+  }
+  if (el && noacgDebateFitted[side] >= 0 && noacgDebateWidth(el) > noacgDebateFitted[side] + 0.5) fitSvgText();
+  if (was !== debateExpired[side] && typeof noacgRepaintTick === 'function') noacgRepaintTick();
+};
+`;
+}
+
 /** Compile one binding on its own - the shape the specs and the validator reason about. */
 export function compileBinding(artworkFields: SpxField[], binding: BehaviourBinding): BoundBehaviour {
   return composeParts(artworkFields, [binding]);
 }
 
 /** The recipes that each drive the one clock runtime a graphic can hold. */
-const CLOCK_RECIPES = new Set(['clock', 'countdown']);
+const CLOCK_RECIPES = new Set(['clock', 'countdown', 'speaking']);
 
 /**
  * Refuse a composition whose parts would share a name. The parts merge into ONE machine, ONE
@@ -696,6 +765,8 @@ export function composeParts(artworkFields: SpxField[], bindings: BehaviourBindi
   const withClock = parts.some((p) => Object.values(p.table.kinds ?? {}).some((spec) => spec.kind === 'clock'));
   // A figure a press adds to (the score board's): who scored is said by the press (behaviourRuntime.ts).
   const withAwards = parts.some((p) => Object.values(p.table.kinds ?? {}).some((spec) => spec.kind === 'number'));
+  // A speaking timer: the debate engine rides with the runtime, pointed at this graphic's fields.
+  const speaking = parts.some((p) => Object.values(p.table.kinds ?? {}).some((spec) => spec.kind === 'speaking'));
 
   const table = (): BehaviourData => {
     const merged: BehaviourData = {
@@ -736,9 +807,13 @@ export function composeParts(artworkFields: SpxField[], bindings: BehaviourBindi
         : `
     <!-- The behaviour's own values. SPX writes them here; the rules in template.js read them.
          None of these is ever drawn - the artwork's own layers are what the audience sees. -->
-${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLASS}">${escapeHtml(field.value)}</div>`).join('\n')}`,
-    js: () => `\n${behaviourDataJs(table())}${behaviourRuntimeJs(withClock, withAwards)}`,
+${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLASS}"${Object.entries(field.attrs ?? {}).map(([k, v]) => ` ${k}="${escapeHtml(v)}"`).join('')}>${escapeHtml(field.value)}</div>`).join('\n')}`,
+    js: () => `\n${behaviourDataJs(table())}${behaviourRuntimeJs(withClock, withAwards)}${speaking ? speakingEngineJs(table()) : ''}`,
     updateHook: `  if (typeof noacgRepaintData === 'function') noacgRepaintData();  // the behaviour's looks, gauges and readouts (below)`,
+    preFitHook: speaking
+      ? `  // The speaking timer's engine adopts its clocks' values before the fit measures them (below).
+  if (typeof speakingClockUpdate === 'function') for (var noacgKey in fields) if (Object.prototype.hasOwnProperty.call(fields, noacgKey)) speakingClockUpdate(noacgKey, fields[noacgKey]);`
+      : '',
     steps: (data) => {
       const paths = parts.map((p) => p.path).filter((p): p is RecipePath => !!p);
       if (paths.length === 0) return data;
@@ -764,6 +839,11 @@ ${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLAS
         layers: {},
       }));
       steps.splice(steps.length - 1, 0, ...extra);
+      const exitCalls = paths.flatMap((p) => p.exitCalls ?? []);
+      if (exitCalls.length > 0) {
+        const out = steps[steps.length - 1];
+        steps[steps.length - 1] = { ...out, calls: [...exitCalls.map((call) => ({ time: 0, call })), ...(out.calls ?? [])] };
+      }
       return { ...data, steps };
     },
     type: () => {
