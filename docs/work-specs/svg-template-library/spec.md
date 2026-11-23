@@ -956,6 +956,27 @@ Group 2 (Risky): Crawl (ticker crawl, end-credits crawl) and Word cloud.
   - G2. Every existing recipe compiles to the table, words and bytes it did; saved graphics keep
     their own runtime and table (TL2 C7). Neither recipe is proposed on the old, ambiguous and
     plain SVGs of the import sweep unless their layers are named for it (`Crawl`, `Word n`).
+- Corrections from the Rules-first `/so` (session_017SdbwMK6JqdV6rzz3BUmxx on 9a2735c, B+, AGREE
+  WITH CORRECTIONS), each replacing the rule it names:
+  - K3 (replaced). A data write that changes Items keeps the text moving from where it is, as the
+    built-in marquee does: the run in progress continues at the same offset within the new run.
+    A write that changes only the speed changes the rate without moving the text; one that changes
+    neither, a state entry other than the take, and a clock tick leave it moving.
+  - K8 (added, AC-7). The crawl plays in real time in every export target (SPX, CasparCG, H2R,
+    the HTML overlay, OGraf real time, LiveOS), and Items and Scroll speed as data reach it in
+    every target that sends data. OGraf non-real time does not seek it: its motion is a repeating
+    tween, as the built-in marquee's is, and seek parity for imported designs is #2699.
+  - W2 (replaced). Line n of Words fills slot n; slot n shows only while line n exists. Lines past
+    the last slot are left out without a report, as the built-in word cloud drops the least-sent
+    words that do not fit: staging writes up to thirty words whatever a design draws.
+  - W3 (amended). least and most are read over the lines that fill a slot, not the whole list.
+  - W6 (added, AC-7). The word cloud is a repaint of data the graphic already has: it plays in
+    every export target, and staged Words as data reach it in every target that sends data.
+  - G1 (amended). The words are a new field kind `word-counts` (facts `listed`, derivations
+    `label`, `weight`), not the `list` kind (so a long list is not reported), the paint rule key
+    `size`, and for the crawl the rule keys `crawl`, `speed`, `window` and the `list` derivation
+    `joined`.
+  - G2 (amended). Reimport of a crawl or a word cloud keeps every matched field id and cue value.
 
 Group 3 (Risky): Speaking timer (two clocks, one floor) and Notification queue.
 
@@ -995,6 +1016,19 @@ Group 3 (Risky): Speaking timer (two clocks, one floor) and Notification queue.
     exists only in a template built with the box.
   - G3. Every existing recipe compiles to the table, words and bytes it did; saved graphics keep
     their own runtime and table (TL2 C7); reimport keeps field ids and cue values.
+- Corrections from the Rules-first `/so` (same session), each replacing or amending its rule:
+  - N1 to N4 (withdrawn). `queueNotification` has no caller in the app or any export target: they
+    all call `update()` and `play()`. The queue is the notification inbox the TL6 phase line says
+    is specified separately before it is built, so it is reported to the coordinator, and the
+    event-notification row stays planned.
+  - P2 (amended). The control wire reads exact names, which stay the built-in's: events `switch`,
+    `penalty` and `reset`; the state group `floor` with states `armed`, `speakerA`, `speakerB`;
+    and each stamped clock element's id is its field id (`matchClockWire.ts` reads `a.id`).
+  - P4 (amended). The one-clock refusal (`CLOCK_RECIPES` in `behaviour.ts`) gains the speaking
+    timer, so it and a countdown or clock on one graphic are refused.
+  - P6 (added, AC-7). The speaking timer plays in real time in every export target; the floor,
+    the penalty and Reset are events, the clocks and the allowance data. OGraf non-real time does
+    not seek it: the clocks run on the wall clock, as the built-in debate board's do.
 
 ## Test maintenance
 
