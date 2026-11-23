@@ -266,6 +266,11 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   short of the far edge), and the Hebrew case fails with the run measured by character positions
   (it does not move). Every case now samples a whole travel, the moment before the wrap
   included. A drawn textLength was checked too: the import already drops it, so
-  the run needs nothing for it. `pre-plan-graphics`
+  the run needs nothing for it.
+- The intermittent `svg-files` failure ("every download is the source file itself", the audience
+  package zip built twice compared unequal), seen on this worker and then in CI on 28bbda3: JSZip
+  dated the folder entries it adds by itself with the time of the build, so two builds that
+  straddled a two-second tick differed. Each folder is now added with the fixed date, and the test
+  checks every entry of every zip carries it (the old builder fails that at once). `pre-plan-graphics`
   8 passed (j-0023), its G2 case included. The same three runtime pins re-taken for the runtime
   text alone, each time.

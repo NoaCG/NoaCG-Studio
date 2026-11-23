@@ -110,8 +110,21 @@ function zipContents(entries, root = ROOT) {
 
 async function zip(folder, contents) {
   const archive = new JSZip();
+  // Each folder is added with the fixed date before its first file: left to JSZip, a folder
+  // entry takes the time of the build, so two builds a two-second tick apart differed.
+  const folders = new Set();
+  const addFolders = (path) => {
+    for (let at = path.indexOf('/'); at !== -1; at = path.indexOf('/', at + 1)) {
+      const dir = path.slice(0, at + 1);
+      if (!folders.has(dir)) archive.file(dir, null, { ...ENTRY, dir: true });
+      folders.add(dir);
+    }
+  };
   // Pictures, the PDF and .ai sources are compressed already: stored, they cost no CPU to pack.
-  for (const [name, bytes] of contents) archive.file(`${folder}/${name}`, bytes, /\.(png|pdf|ai)$/i.test(name) ? { ...ENTRY, compression: 'STORE' } : ENTRY);
+  for (const [name, bytes] of contents) {
+    addFolders(`${folder}/${name}`);
+    archive.file(`${folder}/${name}`, bytes, /\.(png|pdf|ai)$/i.test(name) ? { ...ENTRY, compression: 'STORE' } : ENTRY);
+  }
   return archive.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
 }
 
