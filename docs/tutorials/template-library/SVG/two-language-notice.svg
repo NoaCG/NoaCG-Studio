@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Two-language notice</title>
+  <desc>NoaCG Clean Studio template. A notice card in two languages that take turns: Slide 1 and Slide 2 are drawn stacked in one place, each with its Language tag, Headline and Details named with its number. Every six seconds the other language takes over; Hold keeps one up and Resume moves on.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="1180" y="300" width="620" height="360" rx="20" fill="#FFFFFF"/>
+    <g id="Slide_2" inkscape:label="Slide 2">
+      <rect x="1180" y="300" width="620" height="12" rx="6" fill="#12A150"/>
+      <rect id="Language_box_2" inkscape:label="Language box 2" x="1216" y="384" width="148" height="44" rx="10" fill="#12A150"/>
+    </g>
+    <g id="Slide_1" inkscape:label="Slide 1">
+      <rect x="1180" y="300" width="620" height="12" rx="6" fill="#2E5BFF"/>
+      <rect id="Language_box_1" inkscape:label="Language box 1" x="1216" y="384" width="148" height="44" rx="10" fill="#2E5BFF"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Notice_label" inkscape:label="Notice label" x="1236" y="360" text-anchor="start" font-size="22" font-weight="800" fill="#5B6478" letter-spacing="2">PUBLIC NOTICE</text>
+    <text id="Language_2" inkscape:label="Language 2" x="1236" y="415" text-anchor="start" font-size="20" font-weight="800" fill="#FFFFFF" letter-spacing="2">SUOMI</text>
+    <text id="Headline_2" inkscape:label="Headline 2" x="1236" y="500" text-anchor="start" font-size="40" font-weight="800" fill="#0F1729">Satamakatu suljettu</text>
+    <text id="Details_2" inkscape:label="Details 2" x="1236" y="580" text-anchor="start" font-size="26" font-weight="600" fill="#0F1729">Käytä kehätietä klo 18 asti.</text>
+    <text id="Language_1" inkscape:label="Language 1" x="1236" y="415" text-anchor="start" font-size="20" font-weight="800" fill="#FFFFFF" letter-spacing="2">ENGLISH</text>
+    <text id="Headline_1" inkscape:label="Headline 1" x="1236" y="500" text-anchor="start" font-size="40" font-weight="800" fill="#0F1729">Harbour Street closed</text>
+    <text id="Details_1" inkscape:label="Details 1" x="1236" y="580" text-anchor="start" font-size="26" font-weight="600" fill="#0F1729">Use the ring road until 18:00.</text>
+  </g>
+</svg>

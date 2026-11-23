@@ -876,6 +876,15 @@ Rules for groups 2 and 3 are written here before their code, for their Rules-fir
 
 Group 1: Rotation (ticker rotate, sponsor rotation, two-language notice) and Question queue.
 
+- Previous verified `main`: `62dc34aa28ba33af9f938f10d42497180776a7fa`. Revert: `git revert -m 1 <the TL6 group 1 merge commit>`.
+- Templates: Rotating ticker, Sponsor rotation, Two-language notice (Rotation), Question queue
+  (the Lineup as it is). Coverage gains a `rotation` recipe row: 102 rows, 96 covered.
+- A slide's own fields: a role with `rowFields` (only the slide) covers every artwork field named
+  with its row's key; each is wrapped in a group stamped with the look. Trap: never stamp a look on
+  a FIELD itself: the fit reads a field as laid out by its parent's box, so a field hidden by its
+  own class is fitted at zero width and airs unfitted when shown.
+- Trap: slides and their texts are drawn visible and stacked. A hidden layer's text is never a
+  field, so the templates' texts overlap in the source file; the README says so.
 - Row class: not Ordinary (a new recipe's machine), not Risky (no runtime word, no persisted key,
   no ownership or recovery rule). The final `/so` challenges the rules below.
 - Rules (state rules this group sets):
@@ -886,8 +895,10 @@ Group 1: Rotation (ticker rotate, sponsor rotation, two-language notice) and Que
     counts again; Next slide moves to the next slide at once, from the take or a counting slide
     (counting on), or from a held slide (still held). A press that cannot apply is greyed.
   - T3. Which slide shows is machine state, as in the built-in ticker, sponsor rotation and
-    two-language notice; no timer writes a field. Texts and pictures inside a slide are the
-    artwork's own fields, edited and sent as data like any other.
+    two-language notice; no timer writes a field. A slide is its drawn `Slide n` group in Board
+    plus every text or picture in the Text layer named with its number (`Story 2`, `Sponsor 2`):
+    those stay the artwork's own fields, edited and sent as data like any other, and show only
+    with their slide.
   - T4. Out from any slide plays the exit over the slide that was showing; the next take starts
     again at slide 1.
   - T5. No runtime word, persisted key or existing recipe changes: every saved graphic and every

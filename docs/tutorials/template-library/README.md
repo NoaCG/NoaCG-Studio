@@ -190,6 +190,22 @@ Moments items except the timer bar and a choice's starting option are hidden gro
 | **Milestone track** | `Title`, `Percent`, `Tier 1`, `Threshold 1` to 4 | `Segment 1` to 4 (visible bars), `Reached 1` to 4 | `Panel`, `Rail`, `Milestone 1` to 4 (visible nodes), `static:Of the goal` |
 | **Quiz show** | `Question`, `Answer A` to `Answer D` | `Selected A`, `Correct A`, `Wrong A` to D, `Locked in` | `Question box`, `Answer row A` to D (visible: `Letter box A`, `Answer box A`, `static:Letter A`) |
 
+## Slides that take turns, and a question queue
+
+| Template | What it does in NoaCG |
+|---|---|
+| **Rotating ticker, Sponsor rotation, Two-language notice** | The slides take turns on their own: slide 1 at the take, the next every six seconds, the first again after the last. Hold keeps the slide that is showing, Resume moves on, Next slide moves on at once. Each story, logo, headline and language tag is a field. |
+| **Question queue** | The Lineup, for audience questions: type one question in each row. Next guest puts the next question on and greys the ones answered; Previous guest goes back, and each row has its own button. |
+
+| Template | Text | Moments | Board |
+|---|---|---|---|
+| **Rotating ticker** | `Label`, `Story 1` to `Story 3` | none | `Panel`, `Label box`, `Slide 1` to `Slide 3` (visible plates) |
+| **Sponsor rotation** | `Kicker`, `f:Sponsor 1` to `f:Sponsor 3` | none | `Panel`, `Kicker box`, `Slide 1` to `Slide 3` (visible plates) |
+| **Two-language notice** | `Notice label`, `Language 1`, `Headline 1`, `Details 1`, and the same for 2 | none | `Panel`, `Slide 1` and `Slide 2` (visible: top edge, `Language box 1`) |
+| **Question queue** | `Title`, `Guest 1` to `Guest 4` | `Now 1` to 4, `Done 1` to 4 | `Panel`, `Guest box 1` to 4 |
+
+A slide's texts and pictures sit on top of each other, one set per slide, and each shows only with its slide. To edit one slide, hide the others' texts in the Layers panel; show everything again before you save, or the hidden texts arrive as fixed words instead of fields.
+
 ---
 
 ## The navy templates
