@@ -215,6 +215,19 @@ test('a scoreboard asks nothing: its figures arrive as steppers', async ({ page 
   await expect(page.getByTestId('live-numbers')).toBeVisible();
 });
 
+// A QUESTION IS ALSO A LOWER THIRD (owner, 2026-11-23): the same quiz artwork, typed as a Lower
+// third, airs its question as a plain field with no quiz buttons.
+test('a quiz board picked as a Lower third airs as one: the question is a field, no quiz buttons', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg(page, dev('quiz-1'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  await page.getByTestId('map-svg-behaviour-kind').selectOption({ label: 'Lower third' });
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await finishInto(page, 'Question strap');
+  const actions = page.getByTestId('cue-actions');
+  for (const button of ['Select answer', 'Lock it in', 'Reveal correct']) await expect(actions).not.toContainText(button);
+});
+
 test('a recognised quiz asks nothing: Select, Lock and Reveal are ready', async ({ page }) => {
   await page.goto('/app');
   await dropSvg(page, dev('quiz-1'));

@@ -3373,3 +3373,47 @@ test('wizard exits: "Open as code" on the AI card goes to Finish in the default 
   await expect(page.getByTestId('wz-finish-name')).toHaveAttribute('placeholder', 'Plain Bug');
   await expectNoOldEditorDoor(page);
 });
+
+// SET TEXT BOX ON THE OWNER'S TICKET (2026-11-23). The paper and the 2026 stub are ONE picture and
+// "Namn" is the only live text, so nothing around the name is a box and nothing can travel as a
+// layer. The reader draws the name's area, says it gets wider, and the cut line it gets splits
+// the picture: the stub slides out with the name at its drawn size, and a value no width holds is
+// reported too long - the flag every control surface shows before Take.
+const GOLD_TICKET = fileURLToPath(new URL('fixtures/gold-ticket.svg', import.meta.url));
+
+test('svg import: a text box drawn on the ticket widens it at the drawn size, cuts the picture, and flags what still cannot fit', async ({ page }) => {
+  await dropSvg2(page, GOLD_TICKET);
+  const row = 't0';
+  // Named after its words, and offered as the lower third it is.
+  await expect(page.getByTestId(`map-svg-title-${row}`)).toHaveValue('Namn');
+  await expect(page.getByTestId('map-svg-behaviour-kind').locator('option:checked')).toHaveText('Lower third');
+  await expect(page.getByTestId(`map-svg-box-grow-${row}`)).toHaveCount(0);
+
+  await page.getByTestId(`map-svg-set-box-${row}`).click();
+  await drawField(page, [540 / 1920, 300 / 1080], [1170 / 1920, 770 / 1080]);
+  await expect(page.getByTestId(`map-svg-box-head-${row}`)).toContainText('Text box');
+  await page.getByTestId(`map-svg-box-done-${row}`).click();
+  await page.getByTestId(`map-svg-box-grow-${row}`).selectOption('grow-x');
+  await expect(page.getByTestId(`map-svg-box-cut-${row}`), 'a drawn box that widens is cut through its middle').toBeChecked();
+  await expect(page.locator('[data-testid^="wz-preview-cap-cut:"]')).toHaveCount(1);
+
+  const frame = page.frameLocator('.wz-side iframe');
+  const name = frame.locator('#f0');
+  const sizeOf = () => name.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const overflow = () => name.evaluate(() => (window as unknown as { noacgTextOverflow(): string[] }).noacgTextOverflow());
+  const drawn = await sizeOf();
+  await page.getByTestId(`map-svg-sample-${row}`).fill('Anna-Karin Lindqvist');
+  await expect(name).toHaveText('Anna-Karin Lindqvist');
+  // The stub's half slid right by what the name needed, and the name kept the size it was drawn.
+  await expect
+    .poll(() => frame.locator('[data-noacg-cut="right"]').first().getAttribute('transform'))
+    .toMatch(/^translate\((?!0\.000)\d+\.\d+ 0\)$/);
+  expect(await sizeOf()).toBe(drawn);
+  expect(await overflow()).toEqual([]);
+
+  // Past every width the frame allows, wrapping and shrinking: still too long, and said so.
+  await page
+    .getByTestId(`map-svg-sample-${row}`)
+    .fill('Alexandra Konstantinopoulou-Vasquez von Habsburg Lothringen och Bernadotte af Wisborg Rasmussen-Lindqvist');
+  await expect.poll(overflow).toEqual(['f0']);
+});
