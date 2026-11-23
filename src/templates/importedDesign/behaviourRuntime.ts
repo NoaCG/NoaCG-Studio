@@ -1281,29 +1281,36 @@ function noacgCrawlAtRest(item) {
   return true;
 }
 // noacgCrawlWindow(item): the window in the parent's own units (the clip and the move live there):
-// the drawn window layer, else the panel the fit finds for the text, else the artwork's frame.
+// the drawn window layer, else the panel the fit finds for the text, else the artwork's frame. Its
+// own corners are mapped straight into the parent's frame, never through a box in the artwork's
+// units: a window turned with its text would otherwise clip to a rectangle larger than the plate.
 function noacgCrawlWindow(item) {
   var art = noacgArt(), parent = item.outer.parentNode;
   if (!art || !parent || !parent.getScreenCTM || !art.getScreenCTM() || !parent.getScreenCTM()) return false;
-  var box = item.win ? noacgArtBox(item.win) : item.panel ? noacgArtBox(item.panel) : null;
+  var inParent = parent.getScreenCTM().inverse();
+  var src = item.win || item.panel, box = null, m = null;
+  if (src) {
+    try { box = src.getBBox(); } catch (e) { box = null; }
+    var srcCtm = src.getScreenCTM && src.getScreenCTM();
+    if (box && box.width > 0 && box.height > 0 && srcCtm) m = inParent.multiply(srcCtm); else box = null;
+  }
   if (!box) {
     var vb = art.viewBox && art.viewBox.baseVal;
     box = vb && vb.width > 0 ? { x: vb.x, y: vb.y, width: vb.width, height: vb.height } : { x: 0, y: 0, width: art.width.baseVal.value, height: art.height.baseVal.value };
+    m = inParent.multiply(art.getScreenCTM());
   }
   if (!(box.width > 0) || !(box.height > 0)) return false;
-  var toParent = art.getScreenCTM().inverse().multiply(parent.getScreenCTM()).inverse();
-  var xs = [], ys = [], corners = [[box.x, box.y], [box.x + box.width, box.y], [box.x, box.y + box.height], [box.x + box.width, box.y + box.height]];
+  var xs = [], ys = [], points = [], corners = [[box.x, box.y], [box.x + box.width, box.y], [box.x + box.width, box.y + box.height], [box.x, box.y + box.height]];
   for (var c = 0; c < 4; c++) {
-    xs.push(toParent.a * corners[c][0] + toParent.c * corners[c][1] + toParent.e);
-    ys.push(toParent.b * corners[c][0] + toParent.d * corners[c][1] + toParent.f);
+    xs.push(m.a * corners[c][0] + m.c * corners[c][1] + m.e);
+    ys.push(m.b * corners[c][0] + m.d * corners[c][1] + m.f);
+    points.push(xs[c] + ',' + ys[c]);
   }
-  var x0 = Math.min.apply(null, xs), y0 = Math.min.apply(null, ys);
-  item.rect.setAttribute('x', x0);
-  item.rect.setAttribute('y', y0);
-  item.rect.setAttribute('width', Math.max.apply(null, xs) - x0);
-  item.rect.setAttribute('height', Math.max.apply(null, ys) - y0);
-  item.perUnit = toParent.a;
-  item.winW = Math.max.apply(null, xs) - x0;
+  item.rect.setAttribute('points', points.join(' '));
+  // Artwork units to the parent's: the scale alone, whatever turn sits between them.
+  var toParent = inParent.multiply(art.getScreenCTM());
+  item.perUnit = Math.sqrt(toParent.a * toParent.a + toParent.b * toParent.b);
+  item.winW = Math.max.apply(null, xs) - Math.min.apply(null, xs);
   item.frameW = art.viewBox && art.viewBox.baseVal && art.viewBox.baseVal.width > 0 ? art.viewBox.baseVal.width : art.width.baseVal.value || 1920;
   return true;
 }
@@ -1320,7 +1327,7 @@ function noacgCrawlOf(el, rule) {
   var defs = art.querySelector('defs') || art.insertBefore(noacgSvgEl('defs', {}), art.firstChild);
   var clipId = 'noacg-crawl-' + noacgCrawls.length;
   var clip = noacgSvgEl('clipPath', { id: clipId, clipPathUnits: 'userSpaceOnUse' });
-  var rect = noacgSvgEl('rect', {});
+  var rect = noacgSvgEl('polygon', {});
   clip.appendChild(rect);
   defs.appendChild(clip);
   var outer = noacgSvgEl('g', { 'clip-path': 'url(#' + clipId + ')' });
@@ -1330,7 +1337,7 @@ function noacgCrawlOf(el, rule) {
   move.appendChild(el);
   var first = el.firstElementChild;
   var made = {
-    el: el, outer: outer, move: move, rect: rect, win: win, panel: panel, tween: null, text: null, built: 1, restart: false,
+    el: el, outer: outer, move: move, pos: { x: 0 }, rect: rect, win: win, panel: panel, tween: null, text: null, built: 1, restart: false,
     perUnit: 1, winW: 0, frameW: 1920, rested: false,
     drawn: { nodes: [], anchor: el.getAttribute('text-anchor'), x: el.getAttribute('x'), y: el.getAttribute('y') },
     start: { x: own.x, y: el.getAttribute('y') !== null ? el.getAttribute('y') : first && first.getAttribute('y') !== null ? first.getAttribute('y') : '0' }
@@ -1344,6 +1351,7 @@ function noacgCrawlOf(el, rule) {
 function noacgCrawlRest(item) {
   if (item.tween) item.tween.kill();
   item.tween = null;
+  item.pos.x = 0;
   if (typeof gsap !== 'undefined') gsap.set(item.move, { x: 0 });
   var el = item.el, d = item.drawn;
   while (el.firstChild) el.removeChild(el.firstChild);
@@ -1373,13 +1381,16 @@ function noacgCrawlRun(item, text, rule) {
   el.textContent = all;
   el.setAttribute('x', item.start.x - step);
   var perSecond = 140 * (item.frameW / 1920) * item.perUnit;
-  var from = item.tween && !item.restart ? -gsap.getProperty(item.move, 'x') : 0;
+  var from = item.tween && !item.restart ? -item.pos.x : 0;
   if (item.tween) item.tween.kill();
   item.built = motionSpeed() * noacgCrawlPct(rule);
-  item.tween = gsap.fromTo(item.move, { x: 0 }, {
+  // An object target, as the exit's own motion: the stop and the exit kill every tween of the
+  // page's elements (killTweensOf('*')), and the crawl keeps moving under the exit (K6).
+  item.tween = gsap.fromTo(item.pos, { x: 0 }, {
     x: -dist, duration: dist / (perSecond * item.built), ease: 'none', repeat: -1,
-    // Measured again once the layers have come to rest, the first time they do.
     onUpdate: function () {
+      gsap.set(item.move, { x: item.pos.x });
+      // Measured again once the layers have come to rest, the first time they do.
       if (item.rested || !noacgCrawlAtRest(item)) return;
       item.rested = true;
       noacgCrawlWindow(item);
@@ -1412,7 +1423,7 @@ function noacgCrawlAll(rules) {
         item.text = '';
         continue;
       }
-      var killed = item.tween && typeof gsap !== 'undefined' && gsap.getTweensOf(item.move).indexOf(item.tween) === -1;
+      var killed = item.tween && typeof gsap !== 'undefined' && gsap.getTweensOf(item.pos).indexOf(item.tween) === -1;
       if (item.text !== text || item.restart || !item.tween || killed) {
         noacgCrawlRun(item, text, rule);
         item.text = text;

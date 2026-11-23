@@ -659,8 +659,8 @@ const sha = (o) => hash(JSON.stringify(o));
 // `filled`, the list kind's `of`, `reached`, `has-label`, `has-amount`, `span` and `amount`, the
 // row-pick kind's `inUse`, and their READS words).
 const PINS = {
-  editable: '4646a569f95b1d7f',
-  artwork: 'b8cd6de7f8f94dbe',
+  editable: '4fbd89b3eadd0f6c',
+  artwork: '4d365385ea387c52',
   'fixed:credits-1': 'a375c013f03f5797',
   'fixed:credits-2': '178b1f229ed3f8a5',
   'fixed:credits-3': 'd3ecb7f6b853334b',
@@ -1072,7 +1072,7 @@ test('#1955: the editable roll\'s list holder keeps its line breaks through the 
  *  when the title began rolling with the list: the roll's js gains creditsRiders, creditsTitle
  *  (the list's first line in the drawn title's look) and the parser its comma rule, html and css
  *  unchanged; e2e/svg-templates.spec.ts walks the roll. */
-const ROLE_ABOVE_PINS = { one: 'bca8c52619d4dc4f', bold: 'c8b9f7c1a5c25796', grouped: 'ac76211e9b2b90f8', roleGroup: '476719e48ce636bb', idGroup: '291e36136c135610' };
+const ROLE_ABOVE_PINS = { one: '72a535cb4d8907bd', bold: '60e0631f9d3fb863', grouped: '25e30103d54e335b', roleGroup: 'ec66fd221e6def5d', idGroup: '18f13217be90f5a6' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1086,7 +1086,7 @@ test('row 20: role-above styled credits build exactly as row 19 built them', () 
  *  Both re-taken for #2098 and the styled one for #2108 and #2104, as the pins above, and both
  *  for #1795 (the shared interpreter only), and both for the comma rule and the styled one for
  *  creditsRiders and creditsTitle, as the pins above. */
-const FACED_PINS = { styled: '57dd57c42a576230', editable: 'fb2e69fec6969d4f' };
+const FACED_PINS = { styled: '02affe23834f0434', editable: 'a8da9cc023f0346b' };
 
 test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
   for (const k of ['styled', 'editable']) {

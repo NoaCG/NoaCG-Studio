@@ -854,7 +854,7 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       // K3: a few seconds into the run, a longer list keeps moving from where it is, so the run
       // is further left after the update than before it; started again from where it was drawn,
       // it would jump back right. No wrap can fall between the reads: the first loop of these
-      // lines takes over ten seconds, and the longer list only lengthens it.
+      // lines takes over eight seconds, and the longer list only lengthens it.
       await page.waitForTimeout(2_000);
       const before = await left();
       await page.getByTestId(`cue-field-${items}`).fill('Doors open at 18:00 in the main hall\nParking opens at the east gate\nThe bar closes at midnight');
@@ -868,7 +868,13 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await page.getByTestId(`cue-field-${speed}`).fill('100');
       await page.getByTestId('verb-update').click();
       await expect.poll(pace, { message: 'back to 100, back to the pace it started at' }).toBeLessThan(normal * 1.3);
+      expect(await pace(), 'and still moving').toBeGreaterThan(normal * 0.7);
       await checkAir(page, air, `${t.slug}-2-crawling`);
+      // K6: Out leaves it moving under the exit (the exit kills every tween of the page's elements).
+      await page.getByTestId('verb-out').click();
+      expect(await pace(), 'it keeps moving under the exit').toBeGreaterThan(normal * 0.7);
+      await page.getByTestId('verb-take').click();
+      await expect(air.locator('.imported-design')).not.toHaveCSS('opacity', '0');
       await page.getByTestId(`cue-field-${items}`).fill('');
       await page.getByTestId('verb-update').click();
       await expect.poll(async () => Math.abs(await pace()), { message: 'an empty list stands still' }).toBeLessThan(1);
