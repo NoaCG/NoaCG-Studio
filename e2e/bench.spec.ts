@@ -397,6 +397,25 @@ test.describe('runtime bench detection fixtures', () => {
     expect(rules((res as { errors: { rule: string }[] }).errors)).toContain('bench-hidden');
   });
 
+  test('a graphic that is only a drawing is on air when it is drawn, and off when it is not', async ({ page }) => {
+    // No text and no image, only an inline SVG (the Join QR Code is that graphic): the entrance
+    // and the replay see it, and one that never hides still trips bench-hidden.
+    await toApp(page);
+    const drawing = '<div class="fx"><svg style="position:absolute;left:200px;top:200px;width:240px;height:240px" viewBox="0 0 2 2"><path d="M0 0h1v1h-1z"/></svg></div>';
+    const [shown, stuck, empty] = (await page.evaluate(`(async () => { ${HELPERS}
+      const stay = FIXTURE_JS.replace("window.stop = function () { document.querySelector('.fx').style.visibility = 'hidden'; };", 'window.stop = function () {};');
+      return [
+        await bench(fixture({ html: doc(${JSON.stringify(drawing)}), js: FIXTURE_JS }), { houseContract: false }),
+        await bench(fixture({ html: doc(${JSON.stringify(drawing)}), js: stay }), { houseContract: false }),
+        await bench(fixture({ html: doc(${JSON.stringify(drawing.replace('M0 0h1v1h-1z', ''))}), js: FIXTURE_JS }), { houseContract: false }),
+      ];
+    })()`)) as { errors: { rule: string }[] }[];
+    expect(rules(shown.errors)).not.toContain('bench-entrance');
+    expect(rules(shown.errors)).not.toContain('bench-replay');
+    expect(rules(stuck.errors)).toContain('bench-hidden');
+    expect(rules(empty.errors), 'an svg with nothing drawn in it is not on air').toContain('bench-entrance');
+  });
+
   test('update() that ignores a field trips bench-binding', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => { ${HELPERS}

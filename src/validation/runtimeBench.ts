@@ -345,6 +345,24 @@ export function collectLeaves(win: Window): Element[] {
   return leaves;
 }
 
+/**
+ * The visible DRAWINGS: an inline <svg> (outermost only) with drawn geometry. A graphic can be on
+ * air with no text or image at all - the Join QR Code is only its code - so "what a viewer can
+ * see" counts these beside the text and image leaves. They are not leaves: the layout checks
+ * measure text, and a drawing is not text.
+ */
+function visibleDrawings(win: Window): Element[] {
+  return [...win.document.body.querySelectorAll('svg')].filter((svg) => {
+    if (svg.parentElement?.closest('svg') || !isVisible(svg, win)) return false;
+    try {
+      const box = (svg as SVGGraphicsElement).getBBox();
+      return box.width > 0 && box.height > 0;
+    } catch {
+      return false;
+    }
+  });
+}
+
 /** Roots of measured motion (NOACG_ANIM dynamics targets): they and their subtrees travel
  *  by data-derived magnitudes (marquees, rolls), so off-canvas positions are by design - and,
  *  since 2026-08-20, so are positions BEHIND something: a ticker's items crawl past a fixed
@@ -1207,12 +1225,12 @@ export async function benchTemplateRuntime(
     const exempt = [...dynamicsRoots(template, win), ...artElements];
     const parsedData = parseAnimData(template.js);
 
-    // "On air" is measured by what a viewer can see: at least one visible text/image leaf
-    // intersecting the canvas. (A root box can legitimately have zero height when all its
+    // "On air" is measured by what a viewer can see: at least one visible text/image leaf or
+    // drawing intersecting the canvas. (A root box can legitimately have zero height when all its
     // children are absolutely positioned, so the root's own rect proves nothing.)
     const canvasRect = new DOMRect(0, 0, width, height);
     const onAir = () =>
-      collectLeaves(win).some((el) => intersection(el.getBoundingClientRect(), canvasRect) > 0);
+      [...collectLeaves(win), ...visibleDrawings(win)].some((el) => intersection(el.getBoundingClientRect(), canvasRect) > 0);
 
     // ── Cleared before the cue ───────────────────────────────────────────────────────
     // A keyed graphic must render NOTHING until it is cued: the template loads in
