@@ -974,6 +974,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   const folderPlayout = useMemo(() => createFolderPlayout(session, { ...FOLDER_IO, oscSteps: oscStepStore(id), oscSent: oscSentStore(id) }, () => folderPage.current!), [session, id]);
   /** Each OSC cue's last send and the On Out messages owed, on its rundown row (control/oscMarks.ts). */
   const [oscMarks] = useState(() => createOscMarks());
+  /** Each OSC cue as its last Take sent it: what that Take owes is judged on these values. */
+  const takenAs = useRef(new Map<string, ShowCue>());
   const oscMarkMap = useStorePart(oscMarks.part);
   const oscOwed = useStorePart(folderPlayout.owedOuts);
   // A One-by-one step that stood on an OSC cue before a reload stands there again (spec D8). Run
@@ -3587,6 +3589,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     const onScreen = oscPending.current?.(cue.id) ?? null;
     onScreen?.flush();
     const now = onScreen?.cue ?? stored?.cues?.find((c) => c.id === cue.id) ?? cue;
+    if (which === 'take') takenAs.current.set(cue.id, now);
     return oscMarks.send(cue.id, which, async () => {
       const built = oscRequest(now, stored?.oscDestinations ?? show?.oscDestinations, nextSendId(now.id), which);
       if (!built.ok) return { ok: false, note: `${label} was not sent: ${built.reason}` };
@@ -3594,6 +3597,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       return { ok: outcome.state === 'sent', note: oscNote(now.label, built.destination.name, outcome, which), ...(outcome.state === 'uncertain' ? { uncertain: true as const } : {}) };
     });
   };
+  /** What a sent OSC cue owes, judged on the cue as its Take sent it (`takenAs`), so an On Out
+   *  typed a moment before the press counts though its save may not have landed yet. */
+  const oweOscOut = (cue: ShowCue, since?: number) => folderPlayout.oweOut(takenAs.current.get(cue.id) ?? cue, since);
   const controlSend = async (cue: ShowCue, label: string, which: 'take' | 'out' = 'take'): Promise<boolean | 'uncertain'> => {
     const { ok, note, uncertain } = await controlTake(cue, label, which);
     setNote(note);
@@ -3856,7 +3862,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     },
     playoutVerb,
     controlSend,
-    oweOut: folderPlayout.oweOut,
+    oweOut: oweOscOut,
+    allOuts: folderPlayout.allOuts,
     outControl: async (cue) => {
       const said = await folderPlayout.outCue(cue);
       if (said) setNote(said);
@@ -4214,7 +4221,10 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         window.dispatchEvent(new CustomEvent('noacg-direct-cue'));
         const { cue, label, refused } = decision;
         if (refused) setNote(refused);
-        else if (isControlCue(cue)) void controlSend(cue, label).then((sent) => sent !== false && folderPlayout.oweOut(cue));
+        else if (isControlCue(cue)) {
+          const since = folderPlayout.allOuts();
+          void controlSend(cue, label).then((sent) => sent !== false && oweOscOut(cue, since));
+        }
         else if (isServerCue(cue)) void serverVerb(cue, 'take', label, { direct: true }).then((r) => r && setNote(r.note));
         else void takeGraphicCue(cue, label, true).then((r) => r && !r.replaced && setNote(r.note));
         return;

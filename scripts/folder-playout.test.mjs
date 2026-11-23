@@ -1155,3 +1155,17 @@ test('On Out: a cue owes it once, to its folder rather than itself', async () =>
   assert.deepEqual(oscLog(r).filter((l) => l.startsWith('osc out')), ['osc out lights'], 'sent once');
   assert.equal(r.fp.owedOuts.get().size, 0);
 });
+
+test('On Out: a lone OSC Take still on its way when All out comes sends its On Out as it lands', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: [osc('lights', undefined)] });
+  const [lights] = r.page.cues;
+  const since = r.fp.allOuts();
+  assert.deepEqual(await r.fp.stopAll('all-out'), [], 'All out finds nothing owed yet');
+  r.fp.oweOut(lights, since);
+  await settle();
+  assert.deepEqual(oscLog(r), ['osc out lights'], 'the lights come back');
+  assert.equal(r.fp.owedOuts.get().size, 0, 'and nothing is left owed');
+  // A Take that started after the All out owes as usual.
+  r.fp.oweOut(lights, r.fp.allOuts());
+  assert.equal(r.fp.owedOuts.get().get('lights'), true);
+});

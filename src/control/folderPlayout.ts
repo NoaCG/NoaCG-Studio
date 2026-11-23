@@ -133,8 +133,12 @@ export interface FolderPlayout {
   /** A cue of a One-by-one folder went on air, by whatever route: the folder's step stands on it. */
   noteStep: (cue: ShowCue) => void;
   /** An OSC cue whose Take may have left: a One-by-one folder member's On Out is owed by its
-   *  folder, any other's by the cue itself, sent at its own Out or at All out. */
-  oweOut: (cue: ShowCue) => void;
+   *  folder, any other's by the cue itself, sent at its own Out or at All out. `since` is
+   *  `allOuts()` read at the press: when an All out came while the Take was on its way, the cue's
+   *  own On Out goes now, as a folder's does. */
+  oweOut: (cue: ShowCue, since?: number) => void;
+  /** How many All outs (and session ends) this session has had: a press reads it as it starts. */
+  allOuts: () => number;
   /** Out on one OSC cue: send the On Out message it owes; the sentence to say, or null when it
    *  owed none. */
   outCue: (cue: ShowCue) => Promise<string | null>;
@@ -243,10 +247,20 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     steps((m) => (m[folder.id] === cue.id ? m : { ...m, [folder.id]: cue.id }));
     if (isControlCue(cue)) owe(folder.id, cue);
   };
-  const oweOut = (cue: ShowCue) => {
+  /** Bumped by every All out and the session's end, so a Take that was on its way can tell. */
+  let stops = 0;
+  const oweOut = (cue: ShowCue, since?: number) => {
     if (!isControlCue(cue)) return;
     const folder = cue.folderId ? page().folders.get(cue.folderId) : undefined;
-    owe(folder && folderMode(folder) === 'manual' ? folder.id : ownKey(cue.id), cue);
+    // A One-by-one member's late Take is its folder's step to settle (`step` sends what it owes).
+    if (folder && folderMode(folder) === 'manual') return owe(folder.id, cue);
+    if (since === undefined || since === stops) return owe(ownKey(cue.id), cue);
+    // All out came while this Take was on its way and found nothing owed: its On Out goes now.
+    const p = page();
+    if (!hasOscOut(cue) || !p.controlOut || !session.alive()) return;
+    void p.controlOut(cue).then((r) => {
+      if (!r.ok) p.note(r.note);
+    });
   };
   const outCue = async (cue: ShowCue): Promise<string | null> => {
     if (!owed[ownKey(cue.id)]?.length) return null;
@@ -470,6 +484,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     // nothing airs after the panic control. A scene's too: what had not landed was not on air, so
     // cutting it leaves "out" out, and its server cues must never start after All out.
     for (const run of runs.values()) run.stop = reason;
+    stops += 1;
     if (reason === 'ended') {
       runs.clear();
       return [];
@@ -494,6 +509,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     clearMisses,
     noteStep,
     oweOut,
+    allOuts: () => stops,
     outCue,
     owedOuts,
     restoreOscSteps,
