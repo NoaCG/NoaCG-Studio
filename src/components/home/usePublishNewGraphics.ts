@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { loadShows, type Show } from '../../model/shows';
 import { createAdditivePublisher, newGraphicNames, type AdditivePublisher, type AdditiveView } from '../../control/additivePublish';
 import { publishNewGraphics } from '../../control/publishNewGraphics';
-import type { OutputPayload } from '../../control/hostedControl';
+import type { CuePublished, OutputPayload } from '../../control/hostedControl';
 import type { PayloadVersion } from '../../control/payloadVersion';
 
 export function usePublishNewGraphics(o: {
@@ -19,6 +19,8 @@ export function usePublishNewGraphics(o: {
   publishedG: Record<string, string> | null;
   /** Another publish of this page is running. */
   busy: () => boolean;
+  /** Each cue's appearance and adjust records for the payload, as a press's publish measures them. */
+  appearanceFor: { readonly current: ((show: Show, base?: PayloadVersion | null) => Promise<CuePublished | undefined>) | undefined };
   /** The stamp stored now: written by this page (`output` given), or read. */
   onStamp: (ver: PayloadVersion, output?: OutputPayload) => void;
 }): AdditiveView & { enabled: boolean } {
@@ -42,7 +44,8 @@ export function usePublishNewGraphics(o: {
       attempt: async () => {
         const record = loadShows().find((s) => s.id === showId);
         if (!record) return { kind: 'gone' };
-        const result = await publishNewGraphics(record);
+        const measure = latest.current.appearanceFor.current;
+        const result = await publishNewGraphics(record, measure ? (base) => measure(record, base) : undefined);
         if (result.ver) latest.current.onStamp(result.ver, result.output);
         return result;
       },

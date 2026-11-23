@@ -63,6 +63,7 @@ export const UNREADABLE ='the published version could not be read back exactly';
 export const TOUCHES_PUBLISHED = 'adding it would change a graphic already on the outputs';
 export const BIGGER_STAGE = 'it is larger than the published stage';
 export const IN_SCENE = 'it is in an OBS scene';
+export const GONE = 'this page cannot reach the published production';
 
 /** The cues of `cues` (the saved rundown, in order) on the graphics `added`, placed among the stored
  *  ones after the nearest earlier cue the stored list holds. A `next` naming a cue the result lacks
@@ -245,7 +246,9 @@ export function createAdditivePublisher(io: AdditiveIo): AdditivePublisher {
             refusal = outcome.reason;
             break;
           case 'gone':
+            // Never "Adding" again from here: the status says nothing will.
             stopped = true;
+            refusal = GONE;
             break;
         }
         emit();

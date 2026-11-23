@@ -13,7 +13,7 @@ import { loadGraphics, designEditedAt, templateForSavedGraphic } from '../model/
 import { obsScenesOf } from '../model/obsScenes';
 import type { Show } from '../model/shows';
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
-import { buildPanelSpec, copyDigest, graphicSpec, outputCuesOf, writeControlShow, type OutputPayload } from './hostedControl';
+import { buildPanelSpec, copyDigest, graphicSpec, outputCuesOf, readPublishedWhole, writeControlShow, type CuePublished, type OutputGraphicSpec, type OutputPayload } from './hostedControl';
 import { newGraphicNames, planAdditive, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
 import { readPayloadVersion, type PayloadVersion } from './payloadVersion';
 import { forgetOwnPublish, notePublishedBoxes } from './publishParts';
@@ -25,13 +25,19 @@ export type NewGraphicsResult = AdditiveOutcome & { ver?: PayloadVersion; output
 
 const DENIED_WORDS = 'this account cannot publish this production';
 
-export async function publishNewGraphics(show: Show): Promise<NewGraphicsResult> {
+export async function publishNewGraphics(
+  show: Show,
+  /** Each cue's appearance and adjust records, measured for this record, as a press's publish
+   *  carries them: only the new graphics' cues use them. */
+  measure?: (base: PayloadVersion | null) => Promise<CuePublished | undefined>,
+): Promise<NewGraphicsResult> {
   const sb = await getSupabase();
   if (!sb) return { kind: 'gone' };
-  // The new graphics are published as saved: this page's record must be a stored revision.
+  // The new graphics are published as saved: a save of this page on its way, or a newer one on the
+  // server, is waited for. Where the revision cannot be known (an instance without 0117), it goes
+  // ahead, as a press's publish does; the stamp names no revision of its own either way.
   const confirmed = await confirmedRevision(show).catch(() => null);
-  if (!confirmed) return { kind: 'transient', reason: 'the saved production could not be read' };
-  if ('wait' in confirmed) return { kind: 'wait' };
+  if (confirmed && 'wait' in confirmed) return { kind: 'wait' };
   const read = await sb.from('control_shows').select('output, panel').eq('id', show.id).maybeSingle();
   if (read.error) return { kind: 'transient', reason: 'the server did not answer' };
   if (!read.data) return { kind: 'gone' };
@@ -41,8 +47,11 @@ export async function publishNewGraphics(show: Show): Promise<NewGraphicsResult>
   if (stored && !names.size) return { kind: 'current', ver: stored };
   const library = loadGraphics();
   const fresh = show.graphics.filter((g) => names.has(g.name));
+  let built: OutputGraphicSpec[];
   try {
     assertProductionGate(fresh, library, 'publish');
+    // A stranger's package is checked against its record here (`foreignSpec`), by the same gate.
+    built = await Promise.all(fresh.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
   } catch (e) {
     if (e instanceof ProductionGateError) {
       const first = e.failures[0];
@@ -52,7 +61,6 @@ export async function publishNewGraphics(show: Show): Promise<NewGraphicsResult>
   }
   const scenes = obsScenesOf(show);
   const panels = buildPanelSpec({ ...show, graphics: fresh }, library);
-  const built = await Promise.all(fresh.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
   const specs = built.some((s) => s.assets.some((a) => a.audio)) ? (await publishAudio({ graphics: built })).graphics : built;
   const added: AddedGraphic[] = [];
   for (const [k, g] of fresh.entries()) {
@@ -65,7 +73,8 @@ export async function publishNewGraphics(show: Show): Promise<NewGraphicsResult>
       inScene: scenes.some((s) => s.graphics.includes(g.name)),
     });
   }
-  const plan = await planAdditive({ output: row.output, panel: row.panel, added, cues: outputCuesOf(show) });
+  const publishedOf = measure ? await measure(stored) : undefined;
+  const plan = await planAdditive({ output: row.output, panel: row.panel, added, cues: outputCuesOf(show, publishedOf) });
   if (plan.kind === 'nothing') return { kind: 'current', ...(stored ? { ver: stored } : {}) };
   if (plan.kind === 'refused') return plan;
   let error: Awaited<ReturnType<typeof writeControlShow>>;
@@ -76,10 +85,10 @@ export async function publishNewGraphics(show: Show): Promise<NewGraphicsResult>
   }
   if (error === 'moved') {
     // Another page published since the read, or the row policy filtered the write out: the stamp
-    // says which.
-    const again = await sb.from('control_shows').select('published_ver').eq('id', show.id).maybeSingle();
-    const now = readPayloadVersion((again.data as { published_ver?: unknown } | null)?.published_ver);
-    if (!again.error && now && now.n === plan.base.n) return { kind: 'refused', reason: DENIED_WORDS };
+    // says which, read through the column the write filtered on.
+    const again = await readPublishedWhole(sb, show.id).catch(() => null);
+    const now = readPayloadVersion(again?.ver);
+    if (now && now.n === plan.base.n) return { kind: 'refused', reason: DENIED_WORDS };
     return { kind: 'transient', reason: 'another page published at the same moment' };
   }
   if (error) return outcomeOf(error);

@@ -115,8 +115,10 @@ publish of the page runs, and writes nothing again once the stored stamp names t
 It writes nothing, and the status stays amber with the reason, when the stored payload does not
 read back to its own stamp digests, when a new graphic would change a published one (the look's
 imported face would move to it), needs a bigger stage, sits in an OBS scene, or fails the publish
-gate. A cue added to or edited on a graphic already published, and every design edit of one, still
-waits for Publish changes.
+gate. One new graphic that cannot be added holds back the others added with it, so nothing goes
+out half and the reason is said once. A cue added to or edited on a graphic already published, and
+every design edit of one, still waits for Publish changes. The new cues carry the appearance and
+Adjust records a press's publish would measure for them.
 
 AC-4: such a cue wears NOT ON OUTPUTS in the rundown, its tooltip saying what it waits for, and a
 Take of it says so in the page's note line ("Join is not on the outputs yet. It is being added to
@@ -127,10 +129,10 @@ edit of the published Hairline pending, waits for the stored stamp to name the c
 digest unchanged, then Takes it and asserts it plays on the output with no reload and no Publish.
 Not yet run: it needs the configured suite's local Supabase stack.
 
-Left: published appearance and Adjust records are not measured for the new cues (the production
-page's Take carries its own; only the hosted control page's Take of a new cue goes without them
-until the next Publish). Partial writes on: the write is whole, as a press's fallback is, and the
-stored head and maps are left for the next publish in parts to replace.
+Left: with partial writes on, the write is whole, as a press's fallback is, and the stored head and
+maps are left for the next publish in parts to replace (production has partial writes off). Per
+graphic additions, so one refused graphic does not hold the others, would be a small follow-up if
+the studio meets it.
 
 ### P3. Shared interaction model and question builder (next; after P1)
 

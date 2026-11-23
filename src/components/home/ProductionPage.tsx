@@ -1312,8 +1312,10 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     enabled: !!hostedSlug && !autoPublish.active && backendConfigured && authStatus === 'signed-in' && authoringAllowed,
     publishedG: publishedStamp?.g ?? null,
     busy: () => publishing || prepareFlow.phase === 'publishing' || !!autoPublish.view?.running,
+    appearanceFor: appearanceForRef,
     onStamp: (ver, output) => {
-      // Never back over a newer stamp a press's publish set meanwhile.
+      // Never back over a newer stamp a press's publish set meanwhile, nor its readers and request.
+      if (publishedStamp && publishedStamp.n > ver.n) return;
       setPublishedStamp((cur) => (cur && cur.n > ver.n ? cur : ver));
       if (!output) return;
       fastEventGraphicsRef.current = fastEventGraphics(output.graphics);

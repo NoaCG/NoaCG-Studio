@@ -12,7 +12,7 @@ import './lib/tsResolve.mjs';
 
 const {
   newGraphicNames, planAdditive, mergeCues, notOnOutputsWhy, createAdditivePublisher,
-  UNREADABLE, TOUCHES_PUBLISHED, BIGGER_STAGE, IN_SCENE, SETTLE_MS, WAIT_MS,
+  UNREADABLE, TOUCHES_PUBLISHED, BIGGER_STAGE, IN_SCENE, GONE, SETTLE_MS, WAIT_MS,
 } = await import('../src/control/additivePublish.ts');
 const { graphicDigest, stampPayload } = await import('../src/control/payloadVersion.ts');
 
@@ -249,4 +249,5 @@ test('a refusal holds until the new graphics change; a transient failure retries
   p.want('Other@1');
   await w.advance(60_000);
   assert.equal(w.attempts, 5, 'stopped once the production is no longer published');
+  assert.equal(p.view().refusal, GONE, 'and never says it is adding again');
 });
