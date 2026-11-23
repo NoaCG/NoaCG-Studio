@@ -234,7 +234,8 @@ test('once the add lands, the record is the published one only when adding was i
 
 test('the words on a cue and at its Take say what the graphic waits for', () => {
   assert.equal(notOnOutputsWhy({ refusal: null }), 'It is being added to the outputs now.');
-  assert.equal(notOnOutputsWhy({ refusal: IN_SCENE }), 'It is not added by itself: it is in an OBS scene. Publish changes to play it.');
+  assert.equal(notOnOutputsWhy({ refusal: IN_SCENE }), 'It is in an OBS scene. Publish changes to play it.');
+  assert.equal(notOnOutputsWhy({ refusal: SAVE_WAITING }), 'Its save has not reached the server yet. Publish changes to play it.');
   assert.equal(notOnOutputsWhy(null), 'Publish changes to play it.');
 });
 
@@ -359,6 +360,7 @@ test('a refusal holds until the new graphics change; a transient failure retries
   await w.advance(SETTLE_MS);
   assert.equal(w.attempts, 2, 'a new save is a new attempt');
   await w.answer({ kind: 'transient', reason: 'no answer' });
+  assert.equal(p.view().refusal, IN_SCENE, 'a failure that is not news yet leaves the reason said');
   await w.advance(1_999);
   assert.equal(w.attempts, 2);
   await w.advance(1);
@@ -366,7 +368,7 @@ test('a refusal holds until the new graphics change; a transient failure retries
   await w.answer({ kind: 'transient', reason: 'no answer' });
   await w.advance(4_000);
   assert.equal(w.attempts, 4, 'then 4 s');
-  assert.equal(p.view().refusal, null, 'two failures are not news yet');
+  assert.equal(p.view().refusal, IN_SCENE, 'two failures are not news yet');
   await w.answer({ kind: 'transient', reason: 'the server did not answer' });
   assert.equal(p.view().refusal, 'the server did not answer', 'a third says why, and is still retried');
   await w.advance(8_000);

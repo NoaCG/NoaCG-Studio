@@ -1332,12 +1332,13 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
       setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
     },
   });
-  /** Whether this page adds them by itself, and why it will not when it will not. */
-  const newGraphicsAdds = newGraphics.enabled ? { refusal: newGraphics.refusal } : null;
+  /** Whether this page adds them by itself, and why it will not when it will not. While only the
+   *  account is still being read, it will as far as anything else says: the status, the cue and the
+   *  header agree on that, so no press appears and then goes when sign-in resolves. */
+  const addsWhileSigningIn = !!hostedSlug && !autoPublish.active && backendConfigured && authoringAllowed && authStatus === 'loading';
+  const newGraphicsAdds = newGraphics.enabled ? { refusal: newGraphics.refusal } : addsWhileSigningIn ? { refusal: null } : null;
   /** Publish changes is due for what only it can send: never for graphics this page adds itself. */
-  // While the account is still being read, whether this page adds them is not known yet: no press is
-  // offered for them meanwhile, so none appears and then goes when sign-in resolves.
-  const requiresPreparation = publishChangesDue(publishDue, newGraphicsAdds ? !newGraphicsAdds.refusal : authStatus === 'loading');
+  const requiresPreparation = publishChangesDue(publishDue, !!newGraphicsAdds && !newGraphicsAdds.refusal);
   const offOutputs = hostedSlug && notOnOutputs?.length ? { graphics: new Set(notOnOutputs), why: notOnOutputsWhy(newGraphicsAdds) } : null;
   const relevanceSettings = loadPlayoutSettings();
   const casparTarget = casparOutputTarget(relevanceSettings);
@@ -4549,9 +4550,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     addsNew: newGraphicsAdds,
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
-  // An add on its way counts too: a readiness run started under it would wait for a version the
-  // add then moves the outputs off.
-  const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing' || newGraphics.running;
+  const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing';
   const { headerAction, casparFacts } = publishFacts(publishState, {
     started, casparOn, playoutIsConfigured, bridgeOk, outputSlot, cues, backendConfigured, needsSignIn, slotWhere,
     outputUrl, requiresPreparation: requiresPreparation && !autoPublish.active, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory, casparTarget,
@@ -4673,6 +4672,10 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
                 onDismiss={forgetOutput}
                 onCheck={() => void prepareFlow.run({ publish: false })}
                 checking={flowBusy}
+                // Check now waits while new graphics are being added: a check started under the add
+                // would wait for a version the add then moves the outputs off. A press's publish
+                // needs no wait: it writes over the add's version and prepares its own.
+                waiting={newGraphics.running}
                 checked={readiness.newestStamp ? `Checked ${clockWords(readiness.newestStamp.at)}` : undefined}
                 paths={commandPathsOf(prepareFlow.shown ?? [])}
               />

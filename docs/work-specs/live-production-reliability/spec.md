@@ -112,7 +112,9 @@ the outputs are asked to prepare, as after Publish changes; an output takes new 
 what is on air. It runs only for an account that may author, never while a press or automatic
 publish of the page runs, and writes nothing again once the stored stamp names the graphics.
 Publish changes is not offered for graphics the page adds itself, only for what the add cannot
-send, and the add waits while a readiness run (Publish or Check now) is still settling the outputs.
+send; when adding was the record's only change, the record is kept as published once it lands, so
+the panel offers nothing either. The add waits while a readiness run (Publish or Check now) is still
+settling the outputs, and Check now waits while an add is on its way.
 
 It writes nothing, and the status stays amber with the reason, when the stored payload does not
 read back to its own stamp digests, when a new graphic would change a published one (the look's

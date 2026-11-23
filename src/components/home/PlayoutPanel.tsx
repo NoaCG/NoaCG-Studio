@@ -63,6 +63,7 @@ export function RendererRows({
   outputs,
   onDismiss,
   onCheck,
+  waiting = false,
   checking,
   checked,
   paths = {},
@@ -73,6 +74,8 @@ export function RendererRows({
   onDismiss: (id: string) => void;
   onCheck?: () => void;
   checking: boolean;
+  /** Check now waits for something else first (new graphics being added). */
+  waiting?: boolean;
   /** "Checked 14:02": when the last check finished. */
   checked?: string;
   /** Each output's command path from the last check ("110 ms", "Commands late"), by output id. */
@@ -94,7 +97,7 @@ export function RendererRows({
             </span>
           )}
           {onCheck && (
-            <button type="button" className="pd-pp-link" onClick={onCheck} disabled={checking} data-testid="playout-check-now">
+            <button type="button" className="pd-pp-link" onClick={onCheck} disabled={checking || waiting} data-testid="playout-check-now">
               {checking ? 'Checking…' : 'Check now'}
             </button>
           )}

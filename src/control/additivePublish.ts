@@ -62,7 +62,9 @@ export function newGraphicNames(pool: readonly string[], published: Record<strin
 export function recordAfterAdd(show: Show, names: ReadonlySet<string>): string | null {
   if (!show.publishedRecord) return null;
   const ids = new Set(show.graphics.filter((g) => names.has(g.name)).map((g) => g.id));
-  const before: Show = { ...show, graphics: show.graphics.filter((g) => !ids.has(g.id)), cues: (show.cues ?? []).filter((c) => !ids.has(c.sourceId)) };
+  // A record with no cues key keeps none (the digest tells an absent list from an empty one). A
+  // digest stored before live-publishing W2 (no format tag) never matches: Publish changes stays due.
+  const before: Show = { ...show, graphics: show.graphics.filter((g) => !ids.has(g.id)), ...(show.cues ? { cues: show.cues.filter((c) => !ids.has(c.sourceId)) } : {}) };
   return publishedRecordDigest(before) === show.publishedRecord ? publishedRecordDigest(show) : null;
 }
 
@@ -89,7 +91,7 @@ export function publishChangesDue(due: PublishDue, addsByItself: boolean): boole
  *  this page adds new graphics by itself, and why it will not when it will not (null: it does not). */
 export function notOnOutputsWhy(adds: { refusal: string | null } | null): string {
   if (adds && !adds.refusal) return 'It is being added to the outputs now.';
-  if (adds?.refusal) return `It is not added by itself: ${adds.refusal}. Publish changes to play it.`;
+  if (adds?.refusal) return `${adds.refusal.charAt(0).toUpperCase()}${adds.refusal.slice(1)}. Publish changes to play it.`;
   return 'Publish changes to play it.';
 }
 
@@ -352,13 +354,14 @@ export function createAdditivePublisher(io: AdditiveIo): AdditivePublisher {
           if (wanted !== null) schedule(SETTLE_MS);
           return;
         }
-        // Every answer replaces the reason said before; each case below says its own.
-        refusal = null;
+        // A reason said before stands through waits and the first failures (the press stays offered
+        // meanwhile); a write, or a newer reason, replaces it.
         switch (outcome.kind) {
           case 'published':
           case 'current':
             failures = 0;
             waits = 0;
+            refusal = null;
             break;
           case 'wait':
             waits += 1;
