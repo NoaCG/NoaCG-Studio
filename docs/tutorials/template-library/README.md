@@ -70,6 +70,7 @@ Names in these templates are made up.
 | **Answer board, three answers; two answers** | The Quiz controls with three or two answers. |
 | **End credits, pages** | At import, set Plays as to Cards. A blank line in the list starts a new page; Next card shows it. |
 | **End credits, still board** | At import, set Plays as to Hold still. The list stands still, roles on the left. |
+| **End credits, full roll** | Everything in the file rolls up as one picture: the logos, the plate and the credits. Put your logos in `Logo` and `End logo`; edit the names in Illustrator. |
 | **QR card** | Put your own QR code picture in `QR image` (a printed code, not the join link). |
 | **Versus** | Two team logos in `Home logo` and `Away logo`, and two names. |
 | **Two-up frames** | Two open camera windows with a name under each. The windows stay empty, so your cameras show through. |

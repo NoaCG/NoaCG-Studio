@@ -46,8 +46,8 @@ import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
 import { boundClock, countdownIndex, svgFields } from './artworkFields';
-import { creditsArtworkFields, creditsArtworkLayers, creditsIndex, creditsRollCss, creditsRollRuntimeJs, creditsShipsFaces, creditsStyledCss, creditsStyledRuntimeJs, isArtworkCredits, styledCreditsConfig } from './creditsRoll';
-import { creditsArtworkCss, creditsArtworkRuntimeJs } from './creditsArtwork';
+import { creditsArtworkFields, creditsArtworkLayers, creditsIndex, creditsRollCss, creditsRollRuntimeJs, creditsShipsFaces, creditsStyledCss, creditsStyledRuntimeJs, isArtworkCredits, isWholeArtworkCredits, styledCreditsConfig } from './creditsRoll';
+import { creditsArtworkCss, creditsArtworkRuntimeJs, creditsWholeRuntimeJs } from './creditsArtwork';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
 import { escapeHtml, PREFIX } from './shared';
@@ -524,7 +524,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PRE
     (behaviour ? `\n${behaviour.js(artworkFields.length)}` : '') +
     // AFTER the behaviour's table: the roll engine reads its field ids out of NOACG_BEHAVIOUR the
     // moment it first renders, and in a document whose markup is already parsed that is now.
-    (creditsField ? `\n${artworkRoll ? creditsArtworkRuntimeJs(PREFIX, o.resolution.height, creditsArtworkLayers(svg).length > 0) : styledCredits ? creditsStyledRuntimeJs(PREFIX, styledCredits) : creditsRollRuntimeJs(PREFIX, creditsShipsFaces(svg))}` : '') +
+    (creditsField ? `\n${artworkRoll ? (isWholeArtworkCredits(svg) ? creditsWholeRuntimeJs(PREFIX, o.resolution.height) : creditsArtworkRuntimeJs(PREFIX, o.resolution.height, creditsArtworkLayers(svg).length > 0)) : styledCredits ? creditsStyledRuntimeJs(PREFIX, styledCredits) : creditsRollRuntimeJs(PREFIX, creditsShipsFaces(svg))}` : '') +
     (qrAt !== -1 ? qrRuntimeJs(qrAt) : '') +
     SVG_FIT_BOOT;
 
