@@ -14,7 +14,7 @@ import { obsScenesOf } from '../model/obsScenes';
 import type { Show } from '../model/shows';
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
 import { buildPanelSpec, copyDigest, graphicSpec, outputCuesOf, readPublishedWhole, writeControlShow, type CuePublished, type OutputGraphicSpec, type OutputPayload } from './hostedControl';
-import { newGraphicNames, planAdditive, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
+import { additiveRefusal, newGraphicNames, planAdditive, SOUND_NOT_SENT, SOUND_NOT_UPLOADED, uploadSounds, type AddedGraphic, type AdditiveOutcome } from './additivePublish';
 import { readPayloadVersion, type PayloadVersion } from './payloadVersion';
 import { forgetOwnPublish, notePublishedBoxes } from './publishParts';
 import { classifyFailure } from './autoPublish';
@@ -61,22 +61,39 @@ export async function publishNewGraphics(
   }
   const scenes = obsScenesOf(show);
   const panels = buildPanelSpec({ ...show, graphics: fresh }, library);
-  const specs = built.some((s) => s.assets.some((a) => a.audio)) ? (await publishAudio({ graphics: built })).graphics : built;
   const added: AddedGraphic[] = [];
   for (const [k, g] of fresh.entries()) {
     added.push({
       name: g.name,
-      spec: specs[k],
+      spec: built[k],
       digest: await copyDigest(show, show.graphics.indexOf(g), g.template),
       edited: designEditedAt(g, library),
       panel: panels[k],
       inScene: scenes.some((s) => s.graphics.includes(g.name)),
     });
   }
+  // Every refusal that needs no upload first: a refused add uploads nothing. The stored sounds must be
+  // under this account's key, since this write makes it their owner (migration 0121). The account is
+  // the one `publishAudio` keys sounds by, and the same one must still be signed in at the write.
+  const signedIn = async () => {
+    const { data, error: failed } = await sb.auth.getUser();
+    return failed ? null : (data.user?.id ?? null);
+  };
+  const uploader = await signedIn();
+  if (!uploader) return { kind: 'transient', reason: 'this page is not signed in' };
+  const early = await additiveRefusal(row.output, added, uploader);
+  if (early?.kind === 'nothing') return { kind: 'current', ...(stored ? { ver: stored } : {}) };
+  if (early) return early;
+  // New sounds uploaded under this account's key; the manifest carries the keys, as a full publish's.
+  const uploaded = await uploadSounds(added.map((a) => a.spec), publishAudio);
+  if ('kind' in uploaded) return uploaded;
+  for (const [k, a] of added.entries()) a.spec = uploaded.graphics[k];
   const publishedOf = measure ? await measure(stored) : undefined;
-  const plan = await planAdditive({ output: row.output, panel: row.panel, added, cues: outputCuesOf(show, publishedOf) });
+  const plan = await planAdditive({ output: row.output, panel: row.panel, added, cues: outputCuesOf(show, publishedOf), sounds: uploaded.sounds, uploader });
   if (plan.kind === 'nothing') return { kind: 'current', ...(stored ? { ver: stored } : {}) };
-  if (plan.kind === 'refused') return plan;
+  if (plan.kind === 'refused') return plan.reason === SOUND_NOT_UPLOADED ? { kind: 'transient', reason: SOUND_NOT_SENT } : plan;
+  // Another account signed in meanwhile (another tab): this write would make it the audio owner.
+  if ((await signedIn()) !== uploader) return { kind: 'transient', reason: 'the account on this page changed' };
   let error: Awaited<ReturnType<typeof writeControlShow>>;
   try {
     error = await writeControlShow(sb, { id: show.id, output: plan.output, panel: plan.panel }, { exists: true, n: plan.base.n });
