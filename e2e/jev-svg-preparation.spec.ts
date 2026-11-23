@@ -224,8 +224,9 @@ test('a quiz board picked as a Lower third airs as one: the question is a field,
   await page.getByTestId('map-svg-behaviour-kind').selectOption({ label: 'Lower third' });
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
   await finishInto(page, 'Question strap');
-  const actions = page.getByTestId('cue-actions');
-  for (const button of ['Select answer', 'Lock it in', 'Reveal correct']) await expect(actions).not.toContainText(button);
+  // The question is the cue's first field, and the cue has no action buttons at all.
+  await expect(page.getByText('F0 · Question')).toBeVisible();
+  await expect(page.getByTestId('cue-actions')).toHaveCount(0);
 });
 
 test('a recognised quiz asks nothing: Select, Lock and Reveal are ready', async ({ page }) => {
@@ -241,12 +242,17 @@ test('a recognised quiz asks nothing: Select, Lock and Reveal are ready', async 
 test('credits are one choice: the list is picked, previewed and editable', async ({ page }) => {
   await page.goto('/app');
   await dropSvg(page, dev('credits-1'));
-  // The choice says what credits now are, not only the fixed-artwork roll (#2001), and promises
-  // editing only for separate role and name layers; one text block rolls as drawn (#2033).
+  // The choice is a name, and the info note says what credits now are, not only the
+  // fixed-artwork roll (#2001), promising editing only for separate role and name layers; one
+  // text block rolls as drawn (#2033).
   const choice = page.getByTestId('map-svg-behaviour-kind').locator('option[value="credits"]');
-  await expect(choice).toContainText('One block of text rolls as drawn');
-  await expect(choice).toContainText('separate role and name layers become an editable list');
+  await expect(choice).toHaveText('End credits');
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  await page.getByTestId('map-svg-why-behaviour').click();
+  const why = page.getByTestId('map-svg-why-behaviour-body');
+  await expect(why).toContainText('One block of text rolls as drawn');
+  await expect(why).toContainText('separate role and name layers become an editable list');
+  await page.getByTestId('map-svg-why-behaviour').click();
   // Six text layers: the title reads as no list, so the first role is picked for the author.
   const preview = page.getByTestId('map-svg-credits-preview');
   await expect(preview).toHaveAttribute('data-layout', 'role-above');

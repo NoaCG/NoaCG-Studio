@@ -890,20 +890,19 @@ function svgCutCollect(node, cutX, mine, out) {
 }
 
 var svgCutCount = 0;
-var SVG_CUT_NS = 'http://www.w3.org/2000/svg';
-var SVG_CUT_XLINK = 'http://www.w3.org/1999/xlink';
 
+/** A new SVG element, in the artwork's own namespace - read off the artwork, because a graphic's
+ *  code may name no outside address (the export gate refuses one). */
 function svgCutNode(tag, attrs) {
-  var n = document.createElementNS(SVG_CUT_NS, tag);
+  var root = svgArtRoot(document.querySelector('.__PREFIX__-art'));
+  var n = document.createElementNS(root.namespaceURI, tag);
   for (var k in attrs) n.setAttribute(k, attrs[k]);
   return n;
 }
 
-/** A copy of a layer by reference, spelled both ways: an older playout Chromium reads xlink. */
+/** A copy of a layer by reference. */
 function svgCutUse(id) {
-  var use = svgCutNode('use', { href: '#' + id });
-  use.setAttributeNS(SVG_CUT_XLINK, 'xlink:href', '#' + id);
-  return use;
+  return svgCutNode('use', { href: '#' + id });
 }
 
 /** Split one layer at the line, once: the layer itself inside a left half, a copy of it in a
