@@ -50,12 +50,22 @@ export interface PanelKeyRow {
   label: string;
   created_at: string;
   last_used_at: string | null;
+  /** The module's last liveness report, in seconds before the list was read, with the version and
+   *  status it reported (0128). Absent from a database before that; null for a module that never
+   *  reported. */
+  seen_s?: number | null;
+  module_version?: string | null;
+  module_status?: string | null;
 }
 
 export interface PanelList {
   claim: number;
   answering: { page: string; where: 'production' | 'control'; label: string; at: string } | null;
   panels: PanelKeyRow[];
+  /** Seconds since a revoked key of this production reported after its revoke, or null (0128). */
+  refused_s?: number | null;
+  /** When this page read the list, on its own clock: what `seen_s` and `refused_s` count back from. */
+  readAt: number;
 }
 
 async function call<T>(name: string, args: Record<string, unknown>): Promise<T> {
@@ -74,7 +84,7 @@ export async function panelPairStart(slug: string): Promise<{ code: string; expi
 
 export async function panelList(slug: string): Promise<PanelList> {
   const a = await call<PanelList & { ok: boolean }>('panel_list', { p_slug: slug });
-  return { claim: a.claim, answering: a.answering, panels: a.panels ?? [] };
+  return { claim: a.claim, answering: a.answering, panels: a.panels ?? [], refused_s: a.refused_s ?? null, readAt: Date.now() };
 }
 
 export async function panelRevoke(slug: string, keyId: string): Promise<void> {

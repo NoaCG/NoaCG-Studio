@@ -7,7 +7,7 @@ import { TONE_DOT } from '../../control/readiness';
 import type { SceneRow } from '../../control/obsSceneRows';
 import { hms } from '../../control/playoutStatus';
 import { deadlineAtLocal, deadlineIn, deadlineOf, deadlinePaths, dockScenes, sceneHealth, type DeadlinePath } from '../../control/liveDock';
-import { panelTone, type PanelAnswerState } from '../control/PanelControl';
+import { panelChip, panelTone, type PanelAnswerState } from '../control/PanelControl';
 import { clockText } from '../../control/serverState';
 import { OwnReaderLine, SourceLine, type CurrentMatchControl, type OwnSheetReader } from './SourcesLine';
 import './LiveDock.css';
@@ -74,6 +74,7 @@ export default function LiveDock({
   const health = rows ? sceneHealth(rows) : null;
   const choice = rows ? dockScenes(scenes, rows, pick) : null;
   const tone = panelTone(panel);
+  const chip = panelChip(panel);
   const sources = (show.sources ?? []).filter(hasReaderLine);
   const nameOf = (id: string) => scenes.find((s) => s.id === id)?.name ?? '';
   return (
@@ -93,14 +94,15 @@ export default function LiveDock({
             Use panel here
           </button>
         ) : (
-          tone !== 'off' && (
+          chip && (
             <span
-              className={`pd-panel-status pd-panel-status--${tone}`}
-              title={tone === 'ok' ? 'This dock answers the Stream Deck panel' : 'Connecting to the Stream Deck panel…'}
+              className={`pd-panel-status pd-panel-status--${chip.tone}`}
+              title={chip.title}
               data-testid="panel-header-status"
               data-state={tone}
+              data-health={chip.health}
             >
-              Panel {tone === 'ok' ? '✓' : '…'}
+              {chip.words}
             </span>
           )
         )}

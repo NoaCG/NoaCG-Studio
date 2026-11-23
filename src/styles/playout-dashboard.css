@@ -164,11 +164,14 @@
 .pd-setup-menu .pd-target-dot { margin: 0 4px; }
 .pd-setup-note { margin-left: auto; padding-left: 14px; font-size: 12px; color: var(--text-dim); }
 .pd-setup-sep { height: 1px; margin: 4px 6px; background: var(--border); }
-/* Who answers the panel, said without opening Setup: green this page, amber taking it, and a quiet
-   "Use panel here" while another page has it. */
+/* The panel, said without opening Setup: answering here, green only while Companion reports in
+   (companionHealth.ts), amber while it does not or needs an update, red for a refused key; amber
+   taking it, and a quiet "Use panel here" while another page has it. */
 .pd-panel-status { font-size: 12px; font-weight: 700; padding: 4px 9px; white-space: nowrap; }
 .pd-panel-status--ok { color: #4ade80; border-color: rgba(74, 222, 128, 0.45); }
-.pd-panel-status--idle { color: #f59e0b; border-color: rgba(245, 158, 11, 0.5); }
+.pd-panel-status--idle,
+.pd-panel-status--warn { color: #f59e0b; border-color: rgba(245, 158, 11, 0.5); }
+.pd-panel-status--bad { color: #f87171; border-color: rgba(248, 113, 113, 0.55); }
 .pd-panel-status--held { color: var(--text-dim); font-weight: 600; }
 /* THE DATA INDICATOR (#2244): every source of the production in one chip, its panel listing each
    source's line with Pause. Green all reading, dim on a first read, amber paused or a problem, red

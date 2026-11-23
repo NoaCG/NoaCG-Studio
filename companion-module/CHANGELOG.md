@@ -8,6 +8,14 @@ Write a section the way you would tell an operator what they get by importing ag
 
 ## Unreleased
 
+## 0.4.0 - 2026-11-23
+
+What to do: import the new file. Your pairing and keys stay as they are.
+
+- The module now reconnects by itself after every kind of failure. Before, it stopped for good when Companion started before the network was up, when pairing hit a network error, or when NoaCG answered something unexpected, and only saving the connection again brought it back. Now it keeps retrying, after 1, 2 and 4 seconds and then every 8 seconds, until it connects. Only a revoked panel key stops it, and the connection then says "Panel key revoked. Pair again."
+- When NoaCG changes its access key, the module notices and finds NoaCG again by itself, instead of showing offline until a new download.
+- The module tells NoaCG every 15 seconds that it is running, with its version. The production page's header now says "Companion connected" in green only while it hears from Companion, "Companion not seen since" a time when it does not, "Panel key refused, pair again" in red for a revoked key, and "Companion needs an update" for a module too old for the production. A module from before this one keeps working, and the page asks for this update.
+
 ## 0.3.0 - 2026-11-05
 
 What to do: import the new file, then drag the **Take** preset from **Show control** onto your Take key again, and the **Take a cue now** preset onto any key of that kind, so they show the new words. Your other keys keep working as they are.

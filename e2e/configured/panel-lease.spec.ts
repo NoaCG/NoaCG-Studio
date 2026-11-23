@@ -42,7 +42,7 @@ test('a reload keeps the panel, a second production page never takes it, and tak
   // another page in.
   await first.reload();
   await expect(first.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
-  await expect(first.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 15_000 });
+  await expect(first.getByTestId('panel-header-status')).toHaveText('Companion connected', { timeout: 15_000 });
   await deck.hello();
   const reloaded = await deck.state((s) => s.where === 'production' && (s.ver as number) !== (before.ver as number), 'the reloaded page');
   expect(reloaded.page).toBe(firstPage);
@@ -55,11 +55,11 @@ test('a reload keeps the panel, a second production page never takes it, and tak
   await expect(second.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/, { timeout: 15_000 });
   await second.waitForTimeout(6_000);
   expect((await deck.state()).page, 'the first page still answers').toBe(firstPage);
-  await expect(first.getByTestId('panel-header-status')).toHaveText('Panel ✓');
+  await expect(first.getByTestId('panel-header-status')).toHaveText('Companion connected');
 
   // AC-4: the first page closes; its lease lapses within 15 s, and the second takes it by itself.
   await first.close();
-  await expect(second.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 30_000 });
+  await expect(second.getByTestId('panel-header-status')).toHaveText('Companion connected', { timeout: 30_000 });
   await deck.hello();
   const taken = await deck.state((s) => s.page !== firstPage, 'the second page answering');
   expect(taken.where).toBe('production');
@@ -186,7 +186,7 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
   await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/, { timeout: 30_000 });
   // Two lease times later it still holds: the phone answers and the production page still defers.
   await op.waitForTimeout(32_000);
-  await expect(phone.getByTestId('panel-header-status')).toHaveText('Panel ✓');
+  await expect(phone.getByTestId('panel-header-status')).toHaveText('Companion connected');
   await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/);
   await expect(op.getByTestId('panel-header-status')).toHaveCount(0);
   expect((await deck.hello()).answering).toBe(true);
@@ -239,7 +239,7 @@ test('the Live dock beside a production page takes nothing, takes the panel with
 
   // Use here moves it to the dock, and the production page says the Live dock has it.
   await dock.getByTestId('panel-header-use-here').click();
-  await expect(dock.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 15_000 });
+  await expect(dock.getByTestId('panel-header-status')).toHaveText('Companion connected', { timeout: 15_000 });
   await deck.hello();
   const onDock = await deck.state((s) => s.page !== before.page, 'the dock answering');
   expect(onDock.where).toBe('production');
@@ -262,7 +262,7 @@ test('the Live dock beside a production page takes nothing, takes the panel with
   expect((await deck.hello()).answering, 'the lease outlives a cut shorter than it').toBe(true);
   cut = false;
   await obs.setOffline(false);
-  await expect(dock.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 30_000 });
+  await expect(dock.getByTestId('panel-header-status')).toHaveText('Companion connected', { timeout: 30_000 });
   // Its sockets come back on the Realtime client's own backoff (up to about 10 s after the network),
   // and a press broadcast before the dock has rejoined reaches no page, as for any production page.
   // So the deck presses, as an operator would, until the rejoined dock runs one.

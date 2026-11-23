@@ -16,7 +16,7 @@ import RailResizer, { useRailWidth } from './RailResizer';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import { IconTv } from '../icons';
-import { panelTone, type PanelAnswerState } from '../control/PanelControl';
+import { panelChip, panelTone, type PanelAnswerState } from '../control/PanelControl';
 import { useTeamsUi } from '../teams/teamsUi';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { useTeamState } from '../teams/useTeamState';
@@ -124,6 +124,7 @@ export default function ProductionShell({
   // The views the switcher lists: the ones this production uses, and always the one on screen.
   const tabs = (['data', 'audience'] as const).filter((tab) => sub === tab || views[tab]);
   const panelState = panelTone(panel);
+  const chip = panelChip(panel);
 
   return (
     <div className="app playout-dashboard" data-testid="production-page" data-renders={renders}>
@@ -253,8 +254,10 @@ export default function ProductionShell({
             production reads its own save, in the same words. */}
         {data}
         <SyncStatus team={show.teamId ? { productionId: show.id, saving, note: teamNote, readError: teamState.loadError } : undefined} />
-        {/* WHO ANSWERS THE PANEL (panel lease L8), only with a panel paired or answering: "Panel ✓"
-            here and "Panel …" taking it, which open its dialog as the Setup menu's item does; on
+        {/* WHO ANSWERS THE PANEL (panel lease L8), only with a panel paired or answering. Answering
+            here, whether Companion is connected (green only when it reported in the last 45 s:
+            "Companion connected"), and "Panel …" while taking it; both open its dialog as the
+            Setup menu's item does. On
             another page, one quiet "Use panel here" that moves it, naming that page in its tooltip,
             so a laptop header keeps its room for the production's name. */}
         {panelState === 'held' ? (
@@ -266,15 +269,16 @@ export default function ProductionShell({
           >
             Use panel here
           </button>
-        ) : panelState !== 'off' && (
+        ) : chip && (
           <button
-            className={`pd-panel-status pd-panel-status--${panelState}`}
+            className={`pd-panel-status pd-panel-status--${chip.tone}`}
             onClick={onPanel}
-            title={panelState === 'ok' ? 'This page relays Stream Deck presses. It cannot see Companion itself: if its buttons show errors, open this to pair again.' : 'Connecting to the Stream Deck panel…'}
+            title={chip.title}
             data-testid="panel-header-status"
             data-state={panelState}
+            data-health={chip.health}
           >
-            Panel {panelState === 'ok' ? '✓' : '…'}
+            {chip.words}
           </button>
         )}
         <ProductionSetupMenu

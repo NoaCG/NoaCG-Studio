@@ -128,7 +128,7 @@ test('a production page pairs a panel, answers it, runs its presses, refuses rep
   // CLOSING the answering page lets go once its lease lapses (15 s), and the first page, still open,
   // takes the panel back by itself (panel lease AC-4).
   await op2.close();
-  await expect(op.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 30_000 });
+  await expect(op.getByTestId('panel-header-status')).toHaveText('Companion connected', { timeout: 30_000 });
   await deck.hello();
   await deck.state((s) => s.page === first.page, 'the first page answering again');
   await deck.close();

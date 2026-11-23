@@ -7,7 +7,7 @@
 // two kinds of client, as the real parties are: an ANONYMOUS client holding only a panel key (the
 // Companion module), and an anonymous client holding only the control slug (an operator page).
 // The page's own half (running a press through onVerb, publishing feedback) has its own spec.
-// covers: supabase/migrations/{0073_panel_relay,0077_direct_cue_trigger,0081_panel_lease,0110_panel_last_press}.sql
+// covers: supabase/migrations/{0073_panel_relay,0077_direct_cue_trigger,0081_panel_lease,0110_panel_last_press,0128_panel_seen}.sql
 
 import { test, expect } from '@playwright/test';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
@@ -345,6 +345,48 @@ test('revoking a panel stops it at once, moves the feedback topic, and leaves th
   expect((await rpc(client(), 'panel_press', { p_key: two.key, p_press: press('abcdef:2') })).ok).toBe(true);
   expect((await rpc(page, 'panel_list', { p_slug: slug })).panels).toEqual([expect.objectContaining({ label: 'Deck two' })]);
   expect((await rpc(page, 'panel_revoke', { p_slug: slug, p_key_id: one.keyId })).refused).toBe('unknown-key');
+});
+
+// P4 (docs/work-specs/live-production-reliability/spec.md; 0128): the module's liveness report.
+test('a panel reports it is alive with its version and status; the list says when, and names a revoked key still reporting', async () => {
+  const slug = await production();
+  const deck = await pair(slug, 'Deck');
+  const old = await pair(slug, 'Old deck');
+  const page = client();
+  const module = client();
+
+  // Never reported: listed with nothing seen. A module from before the report only says hello.
+  let list = await rpc(page, 'panel_list', { p_slug: slug });
+  expect(list.panels).toEqual([
+    expect.objectContaining({ label: 'Deck', seen_s: null, module_version: null, module_status: null }),
+    expect.objectContaining({ label: 'Old deck', seen_s: null }),
+  ]);
+  expect(list.refused_s).toBeNull();
+  expect((await rpc(module, 'panel_hello', { p_key: old.key })).ok).toBe(true);
+
+  expect(await rpc(module, 'panel_seen', { p_key: deck.key, p_version: '0.4.0', p_status: 'ok' })).toEqual({ ok: true });
+  list = await rpc(page, 'panel_list', { p_slug: slug });
+  const [seen, unseen] = list.panels as Json[];
+  expect(seen).toMatchObject({ label: 'Deck', module_version: '0.4.0', module_status: 'ok' });
+  expect(seen.seen_s as number).toBeLessThan(5);
+  expect(unseen).toMatchObject({ label: 'Old deck', seen_s: null, module_version: null });
+  expect(unseen.last_used_at).not.toBeNull();
+
+  // What is not a version or a status the module has is never stored as sent.
+  await new Promise((r) => setTimeout(r, 2_100));
+  await rpc(module, 'panel_seen', { p_key: deck.key, p_version: '<b>1</b>', p_status: 'hacked' });
+  list = await rpc(page, 'panel_list', { p_slug: slug });
+  expect((list.panels as Json[])[0]).toMatchObject({ module_version: null, module_status: null });
+
+  // A key nobody minted is refused; a revoked one is refused and still counted, as refused.
+  expect(await rpc(module, 'panel_seen', { p_key: `ncpk_${'a'.repeat(43)}`, p_version: '0.4.0', p_status: 'ok' })).toMatchObject({ ok: false, refused: 'unknown-key' });
+  await rpc(page, 'panel_revoke', { p_slug: slug, p_key_id: deck.keyId });
+  expect((await rpc(page, 'panel_list', { p_slug: slug })).refused_s).toBeNull();
+  await new Promise((r) => setTimeout(r, 2_100));
+  expect(await rpc(module, 'panel_seen', { p_key: deck.key, p_version: '0.4.0', p_status: 'revoked' })).toMatchObject({ ok: false, refused: 'revoked' });
+  list = await rpc(page, 'panel_list', { p_slug: slug });
+  expect(list.refused_s as number).toBeLessThan(5);
+  expect(list.panels).toEqual([expect.objectContaining({ label: 'Old deck' })]);
 });
 
 test('feedback travels page to panels on its topic; nobody but the database writes the press topic', async () => {

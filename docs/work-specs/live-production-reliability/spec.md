@@ -112,7 +112,7 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
   Rating scale (average on one big-number graphic); Q&A upvotes on the existing moderation;
   Multiple select. Ranking and points allocation are for workshops and come last.
 
-### P4. Companion connection health (next; its own session)
+### P4. Companion connection health (built; module 0.4.0 awaits its release)
 
 - AC-1: The module retries every start and transport failure with backoff and reads `panel.json`
   again after repeated 401 or 403.
@@ -121,6 +121,35 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
   for the first.
 - AC-3: Pair again is one step from a refused key, and deleting a production says its panels
   will need pairing again.
+
+What landed:
+
+- Module (`companion-module/src/panel.ts`, version 0.4.0): one connect step that every start and
+  transport failure retries on the backoff (1, 2, 4, then every 8 s): backend discovery, a pairing
+  exchange that hit the network, a hello that failed or was refused for a reason other than the
+  key, and a dropped channel. Only a revoked or unknown key ends it ("Panel key revoked. Pair
+  again."), and a pairing code the server refused. Three calls in a row refused by the gateway
+  (HTTP 401 or 403) close the client and read `<address>/panel.json` again. Unit tests:
+  `companion-module/src/__tests__/reconnect.test.ts`.
+- Heartbeat: `panel_seen` (migration 0128) every 15 s, and on a change of status, with the module
+  version and status; at most one write per key in 2 s. A revoked key's report is stored and
+  refused, so the page can name it. `panel_list` answers `seen_s`, `module_version`,
+  `module_status` per panel and `refused_s`. A module before 0.4.0 never reports and keeps working.
+- Page: the header chip and the live dock, while the page answers the panel, read the list every
+  8 s (`src/control/companionHealth.ts`): "Companion connected" (green, a report in the last 45 s),
+  "Companion not seen since 14:32" or "not seen yet" (amber), "Companion reconnecting" (amber, the
+  module reports it is offline), "Companion needs an update" (amber: a module that reports
+  `outdated`, or one that has said hello and never reported), "Panel key refused, pair again"
+  (red). The panel dialog shows the same line, each panel's own state, and a Pair again button
+  beside a refused key. Node test: `scripts/companion-health.test.mjs`; configured walks:
+  `e2e/configured/panel-relay.spec.ts` (the RPC) and `panel-production-page.spec.ts` (red after a
+  revoke, Pair again).
+- Help (`companion-module/companion/HELP.md`): pair again for a refused key; a new module download
+  only for "Companion needs an update".
+- Open: AC-3's second half (deleting a production says its panels need pairing again) is not built.
+  The module 0.4.0 release is a run of the Release NoaCG Companion module workflow by the owner
+  after this lands; until then every module in use is 0.3.0, so the page reads "Companion needs an
+  update" for a Companion that has connected.
 
 ### P5. Several operators (next; testing first)
 
@@ -150,4 +179,5 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
 - For a fresh vote on the same question, Stop and Clear results, or Duplicate it.
 - Ask the audience to press Vote and check "Your vote" on their phone.
 - If Companion's buttons show errors while NoaCG is green, open Setup, Panel and pair again; a new
-  module download is needed only when Companion says to update it.
+  module download is needed only when Companion says to update it. From module 0.4.0 the header
+  is green only while Companion reports in, and says which of the two is needed.

@@ -11,7 +11,7 @@
 // Setup menu (docs/PLAYOUT_DASHBOARD.md §2, 2026-10-03), and Setup sits before ■ All out; with no
 // panel paired the header shows nothing else. Setup stands down on a phone, and before a publish
 // the panel's dialog says to publish once and offers nothing else. Pairing, the lease
-// (docs/work-specs/panel-ownership-lease), relayed presses and the header's "Panel ✓" need a real
+// (docs/work-specs/panel-ownership-lease), relayed presses and the header's "Companion connected" need a real
 // backend: e2e/configured/panel-production-page.spec.ts and panel-lease.spec.ts walk them.
 
 import { test, expect } from '@playwright/test';

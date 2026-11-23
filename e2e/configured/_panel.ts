@@ -26,6 +26,12 @@ export async function panelModule(code: string) {
   const paired = await call('panel_pair_finish', { p_code: code, p_label: 'Spec deck' });
   expect(paired.ok, JSON.stringify(paired)).toBe(true);
   const key = paired.key as string;
+  // The liveness report, as the module sends it at once and every 15 s (protocol §7.5), so the page
+  // reads this Companion as connected.
+  const seen = (status = 'ok') => call('panel_seen', { p_key: key, p_version: '0.4.0', p_status: status });
+  await seen();
+  const beat = setInterval(() => void seen().catch(() => {}), 15_000);
+  beat.unref();
   const heard: Heard[] = [];
   let channel: RealtimeChannel | null = null;
   const join = async (topic: string) => {
@@ -57,6 +63,8 @@ export async function panelModule(code: string) {
   };
   return {
     hello: () => call('panel_hello', { p_key: key }),
+    /** A liveness report now, with the status the module would show. */
+    seen,
     /** The newest state since the latest press, waited for until `pred` holds. */
     state: (pred: (s: Json) => boolean = () => true, what = 'state') => until(() => last('state', pred, mark)?.payload, what),
     /** The newest rows the page published. */
@@ -93,6 +101,7 @@ export async function panelModule(code: string) {
      *  `at` as it sends, and both clocks are this machine's. */
     stateLags: () => heard.filter((m) => m.event === 'state' && typeof m.payload.at === 'number').map((m) => m.at - (m.payload.at as number)),
     close: async () => {
+      clearInterval(beat);
       await sb.removeAllChannels();
       sb.realtime.disconnect();
     },
@@ -133,7 +142,8 @@ export async function pairPanel(op: Page) {
 /** Make a production page answer the panel (docs/work-specs/panel-ownership-lease). `by-itself`:
  *  it takes a free panel on its own, as it does once one is paired. `use-here`: another page has
  *  it, and this page takes it with Use here, the Panel dialog's when that is open, else the
- *  header's. Either way the header says so without opening anything: "Panel ✓" beside Setup. */
+ *  header's. Either way the header says so without opening anything: "Companion connected" beside
+ *  Setup, since the deck reports in as the module does. */
 export async function answerPanel(op: Page, take: 'by-itself' | 'use-here' = 'by-itself') {
   const dialog = op.getByTestId('panel-dialog');
   if (take === 'use-here') {
@@ -141,7 +151,7 @@ export async function answerPanel(op: Page, take: 'by-itself' | 'use-here' = 'by
     else await op.getByTestId('panel-header-use-here').click();
   }
   if (await dialog.isVisible()) await expect(op.getByTestId('panel-status')).toHaveText('This page answers the panel.', { timeout: 15_000 });
-  await expect(op.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 15_000 });
+  await expect(op.getByTestId('panel-header-status')).toHaveText('Companion connected', { timeout: 15_000 });
 }
 
 /** The id of the production a production page shows, read from its `#/production/<id>` link. */
