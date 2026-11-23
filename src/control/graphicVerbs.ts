@@ -245,8 +245,10 @@ export interface GraphicPage {
   /** An OSC cue's one send through the paired Bridge (control/oscSend.ts), its outcome said on the
    *  note line; true when it left, 'uncertain' when it may have. Never resent. */
   controlSend: (cue: ShowCue, label: string) => Promise<boolean | 'uncertain'>;
-  /** An OSC cue whose Take may have left: its folder owes its On Out all the same. */
+  /** An OSC cue whose Take may have left: its On Out is owed, by its One-by-one folder or by itself. */
   oweOut?: (cue: ShowCue) => void;
+  /** Out on an OSC cue: send the On Out message it owes, its outcome said on the note line. */
+  outControl?: (cue: ShowCue) => Promise<void>;
   /** The folders' bookkeeping a Take of a cue does (control/folderPlayout.ts). */
   clearMisses: (ids: readonly string[]) => void;
   noteStep: (cue: ShowCue) => void;
@@ -863,7 +865,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
     if (isControlCue(cue)) {
       const sent = await p.controlSend(cue, 'Take');
       if (sent === true) p.noteStep(cue);
-      else if (sent === 'uncertain') p.oweOut?.(cue);
+      if (sent !== false) p.oweOut?.(cue);
       return;
     }
     if (isServerCue(cue)) {
@@ -1059,6 +1061,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, p
     const s = sender();
     const p = page();
     const { selectedCue, selectedGraphic: graphic } = sel;
+    if (selectedCue && isControlCue(selectedCue)) {
+      await p.outControl?.(selectedCue);
+      return;
+    }
     if (isServerCue(selectedCue)) {
       if (sel.selectedPlayoutLive) await p.playoutVerb(selectedCue, 'out', 'Out');
       return;

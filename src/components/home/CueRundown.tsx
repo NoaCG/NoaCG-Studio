@@ -59,6 +59,7 @@ import type { SourceStatusStore } from '../../control/sheetSource';
 import { commitDurableWrites } from '../../model/durableStore';
 import { isControlCue, isGraphicCue } from '../../model/controlCue.ts';
 import { oscRowSummary } from '../../control/oscSend';
+import { oscFlash, oscTags, type OscMark } from '../../control/oscMarks';
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
 export function nameList(names: string[]): string {
@@ -162,6 +163,8 @@ export default function CueRundown({
   cutIds,
   folderAir,
   takeMisses,
+  oscMarks,
+  oscOwed,
   cueArms,
   toggleHold,
   manualLane,
@@ -251,6 +254,9 @@ export default function CueRundown({
   folderAir: Readonly<Record<string, FolderAir>>;
   /** Why each cue of the last folder Take did not go on air, by cue id. */
   takeMisses: Readonly<Record<string, string>>;
+  /** Each OSC cue's last send, and the OSC cues whose On Out is owed (control/oscMarks.ts). */
+  oscMarks: Readonly<Record<string, OscMark>>;
+  oscOwed: ReadonlySet<string>;
   /** Each graphic layer's timed-cue countdown (control/cueAuto.ts), or null where timed cues do not
    *  run (a published production, until the wire lands), and then no row wears timing words. */
   cueArms: CueArms | null;
@@ -726,6 +732,7 @@ export default function CueRundown({
           const through = playoutItem?.kind === 'media' ? throughRoleOf(cue) : null;
           const address = through ? folderSlotOf(through.folder) : playoutItem ? slotAddress(itemSlot(playoutSettings, playoutItem)) : '';
           const oscCue = isControlCue(cue);
+          const oscFlashTone = oscCue ? oscFlash(oscMarks[cue.id]) : null;
           const kind = oscCue
             ? { glyph: '⇢', tone: 'control', name: 'OSC cue' }
             : poolEntry
@@ -816,6 +823,8 @@ export default function CueRundown({
             >
               {/* A folder's cues hang from a line under its header (plan §20.3). */}
               {inFolder && <span className="pd-fold-guide" aria-hidden="true" />}
+              {/* An OSC cue's send just landed: the row flashes once, since nothing goes on air. */}
+              {oscFlashTone && <span key={oscMarks[cue.id]!.seq} className={`pd-osc-flash pd-osc-flash--${oscFlashTone}`} aria-hidden="true" data-testid="cue-osc-flash" />}
               <span className="pd-grip" aria-hidden="true">⣿</span>
               <span className="pd-cue-no">{cueAirs ? '●' : cueIsLive ? '○' : row.no}</span>
               <span
@@ -927,6 +936,11 @@ export default function CueRundown({
                   LOADING
                 </span>
               )}
+              {oscCue && oscTags(oscMarks[cue.id], oscOwed.has(cue.id)).map((t) => (
+                <span key={t.testid} className={`pd-tag osc-${t.tone}`} title={t.title} data-testid={t.testid}>
+                  {t.text}
+                </span>
+              ))}
               {cueAirs ? (
                 <span className="pd-tag air">ON AIR</span>
               ) : cueIsLive ? (

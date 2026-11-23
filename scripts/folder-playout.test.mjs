@@ -1110,3 +1110,33 @@ test('On Out: Out while a One-by-one OSC Take is on its way sends its On Out as 
   await unsure.fp.out(M);
   assert.deepEqual(oscLog(unsure), ['osc out lights']);
 });
+
+test('On Out: an OSC cue taken on its own owes its On Out to itself, sent by Out on it or by All out, once (owner request 2026-11-23)', async () => {
+  let kept = {};
+  const io = { oscSent: { load: () => kept, save: (sent) => (kept = sent) } };
+  const r = folderRig({ folders: [TOGETHER], cues: [osc('lights', undefined), osc('plain', undefined, null), osc('member', 'A')], io });
+  const [lights, plain, member] = r.page.cues;
+  r.fp.oweOut(lights);
+  r.fp.oweOut(plain);
+  r.fp.oweOut(member);
+  assert.deepEqual([...r.fp.owedOuts.get()].sort(), ['lights', 'member'], 'a cue with no On Out message owes nothing');
+  assert.deepEqual(kept, { 'cue:lights': ['lights'], 'cue:member': ['member'] }, 'kept for the tab under the cue, not its All-together folder');
+  assert.equal(await r.fp.outCue(lights), '✓ LIGHTS: On Out OSC sent');
+  assert.deepEqual(oscLog(r), ['osc out lights']);
+  assert.equal(await r.fp.outCue(lights), null, 'a second Out owes nothing');
+  await r.fp.out(TOGETHER);
+  assert.deepEqual(oscLog(r), ['osc out lights'], 'its folder\'s Out does not send what the cue owes itself');
+  assert.deepEqual(await r.fp.stopAll('all-out'), []);
+  assert.deepEqual(oscLog(r), ['osc out lights', 'osc out member'], 'All out does');
+  assert.equal(r.fp.owedOuts.get().size, 0);
+  assert.deepEqual(kept, {});
+});
+
+test('On Out: a One-by-one member taken on its own still owes its folder', async () => {
+  const M = { id: 'M', name: 'Steps', mode: 'manual' };
+  const r = folderRig({ folders: [M], cues: [osc('lights', 'M')] });
+  r.fp.oweOut(r.page.cues[0]);
+  assert.equal(await r.fp.outCue(r.page.cues[0]), null);
+  await r.fp.out(M);
+  assert.deepEqual(oscLog(r), ['osc out lights']);
+});

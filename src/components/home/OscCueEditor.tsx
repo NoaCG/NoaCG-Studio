@@ -125,7 +125,7 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
           value={edits.text(`${prefix}address`, message.address)}
           onChange={(e) => edits.type(`${prefix}address`, e.target.value)}
           onBlur={edits.flush}
-          placeholder={prefix ? 'Optional: sent when the folder goes out' : '/zeros/cue/go'}
+          placeholder={prefix ? 'Optional: sent at Out' : '/zeros/cue/go'}
           spellCheck={false}
           data-testid={`osc-${prefix}address`}
         />
@@ -181,7 +181,7 @@ export default function OscCueEditor({ show, cue, cueNo, setShows, takeBlocked, 
             <br /><strong>Destination</strong>: the device's IP address and its OSC port, from its settings or manual.
             <br /><strong>OSC address</strong>: the command, starting with /, exactly as the device lists it.
             <br /><strong>Arguments</strong>: values after the address. Text, Whole number or Decimal, as the device asks: &quot;5&quot; and 5 differ.
-            <br /><strong>On Out</strong>: optional. Sent when the folder that sent this cue goes out, for example lights back to normal.
+            <br /><strong>On Out</strong>: optional. Sent at Out on this cue, or when the folder that sent it goes out, for example lights back to normal.
             <br />Graphic and lights together: put both in an All together folder. Each can have a Delay there.
             <br /><a href="/docs#osc" target="_blank" rel="noreferrer">Full guide</a>
           </span>

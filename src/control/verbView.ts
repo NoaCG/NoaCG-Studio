@@ -64,6 +64,8 @@ export interface VerbInputs {
   clearing: boolean;
   /** Something this page has up or is sending: a graphic layer, a server cue, a folder's Take. */
   anyUp: boolean;
+  /** The selected cue is an OSC cue that owes its own On Out message: Out sends it. */
+  selectedOwesOut?: boolean;
   /** Something plays on a slot this rundown uses with no cue to name it (asked only when needed). */
   unnamedUp: () => boolean;
 }
@@ -170,7 +172,7 @@ export function verbView(input: VerbInputs): VerbView {
     retake: selectedCueIsLive,
     update: editingIsLive && !input.selectedVmix,
     next: selectedLayerLive && nextMoves,
-    out: folder ? folderUp || heldStarted : selectedLayerLive,
+    out: folder ? folderUp || heldStarted : selectedLayerLive || !!input.selectedOwesOut,
     pause: selectedClipUp,
     resume: selectedClipUp,
   };

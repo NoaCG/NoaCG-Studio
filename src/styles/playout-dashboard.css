@@ -2323,6 +2323,28 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-rundown .pd-tag.unsent { color: var(--amber); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
 .pd-rundown .pd-tag.next,
 .pd-rundown .pd-tag.armed { color: #cfd8e6; box-shadow: inset 0 0 0 1px rgba(207, 216, 230, 0.55); }
+/* AN OSC CUE'S SEND (control/oscMarks.ts): it never goes on air, so its row says what the last send
+   came to in the OSC cue's own violet, amber when it may not have gone, and flashes once as it lands. */
+.pd-rundown .pd-tag.osc-sending { color: var(--text-dim); box-shadow: inset 0 0 0 1px rgba(192, 132, 252, 0.4); }
+.pd-rundown .pd-tag.osc-sent { color: #e9d5ff; box-shadow: inset 0 0 0 1px rgba(192, 132, 252, 0.75); font-variant-numeric: tabular-nums; }
+.pd-rundown .pd-tag.osc-warn { color: var(--amber); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
+.pd-rundown .pd-tag.osc-owed { color: #1a1030; background: #c084fc; }
+.pd-osc-flash {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: pd-osc-flash 1.2s ease-out forwards;
+}
+.pd-osc-flash--sent { background: rgba(192, 132, 252, 0.35); box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.9); }
+.pd-osc-flash--warn { background: rgba(246, 166, 35, 0.25); box-shadow: 0 0 0 2px rgba(246, 166, 35, 0.85); }
+@keyframes pd-osc-flash {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pd-osc-flash { animation-duration: 0.01s; }
+}
 /* WHERE A DRAG LANDS: a line at the row's edge, in the cursor's colour - in by a step when it lands
    inside a folder, and across the header's box when it lands in a collapsed one. Red and dashed when
    it cannot land there; the note under the list says why. */
