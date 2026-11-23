@@ -71,3 +71,18 @@ test('an allowance drawn on the artwork is the one the wire reads, and no second
   assert.doesNotMatch(html, /data-speaking="allowance"/);
   assert.match(bound.js(withAllowance.length), /document\.getElementById\('f3'\)/);
 });
+
+test('the clocks carry the wire attribute on the elements they are bound to', () => {
+  const bound = compileBinding(artwork, binding);
+  const stamped = new Map();
+  const element = (id) => ({
+    getAttribute: () => null,
+    removeAttribute() {},
+    hasAttribute: () => false,
+    setAttribute: (name, value) => { if (name === 'data-speaking') stamped.set(id, `${name}=${value}`); },
+    classList: { add() {}, contains: () => false },
+  });
+  bound.markLayers({ querySelector: (sel) => element(/id="(f\d+)"/.exec(sel)?.[1]), querySelectorAll: () => [] });
+  assert.equal(stamped.get('f1'), 'data-speaking=a');
+  assert.equal(stamped.get('f2'), 'data-speaking=b');
+});

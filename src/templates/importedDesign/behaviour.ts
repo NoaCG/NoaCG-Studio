@@ -807,7 +807,7 @@ export function composeParts(artworkFields: SpxField[], bindings: BehaviourBindi
         : `
     <!-- The behaviour's own values. SPX writes them here; the rules in template.js read them.
          None of these is ever drawn - the artwork's own layers are what the audience sees. -->
-${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLASS}"${Object.entries(field.attrs ?? {}).map(([k, v]) => ` ${k}="${escapeHtml(v)}"`).join('')}>${escapeHtml(field.value)}</div>`).join('\n')}`,
+${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLASS}"${Object.entries(field.attrs ?? {}).map(([k, v]) => ` ${k}="${escapeHtml(v).replace(/"/g, '&quot;')}"`).join('')}>${escapeHtml(field.value)}</div>`).join('\n')}`,
     js: () => `\n${behaviourDataJs(table())}${behaviourRuntimeJs(withClock, withAwards)}${speaking ? speakingEngineJs(table()) : ''}`,
     updateHook: `  if (typeof noacgRepaintData === 'function') noacgRepaintData();  // the behaviour's looks, gauges and readouts (below)`,
     preFitHook: speaking

@@ -769,9 +769,18 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await page.getByTestId('verb-next').click();
       await expect(design).toHaveCSS('opacity', '0', { timeout: 5_000 });
       await page.getByTestId('verb-out').click();
+      // The next event: a new value and a take play it through its whole life (Event notification's
+      // row, N5): it is on air with the new words, still up five seconds in, and gone by the hold's
+      // end, eight seconds after the entrance.
+      const first = namedTexts(t.slug)[0];
+      const firstId = await fieldFor(air, first);
+      await page.getByTestId(`cue-field-${firstId}`).fill('Next');
       await page.getByTestId('verb-take').click();
       await expect(design).not.toHaveCSS('opacity', '0');
-      await expect(design).toHaveCSS('opacity', '0', { timeout: 20_000 });
+      await expect(air.locator(`[id="${firstId}"]`), 'the new event is the one on air').toContainText('Next');
+      await page.waitForTimeout(5_000);
+      await expect(design, 'it holds').not.toHaveCSS('opacity', '0');
+      await expect(design, 'and clears itself after the hold').toHaveCSS('opacity', '0', { timeout: 10_000 });
       break;
     }
     case 'rotation': {
@@ -1837,6 +1846,8 @@ test('Speaking timer: the floor passes and the clocks run in every export target
       await expect.poll(() => h.lit(['time.speaking/A', 'time.speaking/B']), { message: `${id}: A has the floor` }).toEqual(['time.speaking/A']);
       await expect.poll(() => clock(h, 'a'), { message: `${id}: A's clock runs`, timeout: 4_000 }).not.toBe('05:00');
       expect(await clock(h, 'b'), `${id}: B's clock waits`).toBe('05:00');
+      await h.event('penalty');
+      await expect.poll(() => h.lit(['penalty']), { message: `${id}: Penalty lights` }).toEqual(['penalty']);
       await h.update({ [timer.ids['Time B']]: '01:30' });
       await expect.poll(() => clock(h, 'b'), { message: `${id}: a time for B as data` }).toBe('01:30');
       await h.event('reset');

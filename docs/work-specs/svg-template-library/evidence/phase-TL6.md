@@ -356,6 +356,12 @@ the new template adds no runtime word and changes no table.
   `npm run gates -- run --changed origin/main`: 216 passed (j-0029).
 - `tsc`; `check-e2e-protection --changed origin/main` (`svg-templates` 33 -> 38, `svg-examples`
   6 -> 7, `production-audience` 32 -> 33): pass. README.pdf reprinted (16 pages).
-- Watch item: `svg-files` "every download is the source file itself" failed once on this worker
-  (the audience package zip built twice compared unequal) and passed on four reruns; the same
-  intermittent case is recorded on #2712.
+- Final second opinion on 424f670 (A-, AGREE WITH CORRECTIONS), fixed in the next commit: the
+  alert walk now sends a new value before its last take and checks that event is on air, still up
+  five seconds in and gone by the end of the hold (what the Event notification row claims); the
+  speaking timer's export case presses Penalty in every host that takes events; a data holder's
+  attribute values are quoted for an attribute (code scanning). Its second finding, an outlined
+  clock bound and then unread by the wire, was traced and cannot arise: a placed line is not one of
+  the artwork's fields, so the clock role never binds to one (spec Limit, SVG_AUTHORING reworded).
+- The `svg-files` intermittent failure recorded earlier was found and fixed in #2712 (folder
+  entries dated at build time).

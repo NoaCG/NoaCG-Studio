@@ -1073,8 +1073,10 @@ Group 3 (Risky): Speaking timer (two clocks, one floor); Event notification on t
     grows by the new kinds' functions, as with every runtime word since TL2, so the corpus `emit.js`,
     `jev-svg-baseline` `appearance.js` and credits build pins are re-recorded; a saved graphic
     keeps the runtime it has (C7).
-  - Limit: a clock drawn as outlines and replaced by a placed line is not stamped for the wire;
-    keep the clocks live text (SVG_AUTHORING).
+  - Limit: a clock drawn as outlines is not a text layer, so it cannot be bound as a clock (a
+    placed line standing in for it is not one of the artwork's fields); keep the clocks live text
+    (SVG_AUTHORING). The final second opinion's concern that such a clock would bind and then go
+    unread by the wire does not arise.
 
 ## Test maintenance
 
