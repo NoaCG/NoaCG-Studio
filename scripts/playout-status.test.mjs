@@ -213,6 +213,23 @@ test('an output opened before automatic updates reads amber with its name until 
   assert.equal(status({ oldOutputs: [] }).tone, 'ok');
 });
 
+test('a graphic added since the publish reads amber by name, never green "Ready" (studio session, 2026-11-23)', () => {
+  // A Join card and a results card added to a published rundown read "Ready" and did not play.
+  const one = status({ unpublished: ['House Join Card'] });
+  assert.equal(one.tone, 'warn');
+  assert.equal(one.text, 'Publish to play House Join Card');
+  assert.match(one.checks[0].label, /^House Join Card is not on the outputs yet, so a Take will not play it\.$/);
+  assert.match(one.checks[0].advice, /What is on air stays on air/);
+  const many = status({ unpublished: ['Join', 'Results', 'Lower third', 'Bug', 'Clock'] });
+  assert.equal(many.text, '5 graphics not published');
+  assert.match(many.checks[0].label, /^Join, Results, Lower third and 2 more are not on the outputs yet/);
+  assert.equal(status({ unpublished: [] }).tone, 'ok');
+  assert.equal(status({ unpublished: null }).tone, 'ok');
+  // Automatic updates own their own words for a save on its way; a publish running is grey.
+  assert.equal(status({ unpublished: ['Join'], autoPublish: { tone: 'amber', line: null } }).text, 'Updating outputs');
+  assert.equal(status({ unpublished: ['Join'], publishing: true }).tone, 'idle');
+});
+
 test('PROGRAM counts the bound presses not yet landed ahead of every other published state, and says nothing of them at 0 (#2617 R7)', async () => {
   const { programAir } = await import('../src/control/playoutStatus.ts');
   const at = Date.UTC(2026, 10, 20, 21, 0, 0);

@@ -1894,6 +1894,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-dataset-head { display: flex; align-items: center; gap: 10px; }
 .pd-dataset-name { font-size: 14px; font-weight: 600; max-width: 280px; }
 .pd-dataset-delete.armed { border-color: #7a2a2a; color: #ef4444; }
+/* A panel's Revoke, pressed once: the same armed look, since a revoked key never works again. */
+.panel-list .pd-verb.armed { border-color: #7a2a2a; color: #ef4444; }
 .pd-dataset-scroll { overflow-x: auto; margin-top: 8px; }
 .pd-table { border-collapse: collapse; width: 100%; }
 .pd-table th, .pd-table td { padding: 2px 4px 2px 0; text-align: left; }
