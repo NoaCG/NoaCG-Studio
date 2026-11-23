@@ -313,6 +313,22 @@ test('one attempt runs shortly after the new graphics are saved, never two at on
   assert.equal(w.attempts, 2);
 });
 
+test("a reason belongs to its graphics: a new save of the same ones keeps it, other graphics never wear it", async () => {
+  const w = world();
+  const p = createAdditivePublisher(w.io);
+  p.want('Join@1', 'Join');
+  await w.advance(SETTLE_MS);
+  await w.answer({ kind: 'refused', reason: IN_SCENE });
+  p.want('Join@2', 'Join');
+  assert.equal(p.view().refusal, IN_SCENE);
+  await w.advance(SETTLE_MS);
+  await w.answer({ kind: 'wait' });
+  assert.equal(p.view().refusal, IN_SCENE, 'still the same graphic, waiting for its save');
+  p.want('Join@2\nResults@1', 'Join\nResults');
+  assert.equal(p.view().refusal, null, 'another set of graphics has no reason yet');
+  assert.equal(notOnOutputsWhy({ refusal: 'Network request failed.' }), 'Network request failed. Publish changes to play it.', 'one full stop');
+});
+
 test('a save that never reaches the server is said after about 20 s, and still waited for', async () => {
   const w = world();
   const p = createAdditivePublisher(w.io);

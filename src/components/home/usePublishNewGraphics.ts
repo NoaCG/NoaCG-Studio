@@ -27,6 +27,7 @@ export function usePublishNewGraphics(o: {
 }): AdditiveView & { enabled: boolean } {
   const { show, enabled, names } = o;
   // A new graphic saved again (a gate fix, a design change) is a new attempt; nothing else is.
+  const group = enabled && names?.length ? names.join('\n') : undefined;
   const key = enabled && names?.length && show ? show.graphics.filter((g) => names.includes(g.name)).map((g) => `${g.name}@${g.savedAt}`).join('\n') : null;
   const [view, setView] = useState<AdditiveView>({ running: false, refusal: null });
   const latest = useRef(o);
@@ -59,7 +60,7 @@ export function usePublishNewGraphics(o: {
     };
   }, [showId, enabled]);
   useEffect(() => {
-    publisher.current?.want(key);
-  }, [key, showId, enabled]);
+    publisher.current?.want(key, group);
+  }, [key, group, showId, enabled]);
   return { ...view, enabled };
 }

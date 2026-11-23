@@ -91,7 +91,10 @@ export function publishChangesDue(due: PublishDue, addsByItself: boolean): boole
  *  this page adds new graphics by itself, and why it will not when it will not (null: it does not). */
 export function notOnOutputsWhy(adds: { refusal: string | null } | null): string {
   if (adds && !adds.refusal) return 'It is being added to the outputs now.';
-  if (adds?.refusal) return `${adds.refusal.charAt(0).toUpperCase()}${adds.refusal.slice(1)}. Publish changes to play it.`;
+  if (adds?.refusal) {
+    const reason = adds.refusal.replace(/[.\s]+$/, '');
+    return `${reason.charAt(0).toUpperCase()}${reason.slice(1)}. Publish changes to play it.`;
+  }
   return 'Publish changes to play it.';
 }
 
@@ -298,14 +301,17 @@ export const WAITS_SAID = 10;
 export const SAVE_WAITING = 'its save has not reached the server yet';
 
 export interface AdditivePublisher {
-  /** What is new now (a key over the new graphics and their saves), or null: nothing. */
-  want(key: string | null): void;
+  /** What is new now (a key over the new graphics and their saves), or null: nothing. `names`: which
+   *  graphics those are; a reason said for them stands through a new save of the same ones, and goes
+   *  when they change. */
+  want(key: string | null, names?: string): void;
   view(): AdditiveView;
   stop(): void;
 }
 
 export function createAdditivePublisher(io: AdditiveIo): AdditivePublisher {
   let wanted: string | null = null;
+  let wantedNames: string | undefined;
   let running = false;
   let owed = false;
   let stopped = false;
@@ -388,12 +394,14 @@ export function createAdditivePublisher(io: AdditiveIo): AdditivePublisher {
   };
 
   return {
-    want(key) {
+    want(key, names) {
       if (stopped || key === wanted) return;
       wanted = key;
-      // A reason said for the graphics before stays until the next attempt answers, so the page
-      // never takes its Publish changes away for the few seconds a new attempt takes.
-      if (key === null) refusal = null;
+      // A reason said for the same graphics stays until the next attempt answers, so the page never
+      // takes its Publish changes away for the few seconds a new attempt takes. Other graphics have
+      // no reason yet.
+      if (key === null || names !== wantedNames) refusal = null;
+      wantedNames = names;
       failures = 0;
       waits = 0;
       if (cancel) cancel();

@@ -97,7 +97,7 @@ export function RendererRows({
             </span>
           )}
           {onCheck && (
-            <button type="button" className="pd-pp-link" onClick={onCheck} disabled={checking || waiting} data-testid="playout-check-now">
+            <button type="button" className="pd-pp-link" onClick={onCheck} disabled={checking || waiting} title={waiting ? 'Waits while new graphics are added to the outputs' : undefined} data-testid="playout-check-now">
               {checking ? 'Checking…' : 'Check now'}
             </button>
           )}

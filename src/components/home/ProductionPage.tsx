@@ -1315,7 +1315,7 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     show,
     // Only while automatic updates are switched off: with the switch on they are the designed path,
     // and a page whose publisher does not run yet keeps Publish changes (live-publishing G3 section 8).
-    enabled: !!hostedSlug && !autoPublish.switchOn && backendConfigured && authStatus === 'signed-in' && authoringAllowed,
+    enabled: !!hostedSlug && autoPublish.switchOn === false && backendConfigured && authStatus === 'signed-in' && authoringAllowed,
     names: notOnOutputs,
     // A readiness run waits for the outputs to settle on the version it read: a publish in between
     // would move them off it and the run would wait out its time, so the add waits for the run.
@@ -1335,9 +1335,9 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     },
   });
   /** Whether this page adds them by itself, and why it will not when it will not. While only the
-   *  account is still being read, it will as far as anything else says: the status, the cue and the
-   *  header agree on that, so no press appears and then goes when sign-in resolves. */
-  const addsWhileSigningIn = !!hostedSlug && !autoPublish.switchOn && backendConfigured && authoringAllowed && authStatus === 'loading';
+   *  account or the automatic updates switch is still being read, it will as far as anything else
+   *  says: the status, the cue and the header agree on that, so no press appears and then goes. */
+  const addsWhileSigningIn = !!hostedSlug && autoPublish.switchOn !== true && backendConfigured && authoringAllowed && (authStatus === 'loading' || (authStatus === 'signed-in' && autoPublish.switchOn === null));
   const newGraphicsAdds = newGraphics.enabled ? { refusal: newGraphics.refusal } : addsWhileSigningIn ? { refusal: null } : null;
   /** Publish changes is due for what only it can send: never for graphics this page adds itself. */
   const requiresPreparation = publishChangesDue(publishDue, !!newGraphicsAdds && !newGraphicsAdds.refusal);
