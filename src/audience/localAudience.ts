@@ -375,7 +375,7 @@ export function localRoomName(showId: string): string {
 }
 
 /** The question's snapshot in the server's own normal form (0111), so comparing is fair. */
-function snapshotOf(question: QuestionLive): { kind: AudienceRound['kind']; text: string; options: string[]; allowChange: boolean } | string {
+function snapshotOf(question: QuestionLive): { kind: AudienceRound['kind']; text: string; options: string[]; allowChange?: boolean } | string {
   if (!isQuestionId(question.id)) return 'not a question';
   const textNow = question.text.trim().slice(0, QUESTION_LIMITS.text);
   if (!textNow) return 'a question needs its text';
@@ -385,7 +385,8 @@ function snapshotOf(question: QuestionLive): { kind: AudienceRound['kind']; text
   // Like the server, blanks are not dropped here: the composer already cleaned them.
   const options = (question.options ?? []).map((o) => o.trim().slice(0, QUESTION_LIMITS.option)).slice(0, QUESTION_LIMITS.maxOptions);
   if (options.length < QUESTION_LIMITS.minOptions) return 'a vote needs two options at least';
-  return { kind: 'poll', text: textNow, options, allowChange: question.allowChange !== false };
+  // Absent (a page from before the policy) keeps the round's own, as the server does (0127).
+  return { kind: 'poll', text: textNow, options, allowChange: question.allowChange };
 }
 
 export interface LocalAudience extends AudienceBackend {
@@ -697,9 +698,10 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
           round.earlierOf = question.id;
           round = null;
         }
+        const allowChange = snap.allowChange ?? (round ? votesCanChange(round) : true);
         if (round) {
           const same =
-            round.question === snap.text && JSON.stringify(round.options) === JSON.stringify(snap.options) && votesCanChange(round) === snap.allowChange;
+            round.question === snap.text && JSON.stringify(round.options) === JSON.stringify(snap.options) && votesCanChange(round) === allowChange;
           if (!same) {
             if (!round.closedAt) throw new Error('a live question cannot change');
             const answered =
@@ -709,7 +711,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
             if (answered) throw new Error('this question has answers, so it cannot change');
             round.question = snap.text;
             round.options = snap.options;
-            round.allowChange = snap.allowChange;
+            round.allowChange = allowChange;
             round.revision += 1;
           }
         }
@@ -725,7 +727,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
             correctOption: null,
             openedAt: at,
             closedAt: null,
-            allowChange: snap.allowChange,
+            allowChange,
             earlierOf: null,
           };
           r.rounds.push(round);
@@ -802,11 +804,15 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         const byVoter = { ...(r.chatVotes[roundId] ?? {}) };
         const final = !votesCanChange(round);
         let counted = 0;
-        // With changes off (0127), each voter's FIRST said in the call, and a counted one stands.
-        for (const vote of final ? firstPerVoter(votes) : latestPerVoter(votes)) {
+        // What could count at all, then per voter as the server picks (0113, 0127): the latest said,
+        // or with changes off the FIRST said, and then a counted one stands.
+        const valid = votes.filter((vote) => {
           const at = Date.parse(vote.at);
-          if (!/^(yt|tw):[A-Za-z0-9_-]{1,120}$/.test(vote.voter) || !(at >= from && at <= until)) continue;
-          if (!Number.isInteger(vote.option) || vote.option < 0 || vote.option >= round.options.length) continue;
+          if (!/^(yt|tw):[A-Za-z0-9_-]{1,120}$/.test(vote.voter) || !(at >= from && at <= until)) return false;
+          return Number.isInteger(vote.option) && vote.option >= 0 && vote.option < round.options.length;
+        });
+        for (const vote of final ? firstPerVoter(valid) : latestPerVoter(valid)) {
+          const at = Date.parse(vote.at);
           const held = byVoter[vote.voter];
           if (held && (final || Date.parse(held.at) > at)) continue;
           byVoter[vote.voter] = { voter: vote.voter, option: vote.option, at: vote.at };
@@ -836,13 +842,14 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
       const round = r.rounds.find((x) => x.id === roundId);
       if (!round) throw new Error('unknown round');
       const phone = Object.entries(r.votes[roundId] ?? {}).map(([device, option]) => ({
-        at: r.voteAt[roundId]?.[device] ?? round.openedAt,
+        // A vote kept before votes had times has none: an empty time, never a made-up one.
+        at: r.voteAt[roundId]?.[device] ?? '',
         option,
         source: 'phone' as const,
         voter: localVoterKey(roundId, device),
       }));
       const chat = Object.values(r.chatVotes[roundId] ?? {}).map((v) => ({ at: v.at, option: v.option, source: 'chat' as const, voter: localVoterKey(roundId, v.voter) }));
-      return [...phone, ...chat].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+      return [...phone, ...chat].sort((a, b) => (Date.parse(a.at) || 0) - (Date.parse(b.at) || 0));
     },
 
     simulate(count = 1): AudienceSubmission[] {

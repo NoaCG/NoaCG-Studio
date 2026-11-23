@@ -1301,7 +1301,13 @@ export default function ProductionAudienceWorkspace({
     try {
       const before = await backend.rounds().catch(() => null);
       const was = q.type === 'choice' ? before?.find((r) => r.questionId === q.id && r.closedAt) : undefined;
-      const counted = was ? (await backend.tally(was.id).catch(() => null))?.total ?? 0 : 0;
+      const tally = was ? await backend.tally(was.id).catch(() => null) : null;
+      // Whether to ask is never guessed: a vote whose count cannot be read now does not go live.
+      if (!run && q.type === 'choice' && (!before || (was && !tally))) {
+        setNote('The question did not go live: its count could not be read. Try again.');
+        return;
+      }
+      const counted = tally?.total ?? 0;
       if (!run && counted > 0) {
         setSelectedId(q.id);
         setRunChoice({ id: q.id, votes: counted });

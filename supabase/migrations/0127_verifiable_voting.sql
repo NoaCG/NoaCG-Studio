@@ -15,7 +15,8 @@
 --   * THE CHANGE POLICY, per question: `audience_rounds.allow_change`, default true (as before).
 --     Go live sends it with the question (`allow_change`), and it is part of the round's snapshot:
 --     it cannot change while the question is live or once it has votes (R8), and a change moves the
---     revision (R5), so a phone always knows which policy its vote is under. With changes off, the
+--     revision (R5), so a phone always knows which policy its vote is under. A Go live that sends
+--     no policy (a page from before this change) keeps the round's own. With changes off, the
 --     first vote from a device is final: `audience_vote` refuses another with "your vote is already
 --     in", the vote guard refuses an update of such a vote from any writer, and a chat voter's first
 --     counted vote is final too (`audience_operator_votes`). The join resolve tells the phone
@@ -34,8 +35,10 @@
 --     the phone turns into "Too many votes at once. Try again in a few seconds.";
 --   * `audience_votes_export(slug, round)`: a round's votes for a CSV, authorized by the control
 --     slug like `audience_tally`. Each vote carries its time, option, source and a short voter key
---     that is NOT the device token: the first ten hex digits of md5(round id, ':', token), the same
---     for one device within one round and unlinkable across rounds. One jsonb value rather than a
+--     that is NOT the device token: the first ten hex digits of md5(production id, round id, token),
+--     the same for one device within one round and unlinkable across rounds. The production id is
+--     in it because phones never see it (0035's capability rule) while they do see the round id, so
+--     a shared file cannot be matched against a chat voter's public id by hashing candidates. One jsonb value rather than a
 --     set of rows, because PostgREST caps a set at a page (`max_rows`, 1000) and a big room's export
 --     must hold every vote (0114 did the same for words);
 --   * `audience_rounds_list` returns the two new columns (a table function's columns cannot change
@@ -47,12 +50,13 @@
 -- a live-path object.
 --
 -- Additive for the app: every phone and operator function keeps its signature and grant, a page
--- from before this change sends no `allow_change` (read as true) and no `new_count` (a continued
--- count), and a round it reads gains keys it ignores. A phone page from before this change cannot
--- say why a final vote or a burst was refused; it shows its generic "That vote could not be
--- counted." Revert: `git revert` the app; the columns, the index and the functions can stay, since
--- with no `allow_change` and no `new_count` sent everything behaves as before except the burst cap
--- and its message, which an older page also reads as a generic refusal.
+-- from before this change sends no `allow_change` (the round keeps its own, true when new) and no
+-- `new_count` (a continued count), and a round it reads gains keys it ignores. A phone page from
+-- before this change cannot say why a final vote or a burst was refused; it shows its generic
+-- "That vote could not be counted." Revert: `git revert` the app; the columns, the index and the
+-- functions can stay, since with no `allow_change` and no `new_count` sent every round made after
+-- behaves as before except the burst cap and its message, which an older page also reads as a
+-- generic refusal.
 
 set lock_timeout = '2s';
 set statement_timeout = '30s';
@@ -177,7 +181,7 @@ grant execute on function public.audience_rounds_list(text) to anon, authenticat
 
 -- ══ 4. Go live: 0114's, with the change policy and a new count ═════════════════════════════
 -- `p_question` is { id, type, text, options?, allow_change?, new_count? }. `allow_change` absent
--- reads as true; `new_count` absent continues the count.
+-- keeps the round's own (true for a new round); `new_count` absent continues the count.
 create or replace function public.audience_go_live(p_slug text, p_question jsonb)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -222,9 +226,6 @@ begin
       raise exception 'a vote needs two options at least' using errcode = '22023';
     end if;
   end if;
-  -- The change policy is a vote's; any other kind keeps the default.
-  v_change := v_kind <> 'poll' or jsonb_typeof(p_question->'allow_change') is distinct from 'boolean'
-              or (p_question->>'allow_change')::boolean;
   v_new := jsonb_typeof(p_question->'new_count') = 'boolean' and (p_question->>'new_count')::boolean;
   if v_new and v_kind <> 'poll' then
     raise exception 'a new count is for a vote' using errcode = '22023';
@@ -238,6 +239,14 @@ begin
   if v_round.id is not null and v_round.kind <> v_kind then
     raise exception 'a question keeps its type' using errcode = '22023';
   end if;
+  -- The change policy is a vote's; any other kind keeps the default. A page from before the policy
+  -- sends none: it keeps the round's own, so an operator page left open across the deploy can
+  -- never turn a final vote back into a changeable one.
+  v_change := case
+    when v_kind <> 'poll' then true
+    when jsonb_typeof(p_question->'allow_change') = 'boolean' then (p_question->>'allow_change')::boolean
+    else coalesce(v_round.allow_change, true)
+  end;
 
   -- A NEW COUNT: the round with votes moves aside, kept whole and closed for good, and this
   -- question gets a fresh round below. A round with no votes has nothing to keep, so it is used as
@@ -480,7 +489,7 @@ end $$;
 -- ══ 8. The export: a round's votes, each under a key that is not the device ═════════════════
 -- { round: <the round as the operator reads it>, votes: [{ at, option, source, voter }] }, oldest
 -- first. `at` is when the server last took the vote as it stands; `voter` is the first ten hex
--- digits of md5(round id, ':', device token or chat voter).
+-- digits of md5(production id, ':', round id, ':', device token or chat voter).
 create or replace function public.audience_votes_export(p_slug text, p_round uuid)
 returns jsonb language plpgsql security definer set search_path = '' stable as $$
 declare
@@ -499,7 +508,7 @@ begin
                'at', v.updated_at,
                'option', v.option_index,
                'source', v.source,
-               'voter', left(pg_catalog.md5(v.round_id::text || ':' || v.device_token), 10))
+               'voter', left(pg_catalog.md5(v_show::text || ':' || v.round_id::text || ':' || v.device_token), 10))
              order by v.updated_at, v.device_token)
         from public.audience_votes v
        where v.round_id = v_round.id
@@ -590,7 +599,7 @@ begin
 
   -- The policy is part of what was asked: not while live, not once voted (R8).
   begin
-    perform public.audience_go_live(v_slug, '{"id":"q-final","type":"choice","text":"Which?","options":["A","B"]}');
+    perform public.audience_go_live(v_slug, '{"id":"q-final","type":"choice","text":"Which?","options":["A","B"],"allow_change":true}');
     v_fail := false;
   exception when sqlstate '22023' then
     v_fail := true;
@@ -662,7 +671,14 @@ begin
     raise exception '0127 self-check failed: a voter key links two rounds';
   end if;
 
-  -- With no policy sent, a vote can change, as before.
+  -- A Go live with no policy (a page from before it) keeps the round's own: still final.
+  v_again := public.audience_go_live(v_slug, '{"id":"q-final","type":"choice","text":"Which?","options":["A","B"]}');
+  if (v_again->>'allow_change')::boolean is not false then
+    raise exception '0127 self-check failed: a Go live without a policy changed it: %', v_again;
+  end if;
+  perform public.audience_stop(v_slug, (v_again->>'id')::uuid);
+
+  -- With no policy sent on a new question, a vote can change, as before.
   v_free := public.audience_go_live(v_slug, '{"id":"q-free","type":"choice","text":"Free?","options":["A","B"]}');
   perform public.audience_vote(v_join, 'device-one-0127', (v_free->>'id')::uuid, 0, 1);
   perform public.audience_vote(v_join, 'device-one-0127', (v_free->>'id')::uuid, 1, 1);

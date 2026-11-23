@@ -30,8 +30,12 @@ test('one row per vote, oldest first, with the option by letter and by its words
   ]);
 });
 
-test('no votes is a header only', () => {
+test('no votes is a header only; a vote with no known time has an empty time, never a made-up one', () => {
   assert.equal(votesCsv(round, []), 'Time (UTC),Option,Answer,Source,Voter\r\n');
+  assert.equal(
+    votesCsv(round, [{ at: '', option: 0, source: 'phone', voter: 'aaaaaaaaaa' }]),
+    'Time (UTC),Option,Answer,Source,Voter\r\n,A,Home,phone,aaaaaaaaaa\r\n',
+  );
 });
 
 test('the file name carries the question and the day, and nothing a file system refuses', () => {

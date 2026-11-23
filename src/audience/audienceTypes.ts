@@ -273,7 +273,8 @@ export interface QuestionLive {
   type: 'open' | 'choice' | 'word';
   text: string;
   options?: string[];
-  /** Multiple choice only: whether a phone may change its vote. Absent reads as true. */
+  /** Multiple choice only: whether a phone may change its vote. Absent keeps the round's own (true
+   *  for a new round), so a page from before the policy cannot change it. */
   allowChange?: boolean;
 }
 

@@ -24,8 +24,11 @@ function cell(value: string): string {
  *  option's words as asked), Source (phone or chat), Voter. Lines end in CRLF (RFC 4180). */
 export function votesCsv(round: Pick<AudienceRound, 'options'>, votes: readonly RoundVote[]): string {
   const rows = [['Time (UTC)', 'Option', 'Answer', 'Source', 'Voter']];
-  for (const v of [...votes].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))) {
-    rows.push([new Date(v.at).toISOString(), letter(v.option), round.options[v.option] ?? '', v.source, v.voter]);
+  const time = (at: string) => Date.parse(at) || 0;
+  for (const v of [...votes].sort((a, b) => time(a.at) - time(b.at))) {
+    // A vote with no known time (one a rehearsal kept before votes had times) has an empty cell.
+    const when = Number.isFinite(Date.parse(v.at)) ? new Date(v.at).toISOString() : '';
+    rows.push([when, letter(v.option), round.options[v.option] ?? '', v.source, v.voter]);
   }
   return rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }

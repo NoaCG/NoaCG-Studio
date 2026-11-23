@@ -355,8 +355,10 @@ From the studio session of 2026-11-23 (docs/work-specs/live-production-reliabili
   votes, and a change moves the round's revision.
 - **O4. Votes export.** "Export votes (CSV)" on the selected vote, and a CSV beside each earlier
   count: each vote's time (when the server last took it), option letter and words, source (phone
-  or chat) and a voter key that is not the device token (ten hex digits of md5 of the round id and
-  the token, so one device is one voter within a count and cannot be followed across counts).
+  or chat) and a voter key that is not the device token (ten hex digits of md5 of the production
+  id, the round id and the token, so one device is one voter within a count and cannot be followed
+  across counts; the production id, which phones never see, keeps a chat voter's public id from
+  being matched by hashing candidates).
   Read by the control slug, like the tally (`audience_votes_export`).
 - **The burst cap** on phone votes is 3000 per round in any ten seconds (was 300), counted with a
   bound over its own index, and its refusal says "Too many votes at once. Try again in a few

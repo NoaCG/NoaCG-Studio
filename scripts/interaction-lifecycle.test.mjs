@@ -149,11 +149,15 @@ test('with changes off, the first vote is final, for phones and chat; the policy
   assert.deepEqual((await b.tally(final.id)).chat, [1, 0]);
 
   // The policy cannot change while live, nor once voted; cleared, it may, and moves the revision.
-  await assert.rejects(b.goLive(VOTE), /live question cannot change/);
+  // A Go live that sends no policy (a page from before it) keeps the round's own.
+  await assert.rejects(b.goLive({ ...VOTE, allowChange: true }), /live question cannot change/);
+  assert.equal((await b.goLive(VOTE)).allowChange, false, 'no policy sent keeps it final');
   await b.stop(final.id);
-  await assert.rejects(b.goLive(VOTE), /has answers/);
+  await assert.rejects(b.goLive({ ...VOTE, allowChange: true }), /has answers/);
   await b.clearResults('q-vote');
-  const free = await b.goLive(VOTE);
+  assert.equal((await b.goLive(VOTE)).allowChange, false, 'cleared, still kept when none is sent');
+  await b.stop(final.id);
+  const free = await b.goLive({ ...VOTE, allowChange: true });
   assert.equal(free.allowChange, true);
   assert.equal(free.revision, final.revision + 2);
   await b.vote('device-1', free.id, 0, free.revision);
