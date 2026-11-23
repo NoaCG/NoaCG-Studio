@@ -164,14 +164,14 @@ stays because the per-graphic control page, an exported control panel, OGraf hos
 have no Back or Reset.
 Controls: **Focus row** (payload `spotlight`) · **Show all rows**.
 
-### Standings / result table (`standings`)
+### Standings (`standings`)
 
 ```
 [entrance] --final / next--> final --next--> [exit]        (the default path: Next walks it)
 [entrance] --highlight--> highlighted ⟳ highlight --final / next--> final
 ```
 
-`final` is what turns a standings board into a RESULT table: same rows, same columns, a
+`final` is what turns a standings board into FINAL standings: same rows, same columns, a
 different claim about them (`markFinal`, which clears a highlight: the leader's row is the one
 lit). It is the board's one STEP (`STANDINGS_STEPS`), so » Next and « Back walk the whole table
 and the final one, and Continue alone runs the board. `highlight` carries the 1-based row and

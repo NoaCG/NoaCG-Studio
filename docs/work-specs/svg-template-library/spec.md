@@ -1078,6 +1078,40 @@ Group 3 (Risky): Speaking timer (two clocks, one floor); Event notification on t
     (SVG_AUTHORING). The final second opinion's concern that such a clock would bind and then go
     unread by the wire does not arise.
 
+### TL7 (close)
+
+- Previous verified `main`: `0f2a2eeb69c7ce1b6bbeb10e786aaf1543f285bf` (TL6, checked PASS on #2714). Revert: `git revert -m 1 <the TL7 merge commit>`.
+- Start: 105 rows, 105 covered, 0 planned, no open `extensions` entry, no proof spec quarantined
+  (`node scripts/template-coverage.mjs --complete` exits 0 on the source SHA).
+- Row class: Risky (it turns a build gate to complete enforcement). Rules written before any code,
+  for the Rules-first `/so`:
+  - C1. The build gate (`scripts/template-coverage.test.mjs`, the committed-matrix case) validates
+    in complete mode: a `planned` row fails it.
+  - C2. In the same gate, any open `extensions` entry on any row fails it.
+  - C3. A covered row whose proof spec is listed in `e2e/quarantine.json` fails it (unchanged).
+  - C4. A type, recipe, untyped design or contract registered without a covered row fails the
+    build: `--write` still adds the row as `planned` for the author to fill in, and the gate
+    refuses it until it is covered with templates and a passing proof.
+  - C5. `node scripts/template-coverage.mjs` checks in complete mode by default, as the gate does;
+    `--complete` stays accepted.
+  - C6. Nothing else in the check changes: the floor, the landed-matrix ratchet, staleness and the
+    evidence rules are as they were; no test, case or limit is removed. Only its wording (header
+    comment, `docs/template-library/README.md`) changes to say a new id lands covered.
+  - C7. Consequence of C1 and C3, intended: a proof spec cannot be quarantined while its rows are
+    covered (the quarantine PR runs the build and fails), so a flaky proof is fixed, not set
+    aside. This binds later plans too: a type, recipe or contract they register lands with its
+    template and proof in the same PR (for example the notification inbox, #2713).
+  - N1. AC-8's check is `scripts/concept-names.test.mjs` passing on the final head. TL7 fixes or
+    accounts for the nits carried to it: #2680 comment 7070472364 (`docs/GRAPHIC_TYPES.md`,
+    `docs/COMPETITION_PACK.md` "Standings / result table"; `docs/whats-new/2026-11-19.md` "Credits
+    roll"; `src/ai/stubProvider.ts` "game timer"), #2682 comment 7075910783 (three nits) and
+    #2697 comment 7081162959 (`docs/whats-new/2026-11-05.md` "SVG examples"). Dated release notes
+    in `docs/whats-new/` keep their wording as historical records.
+  - N2. Counts: the current-state pages (library page, its README, the maintainer README, the
+    internal docs that state a recipe count) state no stale number. The counts in this spec's
+    "What exists" and D9 ("17 recipes") are the planning-time inventory, kept as written; the
+    matrix is the current count (72 types, 8 untyped kinds, 21 recipes, 4 contracts).
+
 ## Test maintenance
 
 - 2026-11-22 `e2e/svg-examples.spec.ts`: TL4's planned consolidation ("Tests and budget", carried from TL3 with the owner's standing permission on #2678): the 21 one-template tests are 6, five navy templates a test, each walked by the same function with every assertion it had (the show walk and the registry test unchanged); `playwright --list` names every template in a batch title and the coverage gate still finds each row's case; receipt and minutes before and after in `docs/work-specs/svg-template-library/evidence/phase-TL4.md`, owner miwco, expires 2026-12-22

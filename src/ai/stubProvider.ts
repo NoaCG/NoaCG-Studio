@@ -78,7 +78,7 @@ const CATEGORY_KEYWORDS: { test: RegExp; category: AssemblerId; label: string }[
   { test: /ticker|crawl|scroll|news ?bar/, category: 'ticker', label: 'ticker' },
   { test: /score|\bvs\b|versus|match ?up/, category: 'scoreboard', label: 'scoreboard' },
   { test: /starting ?soon|be right back|pre-?show|stream starts/, category: 'starting-soon', label: 'starting-soon loop' },
-  { test: /game ?timer|count ?down|shot ?clock/, category: 'game-timer', label: 'game timer' },
+  { test: /game ?timer|count ?down|shot ?clock/, category: 'game-timer', label: 'countdown' },
   { test: /credits/, category: 'end-credits', label: 'end credits' },
   { test: /info ?card|quote|statement|announcement card/, category: 'info-card', label: 'info card' },
   { test: /\bbug\b|corner|watermark|\blogo\b/, category: 'corner-bug', label: 'corner bug' },

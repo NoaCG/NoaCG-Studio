@@ -46,7 +46,7 @@ Run: `npm run test:e2e -- e2e/svg-templates.spec.ts -g "(Join card|Live vote|Vot
 - Row counts: on air the Vote results template shows each row's share of the staged counts
   (66.7%) and the total count line (`3 votes · voting closed`); the raw count per row is in the
   cue (`Yes | 2`, `No | 1`). Owner ruling 2026-11-22, verbatim: "A" (run issue #2678,
-  https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7071540752): share plus total on
+  https://github.com/NoaCG/NoaCG-Studio/issues/2678#issuecomment-7075308815): share plus total on
   air, with raw counts in the cue, meet AC-4 for TL1. A per-option count readout is carried to
   TL5, after the TL2 compatibility check.
 - Retry without a duplicate: `scripts/audience-pickers.test.mjs` "a retry after a failed staging

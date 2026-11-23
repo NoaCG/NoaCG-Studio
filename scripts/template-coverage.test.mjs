@@ -1,7 +1,7 @@
 // guards: docs/template-library/coverage.json, src/templates/types/**, src/templates/behaviours/**, src/templates/catalog.ts, src/templates/endCredits/**, src/templates/versus/**, src/templates/frames/**, src/templates/picture.ts, src/templates/pictureTarget.ts, src/control/messageStaging.ts, src/control/resultStaging.ts, src/control/wordStaging.ts, src/templates/importedDesign/svgQr.ts, docs/tutorials/**, e2e/svg-templates.spec.ts, e2e/svg-examples.spec.ts, e2e/quarantine.json
 //
-// AC-2 of the SVG Template Library plan, as a gate with `planned` rows allowed until the last gap
-// closes: every id in scope has a row, and every `covered` row keeps its templates and its proof.
+// AC-2 of the SVG Template Library plan, complete since TL7: every id in scope has a row, every row
+// is `covered` with no open extension, and every covered row keeps its templates and its proof.
 
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -180,7 +180,7 @@ test('the committed matrix matches the registries and every covered row holds', 
   const { rows, covered, planned } = summary(committed);
   measured(rows, 'coverage rows');
   measured(registry.untypedLooks.length, 'untyped catalog designs mapped to a row');
-  assert.deepEqual(validateMatrix(committed, { untypedLooks: registry.untypedLooks }), []);
+  assert.deepEqual(validateMatrix(committed, { untypedLooks: registry.untypedLooks, complete: true }), []);
   // Against the landed matrix, where this checkout has it (a shallow CI checkout may not).
   const landed = spawnSync('git', ['show', `origin/main:${MATRIX_FILE}`], { encoding: 'utf8', windowsHide: true });
   if (landed.status === 0) assert.deepEqual(lostSince(JSON.parse(landed.stdout), committed), []);

@@ -42,7 +42,7 @@ path.
 | Segment bug | the corner bug naming the segment | monologue, desk, guest, music | a choice; binds today |
 | Applause and laugh signs | the studio's own signs on camera | on, off | a switch; binds today |
 | Desk poll | audience games, "who's funnier" | open, close, show result | the vote recipe, shipped |
-| Scorecard for a desk game | Fallon's games | a point per player, a winner | the score tracker, shipped |
+| Scorecard for a desk game | Fallon's games | a point per player, a winner | the Scoreboard recipe, shipped |
 | Bracket | "March Madness" style celebrity brackets | advance, crown | as above |
 
 ## 2. Crossed with the challenge set and the plan's examples
@@ -91,7 +91,7 @@ bracket does (a grid is two row sets) and add a 30-way pick that wants a clickab
 thirty buttons, so the bracket carries that finding for all three. The over/under call, the
 segment bug, the applause sign and the coming-up strip bind today as a choice or a switch; the
 lineup carries two of them so the composition is still exercised. The desk poll and the desk-game
-scorecard are the vote and the score tracker, shipped and pinned.
+scorecard are the vote and the Scoreboard recipe, shipped and pinned.
 
 ## 4. The outcomes
 
