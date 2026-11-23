@@ -245,12 +245,13 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   counted those copies from the run's current offset, one short) and of c875b51 (automated: a
   text anchored at its end by a style, which outranks the attribute the run set, laid its run off
   the window) and of f40315a (automated: a window and text turned steeply together were covered
-  only across the frame, short along their line): the crawl and word cloud walks and the export case, 3 passed
+  only across the frame, short along their line), and the wider delta second opinion on 28bbda3
+  (a list in a right-to-left script measured a negative run and never moved): the crawl and word cloud walks and the export case, 3 passed
   (j-0021, j-0028, j-0031, and again on the final runtime, below), with Scroll speed back to 100
   between 0.7 and 1.3 times the first pace, Out leaving the run at its pace, and a 45-letter word
   reported too long then cleared. `crawl-window` (new, on the Ticker crawl template): plain, the
   strip turned three degrees, the text itself turned three degrees, the box and the text turned
-  30 degrees together with a short run, a text end-anchored by an
+  30 degrees together with a short run, a Hebrew list, a text end-anchored by an
   inline style the import turns into a class, and a short run drawn 900
   units inside its window, its list changed three quarters of a copy into a run. In each the clip
   is the drawn Crawl box; the run fills it along its own baseline, from its leading edge to its
@@ -262,7 +263,9 @@ OGraf non-real time does not seek the crawl (a repeating tween, as the built-in 
   fails with the copies counted from the current offset (the left edge at 277.6, against 252),
   the end-anchored case fails with the anchor assumed (the run's right edge at -431.4), and the
   30-degree case fails with the copies after the start counted across the frame (24.7 units
-  short of the far edge). A drawn textLength was checked too: the import already drops it, so
+  short of the far edge), and the Hebrew case fails with the run measured by character positions
+  (it does not move). Every case now samples a whole travel, the moment before the wrap
+  included. A drawn textLength was checked too: the import already drops it, so
   the run needs nothing for it. `pre-plan-graphics`
   8 passed (j-0023), its G2 case included. The same three runtime pins re-taken for the runtime
   text alone, each time.

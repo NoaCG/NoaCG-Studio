@@ -931,7 +931,8 @@ Group 2 (Risky): Crawl (ticker crawl, end-credits crawl) and Word cloud.
     a second for an artwork 1920 units wide (scaled with the artwork's width), times the graphic's
     motion speed, times Scroll speed over 100 clamped to 10 to 400, as the built-in marquee. It
     starts at the take from where it was drawn and, after one run, starts that run again without
-    a jump.
+    a jump. A list in a right-to-left script (Hebrew, Arabic) travels right to left as well, as the
+    built-in marquee's does (decided at build, reversible; reported to the coordinator).
   - K3. A data write that changes Items starts the run again from where the text was drawn; one
     that changes only the speed changes the rate of the run in progress without moving the text;
     one that changes neither, a state entry other than the take, and a clock tick leave it moving.

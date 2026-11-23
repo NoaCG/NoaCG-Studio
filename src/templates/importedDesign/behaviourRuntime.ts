@@ -1370,9 +1370,15 @@ function noacgCrawlRun(item, text, rule) {
   el.setAttribute('text-anchor', 'start');
   el.setAttribute('x', item.start.x);
   el.setAttribute('y', item.start.y);
-  el.textContent = once + once;
+  // One run's length, measured as advance: two copies less one. A position of a character would
+  // be wrong for a right-to-left line, whose first character stands at its right.
   var step;
-  try { step = el.getStartPositionOfChar(once.length).x - el.getStartPositionOfChar(0).x; } catch (e) { step = 0; }
+  try {
+    el.textContent = once;
+    var single = el.getComputedTextLength();
+    el.textContent = once + once;
+    step = el.getComputedTextLength() - single;
+  } catch (e) { step = 0; }
   var parent = item.outer.parentNode;
   // The run travels along the text's own baseline, in the move group's units: a text drawn turned
   // (Illustrator writes the turn on the text itself) repeats along that line, not along x.
@@ -1381,7 +1387,12 @@ function noacgCrawlRun(item, text, rule) {
   if (!(scale > 0)) scale = 1;
   item.dir = rel ? { x: rel.a / scale, y: rel.b / scale } : { x: 1, y: 0 };
   var dist = step * scale;                               // one run, in the move group's own units
-  if (!(dist > 0) || typeof gsap === 'undefined') return;
+  if (!(dist > 0) || typeof gsap === 'undefined') {
+    // Not laid out: no run of the old text keeps moving over this one (asked again next repaint).
+    if (item.tween) item.tween.kill();
+    item.tween = null;
+    return;
+  }
   // Copies before the start: at least one, and enough to reach the window's leading edge from
   // where the text was drawn, so a short run drawn well inside its window leaves no gap at the
   // wrap. Measured at the run's zero offset, whatever offset it has now (a new list resumes from
@@ -1408,13 +1419,14 @@ function noacgCrawlRun(item, text, rule) {
   var all = '';
   for (var c = 0; c < copies; c++) all += once;
   el.textContent = all;
-  // The run's first character goes where the copies before the start begin, whatever anchor the
-  // text computes to: a stylesheet's text-anchor (Inkscape's inline one becomes a class at import)
-  // outranks the attribute set above, so the anchor is measured, not assumed.
+  // The run's left edge goes where the copies before the start begin, as the drawn text's left
+  // edge (item.start.x) was measured: by its box, whatever anchor the text computes to (a
+  // stylesheet's text-anchor, Inkscape's inline one made a class at import, outranks the
+  // attribute set above) and whichever way its letters run.
   var head = item.start.x - before * step;
   el.setAttribute('x', head);
   var at;
-  try { at = el.getStartPositionOfChar(0).x; } catch (e) { at = head; }
+  try { at = el.getBBox().x; } catch (e) { at = head; }
   if (Math.abs(at - head) > 0.01) el.setAttribute('x', head + (head - at));
   var perSecond = 140 * (item.frameW / 1920) * item.perUnit;
   var from = item.tween && !item.restart ? -item.pos.x : 0;
