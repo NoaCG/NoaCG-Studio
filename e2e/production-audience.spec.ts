@@ -877,10 +877,6 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await phone.clock.install();
   await phone.goto(`/join?rehearse=${showId}`);
   await expect(phone.locator('#join .nj-prompt')).toHaveText('First question');
-  // An installed clock still runs on its own; pausing it is what holds the poll, so the phone can
-  // only re-read when it sends or the test runs its clock. Without it, a vote edit that takes the
-  // operator over five seconds let the poll show the new options before the stale send below.
-  await phone.clock.pauseAt(Date.now() + 1_000);
   await phone.locator('#nj-body').fill('Typed for the first');
 
   await goLive(ws, 'Second question');
@@ -919,6 +915,10 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await phone.locator('#join .nj-send').click();
   await expect(phone.getByTestId('nj-voted')).toHaveText('Your vote: B Blue');
   await expect(pick.getByTestId('question-count')).toHaveText('1', { timeout: 10_000 });
+  // An installed clock still runs by itself; PAUSED, the phone re-reads only when it sends or the
+  // test runs its clock, so it keeps the old options however long the edit below takes. Paused here,
+  // after the phone's last message, so its messages keep the times they were sent at.
+  await phone.clock.pauseAt((await phone.evaluate(() => Date.now())) + 500);
   await stopLive(ws, 'Pick one');
   await pick.getByTestId('question-more').click();
   await ws.getByTestId('question-clear').click();
