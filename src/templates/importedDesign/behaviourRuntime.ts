@@ -1246,8 +1246,12 @@ function noacgReadoutSize(el, weight, rule) {
   // Too long is said on the field the words come from, if any of its words does not fit.
   var id = noacgFieldFor(String(rule.from).split(':')[0], null);
   if (id && typeof svgFitOver !== 'undefined') {
-    var all = noacgRoleEls(rule.write), any = false;
-    for (var j = 0; j < all.length; j++) if (all[j].noacgSizeOver && all[j].classList.contains('${LOOK_ON_CLASS}')) any = true;
+    // Every slot's layers: the role is stamped per row (word/1, word/2), never bare.
+    var keys = rule.rows ? noacgRowsOf(rule.rows) : [null], any = false;
+    for (var k = 0; k < keys.length; k++) {
+      var all = noacgRoleEls(rule.write, keys[k]);
+      for (var j = 0; j < all.length; j++) if (all[j].noacgSizeOver && all[j].classList.contains('${LOOK_ON_CLASS}')) any = true;
+    }
     svgFitOver[id] = any;
   }
 }
@@ -1413,7 +1417,8 @@ function noacgCrawlAll(rules) {
         item.text = text;
       } else if (item.tween) {
         var now = motionSpeed() * noacgCrawlPct(rule);
-        if (now !== item.built) item.tween.timeScale(now / item.built);
+        // Always against the speed it was built at, so going back to that speed goes back to 1.
+        if (item.tween.timeScale() !== now / item.built) item.tween.timeScale(now / item.built);
       }
     }
   }

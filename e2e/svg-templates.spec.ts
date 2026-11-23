@@ -863,6 +863,9 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await page.getByTestId(`cue-field-${speed}`).fill('200');
       await page.getByTestId('verb-update').click();
       await expect.poll(pace, { message: 'Scroll speed 200 doubles the pace' }).toBeGreaterThan(normal * 1.5);
+      await page.getByTestId(`cue-field-${speed}`).fill('100');
+      await page.getByTestId('verb-update').click();
+      await expect.poll(pace, { message: 'back to 100, back to the pace it started at' }).toBeLessThan(normal * 1.3);
       await checkAir(page, air, `${t.slug}-2-crawling`);
       await page.getByTestId(`cue-field-${items}`).fill('');
       await page.getByTestId('verb-update').click();
@@ -890,6 +893,14 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await page.getByTestId('verb-update').click();
       await expect(slot(1)).toHaveText('Extraordinarily');
       await checkAir(page, air, `${t.slug}-3-long`);
+      // W4: a word no size down to the floor can fit into its slot is reported on Words.
+      const over = () => air.locator('svg').first().evaluate(() => (window as unknown as { noacgTextOverflow(): string[] }).noacgTextOverflow());
+      await page.getByTestId(`cue-field-${words}`).fill('Pizza | 3\nTacos | 2\nPneumonoultramicroscopicsilicovolcanoconiosis | 1');
+      await page.getByTestId('verb-update').click();
+      await expect.poll(over, { message: 'the long word is reported' }).toContain(words);
+      await page.getByTestId(`cue-field-${words}`).fill('Pizza | 3\nTacos | 2\nSushi | 1');
+      await page.getByTestId('verb-update').click();
+      await expect.poll(over, { message: 'and no longer once it is gone' }).not.toContain(words);
       await page.getByTestId(`cue-field-${words}`).fill('');
       await page.getByTestId('verb-update').click();
       for (let n = 1; n <= slots; n++) await expect(slot(n)).not.toHaveClass(/imported-design-on/);
