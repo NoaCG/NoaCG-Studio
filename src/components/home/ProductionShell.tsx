@@ -255,9 +255,8 @@ export default function ProductionShell({
         {data}
         <SyncStatus team={show.teamId ? { productionId: show.id, saving, note: teamNote, readError: teamState.loadError } : undefined} />
         {/* WHO ANSWERS THE PANEL (panel lease L8), only with a panel paired or answering. Answering
-            here, whether Companion is connected (green only when it reported in the last 45 s:
-            "Companion connected"), and "Panel …" while taking it; both open its dialog as the
-            Setup menu's item does. On
+            here, whether Companion is connected (panelChip: green only for "Companion connected"),
+            and "Panel …" while taking it; both open its dialog as the Setup menu's item does. On
             another page, one quiet "Use panel here" that moves it, naming that page in its tooltip,
             so a laptop header keeps its room for the production's name. */}
         {panelState === 'held' ? (

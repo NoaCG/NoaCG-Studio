@@ -142,7 +142,8 @@ export function usePanelAnswer(opts: {
       const now = Date.now();
       const health = companionHealth(lastRead.current, now);
       const next = health && { health, words: healthWords(health, now) };
-      setCompanion((cur) => (cur && next && cur.health.kind === next.health.kind && cur.words === next.words ? cur : next));
+      // The words name the state, so equal words are the same state.
+      setCompanion((cur) => (cur?.words === next?.words ? cur : next));
     };
     const look = () => {
       panelList(slug).then(
