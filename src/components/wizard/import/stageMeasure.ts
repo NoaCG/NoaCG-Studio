@@ -1008,7 +1008,7 @@ export function lineCanWrap(stage: HTMLElement, lineId: string, boxId: string | 
   const size = (parseFloat(getComputedStyle(run).fontSize) || 0) * k;
   if (!(size > 0)) return false;
   const frameArea = frame.width * frame.height;
-  const drawn = Array.from(root!.querySelectorAll('rect, path, polygon, ellipse, circle, image, use, line, polyline, text, tspan'))
+  const drawn = Array.from(root!.querySelectorAll('rect:not([data-noacg-area]), path, polygon, ellipse, circle, image, use, line, polyline, text, tspan'))
     .filter((o) => o !== node && !o.contains(node) && !node.contains(o))
     .map((o) => o.getBoundingClientRect())
     .filter((b) => b.width > 0 && b.height > 0);

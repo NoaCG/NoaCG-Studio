@@ -162,7 +162,9 @@ test('a routine lower third reaches a working graphic with no mapping stop', asy
   await page.goto('/app');
   await dropSvg(page, LOWER_THIRD);
   // Nothing is asked (row 36): no behaviour, no clock question, nothing still to say.
-  await expect(page.getByTestId('map-svg-behaviour').locator('.wz-sec-head .muted')).toHaveText('it just comes on and off');
+  // It ships as a Lower third, and the dropdown is the only thing that says so.
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await expect(page.getByTestId('map-svg-behaviour').locator('.wz-sec-head .muted')).toHaveCount(0);
   await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
   // From the mapping step straight to Finish: nothing on the checklist has to be answered.
   await page.getByTestId('wz-skip-to-finish').click();
@@ -185,7 +187,7 @@ test('a routine lower third reaches a working graphic with no mapping stop', asy
 // The task rubric for AC-5, one walk per family on the development corpus: the clicks a
 // non-technical author makes and what the operator then has. Row 34's verdict was no go, so these
 // proposals are the drop's own; nothing asks the model route. A family the artwork settles asks
-// nothing; one whose behaviour the artwork cannot settle asks one question in the "What it does"
+// nothing; one whose behaviour the artwork cannot settle asks one question in the "Graphic type"
 // section, and the section's summary says what ships until it is answered.
 
 const dev = (name: string) => fileURLToPath(new URL(`./fixtures/jev-svg/dev/${name}.svg`, import.meta.url));
@@ -201,7 +203,7 @@ async function finishInto(page: Page, graphic: string): Promise<void> {
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
 }
 
-/** The "What it does" section's one line, which says what ships. */
+/** The "Graphic type" section's one line: what ships beyond the type the dropdown names. */
 const summary = (page: Page) => page.getByTestId('map-svg-behaviour').locator('.wz-sec-head .muted');
 
 test('a scoreboard asks nothing: its figures arrive as steppers', async ({ page }) => {
@@ -211,6 +213,20 @@ test('a scoreboard asks nothing: its figures arrive as steppers', async ({ page 
   await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
   await finishInto(page, 'Scores');
   await expect(page.getByTestId('live-numbers')).toBeVisible();
+});
+
+// A QUESTION IS ALSO A LOWER THIRD (owner, 2026-11-23): the same quiz artwork, typed as a Lower
+// third, airs its question as a plain field with no quiz buttons.
+test('a quiz board picked as a Lower third airs as one: the question is a field, no quiz buttons', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg(page, dev('quiz-1'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  await page.getByTestId('map-svg-behaviour-kind').selectOption({ label: 'Lower third' });
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await finishInto(page, 'Question strap');
+  // The question is the cue's first field, and the cue has no action buttons at all.
+  await expect(page.getByText('F0 · Question')).toBeVisible();
+  await expect(page.getByTestId('cue-actions')).toHaveCount(0);
 });
 
 test('a recognised quiz asks nothing: Select, Lock and Reveal are ready', async ({ page }) => {
@@ -226,12 +242,17 @@ test('a recognised quiz asks nothing: Select, Lock and Reveal are ready', async 
 test('credits are one choice: the list is picked, previewed and editable', async ({ page }) => {
   await page.goto('/app');
   await dropSvg(page, dev('credits-1'));
-  // The choice says what credits now are, not only the fixed-artwork roll (#2001), and promises
-  // editing only for separate role and name layers; one text block rolls as drawn (#2033).
+  // The choice is a name, and the info note says what credits now are, not only the
+  // fixed-artwork roll (#2001), promising editing only for separate role and name layers; one
+  // text block rolls as drawn (#2033).
   const choice = page.getByTestId('map-svg-behaviour-kind').locator('option[value="credits"]');
-  await expect(choice).toContainText('One block of text rolls as drawn');
-  await expect(choice).toContainText('separate role and name layers become an editable list');
+  await expect(choice).toHaveText('End credits');
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  await page.getByTestId('map-svg-why-behaviour').click();
+  const why = page.getByTestId('map-svg-why-behaviour-body');
+  await expect(why).toContainText('One block of text rolls as drawn');
+  await expect(why).toContainText('separate role and name layers become an editable list');
+  await page.getByTestId('map-svg-why-behaviour').click();
   // Six text layers: the title reads as no list, so the first role is picked for the author.
   const preview = page.getByTestId('map-svg-credits-preview');
   await expect(preview).toHaveAttribute('data-layout', 'role-above');
@@ -668,7 +689,8 @@ test('with every AI route failing, an SVG import is saved, taken to air and expo
   const before = aiAsked.length;
   await dropSvg(page, LOWER_THIRD);
   await expect(page.getByTestId('map-svg-fields')).toBeVisible();
-  await expect(summary(page)).toHaveText('it just comes on and off');
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await expect(summary(page)).toHaveCount(0);
   await finishInto(page, 'Fallback strap');
   expect(aiAsked.slice(before).filter((p) => p.includes('svg-interpretation')), 'the import asks the model route nothing').toEqual([]);
 
@@ -887,7 +909,8 @@ test('row 38 diagnostic: three notice zones, each zone\'s words operated alone; 
   await page.goto('/app');
   await dropSvg(page, NOTICE_ZONES);
   // The artwork settles nothing to ask: three plates, each a heading and a body.
-  await expect(summary(page)).toHaveText('it just comes on and off');
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await expect(summary(page)).toHaveCount(0);
   await finishInto(page, 'Notices');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const bodies = ['f1', 'f3', 'f5'];

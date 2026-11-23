@@ -183,9 +183,11 @@
                 text layers than you drew means some text was exported as outlines. To try it first,
                 use <a href="/docs/examples/name-tag.svg" download>name-tag.svg</a>.</li>
               <li id="first-fields">Check the <strong>Fields</strong> step. Every ticked layer is a
-                field the operator types into, labelled with your layer name. <strong>What it
-                does</strong> shows the type NoaCG found from your layer names. You can change it
-                and pick the layers yourself.</li>
+                field the operator types into, labelled with your layer name, or with its own words
+                when it has no name. <strong>Graphic type</strong> shows the type NoaCG found from
+                your layer names. You can change it
+                and pick the layers yourself. <strong>Set text box</strong> on a row lets you click
+                a shape or draw the area that text may use.</li>
               <li>Choose how the graphic comes on and goes off in <strong>Animation</strong>.</li>
               <li id="first-finish">In <strong>Finish</strong>, name the graphic and choose
                 <strong>Add to the production</strong> or <strong>Export it</strong>. Both save it to
@@ -342,7 +344,7 @@
                 Answers, and no type is found. Save the file with <em>Save a Copy</em> as above,
                 because <em>Export As</em> leaves hidden layers out.</li>
               <li>When the names fit a type, the wizard picks that type in
-                <strong>What it does</strong> and fills in every layer. When a name does not fit,
+                <strong>Graphic type</strong> and fills in every layer. When a name does not fit,
                 pick that layer from the list yourself.</li>
             </ul>
             <div class="doc-example">
@@ -472,7 +474,7 @@
 <tr><td>Strike 3</td><td><code>Strike 3</code></td><td></td><td>the third X - and the Strike button greys</td></tr>
 <tr><td>Total</td><td><code>Total</code></td><td><code>Sum</code>, <code>Yhteensä</code></td><td>written by NoaCG: the points of the revealed answers, added up</td></tr>
 <tr><td colspan="4" class="doc-words-rows">Two to eight answers.</td></tr>
-<tr class="doc-words-type"><th colspan="4">Stepped list</th></tr>
+<tr class="doc-words-type"><th colspan="4">Top list</th></tr>
 <tr><td>Entry (one per row)</td><td><code>Item 10</code></td><td><code>Entry 10</code>, <code>Number 10</code>, <code>Kohta 10</code></td><td>draw it as it looks revealed - written from the Entries box, hidden until its number comes up</td></tr>
 <tr><td>Mark (one per row)</td><td><code>Mark 10</code></td><td><code>Current 10</code>, <code>Highlight 10</code></td><td>shown on the entry that just arrived, until the next one does</td></tr>
 <tr><td colspan="4" class="doc-words-rows">Two to twelve entries; the option decides whether they arrive from the last number down or from 1 up.</td></tr>
@@ -487,7 +489,7 @@
 <tr><td>Used (one per row)</td><td><code>Used 1</code></td><td><code>White 1</code></td><td>shown on every tile the phrase reaches - the white face behind a letter still hidden</td></tr>
 <tr><td>Solved</td><td><code>Solved</code></td><td><code>Ratkaistu</code></td><td>once the puzzle is solved (one, whole board)</td></tr>
 <tr><td colspan="4" class="doc-words-rows">Four to forty tiles, numbered left to right and then down; the phrase is laid over them in that order, so put spaces where the tiles should stay blank.</td></tr>
-<tr class="doc-words-type"><th colspan="4">Reveal</th></tr>
+<tr class="doc-words-type"><th colspan="4">Hidden answer</th></tr>
 <tr><td>The reveal</td><td><code>Price</code></td><td><code>Secret</code>, <code>Reveal</code>, <code>Hinta</code></td><td>draw it as it looks revealed - written from The reveal box, hidden until the press</td></tr>
 <tr><td>Cover</td><td><code>Cover</code></td><td><code>Envelope</code>, <code>Sealed</code>, <code>Kansi</code></td><td>shown until the reveal - the sealed plate over the text</td></tr>
 <tr class="doc-words-type"><th colspan="4">Bingo caller</th></tr>
@@ -500,7 +502,7 @@
 <tr class="doc-words-type"><th colspan="4">End credits</th></tr>
 <tr><td>Credits</td><td><code>Credits</code></td><td><code>Credit list</code>, <code>End credits</code>, <code>Lopputekstit</code>, <code>Eftertexter</code></td><td>the layer the credits are read from: the first role, when each role and each name is its own text layer, or one text object holding every line, which scrolls as fixed artwork</td></tr>
 <tr><td>Credits box</td><td><code>Credits box</code></td><td><code>Credits panel</code>, <code>Credits window</code>, <code>Lopputekstit laatikko</code></td><td>a window used only by credits saved by an earlier version; new imports use the whole frame and need no box</td></tr>
-<tr class="doc-words-type"><th colspan="4">Rotation</th></tr>
+<tr class="doc-words-type"><th colspan="4">Slideshow</th></tr>
 <tr><td>Slide (one per row)</td><td><code>Slide 1</code></td><td><code>Folie 1</code>, <code>Diapositiva 1</code></td><td>one turn of the rotation, shown while it is that slide's turn, with every text and picture named with its number (Story 1, Sponsor 1)</td></tr>
 <tr><td colspan="4" class="doc-words-rows">Two to eight slides, drawn visible and stacked in one place. A set of texts or pictures named for every slide (Story 1, Story 2) shows each with its slide.</td></tr>
 <tr class="doc-words-type"><th colspan="4">Crawl</th></tr>
@@ -613,7 +615,7 @@
             <p>The operator can also type any score straight into its field.</p>
             <figure class="doc-shot">
               <img src="/docs/type-scoreboard-fields.png" width="1680" height="1290" loading="lazy"
-                alt="The Fields step for scoreboard.svg, with Scoreboard picked under What it does." />
+                alt="The Fields step for scoreboard.svg, with Scoreboard picked under Graphic type." />
               <figcaption>
                 <strong>After the drop.</strong> The wizard picks Scoreboard from the layer names.
               </figcaption>

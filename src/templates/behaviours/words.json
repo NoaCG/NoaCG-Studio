@@ -811,7 +811,7 @@
     ]
   },
   "list": {
-    "name": "The stepped list",
+    "name": "The top list",
     "verbs": "one entry per Next press",
     "buttons": "nothing extra: Next reveals the next entry, and the Entries box holds the list, one line per number",
     "rows": {
@@ -963,7 +963,7 @@
     ]
   },
   "reveal": {
-    "name": "The reveal",
+    "name": "The hidden answer",
     "verbs": "typed text, sealed until one press",
     "buttons": "Reveal, plus The reveal box for the text",
     "roles": [
@@ -1108,7 +1108,7 @@
     ]
   },
   "rotation": {
-    "name": "The rotation",
+    "name": "The slideshow",
     "verbs": "slides that take turns on their own",
     "buttons": "Hold, Resume and Next slide",
     "rows": {

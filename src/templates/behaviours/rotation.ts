@@ -45,7 +45,7 @@ const held = (key: string): string => `held${key}`;
 
 export const rotationRecipe: BehaviourRecipe = {
   id: 'rotation',
-  name: 'Rotation',
+  name: 'Slideshow',
   description: 'Drawn slides that take turns on their own, every six seconds; Hold keeps one up.',
   category: 'ticker',
   defaultZone: 'bottom-center',

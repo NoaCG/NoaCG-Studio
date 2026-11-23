@@ -13,7 +13,8 @@ import {
 import { commitStagedSelection } from '../../ai/preferences';
 import { formatTemplate } from '../../format/formatCode';
 import { SVG_CANDIDATE_ATTR } from '../../assets/svgImport';
-import WizardPreview, { type PreviewBoxOverlay, type PreviewGrowCap } from './WizardPreview';
+import { useSvgMapPreview } from './svgMapPreview';
+import WizardPreview, { type PreviewGrowCap } from './WizardPreview';
 import BrandLogo from '../BrandLogo';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import AuthStatus from '../auth/AuthStatus';
@@ -187,14 +188,8 @@ export default function CreationWizard() {
   // Prepare step's content-width slider (Import graphic, stretch mode): preview-only demo
   // text pushed into the live preview — never part of the draft or the created template.
   const [stretchDemo, setStretchDemo] = useState<string | null>(null);
-  // SVG mapping step: which layer the checklist is pointing at. It lives here rather than in
-  // the step because the highlight is drawn on the PREVIEW — the step's one canvas, and the
-  // only one carrying the fit runtime (docs/SVG_IMPORT_PLAN.md §6a step 1).
-  const [svgHoverId, setSvgHoverId] = useState<string | null>(null);
-  // And the BOX that layer lives in, with the room round it and the alignment the file drew -
-  // what the preview's box overlay draws (docs/TEXT_BOX_BINDING.md). Held beside the hover for
-  // the same reason and measured by the step, which is the one holding the artwork.
-  const [svgBoxOverlay, setSvgBoxOverlay] = useState<PreviewBoxOverlay | null>(null);
+  // SVG mapping step: the hovered layer, the lit lines and the box overlay (svgMapPreview.ts).
+  const { hoverId: svgHoverId, setHoverId: setSvgHoverId, marks: svgMarks, setMarks: setSvgMarks, boxOverlay: svgBoxOverlay, setBoxOverlay: setSvgBoxOverlay } = useSvgMapPreview();
   // HOW FAR EACH GROWING BOX MAY REACH - one draggable line per box (docs/TEXT_BOX_BINDING.md,
   // rung 4). Measured and worded by the step, drawn on the preview, and moved back through the
   // handler beside it, which is held in a REF for the reason the draw handler is: its closure
@@ -1185,6 +1180,7 @@ export default function CreationWizard() {
                 draft={draft}
                 onDraft={patch}
                 onHover={setSvgHoverId}
+                onMarks={setSvgMarks}
                 onBoxOverlay={setSvgBoxOverlay}
                 onGrowCaps={setSvgGrowCaps}
                 onArmCap={armSvgCap}
@@ -1353,6 +1349,7 @@ export default function CreationWizard() {
                   ? {
                       highlightSelector: svgHoverId ? `[${SVG_CANDIDATE_ATTR}="${svgHoverId}"]` : null,
                       boxOverlay: svgBoxOverlay,
+                      marks: svgMarks,
                       // The growth limits, and the artwork they are fractions OF. The rule's own
                       // cap is measured against the artwork's frame (`svgGrowCap`), so the line
                       // has to be drawn against exactly that element and no other.

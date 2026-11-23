@@ -456,3 +456,34 @@
   min-width: 12px;
   margin: 0;
 }
+
+/* SET TEXT BOX (owner, 2026-11-23): one small button on a text row, lit while the preview is
+   answering that row, and the one-line strip under the row while it does. */
+.map-svg-set-box {
+  flex: none;
+  align-self: flex-end;
+  padding: 2px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.map-svg-set-box.active {
+  border-color: var(--accent, #f6a623);
+  color: var(--accent, #f6a623);
+}
+.map-svg-box-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 6px 28px;
+}
+.map-svg-box-edit .hint {
+  flex: 1;
+  margin: 0;
+}
+.map-svg-box-cut {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: normal;
+  white-space: nowrap;
+}

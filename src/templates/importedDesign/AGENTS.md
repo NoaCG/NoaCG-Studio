@@ -193,6 +193,13 @@ no rule exists. §6c carries the mechanism; these are the tripwires.
   default, and where Illustrator puts it since it writes the position in the transform. The value is
   read back through `svgFitValue`, because `textContent` joins tspans with nothing between.
 
+**A box the author SET beats every search** (`lines[].box`, `svgSaidBox`): the fit measures the
+line there first, and a rule on that box counts only the lines set in it. A DRAWN box is an
+unpainted rect marked `data-noacg-area`; every search for what is drawn round a line skips it
+(`SVG_DRAWN_RECT`), and `svgFitContainer` stays word for word, so its answer is dropped in
+`svgFitPanel` instead. **A `cut` row splits rather than moves** (svgGrowth.js "THE CUT LINE"): built
+once, reused through `__noacgCut`, taken off at rest, never cutting text.
+
 A graphic with an EMPTY table never moves, and a lower third's default row is measured at design
 time by the wizard, never at play time (`src/components/wizard/AGENTS.md`).
 

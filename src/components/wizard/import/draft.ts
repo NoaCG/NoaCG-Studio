@@ -22,6 +22,7 @@ import type {
 import { FONTS, fontNameKey, type CustomFont } from '../../../model/fonts';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type { EraseRect, RegionInk } from '../../../assets/eraseRegion';
+import type { SvgArea } from '../../../assets/svgAreas';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
@@ -111,6 +112,9 @@ export interface SvgImportDraft {
    *  size (plan §3)? Off is the graphic that declares a STAGE, which is every board and
    *  every scorebug; on is the lower third whose banner is as wide as the name on it. */
   svgStretch: SvgStretchDraft;
+  /** TEXT BOXES THE AUTHOR DREW on the preview with "Set text box", in fractions of the artwork
+   *  (assets/svgAreas.ts). Only the ones a row or a growth rule still names reach the graphic. */
+  svgAreas?: SvgArea[];
   /** Per referenced font family: how it resolves. Bundled faces auto-match by name at drop;
    *  the mapping step offers the Google fetch or an upload for the rest. An entry with
    *  neither source is UNRESOLVED — created anyway, with a warning. */
@@ -251,6 +255,9 @@ export interface SvgFieldDraft {
   /** STAYS ON ONE LINE - the too-long answer of a row with no box of its own, where nothing can
    *  grow. Absent = wraps into the room the drawing has, which is every row's start. */
   oneLine?: boolean;
+  /** THE BOX THE AUTHOR SET for this line with "Set text box": a shape's or a drawn area's
+   *  candidate id. Absent = the box the geometry finds, as before. */
+  box?: string;
 }
 
 /**
@@ -694,6 +701,12 @@ export interface SvgStretchDraft {
    * limit in has said nothing about how wide the box may get.
    */
   caps?: Record<string, { x?: number; y?: number }>;
+  /**
+   * WHERE A WIDENING BOX CUTS THE ARTWORK, per box, as a fraction of the artwork's width
+   * (`DesignSvgGrowth.cut`): for artwork that cannot move as separate layers, such as a ticket
+   * whose paper and stub are one picture. Absent = what travels is the follower list, as before.
+   */
+  cuts?: Record<string, number>;
 }
 
 /** Does this marker still name something in the file? A follower the reader declared and then
@@ -701,9 +714,14 @@ export interface SvgStretchDraft {
 function svgCandidateExists(draft: SvgImportDraft, candidateId: string): boolean {
   const s = draft.designSvg;
   if (!s) return false;
-  return [...s.candidates, ...s.images, ...s.outlines, ...s.groups, ...s.shapes].some(
+  return [...s.candidates, ...s.images, ...s.outlines, ...s.groups, ...s.shapes, ...(draft.svgAreas ?? [])].some(
     (c) => c.id === candidateId,
   );
+}
+
+/** Can this id be a text BOX - a drawn shape, or an area the author drew? */
+export function svgBoxExists(draft: SvgImportDraft, boxId: string): boolean {
+  return !!draft.designSvg?.shapes.some((s) => s.id === boxId) || !!draft.svgAreas?.some((a) => a.id === boxId);
 }
 
 /** Is this text layer taken off the artwork? Off, answered 'remove', and not written by a
@@ -749,7 +767,8 @@ function hiddenSvgLayers(draft: SvgImportDraft, written: Set<string>): DesignSvg
  * scorebug, and every import from before any of this existed.
  */
 function svgGrowthOptions(draft: SvgImportDraft): DesignSvgGrowth[] | undefined {
-  const shapes = draft.designSvg?.shapes ?? [];
+  // A drawn area grows like any drawn plate, after the file's own shapes.
+  const shapes: { id: string }[] = [...(draft.designSvg?.shapes ?? []), ...(draft.svgAreas ?? [])];
   if (shapes.length === 0) return undefined;
   const graphicWide = draft.svgStretch.on ? draft.svgStretch.shapeId : null;
   // WHICH WAY EACH PLATE GROWS, one entry per plate. The graphic-wide answer writes first and a
@@ -797,11 +816,13 @@ function svgGrowthOptions(draft: SvgImportDraft): DesignSvgGrowth[] | undefined 
       // still the design's own margin mirrored emits no `cap` at all, and the runtime derives
       // the same number it always derived.
       const cap = draft.svgStretch.caps?.[shape.id]?.[axis];
+      // A CUT replaces the follower list on the sideways row: everything right of it travels.
+      const cut = axis === 'x' ? draft.svgStretch.cuts?.[shape.id] : undefined;
       rows.push({
         candidateId: shape.id,
         axis,
         ...(cap != null ? { cap } : {}),
-        ...(carries ? followers : {}),
+        ...(cut != null ? { cut } : carries ? followers : {}),
       });
     }
   }
@@ -960,6 +981,32 @@ function withEraseSeedFields(template: SpxTemplate, draft: SvgImportDraft): SpxT
 /** What a seeded field is called. The first two get the words a lower third actually uses —
  *  the overwhelmingly common shape is a name over a title — and anything past that is
  *  numbered. Every one is renamed in a click from the Inspector's Style tab. */
+/** A text with no usable layer name is named after its OWN WORDS when they are short and read as
+ *  a name ("Namn", "Title"), never as "Text 1": the reader recognises the field at once. A figure,
+ *  a clock or a sentence keeps the numbered fallback, which is the honest name for a value. Only
+ *  the row's title changes; the matcher still reads the layer name (`naming.ts`), so what the
+ *  words say never proposes a graphic type on its own. */
+export function titleOfCandidate(c: { id: string; label: string; sample: string; numeric: boolean; clock: boolean }): string {
+  const fallback = /^t(\d+)$/.exec(c.id);
+  if (!fallback || c.label !== `Text ${Number(fallback[1]) + 1}`) return c.label;
+  const words = c.sample.trim();
+  if (c.numeric || c.clock || !words || words.length > 24 || /\n/.test(words) || !/\p{L}/u.test(words)) return c.label;
+  return words;
+}
+
+/** Every candidate's seeded title, UNIQUE: a title taken from a text's words that another row
+ *  would also carry keeps the numbered fallback, because two operator inputs with one label is a
+ *  control page nobody can read. */
+export function seededTitles(candidates: readonly Parameters<typeof titleOfCandidate>[0][]): Map<string, string> {
+  const words = new Map(candidates.map((c) => [c.id, titleOfCandidate(c)]));
+  const count = new Map<string, number>();
+  for (const t of words.values()) count.set(t, (count.get(t) ?? 0) + 1);
+  return new Map(candidates.map((c) => {
+    const t = words.get(c.id)!;
+    return [c.id, t !== c.label && (count.get(t) ?? 0) > 1 ? c.label : t];
+  }));
+}
+
 function seedTitle(index: number): string {
   return index === 0 ? 'Name' : index === 1 ? 'Title' : `Text ${index + 1}`;
 }
@@ -1791,6 +1838,7 @@ function svgDropAnswers(result: SvgImportResult): Pick<SvgImportDraft, 'svgField
   const proposed = proposeSvgBehaviour({ ...result, candidates: result.candidates.filter(c => !c.outsideCanvas) });
   const written = pollDrivenLayers(proposed);
   const furniture = (c: { id: string; drawing: boolean }) => c.drawing && !written.has(c.id);
+  const titles = seededTitles(result.candidates);
   return {
     // EVERY detected text starts ON (plan §2, zero clicks). The `f:` prefix
     // says "this is definitely a field" and names it — it never says "and
@@ -1811,7 +1859,7 @@ function svgDropAnswers(result: SvgImportResult): Pick<SvgImportDraft, 'svgField
         candidateId: c.id,
         on: !furniture(c) && !c.outsideCanvas,
         ...(c.outsideCanvas ? { whenOff: 'keep' as const } : {}),
-        title: c.label,
+        title: titles.get(c.id) ?? c.label,
         sample: c.sample,
         numeric: c.numeric,
         clock: c.clock,
@@ -1878,6 +1926,8 @@ export function svgDraftFromImport(
     // proposeBannerGrowth). The measurement needs layout, which a drop handler
     // does not have, so the decision lives there rather than here.
     svgStretch: { on: false, shapeId: result.shapes[0]?.id ?? null },
+    // Boxes drawn on the previous file belong to it.
+    svgAreas: undefined,
     // Bundled faces auto-match by family name; the mapping step offers the
     // Google fetch or an upload for the rest (plan §4).
     svgFonts: result.fonts.map((f) => ({
@@ -1988,6 +2038,7 @@ export function svgDesignOptions(draft: SvgImportDraft): DesignSvg | undefined {
         ...(f.align ? { align: f.align } : {}),
         ...(f.keepNudge ? { nudge: true } : {}),
         ...(f.oneLine ? { oneLine: true } : {}),
+        ...(f.box && svgBoxExists(draft, f.box) ? { box: f.box } : {}),
       })),
     images: draft.svgImages
       .filter((f) => f.on)
@@ -2006,6 +2057,7 @@ export function svgDesignOptions(draft: SvgImportDraft): DesignSvg | undefined {
     // A growth rule travels only when it is both ON and pointed at a shape that still exists:
     // a half-answered picker must never become a graphic that resizes at random.
     growth: svgGrowthOptions(draft),
+    areas: svgAreasOptions(draft),
     fonts: draft.svgFonts.map((f) => ({
       family: f.family,
       fontId: f.fontId ?? undefined,
@@ -2013,6 +2065,15 @@ export function svgDesignOptions(draft: SvgImportDraft): DesignSvg | undefined {
       customFont: f.customFont ?? undefined,
     })),
   };
+}
+
+/** The drawn areas something still names - a ticked row's box or a growth rule - and no others,
+ *  so an area the reader drew and then left emits nothing. Absent where there are none. */
+function svgAreasOptions(draft: SvgImportDraft): SvgArea[] | undefined {
+  const named = new Set<string>(draft.svgFields.filter((f) => f.on && f.box).map((f) => f.box!));
+  for (const rule of svgGrowthOptions(draft) ?? []) named.add(rule.candidateId);
+  const areas = (draft.svgAreas ?? []).filter((a) => named.has(a.id));
+  return areas.length ? areas : undefined;
 }
 
 /**

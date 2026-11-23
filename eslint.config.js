@@ -317,6 +317,10 @@ export default tseslint.config(
         svgHardLines: 'readonly',
         svgFitWidths: 'readonly',
         svgFrameScale: 'readonly',
+        // The box an author set for a line, and the drawn-thing search that skips drawn boxes.
+        svgSaidBox: 'readonly',
+        svgArtRoot: 'readonly',
+        SVG_DRAWN_RECT: 'readonly',
         svgIsEndCap: 'readonly',
         svgPlacedScale: 'readonly',
         svgSetSize: 'readonly',

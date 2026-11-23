@@ -6,12 +6,13 @@
 
 import type { DesignSvg, DesignSvgFollower } from '../../model/wizard';
 import { SVG_CANDIDATE_ATTR, svgPictureTarget } from '../../assets/svgImport';
+import { injectSvgAreas } from '../../assets/svgAreas';
 import { boundBehaviour } from './behaviour';
 import { boundClock, countdownIndex, svgFields } from './artworkFields';
 import { creditsArtworkFields, creditsClass, creditsIndex, creditsMarkAnchors } from './creditsRoll';
 import { PREFIX } from './shared';
 import { findQrLayer, QR_LAYER_CLASS } from './svgQr';
-import { followToken, growToken, LAYOUT_EL_ATTR, layoutRules } from './svgLayout';
+import { boxToken, followToken, growToken, LAYOUT_EL_ATTR, layoutRules, saidBoxes } from './svgLayout';
 
 /**
  * The designer's own name for a marked element, off the markup - `data-name` carries the
@@ -141,6 +142,9 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   const classes = (root.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
   if (!classes.includes(`${PREFIX}-art`)) classes.push(`${PREFIX}-art`);
   root.setAttribute('class', classes.join(' '));
+  // The text boxes the author DREW, as unpainted rectangles in the root's user space - before
+  // anything stamps, so a growth rule and a said line find them by their marker like any shape.
+  if (svg.areas?.length) injectSvgAreas(root, svg.areas, SVG_CANDIDATE_ATTR);
 
   // Field ids are ours: a layer Illustrator happened to name "f0" would collide with the
   // binding, so any such id moves aside (references to it inside the file move with it). The
@@ -241,6 +245,15 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
     stamp(rule.candidateId, growToken(i));
     rule.followers?.forEach((f: DesignSvgFollower, j: number) => stamp(f.candidateId, followToken(i, j)));
   }
+  // THE BOXES THE AUTHOR SET for their lines (`DesignSvgField.box`): one token per box, which the
+  // table's `lines` name, so the fit measures each line in the box it was given.
+  saidBoxes(svg).forEach((candidateId, k) => {
+    const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
+    if (!el) return;
+    const own = (el.getAttribute(LAYOUT_EL_ATTR) ?? '').split(/\s+/).filter(Boolean);
+    if (!own.includes(boxToken(k))) own.push(boxToken(k));
+    el.setAttribute(LAYOUT_EL_ATTR, own.join(' '));
+  });
   // The layers a bound behaviour claims: our id, plus the state class on the ones that are drawn
   // MOMENTS. Before the markers are stripped - that is what they are for.
   behaviour?.markLayers(root);

@@ -81,6 +81,9 @@ export interface PreviewGrowCap {
   id: string;
   /** The box's own name, so two lines on one canvas say which is which. */
   label: string;
+  /** 'x' is a CUT LINE rather than a limit: upright, at `margin` across the artwork from its left
+   *  edge, dragged sideways (`DesignSvgGrowth.cut`). Absent = the limit line above. */
+  axis?: 'x';
   /** Which way out of the box the growth goes: 1 = downward, -1 = upward. */
   dir: 1 | -1;
   /** Where the line stands: the margin the growing edge must leave, as a fraction of the
@@ -143,6 +146,8 @@ interface Props {
    * the plain outline is the whole truthful answer there.
    */
   boxOverlay?: PreviewBoxOverlay | null;
+  /** More layers to wash with the box's own mark: the lines in a text box being set. */
+  marks?: string[];
   /**
    * HOW FAR EACH GROWING BOX MAY REACH (see `PreviewGrowCap`): one draggable line per box that
    * grows. Empty or absent on a graphic where nothing grows, which is every board and every
@@ -222,6 +227,7 @@ export default function WizardPreview({
   demoText = null,
   highlightSelector,
   boxOverlay = null,
+  marks,
   growCaps,
   capIn,
   onCapDrag,
@@ -244,6 +250,7 @@ export default function WizardPreview({
   // The box overlay's own selector, as a stable value to depend on (the object is fresh each
   // render of the step above, exactly like `pickable`).
   const boxSel = boxOverlay?.selector ?? '';
+  const marksKey = (marks ?? []).join('|');
   // The pickable set as a stable KEY: the prop is a fresh array on every render of the step
   // above, and depending on the array itself would re-post the `track` command each time.
   const pickKey = (pickable ?? []).join('|');
@@ -556,13 +563,13 @@ export default function WizardPreview({
     postCanvasCmd(frameRef.current?.contentWindow, {
       cmd: 'mark',
       className: CANVAS_MARK.LIT,
-      selectors: boxSel ? [boxSel] : [],
+      selectors: [...(boxSel ? [boxSel] : []), ...(marksKey ? marksKey.split('|') : [])],
     });
     if (selectors.length === 0) setRects({});
     if (framed.length === 0) setFrames({});
     // The pickable set is depended on as a KEY, not as the array: a fresh array identity every
     // render would re-post `track` on every render of the step above.
-  }, [tracking, highlightSelector, boxSel, drawIn, capIn, pickKey]);
+  }, [tracking, highlightSelector, boxSel, marksKey, drawIn, capIn, pickKey]);
   useEffect(trackSelector, [trackSelector]);
 
   const playIn = useCallback(() => {
@@ -645,6 +652,11 @@ export default function WizardPreview({
     if (!el || !capRect || !(capRect.height > 0)) return null;
     const r = el.getBoundingClientRect();
     if (!(r.height > 0)) return null;
+    if (cap.axis === 'x') {
+      if (!(r.width > 0) || !(capRect.width > 0)) return null;
+      const x = ((ev.clientX - r.left) * width) / r.width;
+      return capClamp(cap, (x - capRect.left) / capRect.width);
+    }
     const y = ((ev.clientY - r.top) * height) / r.height; // canvas px, as the rects are
     const from = (y - capRect.top) / capRect.height; // down from the artwork's top
     return capClamp(cap, cap.dir > 0 ? 1 - from : from);
@@ -1119,6 +1131,60 @@ export default function WizardPreview({
                 own frame, which is what the runtime measures its cap against, and a rule running
                 out over the black would claim the stage means something. */}
             {capRect && !drawing && (growCaps ?? []).map((cap) => {
+              if (cap.axis === 'x') {
+                // A CUT LINE: upright, dragged sideways, the same keyboard road as the limit.
+                const nudgeX = (right: number) => onCapDrag?.(cap.id, capClamp(cap, cap.margin + right * 0.005));
+                const grab = Math.max(9, 14 / z);
+                return (
+                  <div
+                    key={cap.id}
+                    className={`wz-stage-cap wz-stage-cut${capGrabbed === cap.id ? ' grabbed' : ''}`}
+                    data-testid={`wz-preview-cap-${cap.id}`}
+                    data-margin={cap.margin.toFixed(4)}
+                    style={{
+                      left: capRect.left + capRect.width * cap.margin,
+                      top: capRect.top,
+                      height: capRect.height,
+                      borderLeftWidth: Math.max(1, 2 / z),
+                    }}
+                  >
+                    <div
+                      className="wz-stage-cap-grab"
+                      data-testid={`wz-preview-cap-grab-${cap.id}`}
+                      role="slider"
+                      tabIndex={0}
+                      aria-orientation="horizontal"
+                      aria-label={`Where ${cap.label} is cut`}
+                      aria-valuemin={Math.round(cap.min * 100)}
+                      aria-valuemax={Math.round(cap.max * 100)}
+                      aria-valuenow={Math.round(cap.margin * 100)}
+                      aria-valuetext={cap.note}
+                      style={{ width: grab, left: -grab / 2 }}
+                      onPointerDown={(ev) => {
+                        ev.stopPropagation();
+                        ev.currentTarget.setPointerCapture(ev.pointerId);
+                        setCapGrabbed(cap.id);
+                      }}
+                      onPointerMove={(ev) => {
+                        if (capGrabbed !== cap.id) return;
+                        const m = capMarginAt(ev, cap);
+                        if (m != null) onCapDrag?.(cap.id, m);
+                      }}
+                      onPointerUp={() => setCapGrabbed(null)}
+                      onPointerCancel={() => setCapGrabbed(null)}
+                      onKeyDown={(ev) => {
+                        if (ev.key === 'ArrowRight') nudgeX(1);
+                        else if (ev.key === 'ArrowLeft') nudgeX(-1);
+                        else return;
+                        ev.preventDefault();
+                      }}
+                    />
+                    <span className="wz-stage-cap-note" style={{ transform: `scale(${1 / z})`, transformOrigin: 'left bottom' }}>
+                      {cap.note}
+                    </span>
+                  </div>
+                );
+              }
               const at = cap.dir > 0 ? 1 - cap.margin : cap.margin;
               // A step a key press moves the line by: half a percent of the frame, which is a
               // few px on a 1080 artwork - fine enough to land on a line count and coarse enough

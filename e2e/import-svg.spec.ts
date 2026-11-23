@@ -2681,8 +2681,8 @@ test('svg import: the step says what a control does, in a few lines', async ({ p
   await page.getByTestId('map-svg-why-behaviour').click();
   const behaviour = page.getByTestId('map-svg-why-behaviour-body');
   await expect(behaviour.locator('p')).toHaveCount(2);
-  // The list below already spells each behaviour out, one line each, so the ⓘ must not read it
-  // back. Naming one of them here is how that regression shows up.
+  // The ⓘ explains the type that is chosen and no other: the dropdown holds names only, and a
+  // paragraph walking the whole list again is how that regression shows up.
   await expect(behaviour).not.toContainText('live vote');
 
   await page.getByTestId('map-svg-why-fields').click();
@@ -3372,4 +3372,74 @@ test('wizard exits: "Open as code" on the AI card goes to Finish in the default 
   await expect(page.getByTestId('wz-finish-production-go')).toBeVisible();
   await expect(page.getByTestId('wz-finish-name')).toHaveAttribute('placeholder', 'Plain Bug');
   await expectNoOldEditorDoor(page);
+});
+
+// SET TEXT BOX ON THE OWNER'S TICKET (2026-11-23). The paper and the 2026 stub are ONE picture and
+// "Namn" is the only live text, so nothing around the name is a box and nothing can travel as a
+// layer. The reader draws the name's area, says it gets wider, and the cut line it gets splits
+// the picture: the stub slides out with the name at its drawn size, and a value no width holds is
+// reported too long - the flag every control surface shows before Take.
+const GOLD_TICKET = fileURLToPath(new URL('fixtures/gold-ticket.svg', import.meta.url));
+
+test('svg import: a text box drawn on the ticket widens it at the drawn size, cuts the picture, and flags what still cannot fit', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg2(page, GOLD_TICKET);
+  const row = 't0';
+  // Named after its words, and offered as the lower third it is.
+  await expect(page.getByTestId(`map-svg-title-${row}`)).toHaveValue('Namn');
+  await expect(page.getByTestId('map-svg-behaviour-kind').locator('option:checked')).toHaveText('Lower third');
+  await expect(page.getByTestId(`map-svg-box-grow-${row}`)).toHaveCount(0);
+
+  await page.getByTestId(`map-svg-set-box-${row}`).click();
+  await drawField(page, [540 / 1920, 300 / 1080], [1170 / 1920, 770 / 1080]);
+  await expect(page.getByTestId(`map-svg-box-head-${row}`)).toContainText('Text box');
+  await page.getByTestId(`map-svg-box-done-${row}`).click();
+  await page.getByTestId(`map-svg-box-grow-${row}`).selectOption('grow-x');
+  await expect(page.getByTestId(`map-svg-box-cut-${row}`), 'a drawn box that widens is cut through its middle').toBeChecked();
+  await expect(page.locator('[data-testid^="wz-preview-cap-cut:"]')).toHaveCount(1);
+
+  const frame = page.frameLocator('.wz-side iframe');
+  const name = frame.locator('#f0');
+  const sizeOf = () => name.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const overflow = () => name.evaluate(() => (window as unknown as { noacgTextOverflow(): string[] }).noacgTextOverflow());
+  const drawn = await sizeOf();
+  await page.getByTestId(`map-svg-sample-${row}`).fill('Anna-Karin Lindqvist');
+  await expect(name).toHaveText('Anna-Karin Lindqvist');
+  // The stub's half slid right by what the name needed, and the name kept the size it was drawn.
+  await expect
+    .poll(() => frame.locator('[data-noacg-cut="right"]').first().getAttribute('transform'))
+    .toMatch(/^translate\((?!0\.000)\d+\.\d+ 0\)$/);
+  expect(await sizeOf()).toBe(drawn);
+  expect(await overflow()).toEqual([]);
+
+  // A word no width the frame allows can hold, and no wrap can break: too long, and said so.
+  await page.getByTestId(`map-svg-sample-${row}`).fill('Konstantinopoulou'.repeat(6));
+  await expect.poll(overflow).toEqual(['f0']);
+});
+
+// SET TEXT BOX BY POINTING: while a row's box is being set, the draw surface
+// covers the preview, so a CLICK has to reach the layer under it. A click on a plate makes it the
+// row's box, and a click on another text puts that text in the same box.
+const PICK_BOX_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect id="Plate" x="960" y="160" width="800" height="300" fill="#1d4ed8"/>
+  <text id="Headline" x="160" y="700" font-size="64" fill="#ffffff">Headline</text>
+  <text id="Kicker" x="160" y="860" font-size="48" fill="#ffffff">Kicker</text>
+</svg>`;
+
+test('svg import: Set text box answers a click: a plate becomes the box, another text joins it', async ({ page }) => {
+  await dropSvgMarkup(page, PICK_BOX_SVG, 'pick-box.svg');
+  await page.locator('.wz-next').click();
+  // Neither text sits on the plate, so there is no box to head the list with.
+  await expect(page.getByTestId('map-svg-box-head-t0')).toHaveCount(0);
+  await page.getByTestId('map-svg-set-box-t0').click();
+  const surface = page.getByTestId('wz-preview-draw');
+  const b = (await surface.boundingBox())!;
+  const click = (fx: number, fy: number) => page.mouse.click(b.x + b.width * fx, b.y + b.height * fy);
+  // The plate's middle: (1360, 310) of 1920x1080.
+  await click(1360 / 1920, 310 / 1080);
+  await expect(page.getByTestId('map-svg-box-head-t0'), 'the clicked plate is the headline box').toBeVisible();
+  await expect(page.getByTestId('map-svg-box-head-t0')).not.toContainText('On the artwork');
+  // The kicker's words: (220, 845).
+  await click(220 / 1920, 845 / 1080);
+  await expect(page.getByTestId('map-svg-box-t0').getByTestId('map-svg-row-t1'), 'the clicked text joins the same box').toBeVisible();
 });

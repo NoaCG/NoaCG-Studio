@@ -158,7 +158,8 @@ test('the rehearsal: a student draws a scoreboard and a quiz, both run from one 
   const behaviour = page.getByTestId('map-svg-behaviour');
   await expect(behaviour).toContainText('2 numbers, each with + and −');
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
-  await expect(behaviour.locator('option[value="none"]')).toContainText('already get + and −');
+  // The option is the type's name; the summary above is what says the figures are drivable.
+  await expect(behaviour.locator('option[value="none"]')).toHaveText('Lower third');
 
   await intoShow(page, 'Floorball scorebug', 'Friday Show');
   await settleDurableWrites(page);
