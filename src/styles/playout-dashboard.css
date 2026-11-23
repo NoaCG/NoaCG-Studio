@@ -1748,9 +1748,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-aud-live input { cursor: pointer; }
 .pd-aud-live .hint { flex: 1 1 100%; margin: 0; }
 .pd-aud-tally { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-/* Label, bar, count - the count is fixed-width and tabular so the numbers hold a column while
-   they change, which is the whole reason a live tally is readable at a glance. */
-.pd-aud-tally li { display: grid; grid-template-columns: minmax(0, 1fr) 40% 3.5em; align-items: center; gap: 10px; }
+/* Label, bar, count, share - the count and share are fixed-width and tabular so the numbers hold
+   a column while they change, which is the whole reason a live tally is readable at a glance. */
+.pd-aud-tally li { display: grid; grid-template-columns: minmax(0, 1fr) 36% 3.5em 3em; align-items: center; gap: 10px; }
+.pd-aud-tally-share { font-variant-numeric: tabular-nums; font-size: 12px; text-align: right; margin: 0; }
 .pd-aud-tally-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .pd-aud-correct-mark { color: var(--accent); font-weight: 700; }
 .pd-aud-tally-bar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
@@ -1893,6 +1894,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-dataset-head { display: flex; align-items: center; gap: 10px; }
 .pd-dataset-name { font-size: 14px; font-weight: 600; max-width: 280px; }
 .pd-dataset-delete.armed { border-color: #7a2a2a; color: #ef4444; }
+/* A panel's Revoke, pressed once: the same armed look, since a revoked key never works again. */
+.panel-list .pd-verb.armed { border-color: #7a2a2a; color: #ef4444; }
 .pd-dataset-scroll { overflow-x: auto; margin-top: 8px; }
 .pd-table { border-collapse: collapse; width: 100%; }
 .pd-table th, .pd-table td { padding: 2px 4px 2px 0; text-align: left; }

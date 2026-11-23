@@ -19,7 +19,7 @@ import { bundledFaceRules, FONTS } from '../model/fonts';
 import { css, joinColours, type Rgb } from './joinColours';
 import { pageWords } from '../model/joinPage.ts';
 import { cleanWord, WORD_MAX } from '../model/wordCloud.ts';
-import { AUDIENCE_LIMITS, JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT, WORD_REFUSED, type AudienceBrand, type JoinView, type RoundTarget, type SubmitResult } from './audienceTypes';
+import { AUDIENCE_LIMITS, JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT, NOT_SENT, WORD_REFUSED, type AudienceBrand, type JoinView, type RoundTarget, type SubmitResult } from './audienceTypes';
 
 export interface JoinSurfaceClient {
   load(): Promise<JoinView>;
@@ -99,6 +99,7 @@ const CSS = `
 .nj-opt .nj-key { flex:0 0 26px; height:26px; display:grid; place-items:center; border-radius:7px;
   border:1px solid var(--nj-edge); font-size:13px; font-weight:700; }
 .nj-opt[aria-pressed=true] .nj-key { background:var(--nj-accent); color:var(--nj-on-accent); border-color:var(--nj-accent-line); }
+.nj-voted { margin:12px 0 0; font-size:15px; font-weight:700; }
 .nj-note { margin:10px 0 0; font-size:14px; line-height:1.45; }
 .nj-card .nj-note { color:var(--nj-card-muted); }
 .nj-note.bad { color:var(--nj-accent-text); }
@@ -193,6 +194,9 @@ const el = <K extends keyof HTMLElementTagNameMap>(
   return node;
 };
 
+/** An option's letter, as the phone and a chat vote name it: A, B, C... */
+const optionKey = (index: number): string => String.fromCharCode(65 + index);
+
 /**
  * Mount the join surface into `root`. Returns a handle; call `destroy()` when the page or the
  * preview goes away (it stops the poll — a hidden preview that kept asking would spend a
@@ -213,6 +217,11 @@ export function mountJoinSurface(
   let note: { text: string; bad: boolean; round?: string } | null = null;
   let busy = false;
   let destroyed = false;
+  // The option this phone has tapped but not yet sent. A tap only picks; the Vote button sends
+  // (studio session, 2026-11-23: an operator deciding a winner has to know a vote is a deliberate
+  // act, and a viewer has to know when theirs is in). Kept across polls, dropped when the round
+  // or its revision moves on, so a pick never carries over to a question it was not made for.
+  let pick: { round: string; revision: number; option: number } | null = null;
   let timer = 0;
   // Kept across renders so a re-poll mid-typing never clears what someone is writing.
   const draft = { author: '', body: '', word: '' };
@@ -401,6 +410,7 @@ export function mountJoinSurface(
   const renderRound = () => {
     const round = view?.state.round;
     if (!round) return;
+    if (pick && (pick.round !== round.id || pick.revision !== round.revision)) pick = null;
     const card = el('div', 'nj-card');
     // The operator's prompt above and the round's own question are usually the same sentence,
     // and printing it twice reads as a rendering fault rather than as emphasis.
@@ -408,23 +418,39 @@ export function mountJoinSurface(
     if (round.question && round.question.trim() !== heading) {
       card.appendChild(el('p', 'nj-label', round.question));
     }
+    // What the SERVER holds for this phone (the join resolve's `my_vote`), never what was tapped:
+    // the line under the options is the read-back that says a vote is in.
+    const counted = view?.myVote ?? null;
+    const chosen = pick ? pick.option : counted;
     const list = el('div', 'nj-opts');
     round.options.forEach((option, index) => {
       const button = el('button', 'nj-opt');
       button.type = 'button';
-      // The picked option is shown as picked — this device's own vote, which it already knows.
       // The COUNTS are never here: the reveal belongs to the graphic on air.
-      button.setAttribute('aria-pressed', String(view?.myVote === index));
+      button.setAttribute('aria-pressed', String(chosen === index));
       button.disabled = busy;
-      const key = el('span', 'nj-key', String.fromCharCode(65 + index));
+      const key = el('span', 'nj-key', optionKey(index));
       const label = el('span', undefined, option);
       button.append(key, label);
       button.addEventListener('click', () => {
-        void voteNow(round.id, index, round.revision);
+        pick = { round: round.id, revision: round.revision, option: index };
+        render();
       });
       list.appendChild(button);
     });
     card.appendChild(list);
+    const send = el('button', 'nj-send', counted === null ? 'Vote' : 'Change vote');
+    send.type = 'button';
+    send.disabled = busy || chosen === null || chosen === counted;
+    send.addEventListener('click', () => {
+      if (chosen !== null && chosen !== counted) void voteNow(round.id, chosen, round.revision);
+    });
+    card.appendChild(send);
+    if (counted !== null && round.options[counted] !== undefined) {
+      const mine = el('p', 'nj-voted', `Your vote: ${optionKey(counted)} ${round.options[counted]}`);
+      mine.setAttribute('data-testid', 'nj-voted');
+      card.appendChild(mine);
+    }
     root.appendChild(card);
   };
 
@@ -461,8 +487,14 @@ export function mountJoinSurface(
     busy = true;
     note = null;
     render();
-    const result = await client.submit(author, body, target);
-    busy = false;
+    let result: SubmitResult;
+    try {
+      result = await client.submit(author, body, target);
+    } catch {
+      result = { ok: false, error: NOT_SENT };
+    } finally {
+      busy = false;
+    }
     if (result.ok && word) {
       draft.word = '';
       note = { text: 'Thanks, your word is in.', bad: false, round: target.roundId };
@@ -484,10 +516,23 @@ export function mountJoinSurface(
     busy = true;
     note = null;
     render();
-    const result = await client.vote(roundId, option, revision);
-    busy = false;
+    let result: SubmitResult;
+    try {
+      result = await client.vote(roundId, option, revision);
+    } catch {
+      // A client that throws must not leave the page greyed out with nothing said: that is how a
+      // vote went missing without anyone knowing (studio session, 2026-11-23).
+      result = { ok: false, error: NOT_SENT };
+    } finally {
+      busy = false;
+    }
+    if (result.ok) {
+      pick = null;
+      // Shown at once; the re-read below replaces it with what the server holds.
+      if (view && view.state.round?.id === roundId) view = { ...view, myVote: option };
+    }
     note = result.ok
-      ? { text: 'Counted. You can change your mind while the vote is open.', bad: false, round: roundId }
+      ? { text: 'Your vote is in. You can change it until voting closes.', bad: false, round: roundId }
       : { text: result.error ?? 'That vote could not be counted.', bad: true };
     await load();
     render();

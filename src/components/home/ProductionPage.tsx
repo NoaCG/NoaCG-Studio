@@ -4528,6 +4528,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     fileCheck: serverFilesCheck(serverFileKey, serverFiles, bridgeStatus, vmixOn),
     autoPublish: autoPublish.view && autoPublish.view.tone !== 'idle' ? { tone: autoPublish.view.tone, line: autoPublish.view.line } : null,
     oldOutputs: autoPublish.active ? oldOutputNames(livePresence.peers, expectedOutputs) : null,
+    // Graphics added since the publish: the outputs cannot play them yet (studio session, 2026-11-23).
+    unpublished: publishedStamp?.g && !autoPublish.active ? show.graphics.map((g) => g.name).filter((name) => !(name in publishedStamp.g!)) : null,
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
   const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing';

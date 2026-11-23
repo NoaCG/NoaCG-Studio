@@ -373,6 +373,9 @@ test('the clip clock a panel counts follows the server clip the production page 
 
   // REVOKING from the page's own list (AC-2): the panel leaves the list, and its key is refused.
   await (await panelDoor(op)).click();
+  // Two presses: the first only arms it.
+  await op.getByTestId('panel-revoke').click();
+  await expect(op.getByTestId('panel-revoke')).toHaveText('Press again to revoke');
   await op.getByTestId('panel-revoke').click();
   await expect(op.getByTestId('panel-row')).toHaveCount(0, { timeout: 10_000 });
   expect((await deck.hello()).refused).toBe('revoked');

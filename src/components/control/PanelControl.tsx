@@ -291,6 +291,8 @@ export function PanelDialog({
   const [code, setCode] = useState<{ code: string; expiresAt: number } | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  /** The panel whose Revoke has been pressed once: a second press revokes it for good. */
+  const [armedRevoke, setArmedRevoke] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     if (!slug) return;
@@ -331,6 +333,13 @@ export function PanelDialog({
 
   const revoke = async (p: PanelKeyRow) => {
     if (!slug) return;
+    // Two presses: a revoked key never works again, and the Companion connection holding it has to
+    // be paired from scratch (studio session, 2026-11-23: what Revoke did was not clear).
+    if (armedRevoke !== p.id) {
+      setArmedRevoke(p.id);
+      return;
+    }
+    setArmedRevoke(null);
     try {
       await panelRevoke(slug, p.id);
       refresh();
@@ -419,8 +428,14 @@ export function PanelDialog({
                             paired {new Date(p.created_at).toLocaleDateString()}, {ago(p.last_used_at, now)}
                           </span>
                         </span>
-                        <button className="pd-verb" onClick={() => void revoke(p)} data-testid="panel-revoke">
-                          Revoke
+                        <button
+                          className={`pd-verb${armedRevoke === p.id ? ' armed' : ''}`}
+                          onClick={() => void revoke(p)}
+                          onBlur={() => setArmedRevoke((at) => (at === p.id ? null : at))}
+                          title="Disconnects this Companion connection for good. To use it again, clear its Panel key in Companion and pair with a new code."
+                          data-testid="panel-revoke"
+                        >
+                          {armedRevoke === p.id ? 'Press again to revoke' : 'Revoke'}
                         </button>
                       </li>
                     ))}

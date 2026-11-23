@@ -270,7 +270,7 @@ export default function ProductionShell({
           <button
             className={`pd-panel-status pd-panel-status--${panelState}`}
             onClick={onPanel}
-            title={panelState === 'ok' ? 'This page answers the Stream Deck panel' : 'Connecting to the Stream Deck panel…'}
+            title={panelState === 'ok' ? 'This page relays Stream Deck presses. It cannot see Companion itself: if its buttons show errors, open this to pair again.' : 'Connecting to the Stream Deck panel…'}
             data-testid="panel-header-status"
             data-state={panelState}
           >

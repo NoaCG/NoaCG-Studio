@@ -629,6 +629,10 @@ test.describe(() => {
     await shot('3-vote');
     await phone.locator('#join .nj-opt').nth(1).tap();
     await expect(phone.locator('#join .nj-opt').nth(1)).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
+    // A tap only picks; the Vote button sends, and the phone reads back what the server holds.
+    await expect(messages.getByTestId('audience-tally-1')).toHaveText('0');
+    await phone.locator('#join .nj-send').tap();
+    await expect(phone.getByTestId('nj-voted')).toHaveText('Your vote: B Away', { timeout: 20_000 });
     await shot('4-voted');
     await expect(messages.getByTestId('audience-tally-1')).toHaveText('1', { timeout: 20_000 });
     // Chat votes too (AC-10, walked again in phase 4): a chat source in this tab (the test source,

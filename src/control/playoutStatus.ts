@@ -16,7 +16,10 @@
 //                 with CasparCG switched on), another production on the slot, a graphic that
 //                 cannot play.
 //
-// Unpublished changes are not a state: they are the header's "Publish changes" action. It is a
+// Unpublished changes are not a state: they are the header's "Publish changes" action. The one
+// exception is a graphic the outputs do not have at all (studio session, 2026-11-23: a Join card and
+// a results card added to a published rundown read green "Ready" and did not play until the next
+// publish). That is amber and named, because its Take cannot work. It is a
 // status and never permission: nothing here blocks or delays a verb. Pure and DOM-free, so
 // scripts/playout-status.test.mjs runs it in Node; the words are its contract.
 
@@ -91,6 +94,23 @@ export interface StatusFacts {
   autoPublish?: { tone: 'amber' | 'red'; line: string | null } | null;
   /** Expected outputs opened before automatic updates (no `au` in their entry, G3 section 7). */
   oldOutputs?: readonly string[] | null;
+  /** Graphics in this production that the published payload does not carry, so the outputs
+   *  cannot play them until the next publish. Null or empty: none, or not known. */
+  unpublished?: readonly string[] | null;
+}
+
+/** The check for graphics the outputs do not have yet, or null when there are none. */
+export function unpublishedCheck(names: readonly string[] | null | undefined): StatusCheck | null {
+  if (!names?.length) return null;
+  const one = names.length === 1;
+  const list = one ? names[0] : names.slice(0, 3).join(', ') + (names.length > 3 ? ` and ${names.length - 3} more` : '');
+  return {
+    key: 'publish',
+    tone: 'warn',
+    label: `${list} ${one ? 'is' : 'are'} not on the outputs yet, so a Take will not play ${one ? 'it' : 'them'}.`,
+    short: one ? `Publish to play ${names[0]}` : `${names.length} graphics not published`,
+    advice: 'Publish changes. What is on air stays on air.',
+  };
 }
 
 const RANK: Record<StatusTone, number> = { bad: 3, warn: 2, ok: 1, idle: 0 };
@@ -186,6 +206,8 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
       ? { key: 'publish', tone: 'bad', label: f.autoPublish.line ?? 'The newest save is not on the outputs yet.', short: 'Saved, not on the outputs' }
       : { key: 'publish', tone: 'warn', label: f.autoPublish.line ?? 'Publishing your changes', short: 'Updating outputs' });
   }
+  const notOut = f.started && !f.publishing && !f.autoPublish ? unpublishedCheck(f.unpublished) : null;
+  if (notOut) checks.push(notOut);
   if (f.started) {
     for (const name of f.oldOutputs ?? []) {
       checks.push({

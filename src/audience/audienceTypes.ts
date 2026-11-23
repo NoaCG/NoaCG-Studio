@@ -230,6 +230,11 @@ export interface SubmitResult {
 /** What a phone page says when its send reached a round that has closed or changed. */
 export const QUESTION_CLOSED = 'That question has closed.';
 
+/** What a phone page says when its send never reached the database: no connection, a server
+ *  failure, or a client that could not load. Not an oracle - it says nothing about the production -
+ *  and it names the one thing a viewer can do about it. */
+export const NOT_SENT = 'Not sent. Check your connection and try again.';
+
 /** What a phone page says when it already sent its one word to this question (W3). */
 export const WORD_ALREADY_SENT = 'You have already sent your word.';
 
