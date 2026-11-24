@@ -18,12 +18,20 @@ import { fileURLToPath } from 'node:url';
 import { productionRef } from './supabase-projects.mjs';
 
 const MB = 1_048_576;
+/** node_vmstat_pswpout counts pages; Linux swaps 4 KiB pages. */
+const PAGE = 4096;
 const API = 'https://api.supabase.com/v1/projects';
 const SAMPLE_MS = 60_000;
 
 export const LIMITS = {
   memoryAvailableShare: 0.15,
-  swapUsedShare: 0.5,
+  // Swap IN USE is not trouble by itself: Linux parks idle pages there once and leaves them. On
+  // Small, production sat at 514 to 571 MiB of 1024 from 2026-11-14 to 11-24 with 0 major faults
+  // and about 1 GB available, and a 50% limit opened and closed the issue four times (#2740).
+  // Trouble is swap filling up (next comes the OOM killer), swap growing NOW, or pages being read
+  // back (the major faults below).
+  swapUsedShare: 0.9,
+  swapOutBytesPerSecond: MB,
   majorFaultsPerSecond: 100,
   // A share of the compute size's sustained disk throughput, which bursting can exceed only for a
   // limited time each day. Half leaves room to act before that budget runs out.
@@ -59,6 +67,10 @@ export function readSample(first, second, seconds) {
     swapTotal: metric(second, 'node_memory_SwapTotal_bytes'),
     swapFree: metric(second, 'node_memory_SwapFree_bytes'),
     majorFaultsPerSecond: rate('node_vmstat_pgmajfault'),
+    swapOutBytesPerSecond: (() => {
+      const pages = rate('node_vmstat_pswpout');
+      return pages === null ? null : pages * PAGE;
+    })(),
     diskBytesPerSecond: read === null || written === null ? null : read + written,
   };
 }
@@ -69,7 +81,7 @@ export function readSample(first, second, seconds) {
  */
 export function judge(sample, { services = [], baselineMbps = null } = {}, limits = LIMITS) {
   const findings = [];
-  const { memoryTotal, memoryAvailable, swapTotal, swapFree, majorFaultsPerSecond, diskBytesPerSecond } = sample;
+  const { memoryTotal, memoryAvailable, swapTotal, swapFree, swapOutBytesPerSecond, majorFaultsPerSecond, diskBytesPerSecond } = sample;
 
   const down = services.filter((s) => s.status !== 'ACTIVE_HEALTHY').map((s) => s.name);
   if (down.length) findings.push({ key: `down:${[...down].sort().join(',')}`, text: `Not healthy: ${down.join(', ')}.` });
@@ -80,7 +92,10 @@ export function judge(sample, { services = [], baselineMbps = null } = {}, limit
     findings.push({ key: 'memory', text: `Only ${Math.round(memoryAvailable / MB)} of ${Math.round(memoryTotal / MB)} MiB of memory is available.` });
   }
   if (swapTotal && swapFree !== null && swapTotal - swapFree > swapTotal * limits.swapUsedShare) {
-    findings.push({ key: 'swap', text: `${Math.round((swapTotal - swapFree) / MB)} of ${Math.round(swapTotal / MB)} MiB of swap is in use.` });
+    findings.push({ key: 'swap', text: `${Math.round((swapTotal - swapFree) / MB)} of ${Math.round(swapTotal / MB)} MiB of swap is in use: it is nearly full.` });
+  }
+  if (swapOutBytesPerSecond !== null && swapOutBytesPerSecond > limits.swapOutBytesPerSecond) {
+    findings.push({ key: 'swap-growing', text: `Swap is growing by ${(swapOutBytesPerSecond / MB).toFixed(1)} MiB per second: memory is being pushed out now.` });
   }
   if (majorFaultsPerSecond !== null && majorFaultsPerSecond > limits.majorFaultsPerSecond) {
     findings.push({ key: 'thrash', text: `${Math.round(majorFaultsPerSecond)} major page faults per second: memory is thrashing.` });
@@ -100,6 +115,7 @@ export function formatReport(sample, { services = [], compute = null, baselineMb
   const swapUsed = sample.swapTotal === null || sample.swapFree === null ? null : sample.swapTotal - sample.swapFree;
   const disk = sample.diskBytesPerSecond === null ? 'unread' : `${Math.round((sample.diskBytesPerSecond * 8) / 1_000_000)} Mbps`;
   const faults = sample.majorFaultsPerSecond === null ? 'unread' : `${Math.round(sample.majorFaultsPerSecond)}/s`;
+  const swapOut = sample.swapOutBytesPerSecond === null || sample.swapOutBytesPerSecond === undefined ? 'unread' : `${(sample.swapOutBytesPerSecond / MB).toFixed(1)} MiB/s`;
   return [
     findings.length ? findings.map((f) => `- ${f.text}`).join('\n') : 'Production database load is healthy.',
     '',
@@ -108,6 +124,7 @@ export function formatReport(sample, { services = [], compute = null, baselineMb
     `| Compute | ${compute ?? 'none selected'} |`,
     `| Memory available | ${mib(sample.memoryAvailable)} of ${mib(sample.memoryTotal)} |`,
     `| Swap in use | ${mib(swapUsed)} of ${mib(sample.swapTotal)} |`,
+    `| Swap growth | ${swapOut} |`,
     `| Major page faults | ${faults} |`,
     `| Disk traffic | ${disk}${baselineMbps ? ` (baseline ${baselineMbps} Mbps)` : ''} |`,
     `| Services | ${services.map((s) => `${s.name}: ${s.status === 'ACTIVE_HEALTHY' ? 'healthy' : s.status}`).join(', ') || 'unread'} |`,
