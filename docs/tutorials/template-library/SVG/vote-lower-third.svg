@@ -1,29 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
   <title>Vote lower third</title>
-  <desc>NoaCG Clean Studio template. A wide lower third for a two-option vote: the question, Option 1 and Option 2 side by side with bars and percentages, the vote count, and a Winner mark per option. Show result reveals the percentages; Call the winner marks the leading option.</desc>
+  <desc>NoaCG template. A wide golden ticket across the bottom of the screen for a two-option vote: the question, Option 1 and Option 2 side by side with bars and percentages, and a Winner mark per option. Show result reveals the percentages; Call the winner marks the leading option.</desc>
+  <defs>
+    <linearGradient id="Gold" x1="160" y1="810" x2="1760" y2="990" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F6DC86"/>
+      <stop offset="0.35" stop-color="#E3B447"/>
+      <stop offset="0.65" stop-color="#F3D47A"/>
+      <stop offset="1" stop-color="#C9912A"/>
+    </linearGradient>
+  </defs>
   <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
-    <rect id="Panel" x="120" y="800" width="1680" height="200" rx="18" fill="#FFFFFF"/>
-    <rect id="Accent" x="120" y="800" width="1680" height="8" rx="4" fill="#2E5BFF"/>
-    <rect id="Track_1" inkscape:label="Track 1" x="172" y="940" width="748" height="14" rx="7" fill="#E4E9F2"/>
-    <rect id="Track_2" inkscape:label="Track 2" x="1000" y="940" width="748" height="14" rx="7" fill="#E4E9F2"/>
+    <path id="Panel" d="M172 810 H1748 A12 12 0 0 1 1760 822 V878 A22 22 0 0 0 1760 922 V978 A12 12 0 0 1 1748 990 H172 A12 12 0 0 1 160 978 V922 A22 22 0 0 0 160 878 V822 A12 12 0 0 1 172 810 Z" fill="url(#Gold)"/>
+    <path id="Border" d="M192 824 H1728 V870 A32 32 0 0 0 1728 930 V976 H192 V930 A32 32 0 0 0 192 870 Z" fill="none" stroke="#7A5410" stroke-width="2"/>
+    <line id="Perforation" x1="960" y1="898" x2="960" y2="968" stroke="#7A5410" stroke-width="3" stroke-dasharray="2 8" stroke-linecap="round"/>
+    <rect id="Track_1" inkscape:label="Track 1" x="232" y="944" width="688" height="12" rx="6" fill="#B8862A"/>
+    <rect id="Track_2" inkscape:label="Track 2" x="1000" y="944" width="688" height="12" rx="6" fill="#B8862A"/>
   </g>
   <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
-    <rect id="Bar_1" inkscape:label="Bar 1" x="172" y="940" width="748" height="14" rx="7" fill="#2E5BFF"/>
+    <rect id="Bar_1" inkscape:label="Bar 1" x="232" y="944" width="688" height="12" rx="6" fill="#3A2604"/>
     <g id="Winner_1" inkscape:label="Winner 1" style="display:none">
-      <rect x="150" y="882" width="792" height="94" rx="12" fill="none" stroke="#1DB56C" stroke-width="5"/>
+      <rect x="214" y="890" width="726" height="80" rx="10" fill="none" stroke="#3A2604" stroke-width="4"/>
     </g>
-    <rect id="Bar_2" inkscape:label="Bar 2" x="1000" y="940" width="748" height="14" rx="7" fill="#2E5BFF"/>
+    <rect id="Bar_2" inkscape:label="Bar 2" x="1000" y="944" width="688" height="12" rx="6" fill="#3A2604"/>
     <g id="Winner_2" inkscape:label="Winner 2" style="display:none">
-      <rect x="978" y="882" width="792" height="94" rx="12" fill="none" stroke="#1DB56C" stroke-width="5"/>
+      <rect x="980" y="890" width="726" height="80" rx="10" fill="none" stroke="#3A2604" stroke-width="4"/>
     </g>
   </g>
   <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
-    <text id="Question" x="172" y="862" text-anchor="start" font-size="34" font-weight="800" fill="#0F1729">Play one more song?</text>
-    <text id="Total_votes" inkscape:label="Total votes" x="1748" y="862" text-anchor="end" font-size="22" font-weight="600" fill="#5A6680">0 votes</text>
-    <text id="Option_1" inkscape:label="Option 1" x="172" y="922" text-anchor="start" font-size="30" font-weight="700" fill="#0F1729">Yes</text>
-    <text id="Percent_1" inkscape:label="Percent 1" x="920" y="922" text-anchor="end" font-size="30" font-weight="800" fill="#2E5BFF">0%</text>
-    <text id="Option_2" inkscape:label="Option 2" x="1000" y="922" text-anchor="start" font-size="30" font-weight="700" fill="#0F1729">No</text>
-    <text id="Percent_2" inkscape:label="Percent 2" x="1748" y="922" text-anchor="end" font-size="30" font-weight="800" fill="#2E5BFF">0%</text>
+    <text id="Question" x="232" y="866" text-anchor="start" font-size="32" font-weight="800" fill="#3A2604">Play one more song?</text>
+    <text id="Option_1" inkscape:label="Option 1" x="232" y="928" text-anchor="start" font-size="30" font-weight="700" fill="#3A2604">Yes</text>
+    <text id="Percent_1" inkscape:label="Percent 1" x="920" y="928" text-anchor="end" font-size="30" font-weight="800" fill="#3A2604">0%</text>
+    <text id="Option_2" inkscape:label="Option 2" x="1000" y="928" text-anchor="start" font-size="30" font-weight="700" fill="#3A2604">No</text>
+    <text id="Percent_2" inkscape:label="Percent 2" x="1688" y="928" text-anchor="end" font-size="30" font-weight="800" fill="#3A2604">0%</text>
   </g>
 </svg>
