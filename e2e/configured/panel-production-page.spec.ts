@@ -156,7 +156,7 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   // CLOSING the answering page lets go once its lease lapses, and the first production page, still
   // open, takes the panel back by itself (panel lease AC-4).
   await other.close();
-  await expect(op.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 30_000 });
+  await expect(op.getByTestId('panel-header-status')).toHaveText('Companion connected', { timeout: 30_000 });
   await deck.hello();
   await deck.state((s) => s.page === first.page, 'the first page answering again');
   await deck.close();
@@ -380,6 +380,14 @@ test('the clip clock a panel counts follows the server clip the production page 
   await expect(op.getByTestId('panel-row')).toHaveCount(0, { timeout: 10_000 });
   expect((await deck.hello()).refused).toBe('revoked');
   expect((await deck.press('select-next', '', off.ver as number)).outcome).toBe('refused revoked');
+  // Companion still running on the revoked key reports in (P4): the header turns red, and the
+  // dialog offers Pair again in one press.
+  expect((await deck.seen('revoked')).refused).toBe('revoked');
+  await expect(op.getByTestId('panel-header-status')).toHaveText('Panel key refused, pair again', { timeout: 20_000 });
+  await expect(op.getByTestId('panel-header-status')).toHaveAttribute('data-health', 'refused');
+  await expect(op.getByTestId('panel-health')).toHaveText('Panel key refused, pair again', { timeout: 10_000 });
+  await op.getByTestId('panel-pair-again').click();
+  await expect(op.getByTestId('panel-code')).toBeVisible();
   await deck.close();
 });
 
@@ -435,7 +443,7 @@ test('the first pair a page reopened after the deck pressed hears from it runs i
   const reopenedAt = Date.now();
   await op.reload();
   await expect(op.getByTestId('production-page')).toBeVisible();
-  await expect(op.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 30_000 });
+  await expect(op.getByTestId('panel-header-status')).toHaveText('Companion connected', { timeout: 30_000 });
   await deck.hello();
   const reopened = await deck.state((s) => (s.at as number) >= reopenedAt && Array.isArray(s.live) && (s.live as string[]).length === 0, 'the reopened page');
 

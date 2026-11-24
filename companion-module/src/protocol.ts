@@ -151,6 +151,9 @@ export interface PressAnswer {
 	claim: number
 }
 
+/** `panel_seen`'s answer: the report was taken. A refused key is a refusal like hello's. */
+export type SeenAnswer = object
+
 /** The sentence an operator reads for a refusal code from the server. */
 export function refusalSentence(code: string, note?: string): string {
 	switch (code) {

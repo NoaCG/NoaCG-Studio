@@ -9,6 +9,7 @@ import type {
 	PanelState,
 	Press,
 	PressAnswer,
+	SeenAnswer,
 } from '../protocol.js'
 import type { ListenStatus, Relay } from '../relay.js'
 
@@ -75,17 +76,31 @@ export class FakeRelay implements Relay {
 		answering: true,
 	}
 	pressAnswers: (Answer<PressAnswer> | Error)[] = []
+	/** Thrown by the next calls, one each, before any answer: a network error, a gateway refusal. */
+	pairErrors: Error[] = []
+	helloErrors: Error[] = []
+	seenAnswer: Answer<SeenAnswer> | Error = { ok: true }
 	listeners: Listener[] = []
+	closed = false
 	/** Answer every press with this result on the topic, as an answering page would. */
 	autoResult: string | null = 'ran'
 
 	async pairFinish(code: string, label: string): Promise<Answer<PairAnswer>> {
 		this.calls.push({ name: 'pairFinish', args: [code, label] })
+		const err = this.pairErrors.shift()
+		if (err) throw err
 		return this.pairAnswer
 	}
 	async hello(key: string): Promise<Answer<HelloAnswer>> {
 		this.calls.push({ name: 'hello', args: [key] })
+		const err = this.helloErrors.shift()
+		if (err) throw err
 		return this.helloAnswer
+	}
+	async seen(key: string, version: string, status: string): Promise<Answer<SeenAnswer>> {
+		this.calls.push({ name: 'seen', args: [key, version, status] })
+		if (this.seenAnswer instanceof Error) throw this.seenAnswer
+		return this.seenAnswer
 	}
 	async press(key: string, press: Press | ActionPress): Promise<Answer<PressAnswer>> {
 		this.calls.push({ name: 'press', args: [key, press] })
@@ -104,7 +119,9 @@ export class FakeRelay implements Relay {
 			l.left = true
 		}
 	}
-	async close(): Promise<void> {}
+	async close(): Promise<void> {
+		this.closed = true
+	}
 
 	get live(): Listener | undefined {
 		return this.listeners.filter((l) => !l.left).at(-1)

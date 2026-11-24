@@ -15,6 +15,14 @@ import {
   type PanelPressReport,
 } from '../../control/panelRelay';
 import { workerInterval } from '../../control/workerTicker';
+import {
+  companionHealth,
+  healthTone,
+  healthWords,
+  panelHealth,
+  panelWords,
+  type CompanionHealth,
+} from '../../control/companionHealth';
 import type { PanelOffer } from '../../control/panelActions';
 import { COMPANION_SETUP_URL, DOWNLOADS_COMPANION_URL } from '../../downloads/links';
 import { useModalGate } from '../spaceKey';
@@ -39,6 +47,9 @@ export interface PanelAnswerState {
   holder: string | null;
   /** The database does not relay graphic actions yet (no 0103): known only while answering. */
   oldRelay: boolean;
+  /** Whether a paired Companion is connected, as its liveness reports say, and its words when they
+   *  were judged; null before the first read. */
+  companion: { health: CompanionHealth; words: string } | null;
   /** Move the panel to this page, from whichever page has it ("Use here"). */
   useHere: () => void;
   /** Read who answers now rather than at the next beat (after pairing, say). */
@@ -65,6 +76,8 @@ export interface PanelAnswerState {
 
 /** With no panel paired, a page reads who answers only every this many beats (about 30 s). */
 const IDLE_LOOKS = 8;
+/** The answering page reads whether Companion is connected every this many beats (about 8 s). */
+const ANSWERING_LOOKS = 2;
 
 /** What a page that has not fed anything yet shows: nothing to press. */
 const EMPTY: PanelSnapshot = {
@@ -103,6 +116,8 @@ export function usePanelAnswer(opts: {
   const [status, setStatus] = useState<AnswerStatus | null>(null);
   const [last, setLast] = useState<PanelPressReport | null>(null);
   const [list, setList] = useState<PanelList | null>(null);
+  const [companion, setCompanion] = useState<{ health: CompanionHealth; words: string } | null>(null);
+  const lastRead = useRef<PanelList | null>(null);
   const snapshot = useRef<() => PanelSnapshot>(() => EMPTY);
   const run = useRef<(verb: PanelVerb, target: string) => void | Promise<unknown>>(() => {});
   const note = useRef<((text: string) => void) | undefined>(undefined);
@@ -120,19 +135,36 @@ export function usePanelAnswer(opts: {
     let alive = true;
     let paired = false;
     let beats = 0;
+    /** Whether Companion is connected, from the last list read and the time now: a read that fails
+     *  leaves the last one ageing, so the chip never stays green on a list it cannot refresh. Set
+     *  only when its words change, so the page renders no more often than they do. */
+    const judge = () => {
+      const now = Date.now();
+      const health = companionHealth(lastRead.current, now);
+      const next = health && { health, words: healthWords(health, now) };
+      // The words name the state, so equal words are the same state.
+      setCompanion((cur) => (cur?.words === next?.words ? cur : next));
+    };
     const look = () => {
-      if (answer.current) return;
       panelList(slug).then(
         (read) => {
-          if (!alive || answer.current) return;
+          if (!alive) return;
+          lastRead.current = read;
+          judge();
           paired = read.panels.length > 0;
+          // Answering: read for whether Companion is connected, and for a panel paired or revoked.
+          if (answer.current) {
+            setList((cur) => (cur && cur.panels.length === read.panels.length ? cur : { ...read, answering: null }));
+            return;
+          }
           // This tab held it before a reload (L4): carry on under it, whichever page this is.
           const mine = read.answering?.page === tabPageId(slug);
           setList(mine ? { ...read, answering: null } : read);
           if (paired && (mine || (auto && !read.answering))) setWant('take');
         },
         () => {
-          // Not answered: the next beat asks again.
+          // Not answered: the next beat asks again, and the last read keeps ageing.
+          if (alive) judge();
         },
       );
     };
@@ -140,7 +172,10 @@ export function usePanelAnswer(opts: {
     look();
     const stop = workerInterval(PANEL_BEAT_MS, () => {
       beats += 1;
-      if (paired || beats % IDLE_LOOKS === 0) look();
+      // Judge the last read on every beat, not only when a read settles: a request that hangs (the
+      // client waits up to 75 s) must not keep the chip green past the freshness window.
+      judge();
+      if (answer.current ? beats % ANSWERING_LOOKS === 0 : paired || beats % IDLE_LOOKS === 0) look();
     });
     return () => {
       alive = false;
@@ -199,6 +234,7 @@ export function usePanelAnswer(opts: {
     paired: (list?.panels.length ?? 0) > 0,
     holder: on ? null : (list?.answering?.label || (list?.answering ? 'Another page' : null)),
     oldRelay: on && oldRelay,
+    companion,
     useHere: useCallback(() => {
       setStatus(null);
       setWant('move');
@@ -242,13 +278,26 @@ export function panelToneWords(tone: PanelTone, holder: string | null = null): s
   return tone === 'ok' ? 'Answering here' : tone === 'idle' ? 'Connecting…' : 'Off';
 }
 
-function ago(iso: string | null, now: number): string {
-  if (!iso) return 'never used';
-  const s = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
-  if (s < 90) return 'used just now';
-  if (s < 5400) return `used ${Math.round(s / 60)} min ago`;
-  if (s < 129600) return `used ${Math.round(s / 3600)} h ago`;
-  return `used ${new Date(iso).toLocaleDateString()}`;
+const HEALTH_TITLES: Record<CompanionHealth['kind'], string> = {
+  connected: 'Companion reported in the last 45 seconds',
+  connecting: 'Companion is connecting to this production; its keys wait until it has',
+  update: 'Update the NoaCG module in Companion',
+  refused: 'Companion holds a revoked panel key: pair it again',
+  unseen: 'No report from Companion for 45 seconds: check that it is running',
+  none: 'No panel is paired',
+};
+
+/**
+ * THE PANEL CHIP on a page answering the panel (header and live dock): whether Companion is
+ * connected, green only when a paired Companion reported in the last 45 s (companionHealth.ts);
+ * null while the page is not answering. Before the first read it says the page is connecting.
+ */
+export function panelChip(answer: PanelAnswerState): { words: string; tone: 'ok' | 'warn' | 'bad' | 'idle'; title: string; health: string } | null {
+  const tone = panelTone(answer);
+  if (tone !== 'ok' && tone !== 'idle') return null;
+  const c = answer.companion;
+  if (tone === 'idle' || !c) return { words: 'Panel …', tone: 'idle', title: 'Connecting to the Stream Deck panel…', health: '' };
+  return { words: c.words, tone: healthTone(c.health), title: HEALTH_TITLES[c.health.kind], health: c.health.kind };
 }
 
 function statusWords(answer: PanelAnswerState, list: PanelList | null): string {
@@ -349,6 +398,7 @@ export function PanelDialog({
   };
 
   const left = code ? Math.max(0, Math.ceil((code.expiresAt - now) / 1000)) : 0;
+  const health = companionHealth(list, now);
 
   return (
     <div
@@ -387,6 +437,18 @@ export function PanelDialog({
                     </button>
                   )}
                 </p>
+                {health && health.kind !== 'none' && (
+                  <p className="panel-answer-line">
+                    <span data-testid="panel-health" data-health={health.kind}>
+                      {healthWords(health, now)}
+                    </span>
+                    {health.kind === 'refused' && !code && (
+                      <button className="pd-verb" onClick={() => void pair()} data-testid="panel-pair-again">
+                        Pair again
+                      </button>
+                    )}
+                  </p>
+                )}
                 {answer.oldRelay && (
                   <p className="hint" data-testid="panel-old-relay">
                     Graphic actions on the panel wait for a NoaCG server update.
@@ -424,8 +486,8 @@ export function PanelDialog({
                       <li key={p.id} data-testid="panel-row">
                         <span className="panel-list-text">
                           <strong>{p.label}</strong>
-                          <span className="hint">
-                            paired {new Date(p.created_at).toLocaleDateString()}, {ago(p.last_used_at, now)}
+                          <span className="hint" data-testid="panel-row-health">
+                            paired {new Date(p.created_at).toLocaleDateString()}, {panelWords(panelHealth(p, list.readAt, now), now)}
                           </span>
                         </span>
                         <button
