@@ -8,13 +8,18 @@ Write a section the way you would tell an operator what they get by importing ag
 
 ## Unreleased
 
-## 0.4.0 - 2026-11-23
+## 0.4.1 - 2026-11-24
+
+The first release of this work: 0.4.0 was never published, so this is the version to import after 0.3.0.
 
 What to do: import the new file. Your pairing and keys stay as they are.
 
 - The module now reconnects by itself after every kind of failure. Before, it stopped for good when Companion started before the network was up, when pairing hit a network error, or when NoaCG answered something unexpected, and only saving the connection again brought it back. Now it keeps retrying, after 1, 2 and 4 seconds and then every 8 seconds, until it connects. Only a revoked panel key stops it, and the connection then says "Panel key revoked. Pair again."
 - When NoaCG changes its access key, the module notices and finds NoaCG again by itself, instead of showing offline until a new download.
 - The module tells NoaCG every 15 seconds that it is running, with its version. The production page's header now says "Companion connected" in green only while it hears from Companion, "Companion not seen since" a time when it does not, "Panel key refused, pair again" in red for a revoked key, and "Companion needs an update" for a module too old for the production. A module from before this one keeps working, and the page asks for this update.
+- While it reconnects, the module looks for NoaCG once at a time, so a slow network does not pile up searches.
+- A panel key NoaCG refuses now stays shown as refused on the keys and in the connection, instead of turning into "no operator page" a moment later.
+- When NoaCG is older than this module and cannot take its check-in yet, the module keeps working and asks again every 5 minutes, so the green "Companion connected" appears by itself once NoaCG is updated.
 
 ## 0.3.0 - 2026-11-05
 
