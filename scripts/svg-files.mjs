@@ -129,7 +129,10 @@ async function zip(folder, contents) {
 }
 
 /** The templates a package holds. */
-const inPackage = (entries, pkg) => entries.filter((entry) => entry.packages.includes(pkg.id));
+/** An entry with `listed: false` is kept for its old addresses and the whole library's zip, but no
+ *  longer shown on the page or put in a package zip: a newer template does its job. */
+export const isListed = (entry) => entry.listed !== false;
+const inPackage = (entries, pkg) => entries.filter((entry) => isListed(entry) && entry.packages.includes(pkg.id));
 
 /** The zips, the whole library then one per package: [address, folder, entries]. */
 const zipPlan = (entries) => [

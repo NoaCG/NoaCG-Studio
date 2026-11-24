@@ -512,14 +512,16 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await page.getByTestId(`cue-field-${options}`).fill('Coast | 3\nForest | 1\nCity | 0\nMountains | 0');
       await page.getByTestId('verb-update').click();
       await expect(role(air, 'option/1')).toHaveText('Coast');
-      await expect(role(air, 'badge')).toHaveClass(/imported-design-on/);
+      // A board may draw no badge (Vote lower third: it only reveals the result).
+      const badged = readFileSync(file(t.slug), 'utf8').includes('inkscape:label="Vote badge"');
+      if (badged) await expect(role(air, 'badge')).toHaveClass(/imported-design-on/);
       await expect(role(air, 'percent/1')).not.toHaveClass(/imported-design-on/);
       // The counts move the bars the designer drew: three votes to one.
       const barWidth = (n: number) => role(air, `bar/${n}`).evaluate((el) => el.getBoundingClientRect().width);
       await expect.poll(async () => (await barWidth(1)) / Math.max(1, await barWidth(2)), { message: 'Coast leads Forest three to one' }).toBeCloseTo(3, 0);
       await checkAir(page, air, `${t.slug}-2-voting`);
       await page.getByTestId('cue-action-close').click();
-      await expect(role(air, 'badge')).not.toHaveClass(/imported-design-on/);
+      if (badged) await expect(role(air, 'badge')).not.toHaveClass(/imported-design-on/);
       await page.getByTestId('cue-action-result').click();
       await expect(role(air, 'percent/1')).toHaveText('75%');
       await expect(role(air, 'percent/1')).toHaveClass(/imported-design-on/);
