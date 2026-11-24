@@ -12,13 +12,19 @@ Every 30 minutes a scheduled job reads production's system metrics and service h
 red`, when any of these holds:
 
 - memory available is under 15% of the total
-- more than half of the swap is in use
+- swap is nearly full (over 90% in use), or growing by more than 1 MiB a second across the minute
 - memory is thrashing: over 100 major page faults per second
 - disk traffic is above half of the compute size's sustained baseline
 - a service is not healthy, or the numbers could not be read
 
 The issue closes itself on the next healthy run, and a repeat of the same finding adds no comment.
 Each run's numbers stay in its step summary. `npm run load` prints the same report on demand.
+
+Swap in use alone is not a finding. Linux parks idle pages in swap once and leaves them there:
+from 2026-11-14 to 11-24 production on Small held 514 to 593 MiB of 1024 with no major faults and
+about 1 GB available, and the earlier half-full limit opened and closed the issue four times
+(#2740). Pages being read back show up as major faults, and memory being pushed out now shows up as
+swap growth.
 
 ## Non-goals
 

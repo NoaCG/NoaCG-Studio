@@ -46,10 +46,29 @@ test('production as measured right after the move to Small is healthy', () => {
 
 test('each limit reports its own finding', () => {
   assert.deepEqual(keys({ ...healthy, memoryAvailable: 100 * MB }), ['memory']);
-  assert.deepEqual(keys({ ...healthy, swapFree: 300 * MB }), ['swap']);
+  assert.deepEqual(keys({ ...healthy, swapFree: 50 * MB }), ['swap']);
+  assert.deepEqual(keys({ ...healthy, swapOutBytesPerSecond: 5 * MB }), ['swap-growing']);
   assert.deepEqual(keys({ ...healthy, majorFaultsPerSecond: 500 }), ['thrash']);
   // 87 Mbps is half of Small's 174; this is about 96.
   assert.deepEqual(keys({ ...healthy, diskBytesPerSecond: 12_000_000 }), ['disk']);
+});
+
+test('swap parked at a steady level, with nothing else wrong, is healthy (#2740)', () => {
+  // Production on 2026-11-23: 571 of 1024 MiB of swap, 999 MiB available, no major faults, no
+  // swap growth. It had sat between 514 and 571 MiB for ten days.
+  const parked = { ...healthy, memoryAvailable: 999 * MB, swapFree: (1024 - 571) * MB, majorFaultsPerSecond: 0, swapOutBytesPerSecond: 0 };
+  assert.deepEqual(keys(parked), []);
+  // The same swap is still trouble once anything else says so.
+  assert.deepEqual(keys({ ...parked, majorFaultsPerSecond: 500 }), ['thrash']);
+  assert.deepEqual(keys({ ...parked, memoryAvailable: 100 * MB }), ['memory']);
+  assert.deepEqual(keys({ ...parked, swapOutBytesPerSecond: 2 * MB }), ['swap-growing']);
+});
+
+test('swap growth comes from the pages swapped out between the scrapes', () => {
+  const scrape = (out) => `node_vmstat_pswpout ${out}\n`;
+  assert.equal(readSample(scrape(1000), scrape(1000 + 60 * 512), 60).swapOutBytesPerSecond, 2 * MB);
+  assert.equal(readSample(scrape(1000), scrape(10), 60).swapOutBytesPerSecond, null);
+  assert.equal(readSample('', '', 60).swapOutBytesPerSecond, null);
 });
 
 test('a compute size with no known baseline does not guess at disk', () => {
@@ -85,4 +104,5 @@ test('the report leads with what is wrong and always carries the figures', () =>
   assert.match(report, /Compute \| Small/);
   assert.match(formatReport(healthy, context, []), /^Production database load is healthy\./);
   assert.match(formatReport(readSample(null, null, 60), {}, []), /Disk traffic \| unread/);
+  assert.match(formatReport(readSample(null, null, 60), {}, []), /Swap growth \| unread/);
 });
