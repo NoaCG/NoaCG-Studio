@@ -71,7 +71,8 @@ read or write them.
 | `panel_pair_finish(p_code, p_label)` | module | spends the code once; mints a key | `{ok, key, key_id, label, title, feedback_topic}`; refusals `unknown-code`, `used-code`, `expired-code`, `slow-down` |
 | `panel_hello(p_key)` | module, on every (re)connect | updates last use; sends `want` on `pnp-` when a page answers | `{ok, key_id, label, title, feedback_topic, answering}`; refusals `unknown-key`, `revoked`, `no-page` (hosted control switched off for the account) |
 | `panel_press(p_key, p_press)` | module | validates the press, records its id as the key's last press (never a lower number of the same instance), stamps the claim, sends `press` on `pnp-` | `{ok, claim}`; refusals `unknown-key`, `revoked`, `bad-press`, `not-a-panel-verb`, `no-page`, `slow-down` |
-| `panel_list(p_slug)` | page | | `{ok, press_topic, feedback_topic, claim, answering: {page, where, label, at} or null, panels: [{id, label, created_at, last_used_at}]}` |
+| `panel_seen(p_key, p_version, p_status)` | module, every 15 s and on a change of status (§7.5) | stamps the key's `last_seen_at`, `module_version` and `module_status`, at most once per key in 2 s; a revoked key's report is stamped too (0128) | `{ok}`; refusals `unknown-key`, `revoked` |
+| `panel_list(p_slug)` | page | | `{ok, press_topic, feedback_topic, claim, answering: {page, where, label, at} or null, panels: [{id, label, created_at, last_used_at, last_seen_at, seen_s, module_version, module_status}], refused_s}`; `seen_s` is seconds since the panel's last report by the database's clock, `refused_s` the seconds since a revoked key of this production reported after its revoke (0128), each null when none |
 | `panel_revoke(p_slug, p_key_id)` | page | marks the key revoked; replaces `f`; sends `rotated` on `pnp-` | `{ok, feedback_topic}` |
 | `panel_lease(p_slug, p_page, p_where, p_label, p_move)` | page, taking the panel (by itself, or "Use here" with `p_move`) | free or lapsed, or `p_move`: claim + 1, records who, a lease of 15 s, sends `claim` on `pnp-`; already this page's: a fresh lease, the same claim | `{ok, claim, press_topic, feedback_topic, last_presses}`, `last_presses` each live key's last press id (0110); refusal `held` with `answering` |
 | `panel_renew(p_slug, p_page, p_claim)` | the answering page, on every beat | a fresh 15 s lease while `p_claim` is still current | `{ok, claim}`; refusal `lost` with `answering` |
@@ -231,8 +232,15 @@ own build configuration (both values are already public in the app's bundle), so
 publishable key needs no module update. With a code and no key, the module
 calls `panel_pair_finish`, saves the key into the secret field and clears the code. Then
 `panel_hello`, join `pfb-<f>` as a private channel with the publishable key, and wait for `state`.
-On a dropped connection it rejoins with backoff (1, 2, 4, then every 8 s) and calls `panel_hello`
-again. `moved` or a `beat` whose `ver` or `rowsVer` it has not seen also calls `panel_hello`.
+`moved` or a `beat` whose `ver` or `rowsVer` it has not seen also calls `panel_hello`.
+
+Every start and transport failure goes through one connect step on one backoff (1, 2, 4, then
+every 8 s): the `panel.json` fetch, a `panel_pair_finish` that did not reach the backend (the same
+code is tried again), a hello that failed or was refused for a reason other than the key, and a
+dropped channel. Only `unknown-key` or `revoked` ends it ("Pair again"), and a code the server
+refused (`unknown-code`, `used-code`, `expired-code`; `slow-down` is retried). Three calls in a row
+refused by the backend's gateway (HTTP 401 or 403) mean the publishable key in hand is stale: the
+module lets its client go and fetches `panel.json` again on the next step.
 
 ### 7.2 Status
 
@@ -241,7 +249,7 @@ again. `moved` or a `beat` whose `ver` or `rowsVer` it has not seen also calls `
 | `ok` | a `state` or `beat` heard in the last 12 s | follow the state |
 | `no-page` | hello answered `answering: false`, a press refused `no-page`, `gone` heard, or 12 s of silence | every NoaCG key shows "No operator page"; presses refused locally |
 | `revoked` | hello or a press refused `revoked` or `unknown-key` | "Panel key revoked. Pair again." |
-| `offline` | the backend cannot be reached | "NoaCG offline" |
+| `offline` | the backend cannot be reached, or answered something unexpected; retrying on the backoff | "NoaCG offline: ... Retrying..." |
 | `pairing` | a code is being exchanged, or no key yet | "Pair in Companion's connection settings" |
 
 ### 7.3 A press
@@ -259,6 +267,25 @@ page's clock maps to the module's as `local = page + (r - at)`. Time left is `en
 minus now, unless `phase` is `paused` (show `remaining`) or `holding` (show the time since `end`).
 The warning and final styles turn on at the `warn` thresholds (10 and 5 s) from that count, so no
 per-second message is needed. The variables tick every 250 ms while a clip runs.
+
+### 7.5 Liveness
+
+While it holds a key, whatever its status, the module calls `panel_seen` with its version and its
+status (§7.2): at once on connecting, every 15 s, and on a change of status no sooner than 5 s after
+the last report. A failed report changes nothing on the keys, but a gateway refusal counts toward
+the three that find the backend again (§7.1); a report refused `revoked` or `unknown-key` turns the
+status to `revoked` as hello would, and the reports go on, so the page can say a Companion still
+holds a refused key. A backend without `panel_seen` (`PGRST202`: an older server, or a schema cache
+not yet reloaded) is asked again after 5 minutes. A module from before 0.4.0 never reports and
+works as before.
+
+The page answering the panel reads `panel_list` every 8 s and is green only while a listed panel
+reported in the last 45 s with status `ok` (`src/control/companionHealth.ts`): "Companion
+connected". Otherwise, in this order: "Panel key refused, pair again" (red) for a revoked key that
+reported in the last 45 s; "Companion needs an update" for a report of `outdated`, or a key used by
+hello or a press and never reported; "Companion connecting" for a recent report of any other status
+(its keys refuse presses then); "Companion not seen since <time>", or "not seen yet". A failed read leaves the last one ageing, so the chip never stays green on a list it cannot
+refresh.
 
 ## 8. The feedback state (version 1)
 

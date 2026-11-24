@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "28c11475613bff895611cc67715a3b9d77b6a2a9a0db24f1cdacf61d034d2231",
+  "specSha256": "d3a3fb289d32bd4b980c497a86161d71eb3fdae6d98ca74ed7d0ca07e342efe7",
   "authority": {
     "status": "draft",
     "source": "Owner, 2026-11-23, studio session feedback: votes on a re-run question looked partly missing; wanted an explicit Vote button with confirmation, verifiable counts, more interaction types, new rundown items playable without republishing, an honest Companion status, and guidance for several operators. Projects P1 to P5 are proposed; only the first branch's fixes are implemented."

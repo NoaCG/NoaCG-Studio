@@ -12,12 +12,26 @@ Companion 4.3 or later (the steps below use Companion 5.1's words). If **NoaCG: 
 
 1. Publish the production in NoaCG once. On the production page open **Setup**, then **Stream Deck panel…**. Press **Pair a panel**. A code like `ABCD-EFGH` appears. It works once, for five minutes.
 2. In Companion, open **Connections**, type `NoaCG` in the search box on the right, press **Add** beside **NoaCG: NoaCG Studio**, then **Add** again. Type the code into **Pairing code**, give the panel a name in **Panel name**, and press **Save**. The code field clears and the panel appears in the page's list.
-3. Keep the production page open. It answers the panel by itself; the header shows **Panel ✓**.
+3. Keep the production page open. It answers the panel by itself; the header shows **Companion connected** in green.
 4. Open **Buttons**, then the **Presets** tab, press **NoaCG**, open a section and drag keys onto your buttons: **Show control** (Take, Out, Next and the rest), **Server clip** (the clip clock), **Cues** (Select, Take and Play now keys for each cue of your rundown, and a Select key for each folder), and **Pinned graphics** (the live controls of each graphic you pinned on the production page; until you pin one, it holds only a line saying to).
 
 The usual way to run a show: a **Select a cue** key picks the cue, and the **Take** key from **Show control** airs it. The **Pinned graphics** keys go straight to air. So do **Take a cue now** and **Play now, keep selection**, for a cue you want on air without moving the selection.
 
 To stop a panel, press **Revoke** beside it in the page's panel list. To pair again, clear **Panel key** and type a new code.
+
+### Pair again, or update the module?
+
+The production page's header says whether Companion is connected. The module reports to NoaCG every 15 seconds, so the page turns green only while it hears from Companion.
+
+| The header says                 | What to do                                                                                                                                                      |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Companion connected             | Nothing: the keys work.                                                                                                                                         |
+| Companion connecting            | Wait. The module connects by itself, also after a network drop or a NoaCG update; its keys work once this turns green.                                          |
+| Companion not seen since a time | Check that Companion is running and online. The module retries by itself, also when Companion started before the network was up.                                |
+| Panel key refused, pair again   | The panel was revoked on the page. Press **Pair again** in the page's panel dialog, clear **Panel key** in Companion and type the new code. No download needed. |
+| Companion needs an update       | Download the new module file from [noacg.studio/downloads](https://noacg.studio/downloads#companion) and import it. Your pairing and keys stay.                 |
+
+Only "Companion needs an update" needs a new module download. Pairing again never does: the module holds no key of NoaCG's own, and finds NoaCG again by itself when NoaCG changes its access key. In Companion the same is said on the connection: "Panel key revoked. Pair again." for a refused key, "Update the NoaCG module" for an update.
 
 ### Which page answers
 
