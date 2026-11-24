@@ -10,7 +10,7 @@ import JSZip from 'jszip';
 import { getTransformedRoutes } from '@vercel/routing-utils';
 
 import {
-  LIBRARY_DIR, LIBRARY_ZIP, LIBRARY_ZIP_URL, SVG_GALLERY_MARKER, SVG_PACKAGES, builtInAlternatives, downloadFiles, fileUrl,
+  LIBRARY_DIR, LIBRARY_ZIP, LIBRARY_ZIP_URL, SVG_GALLERY_MARKER, SVG_PACKAGES, builtInAlternatives, downloadFiles, fileUrl, isListed,
   libraryDownload, libraryDownloads, packageZip, packageZipUrl, previewsOf, readLibrary, renderSvgGallery,
 } from './svg-files.mjs';
 
@@ -55,7 +55,7 @@ test('each package shows each of its templates with its pictures and SVG, and it
     const start = html.indexOf(`id="${pkg.id}"`);
     const section = html.slice(start, html.indexOf('</section>', start));
     assert.ok(section.includes(`href="${packageZipUrl(pkg)}"`), `${pkg.id} offers its zip`);
-    const entries = library.filter((entry) => entry.packages.includes(pkg.id));
+    const entries = library.filter((entry) => isListed(entry) && entry.packages.includes(pkg.id));
     assert.ok(entries.length > 0, `${pkg.id} lists templates`);
     assert.equal(section.split('class="svg-tile"').length - 1, entries.length, `${pkg.id}: one tile per template`);
     for (const entry of entries) {
@@ -66,6 +66,19 @@ test('each package shows each of its templates with its pictures and SVG, and it
       for (const state of entry.states ?? []) assert.ok(section.includes(`src="${fileUrl(state.preview, 'png')}" alt="`), `${entry.slug}/${state.preview} shown`);
     }
     assert.doesNotMatch(section, /alt=""/, `${pkg.id}: no preview without alt text`);
+  }
+});
+
+test('an unlisted template leaves the page and the package zips, and keeps its downloads', async () => {
+  const hidden = library.filter((entry) => !isListed(entry));
+  assert.ok(hidden.some((entry) => entry.slug === 'vote-results'), 'Vote results gives way to Vote results with counts');
+  const html = renderSvgGallery();
+  const all = await downloads();
+  const names = Object.keys((await JSZip.loadAsync(all.get(LIBRARY_ZIP_URL))).files);
+  for (const entry of hidden) {
+    assert.ok(!html.includes(`href="${fileUrl(entry.slug, 'svg')}"`), `${entry.slug} is not on the page`);
+    assert.ok(all.has(fileUrl(entry.slug, 'svg')), `${entry.slug} is still served`);
+    assert.ok(names.includes(`${LIBRARY_ZIP}/SVG/${entry.slug}.svg`), `${entry.slug} stays in the library zip`);
   }
 });
 
@@ -107,7 +120,7 @@ test('the library zip holds every file, and each package zip exactly its templat
   }
   for (const pkg of SVG_PACKAGES) {
     const zip = await JSZip.loadAsync(all.get(packageZipUrl(pkg)));
-    const entries = library.filter((entry) => entry.packages.includes(pkg.id));
+    const entries = library.filter((entry) => isListed(entry) && entry.packages.includes(pkg.id));
     const svgs = Object.keys(zip.files).filter((name) => name.includes('/SVG/') && !zip.files[name].dir).sort();
     assert.deepEqual(svgs, entries.map((entry) => `${packageZip(pkg)}/SVG/${entry.slug}.svg`).sort(), pkg.id);
     const inventory = JSON.parse(await zip.file(`${packageZip(pkg)}/library.json`).async('string'));

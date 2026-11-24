@@ -46,8 +46,8 @@ Names in these templates are made up.
 | **End credits** | Paste the list in playout: the show title first, then one role per line, such as `Camera: Kim Park, Jo Berg`. The two-column design puts roles on the left. |
 | **Join card** | The `QR` group is where NoaCG draws the code for your production's join link. In Interaction, Add Join card puts the current link in its cue. |
 | **Live vote** | The room votes on their phones. The bars follow the votes; Close voting, Show result and Call the winner run the round. |
-| **Vote results** | The same controls on a side panel. In Interaction, Add results stages a round's counts and whether voting is open or closed. |
-| **Vote results with counts** | Vote results with each option's own vote count under its bar, shown with the percentages. |
+| **Vote results with counts** | The same controls on a side panel, with each option's own vote count under its bar. In Interaction, Add results stages a round's counts and whether voting is open or closed. The older Vote results, without counts, stays in the whole library's zip. |
+| **Vote lower third** | A wide golden ticket across the bottom for a two-option vote, with percentages only: no vote count and no Vote now badge. Show result reveals the percentages, and Call the winner marks the leading option. Add results fills it like Vote results. |
 | **Poll result** | Typed results, not a live vote. At import, tick Poll result. Type the question, and in Options one line per option: its name, a bar sign, its figure (`Streaming \| 62`). The bars and percentages show at once. |
 | **Message** | In Interaction, Prepare puts a viewer's message and name on it (in `From`): pasted, live chat or Twitch. |
 
@@ -96,6 +96,7 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **Join card** | `Label`, `Call to action` | none | `Panel`, `QR plate`, `QR` |
 | **Live vote, Vote results** | `Question`, `Option 1`, `Percent 1`, `Total votes` | `Bar 1` (visible), `Winner 1`, `Vote badge` | `Panel`, `Track 1` |
 | **Vote results with counts** | as Vote results, plus `Count 1` per option | as Vote results | as Vote results |
+| **Vote lower third** | `Question`, `Option 1`, `Option 2`, `Percent 1`, `Percent 2` | `Bar 1`, `Bar 2` (visible), `Winner 1`, `Winner 2` | `Panel`, `Border`, `Perforation`, `Track 1`, `Track 2` |
 | **Poll result** | `Question`, `Option 1`, `Percent 1` | `Bar 1` (visible) | `Panel`, `Track 1` |
 | **Message** | `From`, `Message` | none | `From box`, `Message box` |
 
