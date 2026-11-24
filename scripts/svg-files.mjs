@@ -128,8 +128,7 @@ async function zip(folder, contents) {
   return archive.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
 }
 
-/** The templates a package holds. */
-/** An entry with `listed: false` is kept for its old addresses and the whole library's zip, but no
+/** The templates a package holds. An entry with `listed: false` is kept for its old addresses and the whole library's zip, but no
  *  longer shown on the page or put in a package zip: a newer template does its job. */
 export const isListed = (entry) => entry.listed !== false;
 const inPackage = (entries, pkg) => entries.filter((entry) => isListed(entry) && entry.packages.includes(pkg.id));
