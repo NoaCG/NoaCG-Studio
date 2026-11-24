@@ -25,7 +25,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import { SVG_TEMPLATES_CARD_URL, SVG_TEMPLATES_URL, TEMPLATE_LIBRARY_ZIP_URL } from '../src/downloads/links';
-import { LIBRARY_DIR, LIBRARY_ZIP, LIBRARY_ZIP_URL, SVG_PACKAGES, packageZip, packageZipUrl, previewsOf, readLibrary } from '../scripts/svg-files.mjs';
+import { LIBRARY_DIR, LIBRARY_ZIP, LIBRARY_ZIP_URL, SVG_PACKAGES, isListed, packageZip, packageZipUrl, previewsOf, readLibrary } from '../scripts/svg-files.mjs';
 import { AGENT_PROMPT } from '../scripts/agent-prompt.mjs';
 
 /** The one inventory, also checked against the live behavior registry and real source assets. */
@@ -348,7 +348,7 @@ test('the Template Library page shows every template by package and serves each 
   const shown = new Set<string>();
   for (const pkg of SVG_PACKAGES) {
     const section = page.getByTestId(`svg-package-${pkg.id}`);
-    const entries = INVENTORY.filter((entry) => entry.packages.includes(pkg.id));
+    const entries = INVENTORY.filter((entry) => isListed(entry) && entry.packages.includes(pkg.id));
     await expect(section.locator('.svg-tile')).toHaveCount(entries.length);
     await expect(section.getByTestId(`svg-package-${pkg.id}-zip`)).toHaveAttribute('href', packageZipUrl(pkg));
     const zip = await JSZip.loadAsync(await (await request.get(packageZipUrl(pkg))).body());
@@ -364,7 +364,8 @@ test('the Template Library page shows every template by package and serves each 
       await expect(tile.locator('img')).toHaveCount(previews(entry).length);
     }
   }
-  expect([...shown].sort(), 'every template sits in a package').toEqual(INVENTORY.map((entry) => entry.slug).sort());
+  // An unlisted template is off the page; it is still served for its old addresses (svg-files.test.mjs).
+  expect([...shown].sort(), 'every listed template sits in a package').toEqual(INVENTORY.filter(isListed).map((entry) => entry.slug).sort());
   // Every preview has loaded: a missing PNG would leave a tile with a broken picture. Each one is
   // decoded in turn: decoding every full-size preview at once (151 by TL5) made Chromium reject one
   // on a CI runner ("The source image cannot be decoded") though every file decodes on its own.
