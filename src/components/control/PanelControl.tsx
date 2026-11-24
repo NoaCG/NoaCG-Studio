@@ -172,6 +172,9 @@ export function usePanelAnswer(opts: {
     look();
     const stop = workerInterval(PANEL_BEAT_MS, () => {
       beats += 1;
+      // Judge the last read on every beat, not only when a read settles: a request that hangs (the
+      // client waits up to 75 s) must not keep the chip green past the freshness window.
+      judge();
       if (answer.current ? beats % ANSWERING_LOOKS === 0 : paired || beats % IDLE_LOOKS === 0) look();
     });
     return () => {
