@@ -26,7 +26,7 @@ const SAMPLE_MS = 60_000;
 export const LIMITS = {
   memoryAvailableShare: 0.15,
   // Swap IN USE is not trouble by itself: Linux parks idle pages there once and leaves them. On
-  // Small, production sat at 514 to 571 MiB of 1024 from 2026-11-14 to 11-24 with 0 major faults
+  // Small, production sat at 514 to 593 MiB of 1024 from 2026-11-14 to 11-24 with 0 major faults
   // and about 1 GB available, and a 50% limit opened and closed the issue four times (#2740).
   // Trouble is swap filling up (next comes the OOM killer), swap growing NOW, or pages being read
   // back (the major faults below).
@@ -61,16 +61,14 @@ export function readSample(first, second, seconds) {
   };
   const read = rate('node_disk_read_bytes_total');
   const written = rate('node_disk_written_bytes_total');
+  const swappedOut = rate('node_vmstat_pswpout');
   return {
     memoryTotal: metric(second, 'node_memory_MemTotal_bytes'),
     memoryAvailable: metric(second, 'node_memory_MemAvailable_bytes'),
     swapTotal: metric(second, 'node_memory_SwapTotal_bytes'),
     swapFree: metric(second, 'node_memory_SwapFree_bytes'),
     majorFaultsPerSecond: rate('node_vmstat_pgmajfault'),
-    swapOutBytesPerSecond: (() => {
-      const pages = rate('node_vmstat_pswpout');
-      return pages === null ? null : pages * PAGE;
-    })(),
+    swapOutBytesPerSecond: swappedOut === null ? null : swappedOut * PAGE,
     diskBytesPerSecond: read === null || written === null ? null : read + written,
   };
 }
