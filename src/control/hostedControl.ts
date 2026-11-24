@@ -468,7 +468,7 @@ async function serializeAssets(template: SpxTemplate): Promise<OutputGraphicSpec
 }
 
 /** One graphic as the output renders it: the payload's entry, and what its version digest covers. */
-async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): Promise<OutputGraphicSpec> {
+export async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): Promise<OutputGraphicSpec> {
   if (isForeignGraphic(template)) return foreignSpec(g, template);
   return {
     key: g.name,
@@ -501,35 +501,12 @@ async function foreignSpec(g: Show['graphics'][number], template: SpxTemplate): 
   };
 }
 
-/** The PINNED renderable payload written at publish (docs/CLOUD_PLAYOUT.md §2): the pool
- *  graphics' live library templates snapshotted, plus the cue rundown re-keyed by the wire
- *  graphic name. Async because Blob assets serialize to data URLs. */
-export async function buildOutputPayload(
-  show: Show,
-  library: GraphicDoc[] = loadGraphics(),
-  /** Each cue's appearance as the production page resolved it and the records behind it (playout
-   *  adjustments): what the hosted page's Take and Update carry and its Adjust block edits.
-   *  Absent, no cue carries either. */
-  publishedOf?: CuePublished,
-): Promise<OutputPayload> {
+/** The graphic cues as a publish writes them, in rundown order, re-keyed by graphic name. A cue
+ *  showing a live candidate is left out: the hosted page and an exported controller would take it
+ *  with its prepared values, and the output receives resolved values only (E7.1). */
+export function outputCuesOf(show: Show, publishedOf?: CuePublished): OutputCue[] {
   const byId = new Map(show.graphics.map((g) => [g.id, g] as const));
-  const graphics: OutputGraphicSpec[] = await Promise.all(show.graphics.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
-  // The production look's imported face rides once, with the first graphic, on or off: a look sent
-  // and then turned off stays on air until the next Take, and a reload restores it (productionLook.ts).
-  const lookFace = lookImportedFace(show);
-  if (lookFace) graphics.splice(0, graphics.length, ...withLookFaceIn(graphics, lookFace.asset));
-  // The stage: big enough for every graphic (they render 1:1 inside it, the page scales it).
-  const resolution = graphics.reduce<Resolution>(
-    (r, g) => ({
-      width: Math.max(r.width, g.resolution.width),
-      height: Math.max(r.height, g.resolution.height),
-      label: r.label,
-    }),
-    DEFAULT_GRAPHICS_RESOLUTION,
-  );
-  // A cue showing a live candidate is left out: the hosted page and an exported controller would
-  // take it with its prepared values, and the output receives resolved values only (E7.1).
-  const cues: OutputCue[] = (show.cues ?? [])
+  return (show.cues ?? [])
     .filter((c) => byId.has(c.sourceId) && preparedCue(c))
     .map((c) => {
       const auto = readAuto(c);
@@ -551,6 +528,34 @@ export async function buildOutputPayload(
         })()),
       };
     });
+}
+
+/** The PINNED renderable payload written at publish (docs/CLOUD_PLAYOUT.md §2): the pool
+ *  graphics' live library templates snapshotted, plus the cue rundown re-keyed by the wire
+ *  graphic name. Async because Blob assets serialize to data URLs. */
+export async function buildOutputPayload(
+  show: Show,
+  library: GraphicDoc[] = loadGraphics(),
+  /** Each cue's appearance as the production page resolved it and the records behind it (playout
+   *  adjustments): what the hosted page's Take and Update carry and its Adjust block edits.
+   *  Absent, no cue carries either. */
+  publishedOf?: CuePublished,
+): Promise<OutputPayload> {
+  const graphics: OutputGraphicSpec[] = await Promise.all(show.graphics.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
+  // The production look's imported face rides once, with the first graphic, on or off: a look sent
+  // and then turned off stays on air until the next Take, and a reload restores it (productionLook.ts).
+  const lookFace = lookImportedFace(show);
+  if (lookFace) graphics.splice(0, graphics.length, ...withLookFaceIn(graphics, lookFace.asset));
+  // The stage: big enough for every graphic (they render 1:1 inside it, the page scales it).
+  const resolution = graphics.reduce<Resolution>(
+    (r, g) => ({
+      width: Math.max(r.width, g.resolution.width),
+      height: Math.max(r.height, g.resolution.height),
+      label: r.label,
+    }),
+    DEFAULT_GRAPHICS_RESOLUTION,
+  );
+  const cues = outputCuesOf(show, publishedOf);
   const itemById = new Map((show.playoutItems ?? []).map((i) => [i.id, i] as const));
   const playout = loadPlayoutSettings();
   const playoutCues: OutputPlayoutCue[] = (show.cues ?? [])

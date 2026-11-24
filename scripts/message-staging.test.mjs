@@ -285,6 +285,8 @@ test('the audience backend interface has no method that airs anything', async ()
     'tally',
     'update',
     'vote',
+    // A round's votes for the CSV (live-production-reliability P1 AC-3, 0127): a read.
+    'votes',
     // A Word round's word counts (interaction phase 6, W1): a read.
     'wordCounts',
   ]);

@@ -471,7 +471,12 @@ async function liveQuestion(page, type, text, options = []) {
   await page.getByTestId('question-add').click();
   await page.getByTestId(type === 'open' ? 'question-type-open' : 'question-type-choice').click();
   await page.getByTestId('question-text').fill(text);
-  if (type === 'choice') await page.getByTestId('question-options').fill(options.join('\n'));
+  if (type === 'choice') {
+    // One row per option: add rows as needed, then fill each.
+    const fields = page.getByTestId('question-option');
+    while ((await fields.count()) < options.length) await page.getByTestId('question-option-add').click();
+    for (let at = 0; at < options.length; at++) await fields.nth(at).fill(options[at]);
+  }
   await page.getByTestId('question-save').click();
   const row = page.locator('.pd-aud-q', { hasText: text }).last();
   await row.getByTestId('question-go-live').click();

@@ -187,6 +187,20 @@ export function IconDots(props: IconProps) {
   );
 }
 
+/** A drag handle: what a row is moved by. */
+export function IconGrip(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="9" cy="6" r="1" strokeWidth={2.4} />
+      <circle cx="15" cy="6" r="1" strokeWidth={2.4} />
+      <circle cx="9" cy="12" r="1" strokeWidth={2.4} />
+      <circle cx="15" cy="12" r="1" strokeWidth={2.4} />
+      <circle cx="9" cy="18" r="1" strokeWidth={2.4} />
+      <circle cx="15" cy="18" r="1" strokeWidth={2.4} />
+    </Svg>
+  );
+}
+
 /** "View all →" and other forward links. */
 export function IconChevronRight(props: IconProps) {
   return (

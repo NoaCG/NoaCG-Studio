@@ -85,6 +85,46 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
 - AC-6: A configured journey runs one question twice from three phones and asserts the totals the
   operator, the phones and the result cue each show.
 
+#### P1 progress (2026-11-23, branch `local/voting`, migration 0127)
+
+Owner decisions of 2026-11-23, binding: going live again on a vote with votes asks each time
+(continue, or a new count that keeps the earlier one); a per-question "Allow changing a vote",
+default on, enforced by the database; one checkbox in the composer for Multiple choice only. The
+interaction spec records them as O1 revised, O3 and O4.
+
+- AC-1 built: `audience_rounds.allow_change`, sent with Go live and part of the round's snapshot.
+  `audience_vote` refuses a second vote from a device when it is off ("your vote is already in"),
+  the vote guard refuses an update of such a vote from any writer, and the chat door counts each
+  chat voter's first vote only. The join resolve carries `allowChange`; the phone says the vote is
+  final before sending and offers no Change vote after.
+- AC-3 built: `audience_votes_export(slug, round)` (one jsonb value, so a big room is never cut at
+  PostgREST's page) and Export votes (CSV) on the selected vote and on each earlier count.
+- AC-4, the cap half: 3000 phone votes per round in ten seconds, counted over a new partial index
+  `(round_id, updated_at) where source = 'phone'` with `limit 3000`, so a vote reads at most the
+  last ten seconds' votes. Its refusal has its own words on the phone. Measured on a scratch
+  Postgres 16 with every migration applied (Supabase stubs): 0127's self-check, which casts 3000
+  phone votes into one round inside one window and sees the next refused, ran in 1.2 s, the
+  whole file again from the top in 1.5 s. Not built: the operator does not yet SEE refused votes
+  (a refusal rolls back its own transaction, so counting them needs a separate writer); and the
+  cap is sized by arithmetic on the largest room asked about, not measured in a hall.
+- AC-5 built: Continue the count or Start a new count, asked at the press. A new count moves the
+  counted round aside (`question_id` cleared, `earlier_of` kept) under Go live's production lock;
+  the earlier counts are listed under the question with date, totals and a CSV.
+- AC-6, in part: `e2e/configured/audience-live.spec.ts` runs one vote three times from three
+  phone browsers (count, continue with a changed vote, a new count) and asserts the panel's
+  counts, each phone's read-back and both CSV files agree, then a final vote refused in the
+  phone's words. The result cue's figures are not asserted in that journey.
+- AC-2 not built: Stop does not yet freeze a separate snapshot. Votes cannot reach a closed round
+  (the guard and every door check it is open), and an earlier count can never reopen, so its
+  counts are already fixed; a stopped current count can still be continued or cleared.
+- Rehearsal: the local provider follows the same rules (new count, final vote, export with a local
+  voter key); `scripts/interaction-lifecycle.test.mjs`, `scripts/interaction-questions.test.mjs`
+  and `scripts/vote-export.test.mjs` pin them, and `e2e/production-audience.spec.ts` walks them.
+- Trap: an earlier count is an `audience_rounds` row with no `question_id`. Code that maps rounds
+  by question (`roundOf`, `roundsToFinalise`, the result cues) skips it by that alone; the
+  messages' "Earlier questions" filter now counts Open rounds only, so a moved vote round does not
+  offer an empty filter.
+
 ### P2. Playout readiness without republishing (now; independent of P1)
 
 - AC-1: Decide and run step 10 of `docs/work-specs/live-publishing/phase-9-checklist.md`: switch
@@ -97,6 +137,50 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
 - AC-3: A configured journey adds a Join card to a published rundown and Takes it on `/output`
   without pressing Publish (`e2e/configured/audience-live.spec.ts`).
 - AC-4: The rundown marks each cue whose graphic is not on the outputs yet.
+
+**Landed (AC-2 to AC-4, branch `local/publish-new`).** With automatic updates off, the production
+page adds new graphics to the outputs by itself (`src/control/additivePublish.ts`, the rules and
+the scheduler; `src/control/publishNewGraphics.ts`, one attempt; `usePublishNewGraphics.ts`, the
+page wiring). About 1.5 s after a graphic the published stamp does not name is saved, the page
+confirms its record is a stored revision, reads the stored publication whole, and writes it back
+with only the new graphics, their sounds, their panel entries and the cues on them added, through
+the same guarded update a press uses (`writeControlShow`, conditioned on the stamp number read).
+Every published graphic is written back as read, so its digest cannot change; cues already
+published, settings, server cues, OBS scenes and the stage stay as stored. The stamp keeps the
+stored `r` and drops `c`, so a later automatic publish never mistakes it for a whole revision. Then
+the outputs are asked to prepare, as after Publish changes; an output takes new graphics in beside
+what is on air. It runs only for an account that may author, never while a press or automatic
+publish of the page runs, and writes nothing again once the stored stamp names the graphics.
+Publish changes is not offered for graphics the page adds itself, only for what the add cannot
+send; when adding was the record's only change, the record is kept as published once it lands, so
+the panel offers nothing either. The add waits while a readiness run (Publish or Check now) is still
+settling the outputs, and Check now waits while an add is on its way.
+
+It writes nothing, and the status stays amber with the reason, when the stored payload does not
+read back to its own stamp digests, when a new graphic would change a published one (the look's
+imported face would move to it), needs a bigger stage, sits in an OBS scene, or fails the publish
+gate, and when the stored sounds are not under the publishing account's key (a write moves the
+audio owner to the writer, migration 0121, and an output fetches a sound only by its owner's key,
+so a teammate's sounds would stop playing). New sounds are uploaded only once the add has passed
+those checks, just before the write, and the manifest carries their keys, as a full publish's does;
+a fault of the sound file itself holds, anything else is tried again. One new graphic that cannot
+be added holds back the others added with it, so nothing goes out half and the reason is said once. A cue added to or edited on a graphic already published, and
+every design edit of one, still waits for Publish changes. The new cues carry the appearance and
+Adjust records a press's publish would measure for them.
+
+AC-4: such a cue wears NOT ON OUTPUTS in the rundown, its tooltip saying what it waits for, and a
+Take of it says so in the page's note line ("Join is not on the outputs yet. It is being added to
+the outputs now."). The status reads amber "Adding Join" meanwhile.
+
+AC-3: `e2e/configured/audience-live.spec.ts` adds the Join card with an output open and a design
+edit of the published Hairline pending, waits for the stored stamp to name the card with Hairline's
+digest unchanged, then Takes it and asserts it plays on the output with no reload and no Publish.
+Not yet run: it needs the configured suite's local Supabase stack.
+
+Left: with partial writes on, the write is whole, as a press's fallback is, and the stored head and
+maps are left for the next publish in parts to replace (production has partial writes off). Per
+graphic additions, so one refused graphic does not hold the others, would be a small follow-up if
+the studio meets it.
 
 ### P3. Shared interaction model and question builder (next; after P1)
 
@@ -111,6 +195,31 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
   event, feeding a leaderboard); Quiz (correct answer, points, nickname, leaderboard graphic);
   Rating scale (average on one big-number graphic); Q&A upvotes on the existing moderation;
   Multiple select. Ranking and points allocation are for workshops and come last.
+
+P3 builder, as built (2026-11-23; the shared model and the new kinds are not started):
+
+- Multiple choice options are one row each in `QuestionComposer`
+  (`src/components/home/InteractionQuestions.tsx`): the letter phones use, the words, a drag
+  handle and remove. Two empty rows to start, at most eight; "+ Option" and a count that shows
+  from six. Enter adds a row below and focuses it; Backspace in an empty row removes it and
+  focuses the one above; Alt+Up and Alt+Down in a field, or the arrow keys on its handle, move the
+  row, as the question list's Alt+arrows do. Each field is labelled "Option A" and so on, and each
+  button names its option.
+- A paste with line breaks into any row makes rows at that place (`pasteOptionRows` in
+  `src/model/questions.ts`, cleaned as `cleanOptions` cleans): the other options keep their
+  places, the empty rows go, and lines past eight are left out with a short note saying how many.
+- A question that is live or answered shows its rows read-only while its editor is open, with the
+  locked note; Save is off. Open and Word keep their single text field.
+- The draft shows beside the fields on a small phone drawn by the join page's own renderer
+  (`mountJoinSurface` with a client that only reads the draft and refuses every send), in the
+  production's look; "Allow changing a vote" stays, Multiple choice only, and the phone shows its
+  warning when it is off. Under the phone one line says what the question gives the show to air
+  (counts and shares for a vote board, messages for a message card, a word cloud).
+- Pinned by `scripts/interaction-questions.test.mjs` (rows, move, paste and the limits) and the
+  "questions are written, browsed and changed safely" journey in `e2e/production-audience.spec.ts`
+  (Enter, Backspace, Alt+Up, the handle by keyboard and by drag, a paste, a paste past the limit,
+  remove, the phone, the locked rows).
+- Not built: correct answer and points (no kind uses them yet).
 
 ### P4. Companion connection health (next; its own session)
 
@@ -133,7 +242,8 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
 
 1. Three phones vote, the question stops, goes live again, two phones change their vote: totals
    on the operator panel, the phones' read-back and the result cue agree.
-2. Duplicate the question and run it: it starts at zero.
+2. Run the question again: Go live asks; Start a new count starts at zero and lists the earlier
+   count with its CSV. Run a question with "Allow changing a vote" off: a phone cannot change it.
 3. Deploy during the session (or reload one phone after a deploy) and vote from a phone opened
    before it.
 4. Add a Join card to the published rundown: the status names it in amber until published.
@@ -146,8 +256,9 @@ the fixes since (#2655, #2671, #2617, #2615) have not been run again with people
 - Use a team production with one account per person. Do not share one account across devices.
 - One playout operator owns Take and the Stream Deck; one person publishes; one runs audience
   questions; at most two people edit the rundown, never the same cue.
-- Publish after adding any graphic, sound or card, and wait for the status to leave amber.
-- For a fresh vote on the same question, Stop and Clear results, or Duplicate it.
+- After adding any graphic, sound or card, wait for the status to leave amber: the page adds new
+  graphics to the outputs by itself, or says why not. Publish after any other change.
+- For a fresh vote on the same question, press Go live and choose Start a new count.
 - Ask the audience to press Vote and check "Your vote" on their phone.
 - If Companion's buttons show errors while NoaCG is green, open Setup, Panel and pair again; a new
   module download is needed only when Companion says to update it.

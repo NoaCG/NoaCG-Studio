@@ -520,6 +520,26 @@ test('two Takes on one layer answered out of order: the later press stands', asy
   assert.deepEqual(r.liveCue(), { Strap: 'c2' });
 });
 
+test('a Take of a graphic the outputs do not have yet says so on the page, once; one they have says nothing (live-production-reliability P2, AC-4)', async () => {
+  const r = rig();
+  r.sender.offOutputs = (graphic) => (graphic === 'Score' ? 'It is being added to the outputs now.' : null);
+  const taking = r.verbs.take(graphicCue('j1', 'Score'));
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+  assert.deepEqual(r.notes, ['J1 is not on the outputs yet. It is being added to the outputs now.']);
+  const other = r.verbs.take(graphicCue('s1', 'Strap'));
+  await settle();
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
+  await other;
+  assert.equal(r.notes.length, 1);
+  // Unpublished, PROGRAM is the only air: nothing to say.
+  const local = rig({ published: null });
+  local.sender.offOutputs = () => 'Publish changes to play it.';
+  await local.verbs.take(graphicCue('j1', 'Score'));
+  assert.deepEqual(local.notes, []);
+});
+
 test('a failed Take marks nothing, forgets no misses, notes no step and says why once', async () => {
   const r = rig();
   const taking = r.verbs.take(graphicCue('c1', 'Strap'));

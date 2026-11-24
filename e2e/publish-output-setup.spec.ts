@@ -251,7 +251,9 @@ test('Setup and All out keep their place while the status and its action change'
     await publishProduction(page);
     expect(await places(),`${width}: publishing moved Setup or All out`).toEqual(unpublished);
     await allOutOnScreen(width,'once published');
-    await page.evaluate(async key=>{const S=await __noacgImport('/src/model/shows.ts');const {variantsFor}=await __noacgImport('/src/templates/catalog.ts');S.addGraphicToShow(key.id,variantsFor('lower-third')[key.pass+1].create({}));await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();},{id,pass});
+    // A design edit of a published graphic: what only Publish changes sends (a graphic ADDED to a
+    // published production goes out by itself, live-production-reliability P2, and offers no press).
+    await page.evaluate(async key=>{const S=await __noacgImport('/src/model/shows.ts');const g=S.loadShows().find((x)=>x.id===key.id)!.graphics[0];S.addGraphicToShow(key.id,{...g.template,name:g.name,css:`${g.template.css}\n/* edit ${key.pass} */`},{graphicId:g.graphicId??null});await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();},{id,pass});
     await expect(page.getByTestId('production-publish-changes')).toBeVisible();
     expect(await places(),`${width}: Publish changes moved Setup or All out`).toEqual(unpublished);
     await allOutOnScreen(width,'with Publish changes due');

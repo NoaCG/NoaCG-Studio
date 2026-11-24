@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { libraryGraphicDigests } from '../../control/hostedControl';
 import { rendersDiffer } from '../../control/payloadVersion';
+import type { PublishDue } from '../../control/additivePublish';
 import { loadGraphics } from '../../model/library';
 import { recordChangedSincePublish as recordChanged } from '../../model/publishedRecord';
 import type { Show } from '../../model/shows';
@@ -32,7 +33,7 @@ const SETTLE_MS = 400;
  * `check()` answers the same question NOW, without the settle delay, for a press that must not act
  * on a reading a moment old (Prepare for Live deciding whether to publish).
  */
-export function usePublishDrift(show: Show | null, published: Record<string, string> | null): { unpublished: boolean; requiresPreparation: boolean; check: () => Promise<boolean> } {
+export function usePublishDrift(show: Show | null, published: Record<string, string> | null): { unpublished: boolean; due: PublishDue; check: () => Promise<boolean> } {
   const [drift, setDrift] = useState(false);
   const latest = useRef({ show, published });
   latest.current = { show, published };
@@ -47,7 +48,11 @@ export function usePublishDrift(show: Show | null, published: Record<string, str
     }
   }, []);
   const changed = recordChanged(show);
-  const poolChanged = !!published && !!show && (show.graphics.length !== Object.keys(published).length || show.graphics.some(g => !(g.name in published)));
+  // Graphics added since the publish, and ones removed: an add alone can reach the outputs without
+  // Publish changes (control/additivePublish.ts), a removal cannot.
+  const added = !!published && !!show && show.graphics.some(g => !(g.name in published));
+  const removed = !!published && !!show && Object.keys(published).some(name => !show.graphics.some(g => g.name === name));
+  const poolChanged = added || removed;
   useEffect(() => {
     if (!show?.publishedAt || !published) {
       setDrift(false);
@@ -65,5 +70,6 @@ export function usePublishDrift(show: Show | null, published: Record<string, str
       clearTimeout(timer);
     };
   }, [show, published, changed, check]);
-  return { unpublished: changed || drift || poolChanged, requiresPreparation: drift || poolChanged || (changed && !published), check };
+  const due: PublishDue = { drift, added, removed, unstamped: changed && !published };
+  return { unpublished: changed || drift || poolChanged, due, check };
 }

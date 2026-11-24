@@ -73,3 +73,14 @@ export function latestPerVoter(votes: readonly ChatVote[]): ChatVote[] {
   }
   return [...kept.values()];
 }
+
+/** Per voter, the vote with the earliest platform time; of equal times, the one that arrived first.
+ *  What a round that does not allow changing a vote counts (0127). */
+export function firstPerVoter(votes: readonly ChatVote[]): ChatVote[] {
+  const kept = new Map<string, ChatVote>();
+  for (const vote of votes) {
+    const held = kept.get(vote.voter);
+    if (!held || Date.parse(vote.at) < Date.parse(held.at)) kept.set(vote.voter, vote);
+  }
+  return [...kept.values()];
+}

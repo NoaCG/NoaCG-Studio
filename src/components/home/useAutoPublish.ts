@@ -26,10 +26,17 @@ import { isGraphicCue } from '../../model/controlCue.ts';
 
 /** Whether the server has the guard installed and the switch on; null while unknown. */
 async function readSwitch(): Promise<boolean> {
+  return (await readSwitchKnown()) === true;
+}
+
+/** The same answer, or null when it could not be read: a failed read is not "off". A server without
+ *  the function (no guard installed) is off. */
+async function readSwitchKnown(): Promise<boolean | null> {
   const sb = await getSupabase();
   if (!sb) return false;
   const { data, error } = await sb.rpc('auto_publish_state');
-  if (error || !data) return false;
+  if (error) return error.code === 'PGRST202' ? false : null;
+  if (!data) return false;
   const state = data as { installed?: unknown; on?: unknown };
   return state.installed === true && state.on === true;
 }
@@ -88,6 +95,10 @@ export interface AutoPublished {
 export interface AutoPublishState {
   /** The publisher runs for this production: no Publish changes. */
   active: boolean;
+  /** The server's automatic updates switch is on (with its guard), whether or not the publisher
+   *  runs here yet (a revision not known keeps Publish changes, G3 section 8); null until it has
+   *  been read for this page (signed out, still signing in, or the read failed). */
+  switchOn: boolean | null;
   view: AutoPublishView | null;
 }
 
@@ -104,6 +115,8 @@ export function useAutoPublish(o: {
   onPublished: (published: AutoPublished) => void;
 }): AutoPublishState {
   const [switchOn, setSwitchOn] = useState(false);
+  /** The switch has been read for this production and account. */
+  const [switchRead, setSwitchRead] = useState(false);
   const [view, setView] = useState<AutoPublishView | null>(null);
   // A save's unit digests wait for this page's sends, as the publish's own steps do (G4 R18).
   useEffect(() => {
@@ -140,6 +153,7 @@ export function useAutoPublish(o: {
   const [revKnown, setRevKnown] = useState(false);
   useEffect(() => {
     setRevKnown(false);
+    setSwitchRead(false);
     if (!enabled || !showId) {
       setSwitchOn(false);
       return;
@@ -147,7 +161,11 @@ export function useAutoPublish(o: {
     let alive = true;
     let known = false;
     const ask = () => {
-      void readSwitch().then((on) => { if (alive) setSwitchOn(on); }, () => {});
+      void readSwitchKnown().then((on) => {
+        if (!alive || on === null) return;
+        setSwitchOn(on);
+        setSwitchRead(true);
+      }, () => {});
       if (!known) {
         void storedRevision({ id: showId, teamId: teamId ?? undefined }).then((r) => {
           if (alive && r) { known = true; setRevKnown(true); }
@@ -352,7 +370,8 @@ export function useAutoPublish(o: {
     };
   }, [watchesOnly, showId, teamId]);
 
-  if (watchesOnly && elsewhere) return { active: false, view: { tone: 'red', line: ELSEWHERE_LINE, running: false, published: null } };
-  return { active, view: active ? view : null };
+  const known = enabled && switchRead ? switchOn : null;
+  if (watchesOnly && elsewhere) return { active: false, switchOn: known, view: { tone: 'red', line: ELSEWHERE_LINE, running: false, published: null } };
+  return { active, switchOn: known, view: active ? view : null };
 }
 

@@ -464,3 +464,31 @@ test('a retried send never overwrites a newer vote said in the same second (C4)'
   assert.deepEqual(await chat(q), [0, 1], 'the retried A does not replace B');
   assert.equal(intake.sources()[0].votes, 1);
 });
+
+test('with changes off, a chat voter counts once, by the first vote said: in one batch, across batches, and after a line outside the window (0127)', async (t) => {
+  clock(t, yt.goLiveAt);
+  const { backend, wire, chat } = room(t);
+  const q = await backend.goLive({ ...VOTE, allowChange: false });
+  const intake = wire(createChatIntake());
+  t.after(() => intake.stopAll());
+  const source = intake.addTest('T');
+  mock.timers.setTime(at(yt.goLiveAt, 5));
+  // One batch: A then B from one voter counts A.
+  source.push('Viewer', 'A', 'f1', { at: at(yt.goLiveAt, 1), voter: 'yt:UCfirst' });
+  source.push('Viewer', 'B', 'f2', { at: at(yt.goLiveAt, 2), voter: 'yt:UCfirst' });
+  await drain();
+  assert.deepEqual(await chat(q), [1, 0, 0]);
+  // A later batch changes nothing.
+  source.push('Viewer', 'C', 'f3', { at: at(yt.goLiveAt, 3), voter: 'yt:UCfirst' });
+  await drain();
+  assert.deepEqual(await chat(q), [1, 0, 0]);
+  assert.equal(intake.sources()[0].votes, 1);
+
+  // The provider's own door: a line said before the window does not take the voter's one vote.
+  const counted = await backend.chatVotes(q.id, [
+    { voter: 'tw:early', option: 0, at: new Date(at(yt.goLiveAt, -10)).toISOString() },
+    { voter: 'tw:early', option: 1, at: new Date(at(yt.goLiveAt, 2)).toISOString() },
+  ]);
+  assert.equal(counted.counted, 1);
+  assert.deepEqual(await chat(q), [1, 1, 0]);
+});

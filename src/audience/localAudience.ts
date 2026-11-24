@@ -13,8 +13,9 @@
 // see the same inbox.
 //
 // THE ROOM is kept too (interaction spec R15): each question's round, what is live, the votes and
-// what a rehearsal phone tab or a chat source sent. A question's result is one round for the life
-// of the production (O1), a pasted message files under a round by id, and the production's other
+// what a rehearsal phone tab or a chat source sent. A question's current result is one round (O1),
+// a vote's earlier counts are kept rounds of their own (O1 revised, 0127), a pasted message files
+// under a round by id, and the production's other
 // tabs and a rehearsal phone (`/join?rehearse=<id>`) have to see the same live question, so none of
 // that can live in one tab's memory. Clear results is how a rehearsal's answers are removed.
 // SIMULATED rows stay in memory, as before: invented questions must never accumulate.
@@ -22,10 +23,12 @@
 import { uuid } from '../model/id.ts';
 import { QUESTION_LIMITS, isQuestionId } from '../model/questions.ts';
 import { cleanWord, type WordTally } from '../model/wordCloud.ts';
-import { CHAT_VOTES_MAX, CHAT_VOTE_ALLOWANCE_MS, latestPerVoter, type ChatVote, type ChatVoteOutcome } from './chatVotes.ts';
+import { CHAT_VOTES_MAX, CHAT_VOTE_ALLOWANCE_MS, firstPerVoter, latestPerVoter, type ChatVote, type ChatVoteOutcome } from './chatVotes.ts';
+import { localVoterKey } from './voteExport.ts';
 import {
   AUDIENCE_LIMITS,
   QUESTION_CLOSED,
+  VOTE_FINAL,
   WORD_ALREADY_SENT,
   WORD_REFUSED,
   OPERATOR_ADD_MAX,
@@ -41,7 +44,9 @@ import {
   type JoinView,
   type PresenterPointers,
   type QuestionLive,
+  type RoundVote,
   type SubmitResult,
+  votesCanChange,
 } from './audienceTypes.ts';
 
 /** Rehearsal names and questions. Deliberately bland and clearly fictional: a simulator that
@@ -229,6 +234,9 @@ export interface Room {
   rounds: AudienceRound[];
   /** roundId -> device -> option. The key IS the dedupe; an overwrite is "change your vote". */
   votes: Record<string, Record<string, number>>;
+  /** roundId -> device -> when that vote was last taken, for the export (0127). Additive optional in
+   *  the store: a vote kept before it has no time and exports with an empty one. */
+  voteAt: Record<string, Record<string, string>>;
   /** roundId -> chat voter (`yt:...`, `tw:...`) -> the option and the platform time it was said
    *  (interaction spec, "Chat votes"). Additive optional in the store: an older build ignores it. */
   chatVotes: Record<string, Record<string, ChatVote>>;
@@ -240,6 +248,7 @@ const emptyRoom = (name: string): Room => ({
   presenter: { current: null, next: null },
   rounds: [],
   votes: {},
+  voteAt: {},
   chatVotes: {},
   answers: [],
 });
@@ -260,6 +269,8 @@ function readRound(raw: unknown): AudienceRound | null {
     correctOption: typeof r.correctOption === 'number' ? r.correctOption : null,
     openedAt: r.openedAt,
     closedAt: text(r.closedAt) ? r.closedAt : null,
+    allowChange: r.allowChange !== false,
+    earlierOf: text(r.earlierOf) ? r.earlierOf : null,
   };
 }
 
@@ -279,6 +290,12 @@ function readRoomOf(raw: unknown, name: string): Room {
         if (typeof option === 'number') kept[device] = option;
       }
       room.votes[roundId] = kept;
+    }
+  }
+  if (r.voteAt && typeof r.voteAt === 'object') {
+    for (const [roundId, byDevice] of Object.entries(r.voteAt as Record<string, unknown>)) {
+      if (!byDevice || typeof byDevice !== 'object') continue;
+      room.voteAt[roundId] = Object.fromEntries(Object.entries(byDevice as Record<string, unknown>).filter((e): e is [string, string] => text(e[1])));
     }
   }
   if (r.chatVotes && typeof r.chatVotes === 'object') {
@@ -358,17 +375,18 @@ export function localRoomName(showId: string): string {
 }
 
 /** The question's snapshot in the server's own normal form (0111), so comparing is fair. */
-function snapshotOf(question: QuestionLive): { kind: AudienceRound['kind']; text: string; options: string[] } | string {
+function snapshotOf(question: QuestionLive): { kind: AudienceRound['kind']; text: string; options: string[]; allowChange?: boolean } | string {
   if (!isQuestionId(question.id)) return 'not a question';
   const textNow = question.text.trim().slice(0, QUESTION_LIMITS.text);
   if (!textNow) return 'a question needs its text';
-  if (question.type === 'open') return { kind: 'open', text: textNow, options: [] };
-  if (question.type === 'word') return { kind: 'word', text: textNow, options: [] };
+  if (question.type === 'open') return { kind: 'open', text: textNow, options: [], allowChange: true };
+  if (question.type === 'word') return { kind: 'word', text: textNow, options: [], allowChange: true };
   if (question.type !== 'choice') return 'not a question';
   // Like the server, blanks are not dropped here: the composer already cleaned them.
   const options = (question.options ?? []).map((o) => o.trim().slice(0, QUESTION_LIMITS.option)).slice(0, QUESTION_LIMITS.maxOptions);
   if (options.length < QUESTION_LIMITS.minOptions) return 'a vote needs two options at least';
-  return { kind: 'poll', text: textNow, options };
+  // Absent (a page from before the policy) keeps the round's own, as the server does (0127).
+  return { kind: 'poll', text: textNow, options, allowChange: question.allowChange };
 }
 
 export interface LocalAudience extends AudienceBackend {
@@ -548,7 +566,10 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         if (!round) return { ok: false, error: QUESTION_CLOSED, closed: true };
         // One generic refusal for every other reason, exactly as the RPC answers.
         if (option < 0 || option >= round.options.length) return { ok: false, error: 'That vote could not be counted.' };
+        // With changes off, the first vote stands (0127).
+        if (!votesCanChange(round) && r.votes[roundId]?.[deviceToken] !== undefined) return { ok: false, error: VOTE_FINAL };
         r.votes[roundId] = { ...(r.votes[roundId] ?? {}), [deviceToken]: option }; // upsert = change your mind
+        r.voteAt[roundId] = { ...(r.voteAt[roundId] ?? {}), [deviceToken]: nowIso() };
         if (!saveRoom(r)) return { ok: false, error: 'That vote could not be counted.' };
         changed();
         return { ok: true, error: null };
@@ -659,16 +680,28 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
       });
     },
 
-    async goLive(question): Promise<AudienceRound> {
+    async goLive(question, opts): Promise<AudienceRound> {
       return exclusive(() => {
         const snap = snapshotOf(question);
         if (typeof snap === 'string') throw new Error(snap);
+        if (opts?.newCount && snap.kind !== 'poll') throw new Error('a new count is for a vote');
         const r = room();
         const at = nowIso();
         let round = r.rounds.find((x) => x.questionId === question.id) ?? null;
+        if (round && round.kind !== snap.kind) throw new Error('a question keeps its type');
+        // A NEW COUNT (0127): the counted round is kept aside, closed for good, and this question
+        // gets a fresh round. A round with no votes has nothing to keep.
+        const voted = (x: AudienceRound) => Object.keys(r.votes[x.id] ?? {}).length > 0 || Object.keys(r.chatVotes[x.id] ?? {}).length > 0;
+        if (opts?.newCount && round && voted(round)) {
+          if (!round.closedAt) throw new Error('stop the question before starting a new count');
+          round.questionId = null;
+          round.earlierOf = question.id;
+          round = null;
+        }
+        const allowChange = snap.allowChange ?? (round ? votesCanChange(round) : true);
         if (round) {
-          if (round.kind !== snap.kind) throw new Error('a question keeps its type');
-          const same = round.question === snap.text && JSON.stringify(round.options) === JSON.stringify(snap.options);
+          const same =
+            round.question === snap.text && JSON.stringify(round.options) === JSON.stringify(snap.options) && votesCanChange(round) === allowChange;
           if (!same) {
             if (!round.closedAt) throw new Error('a live question cannot change');
             const answered =
@@ -678,12 +711,25 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
             if (answered) throw new Error('this question has answers, so it cannot change');
             round.question = snap.text;
             round.options = snap.options;
+            round.allowChange = allowChange;
             round.revision += 1;
           }
         }
         for (const other of r.rounds) if (other !== round && !other.closedAt) other.closedAt = at; // one open round
         if (!round) {
-          round = { id: uuid(), kind: snap.kind, questionId: question.id, revision: 1, question: snap.text, options: snap.options, correctOption: null, openedAt: at, closedAt: null };
+          round = {
+            id: uuid(),
+            kind: snap.kind,
+            questionId: question.id,
+            revision: 1,
+            question: snap.text,
+            options: snap.options,
+            correctOption: null,
+            openedAt: at,
+            closedAt: null,
+            allowChange,
+            earlierOf: null,
+          };
           r.rounds.push(round);
         } else if (round.closedAt) {
           round.closedAt = null;
@@ -715,6 +761,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         if (!round) return null;
         if (!round.closedAt) throw new Error('stop the question before clearing its results');
         delete r.votes[round.id];
+        delete r.voteAt[round.id];
         delete r.chatVotes[round.id];
         r.answers = r.answers.filter((s) => s.roundId !== round.id);
         round.revision += 1;
@@ -755,13 +802,19 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         const from = Date.parse(round.openedAt) - CHAT_VOTE_ALLOWANCE_MS;
         const until = Date.now() + 60_000;
         const byVoter = { ...(r.chatVotes[roundId] ?? {}) };
+        const final = !votesCanChange(round);
         let counted = 0;
-        for (const vote of latestPerVoter(votes)) {
+        // What could count at all, then per voter as the server picks (0113, 0127): the latest said,
+        // or with changes off the FIRST said, and then a counted one stands.
+        const valid = votes.filter((vote) => {
           const at = Date.parse(vote.at);
-          if (!/^(yt|tw):[A-Za-z0-9_-]{1,120}$/.test(vote.voter) || !(at >= from && at <= until)) continue;
-          if (!Number.isInteger(vote.option) || vote.option < 0 || vote.option >= round.options.length) continue;
+          if (!/^(yt|tw):[A-Za-z0-9_-]{1,120}$/.test(vote.voter) || !(at >= from && at <= until)) return false;
+          return Number.isInteger(vote.option) && vote.option >= 0 && vote.option < round.options.length;
+        });
+        for (const vote of final ? firstPerVoter(valid) : latestPerVoter(valid)) {
+          const at = Date.parse(vote.at);
           const held = byVoter[vote.voter];
-          if (held && Date.parse(held.at) > at) continue;
+          if (held && (final || Date.parse(held.at) > at)) continue;
           byVoter[vote.voter] = { voter: vote.voter, option: vote.option, at: vote.at };
           counted += 1;
         }
@@ -782,6 +835,21 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
 
     async rounds(): Promise<AudienceRound[]> {
       return room().rounds.map((x) => ({ ...x }));
+    },
+
+    async votes(roundId): Promise<RoundVote[]> {
+      const r = room();
+      const round = r.rounds.find((x) => x.id === roundId);
+      if (!round) throw new Error('unknown round');
+      const phone = Object.entries(r.votes[roundId] ?? {}).map(([device, option]) => ({
+        // A vote kept before votes had times has none: an empty time, never a made-up one.
+        at: r.voteAt[roundId]?.[device] ?? '',
+        option,
+        source: 'phone' as const,
+        voter: localVoterKey(roundId, device),
+      }));
+      const chat = Object.values(r.chatVotes[roundId] ?? {}).map((v) => ({ at: v.at, option: v.option, source: 'chat' as const, voter: localVoterKey(roundId, v.voter) }));
+      return [...phone, ...chat].sort((a, b) => (Date.parse(a.at) || 0) - (Date.parse(b.at) || 0));
     },
 
     simulate(count = 1): AudienceSubmission[] {
@@ -805,10 +873,17 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         const round = liveOf(r);
         if (!round || round.kind === 'open' || round.kind === 'word') return;
         const byDevice = { ...(r.votes[round.id] ?? {}) };
+        const times = { ...(r.voteAt[round.id] ?? {}) };
+        const at = nowIso();
         counts.forEach((n, option) => {
-          for (let i = 0; i < n; i += 1) byDevice[`sim-${option}-${seq++}`] = option;
+          for (let i = 0; i < n; i += 1) {
+            const device = `sim-${option}-${seq++}`;
+            byDevice[device] = option;
+            times[device] = at;
+          }
         });
         r.votes[round.id] = byDevice;
+        r.voteAt[round.id] = times;
         saveRoom(r);
         changed();
       });

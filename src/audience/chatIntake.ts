@@ -34,7 +34,7 @@
 
 import { uuid } from '../model/id';
 import { AUDIENCE_LIMITS, OPERATOR_ADD_MAX, type AudienceRound, type AudienceSubmission, type CandidateInput, type RoundTarget, type SubmitResult } from './audienceTypes';
-import { CHAT_VOTES_MAX, chatVoter, inVoteWindow, latestPerVoter, voteOption, type ChatVote, type ChatVoteOutcome } from './chatVotes.ts';
+import { CHAT_VOTES_MAX, chatVoter, firstPerVoter, inVoteWindow, latestPerVoter, voteOption, type ChatVote, type ChatVoteOutcome } from './chatVotes.ts';
 import { twitchChatDriver } from './twitchChat';
 import { recordSpend, rememberKey, rememberedKey, youtubeChatDriver, type YouTubeIo } from './youtubeChat';
 
@@ -334,6 +334,9 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
   let liveGeneration = 0;
   /** Per voter, the newest vote sorted so far (C4). Bounded like the dedupe set. */
   const newestSeen = new Map<string, ChatVote>();
+  /** In a round that does not allow changing a vote (0127), the voters whose first vote this page
+   *  has sorted, by round and voter: a later line from them cannot count, so it is never sent. */
+  const firstSeen = new Set<string>();
   /** The chain vote sends run on, one at a time. */
   let sending: Promise<void> = Promise.resolve();
   /** False while no production page is open in this tab: lines are not collected (C11). */
@@ -478,6 +481,16 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
               continue;
             }
             const vote = { voter, option, at: new Date(at).toISOString() };
+            // A final vote (0127): the first line from this voter is the vote, later ones are not.
+            if (round.allowChange === false) {
+              const key = `${round.id} ${voter}`;
+              if (firstSeen.has(key)) {
+                runtime.state.dropped += 1;
+                continue;
+              }
+              firstSeen.add(key);
+              if (firstSeen.size > 20_000) for (const old of firstSeen) if (firstSeen.size > 10_000) firstSeen.delete(old); else break;
+            }
             // C4: remember the newest vote seen from this voter, by platform time and then by
             // arrival, so a send that is retried later never overwrites it.
             const seen = newestSeen.get(voter);
@@ -499,9 +512,11 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
     }
   }
 
-  /** Send votes for `round`, CHAT_VOTES_MAX a call, each voter's latest only (C3, C4, C7). */
+  /** Send votes for `round`, CHAT_VOTES_MAX a call, each voter's latest only (C3, C4, C7), or each
+   *  voter's first when the round does not allow changing a vote (0127). */
   function sendVotes(round: AudienceRound, votes: Array<{ runtime: SourceRuntime; vote: ChatVote }>, tries: number, rerouted: boolean) {
-    const latest = new Set(latestPerVoter(votes.map((v) => v.vote)));
+    const pick = round.allowChange === false ? firstPerVoter : latestPerVoter;
+    const latest = new Set(pick(votes.map((v) => v.vote)));
     const kept = votes.filter((v) => latest.has(v.vote));
     for (let at = 0; at < kept.length; at += CHAT_VOTES_MAX) {
       const slice = kept.slice(at, at + CHAT_VOTES_MAX);
@@ -515,7 +530,8 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
     const door = voteDoor;
     // A vote a newer one from the same voter has replaced since it was sorted (a retry, mostly)
     // is not sent: it would overwrite the newer choice when their platform times are equal.
-    const chunk = slice.filter((v) => newestSeen.get(v.vote.voter) === v.vote);
+    // A final round counts the first vote whatever came after, so nothing there is replaced.
+    const chunk = round.allowChange === false ? slice : slice.filter((v) => newestSeen.get(v.vote.voter) === v.vote);
     for (const v of slice) if (!chunk.includes(v)) v.runtime.state.dropped += 1;
     if (chunk.length === 0) return changed();
     const fail = () => {

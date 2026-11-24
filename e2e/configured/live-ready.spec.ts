@@ -136,12 +136,13 @@ test('READY: every output says whether it is ready, the production page reads on
 
   // ── AC-4, since per-graphic replacement (docs/work-specs/per-graphic-replacement AC-1, D4): a
   //    publish that adds a graphic while another is ON AIR moves the output onto the new version
-  //    at once, the graphic on air untouched and nothing reloaded. A change OF the graphic on air
-  //    waits for clear, which e2e/configured/per-graphic-replacement.spec.ts walks. ──
+  //    at once, the graphic on air untouched and nothing reloaded. Since live-production-reliability
+  //    P2 the added graphic goes out by itself, with no press. A change OF the graphic on air waits
+  //    for clear, which e2e/configured/per-graphic-replacement.spec.ts walks. ──
   const playsBefore = await air.evaluate(() => document.body.getAttribute('data-plays'));
   await addCatalogGraphic(page, showId, 'Hairline');
-  await page.getByTestId('production-publish-changes').click();
-  await expect.poll(async () => (await stampOf())?.n, { timeout: 30_000 }).toBe(2);
+  await expect.poll(async () => (await stampOf())?.n, { timeout: 60_000 }).toBe(2);
+  await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
   await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 60_000 }).toBe(2);
   await expect(desk).not.toHaveAttribute('data-ready-label', /Behind|Waiting for clear/, { timeout: 30_000 });
   await expect(scorebug()).toContainText('READY TEST');

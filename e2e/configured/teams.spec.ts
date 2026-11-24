@@ -816,9 +816,24 @@ test.describe('teams: the share door', () => {
         // B REPUBLISHES - the payload is pinned at publish, and A's publish predates B's and C's
         // graphics - and the output address is the one A's publish minted.
         await expect(ben.getByTestId('production-status')).toHaveAttribute('data-started', 'true');
+        // Since live-production-reliability P2 B's page adds the graphics A's publish lacks by itself;
+        // Publish changes is pressed for whatever else is left (the panel offers it only then).
         await ben.getByTestId('production-status').click();
-        await ben.getByTestId('panel-publish-changes').click();
-        await expect(ben.getByTestId('panel-publish-changes')).toHaveCount(0, { timeout: 30_000 });
+        const panelPublish = ben.getByTestId('panel-publish-changes');
+        const storedNames = () =>
+          ben.evaluate(async (id) => {
+            const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
+            const { data } = await (await getSupabase())!.from('control_shows').select('published_ver').eq('id', id).maybeSingle();
+            return Object.keys((data as { published_ver?: { g?: Record<string, string> } } | null)?.published_ver?.g ?? {});
+          }, showId);
+        const allNamed = async () => {
+          const names = await storedNames();
+          return [gfx.anna, gfx.ben, gfx.cleo].every((n) => names.includes(n));
+        };
+        await expect.poll(async () => (await panelPublish.count()) > 0 || (await allNamed()), { timeout: 60_000 }).toBe(true);
+        if (await panelPublish.count()) await panelPublish.click();
+        await expect(panelPublish).toHaveCount(0, { timeout: 30_000 });
+        await expect.poll(allNamed, { timeout: 30_000, message: 'every member graphic is published' }).toBe(true);
         await ben.getByTestId('production-status').click();
         await expect(ben.getByTestId('production-status-panel')).toBeHidden();
         const benHeld = (await heldRundown(ben, showId))!;
