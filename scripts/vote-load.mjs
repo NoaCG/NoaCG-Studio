@@ -2,8 +2,8 @@
 // A ROOM OF PHONES VOTING, against the STAGING project (docs/work-specs/live-production-reliability
 // /spec.md, P1 AC-4: "the cap is sized for the largest room a production expects, measured").
 //
-//   STAGING_SUPABASE_URL=... STAGING_SUPABASE_ANON_KEY=... \
-//     node scripts/vote-load.mjs --join <join slug> --control <control slug> [--phones 100]
+//   node scripts/vote-load.mjs --url <staging project URL> --key <its publishable key> \
+//     --join <join slug> --control <control slug> [--phones 100]
 //
 // The CLI votes on whatever question is live on that production and prints the four counts. The
 // whole walk (Go live, Stop, Continue the count, Start a new count, the operator's panel, the CSV
@@ -410,13 +410,15 @@ export function sampleHost({ ref, serviceKey, everyMs = 5_000, fetchImpl = fetch
 async function main() {
   const argv = process.argv.slice(2);
   const flag = (name, fallback) => (argv.includes(`--${name}`) ? argv[argv.indexOf(`--${name}`) + 1] : fallback);
-  const url = process.env.STAGING_SUPABASE_URL ?? '';
-  const key = process.env.STAGING_SUPABASE_ANON_KEY ?? '';
+  // Flags, not environment variables: a new variable naming a backend would be one the guard in
+  // scripts/configured-target.mjs never looks at. `createRoom` refuses anything but staging.
+  const url = flag('url', '');
+  const key = flag('key', '');
   const join = flag('join');
   const control = flag('control');
   const count = Number(flag('phones', 100));
   if (!url || !key || !join || !control) {
-    console.error('vote-load needs STAGING_SUPABASE_URL, STAGING_SUPABASE_ANON_KEY, --join and --control.');
+    console.error('vote-load needs --url, --key, --join and --control.');
     process.exit(2);
   }
   const room = createRoom({ url, key, join, seed: Date.now() });
