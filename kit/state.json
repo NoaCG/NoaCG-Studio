@@ -51,7 +51,13 @@
     "eta": "2026-12-08T05:25:49Z",
     "detail": "2026-11-25: 8 more resets after 18c0c25f (#2629 #2630 #2661 #2697 #2734 #2737 #2741 #2743), all product or library PRs changing covers lines or selector code; none a miss fix, so cf18(c) miss-restart count stays 0. Latest 3d2c2c11 (#2743) 2026-11-24T05:25:49Z. 7 quarantine incidents still open. cf18(c) date stop 2026-12-31."
   },
-  "inFlight": [],
+  "inFlight": [
+    {
+      "step": "fix #2751",
+      "session": "session_017SdbwLvYEYUQShegTunAMc",
+      "note": "audit reset rule (owner decision 2026-11-25); launched 13:04Z"
+    }
+  ],
   "owner": [],
   "fixes": [
     {
@@ -92,6 +98,15 @@
         "session_017SdbwQ97N2fxjbZevtddgt",
         "session_017SdbwLyWpoN2qpQaLawNXi"
       ]
+    },
+    {
+      "issue": 2751,
+      "what": "covers change resets the audit only when a file loses its spec",
+      "session": "session_017SdbwLvYEYUQShegTunAMc",
+      "nonce": "fix-2751-f-a08f",
+      "launchedAt": "2026-11-25T13:04:25Z",
+      "state": "building",
+      "row": "Risky"
     }
   ],
   "triggers": {
@@ -448,6 +463,11 @@
       "at": "2026-11-19T08:12Z",
       "by": "coordinator",
       "what": "Stamped and queued stale bot PR #2584 (data-only shard durations re-record, CI gate green, Codex no findings), as with #2316."
+    },
+    {
+      "at": "2026-11-25T13:00Z",
+      "by": "owner (coordinator session)",
+      "what": "Audit reset fix: \"build it\". A covers change resets the selection audit only when an existing file loses its spec (#2751); selector code, membership and trailers unchanged."
     }
   ],
   "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
