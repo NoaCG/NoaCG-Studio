@@ -249,21 +249,13 @@ export function createRoom({ url, key, join, seed = 1, pollMs = POLL_MS, retryMs
   }
 
   function phone(index) {
-    // `sent`: this script's own record, the last vote per round the server answered 200 to.
-    // `counted`: what the phone shows as "Your vote", from the server's `my_vote`.
-    const p = { index, token: deviceToken(random), view: null, sent: new Map(), counted: new Map(), sends: [], timer: null, reads: 0 };
+    // `sent`: this script's own record, the last vote per round the server answered 200 to. What
+    // the phone shows as "Your vote" is the server's `my_vote` in `view`.
+    const p = { index, token: deviceToken(random), view: null, sent: new Map(), sends: [], timer: null };
     p.read = async () => {
       const { status, body } = await rpc('join', 'audience_join_by_slug', { p_join_slug: join, p_device: p.token });
       if (status !== 200) return;
-      const row = Array.isArray(body) ? body[0] : body;
-      p.reads += 1;
-      p.view = row ?? null;
-      const round = row?.state?.round;
-      // What the phone shows as "Your vote": the server's own answer.
-      if (round) {
-        if (row.my_vote === null || row.my_vote === undefined) p.counted.delete(round.id);
-        else p.counted.set(round.id, row.my_vote);
-      }
+      p.view = (Array.isArray(body) ? body[0] : body) ?? null;
     };
     p.poll = () => {
       if (!polling) return;
@@ -307,29 +299,29 @@ export function createRoom({ url, key, join, seed = 1, pollMs = POLL_MS, retryMs
     return made;
   }
 
-  /** Wait until a phone has read a live question other than `notRound`, as its poll brings it. */
-  async function seen(p, notRound, deadline) {
+  /** Wait until a phone has read a live question, as its poll brings it. */
+  async function seen(p, deadline) {
     while (Date.now() < deadline) {
       const round = p.view?.state?.round;
-      if (round && round.id !== notRound) return round;
+      if (round) return round;
       await sleep(50);
     }
     return null;
   }
 
   /**
-   * One run, from Go live: every phone without a counted vote picks within `windowMs` of seeing the
+   * One run, from Go live: every phone without a vote of its own in this round picks within `windowMs` of seeing the
    * question (or of Go live, whichever is later) and presses Vote; `changers` phones change their
    * vote a few seconds later; `late` phones open the link during the run and vote. Resolves when
    * every phone is done.
    */
-  async function run({ options, windowMs = 5_000, changers = 20, changeMs = [2_000, 6_000], late = 0, lateMs = [5_000, 15_000], staleRound = null, timeoutMs = 60_000 }) {
+  async function run({ options, windowMs = 5_000, changers = 20, changeMs = [2_000, 6_000], late = 0, lateMs = [5_000, 15_000], timeoutMs = 60_000 }) {
     const liveAt = Date.now();
     const deadline = liveAt + timeoutMs;
     const pick = () => Math.floor(random() * options);
     const outcomes = [];
     const act = async (p, change) => {
-      const round = await seen(p, staleRound, deadline);
+      const round = await seen(p, deadline);
       if (!round) return outcomes.push({ phone: p.index, shown: 'never saw the question' });
       if (!p.sent.has(round.id)) {
         await sleep(Math.max(0, liveAt + between(0, windowMs) - Date.now()));
