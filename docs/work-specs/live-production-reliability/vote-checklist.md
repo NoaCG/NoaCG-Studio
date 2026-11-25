@@ -37,6 +37,10 @@ For the operator running a phone vote on the day. The words in quotes are what t
 
 ## When a phone says something else
 
+- **The Vote button stays grey for a while.** The vote is on its way; wait. On a slow connection or a
+  busy backend it can take several seconds (once almost half a minute on the test server). It is
+  counted when it lands, and the phone then says "Your vote: ...". Pressing again is not needed.
+
 9. **"Not sent. Check your connection and try again."** The vote did not reach us. Press **Vote**
    again. If it keeps saying so, move closer to the wifi or switch to mobile data, then press Vote.
    Nothing is counted until the phone says "Your vote: ...".
