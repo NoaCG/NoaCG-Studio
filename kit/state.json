@@ -48,16 +48,10 @@
   },
   "waitingOn": {
     "what": "cf18 clean selection-audit window",
-    "eta": "2026-12-08T05:25:49Z",
-    "detail": "2026-11-25: 8 more resets after 18c0c25f (#2629 #2630 #2661 #2697 #2734 #2737 #2741 #2743), all product or library PRs changing covers lines or selector code; none a miss fix, so cf18(c) miss-restart count stays 0. Latest 3d2c2c11 (#2743) 2026-11-24T05:25:49Z. 7 quarantine incidents still open. cf18(c) date stop 2026-12-31."
+    "eta": "2026-12-06T14:39:42Z",
+    "detail": "Under #2752's rule the latest reset is 66ab49d3 (#2697, selector code) 2026-11-22T14:39:42Z; 10 resets after cf14 (old rule 28). 7 quarantine incidents still open. cf18(c) date stop 2026-12-31; miss-caused restarts 0."
   },
-  "inFlight": [
-    {
-      "step": "fix #2751",
-      "session": "session_017SdbwLvYEYUQShegTunAMc",
-      "note": "audit reset rule (owner decision 2026-11-25); launched 13:04Z"
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -105,8 +99,12 @@
       "session": "session_017SdbwLvYEYUQShegTunAMc",
       "nonce": "fix-2751-f-a08f",
       "launchedAt": "2026-11-25T13:04:25Z",
-      "state": "building",
-      "row": "Risky"
+      "state": "landed",
+      "row": "Risky",
+      "pr": 2752,
+      "head": "fc5652f45364d09cfb8422c3fda36d23f4890186",
+      "merge": "56fa228616021ea6f2cec4110883ec4e84be2876",
+      "closed": "auto"
     }
   ],
   "triggers": {
@@ -353,6 +351,11 @@
     {
       "at": "2026-11-25",
       "note": "cf18 earliest moved to 2026-12-08T05:25:49Z; audit check trigger moved to 2026-12-08T05:40Z"
+    },
+    {
+      "fix": 2751,
+      "landed": "56fa2286 (#2752)",
+      "note": "audit check moved to 2026-12-06T14:55Z"
     }
   ],
   "decisions": [
