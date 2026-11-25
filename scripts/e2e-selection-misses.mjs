@@ -22,15 +22,18 @@
 //
 // RESETS. The two-week comparison runs from the latest audit reset (docs/work-specs/cicd-improvement
 // runbook.md "Audit reset and coverage rules"): a landing that changes selector code, adds or
-// removes a shared-change (`// focus`) or critical-journey (`// critical:`) header line, or whose
+// removes a shared-change (`// focus`) or critical-journey (`// critical:`) header line, deletes a
+// spec, narrows a spec's `covers:` so that a file in the landing's tree loses that spec, or whose
 // commits carry a `Selection-audit-reset: <reason>` trailer (a mapping corrected after a miss, or
 // any other selection change the files alone do not show). Read from git, so it cannot go stale.
+// The reset rules are docs/work-specs/cicd-followup/evidence/phase-fix-2751.md R1 to R12.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { fetchFailureSet, ghJsonLines, resolveRepo } from './ci-failure-set.mjs';
+import { parseSpecHeader } from './e2e-lists.mjs';
 import { loadIncidentContext, quarantineIncidents, readStore } from './e2e-quarantine.mjs';
 import { measured } from './measured.mjs';
 
@@ -186,12 +189,54 @@ export function flakyIn(store, sinceIso) {
   return out;
 }
 
+/** A spec file the selector reads: an offline or a configured spec. */
+const SPEC_FILE = /^e2e\/(?:configured\/)?[^/]+\.spec\.ts$/;
+
 /**
- * Is one first-parent landing an audit reset (Rule A4)? Pure. Selector code, a focus or critical
- * line added or removed, a covers line removed or changed, or a declared trailer.
- * @param {{ sha: string, date: string, files: string[], headerLines: string[], messages: string }} landing
+ * What a landing did to its specs' `covers:` protection (fix #2751 Rules R4 to R9). Pure; reads
+ * through the injected callers. Each modified spec's covers at the parent are compared with its
+ * covers at the landing, both read by the selector's own header reader, and expanded against the
+ * files tracked at the landing: a file the old covers matched and the new ones do not has lost
+ * that spec. A file only the parent had is no loss (a folder that moved). A deleted spec always
+ * counts; an added one is additive and is not read. A spec that cannot be read or parsed is
+ * `unreadable`, which resets: what the audit cannot evaluate, it never takes for additive.
+ * @param {{ status: string, spec: string }[]} changed the landing's spec files, `A`, `M` or `D`
+ * @param {(spec: string) => string} before the spec's text at the parent (throws when unread)
+ * @param {(spec: string) => string} after the spec's text at the landing (throws when unread)
+ * @param {() => string[]} tree the files tracked at the landing (throws when unread); read at most once
+ * @returns {{ deleted: string[], lost: { spec: string, files: string[] }[], unreadable: { spec: string, why: string }[] }}
+ */
+export function coverageChange({ changed, before, after, tree }) {
+  const out = { deleted: [], lost: [], unreadable: [] };
+  let files = null;
+  for (const { status, spec } of changed) {
+    if (status === 'D') { out.deleted.push(spec); continue; }
+    if (status !== 'M') continue;
+    try {
+      const old = parseSpecHeader(before(spec), spec).covers;
+      const now = parseSpecHeader(after(spec), spec).covers;
+      // Covers lines are a union and each line is matched alone, so a spec that keeps every old
+      // line as it was cannot lose a file; the tree is read only when one changed or went.
+      const kept = new Set(now.map((l) => l.globs.join(',')));
+      if (old.every((l) => kept.has(l.globs.join(',')))) continue;
+      files ??= tree();
+      const lost = files.filter((f) => old.some((l) => l.test(f)) && !now.some((l) => l.test(f)));
+      if (lost.length) out.lost.push({ spec, files: lost });
+    } catch (e) {
+      out.unreadable.push({ spec, why: String(e?.message ?? e).split('\n')[0] });
+    }
+  }
+  return out;
+}
+
+/**
+ * Is one first-parent landing an audit reset (Rule A4; fix #2751 Rules R1 to R12)? Pure. Selector
+ * code, a focus or critical line added or removed, a deleted spec, covers narrowed so a file loses
+ * its spec, a spec that could not be evaluated, or a declared trailer.
+ * @param {{ sha: string, date: string, files: string[], headerLines: string[], messages: string, covers?: ReturnType<typeof coverageChange> }} landing
  *   files: the landing's diff; headerLines: its added and removed spec lines (`+// focus`);
- *   messages: the commit messages it brought in
+ *   messages: the commit messages it brought in; covers: what it did to covers protection. Without
+ *   `covers` the change was not evaluated, and any covers line removed or changed resets.
  * @returns {{ sha: string, date: string, reason: string } | null}
  */
 export function resetOf(landing) {
@@ -200,10 +245,17 @@ export function resetOf(landing) {
   if (code.length) reasons.push(`selector code: ${code.join(', ')}`);
   const membership = landing.headerLines.filter((l) => /^[+-]\s*\/\/+\s*(?:focus\s*$|critical\s*:)/.test(l));
   if (membership.length) reasons.push(`critical/shared membership: ${membership.length} header line(s) changed`);
-  // Removed or changed protection: a `covers:` line taken away (a changed line shows as removed and
-  // added). A line only added is additive and audited without a reset.
-  const narrowed = landing.headerLines.filter((l) => /^-\s*\/\/+\s*covers?\s*:/.test(l));
-  if (narrowed.length) reasons.push(`protection removed or changed: ${narrowed.length} covers line(s)`);
+  const covers = landing.covers;
+  if (!covers) {
+    // Not evaluated: a `covers:` line taken away (a changed line shows as removed and added) is
+    // taken for narrowed protection. A line only added is additive and audited without a reset.
+    const narrowed = landing.headerLines.filter((l) => /^-\s*\/\/+\s*covers?\s*:/.test(l));
+    if (narrowed.length) reasons.push(`protection removed or changed: ${narrowed.length} covers line(s)`);
+  } else {
+    if (covers.deleted.length) reasons.push(`spec deleted: ${covers.deleted.join(', ')}`);
+    for (const { spec, files } of covers.lost) reasons.push(`protection narrowed: ${spec} no longer covers ${files.length} file(s), e.g. ${files[0]}`);
+    for (const { spec, why } of covers.unreadable) reasons.push(`protection removed or changed: ${spec} not evaluated (${why})`);
+  }
   const trailers = [...String(landing.messages ?? '').matchAll(new RegExp(`^${RESET_TRAILER}:\\s*(.+)$`, 'gm'))].map((m) => m[1].trim());
   if (trailers.length) reasons.push(`declared: ${trailers.join('; ')}`);
   return reasons.length ? { sha: landing.sha, date: landing.date, reason: reasons.join(' | ') } : null;
@@ -225,10 +277,19 @@ export function latestReset({ ref = 'HEAD', landings = 400, git = gitIn } = {}) 
     const [sha, date, parent] = line.split(' ');
     if (!parent) return { reset: null, read: false }; // the root, or a shallow boundary: history unread
     const files = git('diff', '--name-only', '--no-renames', parent, sha).split('\n').filter(Boolean);
-    const specs = files.filter((f) => /^e2e\/(?:configured\/)?[^/]+\.spec\.ts$/.test(f));
+    const specs = files.filter((f) => SPEC_FILE.test(f));
     const headerLines = specs.length ? git('diff', '--unified=0', parent, sha, '--', ...specs).split('\n').filter((l) => /^[+-](?![+-])/.test(l)) : [];
+    const changed = specs.length
+      ? git('diff', '--name-status', '--no-renames', parent, sha, '--', ...specs).split('\n').filter(Boolean).map((l) => { const [status, spec] = l.split('\t'); return { status, spec }; })
+      : [];
+    const covers = coverageChange({
+      changed,
+      before: (spec) => git('show', `${parent}:${spec}`),
+      after: (spec) => git('show', `${sha}:${spec}`),
+      tree: () => git('ls-tree', '-r', '--name-only', sha).split('\n').filter(Boolean),
+    });
     const messages = git('log', '--format=%B', `${parent}..${sha}`);
-    const reset = resetOf({ sha, date, files, headerLines, messages });
+    const reset = resetOf({ sha, date, files, headerLines, messages, covers });
     if (reset) return { reset, read: true };
   }
   return { reset: null, read: true };

@@ -24,17 +24,19 @@ resets`) for one first-parent landing on `main`.
   before.
 - R4. A landing that deletes a spec file (`e2e/*.spec.ts` or `e2e/configured/*.spec.ts`) resets,
   whatever that spec's header said. A renamed spec is read as deleted and added, so it resets too.
-- R5. A landing whose diff removes or changes a `covers:` line is evaluated, spec by spec, for every
-  spec file it modifies: the spec's covers at the landing's first parent against its covers at the
-  landing, both read with the selector's own header reader (`parseSpecHeader`,
-  `scripts/e2e-lists.mjs`). It resets when some file in the landing's tree is matched by the old
-  covers and not by the new covers of the same spec. The reason names the spec, how many files it
-  lost and one of them.
+- R5. Every spec file the landing modifies is evaluated, whatever lines its diff shows: the spec's
+  covers at the landing's first parent against its covers at the landing, both read with the
+  selector's own header reader (`parseSpecHeader`, `scripts/e2e-lists.mjs`). It resets when some
+  file tracked at the landing commit (`git ls-tree -r <landing>`, not the working copy) is matched
+  by the old covers and not by the new covers of the same spec. The reason names the spec, how many
+  files it lost and one of them. (Amended after the Rules review: evaluating only specs whose diff
+  shows a removed `covers:` line would miss a line that inserts code or an import above the
+  header, which ends the leading comment block and drops every covers line after it.)
 - R6. A file that exists only in the parent's tree is not a loss: an old pattern for a folder that
   moved matches nothing in the new tree.
-- R7. A covers change the tool cannot evaluate resets as before ("protection removed or changed"),
-  with what could not be evaluated: a git read that fails, or a header that does not parse on
-  either side.
+- R7. A spec the tool cannot evaluate resets as before ("protection removed or changed"), with
+  what could not be evaluated: a git read that fails, or a header that does not parse on either
+  side.
 - R8. A covers change that leaves every file in the new tree with every spec it had does not reset:
   an appended path, a line split in two, a moved folder that moved with its pattern, `covers: none`
   replaced by globs. Such a landing is audited like any other.
@@ -45,6 +47,26 @@ resets`) for one first-parent landing on `main`.
 - R12. The change is to how the audit reads history. Selector code, spec headers,
   `e2e/quarantine.json` and the workflows are unchanged, so no pull request or merge group selects
   a different test.
+
+## The Rules review
+
+A fresh read-only `/so` (session_017SdbwMaMa9Fqjp1h8c9djG) on head 1f662f47: AGREE WITH
+CORRECTIONS, A-.
+
+- F1, case list. Under R5, 361cb6f6 (#2294) and cdc1011e (#2314) lose no file: both rewrite a path
+  into a brace glob that still matches it (`src/components/{SyncStatus,AccountSaveNotice}.tsx`,
+  `src/components/home/{ProductionAudienceWorkspace,InteractionQuestions}.tsx`). The issue's
+  measurement counted them as narrowing, most likely without expanding braces. The builder
+  reproduced this with `parseSpecHeader` against `git ls-tree -r`. Default taken, reported to the
+  coordinator: the issue's rule as written, so these two do not reset; 78ce3f35 (#2362) still
+  resets (five configured specs deleted, R4), and a synthetic real narrowing is tested instead.
+- F2, header termination. Adopted into R5 (every modified spec is evaluated).
+  Known and unchanged (R2 says "exactly as before"): a `// focus` or `// critical:` line pushed
+  out of the leading block by inserted code shows no removed header line, so R2 does not see it.
+- F3, per-spec additivity. A covers line for a file nothing mapped before narrows that file's
+  selection from escalation (shared set or the whole configured set) to the named specs. The
+  runbook says additive headers do not reset, so R10 stands; it does not mean "no selection
+  change".
 
 ## Measurement contract
 
