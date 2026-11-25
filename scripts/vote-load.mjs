@@ -385,6 +385,7 @@ export async function operatorReads(room, control, roundId, options) {
 export function sampleHost({ ref, serviceKey, everyMs = 5_000, fetchImpl = fetch }) {
   const readings = [];
   let timer = null;
+  let stopped = false;
   const scrape = async () => {
     try {
       const res = await fetchImpl(`https://${ref}.supabase.co/customer/v1/privileged/metrics`, {
@@ -398,12 +399,16 @@ export function sampleHost({ ref, serviceKey, everyMs = 5_000, fetchImpl = fetch
   };
   const loop = async () => {
     await scrape();
-    timer = setTimeout(loop, everyMs);
+    // A stop that came while the scrape was in flight must not be undone by re-arming here.
+    if (!stopped) timer = setTimeout(loop, everyMs);
   };
   void loop();
   return {
     readings,
-    stop: () => clearTimeout(timer),
+    stop: () => {
+      stopped = true;
+      clearTimeout(timer);
+    },
   };
 }
 

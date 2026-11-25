@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { WORDS, assertTarget, countsOf, createRoom, cueCounts, hostTotals, hostWindow, operatorReads, phoneOutcome, scriptCounts, slowTimeline, summarise } from './vote-load.mjs';
+import { WORDS, assertTarget, countsOf, createRoom, cueCounts, hostTotals, hostWindow, operatorReads, phoneOutcome, sampleHost, scriptCounts, slowTimeline, summarise } from './vote-load.mjs';
 
 const { NOT_SENT, QUESTION_CLOSED, TOO_MANY_VOTES, VOTE_FINAL } = await import('../src/audience/audienceTypes.ts');
 
@@ -158,6 +158,20 @@ test('the host over a window: CPU and disk busy between its first and last scrap
     unread: 1,
   });
   assert.equal(hostWindow(readings, 1_000, 6_000).cpuBusy, null, 'one scrape is not a rate');
+});
+
+test('the host sampler stopped while a scrape is in flight scrapes no more', async () => {
+  let calls = 0;
+  let answer;
+  const fetchImpl = () => {
+    calls += 1;
+    return new Promise((resolve) => (answer = resolve));
+  };
+  const host = sampleHost({ ref: 'r', serviceKey: 'k', everyMs: 5, fetchImpl });
+  host.stop();
+  answer({ ok: true, text: async () => '' });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(calls, 1);
 });
 
 test('the slow timeline: the buckets with a slow request, each with the operator presses inside it', () => {
