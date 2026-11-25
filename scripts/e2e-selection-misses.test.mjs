@@ -11,6 +11,7 @@ import {
   ghStrict,
   classifyAgainst,
   configuredFailures,
+  coverageChange,
   latestReset,
   mergeConfigured,
   newlyFailing,
@@ -143,6 +144,147 @@ test('Rule A4: a landing resets the audit for selector code, a focus or critical
   const none = (...a) => (a[0] === 'log' && a[1] === '--first-parent' ? 'c3 2026-11-01T00:00:00Z c2\nc2 2026-10-30T00:00:00Z\n' : a[0] === 'diff' ? 'src/x.ts\n' : '');
   assert.deepEqual(latestReset({ git: none }), { reset: null, read: false });
   assert.deepEqual(latestReset({ git: () => { throw new Error('no git'); } }), { reset: null, read: false });
+});
+
+// Fix #2751 (docs/work-specs/cicd-followup/evidence/phase-fix-2751.md, Rules R1 to R12): a covers
+// change resets only when a file in the landing's tree loses a spec it had, or a spec is deleted.
+const header = (values) => `${values.map((v) => `// covers: ${v}`).join('\n')}\nimport { test } from '@playwright/test';\n`;
+const removedLines = (values) => values.map((v) => `-// covers: ${v}`);
+const landingOf = (changed, tree, extra = {}) => {
+  const texts = new Map(changed.flatMap((c) => [[`before:${c.spec}`, c.before], [`after:${c.spec}`, c.after]]));
+  const read = (side) => (spec) => {
+    const t = texts.get(`${side}:${spec}`);
+    if (t instanceof Error) throw t;
+    return typeof t === 'string' ? t : header(t);
+  };
+  const covers = coverageChange({ changed: changed.map(({ status = 'M', spec }) => ({ status, spec })), before: read('before'), after: read('after'), tree: () => tree });
+  return { sha: 's', date: '2026-11-25T00:00:00Z', files: changed.map((c) => c.spec), headerLines: changed.flatMap((c) => (Array.isArray(c.before) ? removedLines(c.before) : [])), messages: 'feat: x', covers, ...extra };
+};
+
+// Real landings on main, cut down to what decides them: each modified spec's covers lines that
+// changed (a line kept verbatim on both sides cannot lose a file), the new lines that match the
+// files in question, and the files at the landing that the changed old lines matched (a file no
+// old line matched cannot lose the spec). Read with `git show` and `git ls-tree -r` on 2026-11-25.
+const HISTORY = {
+  // #2743: an append inside a brace glob.
+  '3d2c2c11': { resets: false, changed: [
+    { spec: 'e2e/configured/panel-relay.spec.ts', before: ['supabase/migrations/{0073_panel_relay,0077_direct_cue_trigger,0081_panel_lease,0110_panel_last_press}.sql'], after: ['supabase/migrations/{0073_panel_relay,0077_direct_cue_trigger,0081_panel_lease,0110_panel_last_press,0128_panel_seen}.sql'], files: ['supabase/migrations/0073_panel_relay.sql', 'supabase/migrations/0077_direct_cue_trigger.sql', 'supabase/migrations/0081_panel_lease.sql', 'supabase/migrations/0110_panel_last_press.sql'] },
+  ] },
+  // #2629: an append inside a brace glob.
+  'bedd28f8': { resets: false, changed: [
+    { spec: 'e2e/bridge-connect.spec.ts', before: ['src/components/{SettingsDialog,BridgePairPage,RecentServers,InfoLine,CopyPairingLink}.tsx'], after: ['src/components/{SettingsDialog,BridgePairPage,RecentServers,InfoLine,CopyPairingLink,MediaFolderSetting}.tsx'], files: ['src/components/BridgePairPage.tsx', 'src/components/CopyPairingLink.tsx', 'src/components/InfoLine.tsx', 'src/components/RecentServers.tsx', 'src/components/SettingsDialog.tsx'] },
+  ] },
+  // #2661: a folder that moved with its pattern; the old folder is gone from the landing's tree.
+  '79edf4da': { resets: false, changed: [
+    { spec: 'e2e/downloads.spec.ts', before: [], after: ['svg-templates.html, scripts/svg-files.mjs'], files: [] },
+    { spec: 'e2e/svg-examples.spec.ts', before: ['public/docs/examples/svg-examples/**'], after: ['public/downloads/svg/examples/**'], files: ['public/downloads/svg/examples/alert.svg'] },
+  ] },
+  // #2294: a line split in two with a path appended; SyncStatus.tsx is still matched by the brace glob.
+  '361cb6f6': { resets: false, changed: [
+    { spec: 'e2e/sync-dot.spec.ts', before: ['src/components/SyncStatus.tsx, src/backend/{supabase,syncController,teamProductions}.ts'], after: ['src/components/{SyncStatus,AccountSaveNotice}.tsx, src/components/editorFoundation/EditorFoundation.tsx', 'src/backend/{supabase,syncController,teamProductions}.ts', 'src/components/editorFoundation/foundation.css'], files: ['src/backend/supabase.ts', 'src/backend/syncController.ts', 'src/backend/teamProductions.ts', 'src/components/SyncStatus.tsx'] },
+  ] },
+  // #2314: a path rewritten into a brace glob that still matches it, and lines added.
+  'cdc1011e': { resets: false, changed: [
+    { spec: 'e2e/auth.spec.ts', before: [], after: ['src/components/home/ProductionAudienceWorkspace.tsx'], files: [] },
+    { spec: 'e2e/configured/audience-live.spec.ts', before: [], after: ['src/components/home/InteractionQuestions.tsx, src/model/questions.ts', 'supabase/migrations/0111_audience_questions.sql'], files: [] },
+    { spec: 'e2e/production-audience.spec.ts', before: ['src/components/home/ProductionAudienceWorkspace.tsx'], after: ['src/components/home/{ProductionAudienceWorkspace,InteractionQuestions}.tsx', 'src/model/questions.ts'], files: ['src/components/home/ProductionAudienceWorkspace.tsx'] },
+    { spec: 'e2e/production-chat-intake.spec.ts', before: ['src/components/home/ProductionAudienceWorkspace.tsx'], after: ['src/components/home/{ProductionAudienceWorkspace,InteractionQuestions}.tsx'], files: ['src/components/home/ProductionAudienceWorkspace.tsx'] },
+  ] },
+  // #2362: five hosted-control configured specs deleted.
+  '78ce3f35': { resets: true, changed: ['dashboard-hosted-walk', 'hosted-control-profile', 'hosted-control-recovery', 'hosted-reveal-after-reload', 'hosted-space-modes'].map((n) => ({ status: 'D', spec: `e2e/configured/${n}.spec.ts` })) },
+};
+
+test('#2751 real landings: appends, line splits and a moved folder do not reset; deleted specs do', () => {
+  for (const [sha, { resets, changed }] of Object.entries(HISTORY)) {
+    const tree = [...new Set(changed.flatMap((c) => c.files ?? []))];
+    const landing = landingOf(changed, tree, { sha });
+    assert.ok(landing.headerLines.length || changed.some((c) => c.status === 'D'), `${sha}: the old line rule reset it`);
+    assert.equal(Boolean(resetOf(landing)), resets, sha);
+  }
+  assert.match(resetOf(landingOf(HISTORY['78ce3f35'].changed, [])).reason, /^spec deleted: e2e\/configured\/dashboard-hosted-walk\.spec\.ts, .*hosted-space-modes\.spec\.ts$/);
+});
+
+test('#2751 reference model: a covers change resets exactly when a file at the landing loses the spec', () => {
+  // The model, written from Rules R5, R6 and R8 by hand: what each covers value selects in this
+  // tree, as a set. A spec's protection is the union of its lines; `covers: none` selects nothing.
+  const tree = ['a/x.ts', 'a/y.ts', 'b/z.ts'];
+  const selects = {
+    'a/x.ts': ['a/x.ts'],
+    'a/**': ['a/x.ts', 'a/y.ts'],
+    'a/{x,y}.ts': ['a/x.ts', 'a/y.ts'],
+    'a/**, !a/y.ts': ['a/x.ts'],
+    'b/z.ts': ['b/z.ts'],
+    'gone/**': [], // a folder only the parent had (R6)
+  };
+  const values = Object.keys(selects);
+  const headers = [[], ...values.map((v) => [v]), ...values.flatMap((v, i) => values.slice(i + 1).map((w) => [v, w]))];
+  const text = (h) => (h.length ? header(h) : '// covers: none - nothing in this tree selects it\n');
+  const covered = (h) => new Set(h.flatMap((v) => selects[v]));
+  let resets = 0;
+  for (const before of headers) {
+    for (const after of headers) {
+      const lost = [...covered(before)].filter((f) => !covered(after).has(f));
+      const landing = landingOf([{ spec: 'e2e/s.spec.ts', before: text(before), after: text(after) }], tree, { headerLines: removedLines(before) });
+      const reset = resetOf(landing);
+      assert.equal(Boolean(reset), lost.length > 0, `${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+      if (lost.length) {
+        resets += 1;
+        assert.equal(reset.reason, `protection narrowed: e2e/s.spec.ts no longer covers ${lost.length} file(s), e.g. ${lost[0]}`);
+      }
+    }
+  }
+  assert.ok(resets > 100 && resets < headers.length ** 2 - 100, `both answers are exercised (${resets} resets)`);
+  // R4: a deleted spec resets whatever its header said; R9: an added spec is not read.
+  for (const h of headers) {
+    assert.match(resetOf(landingOf([{ status: 'D', spec: 'e2e/s.spec.ts' }], tree)).reason, /^spec deleted: e2e\/s\.spec\.ts$/);
+    assert.equal(resetOf(landingOf([{ status: 'A', spec: 'e2e/s.spec.ts', after: text(h) }], tree)), null);
+    // Any other status (a type change) is read like a modification.
+    assert.equal(Boolean(resetOf(landingOf([{ status: 'T', spec: 'e2e/s.spec.ts', before: text(h), after: text([]) }], tree))), covered(h).size > 0);
+  }
+  // R7: a spec that cannot be read or parsed on either side resets, never reads as additive.
+  for (const [before, after] of [[new Error('git show failed'), ['a/**']], [['a/**'], new Error('git show failed')], ['// cover: a/**\n', ['a/**']], [['a/**'], '// covers: !a/**\n']]) {
+    assert.match(resetOf(landingOf([{ spec: 'e2e/s.spec.ts', before, after }], tree)).reason, /^protection removed or changed: e2e\/s\.spec\.ts not evaluated \(/);
+  }
+  // R1 to R3 stand beside it, exactly as before.
+  const quiet = landingOf([{ spec: 'e2e/s.spec.ts', before: ['a/**'], after: ['a/**', 'b/z.ts'] }], tree);
+  assert.equal(resetOf(quiet), null);
+  assert.match(resetOf({ ...quiet, files: [...quiet.files, 'scripts/e2e-lists.mjs'] }).reason, /^selector code: scripts\/e2e-lists\.mjs$/);
+  assert.match(resetOf({ ...quiet, headerLines: ['+// focus'] }).reason, /^critical\/shared membership/);
+  assert.match(resetOf({ ...quiet, messages: 'x\n\nSelection-audit-reset: remapped\n' }).reason, /^declared: remapped$/);
+});
+
+test('#2751 from git: every modified spec is read at both commits and expanded against the landing tree', () => {
+  const texts = {
+    'p:e2e/a.spec.ts': header(['src/a/**']),
+    // An import inserted above the header ends the leading comment block: the covers line no longer
+    // counts, though the diff removes no covers line.
+    'c:e2e/a.spec.ts': `import { test } from '@playwright/test';\n${header(['src/a/**'])}`,
+    'p:e2e/b.spec.ts': header(['src/b.ts']),
+    'c:e2e/b.spec.ts': header(['src/{b,c}.ts']),
+  };
+  let treeReads = 0;
+  const git = (specs) => (...a) => {
+    if (a[0] === 'log' && a[1] === '--first-parent') return 'c 2026-11-25T00:00:00Z p\n';
+    if (a[0] === 'diff' && a[1] === '--name-only') return specs.join('\n');
+    if (a[0] === 'diff' && a[1] === '--name-status') return specs.map((s) => `M\t${s}`).join('\n');
+    if (a[0] === 'diff') return '+import { test } from \'@playwright/test\';\n';
+    if (a[0] === 'show') { if (!(a[1] in texts)) throw new Error('fatal: path not in tree'); return texts[a[1]]; }
+    if (a[0] === 'ls-tree') {
+      treeReads += 1;
+      // The tree is the landing's (R5, R6): the parent's would still hold files that have moved.
+      assert.equal(a[3], 'c', 'the tree is read at the landing commit');
+      return 'src/a/one.ts\nsrc/b.ts\nsrc/c.ts\n';
+    }
+    return '';
+  };
+  assert.equal(latestReset({ git: git(['e2e/b.spec.ts']) }).reset, null, 'a rewrite into a brace glob that still matches is no reset');
+  assert.deepEqual(latestReset({ git: git(['e2e/a.spec.ts', 'e2e/b.spec.ts']) }).reset,
+    { sha: 'c', date: '2026-11-25T00:00:00Z', reason: 'protection narrowed: e2e/a.spec.ts no longer covers 1 file(s), e.g. src/a/one.ts' });
+  assert.equal(treeReads, 2, 'the tree is read once per landing evaluated');
+  // R7: a tree that cannot be read is no evaluation either, so a narrowing it would have shown resets.
+  const noTree = (...a) => (a[0] === 'ls-tree' ? (() => { throw new Error('fatal: not a tree object'); })() : git(['e2e/a.spec.ts'])(...a));
+  assert.match(latestReset({ git: noTree }).reset.reason, /^protection removed or changed: e2e\/a\.spec\.ts not evaluated \(fatal: not a tree object\)$/);
+  assert.match(latestReset({ git: git(['e2e/missing.spec.ts']) }).reset.reason, /^protection removed or changed: e2e\/missing\.spec\.ts not evaluated \(fatal: path not in tree\)$/);
 });
 
 test('Rule A5: clean only with no miss, no unknown and the history read; the days since the reset are reported', () => {
