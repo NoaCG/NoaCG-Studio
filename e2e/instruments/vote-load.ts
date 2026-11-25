@@ -18,7 +18,8 @@
 
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { createGraphicInEditor, haveCreds, settleSync, signIn, SERVICE_ROLE_KEY, SUPABASE_URL, unpublishForCleanup, wipeMyGraphics } from '../configured/_helpers';
+import { createClient } from '@supabase/supabase-js';
+import { clearPublishedShows, createGraphicInEditor, deleteAccountByEmail, haveCreds, mintAccount, settleSync, signIn, signInAs, SERVICE_ROLE_KEY, SUPABASE_URL, wipeMyGraphics } from '../configured/_helpers';
 import { ANON_KEY } from '../configured/_panel';
 import { openProductionWithCurrent } from '../_create';
 import { publishProduction } from '../_publish';
@@ -26,7 +27,7 @@ import { openWorkspace } from '../_workspace';
 import { addQuestion, addResults, goLive, questionRow, stopLive } from '../_interaction';
 import { countsOf, createRoom, cueCounts, hostWindow, operatorReads, sampleHost, scriptCounts, slowTimeline, summarise } from '../../scripts/vote-load.mjs';
 
-test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
+test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY || !SERVICE_ROLE_KEY, 'E2E_EMAIL / E2E_PASSWORD, the Supabase pair and its admin key unset - configured-mode spec');
 test.skip(/^e2e-s[2-9]@/.test(process.env.E2E_EMAIL ?? ''), 'the room runs on the first hosted shard only');
 // No retry: a second attempt starts on an account the first left half way, and reads as noise.
 test.describe.configure({ mode: 'serial', retries: 0 });
@@ -70,9 +71,12 @@ for (const size of [100, 200]) {
       if (t.responseEnd > 1_000) operatorSlow.push({ at: Math.round(t.startTime), ms: Math.round(t.responseEnd), path: `${request.method()} ${url.pathname}` });
     });
 
-    await signIn(page);
+    // Its own throwaway account, so nothing a stopped run left behind slows the next one's sign-in.
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const account = `vote-load-${size}@noacg.staging`;
+    await mintAccount(admin, account, 'noacg-vote-load-pw');
+    await signInAs(page, account, 'noacg-vote-load-pw');
     await settleSync(page);
-    await wipeMyGraphics(page);
     await createGraphicInEditor(page, 'Polls', 'Result Donut Lower');
     const showId = await openProductionWithCurrent(page, `Vote Load ${size} ${Date.now()}`);
     await publishProduction(page);
@@ -207,12 +211,20 @@ for (const size of [100, 200]) {
       await testInfo.attach(`vote-load-${size}.json`, { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
     }
 
+    // Deleting the account takes its productions, rounds and votes with it.
+    await page.close();
+    await deleteAccountByEmail(admin, account);
+
     for (const r of runs) expect(r.agree, `${r.name}: ${JSON.stringify(r)}`).toBe(true);
     for (const r of runs.filter((x) => 'phonesShowingAnotherVote' in x)) expect(r.phonesShowingAnotherVote).toEqual([]);
     for (const r of runs.filter((x) => 'notCounted' in x)) expect(r.notCounted, `${r.name}: every phone got its vote in`).toEqual([]);
-
-    await ws.close();
-    await unpublishForCleanup(page);
-    await wipeMyGraphics(page);
   });
 }
+
+test('the shared account is left with nothing published (a run that stopped early leaves its production there)', async ({ page }) => {
+  test.setTimeout(180_000);
+  await signIn(page);
+  await expect(page.locator('.sync-status.sync-synced')).toBeVisible({ timeout: 120_000 });
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+});
