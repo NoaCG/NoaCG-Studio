@@ -200,7 +200,7 @@ const SPEC_FILE = /^e2e\/(?:configured\/)?[^/]+\.spec\.ts$/;
  * that spec. A file only the parent had is no loss (a folder that moved). A deleted spec always
  * counts; an added one is additive and is not read. A spec that cannot be read or parsed is
  * `unreadable`, which resets: what the audit cannot evaluate, it never takes for additive.
- * @param {{ status: string, spec: string }[]} changed the landing's spec files, `A`, `M` or `D`
+ * @param {{ status: string, spec: string }[]} changed the landing's spec files and their `git diff --name-status` letters
  * @param {(spec: string) => string} before the spec's text at the parent (throws when unread)
  * @param {(spec: string) => string} after the spec's text at the landing (throws when unread)
  * @param {() => string[]} tree the files tracked at the landing (throws when unread); read at most once
@@ -211,7 +211,7 @@ export function coverageChange({ changed, before, after, tree }) {
   let files = null;
   for (const { status, spec } of changed) {
     if (status === 'D') { out.deleted.push(spec); continue; }
-    if (status !== 'M') continue;
+    if (status === 'A') continue; // added: additive, not read (R9); M and anything else is read
     try {
       const old = parseSpecHeader(before(spec), spec).covers;
       const now = parseSpecHeader(after(spec), spec).covers;

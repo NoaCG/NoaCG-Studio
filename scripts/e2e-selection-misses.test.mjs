@@ -238,6 +238,8 @@ test('#2751 reference model: a covers change resets exactly when a file at the l
   for (const h of headers) {
     assert.match(resetOf(landingOf([{ status: 'D', spec: 'e2e/s.spec.ts' }], tree)).reason, /^spec deleted: e2e\/s\.spec\.ts$/);
     assert.equal(resetOf(landingOf([{ status: 'A', spec: 'e2e/s.spec.ts', after: text(h) }], tree)), null);
+    // Any other status (a type change) is read like a modification.
+    assert.equal(Boolean(resetOf(landingOf([{ status: 'T', spec: 'e2e/s.spec.ts', before: text(h), after: text([]) }], tree))), covered(h).size > 0);
   }
   // R7: a spec that cannot be read or parsed on either side resets, never reads as additive.
   for (const [before, after] of [[new Error('git show failed'), ['a/**']], [['a/**'], new Error('git show failed')], ['// cover: a/**\n', ['a/**']], [['a/**'], '// covers: !a/**\n']]) {
