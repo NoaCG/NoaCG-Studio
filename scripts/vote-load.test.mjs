@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { WORDS, assertTarget, countsOf, createRoom, cueCounts, hostReading, operatorReads, phoneOutcome, scriptCounts, summarise } from './vote-load.mjs';
+import { WORDS, assertTarget, countsOf, createRoom, cueCounts, hostTotals, hostWindow, operatorReads, phoneOutcome, scriptCounts, slowTimeline, summarise } from './vote-load.mjs';
 
 const { NOT_SENT, QUESTION_CLOSED, TOO_MANY_VOTES, VOTE_FINAL } = await import('../src/audience/audienceTypes.ts');
 
@@ -130,20 +130,48 @@ test('the CSV\'s option letters count like the export', () => {
   assert.deepEqual(countsOf(3, ['A', 'C', 'C', 'B']), [1, 1, 2]);
 });
 
-test('the host reading: CPU busy share between two scrapes, memory in use', () => {
-  const scrape = (idle, user, avail) =>
+test('the host over a window: CPU and disk busy between its first and last scrape, peaks of the rest', () => {
+  const scrape = (idle, user, disk, avail, load) =>
     [
       `node_cpu_seconds_total{cpu="0",mode="idle"} ${idle}`,
       `node_cpu_seconds_total{cpu="0",mode="user"} ${user}`,
+      `node_disk_io_time_seconds_total{device="nvme0n1"} ${disk}`,
       'node_memory_MemTotal_bytes 1073741824',
       `node_memory_MemAvailable_bytes ${avail}`,
-      'node_load1 0.5',
+      `node_load1 ${load}`,
     ].join('\n');
-  const r = hostReading(scrape(100, 10, 536870912), scrape(103, 11, 268435456));
-  assert.equal(r.cpuBusy, 0.25);
-  assert.equal(r.memoryUsedMiB, 768);
-  assert.equal(r.memoryTotalMiB, 1024);
-  assert.equal(r.load1, 0.5);
+  const readings = [
+    { at: 0, ...hostTotals(scrape(100, 10, 50, 536870912, 0.5)) },
+    // The endpoint refreshes its counters only every so often: an equal scrape changes nothing.
+    { at: 5_000, ...hostTotals(scrape(100, 10, 50, 536870912, 0.5)) },
+    { at: 10_000, error: 'HTTP 503' },
+    { at: 20_000, ...hostTotals(scrape(115, 15, 55, 268435456, 2)) },
+  ];
+  assert.deepEqual(hostWindow(readings), {
+    samples: 3,
+    cpuBusy: 0.25,
+    diskBusy: 0.25,
+    memoryUsedMiBPeak: 768,
+    memoryTotalMiB: 1024,
+    load1Peak: 2,
+    connectionsPeak: null,
+    unread: 1,
+  });
+  assert.equal(hostWindow(readings, 1_000, 6_000).cpuBusy, null, 'one scrape is not a rate');
+});
+
+test('the slow timeline: the buckets with a slow request, each with the operator presses inside it', () => {
+  const requests = [
+    { at: 1_000, ms: 150 },
+    { at: 4_100, ms: 9_000 },
+    { at: 4_500, ms: 300 },
+    { at: 9_000, ms: 2_500 },
+  ];
+  const marks = [{ at: 4_000, what: 'go live' }, { at: 12_000, what: 'stop' }];
+  assert.deepEqual(slowTimeline(requests, marks), [
+    { s: 4, started: 2, slow: 1, slowestMs: 9_000, marks: ['go live'] },
+    { s: 8, started: 1, slow: 1, slowestMs: 2_500, marks: [] },
+  ]);
 });
 
 test('it refuses production and any project but staging', () => {

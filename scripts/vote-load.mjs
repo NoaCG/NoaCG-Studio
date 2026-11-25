@@ -126,32 +126,80 @@ export function cueCounts(values, labels) {
   return { counts: labels.map((l) => byLabel.get(l) ?? null), total: total ? Number(total[1]) : null };
 }
 
-/** The CPU share busy, memory in use and load between two Prometheus scrapes of the database host. */
-export function hostReading(first, second) {
-  const cpu = (text) => {
-    let idle = 0;
-    let all = 0;
-    for (const line of String(text ?? '').split('\n')) {
-      if (!line.startsWith('node_cpu_seconds_total{')) continue;
-      const value = Number(line.trim().split(' ').pop());
-      if (!Number.isFinite(value)) continue;
-      all += value;
-      if (/mode="(idle|iowait)"/.test(line)) idle += value;
-    }
-    return { idle, all };
-  };
-  const a = cpu(first);
-  const b = cpu(second);
-  const spent = b.all - a.all;
-  const total = metric(second, 'node_memory_MemTotal_bytes');
-  const available = metric(second, 'node_memory_MemAvailable_bytes');
+/**
+ * One Prometheus scrape of the database host, reduced to its running totals and levels: CPU seconds
+ * (all, and idle or waiting on disk), seconds the disks were busy, memory, load and connections.
+ */
+export function hostTotals(text) {
+  let cpuAll = 0;
+  let cpuIdle = 0;
+  for (const line of String(text ?? '').split('\n')) {
+    if (!line.startsWith('node_cpu_seconds_total{')) continue;
+    const value = Number(line.trim().split(' ').pop());
+    if (!Number.isFinite(value)) continue;
+    cpuAll += value;
+    if (/mode="(idle|iowait)"/.test(line)) cpuIdle += value;
+  }
+  const total = metric(text, 'node_memory_MemTotal_bytes');
+  const available = metric(text, 'node_memory_MemAvailable_bytes');
   return {
-    cpuBusy: spent > 0 ? 1 - (b.idle - a.idle) / spent : null,
+    cpuAll,
+    cpuIdle,
+    diskBusySeconds: metric(text, 'node_disk_io_time_seconds_total'),
     memoryUsedMiB: total !== null && available !== null ? Math.round((total - available) / 1_048_576) : null,
     memoryTotalMiB: total !== null ? Math.round(total / 1_048_576) : null,
-    load1: metric(second, 'node_load1'),
-    connections: metric(second, 'pg_stat_database_num_backends'),
+    load1: metric(text, 'node_load1'),
+    connections: metric(text, 'pg_stat_database_num_backends'),
   };
+}
+
+/**
+ * The host over a window, from the scrapes taken in it: the CPU share busy and the disks' busy share
+ * between the first and the last scrape (the endpoint refreshes its counters only every so often,
+ * so neighbouring scrapes can be equal), and the peaks of memory, load and connections.
+ */
+export function hostWindow(readings, from = 0, to = Infinity) {
+  const inside = readings.filter((r) => r.at >= from && r.at <= to && !r.error);
+  const first = inside[0];
+  const last = inside.at(-1);
+  const spent = first && last ? last.cpuAll - first.cpuAll : 0;
+  const seconds = first && last ? (last.at - first.at) / 1000 : 0;
+  const max = (k) => (inside.some((r) => r[k] !== null) ? Math.max(...inside.map((r) => r[k] ?? -Infinity)) : null);
+  const share = (x) => Math.round(x * 100) / 100;
+  return {
+    samples: inside.length,
+    cpuBusy: spent > 0 ? share(1 - (last.cpuIdle - first.cpuIdle) / spent) : null,
+    diskBusy: seconds > 0 && first.diskBusySeconds !== null && last.diskBusySeconds !== null ? share((last.diskBusySeconds - first.diskBusySeconds) / seconds) : null,
+    memoryUsedMiBPeak: max('memoryUsedMiB'),
+    memoryTotalMiB: last?.memoryTotalMiB ?? null,
+    load1Peak: max('load1'),
+    connectionsPeak: max('connections'),
+    unread: readings.filter((r) => r.at >= from && r.at <= to && r.error).length,
+  };
+}
+
+/**
+ * When it was slow: per `bucketMs` from `from`, the requests started and the slowest of them, for
+ * the buckets holding one slower than `slowMs`, each with the operator's marks inside it.
+ */
+export function slowTimeline(requests, marks, { from = 0, bucketMs = 2_000, slowMs = 2_000 } = {}) {
+  const buckets = new Map();
+  for (const r of requests) {
+    const at = Math.floor((r.at - from) / bucketMs);
+    const b = buckets.get(at) ?? { started: 0, slow: 0, slowestMs: 0 };
+    b.started += 1;
+    if (r.ms > slowMs) b.slow += 1;
+    b.slowestMs = Math.max(b.slowestMs, Math.round(r.ms));
+    buckets.set(at, b);
+  }
+  return [...buckets]
+    .filter(([, b]) => b.slow > 0)
+    .sort(([a], [b]) => a - b)
+    .map(([at, b]) => ({
+      s: (at * bucketMs) / 1000,
+      ...b,
+      marks: marks.filter((m) => Math.floor((m.at - from) / bucketMs) === at).map((m) => m.what),
+    }));
 }
 
 /** Refuse anything but the staging project or a local stack: this writes votes. */
@@ -180,6 +228,7 @@ export function createRoom({ url, key, join, seed = 1, pollMs = POLL_MS, retryMs
 
   async function rpc(kind, fn, args) {
     const started = performance.now();
+    const startedAt = Date.now();
     let status = 0;
     let body = null;
     try {
@@ -195,7 +244,7 @@ export function createRoom({ url, key, join, seed = 1, pollMs = POLL_MS, retryMs
       // A network failure: the phone shows "Not sent".
     }
     const message = status >= 200 && status < 300 ? '' : String(body?.message ?? '');
-    requests.push({ kind, at: Date.now(), ms: performance.now() - started, status, message });
+    requests.push({ kind, at: startedAt, ms: performance.now() - started, status, message });
     return { status, body, message };
   }
 
@@ -343,7 +392,6 @@ export async function operatorReads(room, control, roundId, options) {
 /** The database host's readings every `everyMs` until stopped (the privileged metrics endpoint). */
 export function sampleHost({ ref, serviceKey, everyMs = 5_000, fetchImpl = fetch }) {
   const readings = [];
-  let last = null;
   let timer = null;
   const scrape = async () => {
     try {
@@ -351,9 +399,7 @@ export function sampleHost({ ref, serviceKey, everyMs = 5_000, fetchImpl = fetch
         headers: { Authorization: `Basic ${Buffer.from(`service_role:${serviceKey}`).toString('base64')}` },
       });
       if (!res.ok) return readings.push({ at: Date.now(), error: `HTTP ${res.status}` });
-      const text = await res.text();
-      if (last) readings.push({ at: Date.now(), ...hostReading(last, text) });
-      last = text;
+      readings.push({ at: Date.now(), ...hostTotals(await res.text()) });
     } catch (error) {
       readings.push({ at: Date.now(), error: error.name });
     }
@@ -366,21 +412,6 @@ export function sampleHost({ ref, serviceKey, everyMs = 5_000, fetchImpl = fetch
   return {
     readings,
     stop: () => clearTimeout(timer),
-  };
-}
-
-/** The worst of each figure over the readings taken between `from` and `to`. */
-export function peakOf(readings, from = 0, to = Infinity) {
-  const inside = readings.filter((r) => r.at >= from && r.at <= to && !r.error);
-  const max = (k) => (inside.length ? Math.max(...inside.map((r) => r[k] ?? -Infinity)) : null);
-  return {
-    samples: inside.length,
-    cpuBusyPeak: inside.length ? Math.round(max('cpuBusy') * 100) / 100 : null,
-    memoryUsedMiBPeak: max('memoryUsedMiB'),
-    memoryTotalMiB: inside.at(-1)?.memoryTotalMiB ?? null,
-    load1Peak: max('load1'),
-    connectionsPeak: max('connections'),
-    unread: readings.filter((r) => r.at >= from && r.at <= to && r.error).length,
   };
 }
 

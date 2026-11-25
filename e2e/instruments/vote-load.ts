@@ -24,11 +24,12 @@ import { openProductionWithCurrent } from '../_create';
 import { publishProduction } from '../_publish';
 import { openWorkspace } from '../_workspace';
 import { addQuestion, addResults, goLive, questionRow, stopLive } from '../_interaction';
-import { countsOf, createRoom, cueCounts, operatorReads, peakOf, sampleHost, scriptCounts, summarise } from '../../scripts/vote-load.mjs';
+import { countsOf, createRoom, cueCounts, hostWindow, operatorReads, sampleHost, scriptCounts, slowTimeline, summarise } from '../../scripts/vote-load.mjs';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
 test.skip(/^e2e-s[2-9]@/.test(process.env.E2E_EMAIL ?? ''), 'the room runs on the first hosted shard only');
-test.describe.configure({ mode: 'serial' });
+// No retry: a second attempt starts on an account the first left half way, and reads as noise.
+test.describe.configure({ mode: 'serial', retries: 0 });
 
 const OPTIONS = ['Red', 'Blue', 'Green', 'Gold'];
 
@@ -55,6 +56,19 @@ for (const size of [100, 200]) {
     test.setTimeout(900_000);
     const ref = /^https:\/\/([a-z0-9]+)\.supabase\.co/.exec(SUPABASE_URL)?.[1] ?? '';
     const host = ref && SERVICE_ROLE_KEY ? sampleHost({ ref, serviceKey: SERVICE_ROLE_KEY }) : null;
+
+    // The operator's presses, and every request of the operator's pages to the backend slower than
+    // a second, so a stall on the phones can be set beside what the operator was doing.
+    const marks: { at: number; what: string }[] = [];
+    const mark = (what: string) => marks.push({ at: Date.now(), what });
+    const operatorSlow: { at: number; ms: number; path: string }[] = [];
+    const backendHost = SUPABASE_URL ? new URL(SUPABASE_URL).host : '';
+    page.context().on('requestfinished', (request) => {
+      const url = new URL(request.url());
+      if (url.host !== backendHost) return;
+      const t = request.timing();
+      if (t.responseEnd > 1_000) operatorSlow.push({ at: Math.round(t.startTime), ms: Math.round(t.responseEnd), path: `${request.method()} ${url.pathname}` });
+    });
 
     await signIn(page);
     await settleSync(page);
@@ -91,28 +105,41 @@ for (const size of [100, 200]) {
     await room.arrive(size - late);
     const idleFrom = Date.now();
     await new Promise((r) => setTimeout(r, 10_000));
-    const idle = { requests: summarise(room.requests.filter((r) => r.at >= idleFrom)), host: host ? peakOf(host.readings, idleFrom) : null };
+    const idle = { requests: summarise(room.requests.filter((r) => r.at >= idleFrom)), host: host ? hostWindow(host.readings, idleFrom) : null };
 
-    /** Every phone's view has left the question (the poll after Stop). */
-    const phonesSeeStop = () =>
-      expect.poll(() => room.phones.filter((p) => p.view?.state?.round).length, { timeout: 15_000, intervals: [500] }).toBe(0);
+    /** Seconds until every phone's view has left the question (the poll after Stop), up to a minute. */
+    const phonesSeeStop = async (stoppedAt: number) => {
+      while (room.phones.some((p) => p.view?.state?.round) && Date.now() - stoppedAt < 60_000) await new Promise((r) => setTimeout(r, 250));
+      const still = room.phones.filter((p) => p.view?.state?.round).length;
+      mark(still ? `${still} phones still show the question` : 'every phone shows Stop');
+      return { seconds: Math.round((Date.now() - stoppedAt) / 100) / 10, stillShowing: still };
+    };
 
     const runs: Record<string, unknown>[] = [];
     let roundId = '';
     const runOnce = async (name: string, press: () => Promise<void>, arriving: number) => {
       const from = Date.now();
+      mark(`${name}: press`);
       await press();
+      mark(`${name}: live`);
       const outcomes = await room.run({ options: OPTIONS.length, changers, late: arriving });
       roundId = room.phones.find((p) => p.view?.state?.round)?.view.state.round.id ?? roundId;
+      mark('phones done');
       const phonesShow = await room.readBack(roundId);
       const script = scriptCounts(room.phones, roundId, OPTIONS.length);
       const votedAt = Date.now();
+      mark('stop');
       await stopLive(ws, QUESTION);
+      const stoppedAt = Date.now();
       const total = script.reduce((a, b) => a + b, 0);
       const reads = await operatorReads(room, slugs.control, roundId, OPTIONS.length);
+      mark('tally and export read');
       const shownOnPanel = await settle(panel, script);
+      mark('panel read');
       const csv = await csvCounts(ws, ws.getByTestId('audience-export-votes'));
+      mark('CSV downloaded');
       await addResults(ws, 'Result Donut Lower');
+      mark('results added to rundown');
       const resultCue = cueCounts(await cue(), OPTIONS);
       const mismatched = room.phones.filter((p, i) => phonesShow[i] !== (p.sent.get(roundId) ?? null));
       const reading = {
@@ -139,11 +166,17 @@ for (const size of [100, 200]) {
         notCounted: outcomes.filter((o) => o.shown),
         votingSeconds: Math.round((votedAt - from) / 100) / 10,
         requests: summarise(room.requests.filter((r) => r.at >= from && r.at <= votedAt)),
-        host: host ? peakOf(host.readings, from, votedAt) : null,
+        host: host ? hostWindow(host.readings, from, votedAt) : null,
+        stopReachedPhones: await phonesSeeStop(stoppedAt),
       };
+      const until = Date.now();
+      Object.assign(reading, {
+        slow: slowTimeline(room.requests.filter((r) => r.at >= from && r.at <= until), marks, { from }),
+        operatorSlow: operatorSlow.filter((r) => r.at >= from && r.at <= until).map((r) => ({ ...r, s: Math.round((r.at - from) / 100) / 10, at: undefined })),
+        marks: marks.filter((m) => m.at >= from && m.at <= until).map((m) => ({ s: Math.round((m.at - from) / 100) / 10, what: m.what })),
+      });
       runs.push(reading);
       console.log(`VOTE-LOAD-RUN ${size} ${JSON.stringify(reading)}`);
-      await phonesSeeStop();
       return reading;
     };
 
@@ -169,13 +202,14 @@ for (const size of [100, 200]) {
     } finally {
       room.leave();
       host?.stop();
-      const report = { size, phonesAtEnd: room.phones.length, idle, runs, wholeRun: summarise(room.requests), hostReadings: host?.readings ?? null };
+      const report = { size, phonesAtEnd: room.phones.length, idle, runs, wholeRun: summarise(room.requests), host: host ? hostWindow(host.readings) : null, hostReadings: host?.readings ?? null };
       console.log(`VOTE-LOAD-REPORT ${size} ${JSON.stringify({ ...report, hostReadings: undefined })}`);
       await testInfo.attach(`vote-load-${size}.json`, { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
     }
 
     for (const r of runs) expect(r.agree, `${r.name}: ${JSON.stringify(r)}`).toBe(true);
     for (const r of runs.filter((x) => 'phonesShowingAnotherVote' in x)) expect(r.phonesShowingAnotherVote).toEqual([]);
+    for (const r of runs.filter((x) => 'notCounted' in x)) expect(r.notCounted, `${r.name}: every phone got its vote in`).toEqual([]);
 
     await ws.close();
     await unpublishForCleanup(page);
