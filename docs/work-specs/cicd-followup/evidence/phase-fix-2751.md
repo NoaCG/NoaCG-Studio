@@ -137,10 +137,19 @@ Mutations, each run against the suite (12 tests) before the review fix below:
 | M4 only specs whose diff removes a covers line are evaluated | 1 fails |
 | M5 the unchanged-lines shortcut becomes a line count | 2 fail |
 | M6 a file counts as covered only when a glob names it literally | 3 fail |
+| M7 the tree is read at the parent, not the landing (after the final `/so`, N1) | 1 fails |
+| M8 a failed tree read is swallowed (after the final `/so`, N2) | 1 fails |
 
 Rules found after coding: a spec whose `--name-status` letter is neither A nor D (a type change)
 was first skipped; `/check` review made every status other than A read like a modification
 (fail-safe), with a test.
+
+## The final review
+
+A fresh read-only `/so` (session_017SdbwMdpvz5KAcPkE1nzLa) on head ed9ed875: AGREE, A. It replayed
+the reset table on real history and found it exact. Two test-only nits, both answered in the next
+commit: N1, nothing checked that the tree is read at the landing (M7); N2, nothing checked that a
+failed tree read resets (M8, which would not fail safe). Production code unchanged.
 
 ## Measurement contract
 

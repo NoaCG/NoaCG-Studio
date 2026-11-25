@@ -269,13 +269,21 @@ test('#2751 from git: every modified spec is read at both commits and expanded a
     if (a[0] === 'diff' && a[1] === '--name-status') return specs.map((s) => `M\t${s}`).join('\n');
     if (a[0] === 'diff') return '+import { test } from \'@playwright/test\';\n';
     if (a[0] === 'show') { if (!(a[1] in texts)) throw new Error('fatal: path not in tree'); return texts[a[1]]; }
-    if (a[0] === 'ls-tree') { treeReads += 1; return 'src/a/one.ts\nsrc/b.ts\nsrc/c.ts\n'; }
+    if (a[0] === 'ls-tree') {
+      treeReads += 1;
+      // The tree is the landing's (R5, R6): the parent's would still hold files that have moved.
+      assert.equal(a[3], 'c', 'the tree is read at the landing commit');
+      return 'src/a/one.ts\nsrc/b.ts\nsrc/c.ts\n';
+    }
     return '';
   };
   assert.equal(latestReset({ git: git(['e2e/b.spec.ts']) }).reset, null, 'a rewrite into a brace glob that still matches is no reset');
   assert.deepEqual(latestReset({ git: git(['e2e/a.spec.ts', 'e2e/b.spec.ts']) }).reset,
     { sha: 'c', date: '2026-11-25T00:00:00Z', reason: 'protection narrowed: e2e/a.spec.ts no longer covers 1 file(s), e.g. src/a/one.ts' });
   assert.equal(treeReads, 2, 'the tree is read once per landing evaluated');
+  // R7: a tree that cannot be read is no evaluation either, so a narrowing it would have shown resets.
+  const noTree = (...a) => (a[0] === 'ls-tree' ? (() => { throw new Error('fatal: not a tree object'); })() : git(['e2e/a.spec.ts'])(...a));
+  assert.match(latestReset({ git: noTree }).reset.reason, /^protection removed or changed: e2e\/a\.spec\.ts not evaluated \(fatal: not a tree object\)$/);
   assert.match(latestReset({ git: git(['e2e/missing.spec.ts']) }).reset.reason, /^protection removed or changed: e2e\/missing\.spec\.ts not evaluated \(fatal: path not in tree\)$/);
 });
 
