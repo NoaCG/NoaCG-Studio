@@ -35,7 +35,7 @@ import { followCueCommit, type CueFields, type DraftCommitId } from './cueDraftC
 import type { OwedCueEdit } from './owedCueEdit';
 import type { TeamCueDraftText } from './teamShowMerge';
 import { uuid } from './id';
-import { sceneCopyRefusal, sceneSnapshot, separateSceneGraphics, type SceneCopyGuard, type SceneSnapshot } from './obsScenes';
+import { addPoolCopy, sceneCopyRefusal, sceneSnapshot, separateSceneGraphics, type SceneCopyGuard, type SceneSnapshot } from './obsScenes';
 import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
 import { scrubHiddenWords } from './wordCues';
@@ -3303,6 +3303,37 @@ export function setShowGraphicLayer(showId: string, graphicId: string, layer: nu
     saveAll(all);
   }
   return all.filter((s) => !s.deleted);
+}
+
+/**
+ * Set ONE cue's playout layer. Every cue of a pool graphic airs on that graphic's layer, so a
+ * layer is a cue's own only while the graphic has no other cue: then the graphic moves, as before.
+ * When other cues share the graphic, this cue gets its own copy of it on the new layer and the
+ * other cues stay where they are, so two lower thirds of one design can be on air together.
+ * Refused while the cue is on air (its picture would be left behind on the old layer), shows a
+ * live candidate, or was saved by a newer version.
+ */
+export function setCueLayer(showId: string, cueId: string, layer: number): { shows: Show[]; error: string | null } {
+  const id = uuid();
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue || !isGraphicCue(cue)) return false;
+    const graphic = show.graphics.find((g) => g.id === cue.sourceId);
+    if (!graphic) return false;
+    const clamped = Math.min(MAX_PLAYOUT_LAYER, Math.max(MIN_PLAYOUT_LAYER, Math.round(layer) || DEFAULT_PLAYOUT_LAYER));
+    if (graphicLayer(graphic) === clamped) return false;
+    const shared = (show.cues ?? []).some((c) => c.id !== cue.id && isGraphicCue(c) && c.sourceId === graphic.id);
+    if (!shared) {
+      graphic.layer = clamped;
+      return true;
+    }
+    if (sceneAirCues.get(show.id)?.().has(cue.id)) return `Take "${cue.label}" off air before you move it to another layer.`;
+    if (cue.selection !== undefined) return `"${cue.label}" shows a live candidate, so it cannot get its own layer.`;
+    if (cue.typed !== undefined && typedReadOnly(cue)) return `"${cue.label}" was saved by a newer version, so its layer cannot be changed here.`;
+    addPoolCopy(show, graphic.id, { id, base: graphic.name, layer: clamped });
+    cue.sourceId = id;
+    return true;
+  });
 }
 
 export function moveShowGraphic(showId: string, graphicId: string, dir: -1 | 1): Show[] {
