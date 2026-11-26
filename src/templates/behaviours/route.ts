@@ -3,14 +3,18 @@
 // when the graphic is taken; each Next reaches the next stop, the travelled track draws itself in
 // to it and the stop then fills in; Back runs it the other way.
 //
-// WHERE THE ROUTE IS, IS DATA, the lineup's shape (lineup.ts): one number field, `At stop`, read
-// by the `row-pick` kind, 0 naming the start, so a controller can set it by number. A stop is
-// REACHED when it is the pick or before it - two rules on one look, since a look shows when any
-// rule holds. The group of states exists for the buttons alone: Next greys on the last stop and
-// Back on the start. No per-stop buttons and no "nobody on": the owner asked for names, Next and
-// Back, and nothing else.
+// WHERE THE ROUTE IS, IS DATA: one number field, `At stop`, counting stops reached in row order
+// (0 = the start), so a controller can set it by number. It is read by the runtime's `counter`
+// kind, which CLAMPS what is painted to 0..stops: a take starts the machine at the start while the
+// cue keeps the number it had, so after a take mid-route the buttons and the number disagree,
+// and a Next past the end must still show the last stop rather than none. Next and Back ride
+// `adjust`, the lineup's +1 and -1. A stop is reached at `reached:<n>`, the stop the route is at
+// is `is:<n>`, one rule per stop. The group of states exists for the buttons alone: Next greys
+// on the last stop and Back on the start. No per-stop buttons and no "nobody on": the owner asked
+// for names, Next and Back, and nothing else.
 
 import type { TypeControlEvent, TypeMachine } from '../types/graphicType';
+import type { PaintRule } from '../../blocks/behaviourData';
 import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { rolesOf, rowsOf, withRepaint } from './recipe';
 
@@ -59,15 +63,16 @@ export const routeRecipe: BehaviourRecipe = {
   defaultZone: 'mid-right',
   rows: rowsOf('route'),
   roles: rolesOf('route'),
-  fields: () => [{ key: AT, label: 'At stop', kind: 'number', value: '0', spec: { kind: 'row-pick', rows: 'stop' } }],
+  fields: (ctx) => [{ key: AT, label: 'At stop', kind: 'number', value: '0', spec: { kind: 'counter', min: '0', max: String(ctx.rows.length) } }],
   path: () => ({ entrance: 'Route' }),
   machine: routeMachine,
   controls: routeControls,
-  paint: () => [
-    { look: 'stop.track', rows: 'stop', when: { facts: [`${AT}:picked`] }, enter: 'draw' },
-    { look: 'stop.track', rows: 'stop', when: { facts: [`${AT}:before`] }, enter: 'draw' },
-    { look: 'stop.reached', rows: 'stop', when: { facts: [`${AT}:picked`] }, enter: 'pop' },
-    { look: 'stop.reached', rows: 'stop', when: { facts: [`${AT}:before`] } },
-    { look: 'stop.here', rows: 'stop', when: { facts: [`${AT}:picked`] }, enter: 'pop' },
-  ],
+  paint: (ctx) =>
+    ctx.rows.flatMap((key, i): PaintRule[] => [
+      { look: 'stop.track', row: key, when: { facts: [`${AT}:reached:${i + 1}`] }, enter: 'draw' },
+      { look: 'stop.reached', row: key, when: { facts: [`${AT}:reached:${i + 1}`] } },
+      // The pop is for the stop the route has just come to, never the ones behind it.
+      { look: 'stop.reached', row: key, when: { facts: [`${AT}:is:${i + 1}`] }, enter: 'pop' },
+      { look: 'stop.here', row: key, when: { facts: [`${AT}:is:${i + 1}`] }, enter: 'pop' },
+    ]),
 };

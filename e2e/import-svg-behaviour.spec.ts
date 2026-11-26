@@ -2473,6 +2473,17 @@ test('route restyled in Illustrator: Stop ids keep their names, Next stop draws 
   await page.getByTestId('verb-update').click();
   await expect(air.locator('#f2')).toHaveText('Harbour Steps');
   await shot(page, '36-route-last-stop');
+
+  // Taken again mid-show, the cue keeps its place while the buttons start over: a Next past the
+  // end still shows the last stop rather than none.
+  await page.getByTestId('verb-out').click();
+  await page.getByTestId('verb-take').click();
+  await lit('stop.track/5');
+  await next.click();
+  await expect(page.getByTestId('cue-field-f5')).toHaveValue('6');
+  await lit('stop.track/5');
+  await lit('stop.reached/5');
+  await lit('stop.reached/1');
 });
 
 test('puzzle board: one press reveals the guessed letter, one takes it back, and Solve shows the rest', async ({ page }) => {

@@ -905,7 +905,7 @@
   "route": {
     "name": "The route",
     "verbs": "stops on a track, Next and Back",
-    "buttons": "Next stop and Previous stop, plus a box for each stop's name",
+    "buttons": "Next stop and Previous stop, a box for each stop's name, and the At stop figure (how many stops are behind the route) with + and −",
     "rows": {
       "role": "stop",
       "keys": "numbers",

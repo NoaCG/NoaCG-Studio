@@ -598,7 +598,7 @@ of drawing. Draw the rail itself, the stops and the start as plain artwork.
 
 `Station 1`, `Pysäkki 1`, `Hållplats 1` work as well as `Stop 1`; `Travelled 1`, `Spår 1` work as well as `Track 1`; `Arrived 1`, `Visited 1` work as well as `Reached 1`; `Tässä 1`, `Här 1` work as well as `Here 1`.
 
-Two to twelve stops, in the order the route reaches them. The route starts before stop 1: draw the start as plain artwork, and name a text layer `Start` if it needs its own box. The operator gets Next stop and Previous stop, plus a box for each stop's name.
+Two to twelve stops, in the order the route reaches them. The route starts before stop 1: draw the start as plain artwork, and name a text layer `Start` if it needs its own box. The operator gets Next stop and Previous stop, a box for each stop's name, and the At stop figure (how many stops are behind the route) with + and −.
 <!-- behaviour:route:end -->
 
 ### The puzzle board - letters appear as they are called
