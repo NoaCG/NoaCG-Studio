@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generator: Adobe Illustrator 31.0.0, SVG Export Plug-In . SVG Version: 2.1.5 Build 84)  -->
+<!-- A station map restyled from the Milestone track and exported from Illustrator: a dark rail with sleepers up the right edge, an unnamed start at the bottom (drawn filled, with a short travelled lead-in) and five stops, the last up a bend. Each stop is Stop 1 to 5 (white text, as over video); the moments are Track 1 to 5, the light-blue travelled rail from the stop before, drawn as strokes in the direction of travel, and Reached 1 to 5, a filled dot on each stop. Layer names arrive as Illustrator ids (Stop_1), with no other label. -->
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .st0 {
+        stroke: #79793a;
+      }
+
+      .st0, .st1, .st2, .st3 {
+        fill: #fff;
+      }
+
+      .st0, .st4, .st5, .st3 {
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+        stroke-width: 9px;
+      }
+
+      .st2 {
+        font-family: HelveticaLTPro-Bold, 'Helvetica LT Pro';
+        font-size: 21px;
+        font-weight: 700;
+      }
+
+      .st4 {
+        fill: none;
+        stroke-linejoin: round;
+        stroke: #a9bdca;
+      }
+
+      .st6 {
+        fill: #4d1c2d;
+      }
+
+      .st5 {
+        fill: #797939;
+        stroke: #797939;
+      }
+
+      .st3 {
+        stroke: #d3b26c;
+      }
+    </style>
+  </defs>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <g id="Rail">
+      <g>
+        <path class="st6" d="M1760.3,983.8c-2.5,0-4.5-2.1-4.5-4.5V283.5l-133.5-159.6c-1.6-1.9-1.3-4.7.6-6.3,1.9-1.6,4.7-1.3,6.3.6l135.6,162.1v699C1764.8,981.7,1762.8,983.8,1760.3,983.8Z"/>
+        <path class="st6" d="M1770.7,381.5h-20.9c-2.4,0-4.5-2-4.5-4.5s2.1-4.5,4.5-4.5h20.9c2.5,0,4.5,2,4.5,4.5S1773.2,381.5,1770.7,381.5Z"/>
+        <path class="st6" d="M1770.7,431.5h-20.9c-2.4,0-4.5-2-4.5-4.5s2.1-4.5,4.5-4.5h20.9c2.5,0,4.5,2,4.5,4.5S1773.2,431.5,1770.7,431.5Z"/>
+        <path class="st6" d="M1770.7,653.3h-20.9c-2.4,0-4.5-2.1-4.5-4.5s2.1-4.5,4.5-4.5h20.9c2.5,0,4.5,2,4.5,4.5S1773.2,653.3,1770.7,653.3Z"/>
+        <path class="st6" d="M1770.7,703.3h-20.9c-2.4,0-4.5-2-4.5-4.5s2.1-4.5,4.5-4.5h20.9c2.5,0,4.5,2,4.5,4.5S1773.2,703.3,1770.7,703.3Z"/>
+        <path class="st6" d="M1770.7,543.3h-20.9c-2.4,0-4.5-2-4.5-4.5s2.1-4.5,4.5-4.5h20.9c2.5,0,4.5,2.1,4.5,4.5S1773.2,543.3,1770.7,543.3Z"/>
+        <path class="st6" d="M1770.7,827h-20.9c-2.4,0-4.5-2-4.5-4.5s2.1-4.5,4.5-4.5h20.9c2.5,0,4.5,2,4.5,4.5S1773.2,827,1770.7,827Z"/>
+        <path class="st6" d="M1770.7,877.1h-20.9c-2.4,0-4.5-2.1-4.5-4.5s2.1-4.5,4.5-4.5h20.9c2.5,0,4.5,2,4.5,4.5S1773.2,877.1,1770.7,877.1Z"/>
+        <g>
+          <line class="st1" x1="1734.4" y1="234.7" x2="1718.7" y2="248.5"/>
+          <path class="st6" d="M1718.7,253c-1.3,0-2.5-.5-3.4-1.5-1.6-1.8-1.5-4.7.4-6.3l15.7-13.8c1.9-1.7,4.7-1.5,6.3.4s1.5,4.7-.4,6.3l-15.6,13.8C1720.8,252.7,1719.7,253,1718.7,253Z"/>
+        </g>
+      </g>
+      <g>
+        <line class="st1" x1="1700.9" y1="193.2" x2="1685.2" y2="207"/>
+        <path class="st6" d="M1685.2,211.5c-1.3,0-2.5-.5-3.4-1.5-1.6-1.9-1.5-4.7.4-6.3l15.7-13.8c1.9-1.7,4.7-1.5,6.3.4,1.7,1.8,1.5,4.7-.4,6.3l-15.7,13.8C1687.3,211.2,1686.2,211.5,1685.2,211.5Z"/>
+      </g>
+    </g>
+    <g id="Lead_in">
+      <line class="st4" x1="1760.3" y1="979.2" x2="1760.3" y2="936.7"/>
+    </g>
+  </g>
+  <g id="Travelled" inkscape:groupmode="layer" inkscape:label="Travelled">
+    <g id="Track_1">
+      <path class="st4" d="M1760.3,936.7V751.8"/>
+    </g>
+    <g id="Track_2">
+      <path class="st4" d="M1760.3,751.8V590.1"/>
+    </g>
+    <g id="Track_3">
+      <path class="st4" d="M1760.3,590.1V478.8"/>
+    </g>
+    <g id="Track_4">
+      <path class="st4" d="M1760.3,478.8V323.8"/>
+    </g>
+    <g id="Track_5">
+      <path class="st4" d="M1760.3,323.8V283.5L1656.6,157.6"/>
+    </g>
+  </g>
+  <g id="Stops" inkscape:groupmode="layer" inkscape:label="Stops">
+    <g id="Start">
+      <circle class="st5" cx="1760.3" cy="936.7" r="11.8"/>
+    </g>
+    <g id="Dot_1">
+      <circle class="st3" cx="1760.3" cy="751.8" r="11.8"/>
+    </g>
+    <g id="Dot_2">
+      <circle class="st3" cx="1760.3" cy="590.1" r="11.8"/>
+    </g>
+    <g id="Dot_3">
+      <circle class="st3" cx="1760.3" cy="478.8" r="11.8"/>
+    </g>
+    <g id="Dot_4">
+      <circle class="st3" cx="1760.3" cy="323.8" r="11.8"/>
+    </g>
+    <g id="Dot_5">
+      <circle class="st0" cx="1656.6" cy="157.6" r="11.8"/>
+    </g>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Reached_1">
+      <circle class="st5" cx="1760.3" cy="751.8" r="11.8"/>
+    </g>
+    <g id="Reached_2">
+      <circle class="st5" cx="1760.3" cy="590.1" r="11.8"/>
+    </g>
+    <g id="Reached_3">
+      <circle class="st5" cx="1760.3" cy="478.8" r="11.8"/>
+    </g>
+    <g id="Reached_4">
+      <circle class="st5" cx="1760.3" cy="323.8" r="11.8"/>
+    </g>
+    <g id="Reached_5">
+      <circle class="st5" cx="1656.6" cy="157.6" r="11.8"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text">
+    <g id="Stop_1">
+      <text class="st2" transform="translate(1789.7738 757.2425)"><tspan x="0" y="0">North Gate</tspan></text>
+    </g>
+    <g id="Stop_2">
+      <text class="st2" transform="translate(1789.7257 596.5208)"><tspan x="0" y="0">Mill Bridge</tspan></text>
+    </g>
+    <g id="Stop_3">
+      <text class="st2" transform="translate(1790.1688 485.16)"><tspan x="0" y="0">Old Town</tspan></text>
+    </g>
+    <g id="Stop_4">
+      <text class="st2" transform="translate(1790.1688 329.9305)"><tspan x="0" y="0">Riverside</tspan></text>
+    </g>
+    <g id="Stop_5">
+      <text class="st2" transform="translate(1680.8402 161.7806)"><tspan x="0" y="0">Festival Hall</tspan></text>
+    </g>
+  </g>
+</svg>

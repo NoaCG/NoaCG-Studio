@@ -220,9 +220,13 @@ const AFFINITY_NS = 'http://www.serif.com/';
 function isGeneratedId(id: string): boolean {
   const name = id.trim();
   return (
-    /^(?:svg|g|layer|text|textPath|tspan|flowRoot|flowRegion|flowPara|path|rect|circle|ellipse|line|polyline|polygon|use|image|symbol|pattern|clipPath|mask|defs|marker|linearGradient|radialGradient|stop|filter)[-_]?\d+$/i.test(
+    /^(?:svg|g|layer|text|textPath|tspan|flowRoot|flowRegion|flowPara|path|rect|circle|ellipse|line|polyline|polygon|use|image|symbol|pattern|clipPath|mask|defs|marker|linearGradient|radialGradient|filter)[-_]?\d+$/i.test(
       name,
-    ) || isDefaultObjectName(name)
+    ) ||
+    // A gradient stop only in the form an editor writes it ("stop1234"): "Stop 1" is a route's
+    // first stop, which Illustrator exports as `id="Stop_1"`.
+    /^stop\d+$/.test(name) ||
+    isDefaultObjectName(name)
   );
 }
 
