@@ -224,7 +224,7 @@ function addSceneCopy(
  * library graphic still replaces the original (poolIdentity.ts `poolPlacement`). Used by the OBS
  * scene separation and by a cue given its own layer (shows.ts `setCueLayer`).
  */
-export function addPoolCopy(show: SceneRecord, sourceId: string, { id, base, layer }: { id: string; base: string; layer: number }): string {
+export function addPoolCopy(show: SceneRecord, sourceId: string, { id, base, layer }: { id: string; base: string; layer: number }): void {
   const at = show.graphics.findIndex((g) => g.id === sourceId);
   const source = show.graphics[at];
   const name = freeName(show.graphics.map((g) => g.name), base);
@@ -241,5 +241,4 @@ export function addPoolCopy(show: SceneRecord, sourceId: string, { id, base, lay
   const profile = readShowProfile(show.profile);
   const arranged = profile.status === 'ok' && Object.prototype.hasOwnProperty.call(profile.profile.arrange, source.name) ? profile.profile.arrange[source.name] : undefined;
   if (arranged) show.profile = withGraphicArrange(profile.status === 'ok' ? profile.profile : undefined, name, arranged);
-  return name;
 }
