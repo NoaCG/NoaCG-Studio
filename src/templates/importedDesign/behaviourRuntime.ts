@@ -930,6 +930,7 @@ function noacgDrawPaint(el) {
     el.style.opacity = share >= 1 ? '' : String(share);
     return;
   }
+  el.style.opacity = '';
   for (var i = 0; i < parts.length; i++) {
     var s = parts[i].el.style;
     if (share >= 1) { s.strokeDasharray = ''; s.strokeDashoffset = ''; continue; }
@@ -949,8 +950,11 @@ function noacgDrawLook(el, on, reason) {
   if (state.tween && state.target === target) return on ? Math.max(0, state.ends - gsap.ticker.time) : 0;
   if (state.tween) { state.tween.kill(); state.tween = null; }
   if (state.share === target || !animate) {
-    state.share = target;
+    // At rest either way: drawn in full while it shows, and nothing of ours left on it when it
+    // hides (a hidden look measures nothing, so it is never painted part-way).
+    state.share = 1;
     noacgDrawPaint(el);
+    state.share = target;
     if (!on) noacgLookShow(el, false);
     return 0;
   }
