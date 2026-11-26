@@ -887,6 +887,139 @@ function noacgMove(el, move, appeared) {
   }
 }
 
+// ── Draw (a route's travelled track) ─────────────────────────────────────────
+// A look with \`enter: 'draw'\` draws its own strokes in, in the direction the designer drew
+// them, when a press brings it on, and draws them back out before it hides when a press takes it
+// off: the track from the last stop to the next. Its progress is one share, 0 to 1, tweened by
+// GSAP (so an OGraf seek lands on the same frame) and painted as each stroke's dash offset. A
+// look with no stroke to draw fades instead. Any other look that APPEARS in the same row while
+// the draw is under way waits for it, then arrives (the stop fills in once the track reaches it).
+
+// How long a whole draw takes at speed 1, in seconds.
+var NOACG_DRAW_SECONDS = 0.9;
+
+// noacgDrawParts(el): every stroked shape in the look, with its length, measured once while it
+// shows. A shape with no stroke is left alone; none at all, and the look fades instead.
+function noacgDrawParts(el) {
+  if (el.noacgDrawParts) return el.noacgDrawParts;
+  var tags = 'path,line,polyline,polygon,circle,ellipse,rect';
+  var all = el.matches && el.matches(tags) ? [el] : [];
+  var inner = el.querySelectorAll ? el.querySelectorAll(tags) : [];
+  for (var i = 0; i < inner.length; i++) all.push(inner[i]);
+  var parts = [];
+  for (var j = 0; j < all.length; j++) {
+    var stroke = '';
+    try { stroke = getComputedStyle(all[j]).stroke; } catch (e) { stroke = ''; }
+    if (!stroke || stroke === 'none') continue;
+    var length = 0;
+    try { length = all[j].getTotalLength(); } catch (e) { length = 0; }
+    if (length > 0) parts.push({ el: all[j], length: length });
+  }
+  // Only a real measurement is kept: a look not yet laid out measures nothing.
+  if (parts.length > 0) el.noacgDrawParts = parts;
+  return parts;
+}
+
+// noacgDrawPaint(el): the look at its current share - a dash as long as each stroke, offset by
+// what is not drawn yet. At a share of 1 the dash is taken off again, so a look at rest is
+// exactly the drawing.
+function noacgDrawPaint(el) {
+  var share = el.noacgDraw.share;
+  var parts = noacgDrawParts(el);
+  if (parts.length === 0) {
+    el.style.opacity = share >= 1 ? '' : String(share);
+    return;
+  }
+  el.style.opacity = '';
+  for (var i = 0; i < parts.length; i++) {
+    var s = parts[i].el.style;
+    if (share >= 1) { s.strokeDasharray = ''; s.strokeDashoffset = ''; continue; }
+    s.strokeDasharray = parts[i].length + ' ' + parts[i].length;
+    s.strokeDashoffset = String(parts[i].length * (1 - share));
+  }
+}
+
+// noacgDrawRest(el, state, target): the look at an end, now - drawn in full while it shows and
+// nothing of ours left on it when it hides (a hidden look measures nothing, so it is never
+// painted part-way).
+function noacgDrawRest(el, state, target) {
+  state.share = 1;
+  noacgDrawPaint(el);
+  state.share = target;
+  if (target === 0) noacgLookShow(el, false);
+}
+
+// A SNAP SETTLES A DRAW, it never replays one. The draw's tweens are on the drawing itself, so the
+// snap's killTweensOf('*') interrupts them like any other; an interrupted draw lands at its end,
+// and the snap's own repaint, which follows, sets every draw at once rather than drawing again.
+var noacgDrawSnapped = false;
+
+// noacgDrawLook(el, on, reason): show or hide a draw look. A press (a state or a data
+// repaint) draws it; anything else - the clock's tick, a snap, reduced motion, no GSAP - sets it
+// at once. Returns the time, in seconds from now, until the draw lands (0 when nothing draws).
+function noacgDrawLook(el, on, reason) {
+  var state = el.noacgDraw || (el.noacgDraw = { share: el.classList.contains('${LOOK_ON_CLASS}') ? 1 : 0, tween: null, target: 0 });
+  var animate = !noacgDrawSnapped && (reason === 'state' || reason === 'data') && typeof gsap !== 'undefined' && !noacgMotionReduced(el);
+  var target = on ? 1 : 0;
+  if (on) noacgLookShow(el, true);
+  if (state.tween && state.target === target) return on ? state.tween.duration() * (1 - state.tween.progress()) : 0;
+  if (state.tween) {
+    var turned = state.tween;
+    state.tween = null;           // ours to stop: no snap is reported
+    turned.kill();
+  }
+  if (state.share === target || !animate) {
+    noacgDrawRest(el, state, target);
+    return 0;
+  }
+  var from = state.share;
+  var seconds = (NOACG_DRAW_SECONDS * Math.abs(target - from)) / motionSpeed();
+  noacgDrawPaint(el);             // the dash, at where it is now
+  var parts = noacgDrawParts(el);
+  var vars = {
+    duration: seconds,
+    ease: on ? 'power1.inOut' : 'power1.in',
+    onUpdate: function () { state.share = from + (target - from) * tween.ratio; },
+    onComplete: function () {
+      state.tween = null;
+      noacgDrawRest(el, state, target);
+    },
+    onInterrupt: function () {
+      if (state.tween !== tween) return;
+      state.tween = null;
+      noacgDrawSnapped = true;
+      noacgDrawRest(el, state, target);
+    }
+  };
+  if (parts.length > 0) vars.strokeDashoffset = function (i) { return parts[i].length * (1 - target); };
+  else vars.opacity = target;
+  var tween = gsap.to(parts.length > 0 ? parts.map(function (p) { return p.el; }) : el, vars);
+  state.tween = tween;
+  state.target = target;
+  return on ? seconds : 0;
+}
+
+// noacgArrive(el, wait): a look that appeared in a row whose track is still drawing comes in
+// when the track lands, with a pop from its own centre. Undone the moment the look goes again.
+function noacgArrive(el, wait) {
+  if (typeof gsap === 'undefined' || noacgMotionReduced(el)) return;
+  var drawn = el.getAttribute('transform');
+  el.noacgArrive = gsap.timeline({
+    delay: wait,
+    onComplete: function () { noacgArriveDone(el, drawn); }
+  })
+    .fromTo(el, { opacity: 0, scale: 0.6, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 0.35 / motionSpeed(), ease: 'back.out(2.5)', immediateRender: true }, 0);
+  el.noacgArrive.drawn = drawn;
+}
+function noacgArriveDone(el, drawn) {
+  if (!el.noacgArrive) return;
+  el.noacgArrive.kill();
+  el.noacgArrive = null;
+  gsap.set(el, { clearProps: 'opacity,transform' });
+  // Clearing GSAP's transform takes the attribute with it (as noacgMove says).
+  if (drawn !== null && drawn !== undefined) el.setAttribute('transform', drawn);
+}
+
 // noacgGaugeFull(el): the layer as the designer drew it, which is what 100% means. Measured at
 // rest, once, and only a REAL measurement is remembered: getBBox throws in some engines and
 // answers zero in others while the element is unlaid-out, and caching that would retire the
@@ -1130,7 +1263,7 @@ function noacgRepaintWith(reason) {
   }
   var rules = NOACG_BEHAVIOUR.paint || [];
   // Looks first: any rule naming a token turns it on; a token no rule holds for goes off.
-  var lit = {}, pops = {}, seen = {}, defaults = {}, moves = {};
+  var lit = {}, pops = {}, seen = {}, defaults = {}, moves = {}, draws = {};
   var plates = {};                // row key ('' for none) -> its lit looks, for the readout inks
   var r, rule, keys, k;
   for (r = 0; r < rules.length; r++) {
@@ -1148,8 +1281,24 @@ function noacgRepaintWith(reason) {
         // a countdown's last stretch and its zero.
         if (rule.enter === 'pulse' || rule.enter === 'flash') moves[token] = rule.enter;
       }
+      // A draw look is drawn whether or not this rule holds: going off, it draws back out.
+      if (rule.enter === 'draw') draws[token] = true;
     }
   }
+  // Draws first, so a look appearing in the same row knows how long to wait for its track.
+  var waits = {};                 // row key -> seconds until that row's draw lands
+  for (var dt in draws) {
+    if (!Object.prototype.hasOwnProperty.call(draws, dt)) continue;
+    var dslash = dt.indexOf('/');
+    var drawEls = noacgRoleEls(dslash === -1 ? dt : dt.slice(0, dslash), dslash === -1 ? null : dt.slice(dslash + 1));
+    var drawRow = dslash === -1 ? '' : dt.slice(dslash + 1);
+    for (var de = 0; de < drawEls.length; de++) {
+      var wait = noacgDrawLook(drawEls[de], !!lit[dt], reason);
+      if (wait > (waits[drawRow] || 0)) waits[drawRow] = wait;
+      if (lit[dt]) (plates[drawRow] = plates[drawRow] || []).push(drawEls[de]);
+    }
+  }
+  noacgDrawSnapped = false;
 ${withAwards ? `  // The entries this repaint answered are spent: the next state repaint pops only for its own.
   if (reason === 'state') noacgEntered = {};
 ` : ''}  for (var t in seen) {
@@ -1162,9 +1311,13 @@ ${withAwards ? `  // The entries this repaint answered are spent: the next state
       els = made ? [made] : els;
     }
     var plateRow = slash === -1 ? '' : t.slice(slash + 1);
+    if (draws[t]) continue;
     for (var e = 0; e < els.length; e++) {
       var appeared = noacgLookShow(els[e], !!lit[t]);
-      if (lit[t] && pops[t]) noacgPop(els[e]);
+      if (!lit[t] && els[e].noacgArrive) noacgArriveDone(els[e], els[e].noacgArrive.drawn);
+      // Appearing while its row's track still draws: it arrives when the track lands instead.
+      if (appeared && waits[plateRow] > 0) noacgArrive(els[e], waits[plateRow]);
+      else if (lit[t] && pops[t] && !els[e].noacgArrive) noacgPop(els[e]);
       noacgMove(els[e], lit[t] ? moves[t] : undefined, appeared);
       if (lit[t]) (plates[plateRow] = plates[plateRow] || []).push(els[e]);
     }

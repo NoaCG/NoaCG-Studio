@@ -239,6 +239,20 @@ Draw `Crawl` where the run starts, and each `Word n` at the largest size its wor
 
 ---
 
+## A route with stops
+
+| Template | What it does in NoaCG |
+|---|---|
+| **Route map** | A show that moves from stop to stop. Type each stop's name, and the start's in Start. Take shows the route at its start. Next stop draws the blue line on to the next stop, then ticks it; Previous stop takes it back. Here marks the stop you are at. |
+
+| Template | Text | Moments | Board |
+|---|---|---|---|
+| **Route map** | `Title`, `Start`, `Stop 1` to `Stop 5` | `Track 1` to 5, `Here 1` to 5, `Reached 1` to 5 | `Panel`, `Rail`, `Start dot`, `Dot 1` to 5, `Stop box 1` to 5 |
+
+Draw each `Track` as a line from the stop before to its own stop, in the direction of travel, and hide it: NoaCG draws it in along that line. A track drawn as a filled shape fades in instead. For more stops, copy a stop's `Dot`, `Stop box`, `Track`, `Reached`, `Here` and `Stop` and rename the copies with the next number. A route has two to twelve stops.
+
+---
+
 ## The navy templates
 
 - **Title**: change Title and Subtitle. Take, then Out.
@@ -269,6 +283,7 @@ These use the same import workflow. The art shows the layout; fields on the prod
 - **Bingo caller**: the sample board has numbers 1 to 15. Type Number to call and press Call it. Called numbers stay marked; the newest has an extra mark. Take back corrects a call; New game clears the board.
 - **Switch**: Take the show card. Show Sponsor and Hide Sponsor display or clear its sponsor tag.
 - **Choice**: Take the card. Choose Live, Replay or Standby under Status. Only one status appears at a time.
+- **Route**: type the stop names. Take shows the start; Next stop draws the line on to the next stop and lights it, Previous stop takes it back.
 
 ---
 
@@ -316,6 +331,7 @@ Extra decorative shapes can have any name. Fixed text on the Board starts with `
 | **Bingo caller** | `Number 1` to `Number 15`; `Last call`, `Count` | `Called 1` to `Called 15`; `Last 1` to `Last 15` |
 | **Switch** | `Title`, `Subtitle` | `show:Sponsor` |
 | **Choice** | `Title`, `Subtitle` | `choice:Status/Live`, `choice:Status/Replay`, `choice:Status/Standby` |
+| **Route** | `Title`, `Stop 1` to `Stop 4` | `Track 1` to `Track 4`, `Reached 1` to `Reached 4` |
 
 Except bars and the standings' row plates, every Moments item is a hidden group. Draw its shapes and labels inside that group, then hide the group before exporting. NoaCG supplies the controls.
 

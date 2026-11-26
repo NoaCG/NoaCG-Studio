@@ -92,6 +92,7 @@ export const READS_ADDED: Array<{ since: string; what: string; reads: Partial<Om
   { since: 'TL6', what: "a crawl: a text layer that travels inside its window at the operator's pace, the lines it prints joined into one run", reads: { rule: ['crawl', 'speed', 'window'], kinds: { lines: { spec: ['kind'], facts: [], derive: ['joined', 'text'] } } } },
   { since: 'TL6', what: "a speaking timer: each side's clock run by the debate engine, and whether it has run out", reads: { kinds: { speaking: { spec: ['kind', 'side'], facts: ['expired'], derive: ['text'] } } } },
   { since: 'TL6', what: "a word cloud: each slot's word from staged counts, sized by its weight and kept inside its drawn sample", reads: { rule: ['size'], kinds: { 'word-counts': { spec: ['kind', 'rows'], facts: ['listed'], derive: ['label', 'weight', 'text'] } } } },
+  { since: 'route', what: "a route: the travelled track draws itself in to the stop a press reaches and back out on the way back, and the stop waits for it", reads: { enter: ['draw'] } },
 ];
 
 const union = <T>(a: T[], b: T[] = []): T[] => [...a, ...b.filter((w) => !a.includes(w))];

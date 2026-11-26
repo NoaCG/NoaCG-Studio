@@ -49,7 +49,7 @@ export interface BehaviourCondition {
 }
 
 /** The values of a look rule's `enter`. */
-export const LOOK_ENTERS = ['pop', 'pulse', 'flash'] as const;
+export const LOOK_ENTERS = ['pop', 'pulse', 'flash', 'draw'] as const;
 export type LookEnter = (typeof LOOK_ENTERS)[number];
 
 /** Show a drawn look while its condition holds. Several rules may name the SAME look; it shows
@@ -69,8 +69,11 @@ export interface LookRule {
    *  the wrong figure. `pulse`: a slow, steady pulse for as long as this rule holds, on any repaint
    *  (a clock tick lights a countdown's last stretch with neither a state nor a write). `flash`:
    *  one bounded flash when the look appears, then it rests. Both are GSAP, so an OGraf seek
-   *  lands on the same frame, and reduced motion shows the look without either. ADDITIVE:
-   *  `pulse` and `flash` are words a runtime must read (behaviourReads.ts). */
+   *  lands on the same frame, and reduced motion shows the look without either. `draw`: the
+   *  look's strokes draw themselves in along their own direction when it appears on a press, and
+   *  draw back out when it goes (a route's travelled track); any other look appearing in the same
+   *  row waits for the draw to land. ADDITIVE: `pulse`, `flash` and `draw` are words a runtime
+   *  must read (behaviourReads.ts). */
   enter?: LookEnter;
   /** The platform treatment painted when the look's layer is absent for that row - the moment
    *  ladder's rung 1 (docs/SVG_STATES_FROM_ARTWORK.md): `row-highlight`, `row-mark:correct`,

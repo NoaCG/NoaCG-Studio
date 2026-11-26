@@ -452,6 +452,15 @@ async function runExample(page: Page, testInfo: TestInfo, example: Example): Pro
       await expect(role(air, 'guest.done/1')).toHaveClass(/imported-design-on/);
       await expect(role(air, 'guest.now/2')).toHaveClass(/imported-design-on/);
       break;
+    case 'route':
+      // ROUTE: Next stop draws track 1 and lights stop 1; Previous stop takes both back.
+      await page.getByTestId('cue-action-nextStop').click();
+      await expect(role(air, 'stop.track/1')).toHaveClass(/imported-design-on/);
+      await expect(role(air, 'stop.reached/1')).toHaveClass(/imported-design-on/);
+      await page.getByTestId('cue-action-previousStop').click();
+      await expect(role(air, 'stop.reached/1')).not.toHaveClass(/imported-design-on/);
+      await expect(role(air, 'stop.track/1')).not.toHaveClass(/imported-design-on/);
+      break;
     case 'rotation': {
       // ROTATION (TL6): story 1's slide at the take; Next slide shows story 2's and hides the first.
       const slide = (k: number) => air.locator(`g[data-noacg-role~="slide/${k}"]`).first();

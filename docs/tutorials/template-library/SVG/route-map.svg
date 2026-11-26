@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Route map</title>
+  <desc>NoaCG Clean Studio template. A route up a rail from Start to Stop 1 to Stop 5, each stop's name a field. Next stop draws the hidden Track piece from the stop before and then shows that stop's Reached tick; Here marks the stop the route is at; Previous stop takes it back.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" inkscape:label="Panel" x="1460" y="140" width="400" height="790" rx="20" fill="#FFFFFF"/>
+    <line id="Rail" inkscape:label="Rail" x1="1530" y1="870" x2="1530" y2="270" stroke="#DCE1EA" stroke-width="10" stroke-linecap="round"/>
+    <circle id="Start_dot" inkscape:label="Start dot" cx="1530" cy="870" r="18" fill="#2E5BFF"/>
+    <circle id="Dot_1" inkscape:label="Dot 1" cx="1530" cy="750" r="14" fill="#FFFFFF" stroke="#DCE1EA" stroke-width="6"/>
+    <circle id="Dot_2" inkscape:label="Dot 2" cx="1530" cy="630" r="14" fill="#FFFFFF" stroke="#DCE1EA" stroke-width="6"/>
+    <circle id="Dot_3" inkscape:label="Dot 3" cx="1530" cy="510" r="14" fill="#FFFFFF" stroke="#DCE1EA" stroke-width="6"/>
+    <circle id="Dot_4" inkscape:label="Dot 4" cx="1530" cy="390" r="14" fill="#FFFFFF" stroke="#DCE1EA" stroke-width="6"/>
+    <circle id="Dot_5" inkscape:label="Dot 5" cx="1530" cy="270" r="14" fill="#FFFFFF" stroke="#DCE1EA" stroke-width="6"/>
+    <rect id="Stop_box_1" inkscape:label="Stop box 1" x="1562" y="722" width="270" height="56" rx="12" fill="#F3F5F9"/>
+    <rect id="Stop_box_2" inkscape:label="Stop box 2" x="1562" y="602" width="270" height="56" rx="12" fill="#F3F5F9"/>
+    <rect id="Stop_box_3" inkscape:label="Stop box 3" x="1562" y="482" width="270" height="56" rx="12" fill="#F3F5F9"/>
+    <rect id="Stop_box_4" inkscape:label="Stop box 4" x="1562" y="362" width="270" height="56" rx="12" fill="#F3F5F9"/>
+    <rect id="Stop_box_5" inkscape:label="Stop box 5" x="1562" y="242" width="270" height="56" rx="12" fill="#F3F5F9"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Track_1" inkscape:label="Track 1" style="display:none">
+      <line x1="1530" y1="870" x2="1530" y2="772" stroke="#2E5BFF" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    <g id="Track_2" inkscape:label="Track 2" style="display:none">
+      <line x1="1530" y1="750" x2="1530" y2="652" stroke="#2E5BFF" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    <g id="Track_3" inkscape:label="Track 3" style="display:none">
+      <line x1="1530" y1="630" x2="1530" y2="532" stroke="#2E5BFF" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    <g id="Track_4" inkscape:label="Track 4" style="display:none">
+      <line x1="1530" y1="510" x2="1530" y2="412" stroke="#2E5BFF" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    <g id="Track_5" inkscape:label="Track 5" style="display:none">
+      <line x1="1530" y1="390" x2="1530" y2="292" stroke="#2E5BFF" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    <g id="Here_1" inkscape:label="Here 1" style="display:none">
+      <rect x="1562" y="722" width="270" height="56" rx="12" fill="#E8EEFF"/>
+    </g>
+    <g id="Reached_1" inkscape:label="Reached 1" style="display:none">
+      <circle cx="1530" cy="750" r="18" fill="#2E5BFF"/>
+      <path d="M 1522 750 L 1527.5 756 L 1538.5 744" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="Here_2" inkscape:label="Here 2" style="display:none">
+      <rect x="1562" y="602" width="270" height="56" rx="12" fill="#E8EEFF"/>
+    </g>
+    <g id="Reached_2" inkscape:label="Reached 2" style="display:none">
+      <circle cx="1530" cy="630" r="18" fill="#2E5BFF"/>
+      <path d="M 1522 630 L 1527.5 636 L 1538.5 624" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="Here_3" inkscape:label="Here 3" style="display:none">
+      <rect x="1562" y="482" width="270" height="56" rx="12" fill="#E8EEFF"/>
+    </g>
+    <g id="Reached_3" inkscape:label="Reached 3" style="display:none">
+      <circle cx="1530" cy="510" r="18" fill="#2E5BFF"/>
+      <path d="M 1522 510 L 1527.5 516 L 1538.5 504" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="Here_4" inkscape:label="Here 4" style="display:none">
+      <rect x="1562" y="362" width="270" height="56" rx="12" fill="#E8EEFF"/>
+    </g>
+    <g id="Reached_4" inkscape:label="Reached 4" style="display:none">
+      <circle cx="1530" cy="390" r="18" fill="#2E5BFF"/>
+      <path d="M 1522 390 L 1527.5 396 L 1538.5 384" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="Here_5" inkscape:label="Here 5" style="display:none">
+      <rect x="1562" y="242" width="270" height="56" rx="12" fill="#E8EEFF"/>
+    </g>
+    <g id="Reached_5" inkscape:label="Reached 5" style="display:none">
+      <circle cx="1530" cy="270" r="18" fill="#2E5BFF"/>
+      <path d="M 1522 270 L 1527.5 276 L 1538.5 264" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" inkscape:label="Title" x="1500" y="200" font-size="26" font-weight="800" fill="#2E5BFF" letter-spacing="3">TONIGHT'S ROUTE</text>
+    <text id="Start" inkscape:label="Start" x="1580" y="879" font-size="24" font-weight="700" fill="#5B6478">Harbour</text>
+    <text id="Stop_1" inkscape:label="Stop 1" x="1580" y="760" font-size="28" font-weight="800" fill="#0F1729">Old Town</text>
+    <text id="Stop_2" inkscape:label="Stop 2" x="1580" y="640" font-size="28" font-weight="800" fill="#0F1729">Market Hall</text>
+    <text id="Stop_3" inkscape:label="Stop 3" x="1580" y="520" font-size="28" font-weight="800" fill="#0F1729">Riverside</text>
+    <text id="Stop_4" inkscape:label="Stop 4" x="1580" y="400" font-size="28" font-weight="800" fill="#0F1729">Museum Park</text>
+    <text id="Stop_5" inkscape:label="Stop 5" x="1580" y="280" font-size="28" font-weight="800" fill="#0F1729">Main Stage</text>
+  </g>
+</svg>

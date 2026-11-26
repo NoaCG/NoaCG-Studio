@@ -18,6 +18,7 @@ import { alertRecipe } from './alert';
 import { surveyRecipe } from './survey';
 import { listRecipe } from './list';
 import { lineupRecipe } from './lineup';
+import { routeRecipe } from './route';
 import { puzzleRecipe } from './puzzle';
 import { revealRecipe } from './reveal';
 import { bingoRecipe } from './bingo';
@@ -39,6 +40,7 @@ export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [
   surveyRecipe,
   listRecipe,
   lineupRecipe,
+  routeRecipe,
   puzzleRecipe,
   revealRecipe,
   bingoRecipe,

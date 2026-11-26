@@ -902,6 +902,70 @@
       }
     ]
   },
+  "route": {
+    "name": "The route",
+    "verbs": "stops on a track, Next and Back",
+    "buttons": "Next stop and Previous stop, a box for each stop's name, and the At stop figure (how many stops are behind the route) with + and −",
+    "rows": {
+      "role": "stop",
+      "keys": "numbers",
+      "min": 2,
+      "max": 12,
+      "teach": "Two to twelve stops, in the order the route reaches them. The route starts before stop 1: draw the start as plain artwork, and name a text layer `Start` if it needs its own box."
+    },
+    "roles": [
+      {
+        "id": "stop",
+        "label": "Stop",
+        "kind": "field",
+        "perRow": true,
+        "required": true,
+        "distinctive": true,
+        "pool": "text",
+        "words": "^(?:stop|station|pys[aä]kki|h[aå]llplats|halt|parada)$",
+        "teach": "Stop 1",
+        "also": ["Station 1", "Pysäkki 1", "Hållplats 1"],
+        "what": "the stop's name, a field the operator types"
+      },
+      {
+        "id": "stop.track",
+        "label": "Track",
+        "kind": "layer",
+        "paint": ["look"],
+        "perRow": true,
+        "distinctive": true,
+        "pool": "drawn",
+        "words": "^(?:track|travelled|traveled|sp[aå]r|kuljettu)$",
+        "teach": "Track 1",
+        "also": ["Travelled 1", "Spår 1"],
+        "what": "the travelled track from the stop before to this one, drawn as a stroke in the direction of travel - it draws itself in when the route gets here"
+      },
+      {
+        "id": "stop.reached",
+        "label": "Reached",
+        "kind": "layer",
+        "paint": ["look"],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "reached|arrived|visited|saavutettu|uppn[aå]dd",
+        "teach": "Reached 1",
+        "also": ["Arrived 1", "Visited 1"],
+        "what": "shown once the route is at this stop or past it - it arrives when the track lands"
+      },
+      {
+        "id": "stop.here",
+        "label": "Here",
+        "kind": "layer",
+        "paint": ["look"],
+        "perRow": true,
+        "pool": "drawn",
+        "words": "\\bhere\\b|t[aä]ss[aä]|\\bh[aä]r\\b",
+        "teach": "Here 1",
+        "also": ["Tässä 1", "Här 1"],
+        "what": "shown only on the stop the route is at"
+      }
+    ]
+  },
   "puzzle": {
     "name": "The puzzle board",
     "verbs": "letters appear as they are called",

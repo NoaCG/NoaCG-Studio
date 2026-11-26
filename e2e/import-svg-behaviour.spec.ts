@@ -2423,6 +2423,69 @@ test('lineup with a segment bug and a coming-up strip: Next guest walks the list
   await shot(page, '35-lineup-with-extras');
 });
 
+test('route restyled in Illustrator: Stop ids keep their names, Next stop draws the track in and fills the stop, Previous stop takes it back', async ({ page }) => {
+  // The owner's case (docs/work-specs/route-behaviour): a Milestone track restyled into a station
+  // map imported as the goal meter. Named the route's way and exported from Illustrator, whose
+  // ids (`Stop_1`) are the only names the file has, it is a route with a box per stop, Next stop
+  // and Previous stop.
+  test.setTimeout(120_000);
+  await openImportDoor(page, SHOW('station-route'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('route');
+  await expect(page.getByTestId('map-svg-recipe-count')).toHaveValue('5');
+  await filled(page, 'map-svg-recipe-stop.track-4');
+  await filled(page, 'map-svg-recipe-stop.reached-4');
+  await intoProduction(page, 'Stations', 'Touring show');
+  await settleDurableWrites(page);
+
+  const actions = page.getByTestId('cue-actions');
+  const next = actions.getByRole('button', { name: /Next stop/ });
+  const back = actions.getByRole('button', { name: /Previous stop/ });
+  await expect(next).toBeVisible();
+  await expect(back).toBeVisible();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const { air, layer, lit, dark } = onAir(page);
+  await dark('stop.track/1');
+  await dark('stop.reached/1');
+  await expect(back).toBeDisabled();
+
+  await next.click();
+  await lit('stop.track/1');
+  await lit('stop.reached/1');
+  await dark('stop.track/2');
+  // The track was DRAWN in, and it rests as drawn: no dash is left on its stroke.
+  await expect.poll(() => layer('stop.track/1').evaluate((el) => (el as unknown as { noacgDraw?: { share: number } }).noacgDraw?.share)).toBe(1);
+  await expect(layer('stop.track/1').locator('path')).toHaveCSS('stroke-dasharray', 'none');
+  await expect(page.getByTestId('cue-field-f5')).toHaveValue('1');
+  await next.click();
+  await lit('stop.reached/2');
+  await lit('stop.reached/1');
+  await back.click();
+  await dark('stop.reached/2');
+  await dark('stop.track/2');
+  await lit('stop.track/1');
+  for (let k = 2; k <= 5; k++) await next.click();
+  await lit('stop.track/5');
+  await expect(next).toBeDisabled();
+
+  // A stop renamed in its box is renamed on air.
+  await page.getByTestId('cue-field-f2').fill('Harbour Steps');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('#f2')).toHaveText('Harbour Steps');
+  await shot(page, '36-route-last-stop');
+
+  // Taken again mid-show, the cue keeps its place while the buttons start over: a Next past the
+  // end still shows the last stop rather than none.
+  await page.getByTestId('verb-out').click();
+  await page.getByTestId('verb-take').click();
+  await lit('stop.track/5');
+  await next.click();
+  await expect(page.getByTestId('cue-field-f5')).toHaveValue('6');
+  await lit('stop.track/5');
+  await lit('stop.reached/5');
+  await lit('stop.reached/1');
+});
+
 test('puzzle board: one press reveals the guessed letter, one takes it back, and Solve shows the rest', async ({ page }) => {
   // The Wheel of Fortune board: every tile's truth is derived from one typed phrase, character
   // by character, by the runtime's puzzle kind - a data write, never a state per letter. The

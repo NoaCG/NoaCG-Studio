@@ -1056,6 +1056,36 @@ async function runTemplate(page: Page, browser: Browser, t: Template): Promise<v
       await expect.poll(() => secs(timeA), { message: 'A runs after a new take' }).toBeLessThan(atA);
       break;
     }
+    case 'route': {
+      // ROUTE MAP: on air at the start; Next stop draws each track and ticks its stop, Here follows
+      // the route, Previous stop goes back, and the buttons grey at either end.
+      const stops = namedTexts(t.slug).filter((n) => /^Stop \d+$/.test(n)).length;
+      const is = (on: boolean) => (on ? /imported-design-on/ : /^(?!.*imported-design-on)/);
+      const state = async (at: number) => {
+        for (let k = 1; k <= stops; k++) {
+          await expect(role(air, `stop.track/${k}`), `track ${k}`).toHaveClass(is(k <= at));
+          await expect(role(air, `stop.reached/${k}`), `stop ${k} reached`).toHaveClass(is(k <= at));
+          await expect(role(air, `stop.here/${k}`), `stop ${k} here`).toHaveClass(is(k === at));
+        }
+      };
+      const press = (event: string) => page.getByTestId(`cue-action-${event}`);
+      await state(0);
+      await expect(press('previousStop'), 'Previous stop is greyed at the start').toBeDisabled();
+      await press('nextStop').click();
+      await press('nextStop').click();
+      await state(2);
+      await checkAir(page, air, `${t.slug}-2-second`);
+      for (let k = 2; k < stops; k++) await press('nextStop').click();
+      await state(stops);
+      await expect(press('nextStop'), 'Next stop is greyed on the last stop').toBeDisabled();
+      await press('previousStop').click();
+      await state(stops - 1);
+      // A stop renamed long fits its row.
+      await page.getByTestId(`cue-field-${await fieldFor(air, 'Stop 2')}`).fill('The old market hall by the harbour');
+      await page.getByTestId('verb-update').click();
+      await checkAir(page, air, `${t.slug}-3-long`);
+      break;
+    }
     case 'lineup': {
       // QUESTION QUEUE (TL6, the Lineup as it is): Next guest lights each question in turn and
       // greys the ones answered, Previous guest goes back, a row's own button jumps to it, and

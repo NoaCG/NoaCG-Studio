@@ -485,6 +485,12 @@
 <tr><td>On now (one per row)</td><td><code>Now 1</code></td><td><code>Current 1</code>, <code>Nyt 1</code></td><td>shown on the guest who is on</td></tr>
 <tr><td>Been on (one per row)</td><td><code>Done 1</code></td><td><code>Been 1</code>, <code>Past 1</code></td><td>shown on every guest who has already been on</td></tr>
 <tr><td colspan="4" class="doc-words-rows">Two to eight guests, in the order they come on.</td></tr>
+<tr class="doc-words-type"><th colspan="4">Route</th></tr>
+<tr><td>Stop (one per row)</td><td><code>Stop 1</code></td><td><code>Station 1</code>, <code>Pysäkki 1</code>, <code>Hållplats 1</code></td><td>the stop's name, a field the operator types</td></tr>
+<tr><td>Track (one per row)</td><td><code>Track 1</code></td><td><code>Travelled 1</code>, <code>Spår 1</code></td><td>the travelled track from the stop before to this one, drawn as a stroke in the direction of travel - it draws itself in when the route gets here</td></tr>
+<tr><td>Reached (one per row)</td><td><code>Reached 1</code></td><td><code>Arrived 1</code>, <code>Visited 1</code></td><td>shown once the route is at this stop or past it - it arrives when the track lands</td></tr>
+<tr><td>Here (one per row)</td><td><code>Here 1</code></td><td><code>Tässä 1</code>, <code>Här 1</code></td><td>shown only on the stop the route is at</td></tr>
+<tr><td colspan="4" class="doc-words-rows">Two to twelve stops, in the order the route reaches them. The route starts before stop 1: draw the start as plain artwork, and name a text layer `Start` if it needs its own box.</td></tr>
 <tr class="doc-words-type"><th colspan="4">Puzzle board</th></tr>
 <tr><td>Category</td><td><code>Category</code></td><td></td><td>a field the operator types</td></tr>
 <tr><td>Letter (one per row)</td><td><code>Letter 1</code></td><td><code>Tile 1</code>, <code>Kirjain 1</code></td><td>one letter, drawn as it looks revealed - written from the phrase, shown once its letter is called</td></tr>
