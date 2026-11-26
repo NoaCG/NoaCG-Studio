@@ -1820,6 +1820,9 @@ export default function CueEditor({
                 onChange={(e) => {
                   const { shows, error } = setCueLayer(show.id, editingCue.id, Number(e.target.value));
                   setShows(shows);
+                  // A cue given its own layer now plays its own copy: keep Advanced open on it.
+                  const moved = shows.find((s) => s.id === show.id)?.cues?.find((c) => c.id === editingCue.id)?.sourceId;
+                  if (moved && moved !== poolGraphic.id) setAdvancedFor(moved);
                   setLayerRefused(error ? { cueId: editingCue.id, error } : null);
                 }}
                 data-testid="graphic-layer"
