@@ -247,9 +247,9 @@ Draw `Crawl` where the run starts, and each `Word n` at the largest size its wor
 
 | Template | Text | Moments | Board |
 |---|---|---|---|
-| **Route map** | `Title`, `Start`, `Stop 1` to `Stop 5` | `Track 1` to 5, `Here 1` to 5, `Reached 1` to 5 | `Panel`, `Rail`, `Start dot`, `Dot 1` to 5 |
+| **Route map** | `Title`, `Start`, `Stop 1` to `Stop 5` | `Track 1` to 5, `Here 1` to 5, `Reached 1` to 5 | `Panel`, `Rail`, `Start dot`, `Dot 1` to 5, `Stop box 1` to 5 |
 
-Draw each `Track` as a line from the stop before to its own stop, in the direction of travel, and hide it: NoaCG draws it in along that line. A track drawn as a filled shape fades in instead. For more stops, copy a stop's `Dot`, `Track`, `Reached`, `Here` and `Stop` and rename the copies with the next number. A route has two to twelve stops.
+Draw each `Track` as a line from the stop before to its own stop, in the direction of travel, and hide it: NoaCG draws it in along that line. A track drawn as a filled shape fades in instead. For more stops, copy a stop's `Dot`, `Stop box`, `Track`, `Reached`, `Here` and `Stop` and rename the copies with the next number. A route has two to twelve stops.
 
 ---
 
