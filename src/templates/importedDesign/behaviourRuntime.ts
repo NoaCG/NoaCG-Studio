@@ -939,40 +939,63 @@ function noacgDrawPaint(el) {
   }
 }
 
+// noacgDrawRest(el, state, target): the look at an end, now - drawn in full while it shows and
+// nothing of ours left on it when it hides (a hidden look measures nothing, so it is never
+// painted part-way).
+function noacgDrawRest(el, state, target) {
+  state.share = 1;
+  noacgDrawPaint(el);
+  state.share = target;
+  if (target === 0) noacgLookShow(el, false);
+}
+
+// A SNAP SETTLES A DRAW, it never replays one. The draw's tweens are on the drawing itself, so the
+// snap's killTweensOf('*') interrupts them like any other; an interrupted draw lands at its end,
+// and the snap's own repaint, which follows, sets every draw at once rather than drawing again.
+var noacgDrawSnapped = false;
+
 // noacgDrawLook(el, on, reason): show or hide a draw look. A press (a state or a data
-// repaint) draws it; anything else - the clock's tick, reduced motion, no GSAP - sets it at once.
-// Returns the time, in seconds from now, until the draw lands (0 when nothing is drawing).
+// repaint) draws it; anything else - the clock's tick, a snap, reduced motion, no GSAP - sets it
+// at once. Returns the time, in seconds from now, until the draw lands (0 when nothing draws).
 function noacgDrawLook(el, on, reason) {
-  var state = el.noacgDraw || (el.noacgDraw = { share: el.classList.contains('${LOOK_ON_CLASS}') ? 1 : 0, tween: null });
-  var animate = (reason === 'state' || reason === 'data') && typeof gsap !== 'undefined' && !noacgMotionReduced(el);
+  var state = el.noacgDraw || (el.noacgDraw = { share: el.classList.contains('${LOOK_ON_CLASS}') ? 1 : 0, tween: null, target: 0 });
+  var animate = !noacgDrawSnapped && (reason === 'state' || reason === 'data') && typeof gsap !== 'undefined' && !noacgMotionReduced(el);
   var target = on ? 1 : 0;
   if (on) noacgLookShow(el, true);
-  if (state.tween && state.target === target) return on ? Math.max(0, state.ends - gsap.ticker.time) : 0;
-  if (state.tween) { state.tween.kill(); state.tween = null; }
+  if (state.tween && state.target === target) return on ? state.tween.duration() * (1 - state.tween.progress()) : 0;
+  if (state.tween) {
+    var turned = state.tween;
+    state.tween = null;           // ours to stop: no snap is reported
+    turned.kill();
+  }
   if (state.share === target || !animate) {
-    // At rest either way: drawn in full while it shows, and nothing of ours left on it when it
-    // hides (a hidden look measures nothing, so it is never painted part-way).
-    state.share = 1;
-    noacgDrawPaint(el);
-    state.share = target;
-    if (!on) noacgLookShow(el, false);
+    noacgDrawRest(el, state, target);
     return 0;
   }
-  var seconds = (NOACG_DRAW_SECONDS * Math.abs(target - state.share)) / motionSpeed();
-  state.target = target;
-  state.ends = gsap.ticker.time + seconds;
-  state.tween = gsap.to(state, {
-    share: target,
+  var from = state.share;
+  var seconds = (NOACG_DRAW_SECONDS * Math.abs(target - from)) / motionSpeed();
+  noacgDrawPaint(el);             // the dash, at where it is now
+  var parts = noacgDrawParts(el);
+  var vars = {
     duration: seconds,
     ease: on ? 'power1.inOut' : 'power1.in',
-    onUpdate: function () { noacgDrawPaint(el); },
+    onUpdate: function () { state.share = from + (target - from) * tween.ratio; },
     onComplete: function () {
       state.tween = null;
-      noacgDrawPaint(el);
-      if (!on) noacgLookShow(el, false);
+      noacgDrawRest(el, state, target);
+    },
+    onInterrupt: function () {
+      if (state.tween !== tween) return;
+      state.tween = null;
+      noacgDrawSnapped = true;
+      noacgDrawRest(el, state, target);
     }
-  });
-  noacgDrawPaint(el);
+  };
+  if (parts.length > 0) vars.strokeDashoffset = function (i) { return parts[i].length * (1 - target); };
+  else vars.opacity = target;
+  var tween = gsap.to(parts.length > 0 ? parts.map(function (p) { return p.el; }) : el, vars);
+  state.tween = tween;
+  state.target = target;
   return on ? seconds : 0;
 }
 
@@ -1275,6 +1298,7 @@ function noacgRepaintWith(reason) {
       if (lit[dt]) (plates[drawRow] = plates[drawRow] || []).push(drawEls[de]);
     }
   }
+  noacgDrawSnapped = false;
 ${withAwards ? `  // The entries this repaint answered are spent: the next state repaint pops only for its own.
   if (reason === 'state') noacgEntered = {};
 ` : ''}  for (var t in seen) {

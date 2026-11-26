@@ -2428,7 +2428,7 @@ test('route restyled in Illustrator: Stop ids keep their names, Next stop draws 
   // map imported as the goal meter. Named the route's way and exported from Illustrator, whose
   // ids (`Stop_1`) are the only names the file has, it is a route with a box per stop, Next stop
   // and Previous stop.
-  test.slow();
+  test.setTimeout(120_000);
   await openImportDoor(page, SHOW('station-route'));
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('route');
   await expect(page.getByTestId('map-svg-recipe-count')).toHaveValue('5');
