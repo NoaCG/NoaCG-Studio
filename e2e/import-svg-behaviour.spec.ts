@@ -2432,8 +2432,8 @@ test('route restyled in Illustrator: Stop ids keep their names, Next stop draws 
   await openImportDoor(page, SHOW('station-route'));
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('route');
   await expect(page.getByTestId('map-svg-recipe-count')).toHaveValue('5');
-  await filled(page, 'map-svg-recipe-stop.track-5');
-  await filled(page, 'map-svg-recipe-stop.reached-5');
+  await filled(page, 'map-svg-recipe-stop.track-4');
+  await filled(page, 'map-svg-recipe-stop.reached-4');
   await intoProduction(page, 'Stations', 'Touring show');
   await settleDurableWrites(page);
 
