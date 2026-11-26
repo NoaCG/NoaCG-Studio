@@ -12,6 +12,11 @@
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/45118041464"
     },
+    "e2e/editor-projects.spec.ts": {
+      "since": "2026-11-26",
+      "count": 4,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/45782716925"
+    },
     "e2e/output-debate-clock.spec.ts": {
       "since": "2026-11-23",
       "count": 5,
@@ -169,10 +174,6 @@
     "e2e/editor-pen.spec.ts": {
       "count": 1,
       "last": "2026-10-10"
-    },
-    "e2e/editor-projects.spec.ts": {
-      "count": 3,
-      "last": "2026-11-26"
     },
     "e2e/editor-transform-qualification.spec.ts": {
       "count": 1,
