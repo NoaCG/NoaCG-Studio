@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
-import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectApiFields, connectConnectorSource, connectShowSource, ownSheetGraphics, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
+import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectApiFields, connectConnectorSource, connectShowSource, ownSheetGraphics, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setCueLayer, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
 import { chosenPath, externalReadOnly, mappingEntries, proposeMapping, sourcePaths, type JsonValue, type MappingRow, type ResolvedValues } from '../../model/productionData';
@@ -1328,6 +1328,9 @@ export default function CueEditor({
    *  page's: e2e/playout-air-contract.spec.ts proves typing moves this one and not that one. */
   const renders = useRef(0);
   renders.current += 1;
+  /** Why the last layer change was refused (setCueLayer), cleared by the next one. */
+  const [layerRefused, setLayerRefused] = useState<{ cueId: string; error: string } | null>(null);
+  const layerRefusal = layerRefused?.cueId === editingCue.id ? layerRefused.error : null;
   const editingView = useCueView(draft, editingCue);
   const bound = boundFields(selectedGraphic);
   /** A field nothing typed here may fill: bound to the tree, or showing a live candidate. */
@@ -1814,10 +1817,18 @@ export default function CueEditor({
                 min={MIN_PLAYOUT_LAYER}
                 max={MAX_PLAYOUT_LAYER}
                 value={editedLayer}
-                onChange={(e) => setShows(setShowGraphicLayer(show.id, poolGraphic.id, Number(e.target.value)))}
+                onChange={(e) => {
+                  const { shows, error } = setCueLayer(show.id, editingCue.id, Number(e.target.value));
+                  setShows(shows);
+                  // A cue given its own layer now plays its own copy: keep Advanced open on it.
+                  const moved = shows.find((s) => s.id === show.id)?.cues?.find((c) => c.id === editingCue.id)?.sourceId;
+                  if (moved && moved !== poolGraphic.id) setAdvancedFor(moved);
+                  setLayerRefused(error ? { cueId: editingCue.id, error } : null);
+                }}
                 data-testid="graphic-layer"
               />
             </label>
+            {layerRefusal && <p className="status-warn" data-testid="graphic-layer-refused">{layerRefusal}</p>}
 
             {/* THE DATA TEMPLATE (data-sources C1a, AC-13): every value of this graphic as
                 `Field ID,Label,Value`, keyed by id so a reordered row or a renamed label still

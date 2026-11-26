@@ -213,14 +213,26 @@ function addSceneCopy(
   sceneName: string,
   deps: { freeLayer: (graphics: Show['graphics']) => number },
 ): void {
+  const source = show.graphics.find((g) => g.id === sourceId)!;
+  addPoolCopy(show, sourceId, { id, base: `${source.name} · ${sceneName}`, layer: deps.freeLayer(show.graphics) });
+}
+
+/**
+ * A copy of a pool graphic, placed after it in the pool under a free name built from `base`: its
+ * own id, name and layer, everything else (design, library link, adjustments, sounds, binding,
+ * arrangement) as the source has it. `sceneCopyOf` marks it as not the original, so re-adding the
+ * library graphic still replaces the original (poolIdentity.ts `poolPlacement`). Used by the OBS
+ * scene separation and by a cue given its own layer (shows.ts `setCueLayer`).
+ */
+export function addPoolCopy(show: SceneRecord, sourceId: string, { id, base, layer }: { id: string; base: string; layer: number }): void {
   const at = show.graphics.findIndex((g) => g.id === sourceId);
   const source = show.graphics[at];
-  const name = freeName(show.graphics.map((g) => g.name), `${source.name} · ${sceneName}`);
+  const name = freeName(show.graphics.map((g) => g.name), base);
   const copy = structuredClone(source);
   copy.id = id;
   copy.name = name;
   copy.template = { ...copy.template, name };
-  copy.layer = deps.freeLayer(show.graphics);
+  copy.layer = layer;
   copy.sceneCopyOf = source.id;
   show.graphics = [...show.graphics.slice(0, at + 1), copy, ...show.graphics.slice(at + 1)];
   const bound = show.bindings && Object.prototype.hasOwnProperty.call(show.bindings, source.name) ? show.bindings[source.name] : undefined;

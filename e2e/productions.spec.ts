@@ -715,6 +715,60 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   ]);
 });
 
+test('a cue\'s layer is its own: two cues of one lower third can air together', async ({ page }) => {
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openWorkingGraphicInEditor(page);
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Strap');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-productions').click();
+  await page.getByTestId('new-production-name').fill('Panel Show');
+  await page.getByTestId('new-production').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('add-graphic-pick').selectOption({ label: 'Strap' });
+  await page.getByTestId('add-graphic').click();
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(rows).toHaveCount(1);
+  await page.getByTestId('cue-label').fill('Anna');
+
+  // A second cue of the SAME graphic shares its layer until told otherwise.
+  await page.getByTestId('rundown-add').click();
+  await page.getByTestId('add-cue').click();
+  await expect(rows).toHaveCount(2);
+  await page.getByTestId('cue-label').fill('Ben');
+  const rowLayers = page.getByTestId('cue-list').locator('[data-testid="cue-layer"]');
+  await expect(rowLayers.nth(0)).toHaveText('G20');
+  await expect(rowLayers.nth(1)).toHaveText('G20');
+
+  // Changing Ben's layer moves Ben only: Anna stays on 20.
+  await page.getByTestId('cue-advanced-toggle').click();
+  await page.getByTestId('graphic-layer').fill('25');
+  await expect(rowLayers.nth(1)).toHaveText('G25');
+  await expect(rowLayers.nth(0)).toHaveText('G20');
+  await expect(page.getByTestId('layer-clash')).toHaveCount(0);
+
+  // Ben now plays his own copy, so the output carries two graphics on two layers: both can be up.
+  const pool = await page.evaluate(async () => {
+    const { loadShows, graphicLayer } = await __noacgImport('/src/model/shows.ts');
+    const show = loadShows()[0];
+    const nameOf = (id: string) => show.graphics.find((g: { id: string }) => g.id === id)?.name;
+    return {
+      graphics: show.graphics.map((g: { name: string; layer?: number }) => [g.name, graphicLayer(g)]),
+      cues: (show.cues ?? []).map((c: { label: string; sourceId: string }) => [c.label, nameOf(c.sourceId)]),
+    };
+  });
+  expect(pool.graphics).toEqual([['Strap', 20], ['Strap 2', 25]]);
+  expect(pool.cues).toEqual([['Anna', 'Strap'], ['Ben', 'Strap 2']]);
+
+  // Ben is the only cue of his copy now, so typing again moves the copy, no further copies.
+  await page.getByTestId('graphic-layer').fill('26');
+  await expect(rowLayers.nth(1)).toHaveText('G26');
+  await expect(rowLayers.nth(0)).toHaveText('G20');
+  expect(await page.evaluate(async () => (await __noacgImport('/src/model/shows.ts')).loadShows()[0].graphics.length)).toBe(2);
+});
+
 test('the program monitor is the real renderer, and every verb reaches it without a wire', async ({ page }) => {
   // The verbs work on an UNPUBLISHED production: they drive the local PROGRAM monitor, which is
   // the same createOutputStage the published output URL is built from. That is what makes the
