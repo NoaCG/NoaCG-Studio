@@ -356,6 +356,10 @@
       "fix": 2751,
       "landed": "56fa2286 (#2752)",
       "note": "audit check moved to 2026-12-06T14:55Z"
+    },
+    {
+      "checkin": "2026-11-26T07:30Z",
+      "note": "no new reset (66ab49d3); quarantine 8 specs; ages alarm on #2633/#2643 cleared by closing"
     }
   ],
   "decisions": [
@@ -471,6 +475,16 @@
       "at": "2026-11-25T13:00Z",
       "by": "owner (coordinator session)",
       "what": "Audit reset fix: \"build it\". A covers change resets the selection audit only when an existing file loses its spec (#2751); selector code, membership and trailers unchanged."
+    },
+    {
+      "at": "2026-11-26T07:30Z",
+      "by": "coordinator",
+      "what": "One-push-per-round measured 148/282 (52.5%) mid-run, over the 33% line; #2423 parked, not landed: runner queue p90 2 s (992 jobs), cancelled runs cost only free minutes and #2423 would add waiting time. Revisit if queue p90 > 60 s."
+    },
+    {
+      "at": "2026-11-26T07:25Z",
+      "by": "coordinator",
+      "what": "Closed stale bot quarantine PRs #2633, #2643 (main already released both specs)."
     }
   ],
   "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
@@ -606,11 +620,7 @@
   ],
   "dated": [
     {
-      "what": "#2447 overhead repayment due",
-      "eta": "2026-11-26"
-    },
-    {
-      "what": "one-push-per-round measurement (land-4.md, mid-run pushes <= 33% else #2423)",
+      "what": "#2447 overhead repayment: tier at 91% (report 45231329918), owner to close",
       "eta": "2026-11-26"
     }
   ]
